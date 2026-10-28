@@ -742,3 +742,235 @@ spark-web-player #toolbar select {
   flex-direction: row;
   align-items: center;
 }
+
+/* ===== Route button and route list =====
+   They take their colours from these variables, whose defaults are the
+   player's own look; a host themes them by setting the variables. */
+spark-web-player {
+  --swp-route-warning-color: #cca700;
+  --swp-route-error-color: var(--swp-error-color);
+  --swp-route-accent-color: var(--swp-accent-color);
+  --swp-route-panel-background-color: var(--swp-background-color);
+  --swp-route-panel-border-color: var(--swp-toolbar-border-color);
+  --swp-route-hover-color: var(--swp-toolbar-button-hover-color);
+  --swp-route-active-color: var(--swp-toolbar-button-active-color);
+  --swp-route-muted-color: color-mix(in srgb, currentColor 60%, transparent);
+  --swp-route-list-max-height: 50%;
+}
+
+spark-web-player #route-button {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+spark-web-player .route-button {
+  pointer-events: auto;
+  cursor: pointer;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--swp-toolbar-button-gap);
+  padding: 0 var(--swp-toolbar-button-gap);
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  spark-web-player .route-button:hover {
+    background-color: var(--swp-route-hover-color);
+  }
+}
+
+spark-web-player .route-button:active,
+spark-web-player .route-button[aria-expanded="true"] {
+  background-color: var(--swp-route-active-color);
+}
+
+/* The name gives way when narrow; the icon and the bracket stay. */
+spark-web-player .route-button-label {
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  white-space: pre;
+}
+
+spark-web-player .route-button-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+spark-web-player .route-button-lines {
+  flex: none;
+}
+
+spark-web-player .route-button.failed {
+  color: var(--swp-route-error-color);
+}
+
+spark-web-player .route-icon {
+  flex: none;
+  width: var(--swp-toolbar-icon-size);
+  height: var(--swp-toolbar-icon-size);
+}
+
+spark-web-player .route-button .route-icon[data-icon="forced"],
+spark-web-player .route-button .route-icon[data-icon="clipped"],
+spark-web-player .route-entry[data-kind="forced"] .route-icon,
+spark-web-player .route-entry[data-kind="clipped"] .route-icon,
+spark-web-player .route-toggle[data-kind="forced"] .route-icon,
+spark-web-player .route-toggle[data-kind="clipped"] .route-icon {
+  color: var(--swp-route-warning-color);
+}
+
+spark-web-player .route-entry[data-kind="pinned"] .route-icon,
+spark-web-player .route-toggle[data-kind="pinned"] .route-icon {
+  color: var(--swp-route-accent-color);
+}
+
+/* While the list is open the viewport stacks the game, the toolbar and the
+   list, and the game gives up the room the list takes. */
+spark-web-player #viewport.route-open:not(.fullscreen) {
+  display: flex;
+  flex-direction: column;
+}
+
+spark-web-player #viewport.route-open:not(.fullscreen) #game {
+  flex: 1 1 0;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+spark-web-player #viewport.route-open:not(.fullscreen) #toolbar {
+  flex: none;
+}
+
+spark-web-player #route-list {
+  flex: none;
+  max-height: var(--swp-route-list-max-height);
+  overflow: auto;
+  pointer-events: auto;
+  background-color: var(--swp-route-panel-background-color);
+  border-top: 1px solid var(--swp-route-panel-border-color);
+  font-size: var(--swp-toolbar-font-size);
+}
+
+spark-web-player .fullscreen #route-list {
+  display: none;
+}
+
+spark-web-player .route-list-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--swp-toolbar-button-gap);
+  padding: 4px var(--swp-toolbar-button-gap);
+  background-color: var(--swp-route-panel-background-color);
+}
+
+spark-web-player .route-list-title {
+  font-weight: 600;
+  margin-right: auto;
+}
+
+spark-web-player .route-list-toggles {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+spark-web-player .route-toggle,
+spark-web-player .route-list-close,
+spark-web-player .route-line {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  spark-web-player .route-toggle:hover,
+  spark-web-player .route-list-close:hover,
+  spark-web-player .route-line:hover {
+    background-color: var(--swp-route-hover-color);
+  }
+}
+
+spark-web-player .route-toggle[aria-pressed="true"] {
+  background-color: var(--swp-route-active-color);
+}
+
+spark-web-player .route-toggle[aria-pressed="false"] {
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-toggle-count {
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-list-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--swp-toolbar-button-gap) 4px;
+}
+
+spark-web-player .route-entry {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--swp-toolbar-button-gap);
+  min-height: 22px;
+}
+
+spark-web-player .route-line {
+  min-width: 3em;
+  justify-content: flex-end;
+  color: var(--swp-route-accent-color);
+  font-variant-numeric: tabular-nums;
+}
+
+spark-web-player .route-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(to left, transparent 0, #000 16px);
+}
+
+spark-web-player .route-start .route-text,
+spark-web-player .route-badge {
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-badge {
+  flex: none;
+}
+
+spark-web-player .route-list-note,
+spark-web-player .route-list-foot,
+spark-web-player .route-list-failure {
+  margin: 0;
+  padding: 2px var(--swp-toolbar-button-gap) 6px;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-list-failure {
+  color: var(--swp-route-error-color);
+}

@@ -9,6 +9,10 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type {
+  PreviewRoute,
+  ScriptSource,
+} from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import {
   installGameWorker,
   NoGameError,
@@ -143,6 +147,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     seedBuiltinsIntoStory: true,
   });
 
+  /** The scripts as the compiler holds them, which a route's report reads
+   *  (`Game.previewRouteOf`). */
+  const source: ScriptSource = {
+    lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
+    structure: (uri) => compiler.structureOf(uri),
+  };
+
   // The record of what the last route search in the real program the game
   // holds established, and the rule for when that is safe to reuse. See
   // RouteSearchLog for why neither a checkpoint's existence nor the checkpoint
@@ -158,6 +169,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     searchRouteFor(game, to, routeSearches, {
       config: compiler.config,
       profilerId: compiler.profilerId,
+      source,
     });
 
   // ---- The programs the game can display ----------------------------------
@@ -375,6 +387,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         config: compiler.config,
         profilerId,
         remember: false,
+        source,
       });
       log.report(params, to);
     }
@@ -523,6 +536,9 @@ export function installPlayerWorker(connection: MessageConnection) {
      *  the point asked for (`shownRoute`), and that beat's address. */
     shownFrom?: { file: string; line: number };
     shownAddress?: ProgramAddress;
+    /** The route the checkpoint was replayed along, as the preview reports
+     *  it. */
+    route?: PreviewRoute;
   };
 
   /** What `log` holds about the address `to`, as the display and PLAY read
@@ -535,7 +551,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     log.report(report, to);
     // The checkpoint as the log holds it, which `report` passes on only as a
     // full save.
-    return { ...report, checkpoint: log.checkpointFor(to) };
+    return {
+      ...report,
+      checkpoint: log.checkpointFor(to),
+      route: log.outcomeFor(to)?.route,
+    };
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
@@ -585,6 +605,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         profilerId: compiler.profilerId,
         remember: entry.log === routeSearches,
         fromStart,
+        source,
       });
 
   /**
@@ -750,6 +771,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
+        route: route.route,
         runFrom: route.shownAddress,
         beatOnly,
         onPath: (taken) => {

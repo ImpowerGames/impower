@@ -126,13 +126,24 @@ const freshManager = async () => {
   return SparkdownPreviewGamePanelManager.instance;
 };
 
+/** The extension's context as the panel reads it: where its files are, and
+ *  the state it keeps for the author across windows (the route list's
+ *  toggles), which starts empty. */
+const extensionContext = {
+  extensionUri: "ext",
+  globalState: {
+    get: (_key: string, fallback?: unknown) => fallback,
+    update: () => Promise.resolve(),
+  },
+} as any;
+
 /** VS Code handing the extension's serializer a panel it restored. */
 const deserialize = async (panel: unknown, saved: unknown) => {
   const { SparkdownPreviewGamePanelSerializer } =
     await import("../src/managers/SparkdownPreviewGamePanelSerializer");
-  await new SparkdownPreviewGamePanelSerializer({
-    extensionUri: "ext",
-  } as any).deserializeWebviewPanel(panel as any, saved as any);
+  await new SparkdownPreviewGamePanelSerializer(
+    extensionContext,
+  ).deserializeWebviewPanel(panel as any, saved as any);
 };
 
 const restore = async (panel: unknown, saved: unknown) => {
@@ -301,7 +312,7 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     });
     await opening;
     await manager.showPanel(
-      { extensionUri: "ext" } as any,
+      extensionContext,
       state.vscode.window.activeTextEditor.document,
     );
     release();

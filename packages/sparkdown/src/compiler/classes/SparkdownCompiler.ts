@@ -75,6 +75,28 @@ import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { isLoopInternal, loopExitOf } from "../lower/utils/statementShape";
+import { nodeNameSet } from "../utils/nodeNameSet";
+import type {
+  ScriptBody,
+  ScriptLoop,
+  ScriptStructure,
+} from "../utils/routeDecisions";
+
+/** The syntax nodes of a `repeat` loop, of every other loop, as the loops'
+ *  lowerings read them, and of a function's body (`structureOf`). */
+const REPEAT_LOOP_NODES = nodeNameSet([
+  "LuauRepeatLoop",
+  "LuauSparkdownRepeatLoop",
+  "LuauSparkdownExplicitRepeatLoop",
+]);
+const OTHER_LOOP_NODES = nodeNameSet([
+  "LuauWhileLoop",
+  "LuauSparkdownWhileLoop",
+  "LuauForLoop",
+  "LuauSparkdownForLoop",
+  "LuauSparkdownExplicitLoop",
+]);
+const FUNCTION_BODY_NODES = nodeNameSet(["LuauFunctionBody"]);
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -4786,6 +4808,34 @@ export class SparkdownCompiler {
       cur.next();
     }
     return ends;
+  }
+
+  /** A script's loops and function bodies, counting lines from 0: each
+   *  loop's first line, the line of its `end` (or its `until`) and whether
+   *  it is a `repeat` loop, whose body runs before its test; and each
+   *  function body's first and last line. Read from the syntax tree when
+   *  asked, which only a route's report does (`Game.previewRouteOf`). */
+  structureOf(uri: string): ScriptStructure {
+    const doc = this.documents.get(uri);
+    const tree = doc ? this.documents.tree(uri) : undefined;
+    const loops: ScriptLoop[] = [];
+    const bodies: ScriptBody[] = [];
+    if (!doc || !tree) {
+      return { loops, bodies };
+    }
+    tree.iterate({
+      enter: (node) => {
+        const first = doc.lineAt(node.from);
+        const last = doc.lineAt(Math.max(node.from, node.to - 1));
+        const repeat = REPEAT_LOOP_NODES.has(node.name);
+        if (repeat || OTHER_LOOP_NODES.has(node.name)) {
+          loops.push({ header: first, end: last, repeat });
+        } else if (FUNCTION_BODY_NODES.has(node.name)) {
+          bodies.push({ start: first, end: last });
+        }
+      },
+    });
+    return { loops, bodies };
   }
 
   populateDeclarationLocations(program: SparkProgram) {

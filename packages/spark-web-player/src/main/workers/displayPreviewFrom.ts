@@ -1,5 +1,6 @@
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -16,6 +17,7 @@ export interface DisplayingGame {
   simulateFlow: string | null | undefined;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
+  previewRoute: PreviewRoute | undefined;
   markPreviewing(previewAddress?: ProgramAddress): void;
   routeStartOf(address: ProgramAddress): string;
   endSimulation(): void;
@@ -67,6 +69,9 @@ export interface DisplayRequest {
    *  save. */
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
+  /** The route the checkpoint was replayed along, as the preview reports it
+   *  (`Game.previewRouteOf`). */
+  route?: PreviewRoute;
   /** Where a display with no route runs from, when not the point's own
    *  address (`Game.preview`). */
   runFrom?: ProgramAddress;
@@ -145,6 +150,9 @@ export async function displayPreviewFrom(
   // modules restore as a simulation does.
   game.endSimulation();
   const checkpoint = request.checkpoint;
+  // What the display reports as its route: the route to the checkpoint it
+  // loads, and none for a display no route reached.
+  game.previewRoute = checkpoint ? request.route : undefined;
   if (typeof checkpoint === "string" && checkpoint) {
     game.load(checkpoint);
   } else if (checkpoint && typeof checkpoint === "object") {
