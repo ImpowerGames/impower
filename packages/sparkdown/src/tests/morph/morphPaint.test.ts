@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
-import { morphFrameState, morphPosesAt, poseLeaf, renderMorphAt } from "../../morph/render";
+import { renderMorphAt } from "../../morph/render";
 import type { MorphArtifact, MorphTransition } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { paintBlink, paintedPortrait } from "./fixtures";
@@ -88,37 +88,54 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     expect(declared(artifact, 0.25, "cheek", "fill")).toBe("rgba(128,0,128,1)");
   });
 
-  test("`currentColor` under an invalid `color: none` is the inherited colour, not transparent", () => {
-    expect(recorded(artifact, "freckle").paint).toEqual({ fill: [[0, 255, 0, 1], [255, 255, 255, 1]] });
-    expect(declared(artifact, 0.25, "freckle", "fill")).toBe("rgba(128,255,128,1)");
+  test("paint decided by a declaration outside the grammar stays unblended and draws as authored", () => {
+    // `color: none` under `currentColor` (`freckle`, `spot`, `dot`), an
+    // ancestor's `all:initial` (`mark`) and a fill spaced by no-break spaces
+    // (`blot`): each pair keeps its own paint between the poses.
+    for (const name of ["freckle", "spot", "dot", "mark", "blot"]) {
+      expect(recorded(artifact, name).paint, name).toBeUndefined();
+      expect(declared(artifact, 0.25, name, "fill"), name).toBeUndefined();
+    }
   });
 
-  test("an invalid `color: none` is dropped from the cascade, so the element's next declaration applies", () => {
-    // The `color` attribute under an inline `color:none`.
-    expect(recorded(artifact, "spot").paint).toEqual({ fill: [[255, 0, 0, 1], [255, 255, 255, 1]] });
-    expect(declared(artifact, 0.25, "spot", "fill")).toBe("rgba(255,128,128,1)");
-    // An inline blue before an important `color:none`.
-    expect(recorded(artifact, "dot").paint).toEqual({ fill: [[0, 0, 255, 1], [255, 255, 255, 1]] });
-    expect(declared(artifact, 0.25, "dot", "fill")).toBe("rgba(128,128,255,1)");
-  });
-
-  test("an inline `all` declaration takes part in the cascade", () => {
-    // `all:initial` on the open drawing's group resets its red fill to black.
-    expect(recorded(artifact, "mark").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
-    expect(declared(artifact, 0.25, "mark", "fill")).toBe("rgba(128,128,128,1)");
-  });
-
-  test("a value spaced by no-break spaces is invalid and leaves the paint unblended", () => {
-    expect(recorded(artifact, "blot").paint).toBeUndefined();
-    expect(declared(artifact, 0.25, "blot", "fill")).toBeUndefined();
-  });
-
-  test("the blend is written important over an important inline `all`", () => {
-    const element = { tagName: "path", attributes: { style: "all:initial !important", d: "M0,0" }, children: [] };
-    const state = morphFrameState(artifact, morphPosesAt(artifact, 0));
-    state.paint.set("leaf", { fill: "rgba(1,2,3,1)" });
-    poseLeaf(element, "leaf", state);
-    expect(element.attributes.style).toBe("all:initial !important;fill:rgba(1,2,3,1) !important");
+  describe("out-of-grammar inputs leave the pair unblended", () => {
+    // One drawing open, a white one closed; the open drawing's paint is
+    // declared as each case says, under a green root `color`.
+    const pair = (open: string) =>
+      bakeMorphArtifact({
+        source: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20" color="#0f0">
+<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="#fff"/></g>
+</svg>`,
+        selection: {},
+        recipe: paintBlink(),
+        key: "pair",
+      });
+    const cases: [string, string][] = [
+      ["unset", 'fill="#f00" style="fill:unset"'],
+      ["revert", 'fill="#f00" style="fill:revert"'],
+      ["revert-layer", 'fill="#f00" style="fill:revert-layer"'],
+      ["all", 'fill="#f00" style="all:initial"'],
+      ["var()", 'style="fill:var(--x)"'],
+      ["a comment", 'style="fill:/*x*/#000"'],
+      ["an escape", 'style="fill:r\\65 d"'],
+      ["a no-break space", 'fill=" #000"'],
+      ["a non-ASCII name", 'fill="röd"'],
+      ["color: none", 'color="none" fill="currentColor"'],
+    ];
+    test.each(cases)("%s", (_, open) => {
+      const artifact = pair(open);
+      expect(artifact.status).toBe("live");
+      expect(recorded(artifact, "lash").paint).toBeUndefined();
+      // The moving drawing keeps its markup's own declaration, if any.
+      expect(declared(artifact, 0.25, "lash", "fill") ?? "").not.toMatch(/^rgba\(/);
+    });
+    test("in-grammar controls blend", () => {
+      expect(declared(pair('fill="#000"'), 0.25, "lash", "fill")).toBe("rgba(128,128,128,1)");
+      expect(declared(pair('style="fill:\n  rgb(0 0 0) !important"'), 0.25, "lash", "fill")).toBe("rgba(128,128,128,1) !important");
+      expect(declared(pair('fill="currentColor"'), 0.25, "lash", "fill")).toBe("rgba(128,255,128,1)");
+      expect(declared(pair('fill="#f00" style="fill:initial"'), 0.25, "lash", "fill")).toBe("rgba(128,128,128,1)");
+    });
   });
 
   test("an important inline fill is the one blended, and the blend is written important over it", () => {

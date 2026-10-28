@@ -188,14 +188,13 @@ const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}
  * gradient open; `veil` with its fill, stroke and own opacities lowered
  * when closed; `shadow`, black open, blue half-closed and red closed;
  * `glint`, black open and half-closed and red closed. The rest are white
- * closed and open in a colour a browser works out from declarations it
- * drops or resets: `freckle` in `currentColor` under an invalid
- * `color="none"`, so the root's green; `spot` in `currentColor` with a red
- * `color` attribute and an invalid inline `color:none`, so red; `dot` in
- * `currentColor` with an inline blue `color` and an invalid important
- * `color:none` after it, so blue; `mark` in a red-filled group whose inline
- * `all:initial` resets that fill, so black; and `blot` with an `rgb()` fill
- * spaced by no-break spaces, which is invalid, so the inherited black.
+ * closed and open in paint decided by a declaration outside the paint
+ * grammar, so they stay unblended: `freckle` in `currentColor` under
+ * `color="none"`; `spot` in `currentColor` with a red `color` attribute and
+ * an inline `color:none`; `dot` in `currentColor` with an inline blue
+ * `color` and an important `color:none` after it; `mark` in a red-filled
+ * group with an inline `all:initial`; and `blot` with an `rgb()` fill spaced
+ * by no-break spaces.
  */
 export function paintedPortrait(): string {
   const pose = (dy: number) => ({

@@ -1,10 +1,10 @@
-// The solid paint a drawing is drawn with, resolved as a browser would from
-// the artwork's attributes and inline styles, and the record a `morph`
+// The solid paint a drawing is drawn with, read from the artwork's attributes
+// and inline styles within a closed grammar, and the record a `morph`
 // transition keeps of the paint its two drawings differ in. Artwork with a
 // style sheet is never baked live, so no sheet rule takes part.
 
 import { cssTrim, readAlpha, readColor, type ReadColor } from "./color";
-import { ancestry, maskCss, type ArtDocument, type Element } from "./svgDocument";
+import { ancestry, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphColor, MorphPaint } from "./types";
 
 /**
@@ -24,95 +24,105 @@ export interface EffectivePaint {
 const INHERITED = { fill: "black", stroke: "none", "fill-opacity": "1", "stroke-opacity": "1", color: "black" };
 type Inherited = keyof typeof INHERITED;
 
-/** The keywords every property, and the `all` shorthand, accepts. */
-const CSS_WIDE = new Set(["initial", "inherit", "unset", "revert", "revert-layer"]);
+// The paint grammar. A paint blends only when every declaration that decides
+// it is in this grammar: a fill or stroke as a colour the reader reads, or
+// `none`; `color` as a colour or `currentColor`; an opacity as a number or a
+// percentage; any of them as `inherit` or `initial`; each with an optional
+// trailing `!important`, in ASCII with space, tab and line breaks between
+// tokens. A declaration outside it (another CSS-wide keyword, `all`, `var()`,
+// a comment, an escape, other whitespace, non-ASCII text) makes that paint
+// unknown, so the pair stays unblended and draws as authored. Reading less
+// than a browser does is safe; reading something differently is not.
+
+const KEYWORDS = new Set(["inherit", "initial"]);
+
+const inGrammar = (name: string, value: string): boolean => {
+  if (KEYWORDS.has(value.toLowerCase())) return true;
+  if (name === "fill" || name === "stroke") return readColor(value) !== undefined;
+  if (name === "color") return ["color", "current"].includes(readColor(value)?.kind ?? "");
+  return readAlpha(value) !== undefined;
+};
+
+/** An inline style the grammar cannot split safely: non-ASCII text, a comment, an escape or a string. */
+const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["']/;
 
 const IMPORTANT = /![ \t\n\r\f]*important$/i;
 
-/**
- * An element's inline style declarations in order: names lowercased, values
- * with comments blanked and strings masked, and both trimmed of CSS
- * whitespace only, so a no-break space stays part of the value it makes
- * invalid.
- */
-function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] {
-  const masked = maskCss(element.attributes["style"] ?? "");
+/** An element's inline style declarations in order, or null for a style outside the grammar. */
+function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] | null {
+  const style = element.attributes["style"];
+  if (style === undefined) return [];
+  if (STYLE_OUTSIDE.test(style)) return null;
   const out: { name: string; value: string; important: boolean }[] = [];
-  let start = 0;
-  for (let end = 0; end <= masked.length; end++) {
-    if (end < masked.length && masked[end] !== ";") continue;
-    const colon = masked.indexOf(":", start);
-    if (colon >= 0 && colon < end) {
-      const name = cssTrim(masked.slice(start, colon)).toLowerCase();
-      const value = cssTrim(masked.slice(colon + 1, end));
-      const important = IMPORTANT.test(value);
-      if (name) out.push({ name, value: important ? cssTrim(value.replace(IMPORTANT, "")) : value, important });
-    }
-    start = end + 1;
+  for (const declaration of style.split(";")) {
+    const colon = declaration.indexOf(":");
+    if (colon < 0) continue;
+    const name = cssTrim(declaration.slice(0, colon)).toLowerCase();
+    const value = cssTrim(declaration.slice(colon + 1));
+    const important = IMPORTANT.test(value);
+    if (name) out.push({ name, value: important ? cssTrim(value.replace(IMPORTANT, "")) : value, important });
   }
   return out;
 }
 
 /**
- * Whether a browser drops this declaration as invalid, so that the next one
- * in the cascade applies: `none` is paint, not a colour, and `all` takes
- * nothing but the CSS-wide keywords.
+ * What an element declares for `name`: its inline style (the last important
+ * declaration, else the last), which outranks the presentation attribute;
+ * undefined when it declares nothing, and null when any declaration that
+ * could decide it is outside the grammar.
  */
-const dropped = (name: string, value: string) =>
-  name === "all" ? !CSS_WIDE.has(value.toLowerCase()) : name === "color" && value.toLowerCase() === "none";
-
-/**
- * What an element declares for `name`, as the cascade picks it once invalid
- * declarations are dropped: its inline style (the last important declaration,
- * else the last, an `all` declaration counting for every property), which
- * outranks the presentation attribute.
- */
-const declared = (element: Element, name: string): string | undefined => {
-  const inline = inlineDeclarations(element).filter((d) => (d.name === name || d.name === "all") && !dropped(d.name, d.value));
-  const chosen = inline.findLast((d) => d.important) ?? inline[inline.length - 1];
-  if (chosen) return chosen.value;
+const declared = (element: Element, name: string): string | undefined | null => {
+  const inline = inlineDeclarations(element);
+  if (inline === null) return null;
+  const own = inline.filter((d) => d.name === name || d.name === "all");
+  if (own.some((d) => d.name === "all" || !inGrammar(name, d.value))) return null;
   const attribute = element.attributes[name];
-  return attribute === undefined || dropped(name, cssTrim(attribute)) ? undefined : cssTrim(attribute);
+  if (attribute !== undefined && !inGrammar(name, cssTrim(attribute))) return null;
+  const chosen = own.findLast((d) => d.important) ?? own[own.length - 1];
+  return chosen ? chosen.value : attribute === undefined ? undefined : cssTrim(attribute);
 };
 
 /** Resolves `element`'s effective paint, its ancestors' inherited values included. */
 export function effectivePaint(doc: ArtDocument, element: Element): EffectivePaint {
-  const values: Record<Inherited, string> = { ...INHERITED };
+  // Null marks a value outside the grammar until a later declaration replaces it.
+  const values: Record<Inherited, string | null> = { ...INHERITED };
   for (const { element: e } of [...ancestry(doc, element)].reverse()) {
     for (const name of Object.keys(INHERITED) as Inherited[]) {
       const value = declared(e, name);
       if (value === undefined) continue;
+      if (value === null) {
+        values[name] = null;
+        continue;
+      }
       const keyword = value.toLowerCase();
-      if (keyword === "inherit" || keyword === "unset") continue;
-      // `revert` and `revert-layer` stay as written, which no reader reads,
-      // so that paint does not blend.
+      if (keyword === "inherit") continue;
       // `color: currentColor` is the inherited colour.
       if (name === "color" && keyword === "currentcolor") continue;
       values[name] = keyword === "initial" ? INHERITED[name] : value;
     }
   }
-  const color = readColor(values.color);
-  const paint = (value: string): EffectivePaint["fill"] => {
-    const read: ReadColor | undefined = readColor(value);
+  const color = values.color === null ? undefined : readColor(values.color);
+  const paint = (value: string | null): EffectivePaint["fill"] => {
+    const read: ReadColor | undefined = value === null ? undefined : readColor(value);
     const resolved = read?.kind === "current" ? (color?.kind === "color" ? color : undefined) : read;
     if (!resolved) return undefined;
     return resolved.kind === "none" ? "none" : resolved.color;
   };
+  const alpha = (value: string | null) => (value === null ? undefined : readAlpha(value));
   // `opacity` does not inherit unless it says so.
-  let opacity = "1";
+  let opacity: string | null = "1";
   for (const { element: e } of ancestry(doc, element)) {
     const value = declared(e, "opacity");
-    const keyword = value?.toLowerCase();
-    if (keyword === "inherit") continue;
-    if (value !== undefined && keyword !== "initial" && keyword !== "unset") opacity = value;
+    if (value?.toLowerCase() === "inherit") continue;
+    if (value === null || (value !== undefined && value.toLowerCase() !== "initial")) opacity = value;
     break;
   }
   return {
     fill: paint(values.fill),
     stroke: paint(values.stroke),
-    "fill-opacity": readAlpha(values["fill-opacity"]),
-    "stroke-opacity": readAlpha(values["stroke-opacity"]),
-    opacity: readAlpha(opacity),
+    "fill-opacity": alpha(values["fill-opacity"]),
+    "stroke-opacity": alpha(values["stroke-opacity"]),
+    opacity: alpha(opacity),
   };
 }
 
