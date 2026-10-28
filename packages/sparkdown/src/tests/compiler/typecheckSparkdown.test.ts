@@ -49,7 +49,7 @@ end
     expect(typeWarnings(program)).toEqual(["8:31-8:32 Expected this to be 'string', but got 'number'"]);
   });
 
-  test("a branch is checked in its scene, seeing the scene's locals and an earlier branch's, with its parameters' types", () => {
+  test("a branch is checked in its scene, seeing the scene's parameters as typed and none of the scene's locals or an earlier branch's", () => {
     const program = compile(`scene start(n: number)
   local value: number = n
   branch inner(k: number)
@@ -58,12 +58,53 @@ end
   end
   branch other
     local seen: number = copy
+    local typed: string = n
   end
 end
 `);
-    // A branch runs in its scene's call-stack element, so `value` and `copy`
-    // are in scope, as at runtime.
-    expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
+    // A branch runs in a scope of its own beside its scene's lines (I-1674):
+    // the scene's parameters are bound there, and `value` and `copy` are not.
+    expect(typeWarnings(program)).toEqual([
+      "8:26-8:27 Expected this to be 'string', but got 'number'",
+      "12:26-12:27 Expected this to be 'string', but got 'number'",
+    ]);
+    expect(describeDiagnostics(program, false)).toEqual([
+      "7:25-7:30 Cannot find variable named `value`",
+      "11:25-11:29 Cannot find variable named `copy`",
+    ]);
+  });
+
+  test("a function in a branch reads its scene's parameter as typed (I-1674)", () => {
+    const program = compile(`-> main(5)
+
+scene main(amount: number)
+  branch b
+    local wrong: string = amount
+    local function wrongResult(): string
+      return amount
+    end
+    Branch {amount}.
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "8:26-8:32 Expected this to be 'string', but got 'number'",
+      "10:13-10:19 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("an unknown type in a scene's parameter is reported once, though each branch reads the parameters (I-1674)", () => {
+    const program = compile(`scene start(n: Missing)
+  & local a = n
+  branch one
+    & local b = n
+  end
+  branch two
+    & local c = n
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["4:15-4:22 Unknown type 'Missing'"]);
   });
 
   test("a string that spans lines is checked as written, blank lines and trailing spaces included", () => {

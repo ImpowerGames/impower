@@ -431,13 +431,15 @@ interface Flow {
   header: SyntaxNode;
   parameters: ParameterReading | undefined;
   body: UnitLines;
-  /** Whether the flow's own parameters end with `...`. */
+  /** The `...` parameters of the flow and of the branches in it, in document order. */
+  varargs: Vararg[];
+  /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
   variadic: boolean;
   /** The `end` that closes the flow, if one does. */
   end?: SyntaxNode;
-  /** The branches in it: the line each begins on, which begins a function
-   *  of the branch's own, and the branch's `...`, if it takes one. */
-  branches: { line: number; vararg: Vararg | undefined }[];
+  /** The lines its branches begin on, each of which begins a block of the
+   *  branch's own. */
+  branchLines: number[];
 }
 
 /** Removes `[from, to)` from sorted, disjoint spans. */
@@ -655,6 +657,7 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   const declareParameters = (flow: Flow, header: SyntaxNode) => {
     const parameters = readParameters(header);
     if (!parameters) return;
+    if (parameters.vararg) flow.varargs.push(parameters.vararg);
     const text = documentText.slice(header.from, header.to);
     const start = header.from + text.length - text.trimStart().length;
     if (!parameters.whole) {
@@ -686,21 +689,18 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
-        // A branch is checked in its scene's unit, as a function of its own
-        // that takes the scene's parameters: it runs in a scope of its own
-        // beside the scene's lines, where the scene's parameters are bound
-        // and none of the scene's locals or another branch's.
+        // A branch is checked in its scene's unit, in a block of its own: it
+        // runs in a scope of its own beside the scene's lines, where the
+        // scene's parameters are bound and none of the scene's locals or
+        // another branch's.
         const headerText = documentText.slice(node.from, node.to);
-        enclosing.branches.push({
-          line: index.lineAt(node.from + headerText.length - headerText.trimStart().length),
-          vararg: readParameters(node)?.vararg,
-        });
+        enclosing.branchLines.push(index.lineAt(node.from + headerText.length - headerText.trimStart().length));
         declareParameters(enclosing, node);
         open.push(enclosing);
       } else {
         const parameters = readParameters(node);
         const own = parameters?.vararg;
-        const flow: Flow = { header: node, parameters, body: new UnitLines(index), variadic: own !== undefined, branches: [] };
+        const flow: Flow = { header: node, parameters, body: new UnitLines(index), varargs: own ? [own] : [], variadic: own !== undefined, branchLines: [] };
         flows.push(flow);
         open.push(flow);
       }
@@ -726,34 +726,29 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     const bodyLines = flow.body.build();
     // A flow whose statements are all Sparkdown's own has no Luau to check.
     if (bodyLines.text.length === 0) continue;
-    // Where each branch begins, the function before it ends and the branch's
+    // Where each branch begins, the block before it ends and the branch's
     // own begins, on a line of its own before the branch's line.
-    const sceneNames = flow.parameters
-      ? flow.parameters.whole
-        ? findAll(flow.parameters.node, "LuauFunctionParameter", true)
-            .filter((name) => flow.parameters!.vararg === undefined || name.from < flow.parameters!.vararg.dots.from)
-            .map((name) => documentText.slice(name.from, name.to).trim())
-            .filter((name) => name !== "...")
-        : flow.parameters.names
-      : [];
-    for (const { line, vararg } of flow.branches) {
-      // The branch's own `...`, with its type, or else the scene's.
-      const dots = vararg ? [vararg.annotation ? `...: ${vararg.type}` : "..."] : flow.variadic ? ["..."] : [];
-      const branchParameters = [...sceneNames.map((name) => `${name}: any`), ...dots];
+    for (const line of flow.branchLines) {
       let at = bodyLines.lines.findIndex((kept) => kept >= line);
       if (at < 0) at = bodyLines.lines.length;
-      bodyLines.text.splice(at, 0, `end; local function __branch(${branchParameters.join(", ")})`);
+      bodyLines.text.splice(at, 0, "end; do");
       bodyLines.lines.splice(at, 0, line);
     }
     const headerLine = index.lineAt(flow.header.from);
     const text: string[] = ["local function __flow"];
     const lines: number[] = [headerLine];
-    // The flow's parameters, its `...` among them: a whole list at its columns in the header line,
+    // At runtime `...` reads the arguments of whichever of the flow and its
+    // branches took a `...` last. Here they are one function, whose `...` has
+    // the type they all give theirs, or no type where they differ.
+    const agreed = new Set(flow.varargs.map((vararg) => vararg.type)).size === 1;
+    // The flow's parameters: a whole list at its columns in the header line,
     // one the grammar ends early as the runtime reads it.
     const parameters = flow.parameters;
     if (parameters?.whole) {
       const line = new UnitLines(index);
       line.mark(parameters.node.from, parameters.node.to, true);
+      const own = flow.variadic ? flow.varargs[0] : undefined;
+      if (own?.annotation && !agreed) line.mark(own.annotation.from, own.annotation.to, false);
       const built = line.build();
       text.push(...built.text);
       lines.push(...built.lines);
@@ -762,17 +757,36 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     } else {
       text[0] += "()";
     }
+    // A branch's `...` where the flow has none, written at its columns in the
+    // branch's header line, as the function's last parameter.
+    const branchVararg = flow.variadic ? undefined : flow.varargs[0];
+    if (branchVararg) {
+      const named = parameters && (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true).length > 0 : parameters.names.length > 0);
+      text[text.length - 1] = text[text.length - 1]!.replace(/\)$/, named ? "," : "");
+      const line = new UnitLines(index);
+      line.mark(branchVararg.dots.from, branchVararg.dots.to, true);
+      if (branchVararg.annotation && agreed) line.mark(branchVararg.annotation.from, branchVararg.annotation.to, true);
+      const built = line.build();
+      built.text[built.text.length - 1] += ")";
+      text.push(...built.text);
+      lines.push(...built.lines);
+    }
+    // In a scene with branches, the scene's own lines run in a block, and
+    // the last block closes where the flow does.
+    const blocks = flow.branchLines.length > 0;
+    if (blocks) text[text.length - 1] += " do";
     // The function ends at the flow's own `end`, at its column, so an error
     // Luau reports at the `end` (a type missing before it) is placed there.
     if (flow.end) {
       const endText = documentText.slice(flow.end.from, flow.end.to);
       const at = flow.end.from + endText.length - endText.trimStart().length;
       const endLine = index.lineAt(at);
-      text.push(...bodyLines.text, `${" ".repeat(at - index.starts[endLine]!)}end`);
-      lines.push(...bodyLines.lines, endLine);
+      text.push(...bodyLines.text, ...(blocks ? ["end"] : []), `${" ".repeat(at - index.starts[endLine]!)}end`);
+      lines.push(...bodyLines.lines, ...(blocks ? [endLine] : []), endLine);
     } else {
-      text.push(...bodyLines.text, "end");
-      lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
+      text.push(...bodyLines.text, ...(blocks ? ["end"] : []), "end");
+      const last = bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine;
+      lines.push(...bodyLines.lines, ...(blocks ? [last] : []), last);
     }
     units.flows.push({ kind: "flow", text: text.join("\n"), lines, syntheticEnd: flow.end === undefined });
   }

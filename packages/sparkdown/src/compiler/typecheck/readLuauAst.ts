@@ -5082,7 +5082,9 @@ interface Flow {
   header: SyntaxNode;
   parameters: ParameterReading | undefined;
   body: FlowPart[];
-  /** Whether the flow's own parameters end with `...`. */
+  /** The `...` parameters of the flow and of the branches in it, in document order. */
+  varargs: Vararg[];
+  /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
   variadic: boolean;
   end?: SyntaxNode;
 }
@@ -5136,15 +5138,16 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
-        // Every branch begins a function of its own in its scene's unit
-        // (`openBranchFunction`), with parameters or without.
+        // Every branch begins a block of its own in its scene's unit
+        // (`readFlow`), with parameters or without.
         const parameters = readParameters(node);
+        if (parameters?.vararg) enclosing.varargs.push(parameters.vararg);
         enclosing.body.push({ branch: node, parameters });
         open.push(enclosing);
       } else {
         const parameters = readParameters(node);
         const own = parameters?.vararg;
-        const flow: Flow = { header: node, parameters, body: [], variadic: own !== undefined };
+        const flow: Flow = { header: node, parameters, body: [], varargs: own ? [own] : [], variadic: own !== undefined };
         flows.push(flow);
         open.push(flow);
       }
@@ -5274,11 +5277,11 @@ function writeAnyParameters(tokenizer: Tokenizer, names: SyntaxNode[]): void {
 
 /**
  * A flow's unit: a local function `__flow` whose parameters are the flow's
- * and whose body is the flow's Luau up to its first branch, then for each
- * branch a local function `__branch` that takes the scene's parameters
- * (`openBranchFunction`), with the branch's parameters declared as locals
- * where the branch begins, holding the values its caller passes. A flow
- * whose statements are all Sparkdown's own has no unit.
+ * and whose body is the flow's Luau in blocks, the scene's own lines in one
+ * and each branch in one of its own (`openBranchBlock`), with each branch's
+ * parameters declared as locals where its block begins, holding the values
+ * its caller passes.
+ * A flow whose statements are all Sparkdown's own has no unit.
  */
 function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex, options: ReadOptions): LuauAstUnit | undefined {
   const tokenizer = new Tokenizer(documentText, index);
@@ -5290,14 +5293,25 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   tokenizer.synthetic("keyword", "function", headerAt);
   tokenizer.synthetic("name", "__flow", headerAt);
 
-  // The flow's parameters, its `...` among them. A branch's `...` is its
-  // own function's (`openBranchFunction`).
+  // At runtime `...` reads the arguments of whichever of the flow and its
+  // branches took a `...` last. Here they are one function, whose `...` has
+  // the type they all give theirs, or no type where they differ.
+  const agreed = new Set(flow.varargs.map((vararg) => vararg.type)).size === 1;
   const parameters = flow.parameters;
+  const own = flow.variadic ? flow.varargs[0] : undefined;
+  const branchVararg = flow.variadic ? undefined : flow.varargs[0];
+  const named = parameters && (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true).length > 0 : parameters.names.length > 0);
 
   if (parameters?.whole) {
     const list = new Tokenizer(documentText, index);
     list.read(parameters.node);
-    tokenizer.tokens.push(...list.tokens);
+    let tokens = list.tokens;
+    if (own?.annotation && !agreed) {
+      const annotation = own.annotation;
+      tokens = tokens.filter((t) => t.from < annotation.from || t.from >= annotation.to);
+    }
+    if (branchVararg) tokens = tokens.slice(0, -1);
+    tokenizer.tokens.push(...tokens);
   } else if (parameters) {
     tokenizer.synthetic("symbol", "(", parameters.node.from);
     writeAnyParameters(tokenizer, parameters.names);
@@ -5305,12 +5319,27 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
       if (parameters.names.length) tokenizer.synthetic("symbol", ",", parameters.node.to);
       tokenizer.synthetic("symbol", "...", parameters.node.to);
     }
-    tokenizer.synthetic("symbol", ")", parameters.node.to);
+    if (!branchVararg) tokenizer.synthetic("symbol", ")", parameters.node.to);
   } else {
     tokenizer.synthetic("symbol", "(", headerAt);
-    tokenizer.synthetic("symbol", ")", headerAt);
+    if (!branchVararg) tokenizer.synthetic("symbol", ")", headerAt);
+  }
+  // A branch's `...` where the flow has none, as the function's last parameter.
+  if (branchVararg) {
+    if (named) tokenizer.synthetic("symbol", ",", branchVararg.dots.from);
+    tokenizer.read(branchVararg.dots);
+    if (branchVararg.annotation && agreed) tokenizer.read(branchVararg.annotation);
+    tokenizer.synthetic("symbol", ")", branchVararg.dots.to);
   }
 
+  // In a scene with branches, the scene's own lines run in a block, and each
+  // branch in a block of its own: a branch runs in a scope of its own beside
+  // its scene's lines, where the scene's parameters are bound, as the
+  // scene's entry falls into the branch, and none of the scene's locals or
+  // another branch's (`flowScopesOf`). The statements are then those of the
+  // blocks, one level deeper.
+  const blocks = flow.body.some((part) => "branch" in part);
+  if (blocks) tokenizer.synthetic("keyword", "do", tokenizer.tokens[tokenizer.tokens.length - 1]!.to);
   let statements = 0;
   for (const part of flow.body) {
     if ("node" in part) {
@@ -5323,7 +5352,7 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     } else {
       tokenizer.source = nodes.length;
       nodes.push(ref(part.branch));
-      openBranchFunction(tokenizer, flow, part.branch, part.parameters?.vararg, documentText);
+      openBranchBlock(tokenizer, part.branch, documentText);
       const before = tokenizer.tokens.length;
       if (part.parameters) declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
       // A branch's parameters are Luau the flow declares, even in a flow with no other Luau.
@@ -5336,6 +5365,8 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
 
   if (flow.end) {
     const [from, to] = trimmedRange(documentText, flow.end.from, flow.end.to);
+    // The last block closes where the flow does.
+    if (blocks) tokenizer.synthetic("keyword", "end", from);
     tokenizer.push("keyword", from, to);
     // The scene's closer is Sparkdown's syntax. Keep it for parsing the
     // synthetic function, but leave missing-value errors here to Sparkdown.
@@ -5347,58 +5378,28 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     // may have closed with the scene's `end` (I-1532).
     let at = last.to;
     for (const island of tokenizer.storyIslandEnds) if (island.unclosed && island.end > at) at = island.end;
+    if (blocks) tokenizer.synthetic("keyword", "end", at);
     tokenizer.synthetic("keyword", "end", at);
   }
   insertStoryBreaks(tokenizer, tree);
   const start = new Position(index.lineAt(flow.header.from), 0);
-  const unit = readUnit("flow", tokenizer, nodes, 2, start, options);
+  const unit = readUnit("flow", tokenizer, nodes, blocks ? 3 : 2, start, options);
   unit.header = ref(flow.header);
   return unit;
 }
 
 /**
- * Where a branch begins, the function the scene's lines or the previous
- * branch were read in ends, and a function of the branch's own begins, whose
- * parameters are the scene's by name, then the branch's own `...` with the
- * type it is written with, or where it takes none and the scene does, the
- * scene's `...`: a branch runs in a scope of its own beside its scene's
- * lines, in which the scene's parameters are bound, as the scene's entry
- * falls into the branch, and none of the scene's locals or another branch's
- * (`flowScopesOf`).
+ * Where a branch begins, the block the scene's lines or the previous branch
+ * were read in ends, and the branch's own block begins. The two meet on the
+ * branch's line, so a `;` keeps Luau's linter from reading them as two
+ * statements written on one line.
  */
-function openBranchFunction(tokenizer: Tokenizer, flow: Flow, header: SyntaxNode, vararg: Vararg | undefined, documentText: string): void {
+function openBranchBlock(tokenizer: Tokenizer, header: SyntaxNode, documentText: string): void {
   const text = documentText.slice(header.from, header.to);
   const at = header.from + text.length - text.trimStart().length;
-  const parameters = flow.parameters;
-  const dots = parameters?.vararg?.dots.from;
-  const names = parameters
-    ? (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true) : parameters.names).filter(
-        (name) => (dots === undefined || name.from < dots) && documentText.slice(name.from, name.to).trim() !== "...",
-      )
-    : [];
-  // The two functions meet on the branch's line, so a `;` keeps Luau's
-  // linter from reading them as two statements written on one line.
   tokenizer.synthetic("keyword", "end", at);
   tokenizer.synthetic("symbol", ";", at);
-  tokenizer.synthetic("keyword", "local", at);
-  tokenizer.synthetic("keyword", "function", at);
-  tokenizer.synthetic("name", "__branch", at);
-  tokenizer.synthetic("symbol", "(", at);
-  names.forEach((name, i) => {
-    if (i > 0) tokenizer.synthetic("symbol", ",", at);
-    tokenizer.synthetic("name", documentText.slice(name.from, name.to).trim(), at);
-    tokenizer.synthetic("symbol", ":", at);
-    tokenizer.synthetic("name", "any", at);
-  });
-  if (vararg) {
-    if (names.length > 0) tokenizer.synthetic("symbol", ",", vararg.dots.from);
-    tokenizer.read(vararg.dots);
-    if (vararg.annotation) tokenizer.read(vararg.annotation);
-  } else if (flow.variadic) {
-    if (names.length > 0) tokenizer.synthetic("symbol", ",", at);
-    tokenizer.synthetic("symbol", "...", at);
-  }
-  tokenizer.synthetic("symbol", ")", at);
+  tokenizer.synthetic("keyword", "do", at);
 }
 
 /**
