@@ -425,7 +425,7 @@ const bindingFlowOf = (root: ProgramRoot, sequence: SequenceRow): number | undef
  *  binds, in the order its header writes them: each by the name its
  *  `SetVar` declares, the first of which binds the last parameter, and
  *  whether it is the `...`. Nothing for a flow whose entry binds nothing. */
-const entryParameters = (
+export const entryParameters = (
   root: ProgramRoot,
   flow: SequenceRow,
 ): { name: string; vararg: boolean }[] => {

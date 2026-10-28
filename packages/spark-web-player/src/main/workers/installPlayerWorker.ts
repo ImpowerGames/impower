@@ -20,6 +20,7 @@ import {
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
 import {
   TOP_LEVEL_START,
@@ -123,6 +124,18 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (SelectCompilerDocumentMessage.type.is(message)) {
       sendPreviewHint(message.params);
     }
+    if (SetGameStartingValuesMessage.type.isRequest(message)) {
+      // What each search established holds for the values it ran with: the
+      // next display of any program searches again, with the values the game
+      // takes from this message.
+      routeSearches.forget();
+      for (const entry of displayable.values()) {
+        entry.log.forget();
+      }
+      // Nor is what the game shows the display of the same line any more:
+      // the next display runs in full rather than as a repeat.
+      displayedId = undefined;
+    }
   });
 
   const compilerState = installSparkdownWorker(connection, {
@@ -153,6 +166,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
     structure: (uri) => compiler.structureOf(uri),
   };
+  // The starting values' listing names an option or an alternator by its
+  // line's text.
+  gameState.scriptLineText = source.lineText;
 
   // The record of what the last route search in the real program the game
   // holds established, and the rule for when that is safe to reuse. See
@@ -254,6 +270,11 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
+    if (!gameState.hasStartingValues() && compiler.config.startingValues) {
+      // The values the host configured the player with, until it sends
+      // others.
+      gameState.setStartingValues(compiler.config.startingValues);
+    }
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       // Built with what the editor has asked of the preview's debugger so

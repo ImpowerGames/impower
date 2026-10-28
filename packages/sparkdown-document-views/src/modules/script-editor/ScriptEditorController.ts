@@ -42,6 +42,9 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
+import { ChangedEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorStartingValueLinesMessage";
+import { setLineAnchors } from "../../cm-line-anchors/lineAnchors";
 import {
   ShowEditorStatusBarMessage,
   ShowEditorStatusBarMethod,
@@ -343,6 +346,11 @@ export class ScriptEditorController {
       (m) => this.handleSetEditorPinpoints(m),
       this.host,
     );
+    p.onRequest(
+      SetEditorStartingValueLinesMessage.type,
+      (m) => this.handleSetEditorStartingValueLines(m),
+      this.host,
+    );
   }
 
   protected bindView(view: EditorView) {
@@ -525,6 +533,18 @@ export class ScriptEditorController {
     return SetEditorPinpointsMessage.type.response(message.id, {});
   };
 
+  protected handleSetEditorStartingValueLines = (
+    message: SetEditorStartingValueLinesMessage.Request,
+  ) => {
+    const script = message.params.scripts.find(
+      (s) => s.uri === this._textDocument?.uri,
+    );
+    if (this._view && script) {
+      setLineAnchors(this._view, script.lines);
+    }
+    return SetEditorStartingValueLinesMessage.type.response(message.id, {});
+  };
+
   protected handleFocusFindInput = () => {
     this._searchInputFocused = true;
   };
@@ -558,6 +578,7 @@ export class ScriptEditorController {
       breakpointLines,
       pinpointLines,
       highlightLines,
+      startingValueLines,
       languageServerInitializeParams,
       languageServerInitializeResult,
       preserveEditor,
@@ -692,6 +713,7 @@ export class ScriptEditorController {
           bottom: this._bottom,
           breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
           pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
+          startingValueLines,
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
           scrollToLineNumber:
             visibleRange && typeof visibleRange !== "string"
@@ -814,6 +836,18 @@ export class ScriptEditorController {
                   breakpointLines: breakpointLineNumbers.map(
                     (lineNumber) => lineNumber - 1,
                   ),
+                }),
+                this.host,
+              );
+            }
+          },
+          onStartingValueLinesChanged: (_update, moves) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              sendProtocolMessage(
+                ChangedEditorStartingValueLinesMessage.type.notification({
+                  textDocument: { uri },
+                  moves,
                 }),
                 this.host,
               );

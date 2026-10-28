@@ -14,6 +14,9 @@ export interface LoadEditorParams {
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
+  /** The lines a once-only option's or an alternator's starting value is
+   *  kept on (`editor/setStartingValueLines`). */
+  startingValueLines?: number[];
   languageServerInitializeParams: InitializeParams;
   languageServerInitializeResult: InitializeResult;
   preserveEditor?: boolean;

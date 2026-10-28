@@ -17,6 +17,7 @@ import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
+import { startStoryAt, type StartPlan } from "../../program/startingValues";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import {
   buildRouteSimulator,
@@ -383,7 +384,7 @@ export const planRouteFallback = (
     queue.push(
       options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port),
+        : makeStartNode(story, from, port, options?.start),
     );
 
     const raisedErrors = new Set<string>();
@@ -808,20 +809,28 @@ const makeStartNode = (
   story: Story,
   from: string,
   port: StatePort,
+  start?: StartPlan,
 ): FallbackNode => {
-  // Start from fresh state, and jump to the knot start.
-  //
-  // A story that was reset and has not run since is already in that fresh
-  // state, and resetting it again would re-evaluate every global definition in
-  // the program — the seeded builtins included — to arrive back where it
-  // already is. That is the ordinary case here: the search runs on a story the
-  // compile constructed and reset moments earlier. Any story that has been
-  // advanced, diverted, loaded into or written over reports itself as no longer
-  // pristine, so the reset still happens wherever it means something.
-  if (!story.stateIsPristine) {
-    resetStory(story);
+  if (start) {
+    // The values the start takes, as the faithful search's start applies
+    // them (`enterStart`).
+    startStoryAt(story, { ...start, from });
+  } else {
+    // Start from fresh state, and jump to the knot start.
+    //
+    // A story that was reset and has not run since is already in that fresh
+    // state, and resetting it again would re-evaluate every global definition
+    // in the program — the seeded builtins included — to arrive back where it
+    // already is. That is the ordinary case here: the search runs on a story
+    // the compile constructed and reset moments earlier. Any story that has
+    // been advanced, diverted, loaded into or written over reports itself as
+    // no longer pristine, so the reset still happens wherever it means
+    // something.
+    if (!story.stateIsPristine) {
+      resetStory(story);
+    }
+    story.ChoosePathString(from);
   }
-  story.ChoosePathString(from);
   return {
     state: port.fork().state,
     seq: "",

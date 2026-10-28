@@ -9,15 +9,20 @@ import {
   routeIcon,
   routeLabel,
   routeLabelParts,
-  routeStartText,
   routeTitle,
   type RouteKind,
   type RouteViewState,
   type ScriptName,
 } from "./routeView";
+import type { RouteTab } from "./startingValuesView";
+import {
+  StartingValuesTab,
+  StartingValuesTabLabel,
+  type StartingValuesEvents,
+} from "./StartingValuesViews";
 
 /*
- * The route button and the route list render from a state object
+ * The route button and the route panel render from a state object
  * (`RouteViewState`) and say what the author did through their events. They
  * know nothing of the host: the player's toolbar is one place to put them,
  * and any host that hears the route over the bridge can put them elsewhere.
@@ -35,8 +40,9 @@ export interface RouteButtonProps {
 }
 
 /** The route the preview took, `interrogation (4 → 21)`, with the status
- *  icon that says how it differs from play. A press opens the route list,
- *  and a second press closes it. */
+ *  icon that says how it differs from play, in a slot the name keeps its
+ *  place after when there is no icon. A press opens the route panel, and a
+ *  second press closes it. */
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
@@ -56,7 +62,11 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => (state.open ? onClose() : onOpen())}
     >
-      {icon ? <RouteIconSvg icon={icon} /> : null}
+      {icon ? (
+        <RouteIconSvg icon={icon} />
+      ) : (
+        <span class="route-icon route-icon-slot" aria-hidden="true" />
+      )}
       <span class="route-button-label">
         <span class="route-button-name">{parts.name}</span>
         <span class="route-button-lines">{` ${parts.lines}`}</span>
@@ -73,22 +83,35 @@ export interface RouteListProps {
   onToggle: (kind: RouteKind, shown: boolean) => void;
   /** The author asked to see a line. */
   onShowLine: (location: DocumentLocation) => void;
+  /** The author chose a tab. */
+  onTab?: (tab: RouteTab) => void;
+  /** What the author did in the Starting values tab. */
+  values?: StartingValuesEvents;
 }
 
-/** The route's decisions in route order, between where it starts and the
- *  line it ends at, filtered by the toggles; or why there is no route. */
+/** The route panel: the route tab, with the route's decisions in route order
+ *  up to the line it ends at, filtered by the toggles, or why there is no
+ *  route; and the Starting values tab, when the host keeps starting
+ *  values. */
 export function RouteList({
   state,
   nameOf,
   onClose,
   onToggle,
   onShowLine,
+  onTab,
+  values,
 }: RouteListProps) {
   if (!state.open) {
     return null;
   }
   const route = state.route;
   const target = route?.target ?? state.failure?.target;
+  const routeTitle = target
+    ? `Route to line ${target.range.start.line + 1}`
+    : "Route";
+  const valuesState = values ? state.values : undefined;
+  const tab: RouteTab = valuesState ? state.tab : "route";
   const counts = kindCounts(route);
   const decisions = route?.decisions ?? [];
   const shown = decisions.filter((d) => state.toggles[d.kind]);
@@ -104,30 +127,31 @@ export function RouteList({
     </button>
   );
   return (
-    <section
-      class="route-list"
-      aria-label={target ? `Route to line ${target.range.start.line + 1}` : "Route"}
-    >
+    <section class="route-list" aria-label={routeTitle}>
       <header class="route-list-head">
-        <span class="route-list-title">
-          {target ? `Route to line ${target.range.start.line + 1}` : "Route"}
-        </span>
-        <div class="route-list-toggles" role="group" aria-label="Show">
-          {ROUTE_KINDS.map((kind) => (
+        <div class="route-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            class="route-tab"
+            data-tab="route"
+            aria-selected={tab === "route"}
+            onClick={() => onTab?.("route")}
+          >
+            <span class="route-list-title">{routeTitle}</span>
+          </button>
+          {valuesState ? (
             <button
-              key={kind}
               type="button"
-              class="route-toggle"
-              data-kind={kind}
-              aria-pressed={state.toggles[kind]}
-              title={ROUTE_KIND_MEANINGS[kind]}
-              onClick={() => onToggle(kind, !state.toggles[kind])}
+              role="tab"
+              class="route-tab"
+              data-tab="values"
+              aria-selected={tab === "values"}
+              onClick={() => onTab?.("values")}
             >
-              <RouteIconSvg icon={kind} />
-              <span>{ROUTE_KIND_LABELS[kind]}</span>
-              <span class="route-toggle-count">{counts[kind]}</span>
+              <StartingValuesTabLabel state={valuesState} />
             </button>
-          ))}
+          ) : null}
         </div>
         <button
           type="button"
@@ -139,35 +163,58 @@ export function RouteList({
           ×
         </button>
       </header>
-      {state.failure || !route ? (
-        <p class="route-list-failure">{state.failure?.message ?? ""}</p>
+      {tab === "values" && valuesState && values ? (
+        <StartingValuesTab state={valuesState} events={values} />
       ) : (
-        <>
-          <ol class="route-list-entries">
-            <li class="route-entry route-start">
-              {lineLink(route.start.location)}
-              <span class="route-text">{routeStartText(route, nameOf)}</span>
-            </li>
-            {shown.map((decision, index) => (
-              <li key={index} class="route-entry" data-kind={decision.kind}>
-                {lineLink(decision.location)}
-                <RouteIconSvg icon={decision.kind} />
-                <span class="route-text">{decisionText(decision)}</span>
-                <span class="route-badge">{ROUTE_KIND_LABELS[decision.kind]}</span>
-              </li>
+        <div class="route-tab-body" role={valuesState ? "tabpanel" : undefined}>
+          <div class="route-list-toggles" role="group" aria-label="Show">
+            {ROUTE_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                class="route-toggle"
+                data-kind={kind}
+                aria-pressed={state.toggles[kind]}
+                title={ROUTE_KIND_MEANINGS[kind]}
+                onClick={() => onToggle(kind, !state.toggles[kind])}
+              >
+                <RouteIconSvg icon={kind} />
+                <span>{ROUTE_KIND_LABELS[kind]}</span>
+                <span class="route-toggle-count">{counts[kind]}</span>
+              </button>
             ))}
-            <li class="route-entry route-target">
-              {lineLink(route.target)}
-              <span class="route-text">Target line</span>
-            </li>
-          </ol>
-          {decisions.length === 0 ? (
-            <p class="route-list-note">The preview runs this line as the game does</p>
-          ) : null}
-          {hidden > 0 ? (
-            <p class="route-list-foot">{`${hidden} hidden by the toggles`}</p>
-          ) : null}
-        </>
+          </div>
+          {state.failure || !route ? (
+            <p class="route-list-failure">{state.failure?.message ?? ""}</p>
+          ) : (
+            <>
+              <ol class="route-list-entries">
+                {shown.map((decision, index) => (
+                  <li key={index} class="route-entry" data-kind={decision.kind}>
+                    {lineLink(decision.location)}
+                    <RouteIconSvg icon={decision.kind} />
+                    <span class="route-text">{decisionText(decision)}</span>
+                    <span class="route-badge">
+                      {ROUTE_KIND_LABELS[decision.kind]}
+                    </span>
+                  </li>
+                ))}
+                <li class="route-entry route-target">
+                  {lineLink(route.target)}
+                  <span class="route-text">Target line</span>
+                </li>
+              </ol>
+              {decisions.length === 0 ? (
+                <p class="route-list-note">
+                  The preview runs this line as the game does
+                </p>
+              ) : null}
+              {hidden > 0 ? (
+                <p class="route-list-foot">{`${hidden} hidden by the toggles`}</p>
+              ) : null}
+            </>
+          )}
+        </div>
       )}
     </section>
   );

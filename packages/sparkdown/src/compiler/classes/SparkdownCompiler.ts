@@ -1161,6 +1161,9 @@ export class SparkdownCompiler {
     ) {
       this._config.simulationOptions = config.simulationOptions;
     }
+    if (config.startingValues !== undefined) {
+      this._config.startingValues = config.startingValues;
+    }
     if (!this._documents) {
       this._compilationConfig.definitions = this._config.definitions;
       this._compilationConfig.statementMemo = this._memoHost;

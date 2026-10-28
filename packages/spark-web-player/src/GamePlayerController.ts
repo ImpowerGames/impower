@@ -7,6 +7,7 @@ import type {
   WorkerHang,
 } from "./main/workers/WorkerDisplayWorkspace";
 import {
+  MessageProtocol,
   ProtocolObserver,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -100,6 +101,24 @@ import {
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
 import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { ChangeStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage";
+import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
+import { GetGameStartingValueListingMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStartingValueListingMessage";
+import {
+  TOP_LEVEL_FLOW,
+  changeStartingValues,
+  listingItems,
+  startingValuesFrom,
+  type StartingValueListing,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
+import {
+  emptyValuesState,
+  type RouteTab,
+  type StartingValuesViewState,
+} from "./route/startingValuesView";
+import type { StartingValuesEvents } from "./route/StartingValuesViews";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -282,7 +301,19 @@ export class GamePlayerController {
   protected _routeState: RouteViewState = {
     open: false,
     toggles: { ...DEFAULT_ROUTE_TOGGLES },
+    tab: "route",
   };
+  /** Every start's values as the host keeps them, or nothing while the
+   *  host has sent none, when the route panel offers no Starting values
+   *  tab. */
+  protected _startingValues?: StartingValues;
+  /** What the Starting values tab holds of its own: what its fields hold
+   *  that is not kept, the fields whose change the host did not keep, and
+   *  the search. */
+  protected _valuesView: StartingValuesViewState = emptyValuesState();
+  /** What the route's start can take, and the program and start it was
+   *  listed for. */
+  protected _listing?: { key: string; listing?: StartingValueListing };
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
   _previewUpdates = 0;
@@ -421,6 +452,9 @@ export class GamePlayerController {
     /** What the editor last asked of the preview's debug toggle, which the
      *  game built next enters as the breakpoints above are applied to it. */
     debugging?: boolean;
+    /** Every start's values, which a game built next starts its routes
+     *  with, as the breakpoints above are applied to it. */
+    startingValues?: StartingValues;
   };
 
   private _resolveLoadingInitialProgram!: () => void;
@@ -846,6 +880,23 @@ export class GamePlayerController {
     if (this.refs.routeList) {
       this.refs.routeList.hidden = !open;
     }
+    const start = this.valuesStart();
+    const values =
+      this._startingValues && start !== undefined
+        ? {
+            ...this._valuesView,
+            start,
+            listing:
+              this._listing?.listing?.start === start
+                ? this._listing.listing
+                : undefined,
+            values: this._startingValues[start] ?? {},
+          }
+        : undefined;
+    this._routeState = { ...this._routeState, values };
+    if (open && values && start !== undefined) {
+      void this.fetchListing(start);
+    }
     renderRouteViews(this.routeViewTargets(), {
       state: this._routeState,
       nameOf: (uri) => this.getRelativeFilePath(uri) ?? uri,
@@ -853,8 +904,160 @@ export class GamePlayerController {
       onClose: () => this.setRouteOpen(false),
       onToggle: this.handleRouteToggle,
       onShowLine: this.handleRouteShowLine,
+      onTab: this.handleRouteTab,
+      values: values ? this.valuesEvents : undefined,
     });
   }
+
+  /** The start whose starting values the route panel lists: the scene the
+   *  previewed line is in, or the top-level content. */
+  protected valuesStart(): string | undefined {
+    const { route, failure } = this._routeState;
+    if (route) {
+      return route.valuesStart ?? route.start.scene ?? TOP_LEVEL_FLOW;
+    }
+    if (failure) {
+      return failure.scene ?? TOP_LEVEL_FLOW;
+    }
+    return undefined;
+  }
+
+  /** Ask the worker what `start` can take in the program it holds, once for
+   *  each program and start. */
+  protected async fetchListing(start: string) {
+    const key = `${programIdentity(this._program) ?? ""}:${start}`;
+    if (this._listing?.key === key) {
+      return;
+    }
+    this._listing = { key, listing: this._listing?.listing };
+    try {
+      const result = await this.askWorkerGame(
+        GetGameStartingValueListingMessage.type,
+        { start },
+      );
+      if (this._listing?.key === key && result?.listing) {
+        this._listing = { key, listing: result.listing };
+        this.renderRoute();
+      }
+    } catch {
+      if (this._listing?.key === key) {
+        this._listing = undefined;
+      }
+    }
+  }
+
+  /** What the author does in the Starting values tab. */
+  protected valuesEvents: StartingValuesEvents = {
+    onSet: (key, value) => void this.changeValues({ [key]: value }),
+    onClear: (key) => void this.changeValues({ [key]: null }),
+    onDraft: (key, text) => {
+      const drafts = { ...this._valuesView.drafts };
+      if (text === null) {
+        delete drafts[key];
+      } else {
+        drafts[key] = text;
+      }
+      this._valuesView = { ...this._valuesView, drafts };
+      this.renderRoute();
+    },
+    onResetAll: () => {
+      const start = this.valuesStart();
+      const set =
+        start !== undefined ? this._startingValues?.[start] : undefined;
+      if (set) {
+        void this.changeValues(
+          Object.fromEntries(Object.keys(set).map((key) => [key, null])),
+        );
+      }
+    },
+    onSearch: (search) => {
+      this._valuesView = { ...this._valuesView, search };
+      this.renderRoute();
+    },
+  };
+
+  /**
+   * Ask the host to keep a change to the starting values of the start the
+   * panel lists. The tab shows the change at once; the host sends every
+   * start's values back once it has kept it, which the preview then takes.
+   * A change it does not keep puts each field back, with an error badge
+   * that says so.
+   */
+  protected async changeValues(changes: Record<string, string | null>) {
+    const start = this.valuesStart();
+    const before = this._startingValues;
+    if (start === undefined || !before) {
+      return;
+    }
+    const unsaved = { ...this._valuesView.unsaved };
+    for (const key of Object.keys(changes)) {
+      delete unsaved[key];
+    }
+    this._valuesView = { ...this._valuesView, unsaved };
+    this._startingValues = changeStartingValues(before, start, changes);
+    this.renderRoute();
+    const saved = await this.requestHost(
+      ChangeStartingValuesMessage.type.request({ start, changes }),
+    );
+    if (saved || !this._startingValues) {
+      return;
+    }
+    const kept = before[start] ?? {};
+    const items = listingItems(this._listing?.listing);
+    const putBack: Record<string, string | null> = {};
+    const failed = { ...this._valuesView.unsaved };
+    for (const key of Object.keys(changes)) {
+      putBack[key] = kept[key] ?? null;
+      failed[key] =
+        kept[key] ?? items.find((item) => item.key === key)?.first ?? "nil";
+    }
+    this._startingValues = changeStartingValues(
+      this._startingValues,
+      start,
+      putBack,
+    );
+    this._valuesView = { ...this._valuesView, unsaved: failed };
+    this.renderRoute();
+  }
+
+  /** Send the host a request and answer whether it answered without an
+   *  error; a host that does not answer within 5 seconds kept nothing. */
+  protected requestHost(request: { id: number | string }): Promise<boolean> {
+    return new Promise((resolve) => {
+      const listener = (e: Event) => {
+        const message = (e as CustomEvent).detail;
+        if (
+          message &&
+          message.id === request.id &&
+          ("result" in message || "error" in message)
+        ) {
+          done(message.error == null);
+        }
+      };
+      const timer = setTimeout(() => done(false), 5000);
+      const done = (ok: boolean) => {
+        clearTimeout(timer);
+        window.removeEventListener(MessageProtocol.event, listener);
+        resolve(ok);
+      };
+      window.addEventListener(MessageProtocol.event, listener);
+      sendProtocolMessage(request as never, this.host);
+    });
+  }
+
+  protected handleRouteTab = (tab: RouteTab) => {
+    this._routeState = { ...this._routeState, tab };
+    this.renderRoute();
+    // The host keeps the tab the author used last, and the panel opens on
+    // it.
+    sendProtocolMessage(
+      DidChangeRouteTogglesMessage.type.notification({
+        toggles: this._routeState.toggles,
+        tab,
+      }),
+      this.host,
+    );
+  };
 
   protected setRouteOpen(open: boolean) {
     if (this._routeState.open === open) {
@@ -883,7 +1086,10 @@ export class GamePlayerController {
     // The host keeps the author's choice, and sends it again to every
     // player that connects.
     sendProtocolMessage(
-      DidChangeRouteTogglesMessage.type.notification({ toggles }),
+      DidChangeRouteTogglesMessage.type.notification({
+        toggles,
+        tab: this._routeState.tab,
+      }),
       this.host,
     );
   };
@@ -1141,6 +1347,11 @@ export class GamePlayerController {
     p.onRequest(
       SetRouteTogglesMessage.type,
       this.handleSetRouteToggles,
+      this.host,
+    );
+    p.onRequest(
+      SetStartingValuesMessage.type,
+      this.handleSetStartingValues,
       this.host,
     );
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
@@ -1862,12 +2073,57 @@ export class GamePlayerController {
   protected handleSetRouteToggles = async (
     message: SetRouteTogglesMessage.Request,
   ) => {
+    const tab = message.params.tab;
     this._routeState = {
       ...this._routeState,
       toggles: routeTogglesFrom(message.params.toggles),
+      tab: tab === "values" || tab === "route" ? tab : this._routeState.tab,
     };
     this.renderRoute();
     return SetRouteTogglesMessage.type.response(message.id, {});
+  };
+
+  /** Every start's values, as the host keeps them: the tab shows them, and
+   *  the worker's games start their routes with them, so the preview shows
+   *  the line again when they changed. */
+  protected handleSetStartingValues = async (
+    message: SetStartingValuesMessage.Request,
+  ) => {
+    const values = startingValuesFrom(message.params.values);
+    const changed =
+      JSON.stringify(values) !==
+      JSON.stringify(this._options?.startingValues ?? null);
+    this._startingValues = values;
+    if (this._options) {
+      this._options.startingValues = values;
+    } else {
+      this._options = { startingValues: values };
+    }
+    // A field the host now keeps a value for is no longer one it did not
+    // keep.
+    const start = this.valuesStart();
+    const unsaved = { ...this._valuesView.unsaved };
+    for (const key of Object.keys(unsaved)) {
+      if (start !== undefined && values[start]?.[key] !== undefined) {
+        delete unsaved[key];
+      }
+    }
+    this._valuesView = { ...this._valuesView, unsaved };
+    this.renderRoute();
+    if (changed) {
+      try {
+        await this.askWorkerGame(SetGameStartingValuesMessage.type, {
+          values,
+        });
+      } catch (e) {
+        reportUnlessRestarted(e);
+      }
+      const startFrom = this._options?.startFrom;
+      if (!this.playing && this._program && startFrom) {
+        void this.updatePreview(this._program, startFrom.file, startFrom.line);
+      }
+    }
+    return SetStartingValuesMessage.type.response(message.id, {});
   };
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
@@ -3132,6 +3388,13 @@ export class GamePlayerController {
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
     const sent: Promise<unknown>[] = [];
+    if (options?.startingValues) {
+      sent.push(
+        link.request(SetGameStartingValuesMessage.type, {
+          values: options.startingValues,
+        }),
+      );
+    }
     if (options?.breakpoints) {
       sent.push(
         link.request(SetGameBreakpointsMessage.type, {

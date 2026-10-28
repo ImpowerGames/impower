@@ -7,6 +7,7 @@ import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import { planRouteFallback } from "./planRouteFallback";
+import { startStoryAt, type StartPlan } from "../../program/startingValues";
 
 export interface RoutePlan {
   /** The flow the route starts at the top of: a scene's name, or `"0"` for
@@ -512,6 +513,13 @@ export interface SearchOptions {
   resumeFrom?: RouteResumePoint;
 
   /**
+   * The values the start takes (`startPlanOf`): the seed, the stores, the
+   * visit counts and the arguments. Without it the start is entered with
+   * every store at its first value and no arguments.
+   */
+  start?: StartPlan;
+
+  /**
    * Whether a story that keeps images of its state (the program engine,
    * `ProgramStory.capture`) forks and restores them, in place of a JSON
    * round trip of the whole state at every fork and node (default true).
@@ -632,6 +640,7 @@ const levelZeroKey = (
     maxNodes,
     faithfulBudget.steps,
     LEVEL_SHARE,
+    options?.start ?? null,
   ]);
 
 /** The verdict level zero tries first at an open condition, favoring
@@ -1303,7 +1312,7 @@ const planRouteFaithful = (
       ? null
       : options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port);
+        : makeStartNode(story, from, port, options?.start);
 
     const raisedErrors = new Set<string>(
       reuse?.errors.map((e) => `${e.address} ${e.message}`),
@@ -2021,7 +2030,29 @@ const makeStartNode = (
   story: Story,
   from: string,
   port: StatePort,
+  start?: StartPlan,
 ): SearchNode => {
+  enterStart(story, from, start);
+  return {
+    state: port.fork().state,
+    seq: "",
+    steps: null,
+    decisions: null,
+    conditions: null,
+    choices: null,
+    overrides: [],
+    forced: 0,
+    route: newRoute(),
+  };
+};
+
+/** Puts the story at the top of `from` with the values its plan sets, or
+ *  with every store at its first value when there is no plan. */
+export const enterStart = (story: Story, from: string, start?: StartPlan) => {
+  if (start) {
+    startStoryAt(story, { ...start, from });
+    return;
+  }
   // Start from fresh state, and jump to the knot start.
   //
   // A story that was reset and has not run since is already in that fresh
@@ -2035,17 +2066,6 @@ const makeStartNode = (
     resetStory(story);
   }
   story.ChoosePathString(from);
-  return {
-    state: port.fork().state,
-    seq: "",
-    steps: null,
-    decisions: null,
-    conditions: null,
-    choices: null,
-    overrides: [],
-    forced: 0,
-    route: newRoute(),
-  };
 };
 
 /**

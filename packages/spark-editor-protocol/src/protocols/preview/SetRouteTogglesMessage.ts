@@ -17,6 +17,9 @@ export type RouteTogglesParams = Partial<
  */
 export interface SetRouteTogglesParams {
   toggles: RouteTogglesParams;
+  /** The route panel's tab the author used last, which it opens on: the
+   *  route (`route`) or the Starting values tab (`values`). */
+  tab?: "route" | "values";
 }
 
 export interface SetRouteTogglesResult {}

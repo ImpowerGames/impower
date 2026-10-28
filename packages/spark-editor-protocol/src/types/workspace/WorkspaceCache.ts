@@ -140,6 +140,13 @@ export interface DebugState {
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
   /**
+   * The values the Game Preview's routes start with, by start (a scene's
+   * qualified name, or `"0"` for the top-level content), each value by its
+   * key and written as a literal (`preview/setStartingValues`). Kept for the
+   * author, never in the project's files.
+   */
+  startingValues?: Record<string, Record<string, string>>;
+  /**
    * Per-file diagnostic counts by severity — enough to color file rows/tabs
    * (error = red, warning = yellow). The diagnostics themselves are NOT kept
    * on the main thread; editor views get them via publishDiagnostics.

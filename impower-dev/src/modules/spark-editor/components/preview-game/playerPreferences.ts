@@ -5,6 +5,8 @@ import {
   type RouteTogglesParams,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValueLiterals";
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 
@@ -22,13 +24,20 @@ const storedRouteToggles = (): RouteTogglesParams => {
   }
 };
 
+/** The route panel's tab the author used last, in every project. */
+const storedRouteTab = (): "route" | "values" | undefined => {
+  const tab = localStorage.getItem(WorkspaceConstants.ROUTE_TAB_STORAGE_KEY);
+  return tab === "route" || tab === "values" ? tab : undefined;
+};
+
 /**
  * Keeps a game player in step with the editor's player preferences: whether
- * portraits animate, and which kinds the route list shows, which the player
- * reports when the author changes them. A new player starts with portraits
- * animating and every kind shown, and its controller handles nothing until it
- * announces itself with `preview/connected`, which can come before or after
- * Initialize completes; it hears the preferences at both.
+ * portraits animate, which kinds the route list shows and the route panel's
+ * tab, which the player reports when the author changes them, and the
+ * project's starting values. A new player starts with portraits animating,
+ * every kind shown and no starting values, and its controller handles
+ * nothing until it announces itself with `preview/connected`, which can
+ * come before or after Initialize completes; it hears them at both.
  */
 export const createPlayerPreferenceSync = (post: (message: unknown) => void) => {
   const send = () => {
@@ -38,7 +47,15 @@ export const createPlayerPreferenceSync = (post: (message: unknown) => void) => 
       }),
     );
     post(
-      SetRouteTogglesMessage.type.request({ toggles: storedRouteToggles() }),
+      SetRouteTogglesMessage.type.request({
+        toggles: storedRouteToggles(),
+        tab: storedRouteTab(),
+      }),
+    );
+    post(
+      SetStartingValuesMessage.type.request({
+        values: startingValuesFrom(workspace.current.debug?.startingValues),
+      }),
     );
   };
   return {
@@ -57,6 +74,12 @@ export const createPlayerPreferenceSync = (post: (message: unknown) => void) => 
           WorkspaceConstants.ROUTE_TOGGLES_STORAGE_KEY,
           JSON.stringify(message.params.toggles),
         );
+        if (message.params.tab) {
+          localStorage.setItem(
+            WorkspaceConstants.ROUTE_TAB_STORAGE_KEY,
+            message.params.tab,
+          );
+        }
       }
     },
   };

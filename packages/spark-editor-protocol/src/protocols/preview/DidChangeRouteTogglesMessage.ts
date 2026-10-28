@@ -5,11 +5,13 @@ import type { RouteTogglesParams } from "./SetRouteTogglesMessage";
 export type DidChangeRouteTogglesMethod =
   typeof DidChangeRouteTogglesMessage.method;
 
-/** The author showed or hid a kind in the Game Preview's route list: every
- *  kind's state, for the host to keep and send back with
- *  `preview/setRouteToggles` when a player connects. */
+/** The author showed or hid a kind in the Game Preview's route list, or
+ *  chose a tab of the route panel: every kind's state and the tab, for the
+ *  host to keep and send back with `preview/setRouteToggles` when a player
+ *  connects. */
 export interface DidChangeRouteTogglesParams {
   toggles: RouteTogglesParams;
+  tab?: "route" | "values";
 }
 
 export class DidChangeRouteTogglesMessage {

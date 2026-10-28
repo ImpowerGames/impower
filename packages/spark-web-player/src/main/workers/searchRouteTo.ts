@@ -114,10 +114,13 @@ export const searchRouteFor = (
     // than resetting the story into a state nothing reads.
     // A search from the top starts where an earlier one's level zero
     // stopped, while the program still holds what it ran, and keeps its own.
+    // Each start the search starts at takes the values the author set for
+    // it, as the game's replay of the route starts it (`Game.startPlans`).
     const budget = {
       callerResetsStory: true,
       resumeFrom,
       levelZeroStore: game.levelZeroStore,
+      startPlans: game.startPlans,
     };
     const route = fromStart
       ? Game.planRouteFromStart(

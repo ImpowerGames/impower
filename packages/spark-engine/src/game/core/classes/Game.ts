@@ -38,6 +38,21 @@ import {
   routeDecisions,
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
+import {
+  applyStartValues,
+  planSetsParameters,
+  startPlanOf,
+  startStoryAt,
+  startingValueListing,
+  type StartPlan,
+  type StartingValueSource,
+} from "@impower/sparkdown/src/program/startingValues";
+import {
+  SEED_KEY,
+  TOP_LEVEL_FLOW,
+  type StartingValueListing,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
@@ -124,6 +139,12 @@ export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
+
+/** How a route search starts each flow it starts at the top of: the values
+ *  the author set for it (`Game.startPlans`). */
+export interface RouteStarts {
+  startPlans?: (from: string) => StartPlan | undefined;
+}
 
 /** Whether a program engine's image stands right after the statement whose
  *  instruction ran last, at `address`: where a beat's image rests at its
@@ -694,6 +715,23 @@ export class Game<T extends M = {}> {
 
   protected _levelZeroChangeId?: number;
 
+  /** The values each start takes, as the host keeps them for the author
+   *  (`setStartingValues`). */
+  protected _startingValues: StartingValues = {};
+
+  /** A script's line's text, which the starting values' listing names an
+   *  option or an alternator by. */
+  protected _scriptLineText?: (uri: string, line: number) => string | undefined;
+
+  /** The plan the planned route started with (`startPlan`), as JSON: a
+   *  route resumes only while its start takes the same values. */
+  protected _plannedRouteStart?: string;
+
+  /** Each start's plan, for the root named below (`keptStartPlan`). */
+  protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
+
+  protected _startPlansRoot?: ProgramRoot | null;
+
   /** The index of each step of the planned route by its identity, built
    *  when a caller asks for a step by identity alone (`stepCheckpoint`): a
    *  route through a long loop holds hundreds of thousands of steps, and a
@@ -772,6 +810,7 @@ export class Game<T extends M = {}> {
     this._executingLocation = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
+    this._startingValues = options?.startingValues ?? {};
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
@@ -1352,7 +1391,7 @@ export class Game<T extends M = {}> {
       // The replay below starts by loading a checkpoint or jumping to the
       // route's start, either of which replaces the story state, so the
       // search need not restore one of its own first.
-      const budget = { callerResetsStory: true };
+      const budget = { callerResetsStory: true, startPlans: this.startPlans };
       let route;
       if (this.routesFromStartFirst(to)) {
         route = Game.planRouteFromStart(
@@ -1473,7 +1512,97 @@ export class Game<T extends M = {}> {
    *  address (#1608). */
   routesFromStartFirst(address: ProgramAddress): boolean {
     const scene = this.sceneOf(address);
-    return scene !== null && this._story.takesParameters(scene);
+    // A scene with any parameter given a starting value starts at its top,
+    // with the values.
+    return (
+      scene !== null &&
+      this._story.takesParameters(scene) &&
+      !planSetsParameters(this.startPlan(scene))
+    );
+  }
+
+  /** The values each start takes. */
+  get startingValues(): StartingValues {
+    return this._startingValues;
+  }
+
+  /** Takes the values each start takes, as the host sends them. Answers
+   *  whether any changed: a route whose start's values changed no longer
+   *  resumes (`routeResumption`). */
+  setStartingValues(values: StartingValues): boolean {
+    if (JSON.stringify(values) === JSON.stringify(this._startingValues)) {
+      return false;
+    }
+    this._startingValues = values;
+    this._startPlans.clear();
+    return true;
+  }
+
+  /** Where the starting values' listing reads a line's text. */
+  set scriptLineText(lineText: (uri: string, line: number) => string | undefined) {
+    this._scriptLineText = lineText;
+  }
+
+  protected startingValueSource(): StartingValueSource {
+    const uris = Object.keys(this._program.scripts ?? {});
+    const flows: { name: string; uri: string; line: number }[] = [];
+    for (const locations of [
+      this._program.sceneLocations,
+      this._program.branchLocations,
+      this._program.labelLocations,
+    ]) {
+      for (const [name, location] of Object.entries(locations ?? {})) {
+        const uri = uris[location[0]];
+        if (uri !== undefined) {
+          flows.push({ name, uri, line: location[1] });
+        }
+      }
+    }
+    return {
+      uris,
+      flows,
+      lineText: (uri, line) => this._scriptLineText?.(uri, line),
+    };
+  }
+
+  /** How a route starts at the top of `from` (a scene's qualified name, or
+   *  `"0"` for the top-level content): with the values the author set for
+   *  it, and a seed of 0 where none is set, so that a line shows the same
+   *  random results every time. */
+  startPlan(from: string): StartPlan {
+    return this.keptStartPlan(from).plan;
+  }
+
+  /** A start's plan and its JSON, kept for the program the story runs and
+   *  the values set, which a resumption compares with the planned route's
+   *  (`plannedRouteStartsAs`) on every search. */
+  protected keptStartPlan(from: string): { plan: StartPlan; json: string } {
+    const root = this._story.root;
+    if (this._startPlansRoot !== root) {
+      this._startPlans.clear();
+      this._startPlansRoot = root;
+    }
+    let kept = this._startPlans.get(from);
+    if (!kept) {
+      const plan = startPlanOf(
+        this._story,
+        from,
+        this.startingValueSource(),
+        this._startingValues[from],
+        0,
+      );
+      kept = { plan, json: JSON.stringify(plan) };
+      this._startPlans.set(from, kept);
+    }
+    return kept;
+  }
+
+  /** The plans a route search starts its flows with. */
+  readonly startPlans = (from: string): StartPlan => this.startPlan(from);
+
+  /** What the start `from` can take, with each item's first value. */
+  startingValueListing(from: string): StartingValueListing {
+    return startingValueListing(this._story, from, this.startingValueSource());
   }
 
   /** The scenes of the positions on the call stack: where every open
@@ -2076,7 +2205,7 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
-    >,
+    > & RouteStarts,
   ) {
     const route = Game.planRouteInFlow(
       story,
@@ -2126,10 +2255,12 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
-    >,
+    > & RouteStarts,
   ) {
+    const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, from, to, {
-      ...budget,
+      ...rest,
+      start: startPlans?.(from),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
       favoredConditions: simulationOptions?.[from]?.favoredConditions,
@@ -2159,10 +2290,12 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
-    >,
+    > & RouteStarts,
   ) {
+    const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, "0", to, {
-      ...budget,
+      ...rest,
+      start: startPlans?.("0"),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,
       favoredConditions: simulationOptions?.["0"]?.favoredConditions,
@@ -2287,6 +2420,7 @@ export class Game<T extends M = {}> {
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
     this._plannedRouteRoot = this._story.root;
+    this._plannedRouteStart = this.keptStartPlan(route.from).json;
     this._simulateFlow = route.from;
     this._startAddress = route.to;
     // Force the story to follow this route
@@ -2457,9 +2591,20 @@ export class Game<T extends M = {}> {
    * Everything here is a question about the PREVIOUS route, so it must be asked
    * before anything replaces it.
    */
+  /** Whether the planned route starts at the top of `from` with the values
+   *  `from` takes now. A route from another start, or from this one with
+   *  other starting values, differs from its first step on, so none of its
+   *  steps or checkpoints is one a route from `from` can resume from. */
+  protected plannedRouteStartsAs(from: string): boolean {
+    return (
+      this._plannedRoute?.from === from &&
+      this.keptStartPlan(from).json === this._plannedRouteStart
+    );
+  }
+
   routeResumption(from: string, to: ProgramAddress): RouteResumption {
     const route = this._plannedRoute;
-    if (!route || route.from !== from) {
+    if (!route || !this.plannedRouteStartsAs(from)) {
       return { replayOnly: false };
     }
     if (!this._program.changes) {
@@ -2910,10 +3055,7 @@ export class Game<T extends M = {}> {
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
   ): StoredCheckpoint | null {
-    if (
-      !this._plannedRoute ||
-      this._plannedRoute.from !== newRoute.from
-    ) {
+    if (!this._plannedRoute || !this.plannedRouteStartsAs(newRoute.from)) {
       // simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
@@ -2992,6 +3134,19 @@ export class Game<T extends M = {}> {
     this._context.system.simulating = undefined;
   }
 
+  /** A Play from the top-level content starts the story itself, and draws
+   *  from the clock as the game does, unless that content's own seed is
+   *  set; the route there ran with the preview's fixed seed. */
+  protected drawPlaySeed(from: string | null | undefined) {
+    if (
+      from === TOP_LEVEL_FLOW &&
+      this._startingValues[TOP_LEVEL_FLOW]?.[SEED_KEY] === undefined
+    ) {
+      this._story.resetSeed = null;
+      this._story.state.storySeed = Math.floor(Math.random() * 100);
+    }
+  }
+
   start(save: string = ""): void {
     // A preview waiting for its pictures would display its beat over the
     // run.
@@ -3005,6 +3160,7 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onStart();
     }
     if (this._simulation === "success") {
+      this.drawPlaySeed(this._simulateFlow);
       this.observeScene(this._positions.current());
       this.continue(true);
     } else if (this._simulation === "fail") {
@@ -3043,7 +3199,8 @@ export class Game<T extends M = {}> {
       this.rewindStory();
       this.clearChoices();
       if (this._startAddress != null) {
-        this.jumpTo(this._startAddress);
+        this.jumpTo(this._startAddress, true);
+        this.drawPlaySeed(this.routeStartOf(this._startAddress));
       }
       this.observeScene(this._startAddress);
       this.continue();
@@ -4020,18 +4177,30 @@ export class Game<T extends M = {}> {
 
   /** Resets the story and moves it to an address; `TOP_LEVEL_START` is the
    *  top of the top-level content. */
-  jumpTo(address: ProgramAddress) {
+  jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
-    this._story.ResetState();
+    if (withStartingValues) {
+      // A preview or a Play from a line no route reaches: the stores, the
+      // visit counts and the seed its start takes still apply.
+      const plan = this.startPlan(this.routeStartOf(address));
+      this._story.resetSeed = plan.seed;
+      this._story.ResetState();
+      applyStartValues(this._story, plan);
+    } else {
+      this._story.ResetState();
+    }
     this._positions.jumpTo(address);
   }
 
   /** Resets the story and moves it to the top of a flow named by its
-   *  qualified name (a route's start). */
+   *  qualified name (a route's start), with the values it takes
+   *  (`startPlan`), as the route search starts it. */
   jumpToFlow(flow: string) {
     this.discardOpenStoryLine();
+    const plan = this.startPlan(flow);
+    this._story.resetSeed = plan.seed;
     this._story.ResetState();
-    this._positions.jumpToFlow(flow);
+    startStoryAt(this._story, plan);
   }
 
   protected notifyHitBreakpoint() {
@@ -4263,7 +4432,12 @@ export class Game<T extends M = {}> {
         ...(decision.passes !== undefined ? { passes: decision.passes } : {}),
       });
     }
-    return { start, target, decisions };
+    return {
+      start,
+      target,
+      decisions,
+      valuesStart: this.routeStartOf(route.to),
+    };
   }
 
   /** The start of line `line` of the script `uri`. */
@@ -4858,7 +5032,7 @@ export class Game<T extends M = {}> {
     // idempotent between previews, where the queue is already drained).
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
-    this.jumpTo(previewAddress);
+    this.jumpTo(previewAddress, true);
     this.restoreReactiveTracking();
     this.continue();
   }

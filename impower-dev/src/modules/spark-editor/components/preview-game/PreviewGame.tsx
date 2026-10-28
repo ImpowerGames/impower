@@ -124,6 +124,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
@@ -147,6 +148,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
+        { ChangeStartingValuesMessage },
         { RuntimeDiagnosticsMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
@@ -173,6 +175,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
             simulationOptions: Workspace.window.store.debug.simulationOptions,
+            startingValues: Workspace.window.startingValues,
           };
         };
 
@@ -183,6 +186,14 @@ export default function PreviewGame(_props: PreviewGameProps) {
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
           preferences.received(message);
+          if (ChangeStartingValuesMessage.type.isRequest(message)) {
+            // The author changed starting values in the player's tab: the
+            // project keeps them, and the player hears every start's values
+            // back.
+            const { start, changes } = message.params;
+            Workspace.window.changeStartingValues(start, changes);
+            iframeChannelRef.current?.sendResponse(message, {});
+          }
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
             iframeChannelRef.current?.sendResponse(message, result);

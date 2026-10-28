@@ -478,6 +478,10 @@ export class ProgramStory implements StoryEngine {
    *  as it starts (#1686). */
   beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
+  /** The seed each reset gives the story before its declarations run, or
+   *  null for one drawn from the clock. The Game Preview fixes it, so that a
+   *  line shows the same random results every time (`startStoryAt`). */
+  resetSeed: number | null = null;
 
   /** Formats the message the `error` builtin raises, as the object engine's
    *  `Story.errorMessageFormatter` did; it reads `currentDebugMetadata`. */
@@ -1365,6 +1369,9 @@ export class ProgramStory implements StoryEngine {
       },
       callStack,
     );
+    if (this.resetSeed !== null) {
+      this._state.storySeed = this.resetSeed;
+    }
     // A state loaded in place (`LoadJson`, a route search's port) stands
     // at no beat this engine took.
     this._state.onBeginLoad = () => {

@@ -1,3 +1,5 @@
+import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
+
 export interface GameConfiguration {
   restarted?: boolean;
   /** The game's own version string, which a save of a game on the program
@@ -23,6 +25,8 @@ export interface GameConfiguration {
   breakpoints?: { file: string; line: number }[];
   functionBreakpoints?: { name: string }[];
   dataBreakpoints?: { dataId: string }[];
+  /** The values each start of a route takes (`Game.setStartingValues`). */
+  startingValues?: StartingValues;
   /** Beats between the checkpoints' keyframe images. Default 50. */
   checkpointBaseInterval?: number;
 }

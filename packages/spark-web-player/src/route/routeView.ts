@@ -3,6 +3,7 @@ import type {
   PreviewRouteDecision,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { RouteTab, StartingValuesViewState } from "./startingValuesView";
 
 /** The kinds the route list's toggles show and hide. */
 export type RouteKind = "pinned" | "auto" | "forced" | "clipped";
@@ -52,15 +53,19 @@ export interface RouteFailure {
 }
 
 /**
- * Everything the route button and the route list show, which they render
+ * Everything the route button and the route panel show, which they render
  * from and nothing else: the route the preview took, or why it found none,
- * whether the list is open, and which kinds it shows.
+ * whether the panel is open and on which tab, which kinds the route list
+ * shows, and the Starting values tab's state, which a host that keeps no
+ * starting values leaves out, and the panel offers no such tab.
  */
 export interface RouteViewState {
   route?: PreviewRoute;
   failure?: RouteFailure;
   open: boolean;
   toggles: RouteToggles;
+  tab: RouteTab;
+  values?: StartingValuesViewState;
 }
 
 /** How a host names a script in the route's text: its path, relative to the
@@ -147,14 +152,6 @@ export const routeLabel = (
 ): string | null => {
   const parts = routeLabelParts(state, nameOf);
   return parts && `${parts.name} ${parts.lines}`;
-};
-
-/** The row naming where the run starts. */
-export const routeStartText = (route: PreviewRoute, nameOf: ScriptName) => {
-  const line = lineOf(route.start.location);
-  return route.start.scene
-    ? `From the top of scene ${route.start.scene}, line ${line}, with every store at its first value`
-    : `From the top of ${nameOf(route.start.location.uri)}, line ${line}, with every store at its first value`;
 };
 
 /** The route button's hover: the route in words, and why there is none

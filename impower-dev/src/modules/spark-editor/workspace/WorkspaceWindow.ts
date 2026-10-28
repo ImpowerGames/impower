@@ -24,6 +24,17 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
+import { ChangedEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorStartingValueLinesMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import {
+  changeStartingValues,
+  movePlaceLines,
+  placeLinesOf,
+  readPlaceKey,
+  startingValuesFrom,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
@@ -154,6 +165,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
+      ),
+      onProtocolMessage(ChangedEditorStartingValueLinesMessage.type, (m) =>
+        this.handleChangedEditorStartingValueLines(m),
       ),
       onProtocolMessage(CompiledProgramMessage.type, (m) =>
         this.handleCompiledProgram(m),
@@ -334,6 +348,19 @@ export default class WorkspaceWindow {
     });
   };
 
+  /** An edit moved the lines option and alternator values are kept on:
+   *  the values move with them, and the player hears where they are now. */
+  protected handleChangedEditorStartingValueLines = (
+    message: ChangedEditorStartingValueLinesMessage.Notification,
+  ) => {
+    const { textDocument, moves } = message.params;
+    const values = this.startingValues;
+    const moved = movePlaceLines(values, textDocument.uri, new Map(moves));
+    if (moved !== values) {
+      this.setStartingValues(moved, false);
+    }
+  };
+
   protected handleChangedEditorPinpoints = (
     message: ChangedEditorPinpointsMessage.Notification,
   ) => {
@@ -452,6 +479,65 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
+  /** Every start's values the Game Preview's routes start with, as this
+   *  project keeps them for the author. */
+  get startingValues(): StartingValues {
+    return startingValuesFrom(this.store.debug.startingValues);
+  }
+
+  /** Keeps a change the author made to one start's values in the player's
+   *  Starting values tab, and sends every start's values back. */
+  changeStartingValues(start: string, changes: Record<string, string | null>) {
+    this.setStartingValues(
+      changeStartingValues(this.startingValues, start, changes),
+      true,
+    );
+  }
+
+  /** Keeps every start's values, and sends them to the player and, when
+   *  `lines`, the lines option and alternator values are kept on to the
+   *  editor, which keeps them on those lines through edits. */
+  protected setStartingValues(values: StartingValues, lines: boolean) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        startingValues: values,
+      },
+    });
+    this.publishStartingValues(lines);
+  }
+
+  /** Sends every start's values to the player, which the preview relays
+   *  (`preview/`), and the lines they are kept on to the editor. */
+  publishStartingValues(lines = true) {
+    const values = this.startingValues;
+    sendProtocolMessage(SetStartingValuesMessage.type.request({ values }));
+    if (lines) {
+      const uris = new Set<string>();
+      for (const set of Object.values(values)) {
+        for (const key of Object.keys(set)) {
+          const place = readPlaceKey(key);
+          if (place) {
+            uris.add(place.uri);
+          }
+        }
+      }
+      const uri = this.getOpenedDocumentUri();
+      if (uri) {
+        uris.add(uri);
+      }
+      sendProtocolMessage(
+        SetEditorStartingValueLinesMessage.type.request({
+          scripts: [...uris].map((uri) => ({
+            uri,
+            lines: placeLinesOf(values, uri),
+          })),
+        }),
+      );
+    }
+  }
+
   setSimulationOptions(
     simulateFlow: string,
     options: {
@@ -541,6 +627,7 @@ export default class WorkspaceWindow {
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
         highlightLines: number[] | undefined;
+        startingValueLines: number[];
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -560,6 +647,7 @@ export default class WorkspaceWindow {
             breakpointLines: this.store.debug?.breakpoints?.[uri],
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
+            startingValueLines: placeLinesOf(this.startingValues, uri),
           };
         }
       }
@@ -581,6 +669,7 @@ export default class WorkspaceWindow {
         selectedRange: Range | undefined;
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
+        startingValueLines: number[];
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -601,6 +690,7 @@ export default class WorkspaceWindow {
           selectedRange: openEditor.selectedRange,
           breakpointLines: this.store.debug?.breakpoints?.[uri],
           pinpointLines: this.store.debug?.pinpoints?.[uri],
+          startingValueLines: placeLinesOf(this.startingValues, uri),
         };
       }
     }

@@ -41,4 +41,9 @@ export interface PreviewRoute {
   target: DocumentLocation;
   /** Its decisions, in route order. */
   decisions: PreviewRouteDecision[];
+  /** The start whose starting values the line takes: the scene the line is
+   *  in, or `"0"` for the top-level content. A route to a line in a scene
+   *  with parameters, none of which has a starting value, starts at the
+   *  story's start instead (#1608). */
+  valuesStart?: string;
 }

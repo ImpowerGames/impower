@@ -57,6 +57,10 @@ import {
   pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
 import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
+import {
+  lineAnchorMoves,
+  lineAnchors,
+} from "../../../cm-line-anchors/lineAnchors";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -106,6 +110,9 @@ interface EditorConfig {
   breakpointLineNumbers?: number[];
   pinpointLineNumbers?: number[];
   highlightLineNumbers?: number[];
+  /** The lines, counting from 0, that a starting value of the Game Preview
+   *  is kept on, which follow their text through edits. */
+  startingValueLines?: number[];
   mobileTopContainer?: HTMLElement;
   mobileBottomContainer?: HTMLElement;
   scrollToLineNumber?: number;
@@ -130,6 +137,13 @@ interface EditorConfig {
   ) => void;
   onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
+  /** An edit moved lines a starting value is kept on: each from the line it
+   *  was on to the line it is on now, or to null when its line was
+   *  deleted. */
+  onStartingValueLinesChanged?: (
+    update: ViewUpdate,
+    moves: [from: number, to: number | null][],
+  ) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onHeightChanged?: () => void;
   /** An autocomplete option was highlighted, or the list closed. */
@@ -176,6 +190,7 @@ const createEditorView = (
   const onSelectionChanged = config?.onSelectionChanged;
   const onBreakpointsChanged = config?.onBreakpointsChanged;
   const onPinpointsChanged = config?.onPinpointsChanged;
+  const onStartingValueLinesChanged = config?.onStartingValueLinesChanged;
   const onHighlightsChanged = config?.onHighlightsChanged;
   const onHeightChanged = config?.onHeightChanged;
   const onCompletionPreview = config?.onCompletionPreview;
@@ -286,6 +301,7 @@ const createEditorView = (
               .filter((r): r is Range<GutterMarker> => Boolean(r)) ?? [];
           return RangeSet.of(gutterMarkers, true);
         }),
+        lineAnchors(initialText, config?.startingValueLines),
         pinpointsField.init(() => {
           let decorations = RangeSet.empty;
           if (pinpointLineNumbers) {
@@ -407,6 +423,10 @@ const createEditorView = (
               prevBreakpointLineNumbers = currentBreakpointLineNumbers;
               onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
             }
+          }
+          const startingValueMoves = lineAnchorMoves(u);
+          if (startingValueMoves.length > 0) {
+            onStartingValueLinesChanged?.(u, startingValueMoves);
           }
           if (u.docChanged || pinpointsChanged(u)) {
             const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);

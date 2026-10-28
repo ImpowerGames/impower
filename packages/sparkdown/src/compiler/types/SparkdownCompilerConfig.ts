@@ -1,5 +1,6 @@
 import type { File } from "./File";
 import type { SparkdownCompilerDefinitions } from "./SparkdownCompilerDefinitions";
+import type { StartingValues } from "../../program/startingValueLiterals";
 
 export interface SparkdownCompilerConfig {
   definitions?: SparkdownCompilerDefinitions;
@@ -58,4 +59,8 @@ export interface SparkdownCompilerConfig {
       favoredChoices?: (number | undefined)[];
     }
   >;
+  /** The values each start of the Game Preview's route takes, as the host
+   *  keeps them for the author, which the player's games start with until
+   *  the host sends others (`game/setStartingValues`). */
+  startingValues?: StartingValues;
 }
