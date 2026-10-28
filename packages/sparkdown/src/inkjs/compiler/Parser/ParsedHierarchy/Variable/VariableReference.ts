@@ -148,7 +148,7 @@ export class VariableReference extends Expression {
         const baseResolve = context.ResolveVariableWithName(baseName, this);
         const baseStruct = context.ResolveStruct(baseName);
         if (
-          (baseResolve.found || this.IsBoundAtEntry(baseName)) &&
+          baseResolve.found &&
           this.IsFoundNameInScope(baseName, context) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
@@ -158,6 +158,9 @@ export class VariableReference extends Expression {
         ) {
           // Variable-with-property-access — no compile-time error.
           this.resolvedAs = "variable";
+          return;
+        }
+        if (this.IsBoundAtEntry(baseName)) {
           return;
         }
       }
@@ -172,6 +175,9 @@ export class VariableReference extends Expression {
       return;
     }
     if (!this.IsResolvedVariable(context)) {
+      if (this.IsBoundAtEntry(this.name)) {
+        return;
+      }
       if (this.unresolvedMember) {
         this.ReportUnresolvedPath(
           [this.name, this.unresolvedMember.name],
@@ -203,10 +209,9 @@ export class VariableReference extends Expression {
   // scope.
   private IsResolvedVariable(context: Story): boolean {
     return (
-      (context.ResolveVariableWithName(this.name, this).found &&
-        (this.unresolvedMember === null ||
-          this.IsFoundNameInScope(this.name, context))) ||
-      this.IsBoundAtEntry(this.name)
+      context.ResolveVariableWithName(this.name, this).found &&
+      (this.unresolvedMember === null ||
+        this.IsFoundNameInScope(this.name, context))
     );
   }
 
@@ -214,10 +219,21 @@ export class VariableReference extends Expression {
   // name to a `local` of the root frame (`FlowBase.BindsRootLocal`): a
   // function written in a scene, a branch or a choice body reads that
   // flow's locals declared above the read, which the function's own scopes
-  // do not declare.
+  // do not declare. A define's method, and a function written in one, reads
+  // no flow's local, though its entry binds one. Asked only where the name
+  // would otherwise be reported, so it decides the warning and leaves what
+  // the name resolves to, and so the program emitted, as it was.
   private IsBoundAtEntry(name: string): boolean {
-    const flow = asOrNull(ClosestFlowBase(this), FlowBase);
-    return flow !== null && flow !== this.story && flow.BindsRootLocal(name);
+    let flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    if (flow === null || flow === this.story || !flow.BindsRootLocal(name)) {
+      return false;
+    }
+    for (; flow && flow !== this.story; flow = asOrNull(ClosestFlowBase(flow), FlowBase)) {
+      if (flow.isDefineMethod) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // An unresolved dotted path: `table.nogetn`, or the `table:nogetn()` a colon

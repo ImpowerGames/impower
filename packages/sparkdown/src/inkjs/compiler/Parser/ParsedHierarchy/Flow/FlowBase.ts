@@ -332,6 +332,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // function it builds under a generated name: what its frames and its
   // value are labelled by (`functionLabel`), as Luau names it.
   public _authoredName: string | null = null;
+  // Set by the lowering on the function it builds for a define's method,
+  // which reads no flow's local (`VariableReference.IsBoundAtEntry`).
+  public isDefineMethod = false;
   public variableDeclarations: Map<string, VariableAssignment> =
     FlowBase.declarationTable();
 
@@ -646,8 +649,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // `parent.content[end]`. It is when it is declared in or under an earlier
   // object of that content, or of an ancestor's content up to the enclosing
   // flow, outside any block that closes first (see `declaresLocal`). Past
-  // the enclosing flow, a parameter is in scope throughout it, as is a name
-  // its entry binds to a `local` of the root frame (`BindsRootLocal`), and any other
+  // the enclosing flow, a parameter is in scope throughout it, and any other
   // name, a captured one included, is in scope in the flow when it is in
   // scope where the flow is written: at its place in the content that holds
   // it when that is not a flow's (a function written inside an `if` arm or a
@@ -675,9 +677,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
     const arg = flow.args?.find((a) => a.identifier?.name === varName);
     if (arg && !arg.isUpvalue) {
-      return true;
-    }
-    if (!arg && flow.BindsRootLocal(varName)) {
       return true;
     }
     if (!arg && !this.story.variableDeclarations.has(varName)) {
