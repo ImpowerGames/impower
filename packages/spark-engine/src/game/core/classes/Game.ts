@@ -40,6 +40,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import {
   applyStartValues,
+  bindStartArguments,
   planSetsParameters,
   startPlanOf,
   startStoryAt,
@@ -48,7 +49,6 @@ import {
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
 import {
-  SEED_KEY,
   TOP_LEVEL_FLOW,
   type StartingValueListing,
   type StartingValues,
@@ -727,6 +727,9 @@ export class Game<T extends M = {}> {
    *  route resumes only while its start takes the same values. */
   protected _plannedRouteStart?: string;
 
+  /** Whether this is PLAY's game (`GameConfiguration.play`). */
+  protected _play = false;
+
   /** Each start's plan, for the root named below (`keptStartPlan`). */
   protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
 
@@ -811,6 +814,7 @@ export class Game<T extends M = {}> {
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this._startingValues = options?.startingValues ?? {};
+    this._play = options?.play ?? false;
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
@@ -1582,19 +1586,44 @@ export class Game<T extends M = {}> {
       this._startPlans.clear();
       this._startPlansRoot = root;
     }
-    let kept = this._startPlans.get(from);
+    // A Play from the top-level content starts the story itself, so it
+    // draws its seed from the clock, as the game does, unless that content's
+    // own seed is set; every other route starts with 0 where none is set.
+    const unsetSeed =
+      from === TOP_LEVEL_FLOW && this.playsFromTopLevel() ? null : 0;
+    const key = `${unsetSeed}:${from}`;
+    let kept = this._startPlans.get(key);
     if (!kept) {
       const plan = startPlanOf(
         this._story,
         from,
         this.startingValueSource(),
         this._startingValues[from],
-        0,
+        unsetSeed,
       );
       kept = { plan, json: JSON.stringify(plan) };
-      this._startPlans.set(from, kept);
+      this._startPlans.set(key, kept);
     }
     return kept;
+  }
+
+  /** Whether this is PLAY's game starting from the top-level content. */
+  protected playsFromTopLevel(): boolean {
+    return (
+      this._play &&
+      this._startAddress != null &&
+      this.routeStartOf(this._startAddress) === TOP_LEVEL_FLOW
+    );
+  }
+
+  /** Whether this game's route draws a seed of its own, which a route the
+   *  preview searched with its fixed seed cannot stand for: PLAY from the
+   *  top-level content with no seed set there. */
+  get drawsOwnSeed(): boolean {
+    return (
+      this.playsFromTopLevel() &&
+      this.keptStartPlan(TOP_LEVEL_FLOW).plan.seed === null
+    );
   }
 
   /** The plans a route search starts its flows with. */
@@ -2514,7 +2543,7 @@ export class Game<T extends M = {}> {
    *  story is left where that run stopped, so the game is put at its start
    *  point again before it runs. */
   jumpShowsBeat(address: ProgramAddress): boolean {
-    this.jumpTo(address);
+    this.jumpTo(address, true);
     return showsBeatAhead(this._story);
   }
 
@@ -3134,19 +3163,6 @@ export class Game<T extends M = {}> {
     this._context.system.simulating = undefined;
   }
 
-  /** A Play from the top-level content starts the story itself, and draws
-   *  from the clock as the game does, unless that content's own seed is
-   *  set; the route there ran with the preview's fixed seed. */
-  protected drawPlaySeed(from: string | null | undefined) {
-    if (
-      from === TOP_LEVEL_FLOW &&
-      this._startingValues[TOP_LEVEL_FLOW]?.[SEED_KEY] === undefined
-    ) {
-      this._story.resetSeed = null;
-      this._story.state.storySeed = Math.floor(Math.random() * 100);
-    }
-  }
-
   start(save: string = ""): void {
     // A preview waiting for its pictures would display its beat over the
     // run.
@@ -3160,7 +3176,6 @@ export class Game<T extends M = {}> {
       this._modules[k]?.onStart();
     }
     if (this._simulation === "success") {
-      this.drawPlaySeed(this._simulateFlow);
       this.observeScene(this._positions.current());
       this.continue(true);
     } else if (this._simulation === "fail") {
@@ -3200,7 +3215,6 @@ export class Game<T extends M = {}> {
       this.clearChoices();
       if (this._startAddress != null) {
         this.jumpTo(this._startAddress, true);
-        this.drawPlaySeed(this.routeStartOf(this._startAddress));
       }
       this.observeScene(this._startAddress);
       this.continue();
@@ -4181,14 +4195,17 @@ export class Game<T extends M = {}> {
     this.discardOpenStoryLine();
     if (withStartingValues) {
       // A preview or a Play from a line no route reaches: the stores, the
-      // visit counts and the seed its start takes still apply.
+      // visit counts, the seed and the parameters its start takes still
+      // apply.
       const plan = this.startPlan(this.routeStartOf(address));
       this._story.resetSeed = plan.seed;
       this._story.ResetState();
       applyStartValues(this._story, plan);
-    } else {
-      this._story.ResetState();
+      this._positions.jumpTo(address);
+      bindStartArguments(this._story, plan);
+      return;
     }
+    this._story.ResetState();
     this._positions.jumpTo(address);
   }
 

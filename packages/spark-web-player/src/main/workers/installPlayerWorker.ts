@@ -923,6 +923,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
+      play: true,
     });
     profile("end", compiler.profilerId + " " + "play/create");
     if (route.shownFrom) {

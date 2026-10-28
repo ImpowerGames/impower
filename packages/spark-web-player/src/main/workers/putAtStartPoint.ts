@@ -29,6 +29,9 @@ export interface StartableGame {
   simulationFailure: SimulationFailure | undefined;
   /** What the game's own replay of a route raised. */
   readonly routeErrors: SimulationError[];
+  /** The game's route draws a seed of its own, which the worker's answer,
+   *  searched with the preview's fixed seed, cannot stand for. */
+  readonly drawsOwnSeed?: boolean;
   load(checkpoint: string): boolean;
   simulate(
     simulationOptions?: Record<
@@ -95,8 +98,11 @@ export function putAtStartPoint(
   // cannot: an address survives an edit that changes what the story does
   // before it, and a compile landing while PLAY is being set up leaves the
   // worker an edit ahead of the program the game was built from. A mismatch
-  // is not an error: the answer does not apply, so the search runs.
+  // is not an error: the answer does not apply, so the search runs. Nor
+  // does an answer apply to a game whose route draws a seed of its own: the
+  // worker searched with the preview's.
   const answersThisRun =
+    !game.drawsOwnSeed &&
     startAddress != null &&
     simulatedAddress === startAddress &&
     programId != null &&

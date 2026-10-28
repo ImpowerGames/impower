@@ -6,6 +6,7 @@
  * so that each arrives at the same state.
  */
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
+import { VariableAssignment } from "../runtime/VariableAssignment";
 import type { InkObject } from "../runtime/Object";
 import {
   AbstractValue,
@@ -34,7 +35,7 @@ import {
 } from "./ProgramInstructions";
 import type { ProgramRoot } from "./ProgramRoot";
 import { entryParameters } from "./ProgramSave";
-import type { ProgramStory } from "./ProgramStory";
+import { ProgramStory } from "./ProgramStory";
 import { SymbolKind, countIdOf } from "./ProgramSymbols";
 import {
   SEED_KEY,
@@ -274,7 +275,12 @@ interface ListedPart<T> {
 /** The parts of the listings of a program's starts, kept for its root. The
  *  stores and the counted places are the same for every start. */
 interface ListedProgram {
+  /** The stores as the declarations give them (`freshStoryOf`), which the
+   *  listing shows. */
   stores?: ListedPart<string[]>;
+  /** The stores' paths as a story that has run holds them, which a plan
+   *  needs no fresh run of the declarations for. */
+  storePaths?: ListedPart<string[]>;
   places?: ListedPart<number>;
   flows?: ListedPart<number>;
   starts: Map<string, StartingValueListing>;
@@ -299,22 +305,48 @@ const parametersOf = (root: ProgramRoot, from: string): string[] => {
     .map((param) => param.name);
 };
 
+const freshStories = new WeakMap<ProgramRoot, ProgramStory>();
+
+/**
+ * A story of the program that has run its declarations and nothing else:
+ * what a store's first value is. A story that has run holds the tables the
+ * declarations built, which a run may have written into, so a table's or a
+ * define's first values are read from one of these, made once per program
+ * and only for a listing. Its seed is 0, the preview's, so a declaration
+ * that draws shows what the preview draws.
+ */
+const freshStoryOf = (root: ProgramRoot): ProgramStory => {
+  let story = freshStories.get(root);
+  if (!story) {
+    story = new ProgramStory(root);
+    if (story.state.previousRandom !== 0 || story.state.storySeed !== 0) {
+      story.resetSeed = 0;
+      story.ResetState();
+    }
+    freshStories.set(root, story);
+  }
+  return story;
+};
+
 /** The program's stores, in the order the scripts declare them, with a
  *  define's `store` fields and a table store's fields, each with its first
- *  value. */
+ *  value: as the declarations give them (`fresh`), which the listing shows,
+ *  or as `story` holds them, whose paths a plan applies a value by. */
 const storesOf = (
   story: ProgramStory,
   source: StartingValueSource,
+  fresh: boolean,
 ): ListedPart<string[]> => {
   const root = story.root!;
   const program = listedProgram(root);
-  if (program.stores) {
-    return program.stores;
+  const kept = fresh ? program.stores : (program.stores ?? program.storePaths);
+  if (kept) {
+    return kept;
   }
   const items: StartingValueItem[] = [];
   const targets = new Map<string, string[]>();
   const constants = root.tables?.constantNames ?? new Set<string>();
-  const variables = story.state.variablesState;
+  const variables = (fresh ? freshStoryOf(root) : story).state.variablesState;
   for (const uri of source.uris) {
     const declarations = root.declarations(uri);
     for (const chunk of declarations?.arrays.chunks ?? []) {
@@ -374,8 +406,13 @@ const storesOf = (
       }
     }
   }
-  program.stores = { items, targets };
-  return program.stores;
+  const part = { items, targets };
+  if (fresh) {
+    program.stores = part;
+  } else {
+    program.storePaths = part;
+  }
+  return part;
 };
 
 /** Where a script stands in the order the scripts are listed in. */
@@ -493,7 +530,7 @@ export const startingValueListing = (
       first: "nil",
     }),
   );
-  items.push(...storesOf(story, source).items);
+  items.push(...storesOf(story, source, true).items);
   // The visits in script order: a flow before the places on its line.
   const places = placesOf(story, source);
   const visits = [...flowsOf(story, source).items, ...places.items];
@@ -572,7 +609,7 @@ export const startPlanOf = (
         lastArg = Math.max(lastArg, param);
       }
     } else if (key.startsWith("store:")) {
-      const path = storesOf(story, source).targets.get(key);
+      const path = storesOf(story, source, false).targets.get(key);
       if (path) {
         plan.stores.push([path, value]);
       }
@@ -659,4 +696,29 @@ export const applyStartValues = (story: ProgramStory, plan: StartPlan): void => 
   for (const [countId, visits] of plan.counts) {
     story.state.SetCount(countId, visits, visits > 0 ? turn : null);
   }
+};
+
+/**
+ * Binds a plan's parameters in the frame of a story moved into its start
+ * past the entry that binds them (`ChooseAddress` to a line no route
+ * reaches): each parameter given a value is declared with it, as the
+ * entry's own declaration would have, and one given none reads nil.
+ */
+export const bindStartArguments = (
+  story: ProgramStory,
+  plan: StartPlan,
+): void => {
+  if (!plan.args) {
+    return;
+  }
+  const params = parametersOf(story.root!, plan.from);
+  plan.args.forEach((literal, i) => {
+    const name = params[i];
+    if (name !== undefined && literal !== null) {
+      story.state.variablesState.Assign(
+        new VariableAssignment(name, true, false, false),
+        valueOfLiteral(literal),
+      );
+    }
+  });
 };

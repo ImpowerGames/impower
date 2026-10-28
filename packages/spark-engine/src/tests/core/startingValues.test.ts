@@ -24,7 +24,7 @@
 //   - the listing names the start's parameters, the stores, the counted
 //     places and the seed, each with its first value.
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   checkStartingValue,
@@ -422,5 +422,91 @@ describe("a place's key", () => {
       line: 12,
       detached: true,
     });
+  });
+});
+
+describe("first values of tables", () => {
+  test("are the declarations', after a run wrote into a table store and a define's store field", () => {
+    const { game } = routeTo(
+      [
+        "store player = { hp = 10 }",
+        "define guide with",
+        "  store mood = 1",
+        "end",
+        "scene s",
+        "  & player.hp = 3",
+        "  & guide.mood = 5",
+        "  Now {player.hp} {guide.mood}.",
+        "end",
+      ],
+      8,
+    );
+    expect(game.simulation).toBe("success");
+    expect(shown(game)).toContain("Now 3 5.");
+    const items = game.startingValueListing("s").items;
+    const player = items.find((i: any) => i.name === "player");
+    expect(player.first).toBe("{ hp = 10 }");
+    expect(player.fields.map((f: any) => [f.name, f.first])).toEqual([
+      [".hp", "10"],
+    ]);
+    expect(items.find((i: any) => i.name === "guide.mood").first).toBe("1");
+  });
+});
+
+describe("PLAY from the top-level content", () => {
+  const drawing = ["store draw = math.random(1, 100000)", "Drew {draw}."];
+
+  test("draws its seed from the clock before the declarations run, as an ordinary game does", () => {
+    // The clock held still, at a time whose seed is not the preview's 0.
+    const clock = vi.spyOn(Date.prototype, "getTime").mockReturnValue(1234567);
+    try {
+      const { program } = compileSrc(drawing.join("\n"));
+      const ordinary: any = newGame(program);
+      const expected = ordinary.story.variablesState["draw"];
+      expect(ordinary.story.state.storySeed).not.toBe(0);
+
+      const play: any = new Game({
+        program: program as any,
+        play: true,
+        startFrom: { file: URI, line: 1 },
+        now: () => 0,
+        setTimeout: ((fn: Function) => {
+          fn();
+          return 0;
+        }) as any,
+      } as any);
+      expect(play.drawsOwnSeed).toBe(true);
+      play.simulate();
+      expect(play.simulation).toBe("success");
+      expect(play.story.variablesState["draw"]).toBe(expected);
+
+      // The preview of the same line draws with seed 0.
+      const preview: any = newGame(program);
+      preview.setStartFrom({ file: URI, line: 1 });
+      preview.simulate();
+      expect(preview.story.state.storySeed).toBe(0);
+      expect(preview.drawsOwnSeed).toBe(false);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  test("with the top-level content's seed set, draws from that seed", () => {
+    const { program } = compileSrc(drawing.join("\n"));
+    const play: any = new Game({
+      program: program as any,
+      play: true,
+      startFrom: { file: URI, line: 1 },
+      startingValues: { "0": { [SEED_KEY]: "9" } },
+      now: () => 0,
+      setTimeout: ((fn: Function) => {
+        fn();
+        return 0;
+      }) as any,
+    } as any);
+    expect(play.drawsOwnSeed).toBe(false);
+    play.simulate();
+    expect(play.simulation).toBe("success");
+    expect(play.story.state.storySeed).toBe(9);
   });
 });

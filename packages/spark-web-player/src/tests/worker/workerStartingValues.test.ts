@@ -91,3 +91,57 @@ describe("starting values the host sends", () => {
     }
   }, 120_000);
 });
+
+describe("a line no route reaches", () => {
+  /** What the preview of `line` (zero-based) of `source` writes, with the
+   *  host's `values`. */
+  const previewWith = async (
+    source: string,
+    line: number,
+    values: Record<string, Record<string, string>>,
+  ) => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line },
+    });
+    try {
+      await (h.controller as any).handleSetStartingValues(
+        SetStartingValuesMessage.type.request({ values }),
+      );
+      await h.compile();
+      await h.select(line);
+      await settle(40);
+      return writtenText(h.toRouter);
+    } finally {
+      h.dispose();
+    }
+  };
+
+  it("is shown with the parameters the scene's start takes", async () => {
+    const text = await previewWith(
+      ["scene s(hour)", "  done", "  After {hour}.", "end", ""].join("\n"),
+      2,
+      { s: { "param:hour": '"late"' } },
+    );
+    expect(text).toContain("After late.");
+  }, 120_000);
+
+  it("is shown when the values the scene's start takes make it show a beat", async () => {
+    const text = await previewWith(
+      [
+        "store show = false",
+        "scene s",
+        "  Before.",
+        "  done",
+        "  if show then",
+        "    After.",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+      4,
+      { s: { "store:show": "true" } },
+    );
+    expect(text).toContain("After.");
+  }, 120_000);
+});
