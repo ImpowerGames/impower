@@ -4,6 +4,7 @@ import {
   EXPLICIT,
   FLOWS,
   childEndingWith,
+  findWithin,
   scopeOf,
 } from "./declarationOnly";
 import { isExplicitRuleName } from "./explicitRuleNames";
@@ -343,18 +344,4 @@ const asAssignment = (
   }
   const rest = read(modifier.to, to).trimStart();
   return marked ? rest : `& ${rest}`;
-};
-
-/** The first node named `name` inside `node`, at any depth. */
-const findWithin = (node: SyntaxNode, name: string): SyntaxNode | undefined => {
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) {
-      return child;
-    }
-    const found = findWithin(child, name);
-    if (found) {
-      return found;
-    }
-  }
-  return undefined;
 };
