@@ -144,12 +144,6 @@ top-level block, which Luau's would close over the block's locals, reads
 none of them: in a `do` block it is a function of the story, built before
 the block runs, and a name a local of the block takes reads the global in
 it (I-1444); in an `if` or a loop it fails when the block runs (I-1443).
-A name a script declares once is bound by name in the root frame's scope,
-which every script's scenes share, so a scene of another script that
-declares the name too replaces it while it runs (I-1455). Slotting
-every declaration would key it apart, but an ordinal slot changes whenever
-a declaration of the name moves past another, which would emit a moved
-statement again, and it would put a temporary into every save.
 
 A `define` written in a function has its methods read
 that function's locals through a global cell for each
