@@ -525,12 +525,44 @@ export function* bakeSteps(
   const allLeaves = drawnLeaves(doc).filter(unionVisible);
   const inTarget = (element: Element) =>
     targetsByClip.some((targets) => targets.some((t) => isAncestorOrSelf(doc!, t, element)));
+  /** Whether any of `element`'s layers, its own or an ancestor's, has a label in `labels`. */
+  const labelledAny = (element: Element, labels: readonly string[]) =>
+    [...ancestry(doc!, element)].some((entry) => {
+      const label = entry.layer?.parsed.label;
+      return !!label && labels.includes(label);
+    });
+  // Each `paints` entry that applies to this variant, with the pose it names
+  // and what that pose shows. `when` holds where the rest pose draws a layer
+  // that needs that state, through its own name or an ancestor's: one whose
+  // condition on the group accepts only that state or its refinements. The
+  // state the morph starts from is the rest pose, which no entry colours.
+  const needs = (element: Element, group: string, state: string) =>
+    [...ancestry(doc!, element)].some((entry) =>
+      entry.layer?.parsed.conditions.some(
+        (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state || o.startsWith(`${state}-`)),
+      ),
+    );
+  const restDrawn = allLeaves.filter((element) => visibleAt(element, restVisible));
+  const appliedPaints = (recipe.paints ?? []).flatMap((entry, index) => {
+    const pose = parseMorphQualifiedState(entry.state);
+    const visible = pose && pose.state !== requirements.rest.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
+    if (!pose || !visible) return [];
+    if (entry.when !== undefined) {
+      const when = parseMorphQualifiedState(entry.when);
+      if (!when || !restDrawn.some((element) => needs(element, when.group, when.state))) return [];
+    }
+    return [{ entry, index, pose, visible }];
+  });
   const live = new Set<Element>();
   for (const element of allLeaves) {
     const key = keyOf(element);
     if ((key !== undefined && groupOf.has(key)) || inTarget(element)) live.add(element);
+    // A target drawing that no driven group switches shows in the entry's
+    // pose too; it is live so a frame can recolour it.
+    else if (appliedPaints.some(({ entry, visible }) => visibleAt(element, visible) && labelledAny(element, entry.targets))) live.add(element);
   }
-  // The drawings that change: state layers and clip targets. Live parts also
+  // The drawings that change: state layers, clip targets and `paints`
+  // targets. Live parts also
   // hold unchanging art a compositing group keeps with them.
   const moving = new Set(live);
   // A group that composites as a whole (opacity, filters, masks, blending)
@@ -651,47 +683,26 @@ export function* bakeSteps(
     }
     return best?.leaf;
   };
-  /** Whether any of `element`'s layers, its own or an ancestor's, has a label in `labels`. */
-  const labelledAny = (element: Element, labels: readonly string[]) =>
-    [...ancestry(doc!, element)].some((entry) => {
-      const label = entry.layer?.parsed.label;
-      return !!label && labels.includes(label);
-    });
   /**
-   * Each `paints` entry where it applies to this variant. `when` holds where
-   * the rest pose draws a layer that needs that state, through its own name
-   * or an ancestor's: one whose condition on the group accepts only that
-   * state or its refinements. The entry recolours the drawings of its labels
-   * that change with the pose's group and that the pose shows, and every
+   * Each `paints` entry where it applies to this variant. The entry recolours
+   * the drawings of its labels that the pose shows, among those that change
+   * with the pose's group and those no driven group switches, and every
    * `morph` track of a segment arriving at or leaving the pose whose end
    * there is one of them.
    */
   const paintPosesOf = (): MorphPaintPose[] => {
     const out: MorphPaintPose[] = [];
-    const needs = (element: Element, group: string, state: string) =>
-      [...ancestry(doc!, element)].some((entry) =>
-        entry.layer?.parsed.conditions.some(
-          (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state || o.startsWith(`${state}-`)),
-        ),
-      );
-    const restDrawn = drawnLeaves(doc!).filter((element) => visibleAt(element, restVisible));
     const leafByNode = new Map(leaves.filter((l) => l.live).map((l) => [l.node, l]));
-    for (const [index, entry] of (recipe.paints ?? []).entries()) {
-      const pose = parseMorphQualifiedState(entry.state);
-      // The state the morph starts from is the rest pose, which no entry colours.
-      const visible = pose && pose.state !== requirements.rest.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
-      if (!pose || !visible) continue;
-      if (entry.when !== undefined) {
-        const when = parseMorphQualifiedState(entry.when);
-        if (!when || !restDrawn.some((element) => needs(element, when.group, when.state))) continue;
-      }
-      const drawn = leaves.filter((l) => l.live && l.group === pose.group && visibleAt(l.element, visible) && labelledAny(l.element, entry.targets));
+    for (const { entry, index, pose, visible } of appliedPaints) {
+      const drawn = leaves.filter(
+        (l) => l.live && (l.group === pose.group || l.group === undefined) && visibleAt(l.element, visible) && labelledAny(l.element, entry.targets),
+      );
       for (const label of entry.targets) {
         if (drawn.some((l) => labelledAny(l.element, [label]))) continue;
         report(
           "paint-target-missing",
           "warning",
-          `\`paints\` entry ${index + 1} recolours "${label}" at \`${entry.state}\`, but that pose draws no "${label}" that changes with \`${pose.group}\`, so nothing of it takes the colour.`,
+          `\`paints\` entry ${index + 1} recolours "${label}" at \`${entry.state}\`, but that pose draws no "${label}", so nothing of it takes the colour.`,
           { layer: label },
         );
       }

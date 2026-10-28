@@ -500,11 +500,30 @@ end
     expect(found).not.toContain("leaves");
   });
 
-  test("`state =` offers the keyframes' `group.state` poses other than the starting one", () => {
-    expect(labels(PAINTED("state = |"))).toEqual(["eyes.closed"]);
-    const items = at(PAINTED("state = eyes.cl|"));
+  test("`state =` offers the keyframes' `group.state` poses other than the one the first keyframe starts each group from", () => {
+    // The starting states come from the compiled morph, as the compiler reads them.
+    const compiled = compileProject(PAINTED("targets { eyelash-left }; state = eyes.closed; fill = red"));
+    const stateAt = (source: string) => completeAt(source, compiled);
+    expect(stateAt(PAINTED("state = |")).map((i) => String(i.label))).toEqual(["eyes.closed"]);
+    const items = stateAt(PAINTED("state = eyes.cl|"));
     expect(items.map((i) => i.label)).toEqual(["closed"]);
     expect(insertedText(items[0]!)).toBe("closed");
+    // A first keyframe that leaves a group out starts it from each variant's
+    // own rest, so none of that group's named states is excluded.
+    const omitted = (entry: string) => `morph blink with
+  method = bend
+  keyframes {
+    from { mouth { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open }; mouth { state = closed } }
+  }
+  paints {
+    { ${entry} }
+  }
+end
+`;
+    const late = compileProject(omitted("targets { eyelash-left }; state = eyes.closed; fill = red"));
+    expect(completeAt(omitted("state = |"), late).map((i) => String(i.label))).toEqual(["mouth.closed", "eyes.closed", "eyes.open"]);
   });
 
   test("`when =` offers the states of groups the morph does not drive, from the candidate artwork", () => {

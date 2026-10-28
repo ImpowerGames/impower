@@ -134,6 +134,22 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
     expect(fills(artifact, CLOSED)).toEqual(["#111"]);
   });
 
+  test("a target drawing no driven group switches takes the colour at the pose and over the span", () => {
+    // An always-shown drawing labelled `shared`, drawn above the eyes.
+    const source = maskedPortrait().replace("</svg>", '<path data-name="shared" d="M0,0H10V10H0Z" fill="#111"/>\n</svg>');
+    const shared = (paints: Record<string, unknown>[]) =>
+      bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipe: maskedBlink(paints), key: "shared", variant: "masked" });
+    const artifact = shared([{ targets: ["shared"], state: "eyes.closed", fill: "red", span: "40%" }]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.diagnostics).toEqual([]);
+    expect(fills(artifact, CLOSED, "shared")).toEqual(["rgba(255,0,0,1)"]);
+    // Halfway through the last 40% of the closing: the sRGB midpoint of #111 and red.
+    expect(fills(artifact, 0.8 / 3, "shared")).toEqual(["rgba(136,8,8,1)"]);
+    for (const offset of [OPEN, 0.5 / 3, HALFWAY, 1]) expect(fills(artifact, offset, "shared"), String(offset)).toEqual(["#111"]);
+    // Live so a frame can recolour it; the rest render is the same.
+    expect(artifact.rest).toBe(shared([]).rest);
+  });
+
   test("a target label the pose does not draw is reported on the artwork, where the entry applies", () => {
     const missing = { ...ENTRY, targets: ["eyelash-left", "eyelash-right"] };
     const masked = bake("masked", [missing]);

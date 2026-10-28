@@ -751,11 +751,33 @@ export function morphValueProblems(
       problems.push({ field: `timing.${field}`, message }),
     );
   }
+  // A `paints` entry's form; its pose and condition are checked against the
+  // keyframes of the morph that inherits it.
   const paints = struct["paints"];
+  if (paints !== undefined && !Array.isArray(paints) && !(isRecord(paints) && Object.keys(paints).length === 0)) {
+    problems.push({ field: "paints", message: `\`paints\` is a list of \`{ … }\` entries. ${PAINT_ENTRY}` });
+  }
   if (Array.isArray(paints)) {
     paints.forEach((entry, index) => {
-      if (!isRecord(entry)) return;
-      for (const { message } of paintFormProblems(entry)) problems.push({ field: "paints", message: `entry ${index + 1}: ${message}` });
+      const add = (message: string) => problems.push({ field: "paints", message: `entry ${index + 1}: ${message}` });
+      if (!isRecord(entry)) {
+        add(PAINT_ENTRY);
+        return;
+      }
+      for (const key of Object.keys(entry)) {
+        if ((MORPH_PAINT_FIELDS as readonly string[]).includes(key)) continue;
+        add(HOME[key] ? `\`${key}\` belongs ${HOME[key]}.` : `Unknown morph field \`${key}\`.`);
+      }
+      const targets = entry["targets"];
+      if (targets === undefined) {
+        add("This `paints` entry needs `targets { … }` with at least one layer label.");
+      } else if (!Array.isArray(targets) || targets.length === 0 || targets.some((label) => typeof label !== "string" || label.trim() === "")) {
+        add("`targets` is a list of layer labels: `targets { eyelash-left }`.");
+      }
+      if ("state" in entry && !parseMorphQualifiedState(entry["state"])) {
+        add(`${describeValue(entry["state"])} is not a pose: write a state with its group, such as \`state = eyes.closed\`.`);
+      }
+      for (const { message } of paintFormProblems(entry)) add(message);
     });
   }
   return problems;

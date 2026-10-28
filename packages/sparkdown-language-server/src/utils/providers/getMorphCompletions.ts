@@ -120,6 +120,10 @@ export function getMorphCompletions(
   // An ancestor is a morph block or a `define`, which may be filed under its
   // own parent's name; `compiledAncestor` finds it as the compiler does.
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
+  // The struct whose keyframes apply, as compiled: the block's own when it
+  // writes keyframes, else the nearest ancestor's with keyframes. Its first
+  // keyframe names the states the morph starts from.
+  let keyframeStruct: Record<string, unknown> | undefined = braces?.keyframes ? morphs[block.name] : undefined;
   const seen = new Set<string>();
   let ancestor: string | undefined = morphs[block.name]?.$extends;
   while (typeof ancestor === "string" && !seen.has(ancestor)) {
@@ -136,6 +140,7 @@ export function getMorphCompletions(
     const keyframes = Array.isArray(struct["keyframes"]) ? struct["keyframes"] : [];
     if (!posesFound && keyframes.length > 0) {
       posesFound = true;
+      keyframeStruct = struct;
       for (const keyframe of keyframes) {
         for (const [group, pose] of Object.entries(keyframe ?? {})) {
           addNamed(group, (pose as Record<string, unknown> | null)?.["state"]);
@@ -226,13 +231,15 @@ export function getMorphCompletions(
       return items;
     }
     // A `paints` entry's pose is a state the keyframes name other than the one
-    // each group starts from (the first named); its `when` is a state of a
-    // group the morph does not drive, from the candidate artwork.
+    // its group starts from (the one the first keyframe gives it, as the
+    // compiler reads it); its `when` is a state of a group the morph does not
+    // drive, from the candidate artwork.
     if (inPaint && (key === "state" || key === "when")) {
       const dot = typed.indexOf(".");
       const states = new Map<string, string[]>();
       if (key === "state") {
-        for (const [group, list] of named) states.set(group, list.slice(1));
+        const start = keyframeStruct ? morphRequirements(keyframeStruct).rest : new Map<string, string>();
+        for (const [group, list] of named) states.set(group, list.filter((state) => state !== start.get(group)));
       } else {
         for (const image of candidates) {
           for (const [group, { options }] of Object.entries(image.vocabulary.groups)) {

@@ -1393,4 +1393,26 @@ end
     expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
     expect(found[0]!.message).toContain("not a `fill` colour");
   });
+
+  test.each([
+    ["missing `targets`", '{ state = "eyes.closed", fill = "red" }', "needs `targets { … }`"],
+    ["empty `targets`", '{ targets = {}, state = "eyes.closed", fill = "red" }', "`targets` is a list of layer labels"],
+    ["a bare `state`", '{ targets = { "eyelash-left" }, state = "closed", fill = "red" }', "`closed` is not a pose"],
+    ["an unknown field", '{ targets = { "eyelash-left" }, state = "eyes.closed", fill = "red", colour = "red" }', "Unknown morph field `colour`"],
+    ["an entry that is not a block", '"eyelash-left"', "A `paints` entry is a `{ … }` entry"],
+  ])("a `define` parent's entry with %s is reported on the child's `as`", (_, entry, message) => {
+    const text = `define base as morph with
+  method = "bend"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+  paints = { ${entry} }
+end
+
+morph child as base with
+  fallback = fade
+end
+`;
+    const found = paintErrors(text);
+    expect(found).toEqual([expect.objectContaining({ line: 6, text: "base", message: expect.stringContaining(message) })]);
+    expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
+  });
 });

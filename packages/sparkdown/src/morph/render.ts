@@ -433,9 +433,10 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
   const colors: ["fill" | "stroke", MorphColor][] = [];
   if (entry.fill) colors.push(["fill", entry.fill]);
   if (entry.stroke) colors.push(["stroke", entry.stroke]);
-  // Only drawings the frame shows are written, so a hidden one keeps its markup.
+  // A drawing the frame hides keeps its markup. A target no driven group
+  // switches is in neither set and always shows.
   const write = (node: string, base: MorphPaintBase | undefined, w: number) => {
-    if (w <= 0 || !state.shown.has(node)) return;
+    if (w <= 0 || state.hidden.has(node)) return;
     const values = state.paint.get(node) ?? table();
     for (const [name, color] of colors) {
       const own = base?.[name];
@@ -459,11 +460,15 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
   const states = own(artifact.visibility, entry.group) ?? {};
   const before = new Set(own(states, segment.from.state) ?? []);
   const after = new Set(own(states, segment.to.state) ?? []);
+  const switched = new Set(Object.values(states).flat());
   // The nodes moving shapes draw on this frame show the track, not their drawing.
   const drawing = new Set(p > 0 && p < 1 ? segment.transitions.flatMap((t) => (t.kind === "morph" || t.kind === "scale" ? [t.draw] : [])) : []);
   for (const [node, base] of Object.entries(entry.nodes)) {
     if (drawing.has(node)) continue;
-    write(node, base, before.has(node) && after.has(node) ? w : 1);
+    // A drawing both poses show, the group's own or one it never switches,
+    // takes the mix; one the pose alone shows is the pose's drawing itself.
+    const both = !switched.has(node) || (before.has(node) && after.has(node));
+    write(node, base, both ? w : 1);
   }
   for (const t of segment.transitions) {
     if (t.kind === "scale" && t.node in entry.nodes && drawing.has(t.draw)) write(t.draw, undefined, 1);
