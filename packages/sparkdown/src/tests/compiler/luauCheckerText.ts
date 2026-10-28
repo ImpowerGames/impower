@@ -14,6 +14,7 @@ import type { Json } from "./officialLuau";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { opensAlternator } from "../../compiler/utils/alternatorDecision";
+import { scopeOf } from "../../compiler/utils/declarationOnly";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
 // Derive counterpart identities from the grammar being parsed, independently
@@ -456,7 +457,8 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
 
 /**
  * A `.sd` file's Luau as units: its prelude, with the Luau statements
- * outside any flow and every function definition, and a unit per scene (its
+ * outside any flow and every function definition but a `local function`
+ * written in a flow, and a unit per scene (its
  * branches included) or branch outside any scene that holds Luau statements.
  */
 export function checkerTextUnits(tree: Tree, documentText: string, validParameters: (text: string) => boolean = parsesAsParameters): CheckerTextUnits {
@@ -700,9 +702,10 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       // A branch's `end` closes the branch, not the flow it is checked in.
       const closed = open.pop();
       if (closed && !open.includes(closed)) closed.end = node;
-    } else if (node.name === "LuauFunctionDefinition") {
+    } else if (node.name === "LuauFunctionDefinition" && (open.length === 0 || scopeOf(node, (from, to) => documentText.slice(from, to)) !== "local")) {
+      // A `local function` written in a flow is a statement of that flow.
       keepLuau(prelude, node);
-    } else if (LUAU_STATEMENTS.has(oracleName(node.name))) {
+    } else if (LUAU_STATEMENTS.has(oracleName(node.name)) || node.name === "LuauFunctionDefinition") {
       keepLuau(open[open.length - 1]?.body ?? prelude, node);
     }
   }

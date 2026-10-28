@@ -19,6 +19,19 @@ export function rootLocalAnswer(name: string, at: number, ctx: LowerContext): st
 }
 
 /**
+ * The `local` of the flows around a block a top-level statement opens that
+ * code written at `at`, inside the block, reads `name` from
+ * (`RootLocals.answerIgnoringBlocks`), recorded as a
+ * `rootLocalIgnoringBlocks` read so the chunk is lowered again when a `local`
+ * written, removed or moved above it changes the answer.
+ */
+export function rootLocalAnswerIgnoringBlocks(name: string, at: number, ctx: LowerContext): string {
+  const answer = ctx.rootLocals?.answerIgnoringBlocks(name, at) ?? "";
+  ctx.recordRead?.({ kind: "rootLocalIgnoringBlocks", value: `${name}=${answer}`, node: name, from: at });
+  return answer;
+}
+
+/**
  * What the root-frame declaration of `name` written at `at` is known by
  * (`RootLocals.declared`), recorded as a `rootDeclaration` read: "" for a
  * declaration of another scope.

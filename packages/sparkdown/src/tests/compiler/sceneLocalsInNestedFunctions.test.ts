@@ -63,6 +63,13 @@ describe("a function written in a flow reads the flow's locals declared above it
       "a local function in a choice body",
       "scene main\n  local foo = 5\n  choose\n    + choice\n      local function g()\n        return foo\n      end\n      & g()\n  end\nend\n",
     ],
+    ["a local function in a `do` block", "scene main\n  local foo = 5\n  do\n    local function g() return foo end\n    & g()\n  end\nend\n"],
+    ["a local function in an `if` block", "scene main\n  local foo = 5\n  if true then\n    local function g() return foo end\n    & g()\n  end\nend\n"],
+    ["a local function reading a local of its block", "scene main\n  do\n    local bar = 1\n    local function g() return bar end\n    & g()\n  end\nend\n"],
+    [
+      "a function value in an `if` block reading a local named like a library",
+      "scene main\n  local table = { nogetn = function() return 1 end }\n  if true then\n    & pcall(function() return table.nogetn() end)\n  end\nend\n",
+    ],
   ])("%s", (_, source) => {
     expect(compile(source)).toEqual([]);
   });
@@ -83,16 +90,33 @@ describe("a function written in a flow reads the flow's locals declared above it
       "scene a\n  local foo = 5\nend\nscene main\n  local function g()\n    return foo\n  end\n  & g()\nend\n",
       ["6: Cannot find variable named `foo`"],
     ],
+    [
+      "a name no local declares, read in a block",
+      "scene main\n  do\n    local function g() return nope end\n    & g()\n  end\nend\n",
+      ["3: Cannot find variable named `nope`"],
+    ],
+    [
+      "a local declared below the block",
+      "scene main\n  do\n    local function g() return foo end\n    & g()\n  end\n  local foo = 5\nend\n",
+      ["3: Cannot find variable named `foo`"],
+    ],
+    [
+      "another scene's local, read in a block",
+      "scene a\n  local foo = 5\nend\nscene main\n  do\n    local function g() return foo end\n    & g()\n  end\nend\n",
+      ["6: Cannot find variable named `foo`"],
+    ],
   ])("still reports %s", (_, source, expected) => {
     expect(compile(source)).toEqual(expected);
   });
 
-  it("reports the read again once an edit removes the local above the function", () => {
-    const withLocal = "scene main\n  local foo = 5\n  local function g()\n    return foo\n  end\n  & g()\nend\n";
+  it.each([
+    ["the function", "scene main\n  local foo = 5\n  local function g()\n    return foo\n  end\n  & g()\nend\n", "4: Cannot find variable named `foo`"],
+    ["a block holding the function", "scene main\n  local foo = 5\n  do\n    local function g() return foo end\n    & g()\n  end\nend\n", "4: Cannot find variable named `foo`"],
+  ])("reports the read again once an edit removes the local above %s", (_, withLocal, expected) => {
     const c = compiler(withLocal);
     expect(unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program)).toEqual([]);
     c.updateDocument({ textDocument: { uri: URI, version: 2 }, contentChanges: [{ text: withLocal.replace("local foo = 5", "local bar = 5") }] } as never);
-    expect(unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program)).toEqual(["4: Cannot find variable named `foo`"]);
+    expect(unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program)).toEqual([expected]);
     c.updateDocument({ textDocument: { uri: URI, version: 3 }, contentChanges: [{ text: withLocal }] } as never);
     expect(unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program)).toEqual([]);
   });

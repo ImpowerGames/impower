@@ -606,14 +606,15 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // reads from a top-level `local`. The lowering writes those bindings first
   // in the flow's root weave. A binding by name in any scope, which a
   // function written inside a block of a flow makes for every name it reads
-  // (`ROOT_IN_BLOCK`), binds no particular `local`, and does not count.
+  // (`ROOT_IN_BLOCK`), counts only where a local of the block or of a flow
+  // around it is in scope at the read (`RootBinding.local`).
   public BindsRootLocal = (varName: string): boolean => {
     recordRead(varName);
     for (const obj of this._rootWeave?.content ?? []) {
       if (!(obj instanceof RootBinding)) {
         return false;
       }
-      if (obj.variableName === varName && !obj.anyScope) {
+      if (obj.variableName === varName && (!obj.anyScope || obj.local)) {
         return true;
       }
     }
