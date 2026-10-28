@@ -230,8 +230,12 @@ export function paintAt(paint: MorphPaint, progress: number): Record<string, str
   return out;
 }
 
-/** Gradient numbers at the precision a matrix needs to place a user-space gradient. */
-const fine = (n: number) => String(Math.round(n * 1e6) / 1e6 || 0);
+/**
+ * Gradient numbers to ten significant digits, so a small transform
+ * coefficient that places a gradient keeps its value rather than rounding to
+ * a singular matrix.
+ */
+const fine = (n: number) => String(Number(n.toPrecision(10)) || 0);
 
 const GEOMETRY_NAMES: Record<MorphGradient["kind"], string[]> = {
   linear: ["x1", "y1", "x2", "y2"],

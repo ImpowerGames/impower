@@ -130,6 +130,18 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(fillOf(drawn(artifact, 0.25, "plain"))).toBeUndefined();
   });
 
+  test("a small transform coefficient keeps its value rather than rounding to a singular matrix", () => {
+    const stops = '<stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>';
+    const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
+<defs><linearGradient id="a" x2="10000000" gradientTransform="scale(0.0000001)">${stops}</linearGradient><linearGradient id="b" x2="10000000" gradientTransform="scale(0.0000002)">${stops}</linearGradient></defs>
+<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#b)"/></g>
+</svg>`;
+    const small = bake(source);
+    const id = track(small, "lash").gradients!.fill!.id;
+    expect(gradient(small, 0.25, id).attributes["gradientTransform"]).toBe("matrix(1.5e-7 0 0 1.5e-7 0 0)");
+  });
+
   test("a pair sharing one gradient still blends its fill and stroke opacity, with no copy", () => {
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>

@@ -702,7 +702,9 @@ export function* bakeSteps(
     const from = doc!.info.get(leaf.element)?.rootFromElement;
     if (!gradient || !from) return undefined;
     if (gradient.units === "objectBoundingBox") return gradient;
-    const fine = (n: number) => Math.round(n * 1e9) / 1e9 || 0;
+    // Twelve significant digits: the same placement reached through
+    // different spaces compares equal, and a small coefficient keeps its value.
+    const fine = (n: number) => Number(n.toPrecision(12)) || 0;
     const transform = multiply(multiply(space, from), gradient.transform as Affine).map(fine);
     // A placement that overflows is one the bake cannot draw with certainty.
     return transform.every(Number.isFinite) ? { ...gradient, transform } : undefined;

@@ -25,6 +25,8 @@ describe("gradients are read within a closed grammar", () => {
     const chained = read(`<linearGradient id="a" href="#t" x2="0.5" gradientTransform="translate(1, 2) scale(2)"/><radialGradient id="t" cx="0.2" spreadMethod="reflect">${STOPS}</radialGradient>`);
     expect(chained).toMatchObject({ kind: "linear", spread: "reflect", geometry: [0, 0, 0.5, 0], transform: [2, 0, 0, 2, 1, 2] });
     expect(chained!.stops).toHaveLength(2);
+    // A namespace declaration that names SVG again changes nothing.
+    expect(read(`<linearGradient xmlns="http://www.w3.org/2000/svg" id="a">${STOPS}</linearGradient>`)).toBeDefined();
     expect(read(`<radialGradient id="a" gradientUnits="userSpaceOnUse" cx="5" cy="6" r="4" fy="7" fr="0%">${STOPS}</radialGradient>`)!.geometry).toEqual([5, 6, 4, 5, 7, 0]);
     const stops = read(
       `<linearGradient id="a" color="#00f"><stop offset="0.6" stop-color="#f00" stop-opacity="0.5"/><stop offset="0.2" style="stop-color:currentColor"/><stop offset="150%" stop-color="inherit"/></linearGradient>`,
@@ -63,6 +65,9 @@ describe("gradients are read within a closed grammar", () => {
     ["a coordinate too large for a double", `<linearGradient id="a" x2="1e999">${STOPS}</linearGradient>`],
     ["a transform too large for a double", `<linearGradient id="a" gradientTransform="scale(1e999)">${STOPS}</linearGradient>`],
     ["a stop colour too large for a double", `<linearGradient id="a"><stop offset="0" stop-color="hsl(1e999, 50%, 50%)"/></linearGradient>`],
+    ["a gradient in another namespace", `<linearGradient xmlns="urn:not-svg" id="a">${STOPS}</linearGradient>`],
+    ["a gradient under an ancestor in another namespace", `<g xmlns="urn:not-svg"><linearGradient id="a">${STOPS}</linearGradient></g>`],
+    ["a stop in another namespace", `<linearGradient id="a"><stop xmlns="urn:not-svg" offset="0" stop-color="#000"/></linearGradient>`],
     ["a padded offset", `<linearGradient id="a"><stop offset=" 0.5" stop-color="#000"/></linearGradient>`],
     ["a stop style declaring anything else", `<linearGradient id="a"><stop offset="0" style="stop-color:#000;display:none"/></linearGradient>`],
     ["a stop colour outside the paint grammar", `<linearGradient id="a"><stop offset="0" stop-color="var(--x)"/></linearGradient>`],

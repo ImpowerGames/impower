@@ -4,7 +4,9 @@
 // baked live, so no sheet rule takes part.
 //
 // A gradient blends only when everything that decides it is in this grammar:
-// a `linearGradient` or `radialGradient` with no inline `style` and no
+// a `linearGradient` or `radialGradient` in the SVG namespace (the nearest
+// default namespace declaration names it, for it and its stops) with no
+// inline `style` and no
 // `transform` attribute, holding nothing but `stop` elements, reached from
 // the drawing through a bare `url(#id)` and from there through `href` or
 // `xlink:href` of the form `#id`, each to another such gradient; its
@@ -92,6 +94,22 @@ const interpolates = (doc: ArtDocument, element: Element) =>
     return inline === null || inline.some((d) => d.name === "color-interpolation" || d.name === "all");
   });
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/**
+ * Whether an element's unprefixed name is in the SVG namespace: the nearest
+ * default namespace declaration, its own or an ancestor's, names it. An
+ * element under another namespace is no gradient or stop a browser paints
+ * with, whatever its name.
+ */
+const inSvg = (doc: ArtDocument, element: Element) => {
+  for (const { element: e } of ancestry(doc, element)) {
+    const declared = e.attributes["xmlns"];
+    if (declared !== undefined) return declared === SVG_NS;
+  }
+  return false;
+};
+
 /**
  * The gradient `id` names, resolved through its `href` chain: each attribute
  * from the first gradient in the chain that sets it (coordinates only from
@@ -102,7 +120,7 @@ const interpolates = (doc: ArtDocument, element: Element) =>
 export function readGradient(doc: ArtDocument, id: string): MorphGradient | undefined {
   const chain: Element[] = [];
   for (let at = doc.byId.get(id); at; ) {
-    if (chain.includes(at) || !own(KINDS, at.tagName)) return undefined;
+    if (chain.includes(at) || !own(KINDS, at.tagName) || !inSvg(doc, at)) return undefined;
     // Inline style could set the transform, and a `transform` attribute is
     // one in SVG 2; a link in any other namespace prefix is one the bake
     // cannot tell from `xlink:href`.
@@ -150,7 +168,7 @@ export function readGradient(doc: ArtDocument, id: string): MorphGradient | unde
     const text = stop.attributes["offset"] ?? "0";
     const read = fraction(text);
     const color = stopColor(doc, stop);
-    if (!read || !color || interpolates(doc, stop)) return undefined;
+    if (!read || !color || interpolates(doc, stop) || !inSvg(doc, stop)) return undefined;
     // Offsets clamp to 0..1, and one below an earlier stop's takes that one's.
     last = Math.max(last, Math.min(1, Math.max(0, read.value)));
     stops.push([last, color]);
