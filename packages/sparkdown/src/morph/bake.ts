@@ -706,9 +706,12 @@ export function* bakeSteps(
     return { ...gradient, transform: multiply(multiply(space, from), gradient.transform as Affine).map(fine) };
   };
   /**
-   * The gradient copies live parts carry, by the node that paints with each
-   * and the property it fills: each node gets its own, so the authored
-   * drawing and other carriers keep theirs.
+   * The gradient copies live parts carry, by the node that paints with each,
+   * the property it fills and how the gradient is built (kind, units, spread
+   * and stop count, which a frame does not rewrite): each node gets its own,
+   * so the authored drawing and other carriers keep theirs, and a carrier
+   * that carries differently built gradients in different segments gets one
+   * for each.
    */
   const gradientCopies = new Map<string, { id: string; home: Leaf; gradient: MorphGradient }>();
   let gradientSerial = 0;
@@ -725,7 +728,7 @@ export function* bakeSteps(
       if (!a || !b || !gradientsMatch(a, b)) continue;
       const same = (x: MorphGradient | undefined) => JSON.stringify(x) === JSON.stringify(a);
       if (same(b) && same(gradientIn(home, name, space))) continue;
-      const key = `${draw}:${name}`;
+      const key = `${draw}:${name}:${a.kind}:${a.units}:${a.spread}:${a.stops.length}`;
       let copy = gradientCopies.get(key);
       if (!copy) {
         let id = `morph-gradient-${gradientSerial++}`;

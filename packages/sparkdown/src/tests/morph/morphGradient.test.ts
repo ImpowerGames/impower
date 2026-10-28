@@ -172,6 +172,31 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(frame.find((e) => e.tagName === "ellipse")!.attributes["fill"]).toBe(`url(#${carried.idPrefix}c)`);
   });
 
+  test("a carrier that carries differently built gradients in different segments has a copy for each", () => {
+    const linear = (id: string) => `<linearGradient id="${id}"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>`;
+    const radial = (id: string) => `<radialGradient id="${id}"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></radialGradient>`;
+    // Two lashes, one linear and one radial, move from open to half-closed
+    // and back on carriers of the closed lash, whose depth they keep. The
+    // half-closed pose lists them the other way round, so the reopening
+    // segment pairs them in the other order and gives each the other's carrier.
+    const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100" height="80">
+<defs>${linear("lo")}${radial("ro")}${linear("lh")}${radial("rh")}</defs>
+<g data-name="eyes.open:default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#lo)"/><path data-name="lash" d="M10,50H40V55H10Z" fill="url(#ro)"/></g>
+<g data-name="eyes.half"><path data-name="lash" d="M10,48H40V53H10Z" fill="url(#rh)"/><path data-name="lash" d="M10,12H40V17H10Z" fill="url(#lh)"/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="M10,30H40V35H10Z" fill="#000"/></g>
+</svg>`;
+    const artifact = bake(source, paintBlink({ layers: { lash: { depth: "eyes.closed" } } }, ["open", "half", "closed", "half", "open"]));
+    expect(artifact.status).toBe("live");
+    const live = elements(artifact.parts.filter((p) => p.kind === "live").map((p) => p.svg).join(""));
+    const blends = artifact.segments.flatMap((s) => s.transitions).flatMap((t) => (t.kind === "morph" && t.gradients?.fill ? [t.gradients.fill] : []));
+    expect(blends.length).toBeGreaterThanOrEqual(4);
+    for (const blend of blends) {
+      const copy = live.find((e) => e.attributes["id"] === blend.id)!;
+      expect(copy.tagName, blend.id).toBe(blend.ends[0].kind === "linear" ? "linearGradient" : "radialGradient");
+      expect((copy.children as Element[]).filter((c) => c && typeof c === "object" && c.tagName === "stop")).toHaveLength(blend.ends[0].stops.length);
+    }
+  });
+
   describe("paint outside the grammar leaves the pair unblended", () => {
     const pair = (open: string, defs = "") =>
       bake(
