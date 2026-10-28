@@ -720,6 +720,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  to the page (#657). */
   protected _standing?: StandingScreen;
 
+  /** What the last connect or redisplay cleared from the clear-on-continue
+   *  targets that showed a picture, by target, until the first beat after it
+   *  displays: that beat shows again those it writes to, as play keeps them
+   *  under the beat that writes them (#1662). */
+  protected _clearedPictures?: Record<string, ImageState[]>;
+
   /** Every message the module has sent the page, or composed for it, and
    *  every event from the page that reached a handler. */
   protected _uiOps = 0;
@@ -844,6 +850,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onLoad() {
     this._morphEpoch += 1;
+    this._clearedPictures = undefined;
+  }
+
+  override onPreview() {
+    // A preview that displayed no beat leaves nothing for a later one.
+    this._clearedPictures = undefined;
+  }
+
+  /** The pictures the first beat after a connect or redisplay shows again
+   *  on `targets`, the ones it writes to (#1662). */
+  clearedPictureNames(targets: string[]): string[] {
+    const names: string[] = [];
+    const cleared = this._clearedPictures;
+    if (cleared) {
+      for (const target of targets) {
+        for (const event of cleared[target] ?? []) {
+          if (event.control !== "hide" && event.assets?.length) {
+            names.push(...event.assets);
+          }
+        }
+      }
+    }
+    return names;
+  }
+
+  /** Clear the pictures of the clear-on-continue `targets`, keeping what
+   *  they showed for the first beat after the clear (#1662). */
+  protected clearTransientPictures(targets: string[]): Promise<void> {
+    const cleared: Record<string, ImageState[]> = {};
+    for (const target of targets) {
+      const state = this._state.image?.[target];
+      if (state?.length) {
+        cleared[target] = state;
+      }
+    }
+    this._clearedPictures = cleared;
+    return this.image.clearAll(targets);
   }
 
   override onRestart() {
@@ -1071,7 +1114,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._game.story.variablesState.takeReactiveChanges();
     await Promise.all([
       this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
-      this.image.clearAll(transient.filter((t) => holding.image.includes(t))),
+      this.clearTransientPictures(
+        transient.filter((t) => holding.image.includes(t)),
+      ),
     ]);
   }
 
@@ -1275,7 +1320,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const transientTargets = this.getTransientTargets();
     await Promise.all([
       this.text.clearAll(transientTargets),
-      this.image.clearAll(transientTargets),
+      this.clearTransientPictures(transientTargets),
     ]);
   }
 
@@ -5705,6 +5750,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (state) {
           await this.applyChanges(target, state, true);
         }
+      }
+
+      /** The first beat after a connect or redisplay: of the pictures that
+       *  clear took off the clear-on-continue targets, those on `targets`
+       *  (the ones the beat writes) show again, at once, before the beat's
+       *  own writes, as play keeps them under the beat that writes them
+       *  (#1662). The rest stay cleared, as play clears them. A route
+       *  replay presents nothing and leaves them for the beat that does. */
+      async restoreCleared(targets: string[]) {
+        const cleared = $._clearedPictures;
+        if (!cleared || $.context?.system?.simulating) {
+          return;
+        }
+        $._clearedPictures = undefined;
+        await Promise.all(
+          targets.map(async (target) => {
+            const state = cleared[target];
+            if (state) {
+              $._state.image ??= {};
+              $._state.image[target] = state;
+              await this.applyChanges(target, state, true);
+            }
+          }),
+        );
       }
 
       /**

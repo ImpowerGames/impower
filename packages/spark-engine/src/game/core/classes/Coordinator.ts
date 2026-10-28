@@ -235,6 +235,12 @@ export class Coordinator<G extends Game> {
           transientLayers.filter((layer) => !instructions.image?.[layer]),
         );
       }
+      // The first beat after a connect shows the pictures that connect
+      // cleared from the layers it writes, as the page would still show
+      // them had the connect not cleared it (#1662).
+      game.module.ui.image.restoreCleared(
+        transientLayers.filter((layer) => instructions.image?.[layer]),
+      );
 
       game.module.ui.showLayout("main");
       game.module.ui.reveal();
