@@ -61,6 +61,7 @@ describe("gradients are read within a closed grammar", () => {
     ["color-interpolation on an ancestor", `<g color-interpolation="linearRGB"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["color-interpolation spelled with an escape on an ancestor", `<g style="c\\6flor-interpolation:linearRGB"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["color-interpolation behind a comment on an ancestor", `<g style="/*x*/color-interpolation:linearRGB"><linearGradient id="a">${STOPS}</linearGradient></g>`],
+    ["color-interpolation spelled with a character reference on an ancestor", `<g style="color-interpolatio&#110;:linearRGB"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["an ancestor's all", `<g style="all:inherit"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["a coordinate too large for a double", `<linearGradient id="a" x2="1e999">${STOPS}</linearGradient>`],
     ["a coordinate beyond 1e300", `<linearGradient id="a" x2="1e301">${STOPS}</linearGradient>`],

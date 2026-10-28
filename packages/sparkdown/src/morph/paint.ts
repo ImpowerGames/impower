@@ -41,8 +41,9 @@ type Inherited = keyof typeof INHERITED;
 // or `currentColor`; an opacity as a number or a percentage; any of them as
 // `inherit` or `initial`; each with an optional trailing `!important`, in
 // ASCII with space, tab and line breaks between tokens. A declaration outside
-// it (another CSS-wide keyword, `all`, `var()`, a comment, an escape, other
-// whitespace, non-ASCII text, a `url()` with a fallback) makes that paint
+// it (another CSS-wide keyword, `all`, `var()`, a comment, an escape, an XML
+// character reference in an inline style, other whitespace, non-ASCII text, a
+// `url()` with a fallback) makes that paint
 // unknown, so the pair stays unblended and draws as authored. Reading less
 // than a browser does is safe; reading something differently is not.
 
@@ -55,8 +56,12 @@ const inGrammar = (name: string, value: string): boolean => {
   return readAlpha(value) !== undefined;
 };
 
-/** An inline style the grammar cannot split safely: non-ASCII text, a comment, an escape or a string. */
-const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["']/;
+/**
+ * An inline style the grammar cannot split safely: non-ASCII text, a comment,
+ * an escape, a string, or an XML character or entity reference, which the
+ * artwork's parser keeps as written and a browser decodes before CSS reads it.
+ */
+const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["'&]/;
 
 const IMPORTANT = /![ \t\n\r\f]*important$/i;
 
