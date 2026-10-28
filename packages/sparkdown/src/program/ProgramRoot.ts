@@ -10,7 +10,7 @@ import {
   readableSymbolLabel,
   type SymbolKindValue,
 } from "./ProgramSymbols";
-import { Op, opOf } from "./ProgramInstructions";
+import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
   BLOCK_FUNCTION,
@@ -1021,6 +1021,71 @@ export class ProgramRoot {
     return row;
   }
 
+  /** The address of the end of the scene or branch of a script whose header
+   *  stands on `header` (counting from 0): its last chunk, the `Done` the
+   *  compile gives a flow that enters no branch (`programFlows`' `flowEnd`),
+   *  which a run reaches only when it runs off the flow's end. Nothing when
+   *  the statement before it leaves the flow itself (a `done`, a `fin`, a
+   *  divert or a tunnel's return) and no instruction of it goes on past it,
+   *  so that no run reaches it, for a flow that enters a branch, and for no
+   *  such flow. */
+  flowEndAddress(uri: string, header: number): number | undefined {
+    const flow = this.flowHeadedAt(uri, header);
+    const entry = flow ? this.flowEndEntry(flow) : -1;
+    if (entry < 0) {
+      return undefined;
+    }
+    const chunks = flow!.arrays.chunks;
+    const before = chunks[entry - 1];
+    if (before && !runsOffItsEnd(before)) {
+      return undefined;
+    }
+    return addressOf(chunkId(chunks[entry]!), 0);
+  }
+
+  /** The entry of a sequence that is its flow's end (`programFlows`'
+   *  `flowEnd`): the last entry of a scene's or a branch's own sequence when
+   *  it is a lone `Done`, which only the compile writes there, since an
+   *  author's last statement comes before it; -1 for any other sequence. */
+  flowEndEntry(sequence: SequenceRow): number {
+    if (
+      sequence.owner >= 0 ||
+      (sequence.kind !== SymbolKind.Scene && sequence.kind !== SymbolKind.Branch)
+    ) {
+      return -1;
+    }
+    const chunks = sequence.arrays.chunks;
+    const end = chunks.at(-1);
+    return end &&
+      codeWords(end) === 2 &&
+      opOf(end[HEADER_WORDS]!) === Op.Done &&
+      (flagsOf(end[HEADER_WORDS]!) & DONE_HOLD) === 0
+      ? chunks.length - 1
+      : -1;
+  }
+
+  /** Whether the scene or branch of a script whose header stands on
+   *  `header` binds parameters where it is entered: its first chunk starts
+   *  with the `SetVar`s of its entry, as `ProgramStory.takesParameters`
+   *  reads it. An empty parameter list binds none. */
+  bindsParameters(uri: string, header: number): boolean {
+    const chunk = this.flowHeadedAt(uri, header)?.arrays.chunks[0];
+    return (
+      chunk !== undefined &&
+      codeWords(chunk) > 0 &&
+      opOf(chunk[HEADER_WORDS]!) === Op.SetVar
+    );
+  }
+
+  /** The scene or branch of a script whose header stands on `header`. */
+  protected flowHeadedAt(uri: string, header: number): SequenceRow | undefined {
+    return this.flows(uri).find(
+      (flow) =>
+        (flow.kind === SymbolKind.Scene || flow.kind === SymbolKind.Branch) &&
+        this.firstLineOf(flow) === header + 1,
+    );
+  }
+
   /** The name of the top-level flow an address stands in, as a scene is
    *  entered and a route starts: a scene's name, a branch's scene's, a
    *  function's, or `"0"` for the top-level content; nothing for a
@@ -1064,4 +1129,40 @@ const lineStartIn = (chunk: ProgramChunk, from: number, to: number): number => {
     }
   }
   return -1;
+};
+
+/** Whether a run goes on from the end of the code of `chunk` to the next
+ *  entry of its sequence: its last instruction does not leave the flow, or an
+ *  instruction of it jumps to that end, as a thread's original goes on past
+ *  the jump its fork takes. */
+const runsOffItsEnd = (chunk: ProgramChunk): boolean => {
+  const words = codeWords(chunk);
+  if (words < 2) {
+    return true;
+  }
+  const last = chunk[HEADER_WORDS + words - 2]!;
+  const op = opOf(last);
+  if (
+    op !== Op.End &&
+    op !== Op.JumpSym &&
+    op !== Op.JumpVar &&
+    op !== Op.TunnelReturn &&
+    (op !== Op.Done || (flagsOf(last) & DONE_HOLD) !== 0)
+  ) {
+    return true;
+  }
+  for (let offset = 0; offset < words; offset += 2) {
+    const at = opOf(chunk[HEADER_WORDS + offset]!);
+    if (
+      (at === Op.Jump ||
+        at === Op.JumpIfFalse ||
+        at === Op.JumpIfKeep ||
+        at === Op.Thread ||
+        at === Op.Choice) &&
+      offset + 2 + chunk[HEADER_WORDS + offset + 1]! === words
+    ) {
+      return true;
+    }
+  }
+  return false;
 };

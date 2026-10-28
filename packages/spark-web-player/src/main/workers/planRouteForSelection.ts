@@ -21,7 +21,7 @@ export interface RoutableGame {
   readonly program: IdentifiableProgram | undefined;
   readonly startAddress: ProgramAddress | null | undefined;
   setStartFrom(
-    startFrom: { file: string; line: number },
+    startFrom: { file: string; line: number; address?: ProgramAddress },
     beat?: "first" | "last",
   ): void;
 }
@@ -40,9 +40,10 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
 }
 
 /**
- * Point `game` at the `beat` of the line `startFrom` names, in the program it
- * holds, and replay the route there unless `log` already holds the search for
- * that address in that program. Answers the address, which `log` describes
+ * Point `game` at the `beat` of the line `startFrom` names, or at the
+ * address it names when that is not the one the line resolves to, in the
+ * program it holds, and replay the route there unless `log` already holds
+ * the search for that address in that program. Answers the address, which `log` describes
  * after.
  *
  * The editor re-selects on every cursor move, including one that only moves
@@ -53,7 +54,7 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
  */
 export function routeGameTo<G extends RoutableGame>(
   game: G,
-  startFrom: { file: string; line: number },
+  startFrom: { file: string; line: number; address?: ProgramAddress },
   beat: "first" | "last",
   log: RouteSearchLog,
   search: (game: G, to: ProgramAddress) => void,

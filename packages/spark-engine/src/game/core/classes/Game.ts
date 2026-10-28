@@ -406,9 +406,12 @@ export class Game<T extends M = {}> {
    *  for the other engine can resolve the same start point. */
   protected _startBeat: "first" | "last" = "first";
 
+  /** The point `preview()` last previewed: its line, and the address it
+   *  named when that is not the one the line resolves to. */
   protected _previewFrom?: {
     file: string;
     line: number;
+    address?: ProgramAddress;
   };
   get previewFrom() {
     return this._previewFrom;
@@ -1652,19 +1655,22 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** Where a run from `startFrom` begins: the address of the beat on the
-   *  line (`ProgramLocator.addressAt`), or `TOP_LEVEL_START`, the top of the
+  /** Where a run from `startFrom` begins: its `address` when it names one
+   *  (a position no line resolves to, such as the end of a scene that runs
+   *  nothing of its own), and otherwise the address of the beat on the line
+   *  (`ProgramLocator.addressAt`), or `TOP_LEVEL_START`, the top of the
    *  top-level content, when the line has none. A line that `>` breaks holds
    *  several beats: PLAY from the line starts at its first, and the route a
    *  preview of the line replays ends at its last (`beat`), so the beats
    *  before it run, and apply what they do, as any beat on the route does. */
   setStartFrom(
-    startFrom: { file: string; line: number },
+    startFrom: { file: string; line: number; address?: ProgramAddress },
     beat: "first" | "last" = "first",
   ) {
     this._startFrom = startFrom;
     this._startBeat = beat;
     this._startAddress =
+      startFrom.address ??
       this.locator.addressAt(startFrom.file, startFrom.line, { beat }) ??
       TOP_LEVEL_START;
     const trueLocation = this.locator.locationOf(this._startAddress);
@@ -4811,12 +4817,16 @@ export class Game<T extends M = {}> {
     /** Where a preview with no route runs from, when not the point's own
      *  address: the line above it that shows a beat (#1606). */
     runFrom?: ProgramAddress,
+    /** The point's address, when it is not the one its line resolves to
+     *  (`setStartFrom`). */
+    address?: ProgramAddress,
   ): Promise<ProgramAddress | null> {
     if (this._state === "running") {
       // Don't preview while running
       return null;
     }
-    const previewAddress = this.locator.addressAt(file, line, { beat: "last" });
+    const previewAddress =
+      address ?? this.locator.addressAt(file, line, { beat: "last" });
     if (previewAddress == null) {
       // A preview call takes over a waiting preview whether or not its
       // point resolves; with no beat to gate, nothing waits, so an
@@ -4838,7 +4848,7 @@ export class Game<T extends M = {}> {
       return this._pendingPreview?.promise ?? previewAddress;
     }
     this.cancelPreview();
-    this._previewFrom = { file, line };
+    this._previewFrom = address === undefined ? { file, line } : { file, line, address };
     this._previewAddress = previewAddress;
     this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];
