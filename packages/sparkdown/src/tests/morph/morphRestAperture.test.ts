@@ -435,13 +435,40 @@ describe("a live morph's aperture masks", () => {
 
   const CLOSED_POSES = [...MOVING, ["two closed lashes apart, painted beneath the whites", closedApart] as const].map(([name, source]) => [`${name}, closed`, source, 0.333] as const);
 
-  test.each([...MID_BLINK, ...CLOSED_POSES])(
+  // Moving lashes placed where they paint beneath the targets: at the closed
+  // pose's depth, or, on a variant resting closed, at its rest pose's.
+  const atClosedDepth = blink({ layers: { "eyelash-left": { depth: "eyes.closed" } } });
+  const restingClosed = blink({
+    keyframes: [
+      { offset: 0, eyes: { state: "closed" } },
+      { offset: 0.5, eyes: { state: "open" } },
+      { offset: 1, eyes: { state: "closed" } },
+    ],
+  });
+  const closedFirst = closedBeneath.replace('data-name="eyes.closed"', 'data-name="eyes.closed:default"').replace('data-name="eyes.open:default"', 'data-name="eyes.open"');
+  const BENEATH = [
+    ...OFFSETS.map(([when, offset]) => [`moving lashes at the closed pose's depth, beneath the whites, ${when}`, closedBeneath, offset, atClosedDepth] as const),
+    ...[0.1, 0.25, 0.4].map((offset) => [`a variant resting closed, its lashes beneath the whites, at ${offset}`, closedFirst, offset, restingClosed] as const),
+  ];
+
+  test.each(BENEATH)("reach no target painted above the moving edges: %s", (_name, source, offset, recipe) => {
+    // A reach clipped to the moving lashes is hidden only when they paint
+    // over the targets; painted beneath them, it would show the white over
+    // the lash.
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    const svg = renderMorphAt(baked, offset);
+    expect(svg).not.toContain("-reach");
+    expect(apertureOutline(svg).length).toBeGreaterThan(0);
+  });
+
+  test.each([...MID_BLINK.map((row) => [...row, blink()] as const), ...CLOSED_POSES.map((row) => [...row, blink()] as const), ...BENEATH])(
     "reach nowhere it would show away from rest: %s",
-    (_name, source, offset) => {
+    (_name, source, offset, recipe) => {
       // Moving edges taper toward the opening's corners, thinner there than
       // the reach, and at the closed pose a closed lash may paint beneath the
       // targets: wherever no moving edge covers it, the reach shows nothing.
-      const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+      const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
       const svg = renderMorphAt(baked, offset);
       const outline = apertureOutline(svg);
       expect(outline.length).toBeGreaterThan(0);

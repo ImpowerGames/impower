@@ -61,6 +61,7 @@ import {
   type MorphArtifact,
   type MorphBakeDiagnostic,
   type MorphBlend,
+  type MorphClipFrames,
   type MorphClipTarget,
   type MorphFallback,
   type MorphFrames,
@@ -724,6 +725,8 @@ export function* bakeSteps(
   const segments: MorphSegment[] = [];
   const apertures: number[][][][] = [];
   const apertureEdges: number[][][][][] = [];
+  /** The drawings each segment's moving edges of a clip entry paint on. */
+  const edgeHomes = new Map<MorphClipFrames, Leaf[]>();
   const apertureIndex = new Map<string, number>();
   /** Per clip, the loops of its first segment's start pose: its rest aperture. */
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
@@ -775,7 +778,7 @@ export function* bakeSteps(
       const fromOnly = groupLeaves.filter((l) => visibleAt(l.element, va) && !visibleAt(l.element, vb));
       const toOnly = groupLeaves.filter((l) => !visibleAt(l.element, va) && visibleAt(l.element, vb));
       const transitions: MorphTransition[] = [];
-      const edgeTracks = new Map<number, { edges: EdgeTrack[]; keys: string[]; reversedAll: boolean; forwardAll: boolean }>();
+      const edgeTracks = new Map<number, { edges: EdgeTrack[]; keys: string[]; homes: Leaf[]; reversedAll: boolean; forwardAll: boolean }>();
       const unpairedFrom: Leaf[] = [];
       const unpairedTo: Leaf[] = [];
       const edgeNodes = new Set<string>();
@@ -879,9 +882,10 @@ export function* bakeSteps(
             report("edge-not-bend", "error", `Clip ${clipIndex + 1}'s edge "${from.label}" does not morph with \`bend\`; aperture edges need two tapered tips to meet.`, { layer: from.label, path: from.key });
             return disable();
           }
-          const entry = edgeTracks.get(clipIndex) ?? { edges: [], keys: [], reversedAll: true, forwardAll: true };
+          const entry = edgeTracks.get(clipIndex) ?? { edges: [], keys: [], homes: [], reversedAll: true, forwardAll: true };
           entry.edges.push({ id: pair.trackId, label: from.label, track: reversed ? reversedBend(track) : track });
           entry.keys.push(cacheKey);
+          entry.homes.push(home);
           if (reversed) entry.forwardAll = false;
           else entry.reversedAll = false;
           edgeTracks.set(clipIndex, entry);
@@ -993,7 +997,9 @@ export function* bakeSteps(
             geometryCache.set(`aperture:${signature}`, { samples, edges });
           }
         }
-        clips.push({ clip: clipIndex, loops: ref });
+        const frames: MorphClipFrames = { clip: clipIndex, loops: ref };
+        clips.push(frames);
+        edgeHomes.set(frames, entry.homes);
         clipHasFrames[clipIndex] = true;
         if (!restLoops[clipIndex]) {
           const table = apertures[ref.index]!;
@@ -1039,6 +1045,7 @@ export function* bakeSteps(
   // intersect.
   const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
+  const targetOf = new Map<string, Element>();
   const wrappers = new Map<Element, Wrapper[]>();
   let clipSerial = 0;
   const freshId = (base: string) => {
@@ -1060,6 +1067,26 @@ export function* bakeSteps(
       list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
       clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix] });
+      targetOf.set(`${prefix}${id}`, target);
+    }
+  }
+  // A reach past the aperture between a segment's ends is hidden only under
+  // moving edges that paint above the target. Each moving drawing paints on
+  // its home, or on a carrier written right after it, so a target lies
+  // beneath it when every drawing of the target comes before that home in
+  // paint order. A moving edge placed at a pose that paints it beneath the
+  // targets (a named `depth`, or a variant resting closed on art whose
+  // closed lashes paint beneath the whites) gives its aperture no reach.
+  const paintIndex = new Map(leaves.map((leaf, index) => [leaf.element, index]));
+  const lastPainted = (target: Element) =>
+    Math.max(-1, ...leaves.filter((leaf) => isAncestorOrSelf(doc!, target, leaf.element)).map((leaf) => paintIndex.get(leaf.element)!));
+  for (const segment of segments) {
+    for (const frames of segment.clips) {
+      const homes = edgeHomes.get(frames) ?? [];
+      const reach = clipTargets
+        .filter(({ clip, aperture }) => clip === frames.clip && homes.length > 0 && homes.every((home) => paintIndex.get(home.element)! > lastPainted(targetOf.get(aperture)!)))
+        .map(({ aperture }) => aperture);
+      if (reach.length) frames.reach = reach;
     }
   }
   // Every point a clip entry's apertures reach, in root space, and the

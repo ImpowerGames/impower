@@ -322,18 +322,21 @@ end
       expect(open!.style).toMatch(/stroke-width:2px/);
       expect(open!.d).not.toBe(all!.d);
     }
-    // Mid-blink every path draws the frame's whole aperture, and the first
-    // reaches past it, clipped to the moving edges.
+    // Mid-blink every path draws the frame's whole aperture. The first
+    // reaches past it, clipped to the moving edges, where its target paints
+    // beneath every moving edge: the left white does, the right white,
+    // drawn above the right eye's lashes, does not.
     frames.run(1000 + 0.4 * 250);
     const moving = apertureStates(shadow);
     expect(moving).toEqual(referenceApertures(artifact, 0.4));
     for (const paths of moving) {
       expect(paths).toHaveLength(2);
       expect(paths[1]!.d).toBe(paths[0]!.d);
-      expect(paths[0]!.style).toMatch(/stroke-width:2px/);
-      expect(paths[0]!.reach).toBeTruthy();
       expect(paths[1]!.style).toMatch(/stroke:\s*none/);
+      if (paths[0]!.reach !== undefined) expect(paths[0]!.style).toMatch(/stroke-width:2px/);
+      else expect(paths[0]!.style).toMatch(/stroke:\s*none/);
     }
+    expect(moving.filter((paths) => paths[0]!.reach).length).toBe(1);
     // Back at the rest outline, the open loops' path gets its reach back.
     frames.run(1000 + 250);
     expect(apertureStates(shadow)).toEqual(rest);

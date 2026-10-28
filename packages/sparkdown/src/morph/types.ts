@@ -231,6 +231,12 @@ export type MorphTransition =
 export interface MorphClipFrames {
   clip: number;
   loops: MorphGeometryRef;
+  /**
+   * The apertures (`MorphClipTarget.aperture`) whose targets paint beneath
+   * every one of the segment's moving edges, which therefore hide a reach
+   * past the aperture between the segment's ends (`apertureReachPathData`).
+   */
+  reach?: string[];
 }
 
 /** One group moving from one state to the next between two keyframe offsets. */

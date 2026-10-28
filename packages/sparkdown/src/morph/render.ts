@@ -273,19 +273,20 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     hidden.delete(node);
     shown.add(node);
   };
-  const writeClip = (clip: number, loops: MorphGeometryRef, p: number) => {
+  const writeClip = (clip: number, loops: MorphGeometryRef, p: number, reachable: readonly string[] = []) => {
     const samples = artifact.apertures[loops.index]!;
     const edges = artifact.apertureEdges[loops.index];
     const d = aperturePathData(samples, loops, p);
     // The edges' moving drawings are drawn strictly between a segment's
-    // ends. At either end the poses' own drawings take over, and a closed
-    // state's may paint beneath the targets, so there the aperture has no
-    // reach (a rest outline keeps its markup's).
-    const reach = edges && p > 0 && p < 1 ? apertureReachPathData(samples, edges, loops, p) : undefined;
+    // ends, and hide a reach only over targets that paint beneath them (the
+    // segment's `reach`). At either end the poses' own drawings take over,
+    // and a closed state's may paint beneath the targets, so there the
+    // aperture has no reach (a rest outline keeps its markup's).
+    const reach = edges && p > 0 && p < 1 && reachable.length ? apertureReachPathData(samples, edges, loops, p) : undefined;
     for (const target of artifact.clipTargets) {
       if (target.clip !== clip) continue;
       state.clips.set(target.aperture, d);
-      if (reach !== undefined) state.reaches.set(target.aperture, reach);
+      if (reach !== undefined && reachable.includes(target.aperture)) state.reaches.set(target.aperture, reach);
     }
   };
   for (const [group, states] of Object.entries(artifact.visibility)) {
@@ -367,7 +368,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     // The group's earlier segments leave their apertures at their end pose;
     // this segment's own apertures follow it.
     holdApertures(artifact, group, pose.segment, writeClip);
-    for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p);
+    for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p, clip.reach);
   }
   return state;
 }
