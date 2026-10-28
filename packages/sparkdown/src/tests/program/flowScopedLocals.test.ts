@@ -165,6 +165,23 @@ describe("a closure written in the scene", () => {
     ).toEqual(got("Got 2 3 3."));
   });
 
+  test("reads a scene's local named like a scene, not that scene's visit count", () => {
+    expect(
+      run([
+        "-> S",
+        "scene S",
+        "  local T = 5",
+        "  local get = function() return T end",
+        "  local function peek() return T end",
+        "  Got {get()} {peek()} {T}.",
+        "end",
+        "scene T",
+        "  Visited.",
+        "end",
+      ]),
+    ).toEqual(got("Got 5 5 5."));
+  });
+
   test("keeps the local it captured after the flow diverts away", () => {
     expect(
       run([
