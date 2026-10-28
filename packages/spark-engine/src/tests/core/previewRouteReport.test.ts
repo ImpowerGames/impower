@@ -14,7 +14,8 @@
 //   - a clipped loop's pass count is the number of passes the replay ran,
 //     which each loop below counts in a store, and its entry stands at the
 //     loop's own first line;
-//   - a forced branch inside a loop that stays in the loop is forced;
+//   - a forced branch inside a loop that stays in the loop is forced, a call
+//     from it to a function written outside the loop included;
 //   - a hub menu met twice reports which time each option was offered;
 //   - a line the program reaches on its own reports no forced or clipped
 //     decision.
@@ -76,7 +77,7 @@ function preview(
   expect(game.simulation).toBe("success");
   const source: ScriptSource = {
     lineText: (uri, at) => compiler.documents.get(uri)?.getLineText(at),
-    loops: (uri) => compiler.loopsOf(uri),
+    structure: (uri) => compiler.structureOf(uri),
   };
   return {
     route: game.previewRouteOf(game.plannedRoute, source),
@@ -243,6 +244,35 @@ describe("the route the preview reports", () => {
     const { route } = preview(lines, 7);
     expect(kindsAndLines(route)).toEqual([["forced", 6]]);
     expect(route.decisions[0]!.text).toBe("total > 10");
+  }, 120_000);
+
+  test("a forced branch inside a loop that calls a function written elsewhere is forced", () => {
+    // The function's own decision comes next, outside the loop's lines; the
+    // call returns to the loop, so the route never left it.
+    const lines = [
+      "store flag = false",
+      "store count = 0",
+      "function g()",
+      "  if true then",
+      "    return 1",
+      "  end",
+      "  return 2",
+      "end",
+      "-> start",
+      "scene start",
+      "  for i = 1, 3 do",
+      "    if flag then",
+      "      count += g()",
+      "      Target {count}.",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ];
+    const { route, count } = preview(lines, 14, "count");
+    expect(count).toBe(1);
+    expect(kindsAndLines(route)).toEqual([["forced", 12]]);
+    expect(route.decisions[0]!.text).toBe("flag");
   }, 120_000);
 
   test("a hub menu met twice says which time each option was offered", () => {

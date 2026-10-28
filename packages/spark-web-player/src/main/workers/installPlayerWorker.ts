@@ -151,7 +151,7 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  (`Game.previewRouteOf`). */
   const source: ScriptSource = {
     lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
-    loops: (uri) => compiler.loopsOf(uri),
+    structure: (uri) => compiler.structureOf(uri),
   };
 
   // The record of what the last route search in the real program the game

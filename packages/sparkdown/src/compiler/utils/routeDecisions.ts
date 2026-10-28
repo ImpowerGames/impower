@@ -31,11 +31,23 @@ export interface RouteDecision {
 
 /** A loop of a script, counting lines from 0: its first line, the line of
  *  its `end` (or its `until`), and whether it is a `repeat` loop, whose body
- *  runs before its test (`SparkdownCompiler.loopsOf`). */
+ *  runs before its test. */
 export interface ScriptLoop {
   header: number;
   end: number;
   repeat: boolean;
+}
+
+/** The first and last line of a function's body, counting from 0. */
+export interface ScriptBody {
+  start: number;
+  end: number;
+}
+
+/** A script's loops and function bodies (`SparkdownCompiler.structureOf`). */
+export interface ScriptStructure {
+  loops: readonly ScriptLoop[];
+  bodies: readonly ScriptBody[];
 }
 
 /** The script and the line, counting from 0, an address stands on. */
@@ -43,12 +55,14 @@ export type LineOf = (
   address: ProgramAddress,
 ) => { script: number; line: number } | undefined;
 
-/** The loops of the script with index `script`. */
-export type LoopsOf = (script: number) => readonly ScriptLoop[];
+/** The loops and function bodies of the script with index `script`. */
+export type StructureOf = (script: number) => ScriptStructure;
 
-/** How many steps before the route's next decision are read to find where
- *  it stood. */
+/** How many steps before the route's next decision in a loop's scope are
+ *  read to find where it stood, and how many decisions after a verdict are
+ *  read to find that decision. */
 const STEPS_READ = 4096;
+const DECISIONS_READ = 100_000;
 
 /**
  * The decisions `route` made, in route order: one per menu it met, and one
@@ -59,17 +73,20 @@ const STEPS_READ = 4096;
  * its line: it is that loop's test found false (every loop's test continues
  * on true, a `repeat` loop's too, which the compile turns into a test to go
  * round again), or the route stood outside the loop's lines when it next
- * decided or reached its target (a forced branch that breaks out). Any other
- * forced verdict, a branch inside a loop that stays in it included, is
- * forced. The passes are
- * the times the loop's test was met true since the route entered the loop,
- * and one more for a `repeat` loop, whose body ran before its first test.
- * Without `loopsOf`, every forced verdict is forced.
+ * decided in the loop's scope or reached its target (a forced branch that
+ * breaks out). The loop's scope is its script outside any function body
+ * that does not hold the loop: a function the route calls from the loop
+ * runs elsewhere and returns to it, and where the route stands inside one
+ * says nothing about the loop. Any other forced verdict, a branch inside a
+ * loop that stays in it included, is forced. The passes are the times the
+ * loop's test was met true since the route last met it false, and one more
+ * for a `repeat` loop, whose body ran before its first test. Without
+ * `structureOf`, every forced verdict is forced.
  */
 export const routeDecisions = (
   route: RoutePlan,
   lineOf: LineOf,
-  loopsOf?: LoopsOf,
+  structureOf?: StructureOf,
 ): RouteDecision[] => {
   const decisions: RouteDecision[] = [];
   const offers = new Map<string, number>();
@@ -92,8 +109,8 @@ export const routeDecisions = (
     if (!decision.departs) {
       return;
     }
-    const clipped = loopsOf
-      ? clippedLoop(route, index, lineOf, loopsOf)
+    const clipped = structureOf
+      ? clippedLoop(route, index, lineOf, structureOf)
       : undefined;
     decisions.push(
       clipped === undefined
@@ -115,16 +132,17 @@ const clippedLoop = (
   route: RoutePlan,
   index: number,
   lineOf: LineOf,
-  loopsOf: LoopsOf,
+  structureOf: StructureOf,
 ): { passes: number; loop: { script: number; line: number } } | undefined => {
   const forced = route.decisions[index] as ConditionOverride;
   const at = lineOf(forced.site);
   if (!at) {
     return undefined;
   }
+  const structure = structureOf(at.script);
   // The innermost loop whose lines hold the verdict's.
   let loop: ScriptLoop | undefined;
-  for (const candidate of loopsOf(at.script)) {
+  for (const candidate of structure.loops) {
     if (
       candidate.header <= at.line &&
       at.line <= candidate.end &&
@@ -142,12 +160,12 @@ const clippedLoop = (
   };
   const leaves =
     (isTest(forced.site) && !forced.value) ||
-    leftLoop(route.steps, index, at, loop, lineOf);
+    leftLoop(route, index, at, loop, structure.bodies, lineOf);
   if (!leaves) {
     return undefined;
   }
-  // The test met true since the loop was entered: the route meets it false
-  // only when it leaves the loop.
+  // The test met true since the route last met it false, which it does only
+  // when it leaves the loop.
   let passes = loop.repeat ? 1 : 0;
   for (let i = index - 1; i >= 0; i -= 1) {
     const earlier = route.decisions[i]!;
@@ -162,30 +180,47 @@ const clippedLoop = (
   return { passes, loop: { script: at.script, line: loop.header } };
 };
 
-/** Whether the route, where it stood last before its next decision after
- *  the verdict at `index` (or at its target, when it made none), stood
- *  outside `loop`'s lines: the verdict took it out of the loop, through a
- *  `break` or past the loop's end, rather than on through the loop's body,
- *  a function it calls on the way included. */
+/** Whether the route, where it stood last in `loop`'s scope before its
+ *  next decision there after the verdict at `index` (or at its target, when
+ *  it made none), stood outside the loop's lines: the verdict took it out of
+ *  the loop, through a `break` or past the loop's end, rather than on
+ *  through the loop's body. */
 const leftLoop = (
-  steps: RouteStep[],
+  route: RoutePlan,
   index: number,
   at: { script: number; line: number },
   loop: ScriptLoop,
+  bodies: readonly ScriptBody[],
   lineOf: LineOf,
 ): boolean => {
+  const elsewhere = bodies.filter(
+    (body) => body.start > loop.header || loop.header > body.end,
+  );
+  const inScope = (line: { script: number; line: number }) =>
+    line.script === at.script &&
+    !elsewhere.some((body) => body.start <= line.line && line.line <= body.end);
+  let next = route.decisions.length;
+  for (
+    let j = index + 1;
+    j < route.decisions.length && j <= index + DECISIONS_READ;
+    j += 1
+  ) {
+    const line = lineOf(route.decisions[j]!.site);
+    if (line && inScope(line)) {
+      next = j;
+      break;
+    }
+  }
+  const steps = route.steps;
   const from = firstStepAfter(steps, index);
-  const end = firstStepAfter(steps, index + 1);
+  const end =
+    next < route.decisions.length ? firstStepAfter(steps, next) : steps.length;
   for (let i = end - 1; i >= from && i >= end - STEPS_READ; i -= 1) {
     const line = lineOf(steps[i]!.address);
-    if (!line) {
+    if (!line || !inScope(line)) {
       continue;
     }
-    return (
-      line.script !== at.script ||
-      line.line < loop.header ||
-      line.line > loop.end
-    );
+    return line.line < loop.header || line.line > loop.end;
   }
   return false;
 };

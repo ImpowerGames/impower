@@ -36,7 +36,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import {
   routeDecisions,
-  type ScriptLoop,
+  type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
@@ -4199,8 +4199,8 @@ export class Game<T extends M = {}> {
    * The route `route` as the preview reports it: where it starts, the line it
    * ends at, and each decision it made (`routeDecisions`), placed in the
    * scripts. `source` reads the scripts, counting lines from 0: a line's
-   * text, which names a forced verdict, and the loops, which tell a clipped
-   * loop from a forced verdict. Without it the text is empty and every
+   * text, which names a forced verdict, and the loops and function bodies,
+   * which tell a clipped loop from a forced verdict. Without it the text is empty and every
    * verdict the route forced is reported forced.
    */
   previewRouteOf(route: RoutePlan, source?: ScriptSource): PreviewRoute {
@@ -4221,19 +4221,19 @@ export class Game<T extends M = {}> {
             (firstStep && this.documentLocationOf(firstStep.address)) ??
             this.lineLocation(target.uri, 0),
         };
-    const loops = new Map<number, readonly ScriptLoop[]>();
-    const loopsOf =
+    const structures = new Map<number, ScriptStructure>();
+    const structureOf =
       source &&
       ((script: number) => {
-        let found = loops.get(script);
+        let found = structures.get(script);
         if (!found) {
-          found = source.loops(this.scriptUri(script));
-          loops.set(script, found);
+          found = source.structure(this.scriptUri(script));
+          structures.set(script, found);
         }
         return found;
       });
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(route, lineOf, loopsOf)) {
+    for (const decision of routeDecisions(route, lineOf, structureOf)) {
       // A clipped loop is listed at its own first line.
       const location = decision.loop
         ? this.lineLocation(

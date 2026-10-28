@@ -1,17 +1,17 @@
 import type {
   RouteDecisionKind,
-  ScriptLoop,
+  ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import type { DocumentLocation } from "./DocumentLocation";
 
-export type { RouteDecisionKind, ScriptLoop };
+export type { RouteDecisionKind, ScriptStructure };
 
 /** What a route's report reads of the scripts (`Game.previewRouteOf`),
- *  counting lines from 0: a line's text, and a script's loops
- *  (`SparkdownCompiler.loopsOf`). */
+ *  counting lines from 0: a line's text, and a script's loops and function
+ *  bodies (`SparkdownCompiler.structureOf`). */
 export interface ScriptSource {
   lineText(uri: string, line: number): string | undefined;
-  loops(uri: string): readonly ScriptLoop[];
+  structure(uri: string): ScriptStructure;
 }
 
 /** One decision the preview's route made (`routeDecisions`), placed in the
