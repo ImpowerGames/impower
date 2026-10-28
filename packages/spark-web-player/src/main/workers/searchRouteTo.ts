@@ -31,6 +31,9 @@ export interface RouteSearchSettings {
    *  address, so this one searches the flow the address stands in alone
    *  (`Game.planRouteInFlow`), and its record says the start was searched. */
   startSearched?: boolean;
+  /** Reads a line of a script, counting from 0, for the text of each
+   *  verdict the route reports it forced (`Game.previewRouteOf`). */
+  lineText?: (uri: string, line: number) => string | undefined;
 }
 
 /** Plan a route to the address `to` and replay it, recording what the search
@@ -74,6 +77,7 @@ export const searchRouteFor = (
     remember = true,
     fromStart = false,
     startSearched = false,
+    lineText,
   } = settings;
   if (!fromStart && !startSearched && game.routesFromStartFirst(to)) {
     // Inside a scene that takes parameters, the route runs from the story's
@@ -166,6 +170,7 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
+      route: reachedTarget ? game.previewRouteOf(route, lineText) : undefined,
       fromStart: searchedFromStart,
     });
     if (checkpoint && remember) {

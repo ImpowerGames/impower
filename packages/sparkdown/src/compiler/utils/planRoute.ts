@@ -21,7 +21,7 @@ export interface RoutePlan {
   /** The conditions in the order you'll encounter them along the route */
   conditions: { selected: boolean }[];
   /** The choices in the order you'll encounter them along the route */
-  choices: { options: string[]; selected: number }[];
+  choices: RouteChoice[];
   /** The work the search had spent when level zero's bound began, at the
    *  first condition it met, and the work at which that bound ran out
    *  (see {@link planRoute}); absent when it met none. A search resumed past
@@ -32,6 +32,15 @@ export interface RoutePlan {
    *  {@link planRoute}). Its values are the ones origin/main's preview shows,
    *  and only origin/main's search resumes from it. */
   fallback?: true;
+}
+
+/** A menu the route met: the text of each option it offered, the one taken,
+ *  and each option's address (`Choice.sourcePath`), by which the route's
+ *  report counts how many times an option was offered (`routeDecisions`). */
+export interface RouteChoice {
+  options: string[];
+  selected: number;
+  sources?: string[];
 }
 
 /** Where level zero's work bound began and where it runs out, as work the
@@ -104,7 +113,7 @@ export interface SearchNode {
   /** The sequence of conditions that led here */
   conditions: Trail<{ selected: boolean }> | null;
   /** The sequence of choices that led here */
-  choices: Trail<{ options: string[]; selected: number }> | null;
+  choices: Trail<RouteChoice> | null;
   /** The decision this node was forked to make, which its first step takes.
    *  Every earlier decision is already part of `state`, and the replay forces
    *  them all from the top in order (`decisions`): forcing one again here
@@ -314,7 +323,7 @@ export interface RouteResumePoint {
   decisions: RouteOverride[];
   /** Those decisions split the way a plan reports them. */
   conditions: { selected: boolean }[];
-  choices: { options: string[]; selected: number }[];
+  choices: RouteChoice[];
   /** What the search from the top had spent when it recorded that step, in
    *  level zero: a resumed search is charged it. Absent on a point inside a
    *  {@link RoutePlan.fallback} route, which origin/main's search resumes
@@ -804,7 +813,7 @@ export interface RunResult {
   branches: SearchNode[];
   decisions: RouteOverride[];
   conditions: { selected: boolean }[];
-  choices: { options: string[]; selected: number }[];
+  choices: RouteChoice[];
   terminal: boolean; //  true if branch ended this run
 }
 
@@ -1655,7 +1664,7 @@ const runUntilDecisionOrBranch = (
     at: Mark,
     overrides: RouteOverride[],
     add?: RouteOverride,
-    choice?: { options: string[]; selected: number },
+    choice?: RouteChoice,
   ): SearchNode => {
     let decisions = extendTrail(node.decisions, runDecisions, at.decisions);
     let conditions = extendTrail(node.conditions, runConditions, at.conditions);
@@ -1790,6 +1799,7 @@ const runUntilDecisionOrBranch = (
             break;
           }
           const options = story.currentChoices.map((c) => c.text);
+          const sources = story.currentChoices.map((c) => c.sourcePath);
           const at = mark();
           const forkChoice = (selected: number) => {
             const ov: ChoiceOverride = {
@@ -1797,7 +1807,11 @@ const runUntilDecisionOrBranch = (
               site,
               value: story.currentChoices[selected]!.sourcePath,
             };
-            return nodeAt(forkState, at, [ov], ov, { options, selected });
+            return nodeAt(forkState, at, [ov], ov, {
+              options,
+              selected,
+              sources,
+            });
           };
           const favoredChoiceIndex =
             favoredChoiceIndices[trailLength(node.choices)];

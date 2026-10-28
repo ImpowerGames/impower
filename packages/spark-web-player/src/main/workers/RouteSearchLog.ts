@@ -1,4 +1,5 @@
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
+import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
@@ -50,6 +51,9 @@ export interface RouteSearchOutcome {
    *  story ends, the beat on screen there included (`Game.routeTargetShows`);
    *  known when the replay reached it. */
   shows?: boolean;
+  /** The route the replay followed, as the preview reports it
+   *  (`Game.previewRouteOf`); known when the replay reached the address. */
+  route?: PreviewRoute;
   /** A route from the story's start has been searched for: this search ran
    *  from it, or one that did found no route and this one stands. */
   fromStart?: boolean;

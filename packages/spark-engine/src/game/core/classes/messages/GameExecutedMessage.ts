@@ -4,8 +4,9 @@ import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/Progr
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { DocumentLocation } from "../../types/DocumentLocation";
 import type { ExecutedLines } from "../../types/ExecutedLines";
+import type { PreviewRoute } from "../../types/PreviewRoute";
 
-export type { ExecutedLines, SimulationFailure };
+export type { ExecutedLines, PreviewRoute, SimulationFailure };
 
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
@@ -38,6 +39,9 @@ export interface GameExecutedParams {
    *  a page that labels the failure and holds no program. */
   simulateLocation?: DocumentLocation;
   startLocation?: DocumentLocation;
+  /** The route the preview took to the line it shows, sent with every
+   *  report of a preview a route reached (`Game.previewRoute`). */
+  route?: PreviewRoute;
 }
 
 export class GameExecutedMessage {

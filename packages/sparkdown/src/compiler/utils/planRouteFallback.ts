@@ -6,7 +6,10 @@
 // preview reaches, showing the values origin/main's route gives. Only names
 // differ, the story's reading of a paused condition among them: origin/main's
 // reading is `pausedJumpValue` here, since this branch's
-// `pausedConditionValue` also reads a choice's condition.
+// `pausedConditionValue` also reads a choice's condition. Beyond that it
+// records what the route's report reads and nothing it searches by: a
+// verdict the program does not reach (`departs`), and each menu's options'
+// addresses (`RouteChoice.sources`).
 import type { SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
@@ -24,6 +27,7 @@ import {
   lastSearchStats,
   type ChoiceOverride,
   type ConditionOverride,
+  type RouteChoice,
   type RouteOverride,
   type RoutePlan,
   type RouteResumePoint,
@@ -47,7 +51,7 @@ interface FallbackNode {
   /** The sequence of forced conditions that led here */
   conditions: { selected: boolean }[];
   /** The sequence of forced choices that led here */
-  choices: { options: string[]; selected: number }[];
+  choices: RouteChoice[];
   /** The overrides to enforce when running this node */
   overrides: RouteOverride[];
 }
@@ -175,7 +179,7 @@ interface FallbackRunResult {
   branches: FallbackNode[];
   decisions: RouteOverride[];
   conditions: { selected: boolean }[];
-  choices: { options: string[]; selected: number }[];
+  choices: RouteChoice[];
   terminal: boolean; //  true if branch ended this run
 }
 
@@ -610,6 +614,7 @@ const runUntilDecisionOrBranch = (
             break;
           }
           const options = story.currentChoices.map((c) => c.text);
+          const sources = story.currentChoices.map((c) => c.sourcePath);
           const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
           if (favoredChoiceIndex != null) {
             const choice = story.currentChoices[favoredChoiceIndex]!;
@@ -628,6 +633,7 @@ const runUntilDecisionOrBranch = (
                   {
                     options,
                     selected: favoredChoiceIndex,
+                    sources,
                   },
                 ),
               );
@@ -654,6 +660,7 @@ const runUntilDecisionOrBranch = (
                 {
                   options,
                   selected: i,
+                  sources,
                 },
               ),
             );
@@ -727,25 +734,28 @@ const runUntilDecisionOrBranch = (
           break;
         }
 
+        // The verdict the program reaches here, by which the route's report
+        // tells a verdict the route forced (`departs`) from the program's own.
+        const programVerdict = story.pausedConditionValue;
+        const forkVerdict = (value: boolean) =>
+          forkCondition(
+            forkState,
+            node,
+            stepsEncountered,
+            {
+              kind: "condition",
+              site: story.pausedBeforeCondition!,
+              value,
+            },
+            programVerdict,
+          );
         const favoredConditionalValue =
           favoredConditionalValues[node.conditions.length];
         if (favoredConditionalValue != null) {
           // Fork favored branch
-          branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: favoredConditionalValue,
-            }),
-          );
+          branches.push(forkVerdict(favoredConditionalValue));
           // Fork opposite of favored branch
-          branches.push(
-            forkCondition(forkState, node, stepsEncountered, {
-              kind: "condition",
-              site: story.pausedBeforeCondition,
-              value: !favoredConditionalValue,
-            }),
-          );
+          branches.push(forkVerdict(!favoredConditionalValue));
         } else {
           // The verdict the story reaches unforced is searched first, so of
           // two routes the search can find at the same depth it finds the one
@@ -753,13 +763,7 @@ const runUntilDecisionOrBranch = (
           // on the way (#1606).
           const natural = story.pausedJumpValue;
           for (const value of natural === false ? [false, true] : [true, false]) {
-            branches.push(
-              forkCondition(forkState, node, stepsEncountered, {
-                kind: "condition",
-                site: story.pausedBeforeCondition,
-                value,
-              }),
-            );
+            branches.push(forkVerdict(value));
           }
         }
         break;
@@ -884,7 +888,11 @@ const forkCondition = (
   parent: FallbackNode,
   stepsEncountered: RouteStep[],
   ov: ConditionOverride,
+  programVerdict: boolean | null,
 ): FallbackNode => {
+  if (programVerdict !== null && ov.value !== programVerdict) {
+    ov = { ...ov, departs: true };
+  }
   return {
     state,
     // Falls back to the PARENT's identity, not to "": a fork commonly happens
@@ -906,7 +914,7 @@ const forkChoice = (
   parent: FallbackNode,
   stepsEncountered: RouteStep[],
   ov: ChoiceOverride,
-  choice: { options: string[]; selected: number },
+  choice: RouteChoice,
 ): FallbackNode => {
   return {
     state,

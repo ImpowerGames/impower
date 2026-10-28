@@ -6,6 +6,12 @@ import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
+import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
+import {
+  SetRouteTogglesMessage,
+  type RouteTogglesParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
@@ -48,6 +54,10 @@ const isWebviewHello = (message: unknown) =>
   message != null &&
   typeof message === "object" &&
   Object.keys(message).length === 0;
+
+/** Where the extension keeps which kinds the Game Preview's route list
+ *  shows, for the author in every workspace. */
+const ROUTE_TOGGLES_STATE_KEY = "sparkdown.gamePreview.routeToggles";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
@@ -245,6 +255,14 @@ export class SparkdownPreviewGamePanelManager {
         // twice, and the burst of programs that followed could leave the
         // preview black for good (#1874).
         this._connected = false;
+        // Which kinds the route list shows, as the author left them in any
+        // window.
+        this.sendRequest(SetRouteTogglesMessage.type, {
+          toggles: context.globalState.get<RouteTogglesParams>(
+            ROUTE_TOGGLES_STATE_KEY,
+            {},
+          ),
+        }).catch(console.error);
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -257,6 +275,37 @@ export class SparkdownPreviewGamePanelManager {
             `Game Preview could not start: ${reason}`,
           );
         }
+      }
+      if (DidChangeRouteTogglesMessage.type.isNotification(message)) {
+        context.globalState.update(
+          ROUTE_TOGGLES_STATE_KEY,
+          message.params.toggles,
+        );
+      }
+      if (ShowDocumentMessage.type.isRequest(message)) {
+        // A line the route list links to.
+        const { uri, selection, takeFocus } = message.params;
+        let success = false;
+        try {
+          const doc = await vscode.workspace.openTextDocument(getUri(uri));
+          const shown = getEditor(doc.uri);
+          const editor = await vscode.window.showTextDocument(doc, {
+            viewColumn: shown?.viewColumn,
+            preserveFocus: takeFocus === false,
+          });
+          if (selection) {
+            const range = getClientRange(selection);
+            editor.selection = new vscode.Selection(range.start, range.end);
+            editor.revealRange(
+              range,
+              vscode.TextEditorRevealType.InCenterIfOutsideViewport,
+            );
+          }
+          success = true;
+        } catch (e) {
+          console.error(e);
+        }
+        this.sendResponse(ShowDocumentMessage.type, message.id, { success });
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
