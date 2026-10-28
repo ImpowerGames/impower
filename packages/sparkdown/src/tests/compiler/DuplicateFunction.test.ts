@@ -113,7 +113,7 @@ describe("DuplicateFunction at a script's top level", () => {
       "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
     );
     expect(found.filter((d) => d.message.startsWith("Duplicate identifier"))).toEqual([]);
-    expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range.start.line, d.message])).toEqual([
+    expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range?.start.line, d.message])).toEqual([
       [2, 3, "Duplicate function definition: 'x' also defined on line 3"],
     ]);
   });
