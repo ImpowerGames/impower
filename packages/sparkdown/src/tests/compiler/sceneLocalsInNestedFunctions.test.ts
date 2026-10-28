@@ -1,7 +1,9 @@
 // A function written inside a scene, a branch or a choice body, or a block of
 // one (a `local function`, a function value, a function passed as an
 // argument) reads the locals of its flow declared above it, so no read of one
-// is reported as an unknown name (I-1746). A top-level function, a define's
+// is reported as an unknown name (I-1746). A branch, in its own lines and in
+// a function written in it, reads its scene's parameters but none of its
+// scene's locals, as the runtime scopes them (I-1674). A top-level function, a define's
 // method, a function in another scene and a read of a local declared below
 // the function still read the global, and are reported. A `local function`
 // in a flow is a closure (I-1674), so its unknown names are reported as a
@@ -58,9 +60,10 @@ describe("a function written in a flow reads the flow's locals declared above it
       "scene main\n  local foo = 5\n  local function g()\n    local function h()\n      return foo\n    end\n    return h()\n  end\n  & g()\nend\n",
     ],
     [
-      "a local function in a branch reading its scene's local",
-      "scene main\n  local foo = 5\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n",
+      "a local function in a branch reading its scene's parameter",
+      "-> main(5)\nscene main(foo)\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n",
     ],
+    ["a branch's own line reading its scene's parameter", "-> main(5)\nscene main(foo)\n  branch b\n    Got {foo}.\n  end\nend\n"],
     [
       "a local function in a choice body",
       "scene main\n  local foo = 5\n  choose\n    + choice\n      local function g()\n        return foo\n      end\n      & g()\n  end\nend\n",
@@ -108,6 +111,21 @@ describe("a function written in a flow reads the flow's locals declared above it
       ["6: Unknown global 'foo'; consider assigning to it first"],
     ],
     [
+      "a local function in a branch reading its scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n",
+      ["5: Unknown global 'foo'; consider assigning to it first"],
+    ],
+    [
+      "a function value in a branch reading its scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    local f = function() return foo end\n    & f()\n  end\nend\n",
+      ["4: Unknown global 'foo'; consider assigning to it first"],
+    ],
+    [
+      "a branch's own line reading its scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    Got {foo}.\n  end\nend\n",
+      ["4: Cannot find variable named `foo`"],
+    ],
+    [
       "a define's method reading a scene local named like a library",
       "scene main\n  local table = { nogetn = function() return 1 end }\n  define thing with\n    function get() return table.nogetn() end\n  end\nend\n",
       ["4: Cannot find variable named `table`"],
@@ -117,12 +135,12 @@ describe("a function written in a flow reads the flow's locals declared above it
   });
 
   it.each([
-    ["a function in a branch", "scene main\n  local bar = 5\n  Hello.\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n"],
-    ["a block in a branch holding the function", "scene main\n  local bar = 5\n  Hello.\n  branch b\n    do\n      local function g() return foo end\n      & g()\n    end\n  end\nend\n"],
-  ])("follows an edit that adds or removes the scene's local above %s", (_, text) => {
+    ["a function in a branch", "scene main(bar)\n  Hello.\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n", 5],
+    ["a block in a branch holding the function", "scene main(bar)\n  Hello.\n  branch b\n    do\n      local function g() return foo end\n      & g()\n    end\n  end\nend\n", 5],
+  ])("follows an edit that adds or removes the scene's parameter read in %s", (_, text, line) => {
     // Edits by range, after an edit elsewhere has warmed the compiler, so
     // the branch's lines are reused unless what they read changed.
-    const storyLine = 2;
+    const storyLine = 1;
     const c = compiler(text);
     let version = 1;
     const edit = (line: number, from: number, to: number, replacement: string) => {
@@ -132,10 +150,10 @@ describe("a function written in a flow reads the flow's locals declared above it
       } as never);
       return unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program);
     };
-    const missing = ["6: Unknown global 'foo'; consider assigning to it first"];
+    const missing = [`${line}: Unknown global 'foo'; consider assigning to it first`];
     expect(unknownNames((c.compile({ textDocument: { uri: URI } } as never) as any).program)).toEqual(missing);
     expect(edit(storyLine, 7, 8, "!")).toEqual(missing);
-    expect(edit(1, 8, 11, "foo")).toEqual([]);
-    expect(edit(1, 8, 11, "bar")).toEqual(missing);
+    expect(edit(0, 11, 14, "foo")).toEqual([]);
+    expect(edit(0, 11, 14, "bar")).toEqual(missing);
   });
 });

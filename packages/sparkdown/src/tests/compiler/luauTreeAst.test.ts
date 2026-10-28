@@ -354,7 +354,7 @@ describe("Sparkdown's own constructs", () => {
     expect(printAst(units.flows[0]!.root)).toBe(
       [
         "StatBlock",
-        "  StatLocalFunction",
+        "  StatLocalFunction ;",
         "    local __flow#0 function=0 loop=0",
         '    ExprFunction "__flow" depth=1 parens',
         "      local k#1 function=1 loop=0",
@@ -382,17 +382,25 @@ describe("Sparkdown's own constructs", () => {
         "                ExprBinary +",
         "                  ExprLocal n#2",
         "                  ExprConstantNumber 1",
+        // The branch is a function of its own that takes the scene's
+        // parameters, where the scene's local reads as a global (I-1674).
+        "  StatLocalFunction",
+        "    local __branch#3 function=0 loop=0",
+        '    ExprFunction "__branch" depth=1 parens',
+        "      local k#4 function=1 loop=0",
+        "        TypeReference any",
+        "      StatBlock",
         "        StatLocal =",
         "          SparkdownFlowArgument",
         "          SparkdownFlowArgument",
-        "          local m#3 function=1 loop=0",
-        "          local w#4 function=1 loop=0",
+        "          local m#5 function=1 loop=0",
+        "          local w#6 function=1 loop=0",
         "            TypeReference string",
         "        SparkdownExplicit",
         "          StatAssign",
-        "            ExprLocal n#2",
+        "            ExprGlobal n",
         "            =",
-        "            ExprLocal m#3",
+        "            ExprLocal m#5",
       ].join("\n"),
     );
   });

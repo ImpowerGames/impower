@@ -69,9 +69,10 @@ const BLOCKS = nodeNameSet([
  *  where code reads it (the end of its statement, or a parameter's name) and
  *  up to where (the end of the choice whose body declares it), and the flow
  *  whose body declares it, -1 for the top level. A scene's or a branch's
- *  parameter is one of its flow. */
+ *  parameter is one of its flow, marked `parameter`. */
 interface RootDeclaration {
   at: number;
+  parameter?: boolean;
   visibleFrom: number;
   visibleTo: number;
   flow: number;
@@ -134,6 +135,7 @@ export class RootLocals {
             visibleFrom: param.to,
             visibleTo: Number.POSITIVE_INFINITY,
             flow: this.flows.length - 1,
+            parameter: true,
           });
         }
       } else if (node.name === "LuauEndKeyword") {
@@ -167,13 +169,20 @@ export class RootLocals {
   answerIgnoringBlocks(name: string, at: number): string {
     const list = this.declarations.get(name);
     if (!list) return "";
+    // Code reads the locals and parameters of the flow whose body holds it,
+    // and in a branch, its scene's parameters, which the scene's entry binds
+    // as it falls into the branch; a scene's locals are never in a branch's
+    // scope (`flowScopesOf`).
     const around = this.flowsAround(at);
+    const [own] = around;
     for (let i = list.length - 1; i >= 0; i--) {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
         at <= declaration.visibleTo &&
-        (declaration.flow < 0 || around.has(declaration.flow))
+        (declaration.flow < 0 ||
+          declaration.flow === own ||
+          (declaration.parameter === true && around.has(declaration.flow)))
       ) {
         return ordinal(list, i);
       }
