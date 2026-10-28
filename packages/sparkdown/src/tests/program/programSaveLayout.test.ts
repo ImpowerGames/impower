@@ -956,6 +956,32 @@ describe("a save inside a scene entered by a divert", () => {
     expect(play(loaded)).toEqual(["Second 7."]);
   });
 
+  // Round 1 of the review of #1674 (report 6464670920, finding 1): a
+  // branch's local of its scene's parameter's name is the branch's, so a
+  // frame a divert sent straight to the branch loads in place when the
+  // scene gains a parameter.
+  it("inside a branch a divert entered loads in place, though the branch's local takes its scene's parameter's name", () => {
+    const BRANCH = (header: string) =>
+      [
+        "-> s.b",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  branch b",
+        "    local a = 7",
+        "    First {a}.",
+        "    Second {a}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(BRANCH("s(a)"), "First 7.");
+    const loaded = engine(rootOf(BRANCH("s(a, b)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 7."]);
+  });
+
   // Round 1 of the review of #1730 (report 6084052356, finding 4): a jump
   // to a label of a scene that bound nothing, which gains a parameter.
   it("at a label a frame jumped to loads in place when the scene, which took no parameters, gains one", () => {
