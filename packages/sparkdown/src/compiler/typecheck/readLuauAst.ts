@@ -126,6 +126,7 @@ import { Location, Position } from "./Location";
 import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, isSparkdownExpression, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
+import { scopeOf } from "../utils/declarationOnly";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 // ---------------------------------------------------------------------------
@@ -5092,7 +5093,8 @@ const COMMENT_NODE = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)
 
 /**
  * Reads a `.sd` file's Luau as units: its prelude, with the Luau statements
- * outside any flow and every function definition, and a unit per scene (its
+ * outside any flow and every function definition but a `local function`
+ * written in a flow, and a unit per scene (its
  * branches included) or branch outside any scene that holds Luau
  * statements, the units the type checker checks (`LuauDocumentChecker.ts`).
  */
@@ -5152,9 +5154,12 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
     } else if (node.name === "LuauEndKeyword") {
       const closed = open.pop();
       if (closed && !open.includes(closed)) closed.end = node;
-    } else if (node.name === "LuauFunctionDefinition") {
+    } else if (node.name === "LuauFunctionDefinition" && (open.length === 0 || scopeOf(node, (from, to) => documentText.slice(from, to)) !== "local")) {
+      // A `function` is the story's wherever it is written. A `local
+      // function` written in a flow is a statement of that flow, and reads
+      // the locals declared above it there.
       preludeNodes.push(node);
-    } else if (LUAU_STATEMENTS.has(node.name)) {
+    } else if (LUAU_STATEMENTS.has(node.name) || node.name === "LuauFunctionDefinition") {
       const flow = open[open.length - 1];
       if (flow) flow.body.push({ node });
       else preludeNodes.push(node);

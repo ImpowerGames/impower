@@ -4,6 +4,7 @@ import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
 import { Identifier } from "../Identifier";
+import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { asOrNull, filterUndef } from "../../../../../runtime/TypeAssertion";
 import {
   isStdLibFunctionName,
@@ -147,7 +148,7 @@ export class VariableReference extends Expression {
         const baseResolve = context.ResolveVariableWithName(baseName, this);
         const baseStruct = context.ResolveStruct(baseName);
         if (
-          baseResolve.found &&
+          (baseResolve.found || this.IsBoundAtEntry(baseName)) &&
           this.IsFoundNameInScope(baseName, context) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
@@ -202,10 +203,21 @@ export class VariableReference extends Expression {
   // scope.
   private IsResolvedVariable(context: Story): boolean {
     return (
-      context.ResolveVariableWithName(this.name, this).found &&
-      (this.unresolvedMember === null ||
-        this.IsFoundNameInScope(this.name, context))
+      (context.ResolveVariableWithName(this.name, this).found &&
+        (this.unresolvedMember === null ||
+          this.IsFoundNameInScope(this.name, context))) ||
+      this.IsBoundAtEntry(this.name)
     );
+  }
+
+  // Whether the entry of the function the reference is written in binds the
+  // name to a `local` of the root frame (`FlowBase.BindsRootLocal`): a
+  // function written in a scene, a branch or a choice body reads that
+  // flow's locals declared above the read, which the function's own scopes
+  // do not declare.
+  private IsBoundAtEntry(name: string): boolean {
+    const flow = asOrNull(ClosestFlowBase(this), FlowBase);
+    return flow !== null && flow !== this.story && flow.BindsRootLocal(name);
   }
 
   // An unresolved dotted path: `table.nogetn`, or the `table:nogetn()` a colon

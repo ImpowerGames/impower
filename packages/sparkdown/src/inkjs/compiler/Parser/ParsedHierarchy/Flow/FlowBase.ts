@@ -12,6 +12,7 @@ import { MultiReturnType } from "../MultiReturnType";
 //import { Story } from '../Story';
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
+import { RootBinding } from "../Variable/RootBinding";
 import { Weave } from "../Weave";
 import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
@@ -598,6 +599,27 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return result;
   };
 
+  // Whether the flow's entry binds `varName` to a `local` of the root frame's
+  // own scope (`RootBinding`), as the entry of a function written in a scene,
+  // a branch or a choice body binds each name its body reads from a `local`
+  // of that flow declared above the read, and a top-level function's each it
+  // reads from a top-level `local`. The lowering writes those bindings first
+  // in the flow's root weave. A binding by name in any scope, which a
+  // function written inside a block of a flow makes for every name it reads
+  // (`ROOT_IN_BLOCK`), binds no particular `local`, and does not count.
+  public BindsRootLocal = (varName: string): boolean => {
+    recordRead(varName);
+    for (const obj of this._rootWeave?.content ?? []) {
+      if (!(obj instanceof RootBinding)) {
+        return false;
+      }
+      if (obj.variableName === varName && !obj.anyScope) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   // Whether `fromNode` reads the variable `varName` rather than whatever the
   // name means where no variable is in scope (a library such as `table`).
   // `ResolveVariableWithName` finds a `local` anywhere in its flow, and a
@@ -623,7 +645,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // `parent.content[end]`. It is when it is declared in or under an earlier
   // object of that content, or of an ancestor's content up to the enclosing
   // flow, outside any block that closes first (see `declaresLocal`). Past
-  // the enclosing flow, a parameter is in scope throughout it, and any other
+  // the enclosing flow, a parameter is in scope throughout it, as is a name
+  // its entry binds to a `local` of the root frame (`BindsRootLocal`), and any other
   // name, a captured one included, is in scope in the flow when it is in
   // scope where the flow is written: at its place in the content that holds
   // it when that is not a flow's (a function written inside an `if` arm or a
@@ -651,6 +674,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     }
     const arg = flow.args?.find((a) => a.identifier?.name === varName);
     if (arg && !arg.isUpvalue) {
+      return true;
+    }
+    if (!arg && flow.BindsRootLocal(varName)) {
       return true;
     }
     if (!arg && !this.story.variableDeclarations.has(varName)) {
