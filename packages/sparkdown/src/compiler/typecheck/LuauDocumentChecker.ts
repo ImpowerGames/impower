@@ -7,9 +7,9 @@
 //
 // A document's Luau is checked in units. A `run` file is one unit. A `.sd`
 // file is its prelude (the Luau outside any flow, and its functions) and one
-// unit per scene, with the branches inside it, and per branch outside any
-// scene, each checked as the body of a function whose parameters are the
-// flow's, with the prelude's names in scope. A unit is read in its own lines
+// unit per scene and per branch, each checked as the body of a function
+// whose parameters are the flow's (a branch in a scene takes its scene's),
+// with the prelude's names in scope. A unit is read in its own lines
 // (`ReadOptions.unitLines`): its locations count only the document lines
 // that hold its Luau, and the unit keeps the document line of each, so a
 // unit's AST, and the result of checking it, do not change when lines move
@@ -125,8 +125,9 @@ export function readDocumentUnits(tree: Tree, documentText: string, luauFile = f
 
 /**
  * A `.sd` file's Luau as units: its prelude, with the Luau statements
- * outside any flow and every function definition, and a unit per scene (its
- * branches included) or branch outside any scene that holds Luau statements.
+ * outside any flow and every function definition but a `local function`
+ * written in a flow, and a unit per scene and per branch that holds Luau
+ * statements (`readLuauUnits`).
  */
 export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits {
   const read = readDocumentUnits(tree, documentText);

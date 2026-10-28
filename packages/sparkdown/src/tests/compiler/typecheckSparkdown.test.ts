@@ -247,13 +247,15 @@ end
     ]);
   });
 
-  test("where branches in a scene give `...` different types, as written, `...` has neither, and the scene is still checked", () => {
+  test("where branches in a scene give `...` different types, each branch's `...` has its own, and the scene is still checked (I-1674)", () => {
     const program = compile(`scene start
   branch first(...: string)
     local mine: string = ...
+    local wrongFirst: number = ...
   end
   branch second(...: number)
     local theirs: number = ...
+    local wrongSecond: string = ...
   end
   local bad: string = 1
 end
@@ -268,9 +270,29 @@ scene singletons
   local bad: string = 1
 end
 `);
+    // Each unit reports in turn: the scene's, then each branch's.
     expect(typeWarnings(program)).toEqual([
-      "11:22-11:23 Expected this to be 'string', but got 'number'",
-      "21:22-21:23 Expected this to be 'string', but got 'number'",
+      "13:22-13:23 Expected this to be 'string', but got 'number'",
+      "7:31-7:34 Expected this to be 'number', but got 'string'",
+      "11:32-11:35 Expected this to be 'string', but got 'number'",
+      "23:22-23:23 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("a branch's own `...` replaces its variadic scene's, with the branch's type (I-1674)", () => {
+    const program = compile(`scene s(...: string)
+  local fine: string = ...
+  branch b(...: number)
+    local wrong: string = ...
+  end
+  branch c
+    local inherited: number = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:26-7:29 Expected this to be 'string', but got 'number'",
+      "10:30-10:33 Expected this to be 'number', but got 'string'",
     ]);
   });
 
