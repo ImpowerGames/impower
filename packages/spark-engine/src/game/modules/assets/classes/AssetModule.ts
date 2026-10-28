@@ -486,7 +486,7 @@ export class AssetModule extends Module<
     // The first beat after a connect shows again what the connect cleared
     // from the layers it writes (#1662).
     const names: string[] = this._game.module.ui.clearedPictureNames(
-      Object.keys(instructions.image ?? {}),
+      instructions.image,
     );
     for (const events of Object.values(instructions.image ?? {})) {
       for (const event of events) {

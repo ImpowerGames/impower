@@ -846,6 +846,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._events = {};
     this._mountedLayouts = new Map();
     this._morphEpoch += 1;
+    this._clearedPictures = undefined;
   }
 
   override async onLoad() {
@@ -858,13 +859,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearedPictures = undefined;
   }
 
-  /** The pictures the first beat after a connect or redisplay shows again
-   *  on `targets`, the ones it writes to (#1662). */
-  clearedPictureNames(targets: string[]): string[] {
+  /** The targets whose cleared pictures a beat writing `image` shows again
+   *  (#1662): those it writes to without showing a picture of its own, which
+   *  would replace them, as play keeps them under such a beat. */
+  protected keptTargets(
+    image: Record<string, ImageInstruction[]> | undefined,
+  ): string[] {
+    const cleared = this._clearedPictures;
+    if (!cleared || !image) {
+      return [];
+    }
+    return Object.keys(cleared).filter(
+      (target) =>
+        image[target] &&
+        !image[target].some(
+          (event) => event.control === "show" && event.assets?.length,
+        ),
+    );
+  }
+
+  /** The pictures the first beat after a connect or redisplay shows again,
+   *  for a beat writing `image` (#1662). */
+  clearedPictureNames(
+    image: Record<string, ImageInstruction[]> | undefined,
+  ): string[] {
     const names: string[] = [];
     const cleared = this._clearedPictures;
     if (cleared) {
-      for (const target of targets) {
+      for (const target of this.keptTargets(image)) {
         for (const event of cleared[target] ?? []) {
           if (event.control !== "hide" && event.assets?.length) {
             names.push(...event.assets);
@@ -5752,17 +5774,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      /** The first beat after a connect or redisplay: of the pictures that
-       *  clear took off the clear-on-continue targets, those on `targets`
-       *  (the ones the beat writes) show again, at once, before the beat's
-       *  own writes, as play keeps them under the beat that writes them
-       *  (#1662). The rest stay cleared, as play clears them. A route
+      /** The first beat after a connect or redisplay, which writes `image`:
+       *  of the pictures that clear took off the clear-on-continue targets,
+       *  those on the targets the beat writes without showing a picture of
+       *  its own show again, at once, before the beat's own writes, as play
+       *  keeps them under such a beat (#1662). The rest stay cleared, as
+       *  play clears them or the beat's picture replaces them. A route
        *  replay presents nothing and leaves them for the beat that does. */
-      async restoreCleared(targets: string[]) {
+      async restoreCleared(
+        image: Record<string, ImageInstruction[]> | undefined,
+      ) {
         const cleared = $._clearedPictures;
         if (!cleared || $.context?.system?.simulating) {
           return;
         }
+        const targets = $.keptTargets(image);
         $._clearedPictures = undefined;
         await Promise.all(
           targets.map(async (target) => {
