@@ -1910,6 +1910,10 @@ export class ProgramStoryState {
       after[cuts.dropFrom - 1] = true;
     }
     const t = elements.length - 1;
+    // The scopes the restarting element keeps: its own and those of the
+    // flows down to the one it restarts, whose scope holds the parameters.
+    const restartFlow = cuts.restart ? this._root.flowNamed(cuts.restart.flow) : undefined;
+    const restartKeeps = restartFlow ? 1 + flowScopesOf(this._root, restartFlow) : undefined;
     if (cuts.restart) {
       // The element restarts its flow: its scopes are cut to the flow's
       // start, and its eval stack at the top of the current thread.
@@ -1924,12 +1928,16 @@ export class ProgramStoryState {
       const at = i < t ? this._frames.get(elements[i + 1]!)?.returnTo : position;
       if (at) {
         const depth = scopeDepthAt(this._root, at);
-        while (element.temporaryScopes.length > depth) {
+        // A restarted flow keeps its own scope and opens the scopes above
+        // it fresh, as entering it again does, a branch it starts with
+        // among them; a frame saved at fewer scopes than its flows hold
+        // now opens them too.
+        const restarts = i === t && restartKeeps !== undefined;
+        const keeps = restarts ? Math.min(depth, restartKeeps) : depth;
+        while (element.temporaryScopes.length > keeps) {
           element.PopScope(this.callStack.cellBarrier);
         }
-        // A restarted flow's start holds the flow's scopes, which a frame
-        // saved at fewer scopes than its flow holds now has not opened.
-        while (i === t && cuts.restart && element.temporaryScopes.length < depth) {
+        while (restarts && element.temporaryScopes.length < depth) {
           element.PushScope();
         }
       }
@@ -1946,7 +1954,12 @@ export class ProgramStoryState {
       }
     }
     if (cuts.restart && t >= 0) {
-      this.rebindParameters(elements[t]!, cuts.restart.saved, cuts.restart.params);
+      this.rebindParameters(
+        elements[t]!,
+        cuts.restart.saved,
+        cuts.restart.params,
+        (restartKeeps ?? elements[t]!.temporaryScopes.length) - 1,
+      );
     }
     return position;
   }
@@ -1964,23 +1977,26 @@ export class ProgramStoryState {
    * `CallStack.SetTemporaryVariable` shares): a captured cell closes on
    * its value, and a parameter the flow no longer has is unbound. The
    * parameters are bound in the restarted flow's own scope, the element's
-   * innermost once its scopes are cut to the flow's start, and a saved value
-   * is read from the innermost scope that binds its name.
+   * scope `index`, and a saved value is read from the innermost scope up to
+   * it that binds its name.
    */
   protected rebindParameters(
     element: CallStack.Element,
     saved: readonly string[],
     params: readonly { name: string; vararg: boolean }[],
+    index: number,
   ): void {
     const scopes = element.temporaryScopes;
-    const index = scopes.length - 1;
     const scope = scopes[index];
     if (!scope) {
       return;
     }
     const values = new Map<string, InkObject>();
     for (const name of saved) {
-      const value = scopes.findLast((held) => held.has(name))?.get(name);
+      const value = scopes
+        .slice(0, index + 1)
+        .findLast((held) => held.has(name))
+        ?.get(name);
       if (value !== undefined) {
         values.set(name, value);
       }

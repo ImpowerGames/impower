@@ -471,11 +471,14 @@ export class Divert extends ParsedObject {
   // assignment to the global anywhere in the story (`& game = -> there`,
   // whichever flow or callable holds it, since a global write is visible
   // everywhere; `Story.globalAssignmentNames` leaves out a write to a
-  // parameter or local of that name), or a parameter or local
-  // (`variableDeclarations`) of the flow this divert belongs to: the
-  // divert's own flow and the flows enclosing it up to the nearest callable
-  // or the top-level flow, plus the branches of that top. A story-level
-  // divert has no such flow and only the global assignments apply to it.
+  // parameter or local of that name), a parameter or local
+  // (`variableDeclarations`) of the flow this divert belongs to, or, in a
+  // branch, a parameter of its scene, which a scene that has no lines of its
+  // own falls through into its first branch with. A scene's or a branch's
+  // locals are that flow's (`flowScopesOf`): a divert into a branch opens
+  // the scene's scope fresh, so neither the scene's locals nor a sibling
+  // branch's are ever in scope there. A story-level divert has no such flow
+  // and only the global assignments apply to it.
   //
   // This decides only the severity of the report, never its absence. Whether
   // such a binding holds a divert target when the divert runs depends on the
@@ -501,39 +504,16 @@ export class Divert extends ParsedObject {
     if (!own || own === own.story) {
       return false;
     }
-    const declares = (candidate: FlowBase): boolean =>
-      (candidate.args?.some((arg) => arg.identifier?.name === name) ??
-        false) || candidate.variableDeclarations.has(name);
-    // Up from the own flow to the nearest callable or the top-level flow.
-    let top: FlowBase = own;
-    let flow: FlowBase | null = own;
-    while (flow && flow !== flow.story) {
-      if (declares(flow)) {
-        return true;
-      }
-      top = flow;
-      if (flow.isFunction) {
-        break;
-      }
-      flow = asOrNull(ClosestFlowBase(flow), FlowBase);
+    const takes = (candidate: FlowBase): boolean =>
+      candidate.args?.some((arg) => arg.identifier?.name === name) ?? false;
+    if (takes(own) || own.variableDeclarations.has(name)) {
+      return true;
     }
-    if (top.isFunction) {
+    if (own.isFunction) {
       return false;
     }
-    // Down through the top's branches (not its callables).
-    const branchDeclares = (candidate: FlowBase): boolean => {
-      for (const child of candidate.content ?? []) {
-        if (
-          child instanceof FlowBase &&
-          !child.isFunction &&
-          (declares(child) || branchDeclares(child))
-        ) {
-          return true;
-        }
-      }
-      return false;
-    };
-    return branchDeclares(top);
+    const scene = asOrNull(ClosestFlowBase(own), FlowBase);
+    return !!scene && scene !== scene.story && !scene.isFunction && takes(scene);
   }
 
   // A bare `name = …` makes `name` a global only as its assignment resolves

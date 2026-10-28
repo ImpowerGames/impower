@@ -486,14 +486,15 @@ end
     expect(collisionsOf(program)).toEqual([]);
   });
 
-  test("a parameter of an enclosing scene used from its branch is a warning, and the story runs when entered at the head", () => {
+  // A scene with no lines of its own falls through into its first branch
+  // with its parameters bound in its scope.
+  test("a parameter of an enclosing scene used from the branch it falls into is a warning, and the story runs", () => {
     const ctx = makeRuntimeStoryFromSource(`-> start
 scene start
   -> go(-> there)
 
 end
 scene go(game)
-  -> go.inner
   branch inner
     -> game
   end
@@ -509,10 +510,10 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
   });
 
-  test("a local declared in a sibling branch of the same scene also counts as the author's", () => {
-    // At runtime both branches run in one call-stack element, so the local
-    // set in `one` is visible to the divert in `two`.
-    const ctx = makeRuntimeStoryFromSource(`-> s
+  test("a local declared in a sibling branch of the same scene leaves the report an error", () => {
+    // A branch's locals are the branch's, and a divert into `two` opens its
+    // scopes fresh, so `one`'s local is never in scope at the divert.
+    const program = compileUnseeded(`-> s
 scene s
   -> s.one
   branch one
@@ -529,36 +530,12 @@ scene there
 
 end
 `);
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
-  });
-
-  test("a sibling branch's local that may not have run downgrades the report to a warning", () => {
-    // Entering `two` directly leaves `one`'s local unset, and the divert then
-    // binds to the builtin at runtime; entering through `one` first would
-    // make it work. The compile cannot tell which, so it warns.
-    const program = compileUnseeded(`-> s.two
-scene s
-  branch one
-    & local game = -> there
-    fin
-  end
-  branch two
-    -> game
-  end
-end
-scene there
-  Arrived.
-  fin
-
-end
-`);
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)));
     expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
-      [2, { line: 7, character: 7 }],
+      [1, { line: 8, character: 7 }],
     ]);
-    expect(String(reports[0].message?.value)).toBe(DIVERT_WARNING("game"));
+    expect(String(reports[0].message?.value)).toBe(DIVERT_MESSAGE("game"));
   });
 
   test("a local declared after the divert in the same flow is a warning, not silence", () => {
@@ -585,7 +562,10 @@ end
     ]);
   });
 
-  test("a local of an enclosing scene used from its branch is a warning, and the story runs when the local was set", () => {
+  // A scene with a line of its own never falls through into its branch, and
+  // a divert into the branch opens the scene's scope fresh, so the scene's
+  // local is never in scope at the divert.
+  test("a local of an enclosing scene used from its branch leaves the report an error", () => {
     const source = `-> s
 scene s
   & local game = -> there
@@ -603,10 +583,7 @@ end
     const all: any[] = Object.values(compileUnseeded(source).diagnostics ?? {}).flat();
     expect(
       all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message))).map((d) => d.severity),
-    ).toEqual([2]);
-    const ctx = makeRuntimeStoryFromSource(source);
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe("Arrived.\n");
+    ).toEqual([1]);
   });
 
   test("a divert inside a nested closure does not see the enclosing function's local", () => {

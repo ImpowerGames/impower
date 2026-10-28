@@ -659,27 +659,29 @@ describe("a jump and a save inside a body", () => {
     const story = new ProgramStory(chunked(text));
     story.ChoosePathString("MAIN");
     storyBeats(story);
-    expect(scopeNames(story)).toEqual([["a"]]);
+    expect(scopeNames(story)).toEqual([[], ["a"]]);
     story.ChoosePathString("MAIN");
-    expect(scopeNames(story)).toEqual([[]]);
+    expect(scopeNames(story)).toEqual([[], []]);
   });
 
   // A jump to a line inside the `if` inside the loop enters both bodies,
-  // with the loop's scope and the branch's open, however often it is made.
+  // with the scene's scope, the loop's and the branch's open, however often
+  // it is made.
   it("opens the scopes of the bodies a jump enters, the same on every jump", () => {
     const root = chunked(text);
     const story = new ProgramStory(root);
     const pass = root.addressAt(MAIN_URI, PASS_LINE)!;
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
-    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(4);
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
-    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(4);
   });
 
-  // A save inside the loop's `if` holds temporaries in three scopes and two
-  // blocks; a story loaded from it shows what the saving story shows next.
+  // A save inside the loop's `if` holds temporaries in four scopes (the
+  // frame's own, the scene's, the loop's and the branch's) and two blocks; a
+  // story loaded from it shows what the saving story shows next.
   it("restores a state saved inside nested bodies, with its temporaries by scope", () => {
     const root = chunked(text);
     const whole = storyBeats(new ProgramStory(root), "MAIN").beats;
@@ -692,7 +694,7 @@ describe("a jump and a save inside a body", () => {
     story.ChoosePathString("MAIN");
     story.Continue();
     expect(story.state.blockStack).toHaveLength(2);
-    expect(scopeNames(story)).toEqual([["a"], ["__forIdx$", "__forStop$", "__forStep$", "i", "d"], []]);
+    expect(scopeNames(story)).toEqual([[], ["a"], ["__forIdx$", "__forStop$", "__forStep$", "i", "d"], []]);
     const saved = story.state.toJson();
     const resumed = new ProgramStory(root);
     resumed.state.LoadJson(saved);
@@ -728,11 +730,11 @@ describe("a jump and a save inside a body", () => {
     const pass = root.addressAt(MAIN_URI, WHILE_PASS_LINE)!;
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
-    // The flow's scope, the pass scope and the branch's.
-    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    // The frame's own scope, the scene's, the pass scope and the branch's.
+    expect(story.state.frame!.temporaryScopes).toHaveLength(4);
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
-    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(4);
   });
 
   it("restores a state saved inside a while body, and closes the pass scope after it", () => {
@@ -747,7 +749,7 @@ describe("a jump and a save inside a body", () => {
     story.ChoosePathString("MAIN");
     story.Continue();
     expect(story.state.blockStack).toHaveLength(2);
-    expect(scopeNames(story)).toEqual([["a", "i"], ["d"], []]);
+    expect(scopeNames(story)).toEqual([[], ["a", "i"], ["d"], []]);
     const saved = story.state.toJson();
     const resumed = new ProgramStory(root);
     resumed.state.LoadJson(saved);
@@ -755,7 +757,7 @@ describe("a jump and a save inside a body", () => {
     expect(resumed.state.blockStack).toHaveLength(2);
     expect(scopeNames(resumed)).toEqual(scopeNames(story));
     expect(storyBeats(resumed).beats).toEqual(whole.slice(1));
-    expect(scopeNames(resumed)).toEqual([["a", "i"]]);
+    expect(scopeNames(resumed)).toEqual([[], ["a", "i"]]);
   });
 });
 
