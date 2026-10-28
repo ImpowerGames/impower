@@ -24,13 +24,14 @@ import {
   type AttributeSelection,
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
-import { MORPH_DEPTH_REST, parseMorphDepth } from "../compiler/morph/morphSchema";
+import { MORPH_DEPTH_REST, parseMorphDepth, parseMorphQualifiedState } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
   invert,
   isIdentity,
   type Affine,
 } from "./affine";
+import { readEntryColor } from "./color";
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
@@ -62,10 +63,13 @@ import {
   type MorphBakeDiagnostic,
   type MorphBlend,
   type MorphClipTarget,
+  type MorphColor,
   type MorphFallback,
   type MorphFrames,
   type MorphGeometryRef,
   type MorphMethodName,
+  type MorphPaintBase,
+  type MorphPaintPose,
   type MorphPart,
   type MorphRecipe,
   type MorphSegment,
@@ -648,6 +652,100 @@ export function* bakeSteps(
       if (!best || distance < best.distance) best = { leaf: candidate, distance };
     }
     return best?.leaf;
+  };
+  /** Whether any of `element`'s layers, its own or an ancestor's, has a label in `labels`. */
+  const labelledAny = (element: Element, labels: readonly string[]) =>
+    [...ancestry(doc!, element)].some((entry) => {
+      const label = entry.layer?.parsed.label;
+      return !!label && labels.includes(label);
+    });
+  /**
+   * Each `paints` entry where it applies to this variant. `when` holds where
+   * the rest pose draws a layer that needs that state, through its own name
+   * or an ancestor's: one whose condition on the group accepts only that
+   * state or its refinements. The entry recolours the drawings of its labels
+   * that change with the pose's group and that the pose shows, and every
+   * `morph` track of a segment arriving at or leaving the pose whose end
+   * there is one of them.
+   */
+  const paintPosesOf = (): MorphPaintPose[] => {
+    const out: MorphPaintPose[] = [];
+    const needs = (element: Element, group: string, state: string) =>
+      [...ancestry(doc!, element)].some((entry) =>
+        entry.layer?.parsed.conditions.some(
+          (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state || o.startsWith(`${state}-`)),
+        ),
+      );
+    const restDrawn = drawnLeaves(doc!).filter((element) => visibleAt(element, restVisible));
+    const leafByNode = new Map(leaves.filter((l) => l.live).map((l) => [l.node, l]));
+    for (const [index, entry] of (recipe.paints ?? []).entries()) {
+      const pose = parseMorphQualifiedState(entry.state);
+      // The state the morph starts from is the rest pose, which no entry colours.
+      const visible = pose && pose.state !== requirements.rest.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
+      if (!pose || !visible) continue;
+      if (entry.when !== undefined) {
+        const when = parseMorphQualifiedState(entry.when);
+        if (!when || !restDrawn.some((element) => needs(element, when.group, when.state))) continue;
+      }
+      const drawn = leaves.filter((l) => l.live && l.group === pose.group && visibleAt(l.element, visible) && labelledAny(l.element, entry.targets));
+      for (const label of entry.targets) {
+        if (drawn.some((l) => labelledAny(l.element, [label]))) continue;
+        report(
+          "paint-target-missing",
+          "warning",
+          `\`paints\` entry ${index + 1} recolours "${label}" at \`${entry.state}\`, but that pose draws no "${label}" that changes with \`${pose.group}\`, so nothing of it takes the colour.`,
+          { layer: label },
+        );
+      }
+      if (!drawn.length) continue;
+      const colors: ["fill" | "stroke", MorphColor][] = [];
+      for (const name of ["fill", "stroke"] as const) {
+        const color = entry[name] === undefined ? undefined : readEntryColor(entry[name]);
+        if (color) colors.push([name, color]);
+      }
+      // A drawing's own colour, with `none` as the entry's colour at zero alpha.
+      const ownColor = (paint: EffectivePaint, name: "fill" | "stroke", color: MorphColor): MorphColor | undefined => {
+        const value = paint[name];
+        return value === "none" ? [color[0], color[1], color[2], 0] : value;
+      };
+      const nodes: Record<string, MorphPaintBase> = table();
+      for (const leaf of drawn) {
+        const base: MorphPaintBase = {};
+        for (const [name, color] of colors) {
+          const value = ownColor(paintOf(leaf), name, color);
+          if (value) base[name] = value;
+        }
+        nodes[leaf.node] = base;
+      }
+      const tracks: MorphPaintPose["tracks"] = [];
+      segments.forEach((segment, s) => {
+        if (segment.group !== pose.group) return;
+        const arriving = segment.to.state === pose.state;
+        const leaving = segment.from.state === pose.state;
+        for (const t of segment.transitions) {
+          if (t.kind !== "morph" || !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
+          // The paint the track shows without the entry: the blend its ends
+          // record, else the paint its ends and the node it draws on share.
+          const ends: MorphPaintPose["tracks"][number]["ends"] = {};
+          for (const [name, color] of colors) {
+            const recorded = t.paint?.[name];
+            const a = recorded?.[0] ?? ownColor(paintOf(leafByNode.get(t.from)!), name, color);
+            const b = recorded?.[1] ?? ownColor(paintOf(leafByNode.get(t.to)!), name, color);
+            if (a && b) ends[name] = [a, b];
+          }
+          tracks.push({ segment: s, draw: t.draw, ends });
+        }
+      });
+      out.push({
+        group: pose.group,
+        state: pose.state,
+        span: entry.span,
+        ...Object.fromEntries(colors),
+        nodes,
+        tracks,
+      });
+    }
+    return out;
   };
   /** Per label and named pose, whether any moving shape drew at that pose's place. */
   const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
@@ -1334,6 +1432,7 @@ export function* bakeSteps(
     scheduleOut[group] = entries.map((e) => ({ offset: e.offset, state: e.state === REST ? restName(group) : e.state }));
   }
 
+  const paintPoses = paintPosesOf();
   const root = doc.root.attributes;
   return {
     format: MORPH_BAKE_FORMAT,
@@ -1353,6 +1452,7 @@ export function* bakeSteps(
     frames,
     apertures,
     clipTargets,
+    ...(paintPoses.length ? { paints: paintPoses } : {}),
     diagnostics,
   };
 }

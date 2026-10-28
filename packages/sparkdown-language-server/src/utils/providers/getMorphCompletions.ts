@@ -15,6 +15,7 @@ import {
   MORPH_FALLBACKS,
   MORPH_FIELD_DOCS,
   MORPH_METHODS,
+  MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
   MORPH_TIMING_FIELDS,
@@ -30,7 +31,7 @@ import {
 } from "vscode-languageserver";
 
 // Keys whose value is a container of further lines rather than a scalar.
-const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "between", "targets"]);
+const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "paints", "between", "targets"]);
 const KEYFRAME_POSITIONS = ["from", "to"];
 
 const VALUE_CHOICES: Record<string, readonly string[]> = {
@@ -152,10 +153,13 @@ export function getMorphCompletions(
   const add = (item: CompletionItem) => {
     if (!items.some((existing) => existing.label === item.label)) items.push(item);
   };
-  const docs = (name: string) =>
-    MORPH_FIELD_DOCS[name]
-      ? { kind: MarkupKind.Markdown, value: MORPH_FIELD_DOCS[name]! }
-      : undefined;
+  // A field of a `paints` entry that other places also have is documented
+  // under `paints.NAME`.
+  const inPaint = path[0] === "paints";
+  const docs = (name: string) => {
+    const doc = (inPaint ? MORPH_FIELD_DOCS[`paints.${name}`] : undefined) ?? MORPH_FIELD_DOCS[name];
+    return doc ? { kind: MarkupKind.Markdown, value: doc } : undefined;
+  };
   const replaceRange = (length: number) => ({
     start: { line: position.line, character: position.character - length },
     end: position,
@@ -217,6 +221,37 @@ export function getMorphCompletions(
               : `${covering.length} of ${candidates.length} images`,
           },
           textEdit: { range: replaceRange(partial.length), newText: state },
+        });
+      }
+      return items;
+    }
+    // A `paints` entry's pose is a state the keyframes name other than the one
+    // each group starts from (the first named); its `when` is a state of a
+    // group the morph does not drive, from the candidate artwork.
+    if (inPaint && (key === "state" || key === "when")) {
+      const dot = typed.indexOf(".");
+      const states = new Map<string, string[]>();
+      if (key === "state") {
+        for (const [group, list] of named) states.set(group, list.slice(1));
+      } else {
+        for (const image of candidates) {
+          for (const [group, { options }] of Object.entries(image.vocabulary.groups)) {
+            if (driven.has(group)) continue;
+            states.set(group, [...new Set([...(states.get(group) ?? []), ...options])]);
+          }
+        }
+      }
+      const choices =
+        dot >= 0
+          ? (states.get(typed.slice(0, dot)) ?? []).map((state) => ({ label: state, length: typed.length - dot - 1 }))
+          : [...states].flatMap(([group, list]) => list.map((s) => ({ label: `${group}.${s}`, length: typed.length })));
+      for (const { label, length } of choices) {
+        add({
+          label,
+          kind: CompletionItemKind.EnumMember,
+          detail: key,
+          documentation: docs(key),
+          textEdit: { range: replaceRange(length), newText: label },
         });
       }
       return items;
@@ -348,6 +383,10 @@ export function getMorphCompletions(
     (third === "between" || third === "targets") &&
     (path.length === 3 || fourth === "-")
   ) {
+    for (const label of labels) addLabel(label, "", "layer label");
+  } else if (first === "paints" && (path.length === 1 || (path.length === 2 && second === "-"))) {
+    MORPH_PAINT_FIELDS.forEach(addField);
+  } else if (first === "paints" && second === "-" && third === "targets" && (path.length === 3 || fourth === "-")) {
     for (const label of labels) addLabel(label, "", "layer label");
   } else {
     return [];

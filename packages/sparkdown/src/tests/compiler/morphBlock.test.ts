@@ -1253,3 +1253,127 @@ end
     expect(found[0]).toMatchObject({ text: "eyes.squint" });
   });
 });
+
+describe("`paints`", () => {
+  const ENTRY = "{ targets { eyelash-left; eyelash-right }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }";
+  const KEYFRAMES = "from { eyes { state = open } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }";
+  const PAINTED = (entries: string[] | null = [ENTRY], keyframes = KEYFRAMES, extra = "") => `morph m with
+  method = bend
+${extra}  keyframes {
+    ${keyframes}
+  }
+${entries ? `  paints {\n    ${entries.join("\n    ")}\n  }\n` : ""}end
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const paintErrors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("the example entry lowers with literal `state`, `when`, `fill` and `stroke` and a parsed `span`", () => {
+    const struct = structOf(PAINTED([ENTRY, "{ targets { lids }; state = eyes.closed; stroke = rgb(201, 201, 201) }"]), "m");
+    expect(struct.paints).toEqual([
+      { targets: ["eyelash-left", "eyelash-right"], state: "eyes.closed", when: "mask.on", fill: "#c9c9c9", span: "40%" },
+      { targets: ["lids"], state: "eyes.closed", stroke: "rgb(201, 201, 201)" },
+    ]);
+    expect(morphDiagnostics(PAINTED())).toEqual([]);
+    const recipe = recipeOf(PAINTED([ENTRY, "{ targets { lids }; state = eyes.closed; stroke = rgb(201, 201, 201); span = 0.25 }"]));
+    expect(recipe.paints).toEqual([
+      { targets: ["eyelash-left", "eyelash-right"], state: "eyes.closed", when: "mask.on", span: 0.4, fill: "rgba(201,201,201,1)" },
+      { targets: ["lids"], state: "eyes.closed", span: 0.25, stroke: "rgba(201,201,201,1)" },
+    ]);
+  });
+
+  test("the builtin's `paints = {}` leaves the recipe without the field, and a child inherits its parent's entries", () => {
+    const program = compile(PAINTED(null));
+    expect(program.context?.["morph"]?.["m"]?.paints).toEqual({});
+    expect(recipeOf(PAINTED(null)).paints).toBeUndefined();
+    const child = `${PAINTED()}
+morph child as m with
+  fallback = cut
+end
+`;
+    expect(morphDiagnostics(child)).toEqual([]);
+    expect(recipeOf(child, "child").paints).toEqual(recipeOf(child).paints);
+  });
+
+  test("equal colours give one recipe, and changing a colour changes the bake key", () => {
+    const spelled = PAINTED([ENTRY.replace("#c9c9c9", "rgb(201 201 201)")]);
+    expect(compile(spelled).morphs!.recipes["m"]).toBe(compile(PAINTED()).morphs!.recipes["m"]);
+    const keys = (text: string) => JSON.stringify(compile(text).morphs!.variants);
+    expect(keys(PAINTED())).not.toBe("{}");
+    expect(keys(PAINTED([ENTRY.replace("#c9c9c9", "#c9c9c8")]))).not.toBe(keys(PAINTED()));
+  });
+
+  test.each([
+    ["an entry that is not a `{ … }` block", "eyelash-left", "eyelash-left", "A `paints` entry is a `{ … }` entry"],
+    ["an unknown field", "{ targets { eyelash-left }; state = eyes.closed; fill = red; colour = red }", "colour", "Unknown morph field `colour`"],
+    ["a field that belongs elsewhere", "{ targets { eyelash-left }; state = eyes.closed; fill = red; between { eyelash-left } }", "between", "`between` belongs in a `clips { … }` entry."],
+    ["missing `targets`", "{ state = eyes.closed; fill = red }", "{", "needs `targets { … }`"],
+    ["empty `targets`", "{ targets { }; state = eyes.closed; fill = red }", "targets", "`targets` is a list of layer labels"],
+    ["a missing `state`", "{ targets { eyelash-left }; fill = red }", "{", "needs a `state`"],
+    ["a bare `state`", "{ targets { eyelash-left }; state = closed; fill = red }", "closed", "Write `state = eyes.closed`"],
+    ["an undriven `state`", "{ targets { eyelash-left }; state = mouth.open; fill = red }", "mouth.open", "does not drive `mouth`"],
+    ["an unnamed `state`", "{ targets { eyelash-left }; state = eyes.squint; fill = red }", "eyes.squint", "never shows `eyes.squint`"],
+    ["the starting state", "{ targets { eyelash-left }; state = eyes.open; fill = red }", "eyes.open", "the state this morph starts from"],
+    ["a bare `when`", "{ targets { eyelash-left }; state = eyes.closed; when = on; fill = red }", "on", "`when` names a state with its group"],
+    ["a `when` naming a driven group", "{ targets { eyelash-left }; state = eyes.closed; when = eyes.open; fill = red }", "eyes.open", "which this morph drives"],
+    ["no `fill` or `stroke`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or a `stroke`"],
+    ["a `fill` that does not parse", "{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9z }", "#c9c9c9z", "is not a `fill` colour"],
+    ["a `stroke` that names no colour of its own", "{ targets { eyelash-left }; state = eyes.closed; stroke = currentColor }", "currentColor", "is not a `stroke` colour"],
+    ["a `span` over 100%", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 140% }", "140%", "`span` is a percentage from `0%` to `100%`"],
+    ["a `span` over 1", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 2 }", "2", "`span` is a percentage from `0%` to `100%`"],
+  ])("%s is reported on its span", (_, entry, text, message) => {
+    const found = paintErrors(PAINTED([entry]));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text, severity: 1 });
+    expect(found[0]!.message).toContain(message);
+    // A rejected value leaves the entry out of the recipe rather than guessed at.
+    if (!message.startsWith("Unknown") && !message.includes("belongs")) expect(recipeOf(PAINTED([entry])).paints).toBeUndefined();
+  });
+
+  test("`paints` that is not a list is reported", () => {
+    const found = paintErrors(PAINTED(null, KEYFRAMES, "  paints = 2\n"));
+    expect(found).toEqual([expect.objectContaining({ text: "paints", message: expect.stringContaining("`paints` is a list") })]);
+  });
+
+  test.each([
+    ["a keyframe container", (paints: string) => PAINTED([ENTRY], `from { eyes { state = open; ${paints} } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }`)],
+    ["a `layers` label", (paints: string) => PAINTED([ENTRY], KEYFRAMES, `  layers { eyelash-left { ${paints} } }\n`)],
+    ["a clip", (paints: string) => PAINTED([ENTRY], KEYFRAMES, `  clips { { between { eyelash-left }; targets { pupil-left }; ${paints} } }\n`)],
+  ])("`paints` inside %s gets the placement message", (_, place) => {
+    const found = paintErrors(place(`paints { ${ENTRY} }`));
+    expect(found).toEqual([expect.objectContaining({ text: "paints", message: "`paints` belongs at the morph root." })]);
+  });
+
+  test("an inherited entry the child's keyframes no longer show is reported on its `as`", () => {
+    const text = `${PAINTED()}
+morph child as m with
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = squint } }
+  }
+end
+`;
+    const found = paintErrors(text).filter((d) => d.line > 10);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "m" });
+    expect(found[0]!.message).toContain("`paints` entry 1, inherited");
+    expect(found[0]!.message).toContain("never shows `eyes.closed`");
+  });
+
+  test("an entry a `define` parent supplies is checked on the child's `as`", () => {
+    const text = `define base as morph with
+  method = "bend"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+  paints = { { targets = { "eyelash-left" }, state = "eyes.closed", fill = "nocolour" } }
+end
+
+morph child as base with
+  fallback = fade
+end
+`;
+    const found = paintErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 6, text: "base" });
+    expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
+    expect(found[0]!.message).toContain("not a `fill` colour");
+  });
+});

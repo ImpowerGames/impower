@@ -10,16 +10,21 @@ import {
   MORPH_FALLBACKS,
   MORPH_LAYER_PROPERTIES,
   MORPH_METHODS,
+  MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
   MORPH_TIMING_FIELDS,
   easingProblem,
   parseMorphDepth,
+  parseMorphQualifiedState,
+  parseMorphSpan,
 } from "./morphSchema";
+import { morphRequirements } from "./bindMorph";
+import { readEntryColor } from "../../morph/color";
 import type { MorphBody, MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
-type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip";
+type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
@@ -43,7 +48,9 @@ for (const f of MORPH_POLICY_FIELDS)
 for (const f of MORPH_CONTAINER_FIELDS)
   HOME[f] = "in a keyframe container such as `eyes { … }`";
 for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips { … }` entry";
-for (const f of ["keyframes", "layers", "clips"]) HOME[f] = "at the morph root";
+for (const f of MORPH_PAINT_FIELDS) HOME[f] ??= "in a `paints { … }` entry";
+HOME["targets"] = "in a `clips { … }` or `paints { … }` entry";
+for (const f of ["keyframes", "layers", "clips", "paints"]) HOME[f] = "at the morph root";
 HOME["timing"] = "at the morph root";
 HOME["offset"] = "directly in a keyframe";
 
@@ -54,6 +61,7 @@ const ALLOWED: Record<Where, readonly string[]> = {
   keyframe: ["offset"],
   container: MORPH_CONTAINER_FIELDS,
   clip: MORPH_CLIP_FIELDS,
+  paint: MORPH_PAINT_FIELDS,
 };
 
 // A layer property value's space-separated components, ignoring spaces inside
@@ -139,6 +147,80 @@ function depthProblem(value: unknown, driven: Map<string, string[]>): string | n
     return `This morph never shows \`${value}\`, so \`depth\` cannot name it: no keyframe sets \`${parsed.group}\` to \`${parsed.state}\`.${choices}`;
   }
   return null;
+}
+
+const PAINT_ENTRY =
+  "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
+
+/**
+ * Why a `paints` entry's `state` names no pose that can take a colour, or
+ * null when it is a state the keyframes name for a driven group other than
+ * the one that group starts from. `start` holds each group's starting state.
+ */
+function paintStateProblem(value: unknown, driven: Map<string, string[]>, start: Map<string, string>): string | null {
+  const poses = [...driven].flatMap(([group, states]) => states.filter((s) => s !== start.get(group)).map((s) => `${group}.${s}`));
+  const choices = poses.length ? ` Use ${quoteList(poses)}.` : "";
+  const parsed = parseMorphQualifiedState(value);
+  if (!parsed) {
+    const having = typeof value === "string" ? poses.filter((q) => q.endsWith(`.${value}`)) : [];
+    if (having.length > 0) {
+      return `A \`paints\` entry's \`state\` names a state with its group. Write ${having.map((q) => `\`state = ${q}\``).join(" or ")}.`;
+    }
+    return `${describeValue(value)} is not a pose: write a state with its group, such as \`state = eyes.closed\`.`;
+  }
+  const states = driven.get(parsed.group);
+  if (!states) {
+    return `\`state = ${value}\` names the \`${parsed.group}\` group, but this morph does not drive \`${parsed.group}\`.${choices}`;
+  }
+  if (!states.includes(parsed.state)) {
+    return `This morph never shows \`${value}\`, so a \`paints\` entry cannot name it: no keyframe sets \`${parsed.group}\` to \`${parsed.state}\`.${choices}`;
+  }
+  if (start.get(parsed.group) === parsed.state) {
+    return `\`${value}\` is the state this morph starts from, the pose each variant rests in, so a \`paints\` entry cannot name it.${choices}`;
+  }
+  return null;
+}
+
+/** Why a `paints` entry's `when` is not a state of a group the morph leaves alone, or null. */
+function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string | null {
+  const parsed = parseMorphQualifiedState(value);
+  if (!parsed) return `\`when\` names a state with its group, such as \`when = mask.on\`.`;
+  if (driven.has(parsed.group)) {
+    return `\`when = ${value}\` names the \`${parsed.group}\` group, which this morph drives. \`when\` names a state of a group the morph does not drive, such as \`mask.on\`.`;
+  }
+  return null;
+}
+
+/** Why a `paints` entry's `fill` or `stroke` is not a colour, or null. */
+function paintColorProblem(field: string, value: unknown): string | null {
+  return readEntryColor(value)
+    ? null
+    : `${describeValue(value)} is not a \`${field}\` colour. Write hex, \`rgb()\`, \`rgba()\`, \`hsl()\`, \`hsla()\` or a named colour, such as \`${field} = #c9c9c9\`.`;
+}
+
+const SPAN_PROBLEM = "`span` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `span = 40%`.";
+
+/**
+ * The problems in one `paints` entry's values that do not depend on the
+ * keyframes, by the field each is about (`""` for the entry as a whole).
+ */
+function paintFormProblems(entry: Record<string, unknown>): { field: string; message: string }[] {
+  const problems: { field: string; message: string }[] = [];
+  if (!("state" in entry)) {
+    problems.push({ field: "", message: "This `paints` entry needs a `state`: the pose its colour belongs to, written with its group, such as `state = eyes.closed`." });
+  }
+  if ("when" in entry && !parseMorphQualifiedState(entry["when"])) {
+    problems.push({ field: "when", message: paintWhenProblem(entry["when"], new Map())! });
+  }
+  if (!("fill" in entry) && !("stroke" in entry)) {
+    problems.push({ field: "", message: "This `paints` entry needs a `fill` or a `stroke` colour, such as `fill = #c9c9c9`." });
+  }
+  for (const field of ["fill", "stroke"]) {
+    const problem = field in entry ? paintColorProblem(field, entry[field]) : null;
+    if (problem) problems.push({ field, message: problem });
+  }
+  if ("span" in entry && parseMorphSpan(entry["span"]) === undefined) problems.push({ field: "span", message: SPAN_PROBLEM });
+  return problems;
 }
 
 const THREE_D_FUNCTION_RE =
@@ -452,6 +534,49 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
+  // paints: a pose's colour for the drawings of some labels. A `state` names a
+  // pose of the morph after inheritance, as `depth` does.
+  const start = morphRequirements(decl.effective).rest;
+  const paints = own["paints"];
+  if (paints !== undefined) {
+    if (!Array.isArray(paints)) {
+      push(keySpan(own, "paints"), `\`paints\` is a list of \`{ … }\` entries. ${PAINT_ENTRY}`);
+    } else {
+      paints.forEach((entry, index) => {
+        const itemLine = src(paints)?.items[index];
+        if (!isRecord(entry)) {
+          push(itemLine, PAINT_ENTRY);
+          return;
+        }
+        checkFields(entry, "paint");
+        const entryLine = itemLine ?? lineSpan(entry);
+        const targets = entry["targets"];
+        if (targets === undefined) {
+          push(entryLine, "This `paints` entry needs `targets { … }` with at least one layer label.");
+        } else if (!Array.isArray(targets) || targets.length === 0) {
+          push(keySpan(entry, "targets"), "`targets` is a list of layer labels: `targets { eyelash-left }`.");
+        } else {
+          targets.forEach((label, i) => {
+            if (typeof label !== "string" || label.trim() === "") {
+              push(src(targets)?.items[i], "A `targets` item is a layer label, such as `eyelash-left`.");
+            }
+          });
+        }
+        for (const { field, message } of paintFormProblems(entry)) {
+          push(field ? valueSpan(entry, field) : entryLine, message);
+        }
+        if ("state" in entry) {
+          const problem = paintStateProblem(entry["state"], driven, start);
+          if (problem) push(valueSpan(entry, "state"), problem);
+        }
+        if ("when" in entry && parseMorphQualifiedState(entry["when"])) {
+          const problem = paintWhenProblem(entry["when"], driven);
+          if (problem) push(valueSpan(entry, "when"), problem);
+        }
+      });
+    }
+  }
+
   // The concrete morph after inheritance.
   const effective = decl.effective;
   const effectiveKeyframes = effective["keyframes"];
@@ -515,6 +640,26 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (parentDriven && valueAt(decl.parentEffective, field) === value && depthProblem(value, parentDriven)) continue;
     push(decl.parent, `\`${field}\`, inherited: ${problem}`);
   }
+  // Inherited `paints` entries name poses and groups of this morph too. An
+  // entry's form is checked where it is written.
+  const effectivePaints = effective["paints"];
+  if (!("paints" in own) && Array.isArray(effectivePaints)) {
+    const parentStart = decl.parentEffective && morphRequirements(decl.parentEffective).rest;
+    const parentPaints = decl.parentEffective?.["paints"];
+    effectivePaints.forEach((entry, index) => {
+      if (!isRecord(entry)) return;
+      const problems = (keyframes: Map<string, string[]>, starts: Map<string, string>) => [
+        parseMorphQualifiedState(entry["state"]) ? paintStateProblem(entry["state"], keyframes, starts) : null,
+        parseMorphQualifiedState(entry["when"]) ? paintWhenProblem(entry["when"], keyframes) : null,
+      ];
+      const fromParent = Array.isArray(parentPaints) && JSON.stringify(parentPaints[index]) === JSON.stringify(entry);
+      problems(driven, start).forEach((problem, i) => {
+        if (!problem) return;
+        if (fromParent && parentDriven && parentStart && problems(parentDriven, parentStart)[i]) return;
+        push(decl.parent, `\`paints\` entry ${index + 1}, inherited: ${problem}`);
+      });
+    });
+  }
   const effectiveTiming = effective["timing"];
   if (isRecord(effectiveTiming)) {
     const min = effectiveTiming["iteration_delay_min"];
@@ -548,7 +693,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
 }
 
 /**
- * The problems with a morph struct's policy and timing values, for a parent
+ * The problems with a morph struct's policy, timing and `paints` values, for a parent
  * that no morph block wrote (`define base as morph with … end`) and that is
  * therefore not checked where it is written. Each message names the field.
  */
@@ -580,6 +725,13 @@ export function morphValueProblems(
     checkTiming(timing, (field, message) =>
       problems.push({ field: `timing.${field}`, message }),
     );
+  }
+  const paints = struct["paints"];
+  if (Array.isArray(paints)) {
+    paints.forEach((entry, index) => {
+      if (!isRecord(entry)) return;
+      for (const { message } of paintFormProblems(entry)) problems.push({ field: "paints", message: `entry ${index + 1}: ${message}` });
+    });
   }
   return problems;
 }

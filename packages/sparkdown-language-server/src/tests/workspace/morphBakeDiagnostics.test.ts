@@ -153,6 +153,24 @@ describe("morph bake diagnostics", () => {
     expect(diagnostics[0].message).toContain("Morph `blink` on `bunny`, `bunny~eyes.open`");
   });
 
+  it("a `paints` target the pose does not draw is warned about on the art, once, naming the variants", async () => {
+    const { workspace, publishes } = setup();
+    const painted = SCRIPT.replace(
+      "  clips {",
+      "  paints {\n    { targets { eyelash-left; eyelash-right }; state = eyes.closed; fill = #c9c9c9; span = 40% }\n  }\n  clips {",
+    );
+    const program = compileServed(`${painted}\n[[bunny~eyes.open]]\n`);
+    expect(program.diagnostics?.[main]?.filter((d: any) => d.code === "morph" && d.severity === 1) ?? []).toEqual([]);
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+    await until(() => publishes().some((p) => p.uri === asset));
+    const diagnostics = publishes().filter((p) => p.uri === asset).at(-1).diagnostics;
+    const missing = diagnostics.filter((d: any) => d.code === "morph-paint-target-missing");
+    expect(missing).toEqual([expect.objectContaining({ severity: 2 })]);
+    expect(missing[0].message).toContain("Morph `blink` on `bunny`, `bunny~eyes.open`");
+    expect(missing[0].message).toContain('"eyelash-right"');
+    expect(missing[0].message).not.toContain('"eyelash-left"');
+  });
+
   it("a recompile with the same keys republishes the bake's diagnostics at once", async () => {
     const { workspace, publishes } = setup();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: compileServed() });

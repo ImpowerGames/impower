@@ -9,7 +9,7 @@ import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { blendColor, formatColor } from "./color";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
-import type { MorphArtifact, MorphFrames, MorphGeometryRef, MorphPaint } from "./types";
+import type { MorphArtifact, MorphColor, MorphFrames, MorphGeometryRef, MorphPaint, MorphPaintBase, MorphPaintPose } from "./types";
 
 type Element = Exclude<Node, string | null>;
 
@@ -319,7 +319,73 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     holdApertures(artifact, group, pose.segment, writeClip);
     for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p);
   }
+  // Later entries write over earlier ones.
+  for (const entry of artifact.paints ?? []) paintPose(artifact, entry, own(poses, entry.group), state);
   return state;
+}
+
+/**
+ * Writes a `paints` entry's colour for one pose of its group. While the
+ * group holds the entry's pose, the pose's target drawings take the colour.
+ * In a segment arriving at the pose the colour moves in over the segment's
+ * last `span` with weight `w = clamp((p - (1 - span)) / span)`, mixed over
+ * the paint each drawing shows without the entry, and a segment leaving the
+ * pose mirrors it: tracks with an end among the pose's drawings and target
+ * drawings both poses show take the mix, and a pose drawing showing as itself
+ * (a segment's end, a fade, a cut or a scale) takes the colour. A drawing
+ * whose own paint the bake could not read takes the colour only at full
+ * weight.
+ */
+function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGroupPose | undefined, state: MorphFrameState) {
+  if (!pose) return;
+  const colors: ["fill" | "stroke", MorphColor][] = [];
+  if (entry.fill) colors.push(["fill", entry.fill]);
+  if (entry.stroke) colors.push(["stroke", entry.stroke]);
+  // Only drawings the frame shows are written, so a hidden one keeps its markup.
+  const write = (node: string, base: MorphPaintBase | undefined, w: number) => {
+    if (w <= 0 || !state.shown.has(node)) return;
+    const values = state.paint.get(node) ?? table();
+    for (const [name, color] of colors) {
+      const own = base?.[name];
+      if (w >= 1 || own) values[name] = formatColor(w >= 1 || !own ? color : blendColor(own, color, w));
+    }
+    if (Object.keys(values).length) state.paint.set(node, values);
+  };
+  if ("state" in pose) {
+    if (pose.state !== entry.state) return;
+    for (const node of Object.keys(entry.nodes)) write(node, undefined, 1);
+    return;
+  }
+  const segment = artifact.segments[pose.segment];
+  if (!segment || segment.group !== entry.group) return;
+  const arriving = segment.to.state === entry.state;
+  const leaving = segment.from.state === entry.state;
+  if (!arriving && !leaving) return;
+  const p = clamp01(pose.progress);
+  const ramp = (q: number) => (entry.span > 0 ? clamp01((q - (1 - entry.span)) / entry.span) : q >= 1 ? 1 : 0);
+  const w = arriving && leaving ? 1 : arriving ? ramp(p) : ramp(1 - p);
+  const states = own(artifact.visibility, entry.group) ?? {};
+  const before = new Set(own(states, segment.from.state) ?? []);
+  const after = new Set(own(states, segment.to.state) ?? []);
+  // The nodes moving shapes draw on this frame show the track, not their drawing.
+  const drawing = new Set(p > 0 && p < 1 ? segment.transitions.flatMap((t) => (t.kind === "morph" || t.kind === "scale" ? [t.draw] : [])) : []);
+  for (const [node, base] of Object.entries(entry.nodes)) {
+    if (drawing.has(node)) continue;
+    write(node, base, before.has(node) && after.has(node) ? w : 1);
+  }
+  for (const t of segment.transitions) {
+    if (t.kind === "scale" && t.node in entry.nodes && drawing.has(t.draw)) write(t.draw, undefined, 1);
+  }
+  if (p <= 0 || p >= 1) return;
+  for (const track of entry.tracks) {
+    if (track.segment !== pose.segment) continue;
+    const base: MorphPaintBase = {};
+    for (const [name] of colors) {
+      const ends = track.ends[name];
+      if (ends) base[name] = blendColor(ends[0], ends[1], p);
+    }
+    write(track.draw, base, w);
+  }
 }
 
 /**
