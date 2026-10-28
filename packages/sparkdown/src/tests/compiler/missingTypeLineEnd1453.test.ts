@@ -73,13 +73,13 @@ const BODY_FORMS = [
   "local w: number |\n    string = 1",
 ];
 
-// I-1363: story statements, which end at their line. A story declaration's
-// missing type is the one Luau reports for its line read alone; a story
-// type alias's is the one Luau reports for the story's Luau lines read
-// together, where the next statement's `local` stands in place of the type.
-const STORY_LUAU_TAIL = "\nlocal v = 1\n";
-const STORY_TAIL = `${STORY_LUAU_TAIL}Narrative.\n`;
-const STORY_FORMS: [form: string, luau: (form: string) => string][] = [
+// I-1363: story statements, which end at their line. A scene's `local`
+// declaration's missing type is the one Luau reports for its line read
+// alone, at the line and column the scene puts it on; a top-level type
+// alias's is the one Luau reports for the story's Luau lines read together,
+// where the next statement's `if` stands in place of the type.
+const STORY_LUAU_TAIL = "\nif true then end\n";
+const STORY_FORMS: [form: string, text: (form: string) => string, luau: (form: string) => string][] = [
   ...[
     "local w: number | --[[c]]",
     "local w: number | -- line",
@@ -92,10 +92,18 @@ const STORY_FORMS: [form: string, luau: (form: string) => string][] = [
     "local w: number || --[[c]]",
     "local w: --[[c]] = 1",
   ].map(
-    (form): [string, (form: string) => string] => [form, (f) => `${f}\n`],
+    (form): [string, (form: string) => string, (form: string) => string] => [
+      form,
+      (f) => `-> start\nscene start\n  ${f}\n  local v = 1\n  Narrative.\nend\n`,
+      (f) => `\n\n  ${f}\n`,
+    ],
   ),
   ...["type F = number | --[[c]]", "type F = () -> --[[c]]", "type F = () ->", "type F = number |"].map(
-    (form): [string, (form: string) => string] => [form, (f) => `${f}${STORY_LUAU_TAIL}`],
+    (form): [string, (form: string) => string, (form: string) => string] => [
+      form,
+      (f) => `${f}${STORY_LUAU_TAIL}Narrative.\n`,
+      (f) => `${f}${STORY_LUAU_TAIL}`,
+    ],
   ),
 ];
 
@@ -118,8 +126,8 @@ describe("a missing type at a line end reads alike in both engines (I-1453)", ()
   });
 
   describe("in a story statement", () => {
-    for (const [form, luau] of STORY_FORMS) {
-      const text = `${form}${STORY_TAIL}`;
+    for (const [form, script, luau] of STORY_FORMS) {
+      const text = script(form);
       test(`${JSON.stringify(form)}: engines agree`, () => expectEnginesAgree(text));
       test(`${JSON.stringify(form)}: Luau's errors at Luau's ranges`, () => {
         const official = officialErrors(luau(form));

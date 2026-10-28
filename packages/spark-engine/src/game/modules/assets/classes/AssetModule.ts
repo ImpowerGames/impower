@@ -483,7 +483,10 @@ export class AssetModule extends Module<
    * it. A preview shows a cutscene's first frame from the file itself.
    */
   protected imageNamesOf(instructions: Instructions): string[] {
-    const names: string[] = [];
+    // The first beat after a connect shows again what the connect cleared
+    // from the layers it keeps (#1662).
+    const names: string[] =
+      this._game.module.ui.clearedPictureNames(instructions);
     for (const events of Object.values(instructions.image ?? {})) {
       for (const event of events) {
         if (event.control !== "hide" && event.assets?.length) {

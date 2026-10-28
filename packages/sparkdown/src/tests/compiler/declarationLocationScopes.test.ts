@@ -73,7 +73,7 @@ describe("declaration locations after a closed branch", () => {
 describe("declaration locations around a function inside a branch", () => {
   const program = compile(`scene A
   branch x
-    function helper()
+    local function helper()
       return 1
     end
   end
@@ -107,6 +107,39 @@ end
   it("keys a label after the function's end at the global scope", () => {
     expect(Object.keys(program.labelLocations ?? {})).toEqual(["toplabel"]);
   });
+});
+
+// The `end` that closes a scene or branch belongs to that flow, which PLAY
+// and the preview at the line read (I-1618).
+describe("the header and end lines of the scenes and branches", () => {
+  it("lists a scene's with another scene below it", () => {
+    const program = compile(`scene start
+  First.
+  done
+end
+scene other
+  Other.
+end
+`);
+    expect(program.flowEnds).toEqual({
+      [URI]: [
+        [0, 3],
+        [4, 6],
+      ],
+    });
+  });
+
+  it("lists each branch's and the scene's, and no other block's end", () => {
+    const program = compile(CLOSED_BRANCH);
+    expect(program.flowEnds).toEqual({
+      [URI]: [
+        [7, 14],
+        [21, 23],
+        [0, 24],
+      ],
+    });
+  });
+
 });
 
 describe("declaration locations after a branch left without its end", () => {

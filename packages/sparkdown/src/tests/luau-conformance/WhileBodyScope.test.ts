@@ -2,26 +2,36 @@ import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
-// The same loop written in a scene's body or at the top level, where it
-// runs in that flow rather than in a function.
+// The same loop written in a scene's body or a branch's body, where it runs
+// in that flow rather than in a function.
 const WHILE_IN_FLOW = `& local y = "outer"
 while true do
   local y = "inner"
   break
 end
-y is {y}.`;
+y is {y}.
+fin`;
+const indent = (text: string, by: string) =>
+  text
+    .split("\n")
+    .map((line) => `${by}${line}`)
+    .join("\n");
 const places: Record<string, string> = {
   "in a scene": `-> s
 scene s
-${WHILE_IN_FLOW.split("\n").map((line) => `  ${line}`).join("\n")}
-  fin
+${indent(WHILE_IN_FLOW, "  ")}
 end
 `,
-  "at the top level": `${WHILE_IN_FLOW}
+  "in a branch": `-> s.b
+scene s
+  branch b
+${indent(WHILE_IN_FLOW, "    ")}
+  end
+end
 `,
 };
 
-describe("while body scope in a scene or at the top level", () => {
+describe("while body scope in a scene or a branch", () => {
   for (const [place, source] of Object.entries(places)) {
     test(`${place}, a body local shadows an outer local only inside the loop`, () => {
       const ctx = makeRuntimeStoryFromSource(source);

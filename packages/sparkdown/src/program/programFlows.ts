@@ -22,7 +22,7 @@ import type { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import type { DebugMetadata } from "../runtime/DebugMetadata";
+import { DebugMetadata } from "../runtime/DebugMetadata";
 import type {
   BodySource,
   DeclarationSource,
@@ -86,6 +86,9 @@ export interface ProgramFlowsInput {
   record(block: object): StatementRecord | undefined;
   /** How many lines a script has. */
   lineCount(uri: string): number;
+  /** The line of the `end` that closes the scene or branch whose header
+   *  stands on `header` in the script `uri`, counting from 0. */
+  flowEndLine?(uri: string, header: number): number | undefined;
 }
 
 /** The program's flows as the chunk store builds them, and the first
@@ -129,7 +132,8 @@ export interface ProgramFlows {
  * A sequence that runs out ends its flow as those do, so they are left out.
  * Any other placement the build-out has not reached names a construct: an
  * object no statement placed. A scene or a branch that takes parameters
- * starts with the statement that binds them (`flowEntry`).
+ * starts with the statement that binds them (`flowEntry`), and one that
+ * enters no branch ends with a statement of its own (`flowEnd`).
  *
  * The global declarations become the declaration statements of their
  * scripts, each holding the globals it declares in the order the story's
@@ -343,6 +347,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       record.uri,
       record.line,
     );
+    const runsOwn = statements.length > 0;
     if (flow.hasParameters) {
       statements.unshift(
         flowEntry(
@@ -355,6 +360,24 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       );
     }
     const startsWith = flow.hasParameters ? undefined : start;
+    if (start === undefined) {
+      // A flow that enters no branch ends where its sequence runs out, on the
+      // line of its closing `end`. Only an empty flow has a row there, which
+      // its header falls through to: every other flow's `end` keeps the
+      // address of the line below it, and the player reaches the flow's end
+      // by its address (`ProgramRoot.flowEndAddress`). A scene whose content
+      // is branches it does not enter (the first takes parameters) has no
+      // row there either, since that line is in its last branch's lines.
+      const opensBranch = first instanceof FlowBase && !first.isFunction;
+      const end = input.flowEndLine?.(record.uri, record.line);
+      statements.push(
+        runsOwn
+          ? flowEnd(header!, end ?? lineAfter(statements, record.line), false)
+          : opensBranch
+            ? flowEnd(header!, end ?? record.line, false)
+            : flowEnd(header!, end ?? record.line + 1, true),
+      );
+    }
     flows.push({
       name,
       kind: flow instanceof Stitch ? SymbolKind.Branch : SymbolKind.Scene,
@@ -593,6 +616,96 @@ const flowEntry = (
     range: null,
     firstLine: record.line,
     source: () => source,
+    syntax: () => syntax,
+    reads: "",
+  };
+};
+
+/**
+ * The end of a scene or a branch that enters no branch: the `Done` its
+ * sequence runs out as, which the writer otherwise leaves out. It gives the
+ * place where the flow finishes an address of its own, which a route reaches
+ * only when a run runs off the flow's end, so PLAY and the preview at the
+ * flow's closing `end` show the story as it stands then (I-1618). Running it
+ * does what running out of the sequence does (`ProgramStory.done`).
+ */
+export class FlowEnd extends ParsedObject {
+  override get typeName(): string {
+    return "FlowEnd";
+  }
+
+  /** Nothing: the writer emits it, and generation makes nothing of it. */
+  protected override Prepare(): boolean {
+    return false;
+  }
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.emit(Op.Done);
+  }
+}
+
+/** The start of the line `line` (counting from 0) as a statement's range,
+ *  whose line table row puts the statement on that line. */
+const lineRange = (line: number): DebugMetadata => {
+  const range = new DebugMetadata();
+  range.startLineNumber = line + 1;
+  range.endLineNumber = line + 1;
+  range.startCharacterNumber = 1;
+  range.endCharacterNumber = 1;
+  return range;
+};
+
+/** The line after the last line `statements` hold, or after `header` when
+ *  there are none. */
+const lineAfter = (
+  statements: readonly StatementSource[],
+  header: number,
+): number => {
+  let last = header;
+  for (const statement of statements) {
+    last = Math.max(
+      last,
+      statement.range ? statement.range.endLineNumber - 1 : statement.firstLine,
+    );
+  }
+  return last + 1;
+};
+
+// The key of each flow end a header has had, by the flow end's syntax, so a
+// header the compile carried keeps its flow end's key while the flow end
+// reads the same.
+const flowEndKeys = new WeakMap<object, Map<string, object>>();
+
+/** The `FlowEnd` of the scene or branch whose header is `header`, standing
+ *  on `line`, with a line table row there when `row` is set: an empty
+ *  flow's, whose header and `end` resolve to it. Without a row no line
+ *  resolves to it, and it stands where its location reads. Its source is
+ *  the same for every flow and its syntax says only whether it has a row,
+ *  which is everything its chunk depends on: the row counts from the
+ *  statement's own line, so a move of that line or a rename of its flow
+ *  changes nothing. */
+const flowEnd = (
+  header: object,
+  line: number,
+  row: boolean,
+): StatementSource => {
+  const syntax = `FlowEnd\u0000${row ? "row" : ""}`;
+  let keys = flowEndKeys.get(header);
+  if (!keys) {
+    keys = new Map();
+    flowEndKeys.set(header, keys);
+  }
+  let block = keys.get(syntax);
+  if (!block) {
+    block = {};
+    keys.set(syntax, block);
+  }
+  return {
+    block,
+    objects: [new FlowEnd()],
+    range: row ? lineRange(line) : null,
+    firstLine: line,
+    source: () => "end",
     syntax: () => syntax,
     reads: "",
   };

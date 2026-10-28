@@ -325,7 +325,6 @@ describe("narrative body: the declaration ends at its line", () => {
   });
 
   test.each([
-    ["local", "local function f()\n  return 7\nend\nValue {f()}.\n"],
     ["store", "store function f()\n  return 7\nend\nValue {f()}.\n"],
     ["const", "const function f()\n  return 7\nend\nValue {f()}.\n"],
     ["local in a scene", "-> one\nscene one\n  local function f()\n    return 7\n  end\n  Value {f()}.\nend\n"],
@@ -343,7 +342,7 @@ describe("narrative body: the declaration ends at its line", () => {
 
   test.each([
     ["store", "store first = 1 store a, b = 2,\n  3\nValue {first}.\n"],
-    ["local", "store first = 1 local a, b = 2,\n  3\nValue {first}.\n"],
+    ["local", "-> one\nscene one\n  local first = 1 local a, b = 2,\n    3\n  Value {first}.\nend\n"],
   ])("a second %s declaration on the line ends at the line too", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([missingAtLineEnd]);

@@ -1,14 +1,16 @@
 // A `function … end` declaration closes at its `end`. The story lines that
 // follow it belong to the flow they would join if the function were not
 // there: the root flow when the function is declared at the top level, or the
-// scene whose content the function is declared among. They never join the
-// function's own body, where they would sit after its `return`.
+// scene whose content a `local function` is declared among. They never join
+// the function's own body, where they would sit after its `return`.
 
 import { describe, expect, test } from "vitest";
 import { flowListings, pushesString } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
+// A scene or branch declares its functions with `local`.
+const LOCAL_LESS = `local ${LESS}`;
 
 /** The text of every line the story shows from the top, one per continue. */
 function linesFromTop(source: string): string[] {
@@ -138,7 +140,7 @@ describe("story lines after a function declaration", () => {
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {
-    const source = `-> intro\n\nscene intro\nA\n${LESS}B\nC\nend\n`;
+    const source = `-> intro\n\nscene intro\nA\n${LOCAL_LESS}B\nC\nend\n`;
     expect(linesFromTop(source)).toEqual(["A\n", "B\n", "C\n"]);
     const named = namedContainers(source);
     for (const text of ["A", "B", "C"]) {
@@ -150,7 +152,7 @@ describe("story lines after a function declaration", () => {
   test("a branch after a function declared inside a scene belongs to the scene", () => {
     const source = `-> s.world
 scene s
-  function less(a, b)
+  local function less(a, b)
     return a < b
   end
   branch world
@@ -163,7 +165,7 @@ end
   });
 
   test("a divert after a function declared inside a scene leads on to the next scene", () => {
-    const source = `-> one\n\nscene one\nA\n${LESS}-> two\nend\n\nscene two\nB\nend\n`;
+    const source = `-> one\n\nscene one\nA\n${LOCAL_LESS}-> two\nend\n\nscene two\nB\nend\n`;
     expect(linesFromTop(source)).toEqual(["A\n", "B\n"]);
     const named = namedContainers(source);
     expect(holds(named["two"], "B")).toBe(true);

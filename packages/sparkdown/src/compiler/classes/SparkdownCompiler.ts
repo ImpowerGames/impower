@@ -176,6 +176,11 @@ import {
   topLevelStatements,
 } from "../utils/declarationOnly";
 import {
+  isPlacementMessage,
+  misplacedDeclarations,
+  type AssignmentFixData,
+} from "../utils/declarationPlacement";
+import {
   DEFAULT_MAIN_SCRIPT_FILENAME,
   hasLuauExtension,
   isInProject,
@@ -2922,6 +2927,44 @@ export class SparkdownCompiler {
             document.read(from, to),
           )
         : undefined;
+    // A `local` outside a flow and a hoisted declaration inside one are
+    // reported where they are written (`misplacedDeclarations`). A top-level
+    // `local` of a script other than main reports that alone, and is left
+    // out as the other lines only main runs are. A `.luau` file is Luau,
+    // whose top-level `local` is its chunk's.
+    const misplacedLocals = new Set<number>();
+    const placementTree =
+      this._injectingPrelude || hasLuauExtension(uri)
+        ? undefined
+        : this.documents.tree(uri);
+    if (placementTree && document) {
+      for (const misplaced of misplacedDeclarations(
+        placementTree.topNode,
+        (from, to) => document.read(from, to),
+      )) {
+        if (misplaced.statement !== undefined) {
+          misplacedLocals.add(misplaced.statement);
+        }
+        const start = document.positionAt(misplaced.from);
+        const end = document.positionAt(misplaced.to);
+        onDiagnostic(
+          misplaced.message,
+          ErrorType.Error,
+          {
+            fileName,
+            filePath: uri,
+            startLineNumber: start.line + 1,
+            endLineNumber: end.line + 1,
+            startCharacterNumber: start.character + 1,
+            endCharacterNumber: end.character + 1,
+          },
+          undefined,
+          misplaced.assignment !== undefined
+            ? ({ assignment: misplaced.assignment } satisfies AssignmentFixData)
+            : undefined,
+        );
+      }
+    }
     // The first line of the statement that starts at `from`, from its first
     // character after its indentation to its last, as 1-based source
     // metadata.
@@ -2987,11 +3030,13 @@ export class SparkdownCompiler {
         // Only main runs a line outside a scene. The statement is reported
         // and left out of the program, as if it were not written; what its
         // lowering itself reported still stands.
-        onDiagnostic(
-          CONTENT_OUTSIDE_SCENE_MESSAGE,
-          ErrorType.Error,
-          firstLineSource(rec.from),
-        );
+        if (!misplacedLocals.has(rec.from)) {
+          onDiagnostic(
+            CONTENT_OUTSIDE_SCENE_MESSAGE,
+            ErrorType.Error,
+            firstLineSource(rec.from),
+          );
+        }
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
@@ -4395,6 +4440,17 @@ export class SparkdownCompiler {
         this._statementRecords.get(block) ??
         this._preludeStatementRecords.get(block),
       lineCount,
+      flowEndLine: (() => {
+        const byScript = new Map<string, Map<number, number>>();
+        return (scriptUri: string, header: number) => {
+          let ends = byScript.get(scriptUri);
+          if (!ends) {
+            ends = new Map(this.flowEndsOf(scriptUri));
+            byScript.set(scriptUri, ends);
+          }
+          return ends.get(header);
+        };
+      })(),
     });
     // The store interns into the compiler's persistent table, which
     // `maybeReseedBinaryTable` bounds, and keeps no table of its own.
@@ -4701,6 +4757,37 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
+  /** The header line and the closing `end`'s line of each scene and branch
+   *  of a script, counting from 0, in the order of those ends: each root-level
+   *  `end` the declarations channel marks closes the innermost open scene or
+   *  branch, a branch closing any branch still open under its scene, and a
+   *  stray `end` closes nothing. */
+  flowEndsOf(uri: string): [headerLine: number, endLine: number][] {
+    const doc = this.documents.get(uri);
+    const cur = doc ? this.documents.annotations(uri).declarations.iter() : undefined;
+    const ends: [number, number][] = [];
+    if (!doc || !cur) {
+      return ends;
+    }
+    let open: { kind: "scene" | "branch"; line: number }[] = [];
+    while (cur.value) {
+      const type = cur.value.type;
+      if (type === "scene") {
+        open = [{ kind: "scene", line: doc.lineAt(cur.from) }];
+      } else if (type === "branch") {
+        open.length = open.findLastIndex((p) => p.kind === "scene") + 1;
+        open.push({ kind: "branch", line: doc.lineAt(cur.from) });
+      } else if (type === "end") {
+        const closed = open.pop();
+        if (closed) {
+          ends.push([closed.line, doc.lineAt(cur.from)]);
+        }
+      }
+      cur.next();
+    }
+    return ends;
+  }
+
   populateDeclarationLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateDeclarationLocations", uri);
@@ -4708,6 +4795,11 @@ export class SparkdownCompiler {
     for (const uri of scripts) {
       const doc = this.documents.get(uri);
       const scriptIndex = scripts.indexOf(uri);
+      const ends = this.flowEndsOf(uri);
+      if (ends.length > 0) {
+        program.flowEnds ??= {};
+        program.flowEnds[uri] = ends;
+      }
       if (doc) {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
@@ -6150,9 +6242,12 @@ export class SparkdownCompiler {
       const declarations = storeSyntaxErrors(tree, doc.read(0, doc.length));
       if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
-      const existing = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error);
-      const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
+      // A placement error (`misplacedDeclarations`) reports no syntax error.
+      const existing = diagnostics.filter(
+        (d) => d.severity === DiagnosticSeverity.Error && !isPlacementMessage(wordsOf(d)),
+      );
+      const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
         // The declaration's span: from its line's indent, where a report of
         // the statement may begin (`reportCompileThrow`), to where the
@@ -6303,7 +6398,7 @@ export class SparkdownCompiler {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) errors.push(d);
+        if (d.severity === DiagnosticSeverity.Error && !isPlacementMessage(message)) errors.push(d);
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.

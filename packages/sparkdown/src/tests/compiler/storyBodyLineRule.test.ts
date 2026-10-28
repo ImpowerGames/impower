@@ -67,7 +67,9 @@ const topNodes = (text: string) =>
 
 /** The top-level nodes that cross the start of the line holding `marker`. */
 const nodesCrossing = (text: string, marker: string) => {
-  const lineStart = text.lastIndexOf("\n", text.indexOf(marker)) + 1;
+  const at = text.indexOf(marker);
+  expect(at, `the marker ${JSON.stringify(marker)} is in the text`).toBeGreaterThanOrEqual(0);
+  const lineStart = text.lastIndexOf("\n", at) + 1;
   return topNodes(text).filter((node) => node.from < lineStart && node.to > lineStart);
 };
 
@@ -77,6 +79,23 @@ const missingAtLineEnd = (statement: string, firstLine = 0): string => {
   const line = firstLine + lines.length - 1;
   return `${line}:${lines.at(-1)!.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`;
 };
+
+// A `local` belongs to a scene, branch or function, so a story statement
+// that declares one is written in the body of a scene the story enters.
+const SCENE = "-> s\nscene s\n";
+
+/** `text` with each of its lines indented two spaces, as a scene body's are. */
+const indented = (text: string): string => text.replace(/^(?=.)/gm, "  ");
+
+/** `body` as the body of a scene the story enters. */
+const inScene = (body: string): string => `${SCENE}${indented(body)}end\n`;
+
+/** `lines` where the story writes them: in a scene when they begin with a `local`, else at the top level. */
+const placed = (lines: string): string => (/^(?:& )?local\b/.test(lines) ? inScene(lines) : lines);
+
+/** Luau's missing-expression error at the end of the last line of `statement`, as `source` writes it. */
+const missingIn = (source: string, statement: string): string =>
+  source.startsWith(SCENE) ? missingAtLineEnd(indented(statement), SCENE.split("\n").length - 1) : missingAtLineEnd(statement);
 
 describe("a trailing operator does not carry a story statement on (#1254)", () => {
   test.each([
@@ -88,8 +107,8 @@ describe("a trailing operator does not carry a story statement on (#1254)", () =
     ["a comparison", "local a = 1 =="],
     ["a concatenation", 'local a = "x" ..'],
   ])("%s ending in an operator leaves the next line to the story", (_name, statement) => {
-    const source = `${statement}\nThe first story line is story, not an operand.\nAfter.\n`;
-    expect(errorsOf(source)).toEqual([missingAtLineEnd(statement)]);
+    const source = placed(`${statement}\nThe first story line is story, not an operand.\nAfter.\n`);
+    expect(errorsOf(source)).toEqual([missingIn(source, statement)]);
     expect(nodesCrossing(source, "The first")).toEqual([]);
     const { warnings, output } = run(source);
     expect(warnings).toEqual([]);
@@ -117,11 +136,20 @@ describe("a trailing operator does not carry a story statement on (#1254)", () =
 describe("an if expression's `else` or `then` ending its line does not take the next line (#1658)", () => {
   test.each([
     ["a reassignment's `else`", "store ready = true\nstore x = 0\nx = if ready then 1 else"],
-    ["a declaration's `else`", "store ready = true\nlocal x = if ready then 1 else"],
     ["a reassignment's `then`", "store ready = true\nstore x = 0\nx = if ready then"],
   ])("%s at the top level", (_name, statement) => {
     const source = `${statement}\nThe hero waits.\nAfter this, the hero moves.\n`;
     expect(errorsOf(source)).toEqual([missingAtLineEnd(statement)]);
+    expect(nodesCrossing(source, "The hero")).toEqual([]);
+    const { warnings, output } = run(source);
+    expect(warnings).toEqual([]);
+    expect(output).toBe("The hero waits.\nAfter this, the hero moves.\n");
+  });
+
+  test("a declaration's `else` in a scene", () => {
+    const statement = "local x = if ready then 1 else";
+    const source = `store ready = true\n${inScene(`${statement}\nThe hero waits.\nAfter this, the hero moves.\n`)}`;
+    expect(errorsOf(source)).toEqual([missingAtLineEnd(`  ${statement}`, 3)]);
     expect(nodesCrossing(source, "The hero")).toEqual([]);
     const { warnings, output } = run(source);
     expect(warnings).toEqual([]);
@@ -147,20 +175,21 @@ describe("an if expression's `else` or `then` ending its line does not take the 
   });
 
   test("an indented next line does not continue the if expression either", () => {
-    const statement = "store ready = true\nlocal x = if ready then";
-    const source = `${statement}\n  1 else 2\nAfter.\n`;
-    expect(errorsOf(source)).toEqual([missingAtLineEnd(statement)]);
+    const statement = "local x = if ready then";
+    const source = `store ready = true\n${inScene(`${statement}\n  1 else 2\nAfter.\n`)}`;
+    expect(errorsOf(source)).toEqual([missingAtLineEnd(`  ${statement}`, 3)]);
     expect(nodesCrossing(source, "  1 else 2")).toEqual([]);
   });
 });
 
 describe("an else value that begins with `end` on the next column-0 line (#1206)", () => {
   test.each(["ender", "endx", "end_time"])("`%s` is a story line, with no empty-match warning", (name) => {
-    const statement = `local a = false\nlocal ${name} = 5\nlocal x = if a then 1 else`;
-    const source = `${statement}\n${name}\nValue {x}.\n`;
+    // The locals are a scene's, and the line after them is at column 0.
+    const statement = indented(`local a = false\nlocal ${name} = 5\nlocal x = if a then 1 else`);
+    const source = `${SCENE}${statement}\n${name}\n  Value {x}.\nend\n`;
     expect(parserWarnings(source)).toEqual([]);
-    expect(errorsOf(source)).toEqual([missingAtLineEnd(statement)]);
-    expect(nodesCrossing(source, `\n${name}\nValue`)).toEqual([]);
+    expect(errorsOf(source)).toEqual([missingAtLineEnd(statement, 2)]);
+    expect(nodesCrossing(source, `\n${name}\n  Value`)).toEqual([]);
   });
 });
 
@@ -172,16 +201,21 @@ describe("a block comment after a story declaration's keyword stays in the decla
     ["two targets", "local --[[c]] r, s = 1, 2\nValue {r}{s}.\n", "Value 12.\n"],
     ["a comment glued to the target", "local --[[c]]r = 1\nValue {r}.\n", "Value 1.\n"],
     ["an `&` declaration", "& local --[[c]] r = 1\nValue {r}.\n", "Value 1.\n"],
-  ])("%s", (_name, source, expected) => {
-    const { errors, warnings, output } = run(source);
+  ])("%s", (_name, lines, expected) => {
+    const { errors, warnings, output } = run(placed(lines));
     expect(errors).toEqual([]);
     expect(warnings).toEqual([]);
     expect(output).toBe(expected);
   });
 
   test("the declaration holds the comment and its target", () => {
-    const source = "local --[[c]] r = 1\n";
-    expect(topNodes(source)[0]).toEqual({ name: "LuauSparkdownVariableDefinition", from: 0, to: source.indexOf("\n") });
+    const source = inScene("local --[[c]] r = 1\n");
+    const from = source.indexOf("  local");
+    expect(topNodes(source).find((node) => node.from === from)).toEqual({
+      name: "LuauSparkdownVariableDefinition",
+      from,
+      to: source.indexOf("\n", from),
+    });
   });
 });
 
@@ -195,11 +229,17 @@ describe("a block comment after a story declaration's target is never story text
     ["store", "store a --[[b]]print(1)"],
     ["a comment that spans lines", "local a --[[b\n]]print(1)"],
   ])("%s", (_name, statement) => {
-    const source = `${statement}\nAfter.\n`;
+    const source = placed(`${statement}\nAfter.\n`);
     const { errors, output } = run(source);
     expect(errors).toEqual([]);
     expect(output).toBe("1\nAfter.\n");
-    expect(topNodes(source)[0]).toEqual({ name: "LuauSparkdownVariableDefinition", from: 0, to: statement.length });
+    const written = source.startsWith(SCENE) ? indented(statement) : statement;
+    const from = source.indexOf(written);
+    expect(topNodes(source).find((node) => node.from === from)).toEqual({
+      name: "LuauSparkdownVariableDefinition",
+      from,
+      to: from + written.length,
+    });
   });
 });
 
@@ -393,15 +433,16 @@ describe("a story loop header ends at its line", () => {
 // so the first one's end of input moves with it (#2062 round 1).
 describe("a statement later on the line keeps its own continuation", () => {
   test.each([
-    ["a function", "local a = 1 function f()\n  return 2\nend\nValue {f()}.\n", "Value 2.\n"],
-    ["a reassignment's call", "local a = 0 a = math.max(1,\n  2)\nValue {a}.\n", "Value 2.\n"],
-    ["a declaration's call", "local a = 0 local b = math.max(1,\n  2)\nValue {b}.\n", "Value 2.\n"],
-    ["a function value", "local a = 0 local f = function()\n  return 2\nend\nValue {f()}.\n", "Value 2.\n"],
-    ["an `&` call", "local a = 0 & a = math.max(1,\n  2)\nValue {a}.\n", "Value 2.\n"],
-    ["a story `if`", "local a = 0 if true then\n  Yes.\nend\n", "Yes.\n"],
-    ["a long string", "local a = 0 a = [[two\nlines]]\nValue {a}.\n", "Value two\nlines.\n"],
-    ["a block comment", "local a = 0 a = --[[two\nlines]] 2\nValue {a}.\n", "Value 2.\n"],
-    ["a story `while`", "local a = 0 while a < 2 do\n  a = a + 1\nend\nValue {a}.\n", "Value 2.\n"],
+    ["a function", inScene("local a = 1 local function f()\n  return 2\nend\nValue {f()}.\n"), "Value 2.\n"],
+    ["a reassignment's call", inScene("local a = 0 a = math.max(1,\n  2)\nValue {a}.\n"), "Value 2.\n"],
+    ["a declaration's call", inScene("local a = 0 local b = math.max(1,\n  2)\nValue {b}.\n"), "Value 2.\n"],
+    ["a function value", inScene("local a = 0 local f = function()\n  return 2\nend\nValue {f()}.\n"), "Value 2.\n"],
+    ["an `&` call", inScene("local a = 0 & a = math.max(1,\n  2)\nValue {a}.\n"), "Value 2.\n"],
+    ["a story `if`", inScene("local a = 0 if true then\n  Yes.\nend\n"), "Yes.\n"],
+    // The long string's second line is at column 0, so the string is `two\nlines`.
+    ["a long string", `${SCENE}  local a = 0 a = [[two\nlines]]\n  Value {a}.\nend\n`, "Value two\nlines.\n"],
+    ["a block comment", inScene("local a = 0 a = --[[two\nlines]] 2\nValue {a}.\n"), "Value 2.\n"],
+    ["a story `while`", inScene("local a = 0 while a < 2 do\n  a = a + 1\nend\nValue {a}.\n"), "Value 2.\n"],
   ])("%s", (_name, source, output) => {
     expect(errorsOf(source)).toEqual([]);
     expect(run(source).output).toBe(output);
@@ -409,16 +450,16 @@ describe("a statement later on the line keeps its own continuation", () => {
 
   // The later statement's own ends still stand inside it (#2062 round 2).
   test("a statement inside the later block still ends at its own line", () => {
-    const source = "local a = 0 if true then\n  local b = 1 +\n  local c = 2\n  Value {c}.\nend\n";
-    expect(errorsOf(source)).toEqual(["1:15-2:0 Expected identifier when parsing expression, got <eof>"]);
+    const source = inScene("local a = 0 if true then\n  local b = 1 +\n  local c = 2\n  Value {c}.\nend\n");
+    expect(errorsOf(source)).toEqual(["3:17-4:0 Expected identifier when parsing expression, got <eof>"]);
     expect(run(source).output).toBe("Value 2.\n");
   });
 
   test.each([
-    ["local a = 0 while true", "0:22-1:0 Expected 'do' when parsing while loop, got <eof>"],
-    ["local a = 0 for i = 1, 3", "0:24-1:0 Expected 'do' when parsing for loop, got <eof>"],
+    ["local a = 0 while true", "2:24-3:0 Expected 'do' when parsing while loop, got <eof>"],
+    ["local a = 0 for i = 1, 3", "2:26-3:0 Expected 'do' when parsing for loop, got <eof>"],
   ])("a header-only loop after a statement on its line still reports its missing `do`: %s", (line, error) => {
-    expect(errorsOf(`${line}\nStory.\n`)).toEqual([error]);
+    expect(errorsOf(inScene(`${line}\nStory.\n`))).toEqual([error]);
   });
 });
 
@@ -431,16 +472,13 @@ describe("a block comment that runs over lines carries a story statement on", ()
     ["a value list", "local a, b = 1, --[[ x\n ]] -- note"],
     ["a reassignment", "store a = 0\na = 1 + --[[ x\n ]]"],
   ])("%s is missing its value at the end of the comment's last line", (_name, statement) => {
-    const lines = statement.split("\n");
-    const line = lines.length - 1;
-    expect(errorsOf(`${statement}\nThe hero.\n`)).toEqual([
-      `${line}:${lines[line]!.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`,
-    ]);
+    const source = placed(`${statement}\nThe hero.\n`);
+    expect(errorsOf(source)).toEqual([missingIn(source, statement)]);
   });
 
   test("an edit that moves the end of input moves the error, as a cold compile places it", () => {
-    const before = "& local a = 1 + --[[ x\n ]]\nThe hero.\n";
-    const after = "& local a = 1 + --[[ x\n y ]]\nThe hero.\n";
+    const before = inScene("& local a = 1 + --[[ x\n ]]\nThe hero.\n");
+    const after = inScene("& local a = 1 + --[[ x\n y ]]\nThe hero.\n");
     const c = new SparkdownCompiler();
     c.configure({
       files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" }],
@@ -448,10 +486,10 @@ describe("a block comment that runs over lines carries a story statement on", ()
     expect(compiledErrors(c)).toEqual(errorsOf(before));
     c.updateDocument({
       textDocument: { uri: URI, version: 2 },
-      contentChanges: [{ range: { start: { line: 1, character: 1 }, end: { line: 1, character: 1 } }, text: "y " }],
+      contentChanges: [{ range: { start: { line: 3, character: 3 }, end: { line: 3, character: 3 } }, text: "y " }],
     } as never);
     expect(compiledErrors(c)).toEqual(errorsOf(after));
-    expect(errorsOf(after)).toEqual(["1:5-2:0 Expected identifier when parsing expression, got <eof>"]);
+    expect(errorsOf(after)).toEqual(["3:7-4:0 Expected identifier when parsing expression, got <eof>"]);
   });
 });
 
@@ -465,7 +503,7 @@ describe("brackets carry a story statement on", () => {
   });
 
   test.each([
-    ["a declaration", "local x = math.max(1,\n  2)\nValue {x}.\n", "Value 2.\n"],
+    ["a declaration", inScene("local x = math.max(1,\n  2)\nValue {x}.\n"), "Value 2.\n"],
     ["an `&` line", "store x = 0\n& x = math.max(1,\n  2)\nValue {x}.\n", "Value 2.\n"],
     ["an `&` table", "store t = {}\n& t.c = {\n  3,\n}\nValue {t.c[1]}.\n", "Value 3.\n"],
     ["an attribute list", "store f = @[\n  native\n] function() return 5 end\nValue {f()}.\n", "Value 5.\n"],
@@ -484,9 +522,9 @@ describe("brackets carry a story statement on", () => {
   // A declaration's bracket that never closes carried nothing on, so its
   // Luau ends with the opener's line, and the line after it is story (I-1532).
   test("an unclosed `(` in a declaration reports Luau's error for its line alone", () => {
-    const source = "local x = math.max(1,\n  2\nscene t\n  After.\nend\n";
-    expect(errorsOf(source)).toEqual(["0:21-1:0 Expected identifier when parsing expression, got <eof>"]);
-    expect(topNodes(source).find((node) => node.name === "Scene")?.from).toBe(source.indexOf("scene t"));
+    const source = inScene("local x = math.max(1,\n  2\nbranch t\n  After.\nend\n");
+    expect(errorsOf(source)).toEqual(["2:23-3:0 Expected identifier when parsing expression, got <eof>"]);
+    expect(topNodes(source).find((node) => node.name === "Branch")?.from).toBe(source.indexOf("  branch t"));
   });
 
   // The block ends with the line its bracket closes on, so the story line

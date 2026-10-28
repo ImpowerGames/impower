@@ -112,7 +112,9 @@ describe("a fingerprint", () => {
     const prints = (lines: string[]) =>
       rootOf(["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
         .flowNamed("start")!
-        .arrays.chunks.map(fingerprintOf);
+        // The scene's end (`flowEnd`) is no statement of these lines.
+        .arrays.chunks.slice(0, -1)
+        .map(fingerprintOf);
     const a = prints([
       "& x = 1 + 2",
       "& y = 3",

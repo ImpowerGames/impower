@@ -33,6 +33,7 @@ import {
 } from "./affine";
 import { hashText } from "./hash";
 import { own, table } from "./own";
+import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
 import { APERTURE_REACH_STROKE } from "./render";
 import {
@@ -669,6 +670,12 @@ export function* bakeSteps(
     geometryOf.set(leaf, value);
     return value;
   };
+  const paints = new Map<Leaf, EffectivePaint>();
+  const paintOf = (leaf: Leaf): EffectivePaint => {
+    let paint = paints.get(leaf);
+    if (!paint) paints.set(leaf, (paint = effectivePaint(doc!, leaf.element)));
+    return paint;
+  };
   const elementSpace = (leaf: Leaf): Affine | null => {
     const m = doc!.info.get(leaf.element)?.rootFromElement;
     return m ? invert(m) : null;
@@ -872,7 +879,11 @@ export function* bakeSteps(
           draw = carrierOf(home, slots.carriers++);
         }
         const ref = addFrames(cacheKey, morph, space, reversed);
-        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref });
+        // The moving shape's paint blends between its two drawings' on
+        // whichever node draws it, a carrier copied from a third drawing
+        // included.
+        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home));
+        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref, ...(paint ? { paint } : {}) });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
           if (!clip.between.includes(from.label)) continue;
           if (morph.tracks.length !== 1) {

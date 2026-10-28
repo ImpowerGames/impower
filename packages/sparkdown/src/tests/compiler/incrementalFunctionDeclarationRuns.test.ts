@@ -15,6 +15,8 @@ import { describeRoot } from "../program/describeRoot";
 const URI = "inmemory:///main.sd";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
+// A scene declares its functions with `local`.
+const LOCAL_LESS = `local ${LESS}`;
 
 const FILLER = [1, 2, 3, 4, 5]
   .map((n) => `scene filler_${n}\nF${n}\n-> DONE\nend\n\n`)
@@ -146,7 +148,7 @@ const editLast = (find: string, replace: string): Edit => ({
 
 describe("incremental compile with story lines after a function declaration", () => {
   it("a line added after a function that ends a scene joins the scene", () => {
-    const base = `-> one\n\nscene one\nA\n${LESS}\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    const base = `-> one\n\nscene one\nA\n${LOCAL_LESS}\n${FILLER}scene last\nL\n-> DONE\nend\n`;
     expectIncrementalMatchesCold(base, [
       editLast("L\n", "L1\n"),
       editLast("L1\n", "L2\n"),
@@ -177,7 +179,7 @@ describe("incremental compile with story lines after a function declaration", ()
       {
         name: "add a function between two lines",
         find: "A\nC\n",
-        replace: `A\n${LESS}C\n`,
+        replace: `A\n${LOCAL_LESS}C\n`,
         places: [{ text: "C", in: "one" }],
       },
       editLast("L1\n", "L2\n"),
@@ -189,7 +191,7 @@ describe("incremental compile with story lines after a function declaration", ()
         places: [{ text: "Cee", in: "one" }],
       },
       editLast("L2\n", "L3\n"),
-      { name: "remove the function", find: LESS, replace: "" },
+      { name: "remove the function", find: LOCAL_LESS, replace: "" },
       editLast("L3\n", "L4\n"),
     ]);
   });

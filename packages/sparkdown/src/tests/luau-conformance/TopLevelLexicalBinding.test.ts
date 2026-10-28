@@ -1,10 +1,12 @@
-// A function, a define's method or a closure reads and writes the top-level
+// A local function, a define's method or a closure reads and writes the
 // local in scope where it is written, as Luau's upvalue does (I-1374): the
-// newest `local` of the name declared above it in the root frame's own scope,
-// which the top level and the bodies of its scenes share. Never a later
-// `local` of the name in that scope (a scene's among them), a running block's
+// newest `local` of the name declared above it in the root frame's own
+// scope, which the bodies of a story's scenes share. Never a later `local`
+// of the name in that scope (another scene's among them), a running block's
 // local or a local declared below it, where it reads the global, or the
-// builtin of a stdlib name. A closure written after a `local` that shadows a
+// builtin of a stdlib name. A function or a define written at the top level
+// has no local in scope, as a `local` at the top level is a compile error,
+// and reads the global. A closure written after a `local` that shadows a
 // store, a `const` or a top-level function of its name reads the local, and
 // one written before it reads what the name names there (I-1365); a
 // top-level `local` beside a `store` of its name is a compile error (#1177).
@@ -19,6 +21,9 @@ import { compileScript, errorsOf, programCompiler, programSession, storyBeats } 
 import { programListing } from "../programListing";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+
+const LOCAL_PLACEMENT =
+  "local declaration must be inside a scene, branch or function; use store or const at the top level";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error } = console;
@@ -45,67 +50,24 @@ const rootOf = (lines: string[]) =>
     return program.chunks!;
   });
 
+// The root of a script an older engine wrote a save of. The script declares
+// locals at the top level, each a compile error; it reports no other error,
+// and its program runs.
+const legacyRootOf = (text: string) =>
+  quiet(() => {
+    const { program } = compileScript(`${text.trimEnd()}\n`);
+    expect(errorsOf(program).filter(([, message]) => message !== LOCAL_PLACEMENT)).toEqual([]);
+    return program.chunks!;
+  });
+
 const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
+// The lines of scene `S`, which the story diverts to.
+const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
+
 describe("a function written at the top level", () => {
-  test("keeps the local it is written after when a later local of the name is declared", () => {
-    expect(
-      run([
-        "local a = 1",
-        "local c = function() return a end",
-        "function g()",
-        "  return a",
-        "end",
-        "Before {g()} {c()}.",
-        "local a = 2",
-        "After {g()} {c()} {a}.",
-      ]),
-    ).toEqual(got("Before 1 1.", "After 1 1 2."));
-  });
-
-  test("writes the local it is written after, in the cell a closure over it shares", () => {
-    expect(
-      run([
-        "local a = 1",
-        "local c = function() return a end",
-        "function set(v)",
-        "  a = v",
-        "end",
-        "local a = 2",
-        "& set(5)",
-        "Got {c()} {a}.",
-      ]),
-    ).toEqual(got("Got 5 2."));
-  });
-
-  // The converter reads a line's statements as one unit, so it binds the
-  // function's read to the local written before it on the line, which is a
-  // declaration of the root frame's own scope.
-  test.each([
-    ["after a `;`", "& local a = 1; function g() return a end"],
-    ["after a comment", "local a = 1 --[[c]] function g() return a end"],
-  ])("reads a local declared on its line %s", (_, line) => {
-    expect(run([line, "Got {tostring(g())}."])).toEqual(got("Got 1."));
-  });
-
-  test("writes a local declared on its line", () => {
-    expect(run(["& local a = 1; function g() a = 5 end", "& g()", "Got {a}."])).toEqual(got("Got 5."));
-  });
-
-  test("reads the global for a local declared below it", () => {
-    expect(run(["function g()", "  return a", "end", "local a = 1", "Got {tostring(g())}."])).toEqual(
-      got("Got nil."),
-    );
-  });
-
-  test("reads the top-level local, not a scene's local of the name", () => {
-    expect(
-      run(["local a = 1", "function g()", "  return a", "end", "-> S", "scene S", "  local a = 5", "  Got {g()} {a}.", "end"]),
-    ).toEqual(got("Got 1 5."));
-  });
-
   test("reads the global, not a scene's local of the name", () => {
     expect(
       run(["function g()", "  return a", "end", "-> S", "scene S", "  local a = 5", "  Got {tostring(g())}.", "end"]),
@@ -120,20 +82,13 @@ describe("a function written at the top level", () => {
 
   test("reads the global, not the local of an if that is running", () => {
     expect(
-      run(["function g()", "  return a", "end", "if true then", "  local a = 5", "  Got {tostring(g())}.", "end"]),
+      run([
+        "function g()",
+        "  return a",
+        "end",
+        ...inScene(["if true then", "  local a = 5", "  Got {tostring(g())}.", "end"]),
+      ]),
     ).toEqual(got("Got nil."));
-  });
-
-  test("reads the top-level local, not the local of an if that shadows it", () => {
-    expect(
-      run(["local a = 1", "function g()", "  return a", "end", "if true then", "  local a = 5", "  Got {g()} {a}.", "end"]),
-    ).toEqual(got("Got 1 5."));
-  });
-
-  test("reads the builtin for a stdlib-named local declared below it", () => {
-    expect(
-      run(["function g()", "  return type(print)", "end", "local print = 5", "Got {g()}."]),
-    ).toEqual(got("Got function."));
   });
 
   test("reads the builtin, not a scene's local of a stdlib name", () => {
@@ -151,41 +106,10 @@ describe("a function written at the top level", () => {
     ).toEqual(got("Got function."));
   });
 
-  // A function statement in a top-level `do` block is a function of the
-  // story, built before the block runs, and closes over none of its locals
-  // (I-1444).
-  test.fails("written in a top-level do block, reads the block's local", () => {
-    expect(
-      run(["local x = 7", "do", "  local x = 1", "  function g()", "    return x", "  end", "end", "Got {tostring(g())}."]),
-    ).toEqual(got("Got 1."));
-  });
-
-  // Inside a top-level block, a function statement binds what it reads at
-  // its entry by name, as before the index (I-1468): the top-level local of
-  // the name, which it reads and writes, and a stdlib-named one.
-  test("written in a top-level do block, reads the top-level local", () => {
-    expect(
-      run(["local a = 1", "do", "  function g()", "    return a", "  end", "end", "Got {tostring(g())}."]),
-    ).toEqual(got("Got 1."));
-  });
-
-  test("written in a top-level do block, writes the top-level local", () => {
-    expect(
-      run(["local a = 1", "do", "  function set()", "    a = 5", "  end", "end", "& set()", "Got {a}."]),
-    ).toEqual(got("Got 5."));
-  });
-
-  test("written in a top-level do block, reads a stdlib-named top-level local", () => {
-    expect(
-      run(["local print = 1", "do", "  function g()", "    return print", "  end", "end", "Got {tostring(g())}."]),
-    ).toEqual(got("Got 1."));
-  });
-
-  // Each kind of function a top-level block holds binds at its entry what it
-  // did before the index (I-1468), in every block form: a define's method
-  // reads and writes the top-level local, and so does a function statement
-  // in a `do` block; one in an `if` or a loop fails when the block runs
-  // (I-1443), whose error this pins as it stands.
+  // Each kind of function a top-level block holds reads and writes the store
+  // its body names, in every block form: a define's method, and a function
+  // statement in a `do` block; one in an `if` or a loop fails when the block
+  // runs (I-1443), whose error this pins as it stands.
   const blockForms: [string, (body: string[]) => string[]][] = [
     ["an `if`", (b) => ["if true then", ...b.map((l) => `  ${l}`), "end"]],
     ["an `elseif`", (b) => ["if false then", "elseif true then", ...b.map((l) => `  ${l}`), "end"]],
@@ -208,9 +132,9 @@ describe("a function written at the top level", () => {
     blockForms.flatMap(([form, wrap]) =>
       functionKinds
         .filter(([, , , , inline]) => inline || !form.includes("`&`"))
-        .map(([kind, body, after, value]) => [kind, form, ["local a = 1", ...wrap(body), ...after], value] as const),
+        .map(([kind, body, after, value]) => [kind, form, ["store a = 1", ...wrap(body), ...after], value] as const),
     ),
-  )("a %s written inside %s binds the top-level local as before the index", (kind, form, lines, value) => {
+  )("a %s written inside %s reaches the store", (kind, form, lines, value) => {
     const result = run([...lines]);
     if (kind.startsWith("function statement") && form !== "a `do` block") {
       // I-1443: the block runs the function where it stands.
@@ -225,33 +149,113 @@ describe("a function written at the top level", () => {
       expect(result).toEqual(got(value));
     }
   });
+});
+
+describe("a local function written in a scene", () => {
+  test("keeps the local it is written after when a later local of the name is declared", () => {
+    expect(
+      run(
+        inScene([
+          "local a = 1",
+          "local c = function() return a end",
+          "local function g()",
+          "  return a",
+          "end",
+          "Before {g()} {c()}.",
+          "local a = 2",
+          "After {g()} {c()} {a}.",
+        ]),
+      ),
+    ).toEqual(got("Before 1 1.", "After 1 1 2."));
+  });
+
+  test("writes the local it is written after, in the cell a closure over it shares", () => {
+    expect(
+      run(
+        inScene([
+          "local a = 1",
+          "local c = function() return a end",
+          "local function set(v)",
+          "  a = v",
+          "end",
+          "local a = 2",
+          "& set(5)",
+          "Got {c()} {a}.",
+        ]),
+      ),
+    ).toEqual(got("Got 5 2."));
+  });
+
+  // The converter reads a line's statements as one unit, so it binds the
+  // function's read to the local written before it on the line.
+  test("reads a local declared on its line after a comment", () => {
+    expect(
+      run(inScene(["local a = 1 --[[c]] local function g() return a end", "Got {tostring(g())}."])),
+    ).toEqual(got("Got 1."));
+  });
+
+  test("reads the global for a local declared below it", () => {
+    expect(
+      run(inScene(["local function g()", "  return a", "end", "local a = 1", "Got {tostring(g())}."])),
+    ).toEqual(got("Got nil."));
+  });
+
+  test("reads its scene's local, not another scene's local of the name", () => {
+    expect(
+      run([
+        "-> S",
+        "scene S",
+        "  local a = 1",
+        "  local function g()",
+        "    return a",
+        "  end",
+        "  -> T(g)",
+        "end",
+        "scene T(h)",
+        "  local a = 5",
+        "  Got {h()} {a}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 1 5."));
+  });
+
+  test("reads the scene's local, not the local of an if that shadows it", () => {
+    expect(
+      run(inScene(["local a = 1", "local function g()", "  return a", "end", "if true then", "  local a = 5", "  Got {g()} {a}.", "end"])),
+    ).toEqual(got("Got 1 5."));
+  });
+
+  test("reads the builtin for a stdlib-named local declared below it", () => {
+    expect(
+      run(inScene(["local function g()", "  return type(print)", "end", "local print = 5", "Got {g()}."])),
+    ).toEqual(got("Got function."));
+  });
 
   test.each([
-    ["scene", ["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  local x = 7", "  Got {g()} {x}.", "end"]],
+    ["scene", ["-> S(5)", "scene S(x)", "  local function g()", "    return x", "  end", "  local x = 7", "  Got {g()} {x}.", "end"]],
     [
       "branch",
-      ["-> S", "scene S", "  -> B(5)", "  branch B(x)", "    function g()", "      return x", "    end", "    local x = 7", "    Got {g()} {x}.", "  end", "end"],
+      ["-> S", "scene S", "  -> B(5)", "  branch B(x)", "    local function g()", "      return x", "    end", "    local x = 7", "    Got {g()} {x}.", "  end", "end"],
     ],
   ])("written in a %s, keeps its parameter when a later local of the name is declared", (_, lines) => {
     expect(run(lines)).toEqual(got("Got 5 7."));
   });
 
-  test("keeps the top-level local where a choice's body declares the name", () => {
+  test("keeps the scene's local where a choice's body declares the name", () => {
     const story = new ProgramStory(
-      rootOf([
-        "local x = 1",
-        "function g()",
-        "  return x",
-        "end",
-        "-> S",
-        "scene S",
-        "  choose",
-        "    + Go",
-        "      local x = 3",
-        "      Got {g()} {x}.",
-        "  end",
-        "end",
-      ]),
+      rootOf(
+        inScene([
+          "local x = 1",
+          "local function g()",
+          "  return x",
+          "end",
+          "choose",
+          "  + Go",
+          "    local x = 3",
+          "    Got {g()} {x}.",
+          "end",
+        ]),
+      ),
     );
     quiet(() => storyBeats(story));
     story.ChooseChoiceIndex(0);
@@ -261,109 +265,75 @@ describe("a function written at the top level", () => {
 
   // A name a script declares once is bound by name in the scope every
   // script's scenes share (I-1455).
-  test.fails("keeps the top-level local where a scene of another script declares the name", () => {
+  test.fails("keeps its scene's local where a scene of another script declares the name", () => {
     const { program } = quiet(() =>
       programCompiler({
-        "inmemory:///main.sd": ["local x = 1", "function g()", "  return x", "end", "-> S", ""].join("\n"),
-        "inmemory:///other.sd": ["scene S", "  local x = 5", "  Got {g()} {x}.", "end", ""].join("\n"),
+        "inmemory:///main.sd": ["-> R", "scene R", "  local x = 1", "  local function g()", "    return x", "  end", "  -> S(g)", "end", ""].join("\n"),
+        "inmemory:///other.sd": ["scene S(g)", "  local x = 5", "  Got {g()} {x}.", "end", ""].join("\n"),
       }).compile(),
     );
     expect(errorsOf(program)).toEqual([]);
     expect(quiet(() => shown(program.chunks!))).toEqual(got("Got 1 5."));
   });
 
-  test("written in a scene, reads the scene's parameter", () => {
+  test("reads the scene's parameter", () => {
     expect(
-      run(["-> S(5)", "scene S(x)", "  function g()", "    return x", "  end", "  Got {tostring(g())}.", "end"]),
+      run(["-> S(5)", "scene S(x)", "  local function g()", "    return x", "  end", "  Got {tostring(g())}.", "end"]),
     ).toEqual(got("Got 5."));
   });
 
-  test("written in a scene, reads the scene's local declared above it", () => {
+  test("reads the scene's local declared above it, not the store of its name", () => {
     expect(
-      run([
-        "local a = 1",
-        "-> S",
-        "scene S",
-        "  local a = 5",
-        "  function g()",
-        "    return a",
-        "  end",
-        "  Got {g()}.",
-        "end",
-      ]),
+      run(["store a = 1", ...inScene(["local a = 5", "local function g()", "  return a", "end", "Got {g()}."])]),
     ).toEqual(got("Got 5."));
   });
 });
 
-describe("a define's method written in a top-level function", () => {
-  // The function binds a top-level local only its define's methods read, as
-  // the scan of its syntax node finds them (I-1373), at the declaration in
-  // scope where the function is written.
-  test("reads the top-level local the function is written after", () => {
+describe("a define's method written in a scene's local function", () => {
+  // The function binds a local of the scene only its define's methods read,
+  // as the scan of its syntax node finds them (I-1373), at the declaration
+  // in scope where the function is written.
+  test("reads the scene's local the function is written after", () => {
     expect(
-      run([
-        "local x = 3",
-        "function install()",
-        "  define thing with",
-        "    function get()",
-        "      return x",
-        "    end",
-        "  end",
-        "end",
-        "local x = 4",
-        "& install()",
-        "Got {tostring(thing.get())} {x}.",
-      ]),
+      run(
+        inScene([
+          "local x = 3",
+          "local function install()",
+          "  define thing with",
+          "    function get()",
+          "      return x",
+          "    end",
+          "  end",
+          "end",
+          "local x = 4",
+          "& install()",
+          "Got {tostring(thing.get())} {x}.",
+        ]),
+      ),
     ).toEqual(got("Got 3 4."));
   });
 });
 
 describe("a define's method written at the top level", () => {
-  test("keeps the local it is written after when a later local of the name is declared", () => {
+  test("reads the global, not a scene's local of the name", () => {
     expect(
       run([
-        "local a = 1",
         "define thing with",
         "  function get()",
         "    return a",
         "  end",
         "end",
-        "local a = 2",
-        "Got {thing.get()} {a}.",
+        ...inScene(["local a = 1", "Got {tostring(thing.get())}."]),
       ]),
-    ).toEqual(got("Got 1 2."));
-  });
-
-  test("reads the global for a local declared below it", () => {
-    expect(
-      run(["define thing with", "  function get()", "    return a", "  end", "end", "local a = 1", "Got {tostring(thing.get())}."]),
     ).toEqual(got("Got nil."));
-  });
-
-  // Inside a top-level block, it binds what it reads at its entry by name,
-  // as before the index (I-1468).
-  test("written in a top-level do block, reads the top-level local", () => {
-    expect(
-      run([
-        "local a = 1",
-        "do",
-        "  define thing with",
-        "    function get()",
-        "      return a",
-        "    end",
-        "  end",
-        "end",
-        "Got {tostring(thing.get())}.",
-      ]),
-    ).toEqual(got("Got 1."));
   });
 });
 
 describe("a closure written in the root frame", () => {
-  test("keeps the top-level local where a scene declared the name before it was built", () => {
+  test("keeps the store where a scene declared a local of the name before it was built", () => {
     expect(
       run([
-        "local a = 1",
+        "store a = 1",
         "-> S",
         "scene S",
         "  local a = 5",
@@ -411,6 +381,20 @@ describe("a closure written in the root frame", () => {
     story.ChooseChoiceIndex(0);
     const { beats, errors } = quiet(() => storyBeats(story));
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 3 3."));
+  });
+
+  // The converter reads a line's statements as one unit, so it binds the
+  // closure's read and write to the local written before it on the line.
+  test("reads a local declared on its `&` line after a `;`", () => {
+    expect(
+      run(inScene(["& local a = 1; local g = function() return a end", "Got {tostring(g())}."])),
+    ).toEqual(got("Got 1."));
+  });
+
+  test("writes a local declared on its `&` line", () => {
+    expect(run(inScene(["& local a = 1; local g = function() a = 5 end", "& g()", "Got {a}."]))).toEqual(
+      got("Got 5."),
+    );
   });
 
   // A closure keeps the cell of a local its entry binds (a name a store, a
@@ -494,12 +478,12 @@ describe("a closure written in the root frame", () => {
   // global; it is the loop's local, whatever the root frame's own scope
   // declares of its name.
   test.each([
-    ["a numeric loop's variable over a redeclared top-level local", "for a = 2, 2 do", ["local a = 1"], ["local a = 3"]],
-    ["a generic loop's variable over a redeclared top-level local", "for _, a in {2} do", ["local a = 1"], ["local a = 3"]],
-    ["a numeric loop's variable where only a scene below declares the name", "for a = 2, 2 do", [], ["-> T", "scene T", "  local a = 9", "end"]],
-  ])("reads %s", (_, header, before, after) => {
+    ["a numeric loop's variable over a redeclared local of the scene", ["local a = 1", "for a = 2, 2 do"], ["local a = 3"], []],
+    ["a generic loop's variable over a redeclared local of the scene", ["local a = 1", "for _, a in {2} do"], ["local a = 3"], []],
+    ["a numeric loop's variable where only a scene below declares the name", ["for a = 2, 2 do"], [], ["scene T", "  local a = 9", "end"]],
+  ])("reads %s", (_, header, after, below) => {
     expect(
-      run([...before, header, "  local f = function() return a end", "  Got {f()}.", "end", ...after]),
+      run([...inScene([...header, "  local f = function() return a end", "  Got {f()}.", "end", ...after]), ...below]),
     ).toEqual(got("Got 2."));
   });
 
@@ -508,30 +492,32 @@ describe("a closure written in the root frame", () => {
     ["generic", "for _, print in {2} do"],
   ])("reads a %s loop's stdlib-named variable", (_, header) => {
     expect(
-      run([header, "  local f = function() return print end", "  Got {tostring(f())}.", "end"]),
+      run(inScene([header, "  local f = function() return print end", "  Got {tostring(f())}.", "end"])),
     ).toEqual(got("Got 2."));
   });
 
   // An `&` line's loop is a block too, and the closure after its `end` on
-  // the same line reads the root frame's own scope again.
+  // the same line reads the scene's local in scope again.
   test.each([
     ["numeric", "for a = 2, 2 do"],
     ["generic", "for _, a in {2} do"],
-  ])("reads an `&` line's %s loop's variable, and the top-level local after the loop", (_, header) => {
+  ])("reads an `&` line's %s loop's variable, and the scene's local after the loop", (_, header) => {
     expect(
       run([
-        "local a = 1",
         "store fs = {}",
-        `& ${header} fs[1] = function() return a end end; fs[2] = function() return a end`,
-        "local a = 3",
-        "Got {fs[1]()} {fs[2]()}.",
+        ...inScene([
+          "local a = 1",
+          `& ${header} fs[1] = function() return a end end; fs[2] = function() return a end`,
+          "local a = 3",
+          "Got {fs[1]()} {fs[2]()}.",
+        ]),
       ]),
     ).toEqual(got("Got 2 1."));
   });
 
-  // A closure written inside a block a top-level statement opens binds its
-  // names by name, as before the index: it reads the block's own local or
-  // loop variable, whatever the root frame's own scope declares of the name.
+  // A closure written inside a block of a scene binds its names by name, as
+  // before the index: it reads the block's own local or loop variable,
+  // whatever the root frame's own scope declares of the name.
   test.each([
     ["an `if`", ["if true then", "  local a = 2", "  & f = function() return a end", "end"]],
     ["an `elseif`", ["if false then", "elseif true then", "  local a = 2", "  & f = function() return a end", "end"]],
@@ -545,17 +531,15 @@ describe("a closure written in the root frame", () => {
     ["an `&` line's `while` loop", ["& while true do local a = 2 f = function() return a end break end"]],
   ])("written inside %s, reads the block's local by name", (_, block) => {
     expect(
-      run(["local a = 1", "store f = nil", ...block, "local a = 3", "Got {f()}."]),
+      run(["store f = nil", ...inScene(["local a = 1", ...block, "local a = 3", "Got {f()}."])]),
     ).toEqual(got("Got 2."));
   });
 
-  // After the block's `end` on the same line, the closure reads the
-  // top-level local in scope there again, though scene T holds another
-  // binding of the name as S runs.
-  test("written after a block's end on the same line, reads the top-level local in scope", () => {
+  // After the block's `end` on the same line, the closure reads the global
+  // again, though scene T holds a binding of the name as S runs.
+  test("written after a block's end on the same line, reads the global", () => {
     expect(
       run([
-        "local a = 1",
         "store f = nil",
         "-> T",
         "scene T",
@@ -564,19 +548,19 @@ describe("a closure written in the root frame", () => {
         "end",
         "scene S",
         "  & if true then end f = function() return a end",
-        "  Got {f()}.",
+        "  Got {tostring(f())}.",
         "end",
       ]),
-    ).toEqual(got("Got 1."));
+    ).toEqual(got("Got nil."));
   });
 
   // What binds no name inside a block would leave the closure reading the
-  // top-level local in scope where it is written, though scene T holds
-  // another binding of the name as S runs: a `while` loop's condition, a
-  // `for` loop variable's type annotation, and a local of another arm of an
-  // `if` or of another choice. Inside a block the closure binds by name and
-  // reads scene T's local, until the converter reads a block's statements in
-  // the scope of the ones before them (I-1468).
+  // global, though scene T holds a binding of the name as S runs: a `while`
+  // loop's condition, a `for` loop variable's type annotation, and a local
+  // of another arm of an `if` or of another choice. Inside a block the
+  // closure binds by name and reads scene T's local, until the converter
+  // reads a block's statements in the scope of the ones before them
+  // (I-1468).
   test.fails.each([
     ["a narrative `while` loop's condition", ["while a == 9 do", "  & f = function() return a end", "  break", "end"]],
     ["an `&` line's `while` loop's condition", ["& while a == 9 do f = function() return a end break end"]],
@@ -585,10 +569,9 @@ describe("a closure written in the root frame", () => {
     ["a local of the `if` arm before the `else`", ["if false then", "  local a = 2", "else", "  & f = function() return a end", "end"]],
     ["a local of the `if` arm before the `elseif`", ["if false then", "  local a = 2", "elseif true then", "  & f = function() return a end", "end"]],
     ["a local of an `&` line's `if` arm before the `else`", ["& if false then local a = 2 else f = function() return a end end"]],
-  ])("reads the top-level local past %s (Luau: Got 1., I-1468)", (_, body) => {
+  ])("reads the global past %s (Luau: Got nil., I-1468)", (_, body) => {
     expect(
       run([
-        "local a = 1",
         "store f = nil",
         "-> T",
         "scene T",
@@ -597,16 +580,15 @@ describe("a closure written in the root frame", () => {
         "end",
         "scene S",
         ...body.map((line) => `  ${line}`),
-        "  Got {f()}.",
+        "  Got {tostring(f())}.",
         "end",
       ]),
-    ).toEqual(got("Got 1."));
+    ).toEqual(got("Got nil."));
   });
 
-  test.fails("reads the top-level local past a local of another choice of a `choose` in an `if` (Luau: Got 1., I-1468)", () => {
+  test.fails("reads the global past a local of another choice of a `choose` in an `if` (Luau: Got nil., I-1468)", () => {
     const story = new ProgramStory(
       rootOf([
-        "local a = 1",
         "store f = nil",
         "-> T",
         "scene T",
@@ -622,14 +604,14 @@ describe("a closure written in the root frame", () => {
         "        & f = function() return a end",
         "    end",
         "  end",
-        "  Got {f()}.",
+        "  Got {tostring(f())}.",
         "end",
       ]),
     );
     quiet(() => storyBeats(story));
     story.ChooseChoiceIndex(1);
     const { beats, errors } = quiet(() => storyBeats(story));
-    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Two", "Got 1."));
+    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Two", "Got nil."));
   });
 
   // A choice's body declares in the root frame's own scope too, whatever
@@ -700,13 +682,13 @@ describe("a closure written in the root frame", () => {
 
   test("reads a stdlib-named local declared above it", () => {
     expect(
-      run(["local print = 5", "local f = function() return print end", "Got {f()}."]),
+      run(inScene(["local print = 5", "local f = function() return print end", "Got {f()}."])),
     ).toEqual(got("Got 5."));
   });
 
   test("reads the builtin for a stdlib-named local declared below it", () => {
     expect(
-      run(["local f = function() return type(print) end", "local print = 5", "Got {f()}."]),
+      run(inScene(["local f = function() return type(print) end", "local print = 5", "Got {f()}."])),
     ).toEqual(got("Got function."));
   });
 
@@ -727,57 +709,52 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 1."));
   });
 
-  test("reads a top-level local that shadows a top-level function of its name", () => {
+  test("reads a scene's local that shadows a top-level function of its name", () => {
     expect(
-      run(["function a()", "  return 1", "end", "local a = 2", "local f = function()", "  return a", "end", "Got {tostring(f())}."]),
+      run(["function a()", "  return 1", "end", ...inScene(["local a = 2", "local f = function()", "  return a", "end", "Got {tostring(f())}."])]),
     ).toEqual(got("Got 2."));
   });
 
   test("written before that local, reads the function", () => {
     expect(
-      run(["function a()", "  return 1", "end", "local f = function()", "  return a()", "end", "local a = 2", "Got {tostring(f())}."]),
+      run(["function a()", "  return 1", "end", ...inScene(["local f = function()", "  return a()", "end", "local a = 2", "Got {tostring(f())}."])]),
     ).toEqual(got("Got 1."));
   });
 
-  test("of a function, reads what the function reads", () => {
+  test("of a local function, reads what the function reads", () => {
     expect(
       run([
         "function a()",
         "  return 1",
         "end",
-        "local a = 2",
-        "function g()",
-        "  return function() return a end",
-        "end",
-        "Got {tostring(g()())}.",
+        ...inScene([
+          "local a = 2",
+          "local function g()",
+          "  return function() return a end",
+          "end",
+          "Got {tostring(g()())}.",
+        ]),
       ]),
     ).toEqual(got("Got 2."));
   });
 });
 
 describe("a top-level local beside a store of its name", () => {
-  test("is still a compile error", () => {
+  test("is a compile error", () => {
     const { program } = quiet(() => compileScript(["store a = 1", "local a = 2", "Hi.", ""].join("\n")));
     expect(errorsOf(program).map(([, message]) => message)).toEqual([
+      LOCAL_PLACEMENT,
       "Duplicate identifier `a`. A var named `a` already exists on null",
       "Duplicate identifier `a`. A temp named `a` already exists on line 2 of 'main'",
     ]);
   });
 });
 
-describe("the entry of a function", () => {
-  test("binds a name declared once by name, and one of several by the declaration's slot", () => {
+describe("the entry of a function written at the top level", () => {
+  test("binds nothing for a name only a scene's local takes", () => {
     const listing = programListing(
-      rootOf(["local a = 1", "local b = 1", "function g()", "  return a + b", "end", "local b = 2", "Got {g()}."]),
+      rootOf(["function g()", "  return a + math.abs(-1)", "end", ...inScene(["local a = 1", "Got {g()}."])]),
     );
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([
-      "BindRoot a",
-      expect.stringMatching(/^BindRoot b\$1\$\S+ flags 1$/),
-    ]);
-  });
-
-  test("binds nothing for a name no local above it takes", () => {
-    const listing = programListing(rootOf(["function g()", "  return a + math.abs(-1)", "end", "local a = 1", "Got {g()}."]));
     expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([]);
   });
 });
@@ -791,7 +768,7 @@ describe("a save written by an engine that bound top-level locals by name", () =
   test("loads, and a function and a closure read the local it holds", () => {
     const text = readFileSync(join(FIXTURES, "redeclared-local-value.sd"), "utf-8");
     const save = readFileSync(join(FIXTURES, "redeclared-local-value-save-0a06f357b.json"), "utf-8");
-    const loaded = new ProgramStory(rootOf([text.trimEnd()]));
+    const loaded = new ProgramStory(legacyRootOf(text));
     loaded.loadSave(save);
     const { beats, errors } = storyBeats(loaded);
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 2 2."));
@@ -806,29 +783,26 @@ describe("a save written by an engine that bound top-level locals by name", () =
   test("loads, and a later declaration keeps the binding it left for the function", () => {
     const text = readFileSync(join(FIXTURES, "redeclared-after-load.sd"), "utf-8");
     const save = readFileSync(join(FIXTURES, "redeclared-after-load-save-ae10deabd.json"), "utf-8");
-    const loaded = new ProgramStory(rootOf([text.trimEnd()]));
+    const loaded = new ProgramStory(legacyRootOf(text));
     loaded.loadSave(save);
     const { beats, errors } = storyBeats(loaded);
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 1 1 2."));
   });
 });
 
-describe("a save taken after a function bound the slot of a declaration", () => {
+describe("a save taken after a local function wrote a local redeclared after it", () => {
   test("loads into a fresh game, where the function and a closure still share the local", () => {
-    const lines = [
+    const lines = inScene([
       "local a = 1",
       "local f = function() return a end",
-      "function inc()",
+      "local function inc()",
       "  a = a + 1",
       "  return a",
       "end",
       "local a = 10",
-      "-> S",
-      "scene S",
-      "  First {inc()} {f()} {a}.",
-      "  Second {inc()} {f()} {a}.",
-      "end",
-    ];
+      "First {inc()} {f()} {a}.",
+      "Second {inc()} {f()} {a}.",
+    ]);
     const story = new ProgramStory(rootOf(lines));
     story.onError = () => {};
     expect(story.Continue()?.trim()).toBe("First 2 2 10.");
@@ -843,17 +817,17 @@ describe("a save taken after a function bound the slot of a declaration", () => 
 describe("an incremental compile", () => {
   // Each edit leaves the reader's own lines as they were, so the chunks that
   // hold them are carried unless a read of the locals above them is asked
-  // again (`rootLocal`, `rootDeclaration`).
+  // again.
   const base = [
-    "local a = 1",
     "store b = 0",
-    "function g()",
-    "  return a",
-    "end",
-    "local f = function() return a end",
-    "local a = 3",
     "-> S",
     "scene S",
+    "  local a = 1",
+    "  local function g()",
+    "    return a",
+    "  end",
+    "  local f = function() return a end",
+    "  local a = 3",
     "  Hi.",
     "  Got {tostring(g())} {tostring(f())} {a}.",
     "end",
@@ -873,23 +847,23 @@ describe("an incremental compile", () => {
   };
 
   test("shows what a cold compile shows with a local of the name inserted above the readers", () => {
-    expectCold([["store b = 0", "store b = 0\nlocal a = 2"]], ["Hi.", "Got 2 2 3."]);
+    expectCold([["  local a = 1", "  local a = 1\n  local a = 2"]], ["Hi.", "Got 2 2 3."]);
   });
 
   test("shows what a cold compile shows with the local the readers read removed", () => {
-    expectCold([["local a = 1\n", ""]], ["Hi.", "Got nil nil 3."]);
+    expectCold([["  local a = 1\n", ""]], ["Hi.", "Got nil nil 3."]);
   });
 
   test("shows what a cold compile shows with the local the readers read moved below them", () => {
     expectCold(
-      [["local a = 1\n", ""], ["local a = 3", "local a = 1\nlocal a = 3"]],
+      [["  local a = 1\n", ""], ["  local a = 3", "  local a = 1\n  local a = 3"]],
       ["Hi.", "Got nil nil 3."],
     );
   });
 
   test("shows what a cold compile shows with the readers' local declared once, then twice", () => {
     expectCold(
-      [["local a = 3\n", ""], ["  Hi.", "  local a = 9"]],
+      [["  local a = 3\n", ""], ["  Hi.", "  local a = 9"]],
       ["Got 1 1 9."],
     );
   });
@@ -906,7 +880,7 @@ describe("an incremental compile", () => {
     expect(cold.texts).toEqual(["Got 9."]);
   });
 
-  test("shows what a cold compile shows with a scene's local of the name removed", () => {
+  test("shows what a cold compile shows with a later local of the name added, then removed", () => {
     expectCold(
       [["  Hi.", "  local a = 9"], ["  local a = 9", "  Hi."]],
       ["Hi.", "Got 1 1 3."],

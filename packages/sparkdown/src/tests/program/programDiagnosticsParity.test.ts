@@ -11,6 +11,9 @@
 // A fixture main added since is recorded by the same command once its
 // diagnostics on main's `ExportRuntime` are checked to be the resolver's
 // (`diverts/dotted-divert-targets-with-arguments.sd`, at bbc912833).
+// A fixture whose locals #1673 moved into a scene records the resolver's
+// diagnostics for its scene form (`newlines/value-returning-function-eval.sd`,
+// `scoping/preamble-do-local.sd`, `scoping/preamble-do-statement-after.sd`).
 // A record's `fallback` names the construct the program fell back for. Since
 // #705 such a compile builds no chunks and reports the construct as an error
 // at its statement, unless the statement's line already holds an error;

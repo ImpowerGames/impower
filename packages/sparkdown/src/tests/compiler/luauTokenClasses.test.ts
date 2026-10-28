@@ -501,7 +501,7 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
 // line's does, so the value is missing there, at `<eof>` (#1907).
 describe("a narrative `=` that ends its line has no value (#1906)", () => {
   test.each([
-    ["declaration", "local q =", "0:9-1:0"],
+    ["declaration", "store q =", "0:9-1:0"],
     ["reassignment", "store q = 0\nq =", "1:3-2:0"],
   ])("a %s's value after a multi-line comment's close is not read", (_kind, statement, at) => {
     const source = `${statement}\n--[[ a\nb\n]] l\nAfter.\n`;
@@ -509,7 +509,7 @@ describe("a narrative `=` that ends its line has no value (#1906)", () => {
   });
 
   test.each([
-    ["declaration", "local y =", "0:9-1:0"],
+    ["declaration", "store y =", "0:9-1:0"],
     ["reassignment", "store y = 0\ny =", "1:3-2:0"],
   ])("a %s before an if line ends at its line", (_kind, statement, at) => {
     const source = `${statement}\nif true then\n  Inside.\nend\nAfter.\n`;

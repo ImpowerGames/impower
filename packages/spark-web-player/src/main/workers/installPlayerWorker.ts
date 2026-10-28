@@ -82,6 +82,10 @@ interface DisplayableProgram {
  * PLAY's game, which runs beside it (`player/play`). The page holds only each
  * program's summary and no game.
  */
+/** A point a display or PLAY routes to: a line, and the address it stands
+ *  for when that is not the one the line resolves to (`Game.setStartFrom`). */
+type StartPoint = { file: string; line: number; address?: ProgramAddress };
+
 export function installPlayerWorker(connection: MessageConnection) {
   const player = {
     /** How PLAY's game is put at its start point. */
@@ -544,7 +548,7 @@ export function installPlayerWorker(connection: MessageConnection) {
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
-    point: { file: string; line: number },
+    point: StartPoint,
     beat: "first" | "last",
   ): RouteReport => {
     const to = routeGameTo(
@@ -739,6 +743,10 @@ export function installPlayerWorker(connection: MessageConnection) {
         programChanged,
         file: shown.point.file,
         line: shown.point.line,
+        address: shown.point.address,
+        relocate: (from) =>
+          startPoint(entry.program, { file: from.file, line: from.line }, "last")
+            .point,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
@@ -913,31 +921,78 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   /**
    * The line and beat a display or PLAY of `point` routes to: the point's own
-   * `beat`. A line with no address, and none below it in its script (a
-   * scene's closing `end` at the end of the script, the blank lines after
-   * it), is where the story stands once the line above it that has one has
-   * run, so it routes to that line's last beat, whose route puts the beat on
-   * screen there in its checkpoint (#1606). With no such line above, the
-   * point stands, and a run from it starts from the top of the top-level
-   * content.
+   * `beat`. The `end` that closes a scene or branch belongs to that flow,
+   * not to the line below it, which another flow holds (#1618). It routes to
+   * where the flow finishes:
+   * - for a flow that runs off its end, the `Done` the compile ends it with
+   *   (`ProgramRoot.flowEndAddress`), which a route reaches only when a run
+   *   finishes the flow, whatever its conditionals decided; the point names
+   *   that address, since the line of a scene's `end` can stand in a
+   *   branch's lines or resolve elsewhere;
+   * - for a flow that ends itself (a `done`, a `fin`, a divert), the last
+   *   beat of its own nearest line above the `end` that has an address,
+   *   passing over the branches written inside a scene, as the story stands
+   *   once that line has run (#1606);
+   * - for a scene that enters its first branch (one that binds no
+   *   parameters), what that branch's `end` routes to.
+   * A line with no address and none below it in its script (the blank lines
+   * after the script's last `end`), or a closing `end` none of these place,
+   * routes to the last beat of the nearest line above it that has one. With
+   * no such line above, the point stands, and a run from it starts from
+   * where its address leads, or from the top of the top-level content.
    */
   const startPoint = (
     program: SparkProgram,
-    point: { file: string; line: number },
+    point: StartPoint,
     beat: "first" | "last",
-  ): { point: { file: string; line: number }; beat: "first" | "last" } => {
+  ): { point: StartPoint; beat: "first" | "last" } => {
     const locator = programLocator(program);
-    if (locator.addressAt(point.file, point.line) != null) {
+    const ends = program.flowEnds?.[point.file] ?? [];
+    const closed = ends.find(([, end]) => end === point.line);
+    if (!closed && locator.addressAt(point.file, point.line) != null) {
       return { point, beat };
     }
-    for (let line = point.line - 1; line >= 0; line -= 1) {
-      const address = locator.addressAt(point.file, line, { beat: "last" });
-      const location = locator.locationOf(address);
-      if (location && location.startLine <= line) {
-        return { point: { file: point.file, line }, beat: "last" };
+    // The nearest line from `from` up to the line after `floor` that has an
+    // address of its own, passing over the lines of the flows `skipped` spans.
+    const lineAbove = (
+      from: number,
+      floor: number,
+      skipped: readonly (readonly [number, number])[],
+    ) => {
+      for (let line = from; line > floor; line -= 1) {
+        if (skipped.some(([header, end]) => header <= line && line <= end)) {
+          continue;
+        }
+        const address = locator.addressAt(point.file, line, { beat: "last" });
+        const location = locator.locationOf(address);
+        if (location && location.startLine <= line) {
+          return { point: { file: point.file, line }, beat: "last" as const };
+        }
+      }
+      return undefined;
+    };
+    if (closed) {
+      const [header] = closed;
+      const address = program.chunks?.flowEndAddress(point.file, header);
+      if (address !== undefined) {
+        return { point: { ...point, address }, beat: "last" };
+      }
+      const nested = ends.filter(([h, e]) => h > header && e < point.line);
+      const own = lineAbove(point.line - 1, header, nested);
+      if (own) {
+        return own;
+      }
+      // A scene that runs nothing of its own before its first branch enters
+      // that branch when it binds no parameters (`programFlows`).
+      const first = nested.reduce<(typeof nested)[number] | undefined>(
+        (earliest, flow) => (!earliest || flow[0] < earliest[0] ? flow : earliest),
+        undefined,
+      );
+      if (first && program.chunks?.bindsParameters(point.file, first[0]) === false) {
+        return startPoint(program, { file: point.file, line: first[1] }, beat);
       }
     }
-    return { point, beat };
+    return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
   /** End PLAY's game, answering where it last executed: the run the page

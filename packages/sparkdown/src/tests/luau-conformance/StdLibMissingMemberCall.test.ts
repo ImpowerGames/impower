@@ -16,6 +16,12 @@ const diagnoseDetailed = (source: string) =>
 const diagnoseWithLints = (source: string) =>
   diagnoseDetailed(source).map((d) => d.message);
 
+// A local belongs in a scene or a function: these write lines as a scene's
+// body, or as the body of a function `host` that nothing calls.
+const inScene = (body: string) => `scene start\n${body.split("\n").map((line) => `  ${line}`).join("\n")}\nend\n`;
+const inHost = (body: string) => `function host()\n${body.split("\n").map((line) => `    ${line}`).join("\n")}\nend\n`;
+const notUnusedLint = (m: string) => !m.includes("never used");
+
 const spans = (source: string) =>
   diagnoseDetailed(source).map((d) => [
     d.message,
@@ -76,13 +82,13 @@ describe("a local named like a library", () => {
   const SHADOW = "local table = { nogetn = function() return 1 end }";
 
   test("does not hide a missing member read before it", () => {
-    expect(diagnoseWithLints(`& print(table.nogetn)\n${SHADOW}\n`)).toEqual(
+    expect(diagnoseWithLints(inScene(`& print(table.nogetn)\n${SHADOW}`))).toEqual(
       MISSING,
     );
   });
 
   test("does not hide a missing member called before it", () => {
-    expect(diagnoseWithLints(`& print(table.nogetn())\n${SHADOW}\n`)).toEqual(
+    expect(diagnoseWithLints(inScene(`& print(table.nogetn())\n${SHADOW}`))).toEqual(
       MISSING,
     );
   });
@@ -90,7 +96,7 @@ describe("a local named like a library", () => {
   test("does not hide a missing member in a function declared before it", () => {
     expect(
       diagnoseWithLints(
-        `function run()\n    print(table.nogetn())\nend\n${SHADOW}\n`,
+        `function run()\n    print(table.nogetn())\nend\n${inScene(SHADOW)}`,
       ),
     ).toEqual(MISSING);
   });
@@ -125,21 +131,21 @@ describe("a local named like a library", () => {
   });
 
   test.each([
-    ["a top-level do block", "do"],
-    ["a top-level if arm", "if true then"],
-  ])("does not hide a missing member in a function after %s that declares it", (_, opener) => {
+    ["a do block", "do"],
+    ["an if arm", "if true then"],
+  ])("does not hide a missing member in a function after %s of the enclosing function that declares it", (_, opener) => {
     expect(
       diagnoseWithLints(
-        `${opener}\n    ${SHADOW}\nend\nfunction run()\n    print(table.nogetn())\nend\n`,
-      ),
+        inHost(`${opener}\n    ${SHADOW}\nend\nfunction run()\n    print(table.nogetn())\nend`),
+      ).filter(notUnusedLint),
     ).toEqual(MISSING);
   });
 
-  test("does not hide a missing member in a function written before it in the same top-level block", () => {
+  test("does not hide a missing member in a function written before it in the same block", () => {
     expect(
       diagnoseWithLints(
-        `do\n    function run()\n        print(table.nogetn())\n    end\n    ${SHADOW}\nend\n`,
-      ),
+        inHost(`do\n    function run()\n        print(table.nogetn())\n    end\n    ${SHADOW}\nend`),
+      ).filter(notUnusedLint),
     ).toEqual(MISSING);
   });
 
@@ -182,27 +188,27 @@ describe("a local named like a library", () => {
   test.each([
     ["one level", "local function inner()\n        return table.nogetn()\n    end\n    return inner()"],
     ["two levels", "local function mid()\n        local function inner()\n            return table.nogetn()\n        end\n        return inner()\n    end\n    return mid()"],
-  ])("a local function nested %s in a function follows the top level around that function", (_, body) => {
-    const outer = `function outer()\n    ${body}\nend\n`;
-    expect(diagnoseWithLints(`${outer}${SHADOW}\n`)).toEqual(MISSING);
-    expect(diagnoseWithLints(`do\n    ${SHADOW}\nend\n${outer}`)).toEqual(MISSING);
-    expect(diagnoseWithLints(`${SHADOW}\n${outer}`)).toEqual([]);
+  ])("a local function nested %s in a function follows the body around that function", (_, body) => {
+    const outer = `function outer()\n    ${body}\nend`;
+    expect(diagnoseWithLints(inHost(`${outer}\n${SHADOW}`)).filter(notUnusedLint)).toEqual(MISSING);
+    expect(diagnoseWithLints(inHost(`do\n    ${SHADOW}\nend\n${outer}`)).filter(notUnusedLint)).toEqual(MISSING);
+    expect(diagnoseWithLints(inHost(`${SHADOW}\n${outer}`))).toEqual([]);
   });
 
   test.each([
     ["an if arm", "if true then", "else"],
     ["a while body", "while false do", null],
-  ])("a function written inside %s at the top level follows its place in it", (_, opener, other) => {
+  ])("a function written inside %s of a function follows its place in it", (_, opener, other) => {
     const fn = "function inner()\n        print(table.nogetn())\n    end";
     expect(
-      diagnoseWithLints(`${opener}\n    ${SHADOW}\n    ${fn}\nend\n`),
+      diagnoseWithLints(inHost(`${opener}\n    ${SHADOW}\n    ${fn}\nend`)),
     ).toEqual([]);
-    expect(diagnoseWithLints(`${opener}\n    ${fn}\nend\n${SHADOW}\n`)).toEqual(
+    expect(diagnoseWithLints(inHost(`${opener}\n    ${fn}\nend\n${SHADOW}`)).filter(notUnusedLint)).toEqual(
       MISSING,
     );
     if (other) {
       expect(
-        diagnoseWithLints(`${opener}\n    ${SHADOW}\n${other}\n    ${fn}\nend\n`),
+        diagnoseWithLints(inHost(`${opener}\n    ${SHADOW}\n${other}\n    ${fn}\nend`)).filter(notUnusedLint),
       ).toEqual(MISSING);
     }
   });
@@ -237,28 +243,21 @@ describe("a local named like a library", () => {
     ).toEqual(MISSING);
   });
 
-  test("a define method follows the top level around the define", () => {
+  test("a define method reads the library, whatever scene declares a local of its name", () => {
     const define =
       "define Penguin with\n  swim()\n    print(table.nogetn())\n  end\nend\n";
     expect(diagnoseWithLints(define)).toEqual(MISSING);
-    expect(diagnoseWithLints(`${define}${SHADOW}\n`)).toEqual(MISSING);
-    expect(diagnoseWithLints(`do\n  ${SHADOW}\nend\n${define}`)).toEqual(
-      MISSING,
-    );
-    expect(diagnoseWithLints(`${SHADOW}\n${define}`)).toEqual([]);
+    expect(diagnoseWithLints(`${define}${inScene(SHADOW)}`)).toEqual(MISSING);
+    expect(diagnoseWithLints(`${inScene(SHADOW)}${define}`)).toEqual(MISSING);
   });
 
-  test("a scene follows the top level before it and its own content", () => {
-    const scene = (body: string) => `scene start\n  ${body}\nend\n`;
-    expect(diagnoseWithLints(scene("& print(table.nogetn)"))).toEqual(MISSING);
+  test("a scene follows its own content", () => {
+    expect(diagnoseWithLints(inScene("& print(table.nogetn)"))).toEqual(MISSING);
     expect(
-      diagnoseWithLints(`${SHADOW}\n${scene("& print(table.nogetn)")}`),
+      diagnoseWithLints(inScene(`${SHADOW}\n& print(table.nogetn)`)),
     ).toEqual([]);
     expect(
-      diagnoseWithLints(scene(`${SHADOW}\n  & print(table.nogetn)`)),
-    ).toEqual([]);
-    expect(
-      diagnoseWithLints(scene(`& print(table.nogetn)\n  ${SHADOW}`)),
+      diagnoseWithLints(inScene(`& print(table.nogetn)\n${SHADOW}`)),
     ).toEqual(MISSING);
   });
 
@@ -280,22 +279,14 @@ describe("a local named like a library", () => {
 
   test("provides its own member after its declaration", () => {
     expect(
-      diagnoseWithLints(`${SHADOW}\n& print(table.nogetn())\n& print(table.nogetn)\n`),
+      diagnoseWithLints(inScene(`${SHADOW}\n& print(table.nogetn())\n& print(table.nogetn)`)),
     ).toEqual([]);
   });
 
-  test("provides its own member inside a function declared after it", () => {
+  test("provides its own member inside a function written after it in the same block", () => {
     expect(
       diagnoseWithLints(
-        `${SHADOW}\nfunction run()\n    print(table.nogetn())\nend\n`,
-      ),
-    ).toEqual([]);
-  });
-
-  test("provides its own member inside a function written after it in the same top-level block", () => {
-    expect(
-      diagnoseWithLints(
-        `do\n    ${SHADOW}\n    function run()\n        print(table.nogetn())\n    end\nend\n& print(1)\n`,
+        inHost(`do\n    ${SHADOW}\n    function run()\n        print(table.nogetn())\n    end\nend`),
       ),
     ).toEqual([]);
   });
@@ -354,7 +345,7 @@ describe("a local named like a library", () => {
 
   test("leaves an existing library member read before it unreported", () => {
     expect(
-      diagnoseWithLints(`& print(table.concat({"a"}))\n${SHADOW}\n`),
+      diagnoseWithLints(inScene(`& print(table.concat({"a"}))\n${SHADOW}`)),
     ).toEqual([]);
     expect(
       diagnoseWithLints(
@@ -518,16 +509,16 @@ describe("a colon call on a library and a local named like it", () => {
   const MISSING = ["Cannot find item or path named `table.nogetn`"];
   const SHADOW = "local table = { nogetn = function(self) return 1 end }";
 
-  test("at top level, before the local", () => {
+  test("in a scene, before the local", () => {
     expect(
-      diagnoseWithLints(`& print(table:nogetn())\n${SHADOW}\n`),
+      diagnoseWithLints(inScene(`& print(table:nogetn())\n${SHADOW}`)),
     ).toEqual(MISSING);
   });
 
-  test("in a function written before a top-level local", () => {
+  test("in a top-level function, with a scene's local", () => {
     expect(
       diagnoseWithLints(
-        `function run()\n    print(table:nogetn())\nend\n${SHADOW}\n`,
+        `function run()\n    print(table:nogetn())\nend\n${inScene(SHADOW)}`,
       ),
     ).toEqual(MISSING);
   });
@@ -548,16 +539,16 @@ describe("a colon call on a library and a local named like it", () => {
     ).toEqual(MISSING);
   });
 
-  test("after the local at top level, it reads the local", () => {
+  test("after the local in a scene, it reads the local", () => {
     expect(
-      diagnoseWithLints(`${SHADOW}\n& print(table:nogetn())\n`),
+      diagnoseWithLints(inScene(`${SHADOW}\n& print(table:nogetn())`)),
     ).toEqual([]);
   });
 
   test("in a function written after the local, it reads the local", () => {
     expect(
       diagnoseWithLints(
-        `${SHADOW}\nfunction run()\n    print(table:nogetn())\nend\n`,
+        inHost(`${SHADOW}\nfunction run()\n    print(table:nogetn())\nend`),
       ),
     ).toEqual([]);
   });
@@ -565,7 +556,7 @@ describe("a colon call on a library and a local named like it", () => {
   test("in a closure created after the local, it reads the local", () => {
     expect(
       diagnoseWithLints(
-        `${SHADOW}\nlocal f = function() return table:nogetn() end\n`,
+        inHost(`${SHADOW}\nlocal f = function() return table:nogetn() end\nreturn f`),
       ),
     ).toEqual([]);
   });

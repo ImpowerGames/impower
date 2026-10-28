@@ -372,7 +372,11 @@ test.each([
 // A type that ends its line in story text does not take a marked line after
 // it: the `&` there marks a statement, not an intersection.
 test.each([
-  ["a declaration", "local s: number\n& s = 2\nValue {s}.\n", "Value 2.\n"],
+  [
+    "a declaration",
+    "-> start\nscene start\n  local s: number\n  & s = 2\n  Value {s}.\nend\n",
+    "Value 2.\n",
+  ],
   [
     "a type alias",
     "store s = 1\ntype T = number\n& s += 1\nValue {s}.\n",

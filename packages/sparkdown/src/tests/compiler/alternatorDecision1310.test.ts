@@ -196,7 +196,7 @@ describe("where a candidate ends", () => {
   // leaves the outer word its arms as the spaced form does.
   test.each([
     ["in display text", 'Value {match match("x") | x = "mage" end| mage = "yes" end}.\n', "match"],
-    ["in a narrative statement", '& local v = match match("x") | x = 1 end| mage = 2 end\nDone.\n', "match"],
+    ["in a narrative statement", '-> start\nscene start\n  & local v = match match("x") | x = 1 end| mage = 2 end\n  Done.\nend\n', "match"],
     ["at the start of a function's line", 'function f()\n  match match("x") | x = print(1) end| mage = print(2) end\n  return 3\nend\nValue {f()}.\n', "match"],
     ["around a sequential word", 'Value {cycle match("x") | x = "a" end| "b" end}.\n', "cycle"],
   ])("written against the outer `|` %s", (_, source, outer) => {

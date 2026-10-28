@@ -1,4 +1,4 @@
 do
-  local x = 1
-  local y = x + 1
+  store x = 1
+  store y = x + 1
 end

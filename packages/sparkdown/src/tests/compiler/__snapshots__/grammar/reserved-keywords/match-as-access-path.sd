@@ -1,1 +1,1 @@
-local kind = match.kind
+store kind = match.kind

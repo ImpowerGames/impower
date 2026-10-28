@@ -418,7 +418,14 @@ async function main() {
 
   const startFrom = { file: mainUri, line: line0 };
   configurePlayerCompiler(compiler, files, startFrom);
+  // The first compile searches its route from the top, which no sample
+  // does while the route before it still holds (#1636).
+  const firstT0 = performance.now();
   compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
+  const firstCompile = {
+    ms: performance.now() - firstT0,
+    planRouteMs: takeMeasures().sums["game/planRoute"] ?? 0,
+  };
   const originalText = documentText();
 
   // A preview's display, in the order the worker's display runs it
@@ -613,6 +620,7 @@ async function main() {
     warmup: config.warmup,
     samples: samples.length,
     routeSteps,
+    firstCompile,
     heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1048576),
     // After full collections, when the launcher exposes them.
     heapAfterFirstSampleMB: heapAfterFirst,
@@ -661,6 +669,7 @@ function printReport(report: any) {
       ? `mode ${report.mode}, structural: line ${report.line} ${JSON.stringify(report.lineText)}, inserting ${JSON.stringify(s.inserted)} after it and removing it, alternately`
       : `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
+    `first compile and route search, from the top: ${report.firstCompile.ms.toFixed(1)} ms (game/planRoute ${report.firstCompile.planRouteMs.toFixed(1)} ms)`,
     `heap after full collections: ${report.heapAfterFirstSampleMB} MB after the first sample, ${report.heapEvery50SamplesMB.map((mb: number) => `${mb} MB`).join(", ") || "-"} after every 50th, ${report.heapAfterLastSampleMB} MB after the last`,
     ...(report.noFlowReuse ? ["parsed-flow reuse refused on every compile (--no-flow-reuse)"] : []),
     ...(report.parsedProbe ? [`parsed objects alive after the last sample: ${report.parsedProbe.parsedObjects}`] : []),

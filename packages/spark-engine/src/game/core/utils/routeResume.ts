@@ -1,5 +1,8 @@
 import type { ProgramChangeSummary } from "@impower/sparkdown/src/compiler/types/ProgramChangeSummary";
-import type { RouteStep } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import type {
+  LevelZeroWork,
+  RouteStep,
+} from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type {
   ChunkPosition,
   ProgramRoot,
@@ -65,10 +68,18 @@ export const validAddressPrefixLength = (
     }
     return place;
   };
+  // The moves from one chunk to another already found to hold, each the
+  // same answer every time: a route through a loop makes the same few
+  // moves on every pass.
+  const held = new Map<number, Set<number>>();
   let previous = -1;
   for (let i = 0; i < steps.length; i += 1) {
     const id = chunkOfAddress(steps[i]!.address);
     if (id === previous) {
+      continue;
+    }
+    if (previous >= 0 && held.get(previous)?.has(id)) {
+      previous = id;
       continue;
     }
     const place = placeOf(id);
@@ -96,9 +107,109 @@ export const validAddressPrefixLength = (
     ) {
       return i;
     }
+    if (previous >= 0) {
+      let to = held.get(previous);
+      if (!to) {
+        to = new Set();
+        held.set(previous, to);
+      }
+      to.add(id);
+    }
     previous = id;
   }
   return steps.length;
+};
+
+/**
+ * Whether the next program still holds what a route search's level zero ran
+ * (`LevelZeroWork`), so that a search on it would run its level zero the same
+ * way: every chunk level zero stood in is kept, each move between two of them
+ * is one the new root makes too (as `validAddressPrefixLength` judges a
+ * route's moves), the chunk the search started in still starts its sequence,
+ * a chunk a run ended in at the end of its sequence still ends it, and so
+ * does each owner it was last in, so no statement now runs after it, no
+ * symbol moved, and the declarations did not run again. A compile measured
+ * against another program than the one the work was last held in, or one
+ * that says nothing of its chunks, holds nothing.
+ */
+export const levelZeroHolds = (
+  work: Pick<LevelZeroWork, "chunks" | "moves" | "first" | "ends">,
+  before: ProgramRoot,
+  after: ProgramRoot,
+  changes: ProgramChangeSummary | undefined,
+  heldChangeId: number | undefined,
+): boolean => {
+  const chunks = changes?.chunks;
+  if (!chunks || chunks.initializers || chunks.moved.length > 0) {
+    return false;
+  }
+  if (heldChangeId == null || changes.since !== heldChangeId) {
+    return false;
+  }
+  const places = new Map<
+    number,
+    { was: ChunkPosition | undefined; now: ChunkPosition | undefined }
+  >();
+  const placeOf = (id: number) => {
+    let place = places.get(id);
+    if (!place) {
+      place = { was: before.position(id), now: after.position(id) };
+      places.set(id, place);
+    }
+    return place;
+  };
+  for (const id of work.chunks) {
+    const place = placeOf(id);
+    if (!place.was || !place.now) {
+      return false;
+    }
+    if (
+      place.was.entry === 0 &&
+      sceneStart(before, place.was.sequence) !== sceneStart(after, place.now.sequence)
+    ) {
+      return false;
+    }
+  }
+  if (work.first != null) {
+    const place = placeOf(work.first);
+    if ((place.was!.entry === 0) !== (place.now!.entry === 0)) {
+      return false;
+    }
+  }
+  const lastOf = (at: ChunkPosition) =>
+    at.entry === at.sequence.arrays.chunks.length - 1;
+  // A run that ended at the last chunk of a body went on, as far as the
+  // program is concerned, after its owner: each owner it was last in must
+  // still be last too.
+  for (const end of work.ends) {
+    for (let id = end; ; ) {
+      const place = placeOf(id);
+      if (!place.was || !place.now) {
+        return false;
+      }
+      if (!lastOf(place.was)) {
+        break;
+      }
+      if (!lastOf(place.now)) {
+        return false;
+      }
+      const owner = place.was.sequence.owner;
+      if (owner < 0) {
+        break;
+      }
+      id = owner;
+    }
+  }
+  for (const [from, tos] of work.moves) {
+    const a = placeOf(from);
+    for (const to of tos) {
+      const b = placeOf(to);
+      if (!sameMove(a.was!, b.was!, a.now!, b.now!)) {
+        return false;
+      }
+    }
+  }
+  return true;
 };
 
 /** For a branch's own sequence, the branch its scene enters when the scene

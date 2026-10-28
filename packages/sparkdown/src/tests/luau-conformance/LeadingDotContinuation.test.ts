@@ -293,7 +293,9 @@ test.each([
 
 // In a scene, a line that begins with `.` is prose.
 test("a line starting with a dot after a statement in a scene is prose", () => {
-  const ctx = makeRuntimeStoryFromSource("local y = 1\n.hello there\n");
+  const ctx = makeRuntimeStoryFromSource(
+    "-> start\nscene start\n  local y = 1\n  .hello there\nend\n",
+  );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe(".hello there\n");
 });
@@ -370,7 +372,9 @@ test.each([
 });
 
 test("a line starting with a minus after a statement in a scene is prose", () => {
-  const ctx = makeRuntimeStoryFromSource("local y = 1\n- hello there\n");
+  const ctx = makeRuntimeStoryFromSource(
+    "-> start\nscene start\n  local y = 1\n  - hello there\nend\n",
+  );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("- hello there\n");
 });

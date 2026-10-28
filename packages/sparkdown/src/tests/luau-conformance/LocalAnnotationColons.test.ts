@@ -95,20 +95,20 @@ describe("an annotation written with two separate colons (#1168)", () => {
 });
 
 // `checkLuau` compiles its snippet as a function body. In a narrative body
-// (a script's top level or a scene) the declaration ends at its line, so
-// these check every error the compiled script reports there: Luau's, its
-// recovery's included, as the statement's reading reports them (I-1515).
+// (a scene, or a script's top level for a `store`) the declaration ends at
+// its line, so these check every error the compiled script reports there:
+// Luau's, its recovery's included, as the statement's reading reports them
+// (I-1515). A local belongs in a scene, so each local is written in one.
 describe("in a narrative body", () => {
   test.each([
-    ["local :: number", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
-    ["local : number", ["Expected identifier when parsing variable name, got ':'"]],
-    ["local a, :: number", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["scene S\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["scene S\n  local : number\nend", ["Expected identifier when parsing variable name, got ':'"]],
+    ["scene S\n  local a, :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
     ["store : number", ["Expected identifier when parsing variable name, got ':'"]],
     [
-      "local c: : number = 1",
+      "scene S\n  local c: : number = 1\nend",
       ["Expected type, got ':'", "Expected identifier when parsing expression, got ':'", "Expected '(', '{' or <string> when parsing function call, got '='"],
     ],
-    ["scene S\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
   ])("%j reports Luau's errors", (source, messages) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual(messages);
   });
@@ -116,7 +116,7 @@ describe("in a narrative body", () => {
   // Luau ends `local c : : number`'s method call at `number` with `Expected
   // function call arguments after '('`; the reading meets the line's end
   // there and words it as a call with no arguments at <eof> (I-1551).
-  test.each(["local c : : number", "scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
+  test.each(["scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
       "Expected type, got ':'",
       "Expected identifier when parsing expression, got ':'",
@@ -136,7 +136,7 @@ describe("in a narrative body", () => {
   // The next line is story, so a trailing comma is the only error, as it is
   // before a target with a valid annotation (`TrailingCommaValueList`). The
   // declaration's Luau meets its end of input at the line's end (#1907).
-  test.each(["local a,\nb :: number", "local a,\nb: number", "scene S\n  local a,\n  b :: number\nend"])(
+  test.each(["scene S\n  local a,\n  b :: number\nend", "scene S\n  local a,\n  b: number\nend"])(
     "%j reports only the trailing comma",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
@@ -145,7 +145,12 @@ describe("in a narrative body", () => {
     },
   );
 
-  test.each(["local x: number", "local x: {a: number}", "local f: (a: number) -> ()", "local x = 1\nlocal y = x :: number"])(
+  test.each([
+    "scene S\n  local x: number\nend",
+    "scene S\n  local x: {a: number}\nend",
+    "scene S\n  local f: (a: number) -> ()\nend",
+    "scene S\n  local x = 1\n  local y = x :: number\nend",
+  ])(
     "%j stays free of errors",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([]);

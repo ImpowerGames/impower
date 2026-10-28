@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { workspaceAliases } from "./benchLauncher.mjs";
 import { totalLength, uncovered, within } from "./phaseGaps.mjs";
 import * as bench from "./preview-bench.mjs";
-import { buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
+import { buildLoopFixture, buildPreviewFixture, writePreviewFixture } from "./preview-fixture.mjs";
 import { BYPASS, GAPS } from "./profile-groups.mjs";
 import { STRUCTURAL_TEXT as measureStructuralText } from "../../.agents/skills/drive-web-editor/measure.mjs";
 import { parseShareArgs, profileShares, repositoryPath } from "./profile-shares.mjs";
@@ -96,6 +96,21 @@ await check("the fixture is deterministic and refuses a non-empty directory", ()
   }
 });
 
+await check("the loop fixture runs its loop before a skipped branch that holds the fixture's target", () => {
+  const loop = buildLoopFixture({ passes: 1234 });
+  const loopLines = loop.files.get("main.sd").split("\n");
+  const sceneAt = loopLines.indexOf("scene MAIN");
+  assert.deepEqual(loopLines.slice(sceneAt + 1, sceneAt + 6), ["  for i = 1, 1234 do", "    if i % 3 == 0 then", "      tally += 1", "    end", "  end"]);
+  assert.ok(loopLines.slice(0, sceneAt).includes("store flag = false"));
+  // The target is the fixture's own directive, inside `if flag then`.
+  assert.equal(loop.target.lineText.trim(), target.lineText.trim());
+  assert.equal(loop.target.word, target.word);
+  const branchAt = loopLines.lastIndexOf("    if flag then");
+  assert.ok(branchAt > 0 && branchAt < loop.target.line - 1, "the target sits after the branch's test");
+  assert.equal(loopLines.length - lines.length, 6 + 3 + 2);
+  assert.equal(loop.target.passes, 1234);
+});
+
 await check("the benchmark's arguments and default replacements", () => {
   assert.deepEqual(parseBenchArgs(["--fixture"]), { mode: "both", samples: 12, warmup: 4, fixture: true });
   assert.deepEqual(parseBenchArgs(["--project", "p", "--line", "3515", "--word", "concerned", "--mode", "edit", "--options", "a,b"]), {
@@ -115,6 +130,9 @@ await check("the benchmark's arguments and default replacements", () => {
   // A cold compile edits no line either (#1712).
   assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "cold", "--heap-probe", "h"]), { mode: "cold", samples: 12, warmup: 4, project: "p", heapProbe: "h" });
   assert.deepEqual(parseBenchArgs(["--fixture", "--mode", "edit", "--no-flow-reuse"]), { mode: "edit", samples: 12, warmup: 4, fixture: true, noFlowReuse: true });
+  // A loop that shows nothing before the target, in the fixture only (#1636).
+  assert.deepEqual(parseBenchArgs(["--fixture", "--loop", "20000"]), { mode: "both", samples: 12, warmup: 4, fixture: true, loop: 20000 });
+  assert.throws(() => parseBenchArgs(["--project", "p", "--line", "3", "--word", "w", "--loop", "5"]), /--loop needs --fixture/);
   assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe"]), /--heap-probe needs a value/);
   assert.throws(() => parseBenchArgs(["--fixture", "--heap-probe", "h", "--cpu-prof", "p"]), /--heap-probe and --cpu-prof are exclusive/);
   // Every compile builds statement chunks and the game runs the program

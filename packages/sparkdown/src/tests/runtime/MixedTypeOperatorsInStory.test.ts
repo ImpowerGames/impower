@@ -70,9 +70,9 @@ end`);
   });
 
   test("a choice condition with a mixed-type equality hides the choice", () => {
-    const r = run(`-> main
+    const r = run(`store n = 1
+-> main
 scene main
-  store n = 1
   choose
     * if (n == "1") coerced
     * if (n == 1) numeric
@@ -84,9 +84,9 @@ end`);
   });
 
   test("a choice condition ordering two booleans raises", () => {
-    const r = run(`-> main
+    const r = run(`store b = true
+-> main
 scene main
-  store b = true
   choose
     * if (b < false) never
     * fallback

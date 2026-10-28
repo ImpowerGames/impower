@@ -158,7 +158,7 @@ text.source.sparkdown [0..843]
  ├─ meta.function.luau [217..220]
  │   └─ keyword.control.end.luau [217..220]: "end"
  ├─ Newline [220..221]: "\n"
- ├─ storage.modifier.scope.luau [221..226]: "local"
+ ├─ storage.modifier.scope.luau [221..226]: "store"
  ├─ punctuation.whitespace.optional.sd [226..227]: " "
  ├─ variable.other.readwrite.luau [227..228]: "g"
  ├─ punctuation.whitespace.optional.sd [228..229]: " "
@@ -420,7 +420,7 @@ text.source.sparkdown [0..843]
  │   └─ keyword.control.end.luau [600..603]: "end"
  ├─ Newline [603..604]: "\n"
  ├─ meta.function.luau [604..630]
- │   ├─ storage.modifier.scope.luau [604..609]: "local"
+ │   ├─ storage.modifier.scope.luau [604..609]: "store"
  │   ├─ punctuation.whitespace.optional.sd [609..610]: " "
  │   ├─ keyword.control.luau [610..618]: "function"
  │   ├─ punctuation.whitespace.optional.sd [618..619]: " "
@@ -448,7 +448,7 @@ text.source.sparkdown [0..843]
  │   └─ keyword.control.end.luau [651..654]: "end"
  ├─ Newline [654..655]: "\n"
  ├─ meta.function.luau [655..677]
- │   ├─ storage.modifier.scope.luau [655..660]: "local"
+ │   ├─ storage.modifier.scope.luau [655..660]: "store"
  │   ├─ punctuation.whitespace.optional.sd [660..661]: " "
  │   ├─ keyword.control.luau [661..669]: "function"
  │   ├─ punctuation.whitespace.optional.sd [669..670]: " "
@@ -553,7 +553,7 @@ text.source.sparkdown [0..843]
  ├─ punctuation.whitespace.optional.sd [781..782]: " "
  ├─ constant.numeric.decimal.luau [782..783]: "0"
  ├─ Newline [783..784]: "\n"
- ├─ storage.modifier.scope.luau [784..789]: "local"
+ ├─ storage.modifier.scope.luau [784..789]: "store"
  ├─ punctuation.whitespace.optional.sd [789..790]: " "
  ├─ variable.other.readwrite.luau [790..791]: "s"
  ├─ keyword.operator.type.luau [791..792]: ":"

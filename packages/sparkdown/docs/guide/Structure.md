@@ -345,7 +345,21 @@ scene act1
 end
 ```
 
-A display line, a choice, a divert, a top-level `local`, an assignment, a call or a `run` at the top of any other script is an error: _Only main.sd runs lines outside a scene. Move this into a scene or into main.sd._ An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
+A display line, a choice, a divert, an assignment, a call or a `run` at the top of any other script is an error: _Only main.sd runs lines outside a scene. Move this into a scene or into main.sd._ An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
+
+**Declarations go at the top level; locals go inside a flow.** A `store`, `const`, `define` (and `style`, `layout`, `screen`, `component`, `animation`, `theme` and `morph`), `function`, `type` or `external` takes effect when the story starts, wherever it is written, so it is written at a script's top level. Inside a scene or a branch, at any depth, each one is an error, such as _store declaration must be at the top level; assign it here with & name = value instead_. A scene changes a store where it runs by assigning it, and the editor's quick fix _Change to an assignment_ turns `store visited = true` into `& visited = true`:
+
+```sparkdown
+store visited = false
+
+scene start
+  & visited = true
+  local greeting = "Hello"
+  {greeting}.
+end
+```
+
+A `local` belongs to a scene, a branch, a choice's body or a function. At the top level of any script, `main.sd` included, or in an `if` or loop written at the top level, it is an error: _local declaration must be inside a scene, branch or function; use store or const at the top level_. Inside a function, a `const` or a `define` is the function's own and is allowed.
 
 **`run` calls a Luau file** where its line stands, as often as the line is written. It takes either form:
 

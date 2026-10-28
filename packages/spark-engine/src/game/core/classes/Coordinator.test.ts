@@ -99,7 +99,11 @@ const createGame = (
               ...(time != null ? { time } : {}),
             }),
         },
-        image: { clearAll: () => {}, write: () => {} },
+        image: {
+          clearAll: () => {},
+          restoreCleared: () => {},
+          write: () => {},
+        },
         style: { update: () => {} },
         // A cutscene's trigger fires once the page answers; tests flip
         // `cutsceneEnded` to stand in for that answer.

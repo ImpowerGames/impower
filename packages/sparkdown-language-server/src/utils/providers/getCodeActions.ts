@@ -1,5 +1,9 @@
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
+  STORE_INSIDE_FLOW_MESSAGE,
+  assignmentFixOf,
+} from "@impower/sparkdown/src/compiler/utils/declarationPlacement";
+import {
   closeQuoteMessage,
   quotePathMessage,
   runFixesOf,
@@ -33,6 +37,23 @@ const QUICK_FIXES = new Map<
         deleteLine(document, diagnostic.range.start.line),
       ]),
     ],
+  ],
+  // A `store` inside a flow is hoisted to the story's start, so the line is
+  // meant as an assignment (I-1673). The compiler gives the assignment's
+  // text in the diagnostic's data (`AssignmentFixData`), and none for a
+  // `store` an assignment would not do the same as.
+  [
+    STORE_INSIDE_FLOW_MESSAGE,
+    (document, diagnostic) => {
+      const assignment = assignmentFixOf(diagnostic.data);
+      return assignment === undefined
+        ? []
+        : [
+            quickFix("Change to an assignment", document, diagnostic, [
+              { range: diagnostic.range, newText: assignment },
+            ]),
+          ];
+    },
   ],
 ]);
 

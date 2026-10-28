@@ -454,6 +454,16 @@ describe("the preview, checkpoints and PLAY", () => {
     },
   );
 
+  test("the cursor on a continuation that shows no picture keeps the portrait the box had (#1662)", async () => {
+    // The connect clears the portrait; play keeps it under the continuation,
+    // which clears no picture, so the preview shows it again.
+    const source = story(`  CHARACTER:\n    [[a]]\n    First .. >\n    .. second.`);
+    const line = source.split("\n").findIndex((l) => l.includes("second."));
+    const result = await scrubTo(source, line);
+    expect(result.dialogue).toBe("First second.");
+    expect(result.portrait).toContain("a.png");
+  });
+
   test("a checkpoint taken at the continuation shows the whole box", async () => {
     const line = lineOf("second.");
     const simulator = createHarness(SOURCE, line, { connect: false });

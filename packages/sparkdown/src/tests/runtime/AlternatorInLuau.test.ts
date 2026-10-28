@@ -15,6 +15,8 @@ import { compileScript, describeRoot, errorsOf, programSession, storyRun } from 
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const lines = (...parts: string[]) => parts.join("\n") + "\n";
+/** The lines as the body of a scene the story diverts to, where a local belongs. */
+const inScene = (...body: string[]) => ["-> start", "scene start", ...body.filter((line) => line).map((line) => `  ${line}`), "end"];
 
 const run = (source: string) => {
   const ctx = makeRuntimeStoryFromSource(source);
@@ -130,7 +132,7 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
   });
 
   test("an arm that is a function with no name gives that function", () => {
-    expect(run(lines("function f()", "  return cycle | function() return 3 end end", "end", "local g = f()", "Value {type(g)} {g()}."))).toEqual({
+    expect(run(lines("function f()", "  return cycle | function() return 3 end end", "end", ...inScene("local g = f()", "Value {type(g)} {g()}.")))).toEqual({
       output: "Value function 3.\n",
       errors: [],
     });
@@ -148,8 +150,8 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     expect(output).toBe("1 A.\n2 B.\n3 A.\nLog aba.\n");
   });
 
-  test("at the top level, in a local's and a store's value", () => {
-    expect(run(lines('local v = cycle | "a" | "b" end', 'store s = queue | "x" | "y" end', "Top {v} {s}."))).toEqual({
+  test("in a top-level store's value and a scene's local's value", () => {
+    expect(run(lines('store s = queue | "x" | "y" end', ...inScene('local v = cycle | "a" | "b" end', "Top {v} {s}.")))).toEqual({
       output: "Top a x.\n",
       errors: [],
     });
@@ -200,7 +202,7 @@ describe("an arm's last call gives one value, as an if expression's arm does (ro
 describe("the names an alternator's head and arms read, in a closure (round 1, comment 6347276089)", () => {
   test("a value arm reads the parameter the closure captured, not a global of its name", () => {
     expect(
-      run(lines("store x = 99", "function make(x)", "  return function()", "    return cycle | x end", "  end", "end", "local g = make(7)", "Value {g()}.")),
+      run(lines("store x = 99", "function make(x)", "  return function()", "    return cycle | x end", "  end", "end", ...inScene("local g = make(7)", "Value {g()}."))),
     ).toEqual({ output: "Value 7.\n", errors: [] });
   });
 
@@ -219,8 +221,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
           "    return n",
           "  end",
           "end",
-          "local c = counter()",
-          "Value {c()} {c()} {c()}.",
+          ...inScene("local c = counter()", "Value {c()} {c()} {c()}."),
         ),
       ),
     ).toEqual({ output: "Value 1 2 2.\n", errors: [] });
@@ -235,7 +236,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
 
   test("an arm reads a local the closure declares before it, not one outside", () => {
     expect(
-      run(lines('local y = "out"', "function make()", "  return function()", '    local y = "in"', "    return cycle | y end", "  end", "end", "Value {make()()} {y}.")),
+      run(lines('store y = "out"', "function make()", "  return function()", '    local y = "in"', "    return cycle | y end", "  end", "end", "Value {make()()} {y}.")),
     ).toEqual({ output: "Value in out.\n", errors: [] });
   });
 
@@ -247,7 +248,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     ["the local its own value declares", ["    local x = cycle | x end", "    return x"]],
     ["a block's local that ended before a match's condition", ["    do local x = 1 end", '    return match x | other = x end']],
   ])("an arm reads the captured parameter, not %s", (_name, body) => {
-    expect(run(lines("store x = 99", "function make(x)", "  return function()", ...body, "  end", "end", "local g = make(7)", "Value {g()}."))).toEqual({
+    expect(run(lines("store x = 99", "function make(x)", "  return function()", ...body, "  end", "end", ...inScene("local g = make(7)", "Value {g()}.")))).toEqual({
       output: "Value 7.\n",
       errors: [],
     });
@@ -263,8 +264,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
       "    return cycle | local y = 3 y end",
       "  end",
       "end",
-      'local g = make(string.rep("retention-marker", 100))',
-      "Value {g()}.",
+      ...inScene('local g = make(string.rep("retention-marker", 100))', "Value {g()}."),
     );
     const { story, errorMessages } = makeRuntimeStoryFromSource(source);
     expect(errorMessages).toEqual([]);
@@ -280,14 +280,14 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     ["a closure reads an arm's local named as a top-level function", ["  return cycle | local x = 3 function() return x end end"], "local g = f()", "Value {g()}.", "Value 3."],
     ["a call reaches an arm's local named as a builtin", ['  return cycle | local type = function() return "arm" end type(1) end'], "", "Value {f()}.", "Value arm."],
   ])("%s", (_name, body, setup, line, output) => {
-    expect(run(lines("function x() return 7 end", "function f()", ...body, "end", setup, line))).toEqual({ output: `${output}\n`, errors: [] });
+    expect(run(lines("function x() return 7 end", "function f()", ...body, "end", ...inScene(setup, line)))).toEqual({ output: `${output}\n`, errors: [] });
   });
 
   test.each([
     ["a value before the arm's last", "    return function() return cycle | y 3 end end"],
     ["a sequential alternator's head", "    return function() return cycle y | 3 end end"],
   ])("%s, which nothing reads, keeps nothing alive in a save", (_name, body) => {
-    const source = lines("function make(y)", body, "end", 'local g = make(string.rep("unused-marker", 100))', "Value {g()}.");
+    const source = lines("function make(y)", body, "end", ...inScene('local g = make(string.rep("unused-marker", 100))', "Value {g()}."));
     const { story, errorMessages } = makeRuntimeStoryFromSource(source);
     // A head is an error, and runs as no head (I-1446).
     expect(errorMessages).toEqual(_name.includes("head") ? ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"] : []);
@@ -299,11 +299,11 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     ["on the arm's line", ["  return cycle |", "    @native function() return 3 end end"]],
     ["on a line of its own", ["  return cycle |", "    @native", "    function() return 3 end end"]],
   ])("an attributed function with no name, %s, is the arm's value", (_name, body) => {
-    expect(run(lines("function f()", ...body, "end", "local g = f()", "Value {type(g)} {g()}."))).toEqual({ output: "Value function 3.\n", errors: [] });
+    expect(run(lines("function f()", ...body, "end", ...inScene("local g = f()", "Value {type(g)} {g()}.")))).toEqual({ output: "Value function 3.\n", errors: [] });
   });
 
-  test("a top-level function's arm reads a top-level local", () => {
-    expect(run(lines('local greeting = "hi"', "function f()", "  return cycle | greeting end", "end", "Value {f()}."))).toEqual({
+  test("a local function's arm reads a local of the function around it", () => {
+    expect(run(lines("function outer()", '  local greeting = "hi"', "  local function f()", "    return cycle | greeting end", "  end", "  return f()", "end", "Value {outer()}."))).toEqual({
       output: "Value hi.\n",
       errors: [],
     });
@@ -337,8 +337,8 @@ describe("a conditional alternator used as a value in a function (I-1284)", () =
     expect(positional).toEqual(keyed);
   });
 
-  test("at the top level, with its condition in its head", () => {
-    expect(run(lines('local v = match "b" | a = 1 | b = 2 end', 'store s = match "z" | z = 3 end', "Top {v} {s}."))).toEqual({
+  test("in a top-level store's value and a scene's local's value, with its condition in its head", () => {
+    expect(run(lines('store s = match "z" | z = 3 end', ...inScene('local v = match "b" | a = 1 | b = 2 end', "Top {v} {s}.")))).toEqual({
       output: "Top 2 3.\n",
       errors: [],
     });

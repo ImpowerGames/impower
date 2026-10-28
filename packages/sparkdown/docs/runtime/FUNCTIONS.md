@@ -91,10 +91,12 @@ function make_counter()
   end
 end
 
-local c = make_counter()
-c() -- 1
-c() -- 2
-c() -- 3
+function count_to_three()
+  local c = make_counter()
+  c() -- 1
+  c() -- 2
+  return c() -- 3
+end
 ```
 
 The returned closure holds a reference to `make_counter`'s `n`
@@ -278,8 +280,10 @@ position starts an anonymous function; at statement position it starts
 a named definition.
 
 ```sparkdown
-local double = function(x) return x * 2 end
-arr:filter(function(x) return x > 10 end)
+function examples(arr)
+  local double = function(x) return x * 2 end
+  return arr:filter(function(x) return x > 10 end)
+end
 ```
 
 ### Decision 4: Nested function definitions
@@ -377,16 +381,20 @@ Order rationale:
   special-casing needed at the engine level. ✅
 - **D4. Anonymous function syntax**: Luau-form only
   (`function(args) body end`). No arrow-form. ✅
-- **D5. `store` *declaration* placement**: top-level, scene-body, and
-  branch-body positions are all allowed. `store` declarations inside a
-  `function` or a block (`if` / `for` / `while` / `do`) raise a
-  compile-time error. Scene/branch placement is purely lexical — the
-  variable still lives in the global namespace; the placement just
-  controls *when* the declaration initializes. **Assignments to
-  existing `store` variables are allowed everywhere**, including inside
-  functions — functions are the standard way to encapsulate state-
-  mutating logic. The rule is only about introducing new bindings, not
-  about updating them. ✅
+- **D5. Declaration placement**: a hoisted declaration (`store`,
+  `const`, `define` and the definitions written like one, `function`,
+  `type`, `external`) is written at a script's top level. Each one
+  inside a scene or branch body, at any depth, is a compile-time
+  error, since it takes effect when the story starts wherever it is
+  written; a `store` declaration inside a `function` or a block (`if` /
+  `for` / `while` / `do`) is one too. A `const` or a `define` inside a
+  function is the function's own, as in Luau. A `local` binding is
+  written inside a scene, branch, choice body or function; one at the
+  top level, or in a block of the top level, is a compile-time error.
+  **Assignments to existing `store` variables are allowed
+  everywhere**, including inside functions and scenes — functions are
+  the standard way to encapsulate state-mutating logic, and
+  `& name = value` sets a store where a scene runs. ✅
 - **D6. Function value in a `store`** (deep): forbidden — `FunctionValue`
   cannot appear anywhere reachable from a store (including nested
   tables). Compile-time error for the literal case
@@ -440,13 +448,14 @@ assignment to a variable whose binding was declared elsewhere).
 > including inside functions. Functions are the normal way to encapsulate
 > game-state-mutating logic.
 >
-> `store` declarations ARE allowed inside `scene` and `branch` bodies
-> (narrative flow nodes). Authors often want to declare scene-specific
-> persistent state close to where it's used rather than scattering
-> everything at the top of the file. Lexical placement in a scene is
-> just organization; the variable lives in the global namespace
-> semantically, and is initialized when the declaration's flow point
-> is reached.
+> `store` declarations cannot appear inside a `scene` or `branch` body
+> either, at any depth: _store declaration must be at the top level;
+> assign it here with & name = value instead_. A store is initialized
+> when the story starts, wherever it is written, so a declaration in a
+> scene would claim a timing it does not have. A scene sets a store's
+> value where it runs with an assignment, `& name = value`, which the
+> editor's "Change to an assignment" quick fix writes in place of the
+> declaration.
 
 > **R2: A function value cannot be written to anything `store`-reachable.**
 > Closures are runtime-only values whose captured environments are
@@ -460,21 +469,22 @@ Examples:
 -- Allowed: store declaration at top level
 store player_name = "Alex"
 store currentTimeOfDay = 1
+store visited_intro = false
 
--- Allowed: store declaration inside a scene
+-- Allowed: a scene or a branch assigns an existing store
 scene intro
-  store visited_intro = true
+  & visited_intro = true
   & player_name = "Hero"
   -> hub
+end
 
--- Allowed: store declaration inside a branch
+-- R1 violation — store declaration inside a scene or a branch:
 scene hub
   branch first_visit
-    store first_visit_done = true
+    store first_visit_done = true          -- compile error: declaration
     -> story
-  branch later_visit
-    & player_name = player_name .. " (returning)"  -- assignment to existing
-    -> story
+  end
+end
 
 -- Allowed: function MUTATES existing stores (this is the common pattern)
 function advance_time(count: number)
@@ -489,11 +499,12 @@ function init()
   store x = 5                              -- compile error: declaration
 end
 
--- R1 violation — store declaration inside a block:
+-- R1 violation — store declaration inside a block of a scene:
 scene intro
   if has_save then
     store loaded = true                    -- compile error: declaration
   end
+end
 
 -- R2 violation — function value into a store:
 store callback = function(x) return x end  -- compile error

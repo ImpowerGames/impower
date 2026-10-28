@@ -409,11 +409,13 @@ type function F(t)
     return types.unionof(t, types.number)
 end
 type U = F<string>
-local x: U = 1
+function _f()
+  local _x: U = 1
+end
 `;
     expect(scriptDiagnostics(text)).toEqual([
       `7:9-7:18 ${CANNOT_EVALUATE}`,
-      "8:13-8:14 Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
+      "9:16-9:17 Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
     ]);
   });
 
@@ -488,7 +490,9 @@ done
     return t
 end
 type U = F<string>
-local x: U = 1
+function _f()
+  local _x: U = 1
+end
 `;
     expect(scriptDiagnostics(text)).toEqual([]);
   });
@@ -501,7 +505,9 @@ typecheck: strict
 type function F(t)
     return types.unionof(t, types.number)
 end
-local x: number = 1
+function _f()
+  local _x: number = 1
+end
 `;
     expect(scriptDiagnostics(text)).toEqual([]);
   });

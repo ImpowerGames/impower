@@ -1,3 +1,6 @@
 store x = 5
-local y = 4
-{x}{y}
+-> start
+scene start
+  local y = 4
+  {x}{y}
+end

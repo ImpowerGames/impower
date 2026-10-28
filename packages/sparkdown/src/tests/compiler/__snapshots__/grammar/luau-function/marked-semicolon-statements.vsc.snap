@@ -9,7 +9,7 @@ text.source.sparkdown [0..116]
  ├─ Newline [11..12]: "\n"
  ├─ keyword.other.statement.explicit.luau.mark.sd [12..13]: "&"
  ├─ punctuation.whitespace.required.sd [13..14]: " "
- ├─ storage.modifier.scope.luau [14..19]: "local"
+ ├─ storage.modifier.scope.luau [14..19]: "store"
  ├─ punctuation.whitespace.optional.sd [19..20]: " "
  ├─ variable.other.readwrite.luau [20..25]: "voice"
  ├─ punctuation.whitespace.optional.sd [25..26]: " "
@@ -68,4 +68,3 @@ text.source.sparkdown [0..116]
  │   │   └─ punctuation.definition.template-expression.end.sd [113..114]: "}"
  │   └─ markup.raw.punctuation.sd [114..115]: "."
  └─ Newline [115..116]: "\n"
-

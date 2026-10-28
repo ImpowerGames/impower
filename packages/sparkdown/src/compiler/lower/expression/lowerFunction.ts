@@ -80,6 +80,7 @@ import {
   answersDeclaration,
   rootDeclarationAnswer,
   rootLocalAnswer,
+  rootLocalAnswerIgnoringBlocks,
   rootSlotName,
 } from "../utils/rootLocalReads";
 import { ROOT_IN_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
@@ -533,7 +534,9 @@ export function freeVariables(
   let into = free;
   // `declared`, for a read the converter binds to a declaration of the root
   // frame's own scope, is that declaration's answer (`rootDeclarationAnswer`).
-  const readAt = (name: string, at: number, readsLocal = false, declared?: string) => {
+  // `blockLocal`, for a read inside a block a top-level statement opens, is
+  // whether the converter binds it to a local of that block.
+  const readAt = (name: string, at: number, readsLocal = false, declared?: string, blockLocal = false) => {
     if (bound.has(name) || seen.has(name)) return;
     if (!unscoped) {
       // A read the converter binds to a local of a block around the
@@ -549,11 +552,14 @@ export function freeVariables(
         // scopes, where the function does not capture it (a top-level
         // function, a top-level define's method, a stdlib name), as every
         // function's entry did. A global callable or `_G` it reads binds
-        // nothing, as before.
+        // nothing, as before. Such a binding takes a local (`local`) when
+        // the read is of a local of the block or of a flow around it in
+        // scope there (`rootLocalAnswerIgnoringBlocks`).
         if (answer !== ROOT_IN_BLOCK) {
           rootReads?.push({ name, answer });
         } else if (!isGlobalCallable(name) && name !== "_G") {
-          rootReads?.push({ name, answer });
+          const local = blockLocal || answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx));
+          rootReads?.push(local ? { name, answer, local } : { name, answer });
         }
       }
       if (!isShadowedLocal(name) && !readsLocal) {
@@ -581,7 +587,7 @@ export function freeVariables(
     const declaredAt = offsetAt(local.location.begin, ctx);
     const index = rawContext(ctx).rootLocals;
     if (index?.answer(local.name, at) === ROOT_IN_BLOCK) {
-      readAt(local.name, at);
+      readAt(local.name, at, false, undefined, true);
     } else {
       const declared = index?.declared(local.name, declaredAt)
         ? rootDeclarationAnswer(local.name, declaredAt, ctx)
@@ -852,6 +858,10 @@ export function buildClosureExpression(
 export interface RootRead {
   name: string;
   answer: string;
+  /** For a name read inside a block a top-level statement opens
+   *  (`ROOT_IN_BLOCK`), whether a local of the block or of a flow around it
+   *  is in scope where it is read. */
+  local?: boolean;
 }
 
 /** The binding at a function's entry of each of `reads` (`RootBinding`):
@@ -862,9 +872,9 @@ export interface RootRead {
 export function rootBindingsOf(reads: readonly RootRead[], ctx: LowerContext): RootBinding[] {
   return reads
     .filter(({ answer }) => answersDeclaration(answer) || answer === ROOT_IN_BLOCK)
-    .map(({ name, answer }) =>
+    .map(({ name, answer, local }) =>
       answer === ROOT_IN_BLOCK
-        ? new RootBinding(name, null, true)
+        ? new RootBinding(name, null, true, local === true)
         : new RootBinding(name, rootSlotName(name, answer, ctx)),
     );
 }

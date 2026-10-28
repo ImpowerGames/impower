@@ -180,7 +180,6 @@ describe("String library methods (I-856)", () => {
   test("method forms give the library values", () => {
     const ctx = makeRuntimeStoryFromSource(
       [
-        `local a, b = ("abc"):byte(1, 2)`,
         `function words()`,
         `  local parts = {}`,
         `  for w in ("a b"):gmatch("%a") do`,
@@ -188,8 +187,11 @@ describe("String library methods (I-856)", () => {
         `  end`,
         `  return table.concat(parts, ",")`,
         `end`,
-        ``,
-        `{a} {b} {("%d-%s"):format(5, "x")} {("abc"):contains("b")} {("i4"):packsize()} {words()}`,
+        `-> start`,
+        `scene start`,
+        `  local a, b = ("abc"):byte(1, 2)`,
+        `  {a} {b} {("%d-%s"):format(5, "x")} {("abc"):contains("b")} {("i4"):packsize()} {words()}`,
+        `end`,
         ``,
       ].join("\n"),
     );
@@ -200,9 +202,11 @@ describe("String library methods (I-856)", () => {
   test("a string's member is its string library function", () => {
     const ctx = makeRuntimeStoryFromSource(
       [
-        `local s = "abc"`,
-        ``,
-        `{s:byte(1)} {s.byte(s, 2)} {type(s.byte)} {type(("x").format)} {type(s.nope)}`,
+        `-> start`,
+        `scene start`,
+        `  local s = "abc"`,
+        `  {s:byte(1)} {s.byte(s, 2)} {type(s.byte)} {type(("x").format)} {type(s.nope)}`,
+        `end`,
         ``,
       ].join("\n"),
     );
@@ -215,7 +219,7 @@ describe("String library methods (I-856)", () => {
   test("a table receiver calls its own field of the same name", () => {
     const ctx = makeRuntimeStoryFromSource(
       [
-        `local t = {}`,
+        `store t = {}`,
         `function t:format(x) return "own " .. x end`,
         `function t:byte() return "own byte" end`,
         ``,

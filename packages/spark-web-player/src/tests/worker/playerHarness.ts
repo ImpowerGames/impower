@@ -563,13 +563,14 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       });
       return { previewed: controller.handleSelectedCompilerDocument({ params: result }) };
     },
-    /** Select a line, as the editor's cursor does. */
-    async select(line: number): Promise<any> {
-      selected = { file: MAIN_URI, line };
+    /** Select a line of the main script, or of another script of the
+     *  project, as the editor's cursor does. */
+    async select(line: number, uri = MAIN_URI): Promise<any> {
+      selected = { file: uri, line };
       let result;
       try {
         result = await page.sendRequest(SelectCompilerDocumentMessage.type, {
-          textDocument: { uri: MAIN_URI },
+          textDocument: { uri },
           selectedRange: { start: { line, character: 0 }, end: { line, character: 0 } },
           docChanged: false,
           userEvent: true,
