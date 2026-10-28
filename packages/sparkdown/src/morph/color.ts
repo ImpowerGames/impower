@@ -287,6 +287,17 @@ export function readColor(value: string): ReadColor | undefined {
   return { kind: "color", color: [r, g, b, alpha] };
 }
 
+/**
+ * A colour a morph's `paints` entry gives a drawing: one `readColor` reads as
+ * a colour. `none` and `currentColor` name no colour of their own, so they are
+ * undefined, as is anything else the reader does not read.
+ */
+export function readEntryColor(value: unknown): MorphColor | undefined {
+  if (typeof value !== "string") return undefined;
+  const read = readColor(value);
+  return read?.kind === "color" ? read.color : undefined;
+}
+
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** Two colours blended at `t` in gamma-encoded sRGB with premultiplied alpha. */

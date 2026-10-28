@@ -448,5 +448,105 @@ end
 end
 `),
     ).toEqual(["rest", "eyes.open", "eyes.squint"]);
+  }, 60_000);
+});
+
+describe("`paints` completion", () => {
+  const MASKED = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="eyelash-left:eyes.open:default" id="la"/>
+<g data-name="eyelash-left:eyes.closed" id="lc"/>
+<g data-name="darkness:mask.on" id="dk"/>
+<g data-name="face.plain:default" id="fp"/>
+<g data-name="face.masked" id="fm"/>
+</svg>`;
+  const masked = {
+    context: { morph: { $default: {} }, image: { masked: image("masked", MASKED), tree: image("tree", TREE) } },
+  } as any;
+  const PAINTED = (entry: string, root = "") => `morph blink with
+  method = bend
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+${root}  paints {
+    { ${entry} }
+  }
+end
+`;
+  const at = (source: string) => completeAt(source, masked);
+  const labels = (source: string) => at(source).map((item) => String(item.label));
+
+  test("`paints` is offered at the root and inserts a block", () => {
+    const source = `morph blink with
+  |
+end
+`;
+    expect(labelsAt(source)).toContain("paints");
+    expectBlockInserted(source, "paints");
+  });
+
+  test("an entry offers its fields, and `targets` inserts a block", () => {
+    expect(labels(PAINTED("|"))).toEqual(["targets", "state", "when", "fill", "stroke", "span"]);
+    expect(labels(PAINTED("fill = red; |"))).toEqual(["targets", "state", "when", "fill", "stroke", "span"]);
+    const item = at(PAINTED("|")).find((i) => i.label === "targets")!;
+    expect(insertedText(item)).toBe("targets {  }");
+    expect(insertedText(at(PAINTED("|")).find((i) => i.label === "fill")!)).toBe("fill = ");
+  });
+
+  test("`targets` offers the candidate artwork's labels", () => {
+    const found = labels(PAINTED("targets { | }"));
+    expect(found).toEqual(expect.arrayContaining(["eyelash-left", "darkness"]));
+    expect(found).not.toContain("leaves");
+  });
+
+  test("`state =` offers the keyframes' `group.state` poses other than the one the first keyframe starts each group from", () => {
+    // The starting states come from the compiled morph, as the compiler reads them.
+    const compiled = compileProject(PAINTED("targets { eyelash-left }; state = eyes.closed; fill = red"));
+    const stateAt = (source: string) => completeAt(source, compiled);
+    expect(stateAt(PAINTED("state = |")).map((i) => String(i.label))).toEqual(["eyes.closed"]);
+    const items = stateAt(PAINTED("state = eyes.cl|"));
+    expect(items.map((i) => i.label)).toEqual(["closed"]);
+    expect(insertedText(items[0]!)).toBe("closed");
+    // A first keyframe that leaves a group out starts it from each variant's
+    // own rest, so none of that group's named states is excluded.
+    const omitted = (entry: string) => `morph blink with
+  method = bend
+  keyframes {
+    from { mouth { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open }; mouth { state = closed } }
+  }
+  paints {
+    { ${entry} }
+  }
+end
+`;
+    const late = compileProject(omitted("targets { eyelash-left }; state = eyes.closed; fill = red"));
+    expect(completeAt(omitted("state = |"), late).map((i) => String(i.label))).toEqual(["mouth.closed", "eyes.closed", "eyes.open"]);
+    // Two whole compiles, as the language-server workspace tests give theirs.
+  }, 60_000);
+
+  test("`when =` offers the states of groups the morph does not drive, from the candidate artwork", () => {
+    expect(labels(PAINTED("when = |"))).toEqual(["mask.on", "mask.off", "face.plain", "face.masked"]);
+    const items = at(PAINTED("when = mask.|"));
+    expect(items.map((i) => i.label)).toEqual(["on", "off"]);
+    expect(insertedText(items[0]!)).toBe("on");
+  });
+
+  test("each field's documentation comes with it", () => {
+    const docOf = (source: string, label: string) => (at(source).find((i) => i.label === label)?.documentation as any)?.value as string;
+    expect(docOf(`morph blink with
+  |
+end
+`, "paints")).toContain("Colours that layers take at one pose");
+    expect(docOf(PAINTED("|"), "targets")).toContain("this entry recolours");
+    expect(docOf(PAINTED("|"), "state")).toContain("The pose the colour belongs to");
+    expect(docOf(PAINTED("|"), "when")).toContain("does not drive");
+    expect(docOf(PAINTED("|"), "fill")).toContain("fill colour");
+    expect(docOf(PAINTED("|"), "stroke")).toContain("stroke colour");
+    expect(docOf(PAINTED("|"), "span")).toContain("Default `100%`");
+    expect(docOf(PAINTED("state = |"), "eyes.closed")).toContain("The pose the colour belongs to");
+    expect(docOf(PAINTED("when = |"), "mask.on")).toContain("does not drive");
   });
 });
