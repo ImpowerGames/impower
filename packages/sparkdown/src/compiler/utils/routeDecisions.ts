@@ -123,6 +123,8 @@ export const routeDecisions = (
   const offers = new Map<string, number>();
   // The pinned offers already reported not offered.
   const missed = new Set<string>();
+  // The options each menu, by the site it is met at, has offered so far.
+  const offeredAt = new Map<ProgramAddress, Set<string>>();
   let menus = 0;
   route.decisions.forEach((decision, index) => {
     if (decision.kind === "choice") {
@@ -133,10 +135,16 @@ export const routeDecisions = (
         pinnedAtMenu(pinned, sources, offers).map((i) => sources[i]!),
       );
       let notFollowed = [...pinnedHere].some((s) => s !== decision.value);
+      let offeredBefore = offeredAt.get(decision.site);
+      if (!offeredBefore) {
+        offeredBefore = new Set();
+        offeredAt.set(decision.site, offeredBefore);
+      }
       for (const { source, offer } of pinnedNotOffered(
         pinned,
         sources,
         offers,
+        offeredBefore,
       )) {
         const key = `${source}:${offer}`;
         if (!missed.has(key)) {
@@ -146,6 +154,7 @@ export const routeDecisions = (
       }
       for (const source of sources) {
         offers.set(source, (offers.get(source) ?? 0) + 1);
+        offeredBefore.add(source);
       }
       decisions.push({
         kind: pinnedHere.has(decision.value) ? "pinned" : "auto",

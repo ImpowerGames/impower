@@ -1897,7 +1897,8 @@ export class GamePlayerController {
    * list.
    */
   protected async applyRoutePins(pins: RoutePin[]) {
-    this._routeState = { ...this._routeState, pins };
+    this._savedRoutePins = pins;
+    this.showRoutePins();
     this.renderRoute();
     const held = this._options?.routePins ?? [];
     if (JSON.stringify(pins) === JSON.stringify(held)) {
@@ -1938,32 +1939,47 @@ export class GamePlayerController {
    *  says it was not saved: a host that does not keep pins never answers. */
   static readonly PIN_SAVE_TIMEOUT_MS = 5_000;
 
-  /** The author changed pins from the route list: the list shows the change
-   *  at once, and the host saves it, answering with every pin it keeps. A
-   *  host that does not save it returns the list to the pins before, with a
-   *  note. */
-  protected handleRouteChangePins = async (change: RoutePinChange) => {
-    const before = this._routeState.pins;
+  /** The pins the host last said it keeps. */
+  protected _savedRoutePins: RoutePin[] = [];
+
+  /** The changes the author made that the host has not answered yet, in the
+   *  order they were made. */
+  protected _pendingPinChanges: RoutePinChange[] = [];
+
+  /** The list shows the host's pins with every change it has not answered
+   *  yet, so a change the host does not save takes only itself back. */
+  protected showRoutePins() {
     this._routeState = {
       ...this._routeState,
-      pins: changedPins(before, change),
-      pinNote: undefined,
+      pins: this._pendingPinChanges.reduce(changedPins, this._savedRoutePins),
     };
+  }
+
+  /** The author changed pins from the route list: the list shows the change
+   *  at once, and the host saves it, answering with every pin it keeps. A
+   *  change the host does not save goes from the list, with a note. */
+  protected handleRouteChangePins = async (change: RoutePinChange) => {
+    this._pendingPinChanges = [...this._pendingPinChanges, change];
+    this._routeState = { ...this._routeState, pinNote: undefined };
+    this.showRoutePins();
     this.renderRoute();
-    let saved: RoutePin[];
+    let saved: RoutePin[] | undefined;
     try {
       saved = (await this.requestHost(ChangeRoutePinsMessage.type, change))
         .pins;
     } catch {
-      this._routeState = {
-        ...this._routeState,
-        pins: before,
-        pinNote: PIN_NOT_SAVED,
-      };
-      this.renderRoute();
+      saved = undefined;
+    }
+    this._pendingPinChanges = this._pendingPinChanges.filter(
+      (pending) => pending !== change,
+    );
+    if (saved) {
+      await this.applyRoutePins(saved);
       return;
     }
-    await this.applyRoutePins(saved);
+    this._routeState = { ...this._routeState, pinNote: PIN_NOT_SAVED };
+    this.showRoutePins();
+    this.renderRoute();
   };
 
   /** Ask the host, which answers on the window the player's messages reach

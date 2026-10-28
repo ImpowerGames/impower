@@ -295,6 +295,39 @@ describe("the pin control", () => {
     );
   });
 
+  test("two changes the host does not save, answered in turn, leave the pins the host keeps", async () => {
+    const p = player();
+    await p.hostPins([]);
+    p.report(pinnedRoute());
+    p.open();
+    await p.expand();
+    p.button("Pin", p.option("Lie."))!.click();
+    p.button("Pin", p.option("Show the photograph."))!.click();
+    const [first, second] = p.requests();
+    const reject = (request: any) =>
+      sendProtocolMessage(
+        ChangeRoutePinsMessage.type.error(request.id, {
+          code: 1,
+          message: "not saved",
+        }),
+      );
+    reject(first);
+    await settle();
+    // The change still waiting for the host stays on the list.
+    expect(p.button("Pinned", p.option("Show the photograph."))).toBeDefined();
+    expect(p.button("Pin", p.option("Lie."))).toBeDefined();
+    reject(second);
+    await settle();
+    expect(
+      [...p.routeList.querySelectorAll(".route-pin-button")].map(
+        (b) => b.textContent,
+      ),
+    ).toEqual(["Pin", "Pin", "Pin"]);
+    expect(p.routeList.querySelector(".route-pin-note")!.textContent).toBe(
+      "The pin was not saved.",
+    );
+  });
+
   test("a pin that was not followed is said so in its expanded entry", async () => {
     const p = player();
     await p.hostPins([pin(12)]);

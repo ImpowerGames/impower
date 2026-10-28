@@ -395,9 +395,10 @@ export interface ConditionOverride {
 }
 
 /** The index among `route`'s decisions of the first that left a pin of
- *  `pinned` (see {@link planRoute}): a choice that took another option than a
- *  pinned one the menu offered, or a pinned option's gate kept false at its
- *  pinned offer. -1 when it left none. */
+ *  `pinned` (see {@link planRoute}): a choice that took another option than
+ *  the pinned one the menu offered first, which is the pin a search follows
+ *  when an edit leaves two on one menu, or a pinned option's gate kept false
+ *  at its pinned offer. -1 when it left none. */
 export const firstPinLeft = (
   route: RoutePlan,
   pinned: PinnedOptions,
@@ -415,7 +416,7 @@ export const firstPinLeft = (
       const pinnedHere = pinnedAtMenu(pinned, sources, offers);
       if (
         pinnedHere.length > 0 &&
-        !pinnedHere.some((index) => sources[index] === decision.value)
+        sources[pinnedHere[0]!] !== decision.value
       ) {
         return i;
       }

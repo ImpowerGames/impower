@@ -125,13 +125,16 @@ export const pinnedAtMenu = (
 
 /** The pinned options of the menu offering `sources` that it does not
  *  offer at a pinned offer: a once-only option the route already took, or a
- *  gated option whose gate the route left false. The menu is the statement
- *  that holds its options, so an option of the same chunk as one it offers
- *  is one of its own. */
+ *  gated option whose gate the route left false. An option is the menu's own
+ *  when it stands in the statement chunk of an option the menu offers, or
+ *  is one of `offeredBefore`, the options the route met this menu offering
+ *  before, among them those a thread (`<- name`) adds from another
+ *  statement. */
 export const pinnedNotOffered = (
   pinned: PinnedOptions,
   sources: readonly string[],
   counts: ReadonlyMap<string, number>,
+  offeredBefore: ReadonlySet<string> = new Set(),
 ): { source: string; offer: number }[] => {
   const missing: { source: string; offer: number }[] = [];
   const first = sources[0];
@@ -140,7 +143,10 @@ export const pinnedNotOffered = (
   }
   const chunk = chunkOfAddress(Number(first));
   for (const [source, offers] of pinned.offers) {
-    if (sources.includes(source) || chunkOfAddress(Number(source)) !== chunk) {
+    if (
+      sources.includes(source) ||
+      (chunkOfAddress(Number(source)) !== chunk && !offeredBefore.has(source))
+    ) {
       continue;
     }
     const offer = (counts.get(source) ?? 0) + 1;

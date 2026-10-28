@@ -35,7 +35,8 @@ end
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((l) => l.includes(text));
 
-const PINS = [{ uri: URI, line: lineOf("[Tell the truth.]"), offer: 1 }];
+const TRUTH = { uri: URI, line: lineOf("[Tell the truth.]"), offer: 1 };
+const PHOTO = { uri: URI, line: lineOf("[Show the photograph.]"), offer: 1 };
 
 const GAME_OPTIONS = {
   now: () => 0,
@@ -52,7 +53,7 @@ class Session {
   readonly config = {};
   game?: Game;
 
-  constructor() {
+  constructor(readonly pins: { uri: string; line: number; offer: number }[]) {
     this.compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
@@ -76,7 +77,7 @@ class Session {
   protected route(program: SparkProgram) {
     if (!this.game) {
       this.game = new Game({ program, ...GAME_OPTIONS } as never);
-      this.game.setRoutePins(PINS);
+      this.game.setRoutePins(this.pins);
     } else {
       this.game.updateProgram(program);
     }
@@ -106,14 +107,30 @@ class Session {
 
 describe("a resumed search and the pins", () => {
   test("resumes no later than a choice that left a pin", () => {
-    const session = new Session();
+    const session = new Session([TRUTH]);
     expect(session.compile(lineOf("Photo again."))).toEqual({
       simulation: "success",
       trust: 5,
       choices: [["auto", "Show the photograph."]],
     });
     const after = session.compile(lineOf("Trust is"));
-    const fresh = new Session().compile(lineOf("Trust is"));
+    const fresh = new Session([TRUTH]).compile(lineOf("Trust is"));
+    expect(fresh).toEqual({
+      simulation: "success",
+      trust: 2,
+      choices: [["pinned", "Tell the truth."]],
+    });
+    expect(after).toEqual(fresh);
+  }, 120_000);
+
+  test("resumes no later than a choice that left the pin an edit put first on its menu", () => {
+    // An edit left pins on both options; the first the menu lists wins.
+    const session = new Session([TRUTH, PHOTO]);
+    expect(session.compile(lineOf("Photo again.")).choices).toEqual([
+      ["pinned", "Show the photograph."],
+    ]);
+    const after = session.compile(lineOf("Trust is"));
+    const fresh = new Session([TRUTH, PHOTO]).compile(lineOf("Trust is"));
     expect(fresh).toEqual({
       simulation: "success",
       trust: 2,
