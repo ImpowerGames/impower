@@ -35,7 +35,7 @@ import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
-import { APERTURE_REACH_STROKE } from "./render";
+import { APERTURE_REACH_ID_SUFFIX, APERTURE_REACH_STROKE } from "./render";
 import {
   ancestry,
   cloneElement,
@@ -1064,9 +1064,12 @@ export function* bakeSteps(
   const targetOf = new Map<string, Element>();
   const wrappers = new Map<Element, Wrapper[]>();
   let clipSerial = 0;
+  // An aperture's id and its reach clip path's (`poseAperture`) must both
+  // be free of the artwork's own ids, or an authored reference would find
+  // the generated resource.
   const freshId = (base: string) => {
     let id = base;
-    while (doc!.byId.has(id)) id = `${base}-${++clipSerial}`;
+    while (doc!.byId.has(id) || doc!.byId.has(`${id}${APERTURE_REACH_ID_SUFFIX}`)) id = `${base}-${++clipSerial}`;
     return id;
   };
   for (const [clipIndex, targets] of targetsByClip.entries()) {

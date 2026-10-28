@@ -477,6 +477,27 @@ describe("a live morph's aperture masks", () => {
     }
   });
 
+  test("give the reach clip path an id no authored resource has", () => {
+    // Art that defines a clip path under the name the first aperture's reach
+    // clip would take, and draws the white through it.
+    const authored = SVG.replace(
+      '<path data-name="face"',
+      '<defs><clipPath id="morph-clip-0-0-reach"><path d="M60,0H80V100H60Z"/></clipPath></defs><path data-name="face"',
+    ).replace(`<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>`, `<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff" clip-path="url(#morph-clip-0-0-reach)"/>`);
+    const baked = bakeMorphArtifact({ source: authored, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    const svg = renderMorphAt(baked, 0.2);
+    expect(svg).toContain("-reach");
+    const ids = [...svg.matchAll(/\sid='([^']*)'/g)].map((m) => m[1]!);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    // The white still refers to the authored clip path, and that one holds
+    // the authored strip.
+    const ref = /data-name='eyeball-white-left'[^>]*clip-path='url\(#([^)]+)\)'|clip-path='url\(#([^)]+)\)'[^>]*data-name='eyeball-white-left'/.exec(svg);
+    const target = ref?.[1] ?? ref?.[2];
+    expect(target).toBeDefined();
+    expect(svg).toContain(`<clipPath id='${target}'><path d='M60,0H80V100H60Z'/></clipPath>`);
+  });
+
   test.each([0.1, 0.2, 0.28])("reach under each eye's own lashes when one clip entry holds both eyes, at %s", (offset) => {
     // Each eye's white and pupil paint before its own lashes, and the left
     // eye before the right, so the left lashes paint before the right

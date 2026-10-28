@@ -103,6 +103,13 @@ export const APERTURE_REACH_STROKE: readonly (readonly [string, string])[] = [
   ["stroke-linejoin", "round"],
 ];
 
+/**
+ * Appended to an aperture's id to name the clip path that bounds its reach
+ * (`poseAperture`). The bake gives an aperture an id only when this one is
+ * free too.
+ */
+export const APERTURE_REACH_ID_SUFFIX = "-reach";
+
 /** The style of the path that bounds an aperture's reach (`poseAperture`). */
 export const APERTURE_REACH_CLIP_STYLE = "clip-rule:nonzero";
 
@@ -476,8 +483,9 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
  * reach, `reach` (`apertureReachPathData`). At the rest outline it keeps its
  * markup. Away from it every path draws the frame's aperture, and a mask's
  * first path also reaches past it, clipped to `reach` by a clip path the
- * mask holds, `<id>-reach`, whose id and path data it returns. A clip path,
- * or a mask given no `reach`, draws the aperture's area alone. The clip and
+ * mask holds (its id with `APERTURE_REACH_ID_SUFFIX`), whose id and path
+ * data it returns. A clip path, or a mask given no `reach`, draws the
+ * aperture's area alone. The clip and
  * its rule are inline (`APERTURE_REACH_CLIP_STYLE`): a clip path's content
  * inherits `clip-rule` from the artwork root, and exported art often sets it
  * to `evenodd` there, under which the overlapping loops of `reach` would
@@ -491,7 +499,7 @@ export function poseAperture(aperture: Element, d: string, reach?: string): { id
     setStyleProperty(path, "stroke", "none");
   }
   if (aperture.tagName !== "mask" || reach === undefined) return undefined;
-  const id = `${aperture.attributes["id"] ?? ""}-reach`;
+  const id = `${aperture.attributes["id"] ?? ""}${APERTURE_REACH_ID_SUFFIX}`;
   const bound: Element = {
     tagName: "clipPath",
     attributes: { id, clipPathUnits: "userSpaceOnUse" },
