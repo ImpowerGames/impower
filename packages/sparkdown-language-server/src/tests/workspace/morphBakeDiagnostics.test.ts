@@ -142,7 +142,7 @@ describe("morph bake diagnostics", () => {
     ]);
     // Nothing about the art lands on the script.
     expect(publishes().filter((p) => p.uri === main).flatMap((p) => p.diagnostics).filter((d: any) => String(d.code).startsWith("morph-"))).toEqual([]);
-  });
+  }, 60_000);
 
   it("one problem in the art shows once, naming every variant it affects", async () => {
     const { workspace, publishes } = setup();

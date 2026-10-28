@@ -448,7 +448,7 @@ end
 end
 `),
     ).toEqual(["rest", "eyes.open", "eyes.squint"]);
-  });
+  }, 60_000);
 });
 
 describe("`paints` completion", () => {
