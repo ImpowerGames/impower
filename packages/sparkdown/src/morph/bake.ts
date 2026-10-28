@@ -34,6 +34,7 @@ import {
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { recipeAsMorph } from "./recipe";
+import { APERTURE_REACH_STROKE } from "./render";
 import {
   ancestry,
   cloneElement,
@@ -73,12 +74,6 @@ import {
 
 /** Frames per segment: the tuning point the geometry package was tested at. */
 export const MORPH_BAKE_SAMPLES = 8;
-/**
- * How far, in screen pixels, an aperture at rest reaches past its outline:
- * far enough that the outline's antialiased edge lies under the drawings
- * around the opening.
- */
-export const APERTURE_REACH = 1;
 const PRECISION = 1000;
 const round = (n: number) => Math.round(n * PRECISION) / PRECISION || 0;
 
@@ -99,11 +94,12 @@ export interface MorphBakeInput {
 /**
  * Geometry that depends only on the source: each drawing pair's root-space
  * morph result (failures included), its sampled frames in a given element
- * space, and the aperture samples of a set of edges. One cache per source is
- * shared by every variant and recipe baked from it, and a bake served from it
- * reports exactly what a fresh one would.
+ * space, and the aperture samples of a set of edges with the edges' own
+ * drawings at each. One cache per source is shared by every variant and
+ * recipe baked from it, and a bake served from it reports exactly what a
+ * fresh one would.
  */
-export type MorphGeometryEntry = MorphResult | MorphFrames | number[][][];
+export type MorphGeometryEntry = MorphResult | MorphFrames | { samples: number[][][]; edges: number[][][][] };
 
 export interface MorphGeometryCache {
   get(key: string): MorphGeometryEntry | undefined;
@@ -166,6 +162,7 @@ function staticArtifact(
     segments: [],
     frames: [],
     apertures: [],
+    apertureEdges: [],
     clipTargets: [],
     diagnostics,
   };
@@ -726,6 +723,7 @@ export function* bakeSteps(
 
   const segments: MorphSegment[] = [];
   const apertures: number[][][][] = [];
+  const apertureEdges: number[][][][][] = [];
   const apertureIndex = new Map<string, number>();
   /** Per clip, the loops of its first segment's start pose: its rest aperture. */
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
@@ -940,11 +938,14 @@ export function* bakeSteps(
         const reuse = apertureIndex.get(signature);
         let ref: MorphGeometryRef;
         const canonical = entry.forwardAll || entry.reversedAll;
-        const known = canonical ? (geometryCache.get(`aperture:${signature}`) as number[][][] | undefined) : undefined;
+        const known = canonical
+          ? (geometryCache.get(`aperture:${signature}`) as { samples: number[][][]; edges: number[][][][] } | undefined)
+          : undefined;
         if (reuse !== undefined && canonical) {
           ref = { index: reuse, reversed: entry.reversedAll && !entry.forwardAll };
         } else if (known) {
-          apertures.push(known);
+          apertures.push(known.samples);
+          apertureEdges.push(known.edges);
           ref = { index: apertures.length - 1, reversed: entry.reversedAll && !entry.forwardAll };
           apertureIndex.set(signature, apertures.length - 1);
         } else {
@@ -960,8 +961,11 @@ export function* bakeSteps(
             return disable();
           }
           const raw: Point[][][] = [];
+          const edges: number[][][][] = [];
           for (let s = 0; s < MORPH_BAKE_SAMPLES; s++) {
-            raw.push(built.apertures.map((ap) => ap.loop(s / (MORPH_BAKE_SAMPLES - 1))));
+            const t = s / (MORPH_BAKE_SAMPLES - 1);
+            raw.push(built.apertures.map((ap) => ap.loop(t)));
+            edges.push(built.apertures.map((ap) => ap.bands(t).map((band) => band.flatMap(([x, y]) => [round(x), round(y)]))));
           }
           // Corner caps and untangled crossings vary an aperture's point
           // count from sample to sample; a player blends neighbouring samples
@@ -977,12 +981,16 @@ export function* bakeSteps(
           // moves the same edges back reuses it reversed. Edges that disagree
           // about direction have no canonical order and are not reused.
           const reversed = entry.reversedAll && !entry.forwardAll;
-          if (reversed) samples.reverse();
+          if (reversed) {
+            samples.reverse();
+            edges.reverse();
+          }
           apertures.push(samples);
+          apertureEdges.push(edges);
           ref = { index: apertures.length - 1, reversed };
           if (canonical) {
             apertureIndex.set(signature, apertures.length - 1);
-            geometryCache.set(`aperture:${signature}`, samples);
+            geometryCache.set(`aperture:${signature}`, { samples, edges });
           }
         }
         clips.push({ clip: clipIndex, loops: ref });
@@ -1080,10 +1088,10 @@ export function* bakeSteps(
   // layer under the clip targets. A stroke `APERTURE_REACH` screen pixels
   // wide on each side, whatever size the picture is drawn at, moves the
   // mask's edge under the drawn edges, which paint over the targets at rest
-  // as the still image draws them. A player drops the stroke whenever the
-  // aperture leaves its rest outline: moving edges taper past the opening's
-  // corners, and a closed state's drawings may paint beneath the targets, so
-  // a reach there would show. A rest outline closed against its entry's
+  // as the still image draws them. Away from the rest outline a player
+  // clips the stroke to the moving edges' drawings (`poseAperture`), since
+  // those taper toward the opening's corners and a closed state's drawings
+  // may paint beneath the targets. A rest outline closed against its entry's
   // widest (a morph that rests closed) has no stroke at all, for the same
   // reason.
   //
@@ -1131,7 +1139,7 @@ export function* bakeSteps(
     const path = (d: string, reach: boolean): Element => ({
       tagName: "path",
       attributes: {
-        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? APERTURE_REACH_STROKE.map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
         d,
       },
       children: [],
@@ -1341,6 +1349,7 @@ export function* bakeSteps(
     segments,
     frames,
     apertures,
+    apertureEdges,
     clipTargets,
     diagnostics,
   };

@@ -80,6 +80,39 @@ const signedArea = (flat: number[]): number => {
 /** A point at the precision path data is written with. */
 const snap = ([x, y]: Point): Point => [Math.round(x * 1000) / 1000 || 0, Math.round(y * 1000) / 1000 || 0];
 
+const reverseFlat = (flat: number[]): number[] => {
+  const out: number[] = [];
+  for (let k = flat.length - 2; k >= 0; k -= 2) out.push(flat[k]!, flat[k + 1]!);
+  return out;
+};
+
+/**
+ * How far, in screen pixels, an aperture reaches past its outline: far
+ * enough that the outline's antialiased edge lies under the drawings around
+ * the opening.
+ */
+export const APERTURE_REACH = 1;
+
+/** The stroke an aperture mask's path reaches past its outline with, as style declarations. */
+export const APERTURE_REACH_STROKE: readonly (readonly [string, string])[] = [
+  ["stroke", "#fff"],
+  ["stroke-opacity", "1"],
+  ["stroke-width", `${APERTURE_REACH * 2}px`],
+  ["stroke-dasharray", "none"],
+  ["stroke-linejoin", "round"],
+];
+
+/** The style of the path that bounds an aperture's reach (`poseAperture`). */
+export const APERTURE_REACH_CLIP_STYLE = "clip-rule:nonzero";
+
+/** Where `progress` falls in a table of `count` samples: the sample before it, and how far on to the next. */
+const samplePlace = (count: number, ref: MorphGeometryRef, progress: number) => {
+  const t = clamp01(ref.reversed ? 1 - progress : progress);
+  const u = t * (count - 1);
+  const i = Math.min(count - 2, Math.floor(u));
+  return { i, f: u - i };
+};
+
 /**
  * Blends one aperture table entry's loops at `progress`. Blending two
  * samples point by point can cross even where neither sample does: the bake
@@ -92,28 +125,52 @@ const snap = ([x, y]: Point): Point => [Math.round(x * 1000) / 1000 || 0, Math.r
  * the rest outline keeps the markup's path data and its reach.
  */
 export function aperturePathData(samples: number[][][], ref: MorphGeometryRef, progress: number): string {
-  const t = clamp01(ref.reversed ? 1 - progress : progress);
-  const u = t * (samples.length - 1);
-  const i = Math.min(samples.length - 2, Math.floor(u));
-  const f = u - i;
+  return loopsPathData(apertureLoops(samples, ref, progress));
+}
+
+function apertureLoops(samples: number[][][], ref: MorphGeometryRef, progress: number): number[][] {
+  const { i, f } = samplePlace(samples.length, ref, progress);
   const a = samples[i]!;
   const b = samples[i + 1] ?? a;
-  return loopsPathData(
-    a.map((loop, j) => {
-      const other = b[j] ?? loop;
-      // The last sample is reached with `f` at 1, the others with it at 0.
-      if (f === 0) return loop;
-      if (f === 1) return other;
-      const points: Point[] = [];
-      for (let k = 0; k + 1 < loop.length; k += 2) {
-        points.push(snap([loop[k]! + ((other[k] ?? loop[k]!) - loop[k]!) * f, loop[k + 1]! + ((other[k + 1] ?? loop[k + 1]!) - loop[k + 1]!) * f]));
-      }
-      // The wider sample says which way the opening winds; a closed one has
-      // no area to tell.
-      const area = Math.abs(signedArea(loop)) >= Math.abs(signedArea(other)) ? signedArea(loop) : signedArea(other);
-      return untangle(points, Math.sign(area), { snap, throughPoints: true }).flat();
-    }),
-  );
+  return a.map((loop, j) => {
+    const other = b[j] ?? loop;
+    // The last sample is reached with `f` at 1, the others with it at 0.
+    if (f === 0) return loop;
+    if (f === 1) return other;
+    const points: Point[] = [];
+    for (let k = 0; k + 1 < loop.length; k += 2) {
+      points.push(snap([loop[k]! + ((other[k] ?? loop[k]!) - loop[k]!) * f, loop[k + 1]! + ((other[k + 1] ?? loop[k + 1]!) - loop[k + 1]!) * f]));
+    }
+    // The wider sample says which way the opening winds; a closed one has
+    // no area to tell.
+    const area = Math.abs(signedArea(loop)) >= Math.abs(signedArea(other)) ? signedArea(loop) : signedArea(other);
+    return untangle(points, Math.sign(area), { snap, throughPoints: true }).flat();
+  });
+}
+
+/**
+ * Path data for where an aperture may reach at `progress`, strictly between
+ * a segment's ends: every loop of the aperture as `aperturePathData` blends
+ * it, and around each loop the drawings of its two edges, blended point by
+ * point between samples as the player blends the moving drawings. Clipped to
+ * this, the reach stays under the edges: where an edge tapers thinner than
+ * the reach, toward its tips, the reach ends at the edge's far side rather
+ * than showing the targets past it. Every loop is wound the same way, so the
+ * nonzero rule fills each, overlapping or not.
+ */
+export function apertureReachPathData(samples: number[][][], edges: number[][][][], ref: MorphGeometryRef, progress: number): string {
+  const loops = apertureLoops(samples, ref, progress);
+  const { i, f } = samplePlace(edges.length, ref, progress);
+  const rings: number[][] = [];
+  loops.forEach((loop, j) => {
+    rings.push(loop);
+    const next = edges[i + 1]?.[j];
+    (edges[i]?.[j] ?? []).forEach((band, k) => {
+      const other = next?.[k];
+      rings.push(f === 0 || !other ? band : band.map((v, n) => v + ((other[n] ?? v) - v) * f));
+    });
+  });
+  return loopsPathData(rings.map((flat) => (signedArea(flat) < 0 ? reverseFlat(flat) : flat)));
 }
 
 /**
@@ -187,8 +244,9 @@ export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<st
  * What a frame changes in the live parts as written: which leaves show and
  * hide through their inline `display`, the path data that replaces a moving
  * leaf's `d`, the factor a fading leaf's own opacity is multiplied by, and
- * the path data of each aperture (by its id before occurrence namespacing).
- * Anything a frame does not mention keeps its markup.
+ * the path data of each aperture and of where it may reach
+ * (`apertureReachPathData`), both by the aperture's id before occurrence
+ * namespacing. Anything a frame does not mention keeps its markup.
  */
 export interface MorphFrameState {
   shown: Set<string>;
@@ -196,6 +254,7 @@ export interface MorphFrameState {
   geometry: Map<string, string>;
   opacity: Map<string, number>;
   clips: Map<string, string>;
+  reaches: Map<string, string>;
 }
 
 /** The playback rules applied to one pose of every driven group. */
@@ -206,6 +265,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     geometry: new Map(),
     opacity: new Map(),
     clips: new Map(),
+    reaches: new Map(),
   };
   const { shown, hidden, geometry, opacity } = state;
   const show = (node: string | undefined) => {
@@ -214,8 +274,19 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     shown.add(node);
   };
   const writeClip = (clip: number, loops: MorphGeometryRef, p: number) => {
-    const d = aperturePathData(artifact.apertures[loops.index]!, loops, p);
-    for (const target of artifact.clipTargets) if (target.clip === clip) state.clips.set(target.aperture, d);
+    const samples = artifact.apertures[loops.index]!;
+    const edges = artifact.apertureEdges[loops.index];
+    const d = aperturePathData(samples, loops, p);
+    // The edges' moving drawings are drawn strictly between a segment's
+    // ends. At either end the poses' own drawings take over, and a closed
+    // state's may paint beneath the targets, so there the aperture has no
+    // reach (a rest outline keeps its markup's).
+    const reach = edges && p > 0 && p < 1 ? apertureReachPathData(samples, edges, loops, p) : undefined;
+    for (const target of artifact.clipTargets) {
+      if (target.clip !== clip) continue;
+      state.clips.set(target.aperture, d);
+      if (reach !== undefined) state.reaches.set(target.aperture, reach);
+    }
   };
   for (const [group, states] of Object.entries(artifact.visibility)) {
     const pose = own(poses, group);
@@ -362,17 +433,38 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
 /**
  * Poses an aperture (a mask or clip path, given as it is written in its
  * part: its first path the rest outline, a mask's open loops stroked to
- * reach past it) with the path data a frame gives it. At the rest outline
- * it keeps its markup. Away from it every path draws the frame's aperture
- * without reach (see the bake's aperture masks).
+ * reach past it) with the path data a frame gives it, `d`, and where it may
+ * reach, `reach` (`apertureReachPathData`). At the rest outline it keeps its
+ * markup. Away from it every path draws the frame's aperture, and a mask's
+ * first path also reaches past it, clipped to `reach` by a clip path the
+ * mask holds, `<id>-reach`, whose id and path data it returns. A clip path,
+ * or a mask given no `reach`, draws the aperture's area alone. The clip and
+ * its rule are inline (`APERTURE_REACH_CLIP_STYLE`): a clip path's content
+ * inherits `clip-rule` from the artwork root, and exported art often sets it
+ * to `evenodd` there, under which the overlapping loops of `reach` would
+ * cancel.
  */
-export function poseAperture(aperture: Element, d: string) {
+export function poseAperture(aperture: Element, d: string, reach?: string): { id: string; d: string } | undefined {
   const paths = elementsOf(aperture.children).filter((child) => child.tagName === "path");
-  if (!paths.length || paths[0]!.attributes["d"] === d) return;
+  if (!paths.length || paths[0]!.attributes["d"] === d) return undefined;
   for (const path of paths) {
     path.attributes["d"] = d;
     setStyleProperty(path, "stroke", "none");
   }
+  if (aperture.tagName !== "mask" || reach === undefined) return undefined;
+  const id = `${aperture.attributes["id"] ?? ""}-reach`;
+  const bound: Element = {
+    tagName: "clipPath",
+    attributes: { id, clipPathUnits: "userSpaceOnUse" },
+    children: [{ tagName: "path", attributes: { style: APERTURE_REACH_CLIP_STYLE, d: reach }, children: [] }],
+  };
+  const at = elementsOf(aperture.children).find((child) => child.tagName === "clipPath" && child.attributes["id"] === id);
+  if (at) aperture.children[aperture.children.indexOf(at)] = bound;
+  else aperture.children.push(bound);
+  const first = paths[0]!;
+  for (const [name, value] of APERTURE_REACH_STROKE) setStyleProperty(first, name, value);
+  setStyleProperty(first, "clip-path", `url(#${id})`);
+  return { id, d: reach };
 }
 
 function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): string {
@@ -396,8 +488,9 @@ function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): stri
         const node = element.attributes["data-morph"];
         if (node !== undefined) poseLeaf(element, node, state);
         if (element.tagName === "mask" || element.tagName === "clipPath") {
-          const d = clipData.get(element.attributes["id"] ?? "");
-          if (d !== undefined) poseAperture(element, d);
+          const id = element.attributes["id"] ?? "";
+          const d = clipData.get(id);
+          if (d !== undefined) poseAperture(element, d, state.reaches.get(id));
         }
       }
     }

@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 7;
+export const MORPH_BAKE_FORMAT = 8;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -299,6 +299,13 @@ export interface MorphArtifact {
    * space as flat x, y arrays.
    */
   apertures: number[][][][];
+  /**
+   * Beside each aperture table entry, per sample and per loop, the drawings
+   * of the two edges that bound that loop, each a closed loop in root user
+   * space as a flat x, y array: where the aperture may reach away from rest
+   * (`apertureReachPathData`).
+   */
+  apertureEdges: number[][][][][];
   clipTargets: MorphClipTarget[];
   diagnostics: MorphBakeDiagnostic[];
 }

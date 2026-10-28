@@ -18,6 +18,7 @@ const artifactFor = (key: string): MorphArtifact => ({
   segments: [],
   frames: [],
   apertures: [],
+  apertureEdges: [],
   clipTargets: [],
   diagnostics: [],
 });

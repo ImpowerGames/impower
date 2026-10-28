@@ -56,6 +56,18 @@ const inside = (shape: Point[][], [x, y]: Point): boolean => {
   return crossings;
 };
 
+const winding = (shape: Point[][], [x, y]: Point): number => {
+  let total = 0;
+  for (const ring of shape) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i]!,
+        [xj, yj] = ring[j]!;
+      if (yj <= y !== yi <= y && x < ((xi - xj) * (y - yj)) / (yi - yj) + xj) total += yi > yj ? 1 : -1;
+    }
+  }
+  return total;
+};
+
 const distance = (shape: Point[][], p: Point): number => {
   let best = Infinity;
   for (const ring of shape) {
@@ -142,7 +154,16 @@ const paintList = (svg: string, scale = 1): Painted[] => {
           strokeAlpha = paint("stroke");
         const width = Number(/^([\d.]+)/.exec(property(path, "stroke-width") ?? "1")?.[1]);
         const reach = (property(path, "vector-effect") === "non-scaling-stroke" ? width / scale : width) / 2;
-        return (q: Point) => (inside(fill, q) ? fillAlpha : strokeAlpha > 0 && distance(fill, q) <= reach ? strokeAlpha : 0);
+        // A clip path on the mask's path, each of its paths filled by the
+        // clip rule it takes effect with.
+        const bound = /url\(#([^)]+)\)/.exec(property(path, "clip-path") ?? "")?.[1];
+        const bounds = bound
+          ? elementChildren(byId.get(bound)!)
+              .filter((c) => c.tagName === "path")
+              .map((c) => ({ shape: rings(c.attributes["d"] ?? ""), evenodd: property(c, "clip-rule") === "evenodd" }))
+          : undefined;
+        const kept = (q: Point) => !bounds || bounds.some(({ shape, evenodd }) => (evenodd ? inside(shape, q) : winding(shape, q) !== 0));
+        return (q: Point) => (!kept(q) ? 0 : inside(fill, q) ? fillAlpha : strokeAlpha > 0 && distance(fill, q) <= reach ? strokeAlpha : 0);
       });
     return (p) => {
       const q = applyPoint(local, p);
@@ -357,26 +378,83 @@ describe("a live morph's aperture masks", () => {
     }
   });
 
-  test.each([
+  // Art whose root sets an even-odd clip rule, as exported art does: a clip
+  // path's content inherits it.
+  const evenOdd = (svg: string) => svg.replace('height="100">', 'height="100" style="fill-rule:evenodd;clip-rule:evenodd">');
+  // Art whose closed lash paints beneath the whites, which sit outside the
+  // eye states, as art migrated for the blink is drawn.
+  const closedBeneath = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="face" d="M0,0H140V100H0Z" fill="#c96"/>
+<g data-name="eyes.closed"><path data-name="eyelash-left" d="${CLOSED}" fill="#111"/></g>
+<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+<path data-name="pupil-left" d="${PUPIL}" fill="#234"/>
+<g data-name="eyes.open:default">
+<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+</g>
+</svg>`;
+  // Two closed lashes a little apart, painted beneath the whites: the closed
+  // keyframe's aperture keeps some area between them.
+  const closedApart = closedBeneath.replace(
+    `<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>`,
+    `<path data-name="eyelash-left" d="M20,50 C50,38 90,34 120,45 C90,40 50,44 20,50Z" fill="#111"/><path data-name="eyelash-left" d="M20,50 C50,49 90,48 120,45 C90,52 50,56 20,50Z" fill="#111"/>`,
+  );
+  const MOVING: [string, string][] = [
+    ["lashes that meet at both corners", SVG],
+    ["open lashes whose inner corner tips do not meet", eye(WHITE_SHORT, LOWER_SHORT)],
+    ["art whose root clips even-odd", evenOdd(SVG)],
+    ["a closed lash painted beneath the whites", closedBeneath],
+  ];
+  const OFFSETS: [string, number][] = [
     ["closing", 0.1],
     ["halfway closed", 0.2],
-    ["nearly closed", 0.3],
+    ["nearly closed", 0.28],
     ["reopening", 0.5],
-  ])("reach nowhere past the outline away from rest: %s", (_name, offset) => {
-    // Moving edges taper past the opening's corners, where a reach would
-    // show the white beyond them.
-    const svg = renderMorphAt(artifact, offset);
-    const outline = apertureOutline(svg);
-    expect(outline.length).toBeGreaterThan(0);
-    for (const scale of [1, 4, 20]) {
-      const reaching = paintList(svg, scale),
-        exact = paintList(svg, Infinity);
-      const differing = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5])
-        .filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p))
-        .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
-      expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+  ];
+  const MID_BLINK = MOVING.flatMap(([name, source]) => OFFSETS.map(([when, offset]) => [`${name}, ${when}`, source, offset] as const));
+
+  test.each(MID_BLINK)("reach half a screen pixel past the aperture's outline under the moving edges: %s", (_name, source, offset) => {
+    // Mid-blink the outline lies on the moving lashes' inner edges, so a clip
+    // edge there leaves the same antialiased seam as at rest: under the
+    // lashes, half a pixel past the outline, the white must still be drawn.
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    const svg = renderMorphAt(baked, offset);
+    for (const scale of [4, 20]) {
+      const frame = paintList(svg, scale);
+      const lashes = frame.filter((item) => item.fill === "#111");
+      const white = frame.find((item) => item.fill === "#fff")!;
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBeGreaterThan(0);
+      const underLash = nearOutline(outline, scale, [0.5]).filter(({ p, outside }) => outside && lashes.some((lash) => inside(lash.shape, p)));
+      expect(underLash.length).toBeGreaterThan(100);
+      const cut = underLash.filter(({ p }) => white.clips.some((clip) => clip(p) < 1));
+      expect(cut.slice(0, 5).map(({ p }) => p), `${cut.length} of ${underLash.length} points under the lashes cut at ${scale}px`).toEqual([]);
     }
   });
+
+  const CLOSED_POSES = [...MOVING, ["two closed lashes apart, painted beneath the whites", closedApart] as const].map(([name, source]) => [`${name}, closed`, source, 0.333] as const);
+
+  test.each([...MID_BLINK, ...CLOSED_POSES])(
+    "reach nowhere it would show away from rest: %s",
+    (_name, source, offset) => {
+      // Moving edges taper toward the opening's corners, thinner there than
+      // the reach, and at the closed pose a closed lash may paint beneath the
+      // targets: wherever no moving edge covers it, the reach shows nothing.
+      const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+      const svg = renderMorphAt(baked, offset);
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBeGreaterThan(0);
+      for (const scale of [1, 4, 20]) {
+        const reaching = paintList(svg, scale),
+          exact = paintList(svg, Infinity);
+        const differing = nearOutline(outline, scale, [0.25, 0.5, 0.75, 1, 1.5])
+          .filter(({ p }) => colourAt(reaching, p) !== colourAt(exact, p))
+          .map(({ p }) => `(${p[0].toFixed(3)}, ${p[1].toFixed(3)}) at ${scale}px: ${colourAt(reaching, p)} for ${colourAt(exact, p)}`);
+        expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
+      }
+    },
+  );
 
   /** Every aperture (mask or clip path) in an SVG, with its path's attributes, and the wrapper that refers to it. */
   const masksOf = (svg: string) => {

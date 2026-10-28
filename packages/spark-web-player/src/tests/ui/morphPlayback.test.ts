@@ -118,10 +118,21 @@ function referenceStates(artifact: MorphArtifact, offset: number) {
   return leafStates(doc);
 }
 
-/** The path data and style of every path each aperture mask draws its aperture with. */
-function apertureStates(root: ParentNode): { d: string | null; style: string | null }[][] {
+/**
+ * The path data and style of every path each aperture mask draws its
+ * aperture with, and the path data of the clip path its reach is clipped to
+ * where a path refers to one.
+ */
+function apertureStates(root: ParentNode): { d: string | null; style: string | null; reach?: string | null }[][] {
   return Array.from(root.querySelectorAll("mask")).map((mask) =>
-    Array.from(mask.querySelectorAll(":scope > path")).map((path) => ({ d: path.getAttribute("d"), style: path.getAttribute("style") })),
+    Array.from(mask.querySelectorAll(":scope > path")).map((path) => {
+      const style = path.getAttribute("style");
+      const bound = /clip-path:url\(#([^)]+)\)/.exec(style ?? "")?.[1];
+      const reach = bound === undefined ? undefined : (mask.querySelector(`:scope > clipPath[id="${bound}"] > path`)?.getAttribute("d") ?? null);
+      // The clip path's id carries the occurrence's prefix; its path data
+      // stands for it.
+      return { d: path.getAttribute("d"), style: style?.replace(/clip-path:url\(#[^)]+\)/, "clip-path:url(#reach)") ?? null, ...(reach === undefined ? {} : { reach }) };
+    }),
   );
 }
 
@@ -273,16 +284,18 @@ end
     expect(frames.pending).toBeGreaterThan(0);
     frames.run(1000);
     // At rest each aperture keeps the reach past its outline it is written
-    // with; away from its rest outline it has none.
-    const reaches = () => apertureStates(shadow).flatMap((paths) => paths.map(({ style }) => !/stroke:\s*none/.test(style ?? "")));
+    // with, unclipped; away from its rest outline it reaches as far, clipped
+    // to the moving edges' drawings.
+    const reaches = () => apertureStates(shadow).flatMap((paths) => paths.filter(({ style }) => !/stroke:\s*none/.test(style ?? "")));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0));
-    expect(reaches().length).toBeGreaterThan(0);
-    expect(reaches().every(Boolean)).toBe(true);
+    expect(reaches().length).toBe(apertureStates(shadow).length);
+    expect(reaches().every(({ reach }) => reach === undefined)).toBe(true);
     frames.run(1000 + 0.4 * 250);
     expect(playback.now).toBeCloseTo(0.1, 6);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.4));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.4));
-    expect(reaches().some(Boolean)).toBe(false);
+    expect(reaches().length).toBe(apertureStates(shadow).length);
+    expect(reaches().every(({ reach }) => !!reach)).toBe(true);
     frames.run(1000 + 0.9 * 250);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.9));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.9));
@@ -292,7 +305,7 @@ end
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
   });
 
-  test("an aperture with a closed loop strokes its open loops only at rest, and every path follows the frames away from it", async () => {
+  test("an aperture with a closed loop strokes its open loops alone at rest, and every path follows the frames away from it", async () => {
     expect(WINK_SOURCE).toContain("eyelash-right");
     expect(WINK_SOURCE).toContain("eyeball-white-right");
     const { h, frames, playback } = await previewed(WINK_SOURCE, WINK_FILES);
@@ -309,14 +322,17 @@ end
       expect(open!.style).toMatch(/stroke-width:2px/);
       expect(open!.d).not.toBe(all!.d);
     }
-    // Mid-blink every path draws the frame's whole aperture, unstroked.
+    // Mid-blink every path draws the frame's whole aperture, and the first
+    // reaches past it, clipped to the moving edges.
     frames.run(1000 + 0.4 * 250);
     const moving = apertureStates(shadow);
     expect(moving).toEqual(referenceApertures(artifact, 0.4));
     for (const paths of moving) {
       expect(paths).toHaveLength(2);
       expect(paths[1]!.d).toBe(paths[0]!.d);
-      expect(paths.every(({ style }) => /stroke:\s*none/.test(style ?? ""))).toBe(true);
+      expect(paths[0]!.style).toMatch(/stroke-width:2px/);
+      expect(paths[0]!.reach).toBeTruthy();
+      expect(paths[1]!.style).toMatch(/stroke:\s*none/);
     }
     // Back at the rest outline, the open loops' path gets its reach back.
     frames.run(1000 + 250);
