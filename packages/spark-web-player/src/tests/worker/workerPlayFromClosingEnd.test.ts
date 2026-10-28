@@ -381,12 +381,30 @@ scene start
 end
 `;
 
+// The flow's last statement is a thread, whose original runs off the end
+// once the fork is done.
+const AFTER_THREAD = `-> start
+scene start
+  First.
+  <- side
+end
+scene side
+  Side one.
+  Side two.
+  done
+end
+scene other
+  Other.
+end
+`;
+
 describe("PLAY and the preview at the end of a flow that runs off its end", () => {
   it.each([
     ["a scene's end past a conditional that shows nothing", AFTER_CONDITIONAL, 6, "First.", ["Skipped.", "Other."]],
     ["a branch's end past a conditional that shows nothing", BRANCH_AFTER_CONDITIONAL, 7, "First.", ["Skipped.", "Other."]],
     ["a scene's end past a conditional that shows its beat", AFTER_TRUE_CONDITIONAL, 6, "Shown.", ["Other."]],
     ["a scene's end at the end of the script, past a conditional", AFTER_CONDITIONAL_AT_END, 6, "First.", ["Skipped."]],
+    ["a scene's end past a thread", AFTER_THREAD, 4, "Side two.", ["Other."]],
   ] as const)("at %s, shows the beat the run left on screen", async (_name, source, line, shown, notShown) => {
     const outcome = await playFrom(source, line);
     expect(outcome.started).toBe(true);

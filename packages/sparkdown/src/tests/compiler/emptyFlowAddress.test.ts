@@ -175,4 +175,22 @@ end
     const program = compile(text);
     expect(program.chunks.flowEndAddress(URI, 6)).toBeUndefined();
   });
+
+  it("is the flow's after a thread, whose original goes on, and none after a divert", () => {
+    const program = compile(`scene start
+  First.
+  <- side
+end
+scene leaves
+  Leaves.
+  -> side
+end
+scene side
+  Side.
+  done
+end
+`);
+    expect(program.chunks.flowEndAddress(URI, 0)).toBeTypeOf("number");
+    expect(program.chunks.flowEndAddress(URI, 4)).toBeUndefined();
+  });
 });

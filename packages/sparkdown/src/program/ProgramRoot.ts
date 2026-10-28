@@ -1026,8 +1026,9 @@ export class ProgramRoot {
    *  compile gives a flow that enters no branch (`programFlows`' `flowEnd`),
    *  which a run reaches only when it runs off the flow's end. Nothing when
    *  the statement before it leaves the flow itself (a `done`, a `fin`, a
-   *  divert or a tunnel's return), so that no run reaches it, for a flow
-   *  that enters a branch, and for no such flow. */
+   *  divert or a tunnel's return) and no instruction of it goes on past it,
+   *  so that no run reaches it, for a flow that enters a branch, and for no
+   *  such flow. */
   flowEndAddress(uri: string, header: number): number | undefined {
     const flow = this.flowHeadedAt(uri, header);
     const entry = flow ? this.flowEndEntry(flow) : -1;
@@ -1035,22 +1036,11 @@ export class ProgramRoot {
       return undefined;
     }
     const chunks = flow!.arrays.chunks;
-    const end = chunks[entry]!;
     const before = chunks[entry - 1];
-    if (before && codeWords(before) >= 2) {
-      const last = before[HEADER_WORDS + codeWords(before) - 2]!;
-      const op = opOf(last);
-      if (
-        op === Op.End ||
-        op === Op.JumpSym ||
-        op === Op.JumpVar ||
-        op === Op.TunnelReturn ||
-        (op === Op.Done && (flagsOf(last) & DONE_HOLD) === 0)
-      ) {
-        return undefined;
-      }
+    if (before && !runsOffItsEnd(before)) {
+      return undefined;
     }
-    return addressOf(chunkId(end), 0);
+    return addressOf(chunkId(chunks[entry]!), 0);
   }
 
   /** The entry of a sequence that is its flow's end (`programFlows`'
@@ -1139,4 +1129,40 @@ const lineStartIn = (chunk: ProgramChunk, from: number, to: number): number => {
     }
   }
   return -1;
+};
+
+/** Whether a run goes on from the end of the code of `chunk` to the next
+ *  entry of its sequence: its last instruction does not leave the flow, or an
+ *  instruction of it jumps to that end, as a thread's original goes on past
+ *  the jump its fork takes. */
+const runsOffItsEnd = (chunk: ProgramChunk): boolean => {
+  const words = codeWords(chunk);
+  if (words < 2) {
+    return true;
+  }
+  const last = chunk[HEADER_WORDS + words - 2]!;
+  const op = opOf(last);
+  if (
+    op !== Op.End &&
+    op !== Op.JumpSym &&
+    op !== Op.JumpVar &&
+    op !== Op.TunnelReturn &&
+    (op !== Op.Done || (flagsOf(last) & DONE_HOLD) !== 0)
+  ) {
+    return true;
+  }
+  for (let offset = 0; offset < words; offset += 2) {
+    const at = opOf(chunk[HEADER_WORDS + offset]!);
+    if (
+      (at === Op.Jump ||
+        at === Op.JumpIfFalse ||
+        at === Op.JumpIfKeep ||
+        at === Op.Thread ||
+        at === Op.Choice) &&
+      offset + 2 + chunk[HEADER_WORDS + offset + 1]! === words
+    ) {
+      return true;
+    }
+  }
+  return false;
 };
