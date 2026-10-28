@@ -95,6 +95,15 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     expect(declared(artifact, 0, "lid", "fill")).toBe("#000 !important");
   });
 
+  test("fill, stroke and own opacities blend linearly where they differ", () => {
+    expect(recorded(artifact, "veil").paint).toEqual({ "fill-opacity": [1, 0.5], "stroke-opacity": [1, 0.2], opacity: [1, 0.4] });
+    expect(declared(artifact, 0.25, "veil", "fill-opacity")).toBe("0.75");
+    expect(declared(artifact, 0.25, "veil", "stroke-opacity")).toBe("0.6");
+    expect(declared(artifact, 0.25, "veil", "opacity")).toBe("0.7");
+    expect(declared(artifact, 0.25, "veil", "fill")).toBeUndefined();
+    for (const offset of [0, 0.5]) expect(shown(renderMorphAt(artifact, offset), "veil")[0]!.attributes["style"] ?? "").not.toMatch(/opacity/);
+  });
+
   test("a gradient end leaves the pair unblended", () => {
     expect(recorded(artifact, "shine").paint).toBeUndefined();
     const drawn = shown(renderMorphAt(artifact, 0.25), "shine");
@@ -104,7 +113,7 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
 
   test("a track drawing on a carrier copied from a third pose's drawing takes the blend, not its source's paint", () => {
     const states = ["open", "half", "closed", "half", "open"];
-    const named = bake(paintBlink({ layers: { shadow: { depth: "eyes.closed" } } }, states));
+    const named = bake(paintBlink({ layers: { shadow: { depth: "eyes.closed" }, glint: { depth: "eyes.closed" } } }, states));
     expect(named.status).toBe("live");
     expect(named.diagnostics).toEqual([]);
     // Open to half-closed draws on a copy of the red closed shadow; the shape
@@ -116,6 +125,11 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     expect(declared(named, 0.125, "shadow", "fill")).toBe("rgba(0,0,128,1)");
     // Half-closed to closed draws on the closed drawing itself.
     expect(declared(named, 0.375, "shadow", "fill")).toBe("rgba(128,0,128,1)");
+    // Ends that agree still override a carrier copied from a drawing that does not.
+    const glint = named.segments[0]!.transitions.find((t) => t.kind === "morph" && t.paint?.fill?.[0]?.join() === "0,0,0,1" && t.paint.fill[1]!.join() === "0,0,0,1") as Extract<MorphTransition, { kind: "morph" }>;
+    expect(glint).toBeDefined();
+    expect(glint.draw).not.toBe(glint.from);
+    expect(declared(named, 0.125, "glint", "fill")).toBe("rgba(0,0,0,1)");
   });
 
   test("the rest render and the parts as written carry no blended paint", () => {

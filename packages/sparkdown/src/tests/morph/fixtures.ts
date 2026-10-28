@@ -185,7 +185,9 @@ const box = (x: number, y: number, w: number, h: number) => `M${x},${y}H${x + w}
  * `brow` the same paint throughout; `crease` stroked only when closed;
  * `cheek` filled by its open group and by `currentColor` closed; `lid`
  * filled by an important inline declaration open; `shine` filled by a
- * gradient open; and `shadow`, black open, blue half-closed and red closed.
+ * gradient open; `veil` with its fill, stroke and own opacities lowered
+ * when closed; `shadow`, black open, blue half-closed and red closed; and
+ * `glint`, black open and half-closed and red closed.
  */
 export function paintedPortrait(): string {
   const pose = (dy: number) => ({
@@ -196,6 +198,8 @@ export function paintedPortrait(): string {
     lid: `<path data-name="lid" d="${box(90, 10 + dy, 20, 10)}" fill="#fff"/>`,
     shine: `<path data-name="shine" d="${box(90, 50 + dy, 20, 10)}" fill="#fff"/>`,
     shadow: `<path data-name="shadow" d="${box(130, 10 + dy, 20, 10)}" fill="#000"/>`,
+    glint: `<path data-name="glint" d="${box(130, 50 + dy, 20, 10)}" fill="#000"/>`,
+    veil: `<path data-name="veil" d="${box(50, 80 + dy, 20, 5)}" fill="#000" stroke="#000"/>`,
   });
   const open = pose(0);
   const half = pose(5);
@@ -206,15 +210,16 @@ export function paintedPortrait(): string {
 <g data-name="eyes.open:default">
 ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
-${open.shadow}
+${open.shadow}${open.glint}${open.veil}
 </g>
 <g data-name="eyes.half">
-${half.shadow.replace("#000", "#00f")}
+${half.shadow.replace("#000", "#00f")}${half.glint}
 </g>
 <g data-name="eyes.closed" color="#f00">
 ${closed.lash.replace("#000", "#fff")}${closed.brow}${closed.cheek.replace("<path", '<path fill="currentColor"')}
 ${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid}${closed.shine}
-${closed.shadow.replace("#000", "#f00")}
+${closed.shadow.replace("#000", "#f00")}${closed.glint.replace("#000", "#f00")}
+${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}
 </g>
 </svg>`;
 }

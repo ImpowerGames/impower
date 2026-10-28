@@ -41,6 +41,18 @@ describe("the morph colour reader", () => {
     expect(readColor("none")).toEqual({ kind: "none" });
   });
 
+  test("line breaks are whitespace inside a colour function", () => {
+    expect(rgba("rgb(0\n0\n0)")).toEqual([0, 0, 0, 1]);
+    expect(rgba("rgba(\n  10,\n  20,\n  30,\n  0.5\n)")).toEqual([10, 20, 30, 0.5]);
+    expect(rgba("hsl(0\n100%\n50%)")).toEqual([255, 0, 0, 1]);
+  });
+
+  test("syntax a browser drops is unknown, not a colour", () => {
+    for (const value of ["rgb(100%, 0, 0)", "rgba(255, 0%, 0, 1)", "rgb(5., 0, 0)", "hsl(0, 100%, 50.%)", "__proto__", "constructor", "toString", "hasOwnProperty"]) {
+      expect(readColor(value), value).toBeUndefined();
+    }
+  });
+
   test("anything else is unknown", () => {
     for (const value of ["url(#gleam)", "url(#gleam) red", "color-mix(in srgb, red, blue)", "oklch(0.5 0.1 30)", "Canvas", "", "bluish"]) {
       expect(readColor(value), value).toBeUndefined();

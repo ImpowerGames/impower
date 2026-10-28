@@ -3,6 +3,7 @@
 // `none`. Colours come out in gamma-encoded sRGB, the space a morph blends
 // paint in.
 
+import { own } from "./own";
 import type { MorphColor } from "./types";
 
 export type ReadColor = { kind: "color"; color: MorphColor } | { kind: "current" } | { kind: "none" };
@@ -161,7 +162,8 @@ const NAMED: Record<string, number> = {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-const NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i;
+/** A CSS number: digits after a decimal point, if it has one. */
+const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?$/i;
 
 /** A CSS number or percentage, as a fraction of `scale` for a percentage; undefined otherwise. */
 const component = (text: string, scale: number): number | undefined => {
@@ -221,7 +223,8 @@ export function readColor(value: string): ReadColor | undefined {
   if (text === "none") return { kind: "none" };
   if (text === "currentcolor") return { kind: "current" };
   if (text === "transparent") return { kind: "color", color: [0, 0, 0, 0] };
-  const named = NAMED[text];
+  // Own entries only: a name such as `constructor` is no colour.
+  const named = own(NAMED, text);
   if (named !== undefined) return { kind: "color", color: [(named >> 16) & 255, (named >> 8) & 255, named & 255, 1] };
   if (text.startsWith("#")) {
     const hex = text.slice(1);
@@ -236,13 +239,18 @@ export function readColor(value: string): ReadColor | undefined {
     }
     return undefined;
   }
-  const call = /^(rgba?|hsla?)\((.*)\)$/.exec(text);
+  // CSS whitespace inside the parentheses includes line breaks.
+  const call = /^(rgba?|hsla?)\(([\s\S]*)\)$/.exec(text);
   if (!call) return undefined;
   const args = argumentsOf(call[2]!);
   if (!args) return undefined;
   const alpha = args[3] === undefined ? 1 : readAlpha(args[3]);
   if (alpha === undefined) return undefined;
   if (call[1]!.startsWith("rgb")) {
+    // The channels are all numbers or all percentages; a browser drops a
+    // declaration that mixes them.
+    const percents = args.slice(0, 3).filter((a) => a.endsWith("%")).length;
+    if (percents !== 0 && percents !== 3) return undefined;
     const channels = args.slice(0, 3).map((a) => component(a, 255));
     if (channels.some((c) => c === undefined)) return undefined;
     const [r, g, b] = channels.map((c) => clamp(c!, 0, 255));
