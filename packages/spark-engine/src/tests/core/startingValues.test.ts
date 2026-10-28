@@ -364,6 +364,9 @@ describe("a value is a literal", () => {
     ["2 + 1", "expected the value to end before + 1"],
     ["x", "expected a value, not the name x"],
     ["`hi`", "expected a string in quotes; a backtick string is an expression"],
+    ['"\\u{110000}"', "\\u{110000} is past the last code point"],
+    ['"\\256"', "\\256 is past the last byte, 255"],
+    ["{".repeat(65) + "}".repeat(65), "expected no more than 64 tables inside each other"],
   ])("%j is not a value: %s", (text, error) => {
     expect(parseLiteral(text)).toEqual({ ok: false, error });
   });

@@ -65,6 +65,7 @@ function ValueField({
       },
       row.key,
       input.value,
+      row.item,
     );
     if (change.kind === "set") {
       events.onDraft(row.key, null);

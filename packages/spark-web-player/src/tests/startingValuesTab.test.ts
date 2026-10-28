@@ -126,7 +126,9 @@ function player() {
   const asked: [string, any][] = [];
   (controller as any).askWorkerGame = async (type: any, params: any) => {
     asked.push([type.method, params]);
-    return type.method === "game/startingValueListing" ? { listing } : {};
+    return type.method === "game/startingValueListing"
+      ? { listing: { ...listing, start: params.start } }
+      : {};
   };
   const previewed: any[] = [];
   (controller as any).updatePreview = async (...args: any[]) => {
@@ -453,5 +455,55 @@ describe("the Starting values tab", () => {
       "store:trust",
       `place:0:12:${URI}`,
     ]);
+  });
+});
+
+describe("the Starting values tab's fields", () => {
+  test("a visit count or seed the field refuses is not sent, and what is kept stays", async () => {
+    const p = await onValuesTab({
+      interrogation: { [`place:0:12:${URI}`]: "1", seed: "7" },
+    });
+    p.type(`place:0:12:${URI}`, "-1");
+    p.type("seed", "1.5");
+    expect(p.changes()).toHaveLength(0);
+    expect(p.badge(`place:0:12:${URI}`)!.dataset["status"]).toBe("error");
+    expect(p.badge("seed")!.dataset["status"]).toBe("error");
+    expect(p.routeList.querySelector(".sv-status")!.textContent).toBe(
+      "2 of 8 values set",
+    );
+    // Putting the field back leaves the kept value as it was.
+    p.input("seed").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(p.input("seed").value).toBe("7");
+  });
+
+  test("text a field holds in one scene does not show in another scene's field", async () => {
+    const p = await onValuesTab({
+      interrogation: {},
+      other: { "param:hour": '"ten"' },
+    });
+    p.type("param:hour", '"unfinished');
+    expect(p.input("param:hour").value).toBe('"unfinished');
+    p.report({ route: { ...exampleRoute(), valuesStart: "other" } });
+    await settle();
+    expect(p.input("param:hour").value).toBe('"ten"');
+    expect(p.badge("param:hour")).toBeNull();
+  });
+
+  test("Escape in a field that holds text not kept puts the field back, and the next Escape closes the panel", async () => {
+    const p = await onValuesTab({ interrogation: { "store:trust": "2" } });
+    const field = p.input("store:trust");
+    field.value = "{ found =";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    p.input("store:trust").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(p.routeList.hidden).toBe(false);
+    expect(p.input("store:trust").value).toBe("2");
+    p.input("store:trust").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(p.routeList.hidden).toBe(true);
   });
 });

@@ -881,6 +881,16 @@ export class GamePlayerController {
       this.refs.routeList.hidden = !open;
     }
     const start = this.valuesStart();
+    if (this._valuesView.start !== start) {
+      // What a field holds that is not kept, and a change the host did not
+      // keep, belong to the start they were made in: another start's fields
+      // show its own values.
+      this._valuesView = {
+        ...emptyValuesState(),
+        search: this._valuesView.search,
+        start,
+      };
+    }
     const values =
       this._startingValues && start !== undefined
         ? {
@@ -1016,7 +1026,10 @@ export class GamePlayerController {
       start,
       putBack,
     );
-    this._valuesView = { ...this._valuesView, unsaved: failed };
+    if (this._valuesView.start === start) {
+      // The badges are the start's own, shown while the panel lists it.
+      this._valuesView = { ...this._valuesView, unsaved: failed };
+    }
     this.renderRoute();
   }
 
@@ -1074,6 +1087,13 @@ export class GamePlayerController {
 
   protected handleRouteKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this._routeState.open) {
+      // Escape in a starting value's field that holds text not kept puts
+      // back what the field held; the next Escape closes the panel.
+      const field = (e.target as Element | null)?.closest?.(".sv-row");
+      const key = field?.getAttribute("data-key");
+      if (key != null && this._valuesView.drafts[key] !== undefined) {
+        return;
+      }
       e.stopPropagation();
       this.setRouteOpen(false);
     }

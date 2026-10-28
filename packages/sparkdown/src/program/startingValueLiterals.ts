@@ -205,6 +205,9 @@ const NAME = /[A-Za-z_][A-Za-z0-9_]*/y;
 const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
 const KEYWORDS = new Set(["nil", "true", "false"]);
+/** How deep a literal's tables may nest, which keeps the reader, the writer
+ *  and the runtime's copy of a value within the call stack. */
+const MAX_TABLE_DEPTH = 64;
 
 class LiteralReader {
   at = 0;
@@ -355,7 +358,11 @@ class LiteralReader {
           if (!match) {
             this.fail("expected \\u{...} with hex digits");
           }
-          out += String.fromCodePoint(parseInt(match[1]!, 16));
+          const code = parseInt(match[1]!, 16);
+          if (code > 0x10ffff) {
+            this.fail(`\\u{${match[1]}} is past the last code point`);
+          }
+          out += String.fromCodePoint(code);
           this.at += match[0].length;
           break;
         }
@@ -363,6 +370,9 @@ class LiteralReader {
           const digits = /^[0-9]{1,3}/.exec(this.text.slice(this.at - 1));
           if (!digits) {
             this.fail(`\\${escape ?? ""} is not an escape`);
+          }
+          if (Number(digits[0]) > 255) {
+            this.fail(`\\${digits[0]} is past the last byte, 255`);
           }
           out += String.fromCharCode(Number(digits[0]));
           this.at += digits[0].length - 1;
@@ -386,6 +396,9 @@ class LiteralReader {
   table(): LiteralTable {
     this.at += 1;
     this.depth += 1;
+    if (this.depth > MAX_TABLE_DEPTH) {
+      this.fail(`expected no more than ${MAX_TABLE_DEPTH} tables inside each other`);
+    }
     const table: LiteralTable = { list: [], fields: [] };
     for (;;) {
       if (this.eat("}")) {

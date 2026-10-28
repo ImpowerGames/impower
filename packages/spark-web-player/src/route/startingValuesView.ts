@@ -62,6 +62,9 @@ export interface ValueRow {
   value?: string;
   set: boolean;
   badge?: ValueBadge;
+  /** What the row lists, which its field checks a value against; nothing
+   *  for a value whose name or line left the script. */
+  item?: StartingValueItem;
   /** A value whose name or line left the script. */
   unresolved: boolean;
 }
@@ -147,6 +150,7 @@ export const valueGroups = (state: StartingValuesViewState): ValueGroup[] => {
         ...(value !== undefined ? { value } : {}),
         set: value !== undefined,
         badge: badgeOf(entry, text, state),
+        item: entry,
         unresolved: false,
       });
     }
@@ -218,17 +222,23 @@ export const valuesTabIcon = (
 
 /** What a field's text asks of the host when the author is done with it:
  *  to set the value, to clear it, or nothing, when it is what is set already
- *  or is not a value yet. */
+ *  or is not a value the field takes: text that is not a literal, or one its
+ *  item refuses with an error, as a visit count refuses `-1`. A value of
+ *  another type, which only warns, is set. */
 export const fieldChange = (
   state: StartingValuesViewState,
   key: string,
   text: string,
+  item?: StartingValueItem,
 ): { kind: "set"; value: string } | { kind: "clear" } | { kind: "keep" } | { kind: "invalid" } => {
   const trimmed = text.trim();
   if (trimmed === "") {
     return state.values[key] === undefined ? { kind: "keep" } : { kind: "clear" };
   }
-  if (!parseLiteral(trimmed).ok) {
+  if (
+    !parseLiteral(trimmed).ok ||
+    (item && checkStartingValue(item, trimmed).status === "error")
+  ) {
     return { kind: "invalid" };
   }
   return state.values[key] === trimmed
