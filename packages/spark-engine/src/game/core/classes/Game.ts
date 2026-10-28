@@ -27,6 +27,7 @@ import {
   showsBeatAhead,
   routeChargeAt,
   stepsBeforeDeparture,
+  stepsBeforePinLeft,
   sameFavoredReads,
   type LevelZeroStore,
   type LevelZeroWork,
@@ -2534,8 +2535,13 @@ export class Game<T extends M = {}> {
       // A route origin/main's search found (`planRoute`) is resumed and
       // replayed as origin/main's preview resumes its own routes: from the
       // deepest checkpoint the new program agrees with, by origin/main's
-      // search alone (a resume point without a charge).
-      const resume = this.findResumePoint(validSteps);
+      // search alone (a resume point without a charge), and no later than a
+      // choice that left a pin, which another line may be reached through.
+      const resume = this.findResumePoint(
+        replayOnly
+          ? validSteps
+          : Math.min(validSteps, stepsBeforePinLeft(route, this.pinnedOptions)),
+      );
       if (!resume) {
         return { validSteps, replayOnly: false };
       }
@@ -2549,12 +2555,13 @@ export class Game<T extends M = {}> {
     }
     // A search resumed inside the route keeps every decision before the
     // point it resumes from, and a search from the top forces a verdict
-    // against the program only where the target needs it (`planRoute`).
-    // So a search resumes no later than the route's first such verdict, or
-    // the preview would show a branch the route took for another line.
+    // against the program, or leaves a pin, only where the target needs it
+    // (`planRoute`). So a search resumes no later than the route's first such
+    // decision, or the preview would show a branch the route took for another
+    // line.
     const searchSteps = replayOnly
       ? validSteps
-      : Math.min(validSteps, stepsBeforeDeparture(route));
+      : Math.min(validSteps, stepsBeforeDeparture(route, this.pinnedOptions));
     // The replay after it is held only by what the new program still agrees
     // with: it forces whatever the new route decides, so a checkpoint past
     // the route's forced verdicts holds a state it can resume from wherever

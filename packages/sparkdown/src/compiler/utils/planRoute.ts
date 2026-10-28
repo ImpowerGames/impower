@@ -394,15 +394,80 @@ export interface ConditionOverride {
   departs?: true;
 }
 
-/** How many of `route`'s steps come before its first departing verdict
- *  ({@link ConditionOverride.departs}): all of them when it has none. A step
- *  records the index of the latest decision taken before it, which never
- *  falls along a route, so the first step past that verdict is found by
- *  halving: a route through a long loop holds hundreds of thousands. */
-export const stepsBeforeDeparture = (route: RoutePlan): number => {
-  const first = route.decisions.findIndex(
+/** The index among `route`'s decisions of the first that left a pin of
+ *  `pinned` (see {@link planRoute}): a choice that took another option than a
+ *  pinned one the menu offered, or a pinned option's gate kept false at its
+ *  pinned offer. -1 when it left none. */
+export const firstPinLeft = (
+  route: RoutePlan,
+  pinned: PinnedOptions,
+): number => {
+  if (pinned.offers.size === 0) {
+    return -1;
+  }
+  const offers = new Map<string, number>();
+  let menus = 0;
+  for (let i = 0; i < route.decisions.length; i += 1) {
+    const decision = route.decisions[i]!;
+    if (decision.kind === "choice") {
+      const sources = route.choices[menus]?.sources ?? [decision.value];
+      menus += 1;
+      const pinnedHere = pinnedAtMenu(pinned, sources, offers);
+      if (
+        pinnedHere.length > 0 &&
+        !pinnedHere.some((index) => sources[index] === decision.value)
+      ) {
+        return i;
+      }
+      for (const source of sources) {
+        offers.set(source, (offers.get(source) ?? 0) + 1);
+      }
+    } else if (
+      !decision.value &&
+      pinned.sites.has(decision.site) &&
+      pinsNextOffer(
+        pinned,
+        String(decision.site),
+        offers.get(String(decision.site)) ?? 0,
+      )
+    ) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+/** How many of `route`'s steps come before its first departure: the first
+ *  verdict it forced against the program ({@link ConditionOverride.departs}),
+ *  or the first decision that left a pin of `pinned` ({@link firstPinLeft});
+ *  all of them when it has none. */
+export const stepsBeforeDeparture = (
+  route: RoutePlan,
+  pinned: PinnedOptions = NO_PINS,
+): number => {
+  const forced = route.decisions.findIndex(
     (d) => d.kind === "condition" && d.departs,
   );
+  const left = firstPinLeft(route, pinned);
+  return stepsBeforeDecision(
+    route,
+    forced < 0 ? left : left < 0 ? forced : Math.min(forced, left),
+  );
+};
+
+/** How many of `route`'s steps come before its first decision that left a
+ *  pin of `pinned` ({@link firstPinLeft}): all of them when it left none. */
+export const stepsBeforePinLeft = (
+  route: RoutePlan,
+  pinned: PinnedOptions,
+): number => stepsBeforeDecision(route, firstPinLeft(route, pinned));
+
+/** How many of `route`'s steps come before its decision at `index`: all of
+ *  them for -1. A step records the index of the latest decision taken before
+ *  it, which never falls along a route, so the first step past that decision
+ *  is found by halving: a route through a long loop holds hundreds of
+ *  thousands. */
+const stepsBeforeDecision = (route: RoutePlan, first: number): number => {
   if (first < 0) {
     return route.steps.length;
   }

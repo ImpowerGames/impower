@@ -1915,14 +1915,21 @@ export class GamePlayerController {
       reportUnlessRestarted(e);
       return;
     }
+    if (this.playing) {
+      return;
+    }
+    const shown = this._completionShown;
+    if (this.completionPreviewHoldsScreen()) {
+      // A suggestion holds the screen: it is drawn again, by the route the
+      // pins make for its program.
+      if (shown) {
+        const { evaluation, ...result } = shown;
+        await this.drawCompletion(evaluation, result);
+      }
+      return;
+    }
     const startFrom = this._options.startFrom;
-    if (
-      this._program &&
-      !this.playing &&
-      startFrom &&
-      startFrom.file in this._program.scripts &&
-      !this.completionPreviewHoldsScreen()
-    ) {
+    if (this._program && startFrom && startFrom.file in this._program.scripts) {
       await this.updatePreview(this._program, startFrom.file, startFrom.line);
     }
   }
