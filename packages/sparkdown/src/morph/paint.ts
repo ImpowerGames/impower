@@ -4,7 +4,7 @@
 // style sheet is never baked live, so no sheet rule takes part.
 
 import { readAlpha, readColor, type ReadColor } from "./color";
-import { ancestry, styleDeclaration, type ArtDocument, type Element } from "./svgDocument";
+import { ancestry, styleDeclarations, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphColor, MorphPaint } from "./types";
 
 /**
@@ -24,9 +24,29 @@ export interface EffectivePaint {
 const INHERITED = { fill: "black", stroke: "none", "fill-opacity": "1", "stroke-opacity": "1", color: "black" };
 type Inherited = keyof typeof INHERITED;
 
-/** What an element declares for `name`: its inline style, which outranks the presentation attribute. */
-const declared = (element: Element, name: string): string | undefined =>
-  (styleDeclaration(element, name)?.value ?? element.attributes[name])?.trim();
+const IMPORTANT = /!\s*important\s*$/i;
+
+/**
+ * Whether a browser drops this declaration as invalid, so that the next one
+ * in the cascade applies: `none` is paint, not a colour.
+ */
+const dropped = (name: string, value: string) => name === "color" && value.trim().toLowerCase() === "none";
+
+/**
+ * What an element declares for `name`, as the cascade picks it once invalid
+ * declarations are dropped: its inline style (the last important declaration,
+ * else the last), which outranks the presentation attribute.
+ */
+const declared = (element: Element, name: string): string | undefined => {
+  const inline = styleDeclarations(element)
+    .filter(([n]) => n === name)
+    .map(([, , clean]) => ({ value: clean.replace(IMPORTANT, "").trim(), important: IMPORTANT.test(clean) }))
+    .filter(({ value }) => !dropped(name, value));
+  const chosen = inline.findLast((d) => d.important) ?? inline[inline.length - 1];
+  if (chosen) return chosen.value;
+  const attribute = element.attributes[name]?.trim();
+  return attribute === undefined || dropped(name, attribute) ? undefined : attribute;
+};
 
 /** Resolves `element`'s effective paint, its ancestors' inherited values included. */
 export function effectivePaint(doc: ArtDocument, element: Element): EffectivePaint {
@@ -37,9 +57,8 @@ export function effectivePaint(doc: ArtDocument, element: Element): EffectivePai
       if (value === undefined) continue;
       const keyword = value.toLowerCase();
       if (keyword === "inherit" || keyword === "unset") continue;
-      // `color: currentColor` is the inherited colour, and `none` is paint,
-      // not a colour: a browser drops `color: none` and inherits.
-      if (name === "color" && (keyword === "currentcolor" || keyword === "none")) continue;
+      // `color: currentColor` is the inherited colour.
+      if (name === "color" && keyword === "currentcolor") continue;
       values[name] = keyword === "initial" ? INHERITED[name] : value;
     }
   }

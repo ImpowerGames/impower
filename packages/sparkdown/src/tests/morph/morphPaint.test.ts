@@ -93,6 +93,15 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     expect(declared(artifact, 0.25, "freckle", "fill")).toBe("rgba(128,255,128,1)");
   });
 
+  test("an invalid `color: none` is dropped from the cascade, so the element's next declaration applies", () => {
+    // The `color` attribute under an inline `color:none`.
+    expect(recorded(artifact, "spot").paint).toEqual({ fill: [[255, 0, 0, 1], [255, 255, 255, 1]] });
+    expect(declared(artifact, 0.25, "spot", "fill")).toBe("rgba(255,128,128,1)");
+    // An inline blue before an important `color:none`.
+    expect(recorded(artifact, "dot").paint).toEqual({ fill: [[0, 0, 255, 1], [255, 255, 255, 1]] });
+    expect(declared(artifact, 0.25, "dot", "fill")).toBe("rgba(128,128,255,1)");
+  });
+
   test("an important inline fill is the one blended, and the blend is written important over it", () => {
     expect(recorded(artifact, "lid").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
     expect(declared(artifact, 0.25, "lid", "fill")).toBe("rgba(128,128,128,1) !important");

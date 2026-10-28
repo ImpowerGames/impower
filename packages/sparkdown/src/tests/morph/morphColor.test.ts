@@ -47,8 +47,17 @@ describe("the morph colour reader", () => {
     expect(rgba("hsl(0\n100%\n50%)")).toEqual([255, 0, 0, 1]);
   });
 
+  test("the modern syntax mixes numbers and percentages and reads `none` as zero", () => {
+    expect(rgba("rgb(100% 0 0)")).toEqual([255, 0, 0, 1]);
+    expect(rgba("rgb(255 50% 0 / 50%)")).toEqual([255, 127.5, 0, 0.5]);
+    expect(rgba("rgb(none 128 0)")).toEqual([0, 128, 0, 1]);
+    expect(rgba("rgb(0 0 0 / none)")).toEqual([0, 0, 0, 0]);
+    expect(rgba("hsl(120 100 25)")).toEqual([0, 127.5, 0, 1]);
+    expect(rgba("hsl(none 0% 100%)")).toEqual([255, 255, 255, 1]);
+  });
+
   test("syntax a browser drops is unknown, not a colour", () => {
-    for (const value of ["rgb(100%, 0, 0)", "rgba(255, 0%, 0, 1)", "rgb(5., 0, 0)", "hsl(0, 100%, 50.%)", "__proto__", "constructor", "toString", "hasOwnProperty"]) {
+    for (const value of ["rgb(100%, 0, 0)", "rgba(255, 0%, 0, 1)", "rgb(5., 0, 0)", "hsl(0, 100%, 50.%)", "rgb(none, 0, 0)", "hsl(0, 100, 50)", "__proto__", "constructor", "toString", "hasOwnProperty"]) {
       expect(readColor(value), value).toBeUndefined();
     }
   });

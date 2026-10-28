@@ -188,19 +188,22 @@ const hue = (text: string): number | undefined => {
   return Number(match[1]) * ANGLE_UNITS[(match[2] ?? "deg").toLowerCase()]!;
 };
 
-/** The arguments of a colour function, split by commas or (with an optional `/ alpha`) by spaces. */
-const argumentsOf = (body: string): string[] | undefined => {
+/**
+ * The arguments of a colour function: split by commas (the legacy syntax) or
+ * by spaces with an optional `/ alpha` (the modern syntax).
+ */
+const argumentsOf = (body: string): { parts: string[]; legacy: boolean } | undefined => {
   const text = body.trim();
   if (text.includes(",")) {
     const parts = text.split(",").map((p) => p.trim());
-    return parts.every(Boolean) && (parts.length === 3 || parts.length === 4) ? parts : undefined;
+    return parts.every(Boolean) && (parts.length === 3 || parts.length === 4) ? { parts, legacy: true } : undefined;
   }
   const [main, alpha, ...rest] = text.split("/");
   if (rest.length) return undefined;
   const parts = main!.trim().split(/\s+/).filter(Boolean);
   if (parts.length !== 3) return undefined;
-  if (alpha === undefined) return parts;
-  return alpha.trim() ? [...parts, alpha.trim()] : undefined;
+  if (alpha === undefined) return { parts, legacy: false };
+  return alpha.trim() ? { parts: [...parts, alpha.trim()], legacy: false } : undefined;
 };
 
 const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
@@ -242,25 +245,32 @@ export function readColor(value: string): ReadColor | undefined {
   // CSS whitespace inside the parentheses includes line breaks.
   const call = /^(rgba?|hsla?)\(([\s\S]*)\)$/.exec(text);
   if (!call) return undefined;
-  const args = argumentsOf(call[2]!);
-  if (!args) return undefined;
-  const alpha = args[3] === undefined ? 1 : readAlpha(args[3]);
+  const parsed = argumentsOf(call[2]!);
+  if (!parsed) return undefined;
+  const { parts: args, legacy } = parsed;
+  // The modern syntax reads `none` as zero; the legacy syntax has no `none`.
+  const or = <T>(text: string, read: (text: string) => T | undefined): T | 0 | undefined =>
+    !legacy && text === "none" ? 0 : read(text);
+  const alpha = args[3] === undefined ? 1 : or(args[3], readAlpha);
   if (alpha === undefined) return undefined;
   if (call[1]!.startsWith("rgb")) {
-    // The channels are all numbers or all percentages; a browser drops a
-    // declaration that mixes them.
+    // In the legacy syntax the channels are all numbers or all percentages;
+    // a browser drops a declaration that mixes them. The modern syntax
+    // reads each channel on its own.
     const percents = args.slice(0, 3).filter((a) => a.endsWith("%")).length;
-    if (percents !== 0 && percents !== 3) return undefined;
-    const channels = args.slice(0, 3).map((a) => component(a, 255));
+    if (legacy && percents !== 0 && percents !== 3) return undefined;
+    const channels = args.slice(0, 3).map((a) => or(a, (t) => component(t, 255)));
     if (channels.some((c) => c === undefined)) return undefined;
     const [r, g, b] = channels.map((c) => clamp(c!, 0, 255));
     return { kind: "color", color: [r!, g!, b!, alpha] };
   }
-  const h = hue(args[0]!);
-  const s = component(args[1]!, 1);
-  const l = component(args[2]!, 1);
-  // Saturation and lightness are percentages in the legacy syntax.
-  if (h === undefined || s === undefined || l === undefined || !args[1]!.endsWith("%") || !args[2]!.endsWith("%")) return undefined;
+  // Saturation and lightness are percentages; the modern syntax also takes
+  // plain numbers, read as percentages.
+  const percent = (text: string) => (legacy && !text.endsWith("%") ? undefined : component(text.endsWith("%") ? text : `${text}%`, 1));
+  const h = or(args[0]!, hue);
+  const s = or(args[1]!, percent);
+  const l = or(args[2]!, percent);
+  if (h === undefined || s === undefined || l === undefined) return undefined;
   const [r, g, b] = hslToRgb(((h % 360) + 360) % 360, clamp(s, 0, 1), clamp(l, 0, 1));
   return { kind: "color", color: [r, g, b, alpha] };
 }
