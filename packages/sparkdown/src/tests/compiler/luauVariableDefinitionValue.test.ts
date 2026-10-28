@@ -77,16 +77,26 @@ describe("the narrative assignment rules", () => {
   test("a narrative name assignment is the Luau one but for its operation and its end at a later line's first token", () => {
     const luau = repository["LuauVariableAssignment"]!;
     const narrative = repository["LuauSparkdownVariableAssignment"]!;
-    expect(narrative.begin).toBe(luau.begin);
+    // The Luau target's begin also leaves a mark when the bare name ends its
+    // line (`_LUAU_TARGET_ENDS_LINE_MARK_`, its third capture), where its end
+    // steps aside at the line's end and `LuauTargetLineBreak` carries the
+    // line break (I-1449); a narrative declaration ends at its line.
+    expect(luau.begin!.startsWith(narrative.begin!)).toBe(true);
+    const mark = luau.begin!.slice(narrative.begin!.length);
+    expect(mark.startsWith("(?=") && mark.endsWith("(\\n)|)")).toBe(true);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
+    expect(luau.patterns![0]).toEqual({ include: "#LuauTargetLineBreak" });
     expect(
-      luau.patterns!.map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
+      luau.patterns!.slice(1).map((p) => p.include === "#LuauAssignmentOperation" ? { include: "#LuauSparkdownAssignmentOperation" } : bounded(p)),
     ).toEqual(narrative.patterns);
     // The narrative target also ends after a comment that spans lines,
     // before a statement glued to its close.
     const afterComment = narrative.end!.lastIndexOf("|(?<=\\]=*\\])");
     expect(afterComment).toBeGreaterThan(0);
-    expect(luau.end!.startsWith(`${narrative.end!.slice(0, afterComment)}|(?<=^`)).toBe(true);
+    const lineEnd = "|(?=$)(?=\\3\\n)";
+    expect(luau.end!).toContain(lineEnd);
+    const luauEnd = luau.end!.replace(lineEnd, "").replace("(?=^|(?:", "(?=^|$|(?:");
+    expect(luauEnd.startsWith(`${narrative.end!.slice(0, afterComment)}|(?<=^`)).toBe(true);
   });
 
   test("a narrative assignment operation is the Luau one without the line break and its ends", () => {

@@ -140,8 +140,13 @@ sparkdown [0..492]
  │   │   │   └─ LuauFunctionParameters_end [62..63]
  │   │   │       └─ LuauFunctionParameters_end_c1 [62..63]
  │   │   │           └─ PunctuationParenClose [62..63]: ")"
- │   │   └─ LuauFunctionBody [63..153]
- │   │       ├─ LuauFunctionBody_begin [63..64]: "\n"
+ │   │   ├─ LuauFunctionHeaderLineBreak [63..64]
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_begin 63
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_content [63..64]
+ │   │   │   │   └─ Newline [63..64]: "\n"
+ │   │   │   └─ LuauFunctionHeaderLineBreak_end 64
+ │   │   └─ LuauFunctionBody [64..153]
+ │   │       ├─ LuauFunctionBody_begin 64
  │   │       ├─ LuauFunctionBody_content [64..153]
  │   │       │   ├─ LuauVariableDefinition [64..106]
  │   │       │   │   ├─ LuauVariableDefinition_begin [64..72]
@@ -403,8 +408,13 @@ sparkdown [0..492]
  │   │   │   └─ LuauFunctionParameters_end [168..169]
  │   │   │       └─ LuauFunctionParameters_end_c1 [168..169]
  │   │   │           └─ PunctuationParenClose [168..169]: ")"
- │   │   └─ LuauFunctionBody [169..201]
- │   │       ├─ LuauFunctionBody_begin [169..170]: "\n"
+ │   │   ├─ LuauFunctionHeaderLineBreak [169..170]
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_begin 169
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_content [169..170]
+ │   │   │   │   └─ Newline [169..170]: "\n"
+ │   │   │   └─ LuauFunctionHeaderLineBreak_end 170
+ │   │   └─ LuauFunctionBody [170..201]
+ │   │       ├─ LuauFunctionBody_begin 170
  │   │       ├─ LuauFunctionBody_content [170..201]
  │   │       │   ├─ LuauVariableDefinition [170..188]
  │   │       │   │   ├─ LuauVariableDefinition_begin [170..178]
@@ -598,8 +608,13 @@ sparkdown [0..492]
  │   │   │   └─ LuauFunctionParameters_end [246..247]
  │   │   │       └─ LuauFunctionParameters_end_c1 [246..247]
  │   │   │           └─ PunctuationParenClose [246..247]: ")"
- │   │   └─ LuauFunctionBody [247..420]
- │   │       ├─ LuauFunctionBody_begin [247..248]: "\n"
+ │   │   ├─ LuauFunctionHeaderLineBreak [247..248]
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_begin 247
+ │   │   │   ├─ LuauFunctionHeaderLineBreak_content [247..248]
+ │   │   │   │   └─ Newline [247..248]: "\n"
+ │   │   │   └─ LuauFunctionHeaderLineBreak_end 248
+ │   │   └─ LuauFunctionBody [248..420]
+ │   │       ├─ LuauFunctionBody_begin 248
  │   │       ├─ LuauFunctionBody_content [248..420]
  │   │       │   ├─ LuauVariableDefinition [248..266]
  │   │       │   │   ├─ LuauVariableDefinition_begin [248..256]
