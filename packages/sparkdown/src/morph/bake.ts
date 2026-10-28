@@ -32,7 +32,7 @@ import {
   multiply,
   type Affine,
 } from "./affine";
-import { gradientCopy, gradientsMatch, readGradient } from "./gradient";
+import { gradientCopy, gradientNumbers, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
@@ -706,8 +706,8 @@ export function* bakeSteps(
     // different spaces compares equal, and a small coefficient keeps its value.
     const fine = (n: number) => Number(n.toPrecision(12)) || 0;
     const transform = multiply(multiply(space, from), gradient.transform as Affine).map(fine);
-    // A placement that overflows is one the bake cannot draw with certainty.
-    return transform.every(Number.isFinite) ? { ...gradient, transform } : undefined;
+    // A placement that leaves the gradient's range is one the bake cannot draw with certainty.
+    return gradientNumbers(transform) ? { ...gradient, transform } : undefined;
   };
   /**
    * The gradient copies live parts carry, by the node that paints with each,

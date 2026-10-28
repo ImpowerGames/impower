@@ -142,6 +142,22 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(gradient(small, 0.25, id).attributes["gradientTransform"]).toBe("matrix(1.5e-7 0 0 1.5e-7 0 0)");
   });
 
+  test("ends large enough that their blend could overflow stay unblended, and no frame writes Infinity", () => {
+    const stops = '<stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/>';
+    const pair = (from: string, to: string) =>
+      bake(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
+<defs><linearGradient id="a" x1="${from}">${stops}</linearGradient><linearGradient id="b" x1="${to}">${stops}</linearGradient></defs>
+<g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" fill="url(#a)"/></g>
+<g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="url(#b)"/></g>
+</svg>`);
+    const huge = pair("1e308", "-1e308");
+    expect(track(huge, "lash").gradients).toBeUndefined();
+    expect(renderMorphAt(huge, 0.25)).not.toContain("Infinity");
+    // At the bound the two ends blend to their midpoint.
+    const bounded = pair("1e300", "-1e300");
+    expect(gradient(bounded, 0.25, track(bounded, "lash").gradients!.fill!.id).attributes["x1"]).toBe("0");
+  });
+
   test("a pair sharing one gradient still blends its fill and stroke opacity, with no copy", () => {
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20">
 <defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>

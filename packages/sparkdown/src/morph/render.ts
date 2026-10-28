@@ -267,12 +267,15 @@ export function gradientAttributes(gradient: MorphGradient): MorphGradientState 
 export function gradientAt(blend: MorphGradientBlend, progress: number): MorphGradientState {
   const t = clamp01(progress);
   const [a, b] = blend.ends;
-  const mix = (x: number[], y: number[]) => x.map((v, i) => v + (y[i]! - v) * t);
+  // Weighted, rather than stepped from one end, so the difference of two
+  // large ends of opposite sign never overflows.
+  const lerp = (v: number, w: number) => v * (1 - t) + w * t;
+  const mix = (x: number[], y: number[]) => x.map((v, i) => lerp(v, y[i]!));
   return gradientAttributes({
     ...a,
     geometry: mix(a.geometry, b.geometry),
     transform: mix(a.transform, b.transform),
-    stops: a.stops.map(([offset, color], i) => [offset + (b.stops[i]![0] - offset) * t, blendColor(color, b.stops[i]![1], t)]),
+    stops: a.stops.map(([offset, color], i) => [lerp(offset, b.stops[i]![0]), blendColor(color, b.stops[i]![1], t)]),
   });
 }
 

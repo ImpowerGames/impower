@@ -9,13 +9,14 @@
 // inline `style` and no
 // `transform` attribute, holding nothing but `stop` elements, reached from
 // the drawing through a bare `url(#id)` and from there through `href` or
-// `xlink:href` of the form `#id`, each to another such gradient; its
+// `xlink:href` (its prefix bound to XLink) of the form `#id`, each to another
+// such gradient; its
 // `gradientUnits` and `spreadMethod` spelled exactly as SVG names them;
-// coordinates as plain finite numbers or percentages, with nothing around
-// them, a percentage in `userSpaceOnUse` only at zero (any other resolves
+// coordinates as plain numbers or percentages no larger than 1e300, with
+// nothing around them, a percentage in `userSpaceOnUse` only at zero (any other resolves
 // against a viewport); a `gradientTransform` as a list of the six transform
 // functions, numbers separated by commas or spaces and functions by a comma
-// or spaces, its matrix finite; each stop's `offset` the same way, and its
+// or spaces, its matrix's entries no larger either; each stop's `offset` the same way, and its
 // colour as `paint.ts` reads `stop-color` and `stop-opacity`; and nothing
 // that may set `color-interpolation` on the gradients, their stops or their
 // ancestors (the attribute, the property, `all`, or an inline style the
@@ -49,14 +50,23 @@ const REFERENCE = /^#([A-Za-z0-9_.-]+)$/;
 const elementsOf = (element: Element): Element[] =>
   element.children.filter((c): c is Element => !!c && typeof c === "object");
 
-/** A finite number, or a percentage as a fraction; undefined otherwise. */
+/**
+ * The largest magnitude a gradient number may have: far beyond any drawing's
+ * scale, and small enough that blending two such numbers never overflows a
+ * double, as a number too large for one never could be drawn with certainty.
+ */
+const GRADIENT_LIMIT = 1e300;
+
+/** Whether every number is within `GRADIENT_LIMIT`. */
+export const gradientNumbers = (numbers: readonly number[]) => numbers.every((n) => Math.abs(n) <= GRADIENT_LIMIT);
+
+/** A number within `GRADIENT_LIMIT`, or a percentage as a fraction; undefined otherwise. */
 const fraction = (text: string): { value: number; percent: boolean } | undefined => {
   const percent = text.endsWith("%");
   const body = percent ? text.slice(0, -1) : text;
   if (!NUMBER.test(body)) return undefined;
   const value = percent ? Number(body) / 100 : Number(body);
-  // A number too large for a double is one the bake cannot draw with certainty.
-  return Number.isFinite(value) ? { value, percent } : undefined;
+  return gradientNumbers([value]) ? { value, percent } : undefined;
 };
 
 /** A `gradientTransform` in the grammar, or undefined. */
@@ -79,7 +89,7 @@ export function readGradientTransform(text: string): Affine | undefined {
   }
   // Validated, so the lenient parser reads exactly these numbers.
   const matrix = parseTransform(text);
-  return matrix && matrix.every(Number.isFinite) ? matrix : undefined;
+  return matrix && gradientNumbers(matrix) ? matrix : undefined;
 }
 
 /**
@@ -95,20 +105,23 @@ const interpolates = (doc: ArtDocument, element: Element) =>
   });
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+/** The namespace the nearest declaration `name` (`xmlns` or `xmlns:prefix`), the element's own or an ancestor's, binds. */
+const boundNamespace = (doc: ArtDocument, element: Element, name: string): string | undefined => {
+  for (const { element: e } of ancestry(doc, element)) {
+    const declared = e.attributes[name];
+    if (declared !== undefined) return declared;
+  }
+  return undefined;
+};
 
 /**
- * Whether an element's unprefixed name is in the SVG namespace: the nearest
- * default namespace declaration, its own or an ancestor's, names it. An
- * element under another namespace is no gradient or stop a browser paints
- * with, whatever its name.
+ * Whether an element's unprefixed name is in the SVG namespace. An element
+ * under another namespace is no gradient or stop a browser paints with,
+ * whatever its name.
  */
-const inSvg = (doc: ArtDocument, element: Element) => {
-  for (const { element: e } of ancestry(doc, element)) {
-    const declared = e.attributes["xmlns"];
-    if (declared !== undefined) return declared === SVG_NS;
-  }
-  return false;
-};
+const inSvg = (doc: ArtDocument, element: Element) => boundNamespace(doc, element, "xmlns") === SVG_NS;
 
 /**
  * The gradient `id` names, resolved through its `href` chain: each attribute
@@ -123,9 +136,11 @@ export function readGradient(doc: ArtDocument, id: string): MorphGradient | unde
     if (chain.includes(at) || !own(KINDS, at.tagName) || !inSvg(doc, at)) return undefined;
     // Inline style could set the transform, and a `transform` attribute is
     // one in SVG 2; a link in any other namespace prefix is one the bake
-    // cannot tell from `xlink:href`.
+    // cannot tell from `xlink:href`, and `xlink:href` is a link only where
+    // its prefix is bound to the XLink namespace.
     if ((at.attributes["style"] ?? "").replace(WSP, "") || at.attributes["transform"] !== undefined) return undefined;
     if (Object.keys(at.attributes).some((name) => name.endsWith(":href") && name !== "xlink:href")) return undefined;
+    if (at.attributes["xlink:href"] !== undefined && boundNamespace(doc, at, "xmlns:xlink") !== XLINK_NS) return undefined;
     if (elementsOf(at).some((child) => child.tagName !== "stop" || elementsOf(child).length > 0)) return undefined;
     if (interpolates(doc, at)) return undefined;
     chain.push(at);

@@ -63,6 +63,7 @@ describe("gradients are read within a closed grammar", () => {
     ["color-interpolation behind a comment on an ancestor", `<g style="/*x*/color-interpolation:linearRGB"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["an ancestor's all", `<g style="all:inherit"><linearGradient id="a">${STOPS}</linearGradient></g>`],
     ["a coordinate too large for a double", `<linearGradient id="a" x2="1e999">${STOPS}</linearGradient>`],
+    ["a coordinate beyond 1e300", `<linearGradient id="a" x2="1e301">${STOPS}</linearGradient>`],
     ["a transform too large for a double", `<linearGradient id="a" gradientTransform="scale(1e999)">${STOPS}</linearGradient>`],
     ["a stop colour too large for a double", `<linearGradient id="a"><stop offset="0" stop-color="hsl(1e999, 50%, 50%)"/></linearGradient>`],
     ["a gradient in another namespace", `<linearGradient xmlns="urn:not-svg" id="a">${STOPS}</linearGradient>`],
@@ -73,6 +74,19 @@ describe("gradients are read within a closed grammar", () => {
     ["a stop colour outside the paint grammar", `<linearGradient id="a"><stop offset="0" stop-color="var(--x)"/></linearGradient>`],
     ["a stop colour of none", `<linearGradient id="a"><stop offset="0" stop-color="none"/></linearGradient>`],
   ];
+  test("an xlink:href is a link only where its prefix is bound to XLink", () => {
+    const linked = (root: string) =>
+      readGradient(
+        readArtDocument(
+          `<svg xmlns="http://www.w3.org/2000/svg" ${root} viewBox="0 0 10 10"><defs><linearGradient id="t">${STOPS}</linearGradient><linearGradient id="a" xlink:href="#t"/></defs></svg>`,
+        )!,
+        "a",
+      );
+    expect(linked('xmlns:xlink="http://www.w3.org/1999/xlink"')).toBeDefined();
+    expect(linked('xmlns:xlink="urn:not-xlink"')).toBeUndefined();
+    expect(linked("")).toBeUndefined();
+  });
+
   test.each(outside)("%s is unknown", (_, defs) => {
     expect(read(defs)).toBeUndefined();
   });
