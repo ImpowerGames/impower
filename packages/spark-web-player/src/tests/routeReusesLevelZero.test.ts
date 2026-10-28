@@ -270,6 +270,53 @@ describe("a route search after an earlier one's level zero", () => {
     expect(searched.fallback).toBe(true);
   }, 120_000);
 
+  test("runs level zero again after a statement is added to an empty body it entered", () => {
+    // Level zero entered the empty body of `if true` and ran nothing in it.
+    // A divert added there runs the scene again, forever; the compile emits
+    // the `if` statement, which level zero ran, again, so its work no longer
+    // holds (round 2 review of PR 2267).
+    const lines = [
+      "store flag = false",
+      "store total = 0",
+      "-> start",
+      "scene start",
+      "  for i = 1, 10 do",
+      "    total += 1",
+      "  end",
+      "  if flag then",
+      "    First target {total}.",
+      "    Second target {total}.",
+      "  end",
+      "  if true then",
+      "  end",
+      "end",
+      "",
+    ];
+    const compiler = configure(lines);
+    const game = gameOf(compile(compiler));
+    expect(scrub(game, lines, "First target").total).toBe(10);
+
+    const body = lines.indexOf("  if true then") + 1;
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: { line: body, character: 0 },
+            end: { line: body, character: 0 },
+          },
+          text: "    -> start\n",
+        },
+      ],
+    } as never);
+    const program = compile(compiler);
+    game.updateProgram(program);
+    const after = [...lines.slice(0, body), "    -> start", ...lines.slice(body)];
+    const searched = scrub(game, after, "Second target");
+    expect(searched).toEqual(fresh(program, after, "Second target"));
+    expect(searched.fallback).toBe(true);
+  }, 120_000);
+
   test("runs level zero again after an edit to a line it ran", () => {
     const compiler = configure(SOURCE);
     const game = gameOf(compile(compiler));
