@@ -301,6 +301,42 @@ describe("the listing of the example's scene", () => {
   });
 });
 
+describe("first values", () => {
+  test("are what the declarations give, not what a run left, after a route and after a recompile", () => {
+    const { game, compiler } = routeTo(example, 20, {
+      interrogation: { [paramKey("hour")]: '"nine"' },
+    });
+    // The route took an option, which changed trust from its first value.
+    expect(game.story.variablesState["trust"]).not.toBe(0);
+    const firstOf = (name: string) =>
+      game
+        .startingValueListing("interrogation")
+        .items.find((i: any) => i.name === name)?.first;
+    expect(firstOf("trust")).toBe("0");
+    // A compile gives the game a new program, whose engine can take over
+    // the globals the last one held.
+    const doc = compiler.documents.get(URI)!;
+    const edited = example.join("\n").replace('"Ana"', '"Bo"');
+    compiler.configure({
+      files: [
+        {
+          uri: URI,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: edited,
+          version: (doc as any).version + 1,
+          languageId: "sparkdown",
+        },
+      ],
+    } as never);
+    const result = compiler.compile({ textDocument: { uri: URI } });
+    game.updateProgram(requireChunks(result.program));
+    expect(firstOf("trust")).toBe("0");
+    expect(firstOf("suspect")).toBe('"Bo"');
+  });
+});
+
 describe("a change of starting values", () => {
   test("is a change before the route's first step", () => {
     const { game } = routeTo(example, 20, {
