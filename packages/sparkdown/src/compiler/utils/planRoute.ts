@@ -136,6 +136,10 @@ export interface SearchNode {
   /** How many pinned offers the route to here did not take: the tier of
    *  the search it belongs to (see {@link planRoute}). */
   left: number;
+  /** Whether the route to here met a pinned offer, keeping it or leaving
+   *  it: a route that met none is held while another route of its tier
+   *  met one (see {@link planRoute}). */
+  metPin: boolean;
   /** The route the node continues: a node that takes up a run where it
    *  stopped (a turn, or a run a bound cut) keeps its route's, and one
    *  forked to make a choice or a verdict starts a route of its own. A later
@@ -925,6 +929,9 @@ export interface RunResult {
   conditions: { selected: boolean }[];
   choices: RouteChoice[];
   terminal: boolean; //  true if branch ended this run
+  /** Whether the route the run continues met a pinned offer (see
+   *  {@link SearchNode.metPin}). */
+  metPin?: boolean;
 }
 
 /**
@@ -1401,6 +1408,14 @@ const startFaithfulBudget = (budget: SearchBudget, startSteps: number) => {
  * {@link PIN_SHARE}; the next tier then starts from its routes that force
  * the fewest verdicts.
  *
+ * A pin says which option to take at a menu, never to avoid the menu. So a
+ * route of the first tier that meets no pinned offer, found once another
+ * route of that tier has met one, is held rather than taken: a route
+ * through a pinned offer found later in the tier is taken whatever it
+ * forces, and without one the held route stands unless a later tier finds a
+ * route forcing fewer verdicts. A pin the target cannot be reached through
+ * then leaves the route the search would find without it.
+ *
  * Each level may spend a {@link LEVEL_SHARE} of the work remaining, level zero
  * from the first condition it meets (work before it, a long Luau call
  * included, is not charged against the bound), and level zero every step of
@@ -1559,6 +1574,11 @@ const planRouteFaithful = (
     let tierBound: TierBound | null = null;
     // Whether a tier's bound ran out before its routes did.
     let tierCut = false;
+    // The first route of the first tier that met no pinned offer while
+    // another route of that tier met one, and the verdicts it forces: it is
+    // the route when no route through the pin is found, unless a later tier
+    // finds one forcing fewer verdicts.
+    let held: { plan: RoutePlan; forced: number } | null = null;
     const depart = (left: number, forced: number, entry: QueueEntry) => {
       tierBound ??= bindTier(budget);
       addDeparture(tiers, left, forced, entry);
@@ -1656,7 +1676,7 @@ const planRouteFaithful = (
           );
 
           if (result.hitTarget) {
-            routePlan = {
+            const found: RoutePlan = {
               from,
               to,
               steps: result.steps,
@@ -1665,6 +1685,20 @@ const planRouteFaithful = (
               choices: result.choices,
               ...(levelZero.bound ? { levelZero: { ...levelZero.bound } } : {}),
             };
+            if (tier === 0 && !result.metPin && tierBound !== null) {
+              // A route that met no pinned offer while another of the first
+              // tier met one: held, since a route through the pin is
+              // preferred at any forced cost.
+              held ??= { plan: found, forced: node.forced };
+              continue;
+            }
+            // A route of the first tier is through the pin and taken; one of
+            // a later tier left a pin, and the held route stands against it
+            // unless it forces fewer verdicts.
+            routePlan =
+              held && tier > 0 && held.forced <= node.forced
+                ? held.plan
+                : found;
             break;
           }
 
@@ -1699,7 +1733,9 @@ const planRouteFaithful = (
               level,
               queue.slice(head).filter((n): n is QueueEntry => !!n),
             );
-      if (store && budget.trace && level === levelZero) {
+      // Work kept for a later search holds no held route, so none is kept
+      // while one is held.
+      if (store && budget.trace && level === levelZero && !held) {
         const trace = budget.trace;
         budget.trace = undefined;
         store.keep({
@@ -1758,6 +1794,10 @@ const planRouteFaithful = (
         index = first;
         queued = takeDepartures(tiers, tier, first);
       }
+      if (held && tier > 0 && index >= held.forced) {
+        // No route of this tier forces fewer verdicts than the held one.
+        break;
+      }
       level = newLevel(index);
       // A tier's level zero binds at the first condition it meets, as the
       // first tier's does.
@@ -1767,6 +1807,9 @@ const planRouteFaithful = (
       queue = queued;
       head = 0;
     }
+    // With no route through the pin, and none of a later tier forcing fewer
+    // verdicts, the held route is the route.
+    routePlan ??= held?.plan ?? null;
 
     lastSearchStats.stepsUsed = startingSteps - budget.stepsRemaining;
     // Read from the budget itself, not from where the loop happened to exit: the
@@ -1943,10 +1986,15 @@ const runUntilDecisionOrBranch = (
     conditions: runConditions.length,
   });
 
+  // Whether the route this run continues has met a pinned offer, which a
+  // pinned gate the run keeps true makes it.
+  let metPin = node.metPin;
+
   /** A node standing where this run stood at `at`, which forces
    *  `overrides` next, and is forked to make `add` (a condition's verdict, or
-   *  a choice) when given, in tier `left`. Built on the run's own records,
-   *  which only grow past `at` afterwards. */
+   *  a choice) when given, in tier `left`, having met a pinned offer when
+   *  `met`. Built on the run's own records, which only grow past `at`
+   *  afterwards. */
   const nodeAt = (
     state: SearchState,
     at: Mark,
@@ -1954,6 +2002,7 @@ const runUntilDecisionOrBranch = (
     add?: RouteOverride,
     choice?: RouteChoice,
     left = node.left,
+    met = metPin,
   ): SearchNode => {
     let decisions = extendTrail(node.decisions, runDecisions, at.decisions);
     let conditions = extendTrail(node.conditions, runConditions, at.conditions);
@@ -1977,6 +2026,7 @@ const runUntilDecisionOrBranch = (
       overrides,
       forced: node.forced + (add?.kind === "condition" && add.departs ? 1 : 0),
       left,
+      metPin: met,
       // A node forked to make a choice or a verdict starts a route of its
       // own; one that takes the run up where it stopped continues it.
       route: add ? newRoute() : node.route,
@@ -2096,7 +2146,11 @@ const runUntilDecisionOrBranch = (
           const options = story.currentChoices.map((c) => c.text);
           const sources = story.currentChoices.map((c) => c.sourcePath);
           const at = mark();
-          const forkChoice = (selected: number, left = node.left) => {
+          const forkChoice = (
+            selected: number,
+            left = node.left,
+            met = metPin,
+          ) => {
             const ov: ChoiceOverride = {
               kind: "choice",
               site,
@@ -2109,6 +2163,7 @@ const runUntilDecisionOrBranch = (
               ov,
               { options, selected, sources },
               left,
+              met,
             );
           };
           // A pinned offer takes the place of the favored choice: the
@@ -2125,11 +2180,11 @@ const runUntilDecisionOrBranch = (
               : [];
           if (pinnedHere.length > 0) {
             const taken = pinnedHere[0]!;
-            branches.push(forkChoice(taken));
+            branches.push(forkChoice(taken, node.left, true));
             for (let i = 0; i < sources.length; i++) {
               if (i !== taken) {
                 depart(node.left + 1, node.forced, () =>
-                  forkChoice(i, node.left + 1),
+                  forkChoice(i, node.left + 1, true),
                 );
               }
             }
@@ -2279,10 +2334,13 @@ const runUntilDecisionOrBranch = (
             defer(node.forced + 1, {
               site,
               route: node.route,
-              node: () => nodeAt(fork.state, at, [keep], keep),
+              node: () =>
+                nodeAt(fork.state, at, [keep], keep, undefined, node.left, true),
             });
           } else {
-            branches.push(nodeAt(fork.state, at, [keep], keep));
+            branches.push(
+              nodeAt(fork.state, at, [keep], keep, undefined, node.left, true),
+            );
           }
           const leave: ConditionOverride = {
             kind: "condition",
@@ -2290,7 +2348,15 @@ const runUntilDecisionOrBranch = (
             value: false,
           };
           depart(node.left + 1, node.forced, () =>
-            nodeAt(fork.state, at, [leave], leave, undefined, node.left + 1),
+            nodeAt(
+              fork.state,
+              at,
+              [leave],
+              leave,
+              undefined,
+              node.left + 1,
+              true,
+            ),
           );
           terminal = true;
           break;
@@ -2315,13 +2381,27 @@ const runUntilDecisionOrBranch = (
           };
           if (gate) {
             depart(node.left + 1, node.forced + 1, () =>
-              nodeAt(fork.state, at, [other], other, undefined, node.left + 1),
+              nodeAt(
+                fork.state,
+                at,
+                [other],
+                other,
+                undefined,
+                node.left + 1,
+                true,
+              ),
             );
+            // The run keeps the pinned gate true: its route meets the pin.
+            metPin = true;
           } else {
+            // Read now: the run's route can meet a pin before this node is
+            // built.
+            const met = metPin;
             defer(node.forced + 1, {
               site,
               route: node.route,
-              node: () => nodeAt(fork.state, at, [other], other),
+              node: () =>
+                nodeAt(fork.state, at, [other], other, undefined, node.left, met),
             });
           }
           const ov: ConditionOverride = {
@@ -2377,6 +2457,7 @@ const runUntilDecisionOrBranch = (
       ? route(mark())
       : { steps: [], decisions: [], conditions: [], choices: [] }),
     terminal,
+    metPin,
   };
 };
 
@@ -2424,6 +2505,7 @@ const makeStartNode = (
     overrides: [],
     forced: 0,
     left: 0,
+    metPin: false,
     route: newRoute(),
   };
 };
@@ -2449,6 +2531,7 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
     overrides: [],
     forced: 0,
     left: 0,
+    metPin: false,
     route: newRoute(),
   };
 };

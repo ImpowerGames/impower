@@ -221,6 +221,69 @@ describe("the preview's route keeps the author's pins", () => {
     expect(route.decisions[1]!.notFollowed).toBe(true);
   }, 120_000);
 
+  test("a pin the target cannot be reached through leaves the route the search takes without it, never a forced dodge of its menu", () => {
+    // Taking the threaded key ends the story, so the line after the hub
+    // cannot be reached through its pins; forcing the loop's test false
+    // would skip the menu, which no pin asks for.
+    const lines = [
+      "store asked = 0",
+      "-> start",
+      "scene start",
+      "  while asked < 2 do",
+      "    <- side",
+      "    choose",
+      "      + [Leave.]",
+      "        & asked = 5",
+      "    end",
+      "  end",
+      "  Done.",
+      "end",
+      "scene side",
+      "  choose",
+      "    * [Ask about the key.]",
+      "      & asked += 1",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 11, [pin(15, 1), pin(15, 2)]);
+    expect(
+      route.decisions.map((d) => [d.kind, d.text, Boolean(d.notFollowed)]),
+    ).toEqual([["auto", "Leave.", true]]);
+  }, 120_000);
+
+  test("a route through the pin is taken at any forced cost, even where a forced dodge of its menu costs less", () => {
+    const lines = [
+      "store trust = 0",
+      "store go = true",
+      "",
+      "scene s",
+      "  if go then",
+      "    choose",
+      "      * [Tell the truth.]",
+      "        trust += 2",
+      "      * [Lie.]",
+      "        trust -= 1",
+      "    end",
+      "  end",
+      "  if trust < 1 then",
+      "    if trust < 2 then",
+      "      Reached.",
+      "    end",
+      "  end",
+      "end",
+      "",
+    ];
+    const { route, count } = preview(lines, 15, [pin(7)], "trust");
+    expect(kindsAndLines(route)).toEqual([
+      ["pinned", 7],
+      ["forced", 13],
+      ["forced", 14],
+    ]);
+    expect(count).toBe(2);
+  }, 120_000);
+
   test("a hub is pinned meeting by meeting", () => {
     const lines = [
       "store stage = 0",
