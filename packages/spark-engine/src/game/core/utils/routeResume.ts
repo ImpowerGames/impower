@@ -126,12 +126,14 @@ export const validAddressPrefixLength = (
  * way: every chunk level zero stood in is kept, each move between two of them
  * is one the new root makes too (as `validAddressPrefixLength` judges a
  * route's moves), the chunk the search started in still starts its sequence,
- * no symbol moved, and the declarations did not run again. A compile measured
+ * a chunk a run ended in at the end of its sequence still ends it, and so
+ * does each owner it was last in, so no statement now runs after it, no
+ * symbol moved, and the declarations did not run again. A compile measured
  * against another program than the one the work was last held in, or one
  * that says nothing of its chunks, holds nothing.
  */
 export const levelZeroHolds = (
-  work: Pick<LevelZeroWork, "chunks" | "moves" | "first">,
+  work: Pick<LevelZeroWork, "chunks" | "moves" | "first" | "ends">,
   before: ProgramRoot,
   after: ProgramRoot,
   changes: ProgramChangeSummary | undefined,
@@ -172,6 +174,30 @@ export const levelZeroHolds = (
     const place = placeOf(work.first);
     if ((place.was!.entry === 0) !== (place.now!.entry === 0)) {
       return false;
+    }
+  }
+  const lastOf = (at: ChunkPosition) =>
+    at.entry === at.sequence.arrays.chunks.length - 1;
+  // A run that ended at the last chunk of a body went on, as far as the
+  // program is concerned, after its owner: each owner it was last in must
+  // still be last too.
+  for (const end of work.ends) {
+    for (let id = end; ; ) {
+      const place = placeOf(id);
+      if (!place.was || !place.now) {
+        return false;
+      }
+      if (!lastOf(place.was)) {
+        break;
+      }
+      if (!lastOf(place.now)) {
+        return false;
+      }
+      const owner = place.was.sequence.owner;
+      if (owner < 0) {
+        break;
+      }
+      id = owner;
     }
   }
   for (const [from, tos] of work.moves) {

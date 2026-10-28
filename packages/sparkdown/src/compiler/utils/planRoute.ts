@@ -563,6 +563,9 @@ export interface LevelZeroWork {
   /** The chunk the search's first step stood in, at the top of the flow;
    *  null when it took none. */
   readonly first: number | null;
+  /** The chunks a run stood in when the story could not go on: whether the
+   *  next program goes on from there depends on what comes after them. */
+  readonly ends: ReadonlySet<number>;
   /** What each favored verdict and choice level zero read, by index, made
    *  it do: the verdict it tried first at an open condition, and, by the
    *  number of options of each menu met at that index, the choice it forked
@@ -596,6 +599,7 @@ interface LevelZeroTrace {
   chunks: Set<number>;
   moves: Map<number, Set<number>>;
   first: number | null;
+  ends: Set<number>;
   /** The chunk the run going on last stood in; -1 at a run's start. */
   last: number;
   favoredConditions: Map<number, boolean>;
@@ -1255,6 +1259,7 @@ const planRouteFaithful = (
       chunks: new Set(),
       moves: new Map(),
       first: null,
+      ends: new Set(),
       last: -1,
       favoredConditions: new Map(),
       favoredChoices: new Map(),
@@ -1460,6 +1465,7 @@ const planRouteFaithful = (
           chunks: trace.chunks,
           moves: trace.moves,
           first: trace.first,
+          ends: trace.ends,
           favoredConditions: trace.favoredConditions,
           favoredChoices: trace.favoredChoices,
           queue: [...next],
@@ -1825,6 +1831,9 @@ const runUntilDecisionOrBranch = (
 
       // C) If we can't continue and there are no choices, this is a dead end
       if (!story.canContinue) {
+        if (budget.trace && budget.trace.last >= 0) {
+          budget.trace.ends.add(budget.trace.last);
+        }
         terminal = true;
         break;
       }
