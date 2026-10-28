@@ -14,6 +14,11 @@ export function buildPreviewFixture(options?: {
   thenLines?: number;
 }): { files: Map<string, string>; target: PreviewFixtureTarget };
 
+export function buildLoopFixture(options?: { passes?: number }): {
+  files: Map<string, string>;
+  target: PreviewFixtureTarget & { passes: number };
+};
+
 export function buildBeatsFixture(options?: { lines?: number }): {
   files: Map<string, string>;
   target: { line: number; sceneLines: number };

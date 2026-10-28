@@ -27,6 +27,9 @@ import {
   showsBeatAhead,
   routeChargeAt,
   stepsBeforeDeparture,
+  sameFavoredReads,
+  type LevelZeroStore,
+  type LevelZeroWork,
   type SearchOptions,
   type RoutePlan,
   type RouteResumePoint,
@@ -77,6 +80,7 @@ import {
   runsAfterReset,
 } from "../utils/programBreakpoints";
 import {
+  levelZeroHolds,
   validAddressPrefixLength,
 } from "../utils/routeResume";
 import { storyPositions, type StoryPositions } from "../utils/storyPositions";
@@ -656,7 +660,21 @@ export class Game<T extends M = {}> {
 
   protected _plannedRouteStepCursor: number = 0;
 
-  protected _plannedRouteStepMap: { [seq: string]: number } = {};
+  /** What the route searches from the top kept of their level zero, by
+   *  search key (`LevelZeroWork`), held in the root and the compile named
+   *  below: a later search starts from one only while the program still
+   *  holds what that level zero ran (`levelZeroStore`). */
+  protected _levelZeroWorks = new Map<string, LevelZeroWork>();
+
+  protected _levelZeroRoot?: ProgramRoot;
+
+  protected _levelZeroChangeId?: number;
+
+  /** The index of each step of the planned route by its identity, built
+   *  when a caller asks for a step by identity alone (`stepCheckpoint`): a
+   *  route through a long loop holds hundreds of thousands of steps, and a
+   *  caller that names the index it expects reads the step there. */
+  protected _plannedRouteStepMap: Map<string, number> | null = null;
 
   /** Per checkpoint, the planned-route step the story was about to run when it
    *  was captured; see {@link checkpoint}. */
@@ -2030,6 +2048,7 @@ export class Game<T extends M = {}> {
       | "searchTimeout"
       | "callerResetsStory"
       | "resumeFrom"
+      | "levelZeroStore"
     >,
   ) {
     const route = Game.planRouteInFlow(
@@ -2079,6 +2098,7 @@ export class Game<T extends M = {}> {
       | "searchTimeout"
       | "callerResetsStory"
       | "resumeFrom"
+      | "levelZeroStore"
     >,
   ) {
     return planRoute(story, from, to, {
@@ -2111,6 +2131,7 @@ export class Game<T extends M = {}> {
       | "searchTimeout"
       | "callerResetsStory"
       | "resumeFrom"
+      | "levelZeroStore"
     >,
   ) {
     return planRoute(story, "0", to, {
@@ -2158,11 +2179,21 @@ export class Game<T extends M = {}> {
     },
   ): number | null {
     if (this._plannedRoute) {
-      const stepIndex = this._plannedRouteStepMap[seq];
-      if (stepIndex != null) {
-        if (expected?.index != null && stepIndex !== expected.index) {
-          return null;
+      const steps = this._plannedRoute.steps;
+      let stepIndex: number | undefined;
+      if (expected?.index != null) {
+        stepIndex =
+          steps[expected.index]?.seq === seq ? expected.index : undefined;
+      } else {
+        if (!this._plannedRouteStepMap) {
+          this._plannedRouteStepMap = new Map();
+          for (let i = 0; i < steps.length; i++) {
+            this._plannedRouteStepMap.set(steps[i]!.seq, i);
+          }
         }
+        stepIndex = this._plannedRouteStepMap.get(seq);
+      }
+      if (stepIndex != null) {
         const step = this._plannedRoute.steps[stepIndex];
         if (step) {
           if (expected?.address != null && step.address !== expected.address) {
@@ -2233,12 +2264,7 @@ export class Game<T extends M = {}> {
     this._startAddress = route.to;
     // Force the story to follow this route
     this._story.simulator = buildRouteSimulator(route.decisions, fromDecision);
-    // Record valid seqs for each step of the route
-    this._plannedRouteStepMap = {};
-    for (let i = 0; i < route.steps.length; i++) {
-      const step = route.steps[i]!;
-      this._plannedRouteStepMap[step.seq] = i;
-    }
+    this._plannedRouteStepMap = null;
     this._plannedRouteStepCursor = fromStep;
     this._routeTargetWrote = undefined;
     this._routeTargetVisits = undefined;
@@ -2485,6 +2511,101 @@ export class Game<T extends M = {}> {
       ),
       replayOnly,
     };
+  }
+
+  /** How many searches' level-zero work a game keeps: a flow's own search
+   *  and the search from the story's start that can follow it
+   *  (`planRoute`). */
+  protected static readonly LEVEL_ZERO_WORKS = 2;
+
+  /** Where this game's route searches keep and find level zero's work
+   *  (`SearchOptions.levelZeroStore`): a search finds work only while the
+   *  program still holds what that level zero ran. */
+  get levelZeroStore(): LevelZeroStore {
+    return {
+      find: (key) => this.heldLevelZeroWorks().get(key),
+      keep: (work) => {
+        const works = this.heldLevelZeroWorks();
+        works.delete(work.key);
+        works.set(work.key, work);
+        for (const key of works.keys()) {
+          if (works.size <= Game.LEVEL_ZERO_WORKS) {
+            break;
+          }
+          works.delete(key);
+        }
+      },
+    };
+  }
+
+  /** Whether a route to `to` is searched from the top of `from`, favoring
+   *  `favored`, without first resuming at `resumeFrom`: the program still
+   *  holds level-zero work of a search from that flow whose level zero never
+   *  stood in the chunk `to` stands in. When that level zero read the same
+   *  favored verdicts and choices, the search starts from it and finds the
+   *  route a search from the top finds, at the cost of the levels after
+   *  level zero. When it read others, which a search that remembers its
+   *  route writes, a search from the top runs level zero again and keeps
+   *  work for these; it is chosen only when the resumed search would run
+   *  more than half of that level zero again itself, so a scrub pays at most
+   *  about twice what resuming costs. */
+  searchesFromLevelZeroWork(
+    from: string,
+    to: ProgramAddress,
+    favored: {
+      favoredConditions?: (boolean | undefined)[];
+      favoredChoices?: (number | undefined)[];
+    } = {},
+    resumeFrom?: RouteResumePoint,
+  ): boolean {
+    const chunk = chunkOfAddress(to);
+    for (const work of this.heldLevelZeroWorks().values()) {
+      if (work.from !== from || work.chunks.has(chunk)) {
+        continue;
+      }
+      if (
+        sameFavoredReads(
+          work,
+          favored.favoredConditions ?? [],
+          favored.favoredChoices ?? [],
+        )
+      ) {
+        return true;
+      }
+      const charged = resumeFrom?.charge?.steps;
+      if (charged == null || work.spentSteps - charged > work.spentSteps / 2) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The level-zero works the program still holds (`levelZeroHolds`),
+   *  measured from the root and compile they were last held in and then held
+   *  in this one's; the rest are dropped. */
+  protected heldLevelZeroWorks(): Map<string, LevelZeroWork> {
+    const root = this._story.root;
+    const changeId = this._program.changes?.id;
+    if (this._levelZeroRoot !== root || this._levelZeroChangeId !== changeId) {
+      const before = this._levelZeroRoot;
+      for (const [key, work] of this._levelZeroWorks) {
+        if (
+          !before ||
+          !levelZeroHolds(
+            work,
+            before,
+            root,
+            this._program.changes,
+            this._levelZeroChangeId,
+          )
+        ) {
+          this._levelZeroWorks.delete(key);
+        }
+      }
+      this._levelZeroRoot = root;
+      this._levelZeroChangeId = changeId;
+    }
+    return this._levelZeroWorks;
   }
 
   /**
