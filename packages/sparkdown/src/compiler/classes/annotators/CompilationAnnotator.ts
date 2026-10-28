@@ -453,6 +453,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       return;
     }
     if (node.name === "LuauFunctionDefinition") {
+      // A `local function` in a flow is a local a closure captures, as a
+      // plain `local` is.
+      if (/^local\b/.test(this.read(node.from, node.to).trimStart())) return;
       const found = this.findDescendant(node, "LuauFunctionName");
       if (found) set.add(this.read(found.from, found.to).trim());
       return;

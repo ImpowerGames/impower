@@ -551,7 +551,7 @@ const restartOf = (
 };
 
 /** The restart of a position whose first saved level is `level` and which
- *  was placed in `sequence`, in a frame whose outermost scope binds `names`:
+ *  was placed in `sequence`, in a frame whose scopes bind `names`:
  *  of the branch's scene when its parameters changed, since restarting the
  *  scene enters the branch again, or else of the scene or branch the
  *  position is in when its own parameters changed. */
@@ -572,11 +572,12 @@ const flowRestart = (
   );
 };
 
-/** The names a saved frame's outermost scope binds, or nothing for a frame
- *  that holds no temporaries. */
+/** The names a saved frame's scopes bind, its flows' scopes among them, or
+ *  nothing for a frame that holds no temporaries. */
 const savedScopeNames = (frame: Record<string, any> | undefined): Set<string> | undefined => {
-  const scope = Array.isArray(frame?.["temps"]) ? frame["temps"][0] : undefined;
-  return scope && typeof scope === "object" ? new Set(Object.keys(scope)) : undefined;
+  const scopes: unknown[] = Array.isArray(frame?.["temps"]) ? frame["temps"] : [];
+  const held = scopes.filter((scope): scope is object => !!scope && typeof scope === "object");
+  return held.length > 0 ? new Set(held.flatMap((scope) => Object.keys(scope))) : undefined;
 };
 
 /** The choices of a chunk whose `Choice` instructions stand one for each
@@ -2762,11 +2763,11 @@ export const translatePositional = (
   // The restart of an element whose position was in a scene or a branch of
   // `from` and is in one whose parameters changed
   // (#1728), read from `from` as a save's first level carries it, in a frame
-  // whose outermost scope is `scope`.
+  // whose scopes, its flows' among them, are `scopes`.
   const restarts = (
     saved: PositionCopy | null,
     at: Placed,
-    scope: ReadonlyMap<string, unknown> | undefined,
+    scopes: readonly ReadonlyMap<string, unknown>[] | undefined,
   ) => {
     const was = old(saved);
     if (!was) return undefined;
@@ -2774,7 +2775,7 @@ export const translatePositional = (
       root,
       positionBindings(from, was.sequence),
       at.position.sequence,
-      scope ? new Set(scope.keys()) : undefined,
+      scopes?.length ? new Set(scopes.flatMap((scope) => [...scope.keys()])) : undefined,
     );
   };
   const placeThread = (
@@ -2791,7 +2792,7 @@ export const translatePositional = (
       count,
       (i) => drops(elements[i]?.frame?.symbol ?? -1),
       (i) => (placed[i] = place(positionOf(i))),
-      (i, at) => restarts(positionOf(i), at, elements[i]?.scopes[0]),
+      (i, at) => restarts(positionOf(i), at, elements[i]?.scopes),
     );
     // A choice's thread that restarts its flow is dropped with the choice,
     // as a save's is.

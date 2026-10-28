@@ -266,21 +266,11 @@ The grammar no longer reserves `has` / `hasnt` as keywords, so authors
 can use those words as identifiers (`local has = ...`, `function
 hasnt() end`, etc.).
 
-### `local` is block-scoped (unlike ink's `temp`)
+### `local` is block-scoped, and a scene's locals are the scene's (unlike ink's `temp`)
 
-In ink, `temp x = ...` is **function-scoped** — there's one temp-var bag
-per call-stack frame, and re-declarations within nested branches collide.
-In Luau, `local x = ...` is **block-scoped** — an inner `local x` creates
-a new binding that shadows any outer `x` for the rest of the inner
-block, and the outer `x` is visible again after the block exits.
+In ink, `temp x = ...` is function-scoped: there is one temp-var bag per call-stack frame, and re-declarations within nested branches collide. In Luau, `local x = ...` is block-scoped: an inner `local x` creates a new binding that shadows any outer `x` for the rest of the inner block, and the outer `x` is visible again after the block exits.
 
-Sparkdown follows Luau. The compiler emits new `BeginScope` / `EndScope`
-control commands around every block body (`if` / `elseif` / `else`, and
-future `for` / `while` / `repeat` / `do`), and the runtime's
-`CallStack.Element` carries a stack of temp-var maps (innermost-last)
-instead of ink's single map. `local x = ...` adds to the innermost
-frame; reassignment without `local` walks innermost → outermost to find
-the existing binding.
+Sparkdown follows Luau. The compiler brackets every block body (`if` / `elseif` / `else`, `for`, `while`, `repeat`, `do`) with `BeginScope` / `EndScope`, and the runtime's `CallStack.Element` carries a stack of temp-var maps, innermost last. `local x = ...` adds to the innermost scope; reassignment without `local` walks innermost to outermost to find the existing binding.
 
 ```sparkdown
 scene start
@@ -293,16 +283,23 @@ scene start
 end
 ```
 
-vs. ink's `temp` would either error on re-declaration or treat both as
-the same binding. The reserved-bytecode change touches `ControlCommand`,
-`CallStack.Element`, `Story` (the new command handlers), and the JSON
-save format (`temp` → `temps`, an array of maps). Pre-existing saved
-states with the legacy single-`temp` format still round-trip — the
-loader treats them as a one-element scope stack.
+A `local` lives inside a scene, a branch, a choice's body or a function. A scene opens a scope of its own, and a branch opens one nested in its scene's, so a scene's locals and parameters belong to that scene as a function's belong to the function:
 
-The trade-off: function-scoped `temp` (ink's idiom) is no longer
-available — there's no separate keyword for the old shape. If you want
-a variable that survives across a block, declare it in the outer scope.
+```sparkdown
+scene start
+  local greeting = "Hello"
+  {greeting}.
+  -> forest
+end
+
+scene forest
+  {tostring(greeting)}   -- nil: the start scene's local is not in scope here
+end
+```
+
+A scene that takes parameters, or has no lines of its own, before its first branch falls through into that branch, which reads the scene's parameters. Every divert to a scene or a branch opens fresh scopes for it, a divert into a branch of the same scene included, so a local the flow declared earlier is nil there, as Lua refuses a `goto` into a local's scope; a jump to a label inside the same flow keeps the flow's locals. A tunnel runs its flow in a frame of its own and leaves the caller's locals as they were when it returns, and a thread enters its flow with fresh scopes. A closure written in the flow (a function value, a `local function`, an inline handler) captures the flow's locals as upvalues, and a function or a `define`'s method written at the top level reads the global of the name, as a Luau function cannot read another function's locals ([`FUNCTIONS.md`](./FUNCTIONS.md)).
+
+ink's `temp` either errors on a re-declaration or treats both as the same binding, and keeps one bag for a whole knot. There is no keyword for that shape in Sparkdown: a variable that must survive across blocks is declared in the outer scope, and one that must survive across scenes is a `store`. A save holds every scope of each frame as an array of maps (`temps`); a save in the single-`temp` format loads as a one-element scope stack.
 
 ### Functions are expression-only
 
