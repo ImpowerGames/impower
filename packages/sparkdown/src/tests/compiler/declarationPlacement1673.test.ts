@@ -109,6 +109,12 @@ describe("a local outside a flow", () => {
     ).toEqual([{ message: LOCAL, text: "local x = 1" }]);
   });
 
+  it("refuses a local Luau reads after a top-level store on its line, past a block comment", () => {
+    expect(placementErrors(lines("store x = 1 --[[c]] local y = 2", "Hello."))).toEqual([
+      { message: LOCAL, text: "local y = 2" },
+    ]);
+  });
+
   it("keeps the misplaced line's own syntax errors beside it", () => {
     expect(diagnose(lines("local a = {1 ? 2}", "Hello."))).toEqual([
       { message: LOCAL, text: "local a = {1 ? 2}" },
@@ -181,6 +187,19 @@ describe("a hoisted declaration inside a flow", () => {
     ]);
   });
 
+  it("refuses a function Luau reads after a scene's local on its line, past a block comment", () => {
+    expect(
+      placementErrors(
+        lines("-> s", "scene s", "  local x = 1 --[[c]] function f() return x end", "  Value {x}.", "end"),
+      ),
+    ).toEqual([
+      {
+        message: "function declaration must be at the top level",
+        text: "function f() return x end",
+      },
+    ]);
+  });
+
   it("refuses a function written with a scope inside a scene, and a marked store", () => {
     expect(
       placementErrors(
@@ -228,6 +247,18 @@ describe("the placements that stay allowed", () => {
           "    {chosen}",
           "end",
         ),
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ["an if", "if true then"],
+    ["a do block", "do"],
+    ["a for loop", "for i = 1, 1 do"],
+  ])("compiles a local in the body of a choice written in %s inside a top-level choose", (_, opener) => {
+    expect(
+      placementErrors(
+        lines("choose", `  ${opener}`, "    * Go", "      local x = 1", "      Value {x}.", "  end", "end"),
       ),
     ).toEqual([]);
   });

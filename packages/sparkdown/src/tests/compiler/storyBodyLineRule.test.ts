@@ -67,7 +67,9 @@ const topNodes = (text: string) =>
 
 /** The top-level nodes that cross the start of the line holding `marker`. */
 const nodesCrossing = (text: string, marker: string) => {
-  const lineStart = text.lastIndexOf("\n", text.indexOf(marker)) + 1;
+  const at = text.indexOf(marker);
+  expect(at, `the marker ${JSON.stringify(marker)} is in the text`).toBeGreaterThanOrEqual(0);
+  const lineStart = text.lastIndexOf("\n", at) + 1;
   return topNodes(text).filter((node) => node.from < lineStart && node.to > lineStart);
 };
 
@@ -187,7 +189,7 @@ describe("an else value that begins with `end` on the next column-0 line (#1206)
     const source = `${SCENE}${statement}\n${name}\n  Value {x}.\nend\n`;
     expect(parserWarnings(source)).toEqual([]);
     expect(errorsOf(source)).toEqual([missingAtLineEnd(statement, 2)]);
-    expect(nodesCrossing(source, `\n${name}\nValue`)).toEqual([]);
+    expect(nodesCrossing(source, `\n${name}\n  Value`)).toEqual([]);
   });
 });
 

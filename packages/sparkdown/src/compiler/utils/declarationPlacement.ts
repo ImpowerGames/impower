@@ -90,9 +90,8 @@ const FUNCTIONS = nodeNameSet([
   "LuauFunctionAttributes",
 ]);
 
-// A `choose` block, whose choices' bodies are where a `local` can be written
-// at the top level, and the choices that start them.
-const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
+// The choices that start the bodies a `local` can be written in at the top
+// level, and the `then` clause of their `choose` block.
 const CHOICES = nodeNameSet(["Choice"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 
@@ -169,27 +168,24 @@ export function misplacedDeclarations(
       FUNCTIONS.has(node.name) ||
       DEFINES.has(node.name) ||
       TYPES.has(node.name) ||
-      EXTERNALS.has(node.name) ||
-      VARIABLE_DEFINITION_NAMES.has(node.name)
+      EXTERNALS.has(node.name)
     ) {
       return;
     }
-    if (CHOOSE_BLOCKS.has(node.name)) {
-      // A choice's body declares in a scope of its own; the lines before the
-      // first choice and the `then` clause are the top level's.
-      const content = childEndingWith(node, "_content");
-      let inChoice = false;
-      for (let child = content?.firstChild; child; child = child.nextSibling) {
-        if (CHOICES.has(child.name)) {
-          inChoice = true;
-        } else if (THEN_CLAUSES.has(child.name) || !inChoice) {
-          atTopLevel(child);
-        }
-      }
-      return;
-    }
+    // The statements after a choice, up to the next choice or its block's
+    // `then` clause, are that choice's body, which declares in a scope of
+    // its own, whether the choice stands in a `choose` block or in a block
+    // inside one; the `then` clause is the top level's again. A declaration
+    // holds the statements Luau reads after it on its line, past a block
+    // comment (`store x = 1 --[[c]] local y = 2`).
+    let inChoice = false;
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (holdsStatements(child.name)) {
+      if (CHOICES.has(child.name)) {
+        inChoice = true;
+      } else if (THEN_CLAUSES.has(child.name)) {
+        inChoice = false;
+        atTopLevel(child);
+      } else if (!inChoice && holdsStatements(child.name)) {
         atTopLevel(child);
       }
     }
@@ -199,22 +195,6 @@ export function misplacedDeclarations(
   // A narrative `store` line is changed to an assignment by marking it; one
   // already marked, or written as Luau, by dropping its keyword.
   const inFlow = (node: SyntaxNode, marked: boolean) => {
-    if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
-      const scope = scopeOf(node, read);
-      if (scope === "store") {
-        report(node, STORE_INSIDE_FLOW_MESSAGE, undefined, (to) =>
-          asAssignment(
-            node,
-            to,
-            marked || node.name !== "LuauSparkdownVariableDefinition",
-            read,
-          ),
-        );
-      } else if (scope === "const") {
-        report(node, hoistedInsideFlowMessage("const"), undefined);
-      }
-      return;
-    }
     if (FUNCTIONS.has(node.name)) {
       const definition =
         node.name === "LuauFunctionAttributes"
@@ -238,6 +218,23 @@ export function misplacedDeclarations(
     if (keyword) {
       report(node, hoistedInsideFlowMessage(keyword), undefined);
       return;
+    }
+    if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
+      const scope = scopeOf(node, read);
+      if (scope === "store") {
+        report(node, STORE_INSIDE_FLOW_MESSAGE, undefined, (to) =>
+          asAssignment(
+            node,
+            to,
+            marked || node.name !== "LuauSparkdownVariableDefinition",
+            read,
+          ),
+        );
+      } else if (scope === "const") {
+        report(node, hoistedInsideFlowMessage("const"), undefined);
+      }
+      // A declaration holds the statements Luau reads after it on its line,
+      // past a block comment, which the walk below reaches.
     }
     const marks = marked || EXPLICIT.has(node.name);
     for (let child = node.firstChild; child; child = child.nextSibling) {
