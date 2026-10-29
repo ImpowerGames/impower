@@ -325,7 +325,7 @@ return foo() + baz()
     ],
   ])("%s", (_name, body) => {
     expect(diagnoseWithLintsInFunction(body)).toEqual([]);
-    const chunk = body.replace(/^return (.*)$/m, "{$1}");
+    const chunk = body.replace(/^return (.*)$/m, "scene start\n  {$1}\nend");
     expect(chunk).not.toBe(body);
     expect(diagnoseWithLints(chunk)).toEqual([]);
   });

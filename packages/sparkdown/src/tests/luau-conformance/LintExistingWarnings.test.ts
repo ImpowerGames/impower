@@ -45,7 +45,7 @@ end
 // "Unknown global 'foo'; consider assigning to it first"
 //
 // Sparkdown reports the read with its own wording, inside a function and at
-// the top level (adapted below).
+// a scene (adapted below).
 describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
     expect(diagnoseWithLintsInFunction("return foo")).toEqual([
@@ -54,9 +54,9 @@ describe("an unknown global read inside a function (adapted)", () => {
   });
 });
 
-describe("an unknown global read at the top level (adapted)", () => {
+describe("an unknown global read in a scene (adapted)", () => {
   test("& print(foo)", () => {
-    expect(diagnoseWithLints("& print(foo)\n")).toEqual([
+    expect(diagnoseWithLints("scene start\n  & print(foo)\nend\n")).toEqual([
       "Cannot find variable named `foo`",
     ]);
   });
