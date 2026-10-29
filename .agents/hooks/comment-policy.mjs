@@ -796,7 +796,7 @@ function jsdocParts(comment) {
     starts.push(i);
     let k = i + 1;
     while (k < text.length && /[A-Za-z]/.test(text[k])) k++;
-    while (k < text.length && /[ \t]/.test(text[k])) k++;
+    while (k < text.length && /\s/.test(text[k])) k++;
     if (text[k] === "{") {
       for (let depth = 0; k < text.length; k++) {
         if (text[k] === "{") depth++;
