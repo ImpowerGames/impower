@@ -1,4 +1,8 @@
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  MessageProtocol,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
@@ -508,5 +512,144 @@ describe("Animate portraits preference", () => {
       sync.received({ jsonrpc: "2.0", method: "game/started", params: {} });
       expect(posted).toEqual([]);
     });
+  });
+});
+
+// #1657 — the project's pins on the options the Game Preview takes are kept in
+// the workspace cache, beside the breakpoints: the player's route list asks to
+// change them, an editor that moved them through an edit reports their new
+// lines, and every change goes to the player and to the script editors.
+describe("Route pins", () => {
+  let windows: WorkspaceWindow[] = [];
+  let sent: { method: string; params: any }[] = [];
+
+  const listener = (e: Event) => {
+    if (e instanceof CustomEvent && "id" in e.detail && "params" in e.detail) {
+      sent.push(e.detail);
+    }
+  };
+
+  const load = () => {
+    const win = new WorkspaceWindow();
+    windows.push(win);
+    return win;
+  };
+
+  const MAIN = "file://a/main.sd";
+  const OTHER = "file://a/other.sd";
+
+  const sentPins = (method: string) =>
+    sent.filter((m) => m.method === method).map((m) => m.params.pins);
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
+    // The store outlives a window; each test starts with no pins.
+    workspace.current = {
+      ...workspace.current,
+      debug: { ...workspace.current.debug, routePins: {} },
+    };
+    sent = [];
+    window.addEventListener(MessageProtocol.event, listener);
+  });
+
+  afterEach(() => {
+    window.removeEventListener(MessageProtocol.event, listener);
+    windows.forEach((win) => win.dispose());
+    windows = [];
+  });
+
+  it("a change from the route list pins, unpins and clears, and goes to the player and the editors", () => {
+    const win = load();
+    expect(
+      win.changeRoutePins({
+        add: [
+          { uri: MAIN, line: 7, offer: 1 },
+          { uri: OTHER, line: 2, offer: 2 },
+        ],
+      }),
+    ).toEqual([
+      { uri: MAIN, line: 7, offer: 1 },
+      { uri: OTHER, line: 2, offer: 2 },
+    ]);
+    // Pinning another option at the stop unpins the one there.
+    expect(
+      win.changeRoutePins({
+        add: [{ uri: MAIN, line: 11, offer: 1 }],
+        remove: [{ uri: MAIN, line: 7, offer: 1 }],
+      }),
+    ).toEqual([
+      { uri: MAIN, line: 11, offer: 1 },
+      { uri: OTHER, line: 2, offer: 2 },
+    ]);
+    expect(win.changeRoutePins({ removeAll: true })).toEqual([]);
+    const expected = [
+      [
+        { uri: MAIN, line: 7, offer: 1 },
+        { uri: OTHER, line: 2, offer: 2 },
+      ],
+      [
+        { uri: MAIN, line: 11, offer: 1 },
+        { uri: OTHER, line: 2, offer: 2 },
+      ],
+      [],
+    ];
+    expect(sentPins("preview/setRoutePins")).toEqual(expected);
+    expect(sentPins("editor/setRoutePins")).toEqual(expected);
+  });
+
+  it("an edit that moves a pin goes to the player, and not back to the editor that made it", () => {
+    const win = load();
+    win.changeRoutePins({ add: [{ uri: MAIN, line: 7, offer: 1 }] });
+    sent = [];
+    sendProtocolMessage(
+      ChangedEditorRoutePinsMessage.type.notification({
+        textDocument: { uri: MAIN },
+        pins: [{ line: 10, offer: 1 }],
+      }),
+    );
+    expect(win.getRoutePins()).toEqual([{ uri: MAIN, line: 10, offer: 1 }]);
+    expect(sentPins("preview/setRoutePins")).toEqual([
+      [{ uri: MAIN, line: 10, offer: 1 }],
+    ]);
+    expect(sentPins("editor/setRoutePins")).toEqual([]);
+  });
+
+  it("are kept for the project through an editor reload, and loaded into its script's editor", async () => {
+    const win = load();
+    win.openFileEditor("main.sd");
+    win.changeRoutePins({ add: [{ uri: MAIN, line: 7, offer: 1 }] });
+    // The workspace cache is written a moment after the change.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    win.dispose();
+    windows = [];
+    // Only what the cache kept comes back.
+    workspace.current = {
+      ...workspace.current,
+      debug: { ...workspace.current.debug, routePins: {} },
+    };
+    const reloaded = load();
+    expect(reloaded.getRoutePins()).toEqual([{ uri: MAIN, line: 7, offer: 1 }]);
+    expect(reloaded.getActiveEditorForFile("main.sd")?.routePins).toEqual([
+      { line: 7, offer: 1 },
+    ]);
+  });
+
+  it("are what a connecting player hears", () => {
+    const posted: { method: string; params: any }[] = [];
+    const sync = createPlayerPreferenceSync(
+      (m) => posted.push(m as any),
+      () => [{ uri: MAIN, line: 7, offer: 1 }],
+    );
+    sync.received({
+      jsonrpc: "2.0",
+      method: "preview/connected",
+      params: { type: "game" },
+    });
+    expect(
+      posted
+        .filter((m) => m.method === "preview/setRoutePins")
+        .map((m) => m.params.pins),
+    ).toEqual([[{ uri: MAIN, line: 7, offer: 1 }]]);
   });
 });

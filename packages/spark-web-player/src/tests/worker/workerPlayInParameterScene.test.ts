@@ -210,8 +210,8 @@ const limitStartSearch = () => {
   const original = Game.planRouteFromStart.bind(Game);
   return vi
     .spyOn(Game, "planRouteFromStart")
-    .mockImplementation((story, program, to, options, budget) =>
-      original(story, program, to, options, { ...budget, maxSteps: 20 }),
+    .mockImplementation((story, program, to, budget) =>
+      original(story, program, to, { ...budget, maxSteps: 20 }),
     );
 };
 
@@ -230,7 +230,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
     const worker = gameAt(DEEP, 45).game;
     const limited = limitStartSearch();
     try {
-      searchRouteFor(worker, to, log, { config: {} });
+      searchRouteFor(worker, to, log, {});
       expect(log.outcomeFor(to)?.reachedTarget).toBe(false);
       expect(log.outcomeFor(to)?.simulationFailure).toBe("timeout");
     } finally {
@@ -241,7 +241,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
   it("is replayed from the story's start after a compile that changes nothing", () => {
     const { compiler, game, to } = gameAt(DEEP, 45);
     const log = new RouteSearchLog();
-    searchRouteFor(game, to, log, { config: {} });
+    searchRouteFor(game, to, log, {});
     expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
     expect(log.outcomeFor(to)?.fromStart).toBe(true);
     expect(game.plannedRoute?.from).toBe("0");
@@ -250,7 +250,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
     );
     const spy = vi.spyOn(Game, "planRouteFromStart");
     try {
-      searchRouteFor(game, to, log, { config: {} });
+      searchRouteFor(game, to, log, {});
       expect(spy).not.toHaveBeenCalled();
       expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
     } finally {

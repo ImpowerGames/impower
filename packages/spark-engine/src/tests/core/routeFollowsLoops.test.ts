@@ -57,15 +57,10 @@ function previewedStore(
   src: string,
   line: number,
   name: string,
-  favoredConditions?: boolean[],
 ): unknown {
   const game: any = newGame(compileSrc(src));
   game.setStartFrom({ file: URI, line: line - 1 });
-  game.simulate(
-    favoredConditions && {
-      [game.routeStartOf(game.startAddress)]: { favoredConditions },
-    },
-  );
+  game.simulate();
   expect(game.simulation).toBe("success");
   return game.story.variablesState[name];
 }
@@ -124,24 +119,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "",
     ].join("\n");
     expect(previewedStore(src, 7, "total")).toBe(6);
-  }, 120_000);
-
-  test("a favored verdict from an earlier route does not end a loop early", () => {
-    // The editor favors the verdicts the last route through the scene took,
-    // matched by their order. After the loop's bound is raised from 2 to 3,
-    // those verdicts end the loop one pass short.
-    const src = [
-      "store total = 0",
-      "",
-      "scene start",
-      "  for i = 1, 3 do",
-      "    total += i",
-      "  end",
-      "  The loop counted {total}.",
-      "end",
-      "",
-    ].join("\n");
-    expect(previewedStore(src, 7, "total", [true, true, false])).toBe(6);
   }, 120_000);
 
   test("a branch inside a loop takes the program's side on every pass", () => {
@@ -284,7 +261,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       program as any,
       game.routeStartOf(to),
       to,
-      undefined,
       { maxNodes: 200 },
     );
     expect(route?.steps.at(-1)?.address).toBe(to);
@@ -476,7 +452,6 @@ function routeTo(lines: string[], label: string, options?: object) {
     program as any,
     game.routeStartOf(to),
     to,
-    undefined,
     options,
   );
   expect(route?.steps.at(-1)?.address).toBe(to);

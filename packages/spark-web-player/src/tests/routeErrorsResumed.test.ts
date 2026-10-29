@@ -47,7 +47,6 @@ describe("route errors", () => {
         { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
       ],
     } as never);
-    const config: { simulationOptions?: Record<string, any> } = {};
     let game: Game | undefined;
     const rounds: { errors: unknown; resumed: boolean }[] = [];
     compiler.addEventListener("compiler/didCompile", (params) => {
@@ -68,7 +67,7 @@ describe("route errors", () => {
       const to = game.startAddress!;
       const resumption = game.routeResumption(game.routeStartOf(to), to);
       const log = new RouteSearchLog();
-      searchRouteTo(game, to, log, { config: config as never });
+      searchRouteTo(game, to, log, {});
       const report: RouteSearchReportTarget = {};
       log.report(report, to);
       rounds.push({

@@ -30,7 +30,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -292,6 +292,7 @@ function stateUnreadable() {
 // Written beside this script whatever `stateFile()` read, and renamed into
 // place so no reader ever sees a partial file.
 function writeState(record) {
+  recordCheckoutOwner(REPO_ROOT);
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   const tmp = STATE_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
@@ -990,6 +991,7 @@ async function importPlaywright() {
 export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
+  if (dir === path.join(SESSION_DIR, "profile")) recordCheckoutOwner(REPO_ROOT);
   claimProfile(dir);
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium, { headless });

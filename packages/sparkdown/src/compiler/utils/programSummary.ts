@@ -15,7 +15,6 @@ export const programSummary = (
   filesEpoch: program.filesEpoch,
   workspace: program.workspace,
   startFrom: program.startFrom,
-  simulationOptions: program.simulationOptions,
   summary: true,
   runnable,
 });

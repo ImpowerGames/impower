@@ -24,6 +24,14 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
+import { SetEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRoutePinsMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import type { ChangeRoutePinsParams } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
+import { changedRoutePins } from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
@@ -151,6 +159,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
         this.handleChangedEditorPinpoints(m),
+      ),
+      onProtocolMessage(ChangedEditorRoutePinsMessage.type, (m) =>
+        this.handleChangedEditorRoutePins(m),
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
@@ -452,24 +463,54 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
-  setSimulationOptions(
-    simulateFlow: string,
-    options: {
-      favoredChoices?: (number | undefined)[];
-      favoredConditions?: (boolean | undefined)[];
-    },
+  /** Every pin in the project, as the Game Preview plans its routes with
+   *  them. */
+  getRoutePins(): RoutePin[] {
+    return Object.entries(this.store.debug.routePins ?? {}).flatMap(
+      ([uri, pins]) => pins.map(({ line, offer }) => ({ uri, line, offer })),
+    );
+  }
+
+  /** Keep `pins` as the project's pins, and tell the Game Preview, and the
+   *  script editors when `fromPreview` (an editor that moved its own pins
+   *  through an edit already holds them). */
+  protected storeRoutePins(
+    routePins: Record<string, { line: number; offer: number }[]>,
+    fromPreview: boolean,
   ) {
     this.update({
       ...this.store,
-      debug: {
-        ...this.store.debug,
-        simulationOptions: {
-          ...this.store.debug.simulationOptions,
-          [simulateFlow]: options,
-        },
-      },
+      debug: { ...this.store.debug, routePins },
     });
+    const pins = this.getRoutePins();
+    if (fromPreview) {
+      sendProtocolMessage(SetEditorRoutePinsMessage.type.request({ pins }));
+    }
+    sendProtocolMessage(SetRoutePinsMessage.type.request({ pins }));
   }
+
+  /** Apply a change the author made to the pins from the Game Preview's
+   *  route list (`preview/changeRoutePins`), answering every pin kept. */
+  changeRoutePins(change: ChangeRoutePinsParams): RoutePin[] {
+    this.storeRoutePins(
+      changedRoutePins(this.store.debug.routePins ?? {}, change),
+      true,
+    );
+    return this.getRoutePins();
+  }
+
+  protected handleChangedEditorRoutePins = (
+    message: ChangedEditorRoutePinsMessage.Notification,
+  ) => {
+    const { textDocument, pins } = message.params;
+    const routePins = { ...this.store.debug.routePins };
+    if (pins.length > 0) {
+      routePins[textDocument.uri] = pins;
+    } else {
+      delete routePins[textDocument.uri];
+    }
+    this.storeRoutePins(routePins, false);
+  };
 
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
@@ -541,6 +582,7 @@ export default class WorkspaceWindow {
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
         highlightLines: number[] | undefined;
+        routePins: { line: number; offer: number }[] | undefined;
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -560,6 +602,7 @@ export default class WorkspaceWindow {
             breakpointLines: this.store.debug?.breakpoints?.[uri],
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
+            routePins: this.store.debug?.routePins?.[uri],
           };
         }
       }

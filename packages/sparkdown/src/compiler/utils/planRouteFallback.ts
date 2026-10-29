@@ -1,15 +1,3 @@
-// The route search origin/main runs, copied unchanged from its planRoute.ts
-// (as of 80cf78475): breadth first, forking at every condition, the favored
-// verdict or else the one the program reaches tried first. planRoute.ts runs it
-// when the search that follows the program finds no route within its budget
-// (see `planRoute` there), so a preview reaches every line origin/main's
-// preview reaches, showing the values origin/main's route gives. Only names
-// differ, the story's reading of a paused condition among them: origin/main's
-// reading is `pausedJumpValue` here, since this branch's
-// `pausedConditionValue` also reads a choice's condition. Beyond that it
-// records what the route's report reads and nothing it searches by: a
-// verdict the program does not reach (`departs`), and each menu's options'
-// addresses (`RouteChoice.sources`).
 import type { SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
@@ -37,6 +25,14 @@ import {
   type SearchOptions,
   type SearchState,
 } from "./planRoute";
+import {
+  gateWinsMenu,
+  NO_PINS,
+  pinnedAtMenu,
+  pinnedOfferCounts,
+  pinsNextOffer,
+  type PinnedOptions,
+} from "./routePins";
 
 interface FallbackNode {
   /** The state the node runs from, which siblings share. */
@@ -350,8 +346,6 @@ export const planRouteFallback = (
     cut: null,
     visited: new Set(),
   };
-  const favoredConditionalValues = options?.favoredConditions ?? [];
-  const favoredChoiceIndices = options?.favoredChoices ?? [];
   const fromKnotName = from.split(".")[0] || "0";
   const positions = storyPositions(story);
 
@@ -425,11 +419,10 @@ export const planRouteFallback = (
           positions,
           fromKnotName,
           to,
-          favoredChoiceIndices,
-          favoredConditionalValues,
           options?.stayWithinKnot !== false,
           options?.functions || [],
           budget,
+          options?.pins ?? NO_PINS,
         );
 
         if (result.hitTarget) {
@@ -516,11 +509,10 @@ const runUntilDecisionOrBranch = (
   positions: StoryPositions,
   fromKnotName: string,
   target: ProgramAddress | null, // set null for "enumerate all"
-  favoredChoiceIndices: (number | undefined)[],
-  favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
   functions: string[],
   budget: SearchBudget,
+  pinned: PinnedOptions,
 ): FallbackRunResult => {
   // 1) Restore snapshot
   port.restore(node.state);
@@ -615,36 +607,20 @@ const runUntilDecisionOrBranch = (
           }
           const options = story.currentChoices.map((c) => c.text);
           const sources = story.currentChoices.map((c) => c.sourcePath);
-          const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
-          if (favoredChoiceIndex != null) {
-            const choice = story.currentChoices[favoredChoiceIndex]!;
-            if (choice) {
-              // Fork choice branch
-              branches.push(
-                forkChoice(
-                  forkState,
-                  node,
-                  stepsEncountered,
-                  {
-                    kind: "choice",
-                    site,
-                    value: choice.sourcePath,
-                  },
-                  {
-                    options,
-                    selected: favoredChoiceIndex,
-                    sources,
-                  },
-                ),
-              );
-            }
-          }
-          for (let i = 0; i < story.currentChoices.length; i++) {
-            if (i === favoredChoiceIndex) {
-              // Skip forking favored choice since we already forked it earlier
-              terminal = true;
-              continue;
-            }
+          const pinnedHere =
+            pinned.offers.size > 0
+              ? pinnedAtMenu(
+                  pinned,
+                  sources,
+                  pinnedOfferCounts(node.choices, pinned),
+                )
+              : [];
+          const first = pinnedHere[0] ?? 0;
+          const order = [
+            first,
+            ...story.currentChoices.map((_, i) => i).filter((i) => i !== first),
+          ];
+          for (const i of order) {
             const choice = story.currentChoices[i]!;
             // Fork choice branch
             branches.push(
@@ -749,13 +725,22 @@ const runUntilDecisionOrBranch = (
             },
             programVerdict,
           );
-        const favoredConditionalValue =
-          favoredConditionalValues[node.conditions.length];
-        if (favoredConditionalValue != null) {
-          // Fork favored branch
-          branches.push(forkVerdict(favoredConditionalValue));
-          // Fork opposite of favored branch
-          branches.push(forkVerdict(!favoredConditionalValue));
+        // A pinned option's gate at its pinned offer is tried true first.
+        const site = story.pausedBeforeCondition!;
+        const counts = pinned.sites.has(site)
+          ? pinnedOfferCounts(node.choices, pinned)
+          : null;
+        const gate =
+          counts !== null &&
+          pinsNextOffer(pinned, String(site), counts.get(String(site)) ?? 0) &&
+          gateWinsMenu(
+            pinned,
+            story.state.generatedChoices.map((c) => c.sourcePath),
+            counts,
+          );
+        if (gate) {
+          branches.push(forkVerdict(true));
+          branches.push(forkVerdict(false));
         } else {
           // The verdict the story reaches unforced is searched first, so of
           // two routes the search can find at the same depth it finds the one
@@ -890,7 +875,9 @@ const forkCondition = (
   ov: ConditionOverride,
   programVerdict: boolean | null,
 ): FallbackNode => {
-  if (programVerdict !== null && ov.value !== programVerdict) {
+  if (programVerdict === null) {
+    ov = { ...ov, open: true };
+  } else if (ov.value !== programVerdict) {
     ov = { ...ov, departs: true };
   }
   return {

@@ -41,7 +41,10 @@ const credential=`fixture-codex-credential-${randomUUID()}`;
 const ghCredential=`fixture-github-credential-${randomUUID()}`;
 const ambient={[secretName]:JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:credential}}),GH_TOKEN:ghCredential,GITHUB_TOKEN:ghCredential};
 const previous=Object.fromEntries(Object.keys(ambient).map(key=>[key,process.env[key]]));
-const secretHomes=()=>new Set(fs.readdirSync(os.tmpdir()).filter(name=>name.startsWith('impower-codex-home-')));
+// The secret's home goes to the machine's temp directory, which a run under
+// check-agent-tooling has redirected away from os.tmpdir().
+const systemTemp=process.env.IMPOWER_SYSTEM_TMPDIR||os.tmpdir();
+const secretHomes=()=>new Set(fs.readdirSync(systemTemp).filter(name=>name.startsWith('impower-codex-home-')));
 // The homes this check itself created, by name; the launcher removes each one
 // and the final cleanup covers only an assertion failure in between, never a
 // home another launcher created meanwhile.
@@ -130,13 +133,13 @@ try {
       assert.throws(()=>nativeReviewerEnvironment({args:fullArgs,permissions,nativeResult:'codex-jsonl'},directory,process.env,{worktree:repo}),/GitHub authentication unavailable.*reportPosting/);
     } finally {restore();}
     assert.equal(written.length,1,'the secret route writes one private home outside the job directory before the refusal');
-    createdHomes.add(path.join(os.tmpdir(),written[0]));
-    assert.equal(fs.existsSync(path.join(os.tmpdir(),written[0])),false,'a refused launch removes the private home with its authentication copy');
+    createdHomes.add(path.join(systemTemp,written[0]));
+    assert.equal(fs.existsSync(path.join(systemTemp,written[0])),false,'a refused launch removes the private home with its authentication copy');
     assert.deepEqual([...secretHomes()].filter(name=>!before.has(name)),[]);
-    assert.throws(()=>removeSecretCodexHome(path.join(os.tmpdir(),'other-home')),/not a secret route Codex home/,'only a home this launcher created is removed');
+    assert.throws(()=>removeSecretCodexHome(path.join(systemTemp,'other-home')),/not a secret route Codex home/,'only a home this launcher created is removed');
     // The guard takes a canonical direct child of the temporary directory, so
     // a traversal through a real home, or a home elsewhere, is refused.
-    const realHome=fs.mkdtempSync(path.join(os.tmpdir(),'impower-codex-home-')),sibling=fs.mkdtempSync(path.join(os.tmpdir(),'impower-sibling-'));
+    const realHome=fs.mkdtempSync(path.join(systemTemp,'impower-codex-home-')),sibling=fs.mkdtempSync(path.join(systemTemp,'impower-sibling-'));
     createdHomes.add(realHome);
     try {
       assert.throws(()=>removeSecretCodexHome(path.join(realHome,'..',path.basename(sibling))),/not a secret route Codex home/,'a traversal through a home is refused');

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
+import { effectivePaint } from "../../morph/paint";
 import { renderMorphAt } from "../../morph/render";
+import { readArtDocument } from "../../morph/svgDocument";
 import type { MorphArtifact, MorphTransition } from "../../morph/types";
 import { parse } from "../../txml/txml";
 import { paintBlink, paintedPortrait } from "./fixtures";
@@ -90,7 +92,7 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
 
   test("paint decided by a declaration outside the grammar stays unblended and draws as authored", () => {
     // `color: none` under `currentColor` (`freckle`, `spot`, `dot`), an
-    // ancestor's `all:initial` (`mark`) and a fill spaced by no-break spaces
+    // ancestor's `fill:unset` (`mark`) and a fill spaced by no-break spaces
     // (`blot`): each pair keeps its own paint between the poses.
     for (const name of ["freckle", "spot", "dot", "mark", "blot"]) {
       expect(recorded(artifact, name).paint, name).toBeUndefined();
@@ -101,28 +103,35 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
   describe("out-of-grammar inputs leave the pair unblended", () => {
     // One drawing open, a white one closed; the open drawing's paint is
     // declared as each case says, under a green root `color`.
-    const pair = (open: string) =>
-      bakeMorphArtifact({
-        source: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20" color="#0f0">
+    const source = (open: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20" color="#0f0">
 <g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="#fff"/></g>
-</svg>`,
-        selection: {},
-        recipe: paintBlink(),
-        key: "pair",
-      });
-    const cases: [string, string][] = [
-      ["unset", 'fill="#f00" style="fill:unset"'],
-      ["revert", 'fill="#f00" style="fill:revert"'],
-      ["revert-layer", 'fill="#f00" style="fill:revert-layer"'],
+</svg>`;
+    const pair = (open: string) => bakeMorphArtifact({ source: source(open), selection: {}, recipe: paintBlink(), key: "pair" });
+    // An inline style the bake cannot read safely keeps the artwork static;
+    // the paint reader reads the paint it decides as unknown all the same.
+    const refused: [string, string][] = [
       ["all", 'fill="#f00" style="all:initial"'],
       ["var()", 'style="fill:var(--x)"'],
       ["a comment", 'style="fill:/*x*/#000"'],
       ["an escape", 'style="fill:r\\65 d"'],
-      ["a no-break space", 'fill=" #000"'],
-      ["a non-ASCII name", 'fill="röd"'],
       // A browser decodes the reference and reads `fill:#f00` over the attribute.
       ["a character reference in a style", 'fill="#000" style="fil&#108;:#f00"'],
+    ];
+    test.each(refused)("%s", (_, open) => {
+      const artifact = pair(open);
+      expect(artifact.status).toBe("static");
+      expect(artifact.diagnostics.map((d) => d.code)).toEqual(["unsupported-element"]);
+      const doc = readArtDocument(source(open))!;
+      const lash = [...doc.info.keys()].find((e) => e.attributes["data-name"] === "lash")!;
+      expect(effectivePaint(doc, lash).fill).toBeUndefined();
+    });
+    const cases: [string, string][] = [
+      ["unset", 'fill="#f00" style="fill:unset"'],
+      ["revert", 'fill="#f00" style="fill:revert"'],
+      ["revert-layer", 'fill="#f00" style="fill:revert-layer"'],
+      ["a no-break space", 'fill=" #000"'],
+      ["a non-ASCII name", 'fill="röd"'],
       ["color: none", 'color="none" fill="currentColor"'],
     ];
     test.each(cases)("%s", (_, open) => {

@@ -59,7 +59,7 @@ const newGame = (program: any) =>
 const search = (game: Game, compiler: SparkdownCompiler) => {
   const log = new RouteSearchLog();
   game.setStartFrom({ file: URI, line: 5 });
-  searchRouteTo(game, game.startAddress!, log, { config: compiler.config } as any);
+  searchRouteTo(game, game.startAddress!, log, {});
   return {
     reachedTarget: log.last?.reachedTarget,
     simulationFailure: log.last?.simulationFailure,
@@ -106,7 +106,7 @@ function watchSearches() {
   const searches: { resumed: boolean; endReason: string }[] = [];
   const planRoute = Game.planRoute.bind(Game);
   vi.spyOn(Game, "planRoute").mockImplementation(((...args: unknown[]) => {
-    const budget = args[5] as { resumeFrom?: unknown } | undefined;
+    const budget = args[4] as { resumeFrom?: unknown } | undefined;
     const route = planRoute(...(args as Parameters<typeof Game.planRoute>));
     searches.push({
       resumed: budget?.resumeFrom != null,

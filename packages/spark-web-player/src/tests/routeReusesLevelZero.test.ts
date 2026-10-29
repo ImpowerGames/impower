@@ -115,7 +115,7 @@ function watchSearches() {
   const planRoute = Game.planRoute.bind(Game);
   vi.spyOn(Game, "planRoute").mockImplementation(((...args: unknown[]) => {
     const story = args[0] as { stepCount: number };
-    const options = args[5] as { resumeFrom?: unknown } | undefined;
+    const options = args[4] as { resumeFrom?: unknown } | undefined;
     const before = story.stepCount;
     const route = planRoute(...(args as Parameters<typeof Game.planRoute>));
     searches.push({
@@ -127,14 +127,10 @@ function watchSearches() {
   return searches;
 }
 
-/** Scrub `game` to the line holding `label`; what it previews. A search
- *  given `config` reads the choices it favors there, and remembers its own. */
-function scrub(game: Game, lines: string[], label: string, config: object = {}) {
+function scrub(game: Game, lines: string[], label: string) {
   const line = lines.findIndex((l) => l.includes(label));
   game.setStartFrom({ file: URI, line });
-  searchRouteTo(game, game.startAddress!, new RouteSearchLog(), {
-    config,
-  });
+  searchRouteTo(game, game.startAddress!, new RouteSearchLog(), {});
   expect(game.simulation).toBe("success");
   const route = game.plannedRoute!;
   return {
@@ -151,57 +147,6 @@ function fresh(program: unknown, lines: string[], label: string) {
 }
 
 describe("a route search after an earlier one's level zero", () => {
-  test("starts from its work only when every menu it met would be ordered the same", () => {
-    // Level zero meets a three-option menu and a one-option menu at the
-    // same depth on two routes. Favoring the third option reorders the first
-    // and leaves the second as it was; the work must not be reused, or the
-    // search tries another forced route first than a search from the top
-    // does (round 1 review of PR 2267).
-    const lines = [
-      "store flag = false",
-      "store total = 0",
-      "-> start",
-      "scene start",
-      "  choose",
-      "  + [First path]",
-      "    choose",
-      "    + [Zero]",
-      "      & total = 10",
-      "    + [One]",
-      "      & total = 20",
-      "    + [Two]",
-      "      & total = 30",
-      "    end",
-      "    if flag then",
-      "      First target {total}.",
-      "      Second target {total}.",
-      "    end",
-      "  + [Other path]",
-      "    choose",
-      "    + [Only]",
-      "      Other line.",
-      "    end",
-      "  end",
-      "end",
-      "",
-    ];
-    const compiler = configure(lines);
-    const game = gameOf(compile(compiler));
-    // The first scrub remembers the choices its route took.
-    const config: { simulationOptions?: object } = {};
-    scrub(game, lines, "First target", config);
-    expect(config.simulationOptions).toBeDefined();
-    const favored = structuredClone(config.simulationOptions);
-
-    const program = compile(compiler);
-    game.updateProgram(program);
-    const kept = scrub(game, lines, "Second target", config);
-    const alone = scrub(gameOf(program), lines, "Second target", {
-      simulationOptions: favored,
-    });
-    expect(kept).toEqual(alone);
-  }, 120_000);
-
   test("starts from its work after an edit to a line it never ran, and finds the route a search from the top finds", () => {
     const compiler = configure(SOURCE);
     const game = gameOf(compile(compiler));
@@ -361,7 +306,6 @@ describe("a route search after an earlier one's level zero", () => {
         game.program,
         game.routeStartOf(target),
         target,
-        undefined,
         { levelZeroStore },
       );
       return { route, steps: game.story.stepCount - before };

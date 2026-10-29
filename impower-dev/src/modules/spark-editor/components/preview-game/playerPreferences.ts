@@ -4,6 +4,10 @@ import {
   SetRouteTogglesMessage,
   type RouteTogglesParams,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
@@ -25,12 +29,17 @@ const storedRouteToggles = (): RouteTogglesParams => {
 /**
  * Keeps a game player in step with the editor's player preferences: whether
  * portraits animate, and which kinds the route list shows, which the player
- * reports when the author changes them. A new player starts with portraits
- * animating and every kind shown, and its controller handles nothing until it
- * announces itself with `preview/connected`, which can come before or after
- * Initialize completes; it hears the preferences at both.
+ * reports when the author changes them; and with the project's pins
+ * (`routePins`), which the workspace sends again whenever they change. A new
+ * player starts with portraits animating, every kind shown and no pins, and
+ * its controller handles nothing until it announces itself with
+ * `preview/connected`, which can come before or after Initialize completes;
+ * it hears the preferences and the pins at both.
  */
-export const createPlayerPreferenceSync = (post: (message: unknown) => void) => {
+export const createPlayerPreferenceSync = (
+  post: (message: unknown) => void,
+  routePins: () => RoutePin[] = () => [],
+) => {
   const send = () => {
     post(
       SetAnimatePortraitsMessage.type.request({
@@ -40,6 +49,7 @@ export const createPlayerPreferenceSync = (post: (message: unknown) => void) => 
     post(
       SetRouteTogglesMessage.type.request({ toggles: storedRouteToggles() }),
     );
+    post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
   return {
     /** The player finished Initialize. */

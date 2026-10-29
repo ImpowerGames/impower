@@ -43,11 +43,10 @@ describe("a route search after a compile, for a line the story's own run reaches
       ],
     } as never);
     const compile = () => compiler.compile({ textDocument: { uri: URI } } as never).program as any;
-    const config = {};
 
     const game = newGame(compile());
     game.setStartFrom({ file: URI, line: 4 });
-    searchRouteFor(game, game.startAddress!, new RouteSearchLog(), { config });
+    searchRouteFor(game, game.startAddress!, new RouteSearchLog(), {});
     expect(game.simulation).toBe("success");
     expect(game.plannedRoute?.conditions).toEqual([{ selected: true }]);
 
@@ -57,7 +56,7 @@ describe("a route search after a compile, for a line the story's own run reaches
     // resume from.
     expect(game.routeResumption("start", game.startAddress!).resumeFrom).toBeDefined();
 
-    searchRouteFor(game, game.startAddress!, new RouteSearchLog(), { config });
+    searchRouteFor(game, game.startAddress!, new RouteSearchLog(), {});
     expect(game.simulation).toBe("success");
     expect(game.plannedRoute?.conditions).toEqual([{ selected: false }]);
   }, 120_000);

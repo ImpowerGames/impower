@@ -7,7 +7,7 @@ import { untangle } from "@impower/spark-morph/src/apertures";
 import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
-import { blendColor, formatColor } from "./color";
+import { blendColor, formatColor, readAlpha } from "./color";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
 import type { MorphArtifact, MorphClipFrames, MorphColor, MorphFrames, MorphGeometryRef, MorphGradient, MorphGradientBlend, MorphPaint, MorphPaintBase, MorphPaintPose } from "./types";
 
@@ -210,8 +210,8 @@ function* walk(element: Element): Generator<Element> {
  */
 const multiplyOpacity = (element: Element, factor: number) => {
   const inline = styleDeclaration(element, "opacity");
-  const own = Number.parseFloat(inline?.value ?? element.attributes["opacity"] ?? "1");
-  const value = fmt((Number.isFinite(own) ? own : 1) * factor);
+  const own = readAlpha(inline?.value ?? element.attributes["opacity"] ?? "1");
+  const value = fmt((own ?? 1) * factor);
   setStyleProperty(element, "opacity", inline?.important ? `${value} !important` : value);
 };
 

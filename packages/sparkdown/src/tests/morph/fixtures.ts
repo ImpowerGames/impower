@@ -224,7 +224,7 @@ ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
 ${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
 ${open.spot.replace('fill="#fff"', 'color="#f00" style="color:none" fill="currentColor"')}${open.dot.replace('fill="#fff"', 'style="color:#00f;color:none !important" fill="currentColor"')}
-<g fill="#f00" style="all:initial">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
+<g fill="#f00" style="fill:unset">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
 </g>
 <g data-name="eyes.half">
 ${half.shadow.replace("#000", "#00f")}${half.glint}

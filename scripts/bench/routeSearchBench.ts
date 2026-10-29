@@ -52,7 +52,7 @@ function main() {
     // As the player's worker searches (`searchRouteTo`): the replay that
     // follows replaces the state, so a search that finds the route leaves
     // the story where it stopped.
-    const route = Game.planRoute(game.story, game.program, from, to, undefined, {
+    const route = Game.planRoute(game.story, game.program, from, to, {
       callerResetsStory: true,
     });
     const ms = performance.now() - t0;

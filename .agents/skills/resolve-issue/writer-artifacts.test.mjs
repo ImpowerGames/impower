@@ -18,7 +18,9 @@ assert.match(publication, /--body-file "\$PR_BODY"/);
 // below always exercises this checkout's helper, including in revision controls.
 const { allocateWriterArtifacts } = await import('./writer-artifacts.mjs');
 const { protectPrivatePath } = await import('../../../scripts/reviewer-security.mjs');
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'impower-writer-artifacts-'));
+// The machine's temp directory: a run under check-agent-tooling redirects
+// os.tmpdir() into the checkout, which the allocator refuses as a parent.
+const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), 'impower-writer-artifacts-'));
 console.log(`Scratch artifact directory: ${scratch}`);
 const options = { parent: scratch, issue: 1457, writer: 'writer-A', session: 'same-parent-session', worktree: root };
 const run = () => new Promise((resolve, reject) => {
