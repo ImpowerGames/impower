@@ -7,13 +7,16 @@ import { spawn, spawnSync } from "node:child_process";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-test-"));
+// The machine's temp directory, which a run under check-agent-tooling has
+// redirected into this checkout (.agents/skills/drive-web-editor/worktree-temp.mjs).
+const tmp = process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir();
+const stateDir = fs.mkdtempSync(path.join(tmp, "impower-title-test-"));
 console.log("state directory: " + stateDir);
 process.env.IMPOWER_SESSION_TITLE_DIR = stateDir;
 const { deriveTitle, deriveWorktree, afterTool, gate, statePath, sessionKey, ackCommand, worktreeId }= await import("./session-title.mjs");
 
 // A disposable checkout whose worktrees sit where the test commands point, standing in for the ones those commands create.
-const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-repo-"));
+const fixture = fs.mkdtempSync(path.join(tmp, "impower-title-repo-"));
 const repo = path.join(fixture, "checkout");
 fs.mkdirSync(repo);
 console.log("fixture repository: " + repo);
@@ -56,7 +59,7 @@ const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_sessi
 // A worktree command that created nothing (it failed, or its branch has no worktree) records nothing.
 assert.equal(afterTool(shell("failed", "git worktree add -b fix/303-never-created ../z origin/main"), "codex"), null);
 assert.equal(gate(inWt("failed", "git status"), "codex"), null);
-assert.equal(afterTool({ ...shell("failed", create), cwd: os.tmpdir() }, "codex"), null, "outside the repository no worktree is listed");
+assert.equal(afterTool({ ...shell("failed", create), cwd: tmp }, "codex"), null, "outside the repository no worktree is listed");
 // A failed add for a branch that already has a worktree elsewhere records nothing either.
 const duplicate = "git worktree add -b fix/302-filterimage-layers ../second-copy origin/main";
 assert.notEqual(git(...duplicate.split(" ").slice(1)).status, 0, "git refuses the duplicate branch");
@@ -179,7 +182,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.match(gate(at(wt9, "git status"), "claude"), /FEAT #9: second thing/);
   assert.doesNotMatch(gate(at(wt9, "git status"), "claude"), /FIX #302/);
   assert.equal(gate(at(repo, "git status"), "claude"), null, "a writer outside every pending worktree is never refused");
-  assert.equal(gate(at(os.tmpdir(), "git status"), "claude"), null);
+  assert.equal(gate(at(tmp, "git status"), "claude"), null);
   assert.match(gate(at(repo, `cd ${wt9.replaceAll("\\", "/")} && git status`), "claude"), /FEAT #9/, "entering a pending worktree from elsewhere is gated");
   assert.equal(gate(at(repo, "git -C ../y-other status"), "claude"), null, "a sibling directory with a longer name is not the worktree");
   // The rename of one title clears only that worktree.
@@ -263,7 +266,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
 // every shell command of that session is refused until the rename, and a coordinator resumed on a session that
 // already carries the title is not gated again.
 {
-  const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-orch-"));
+  const records = fs.mkdtempSync(path.join(tmp, "impower-title-orch-"));
   const record = path.join(records, "run.json");
   const title = "ORCH #1775: resumable feature orchestration";
   const init = `node .agents/skills/orchestrate-issues/issue-run.mjs init --record "${record}" --checkout C:/work/impower --repo acme/widgets --issue 1775 --coordinator local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d --harness claude --coordinator-mode bypassPermissions --slug resumable-feature-orchestration`;
@@ -275,7 +278,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   const told = afterTool(at("orch", init), "claude");
   assert.match(told, new RegExp(title));
   assert.match(told, /set_session_title/);
-  for (const [command, cwd] of [["git status", repo], ["Get-ChildItem", os.tmpdir()], [`node .agents/skills/orchestrate-issues/issue-run.mjs plan --record "${record}"`, repo]]) {
+  for (const [command, cwd] of [["git status", repo], ["Get-ChildItem", tmp], [`node .agents/skills/orchestrate-issues/issue-run.mjs plan --record "${record}"`, repo]]) {
     assert.match(gate(at("orch", command, cwd), "claude"), new RegExp(title), `${command} in ${cwd} waits for the rename`);
   }
   assert.equal(gate(at("not-orch", "git status"), "claude"), null, "another session is unaffected");
@@ -283,7 +286,7 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(afterTool(rename("orch", title), "claude"), null);
   assert.equal(gate(at("orch", "git status"), "claude"), null, "the rename clears the gate");
   assert.equal(afterTool(at("orch", init), "claude"), null, "a resumed coordinator on the titled session is not asked again");
-  assert.equal(gate(at("orch", "git status", os.tmpdir()), "claude"), null);
+  assert.equal(gate(at("orch", "git status", tmp), "claude"), null);
   // Renaming the session away forgets the title, so resuming the coordinator there asks again.
   assert.equal(afterTool(rename("orch", "Something unrelated"), "claude"), null);
   assert.match(afterTool(at("orch", init), "claude"), new RegExp(title), "a session no longer carrying the title is asked again");
@@ -336,7 +339,7 @@ assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gat
 // The coordinator's init, from the main checkout with a private record path, reaches the hook through the configured
 // command, which no path named "worktree" carries.
 {
-  const records = fs.mkdtempSync(path.join(os.tmpdir(), "impower-title-native-"));
+  const records = fs.mkdtempSync(path.join(tmp, "impower-title-native-"));
   const record = path.join(records, "run.json");
   fs.writeFileSync(record, JSON.stringify({ version: 2, revision: 1, issue: 1814, title: "ORCH #1814: coordinator contact", coordinator: { session: "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d" } }));
   const init = { ...shell("native-orch", `node .agents/skills/orchestrate-issues/issue-run.mjs init --record "${record}" --checkout "${repo}" --repo acme/widgets --issue 1814`), cwd: repo, hook_event_name: "PostToolUse" };

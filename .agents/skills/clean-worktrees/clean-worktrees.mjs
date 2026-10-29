@@ -70,9 +70,10 @@
 //
 // After those, the review job directories under
 // <parent>/<repo>.review-jobs are classified and, under --apply, the
-// removable ones removed; the review-jobs section below says how. Then the
-// redgreen snapshots under the system temp directory and the test-suite runs
-// under the main checkout's .git/test-suites, as the scratch section says.
+// removable ones removed; the review-jobs section below says how, and the
+// filer job directories under <parent>/<repo>.filer-jobs the same way. Then
+// the redgreen snapshots under the main checkout's .tmp and the test-suite
+// runs under its .git/test-suites, as the scratch section says.
 //
 // Everything that touches the system goes through `deps` (git, the drivers
 // and the process listing through `exec` and `processes`, the file system
@@ -82,10 +83,9 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
+import { CHECKOUT_OWNER_FILE, PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 
@@ -216,7 +216,6 @@ export const liveDeps = {
   },
   processes: () => listProcesses(liveDeps.exec),
   exists: (p) => fs.existsSync(p),
-  tmpdir: () => os.tmpdir(),
   mtimeMs: (p) => {
     try {
       return fs.statSync(p).mtimeMs;
@@ -1091,6 +1090,7 @@ export function driverDirKeeps(dir, deps, nowMs, processes) {
   for (const entry of entries) {
     const name = entry.name;
     if (!entry.isDirectory()) {
+      if (name === CHECKOUT_OWNER_FILE && entry.isFile()) continue;
       keep.push(`${name} is not a session directory; left for a person`);
       continue;
     }
@@ -1129,11 +1129,42 @@ export function driverDirKeeps(dir, deps, nowMs, processes) {
   return keep;
 }
 
+// The checkout a driver directory's owner record names, once that checkout is
+// gone, or why the directory stays: no record (the hash alone cannot say
+// which checkout it served), a record that cannot be read or is not a file,
+// or a recorded checkout that is still there.
+export function recordedCheckout(dir, deps) {
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  const file = path.join(dir, CHECKOUT_OWNER_FILE);
+  let st;
+  try {
+    st = deps.lstat(file);
+  } catch (err) {
+    if (err?.code === "ENOENT") return { keep: "matches no worktree and holds no owner record, so which checkout it served cannot be told; delete it by hand once no session uses it" };
+    return { keep: `its owner record could not be inspected (${why(err)})` };
+  }
+  if (!st.isFile()) return { keep: "its owner record is not a file" };
+  let checkout;
+  try {
+    checkout = JSON.parse(deps.readFile(file))?.checkout;
+  } catch (err) {
+    return { keep: `its owner record could not be read (${why(err)})` };
+  }
+  if (typeof checkout !== "string" || !path.isAbsolute(checkout)) return { keep: "its owner record names no absolute checkout path" };
+  try {
+    deps.lstat(checkout);
+    return { keep: `its recorded checkout ${checkout} still exists` };
+  } catch (err) {
+    if (err?.code === "ENOENT") return { checkout };
+    return { keep: `whether its recorded checkout ${checkout} still exists could not be told (${why(err)})` };
+  }
+}
+
 // Lists every checkout directory under the driver home that belongs to no
 // worktree left after this run. One whose worktree this run removes (or, in
-// a dry run, would remove) goes under --apply unless driverDirKeeps names a
-// reason; one that matches no worktree at all is listed with its size and
-// left for a person, since which checkout it served cannot be told. The
+// a dry run, would remove), or whose owner record names a checkout that no
+// longer exists, goes under --apply unless driverDirKeeps names a reason; any
+// other is listed with its size and the reason recordedCheckout gives. The
 // directories of worktrees that stay are not listed. Returns the count of
 // failed removals.
 export async function cleanDriverDirs(ctx, deps, apply, record, rows) {
@@ -1159,19 +1190,21 @@ export async function cleanDriverDirs(ctx, deps, apply, record, rows) {
     const size = await deps.scan(dir).then((s) => s.bytes, () => null);
     let decision;
     let why;
-    if (worktree === undefined) {
+    const recorded = worktree === undefined ? recordedCheckout(dir, deps) : null;
+    const subject = recorded ? `its recorded checkout ${recorded.checkout} no longer exists` : `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed`;
+    if (recorded?.keep) {
       decision = apply ? "kept" : "keep";
-      why = "matches no worktree, so which checkout it served cannot be told; delete it by hand once no session uses it";
+      why = recorded.keep;
     } else {
       const keep = driverDirKeeps(dir, deps, nowMs, ctx.processes);
       if (keep.length) {
         decision = apply ? "kept" : "keep";
-        why = `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed; ${keep.join("; ")}`;
+        why = `${subject}; ${keep.join("; ")}`;
       } else if (!apply) {
         decision = "remove";
-        why = `the driver directory of ${rel(worktree)}, which would be removed; no session in it is in use`;
+        why = `${subject}; no session in it is in use`;
       } else {
-        why = `the driver directory of ${rel(worktree)}, which was removed; no session in it is in use`;
+        why = `${subject}; no session in it is in use`;
         record({ decision: "removing", path: dir, why });
         try {
           deps.removeDir(dir);
@@ -1594,12 +1627,107 @@ export function cleanJobs(ctx, deps, apply, record) {
   return { failed, rows };
 }
 
+// ---------------------------------------------------------- filer jobs ---
+
+// scripts/filer-worktree.mjs keeps each filing run's owner.json and the
+// filer's repro files in <parent>/<repo>.filer-jobs/<id>/, beside the
+// worktree it creates under the worktrees root. A job's run is finished once
+// owner.json reports its tree removed, or the tree it names is gone and
+// registered nowhere. A process holding owner.json.lock is mid-operation.
+export const filerJobRootOf = (mainRoot) => `${path.resolve(mainRoot)}.filer-jobs`;
+
+export function classifyFilerJob(dir, deps, ctx) {
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  const file = path.join(dir, "owner.json");
+  let record;
+  try {
+    if (!deps.lstat(file).isFile()) return { remove: false, reason: "its owner.json is not a file; left for a person" };
+    record = JSON.parse(deps.readFile(file));
+  } catch (err) {
+    return { remove: false, reason: err?.code === "ENOENT" ? "holds no owner.json, so whose run it was cannot be told; left for a person" : `its owner.json could not be read (${why(err)})` };
+  }
+  const keep = [];
+  const protection = jobProtection(dir, deps, ctx);
+  if (protection) keep.push(protection);
+  let lock = null;
+  try {
+    lock = deps.readFile(`${file}.lock`);
+  } catch (err) {
+    if (err?.code !== "ENOENT") keep.push(`its ownership lock could not be read (${why(err)})`);
+  }
+  if (lock !== null) {
+    let pid;
+    try { pid = JSON.parse(lock)?.pid; } catch { pid = undefined; }
+    if (!Number.isSafeInteger(pid)) keep.push("its ownership lock names no process");
+    else if (deps.pidAlive(pid) && pid !== deps.pid()) keep.push(`its ownership lock names pid ${pid}, still running`);
+  }
+  let finished;
+  if (record?.state === "removed") finished = "its run removed its tree";
+  else if (typeof record?.tree !== "string" || !path.isAbsolute(record.tree)) keep.push("its owner.json names no absolute tree and does not report it removed");
+  else if (ctx.worktrees.reason) keep.push(ctx.worktrees.reason);
+  else if (ctx.worktrees.entries.some((entry) => samePath(entry.path, record.tree))) keep.push(`its tree ${record.tree} is still a registered worktree`);
+  else if (deps.exists(record.tree)) keep.push(`its tree ${record.tree} is still there`);
+  else finished = `its tree ${record.tree} is gone and registered nowhere`;
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  return { remove: true, reason: `a finished filing run: ${finished}` };
+}
+
+// Classifies every directory under the filer job root, prints a row each with
+// its size, and under --apply removes the removable ones the way a review job
+// directory goes. Returns the count of failed removals.
+export async function cleanFilerJobs(ctx, deps, apply, record) {
+  const root = filerJobRootOf(ctx.mainRoot);
+  const names = deps.listDirs(root);
+  if (!names.length) return { failed: 0, rows: [] };
+  const log = deps.log;
+  log("");
+  log(`filer job directories under ${root}:`);
+  const jobCtx = { ...ctx, worktrees: registeredWorktrees(ctx, deps) };
+  const rows = [];
+  let failed = 0;
+  let removable = 0;
+  let bytes = 0;
+  for (const name of names) {
+    const dir = path.join(root, name);
+    const verdict = classifyFilerJob(dir, deps, jobCtx);
+    const size = await deps.scan(dir).then((s) => s.bytes, () => null);
+    let decision = verdict.remove ? "remove" : "keep";
+    let why = verdict.reason;
+    if (verdict.remove) {
+      removable++;
+      bytes += size ?? 0;
+    }
+    if (apply) {
+      if (!verdict.remove) decision = "kept";
+      else {
+        record({ decision: "removing", path: dir, why });
+        try {
+          deps.removeScratch(dir);
+          decision = "removed";
+        } catch (err) {
+          failed++;
+          decision = "failed";
+          why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
+        }
+      }
+      record({ decision, path: dir, why });
+    }
+    rows.push({ name, decision, why, size });
+    log(`${decision.padEnd(DECISION_WIDTH)}  ${name}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
+  }
+  log(`${n(names.length, "filer job directory", "filer job directories")}: ${removable} ${apply ? "removable" : "to remove"} (${formatBytes(bytes)}), ${names.length - removable} kept.`);
+  return { failed, rows };
+}
+
 // ------------------------------------------------------ scratch directories ---
 
-// Two scratch locations the regression workflow writes and nothing else
-// removes. `runRedGreen` (drive-web-editor/redgreen.mjs) makes a redgreen-*
-// directory under the system temp directory for its snapshot and its red and
-// green logs, and leaves it for the report to cite. `test-suite.mjs start`
+// Two scratch locations the regression workflow writes in the main checkout
+// and nothing else removes. `runRedGreen` (drive-web-editor/redgreen.mjs)
+// makes a redgreen-* directory under the checkout's .tmp for its snapshot and
+// its red and green logs, and leaves it for the report to cite; a linked
+// worktree's go with the worktree. `test-suite.mjs start`
 // (refused by the local-test hook, but runs left by earlier sessions remain
 // and `resume` continues them) writes each run under
 // <git-dir>/test-suites/<uuid>/; a linked worktree's git
@@ -1664,12 +1792,12 @@ export function classifyTestRun(dir, deps, ctx) {
   return { remove: true, reason: run.active === false ? "a finished test-suite run" : `a test-suite run whose coordinator pid ${ownerPid} is dead` };
 }
 
-// The redgreen directories under the temp directory and the runs under the
-// main checkout's .git/test-suites, each classified, printed with its size,
-// and under --apply removed when removable. Returns the count of failures.
+// The redgreen directories under the main checkout's .tmp and the runs under
+// its .git/test-suites, each classified, printed with its size, and under
+// --apply removed when removable. Returns the count of failures.
 export async function cleanScratch(ctx, deps, apply, record) {
   const log = deps.log;
-  const tmp = deps.tmpdir();
+  const tmp = path.join(ctx.mainRoot, ".tmp");
   const suites = path.join(ctx.mainRoot, ".git", "test-suites");
   const groups = [
     { label: `redgreen snapshots under ${tmp}`, root: tmp, names: deps.listDirs(tmp).filter((d) => /^redgreen-/.test(d)), classify: classifyRedgreen },
@@ -1918,8 +2046,9 @@ export async function main(argv, deps = liveDeps) {
   }
   const drivers = await cleanDriverDirs(ctx, deps, apply, record, rows);
   const jobs = cleanJobs(ctx, deps, apply, record);
+  const filerJobs = await cleanFilerJobs(ctx, deps, apply, record);
   const scratch = await cleanScratch(ctx, deps, apply, record);
-  return failed || drivers.failed || jobs.failed || scratch.failed ? 1 : 0;
+  return failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed ? 1 : 0;
 }
 
 if (process.argv[1] && samePath(fs.realpathSync(fileURLToPath(import.meta.url)), fs.realpathSync(process.argv[1]))) {

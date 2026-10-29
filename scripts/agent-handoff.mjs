@@ -16,6 +16,7 @@ import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 import { removeProbeCheckouts, snapshotReviewerDirectory } from "./reviewer-probe-cleanup.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../.agents/repos.mjs";
 import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
+import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -1694,6 +1695,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
 }
 
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  useWorktreeTemp();
   if (process.argv[2] === "record-report") {
     try {
       if (process.argv.length !== 6) throw new Error("Usage: node scripts/agent-handoff.mjs record-report <absolute-journal> <comment-id> <read-back.json>");

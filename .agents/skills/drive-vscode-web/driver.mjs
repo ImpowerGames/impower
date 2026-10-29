@@ -38,6 +38,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { useWorktreeTemp } from "../drive-web-editor/worktree-temp.mjs";
 import { desktop } from "./desktop.mjs";
 import { debugWorkbench } from "./web-debug.mjs";
 import {
@@ -1526,6 +1527,7 @@ async function hoverOn(page, opts, report, fail, deps) {
 
 const runAsCli = process.argv[1] != null && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
+if (runAsCli) useWorktreeTemp();
 switch (cmd) {
   case "__imported__":
     break;
