@@ -61,6 +61,7 @@ interface BenchConfig {
   // measured sample's compile, so that a profile leaves out the warm-up and
   // the first compile (#1712).
   windows?: string;
+  startingValues?: Record<string, Record<string, string>>;
 }
 
 interface ContentChange {
@@ -365,6 +366,9 @@ async function main() {
     const t0 = performance.now();
     if (!workerGame) {
       workerGame = new Game({ program, ...system } as any);
+      if (config.startingValues) {
+        workerGame.setStartingValues(config.startingValues);
+      }
     } else {
       workerGame.updateProgram(program);
     }
