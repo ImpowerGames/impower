@@ -554,13 +554,14 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
   const before = new Set(own(states, segment.from.state) ?? []);
   const after = new Set(own(states, segment.to.state) ?? []);
   const switched = new Set(Object.values(states).flat());
+  const posed = new Set(own(states, entry.state) ?? []);
   // The nodes moving shapes draw on this frame show the track, not their drawing.
   const drawing = new Set(p > 0 && p < 1 ? segment.transitions.flatMap((t) => (t.kind === "morph" || t.kind === "scale" ? [t.draw] : [])) : []);
   for (const [node, base] of Object.entries(entry.nodes)) {
     if (drawing.has(node)) continue;
     // A drawing both poses show, the group's own or one it never switches,
     // takes the mix; one the pose alone shows is the pose's drawing itself.
-    const both = !switched.has(node) || (before.has(node) && after.has(node));
+    const both = !switched.has(node) || (before.has(node) && after.has(node)) || !posed.has(node);
     write(node, base, both ? w : 1);
   }
   for (const t of segment.transitions) {
