@@ -20,7 +20,8 @@ function patchFiles(command) {
       hunk = null;
       file = header[1] === "Delete File" ? null : header[1] === "Add File" ? { path: target, added: [] } : { path: target, source: target, hunks: [] };
       if (file) files.push(file);
-    } else if (!file || line.startsWith("*** ")) continue;
+    } else if (file && hunk && line.trimEnd() === "*** End of File") hunk.eof = true;
+    else if (!file || line.startsWith("*** ")) continue;
     else if (file.added) {
       if (line.startsWith("+")) file.added.push(line.slice(1));
     } else if (line.startsWith("@@")) {

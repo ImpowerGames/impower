@@ -42,7 +42,7 @@ function lineEnd(text, i) {
 
 function skipQuoted(text, i, quote, escape = "\\") {
   let j = i + 1;
-  while (j < text.length && text[j] !== quote && text[j] !== "\n") j += text[j] === escape ? 2 : 1;
+  while (j < text.length && text[j] !== quote && text[j] !== "\n") j += text[j] !== escape ? 1 : text[j + 1] === "\r" && text[j + 2] === "\n" ? 3 : 2;
   return Math.min(j + 1, text.length);
 }
 
@@ -50,19 +50,23 @@ const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", 
 
 const CONDITION_WORDS = new Set(["if", "while", "for", "with"]);
 
-const EXPRESSION_WORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "yield", "await"]);
+const EXPRESSION_WORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "default", "yield", "await"]);
 
 function blockOpens(last) {
   if (["", "=>", ")", ";", "{", "}"].includes(last)) return true;
   return /^[A-Za-z_$][\w$]*$/.test(last) && last !== "value" && !EXPRESSION_WORDS.has(last);
 }
 
+const GENERIC_ARROW = /^<(?:const\s+)?[A-Za-z_$][\w$]*\s*(?:,|=(?!>)|extends\b)/;
+
 function scanJs(text, jsx = false) {
   const comments = [];
   const frames = [{ mode: "code", blocks: [] }];
   const parens = [];
-  let regexAllowed = true, last = "";
+  const notJsx = new Set();
+  let regexAllowed = true, last = "", caseLabel = false;
   let i = text.startsWith("#!") ? lineEnd(text, 0) : 0;
+  const copyFrames = (list) => list.map((f) => ({ ...f, blocks: f.blocks && [...f.blocks] }));
   const enterCode = () => {
     frames.push({ mode: "code", blocks: [] });
     regexAllowed = true;
@@ -76,7 +80,20 @@ function scanJs(text, jsx = false) {
       last = "value";
     }
   };
-  while (i < text.length) {
+  for (;;) {
+    if (i >= text.length) {
+      const open = frames.find((f) => f.checkpoint);
+      if (!open) break;
+      const saved = open.checkpoint;
+      notJsx.add(saved.i);
+      comments.length = saved.comments;
+      frames.length = 0;
+      frames.push(...copyFrames(saved.frames));
+      parens.length = 0;
+      parens.push(...saved.parens);
+      ({ i, regexAllowed, last } = saved);
+      continue;
+    }
     const frame = frames[frames.length - 1];
     const c = text[i], n = text[i + 1];
     if (frame.mode === "template") {
@@ -127,8 +144,9 @@ function scanJs(text, jsx = false) {
       } else i++;
       continue;
     }
-    if (c === "<" && jsx && regexAllowed && /[A-Za-z>]/.test(n ?? "") && !/^<[A-Za-z_$][\w$]*\s*(?:,|extends\b)/.test(text.slice(i, i + 80))) {
-      frames.push({ mode: "jsxTag", open: 1, closing: false });
+    if (c === "<" && jsx && regexAllowed && !notJsx.has(i) && /[A-Za-z>]/.test(n ?? "") && !GENERIC_ARROW.test(text.slice(i, i + 80))) {
+      const checkpoint = { i, comments: comments.length, frames: copyFrames(frames), parens: [...parens], regexAllowed, last };
+      frames.push({ mode: "jsxTag", open: 1, closing: false, checkpoint });
       i++;
       continue;
     }
@@ -157,7 +175,7 @@ function scanJs(text, jsx = false) {
         else if (text[j] === "]") inClass = false;
         j++;
       }
-      if (text[j] === "/") {
+      if (text[j] === "/" && text[j + 1] !== "/" && text[j + 1] !== "*") {
         j++;
         while (/[A-Za-z]/.test(text[j] ?? "")) j++;
         i = j;
@@ -173,6 +191,7 @@ function scanJs(text, jsx = false) {
       while (j < text.length && /[A-Za-z0-9_$]/.test(text[j])) j++;
       last = text.slice(i, j);
       regexAllowed = REGEX_AFTER_WORD.has(last) && text[i - 1] !== ".";
+      if (text[i - 1] !== "." && (last === "case" || (last === "default" && /^\s*:/.test(text.slice(j, j + 40))))) caseLabel = true;
       i = j;
     } else if (/\s/.test(c)) {
       i++;
@@ -190,6 +209,10 @@ function scanJs(text, jsx = false) {
       } else if (c === ")") regexAllowed = parens.pop() ?? false;
       else regexAllowed = c !== "]";
       last = c === ">" && text[i - 1] === "=" ? "=>" : c;
+      if (c === ":" && caseLabel) {
+        caseLabel = false;
+        last = ";";
+      }
       i++;
     }
   }
@@ -263,42 +286,62 @@ function scanPy(text) {
   return comments;
 }
 
-function scanSh(text, from = 0, to = text.length) {
+function scanSh(text) {
   const comments = [];
+  const to = text.length;
   let heredocs = [];
-  let i = from === 0 && text.startsWith("#!") ? lineEnd(text, 0) : from;
-  while (i < to) {
-    const c = text[i];
-    if (c === "\\") i += 2;
-    else if (c === "'") {
-      const close = text.indexOf("'", i + 1);
-      i = close < 0 ? to : close + 1;
-    } else if (c === '"' || (c === "$" && text[i + 1] === "'")) {
-      const quote = c === "$" ? "'" : '"';
-      let j = i + (c === "$" ? 2 : 1);
-      while (j < to && text[j] !== quote) j += text[j] === "\\" ? 2 : 1;
-      i = j + 1;
-    } else if (c === "#" && (i === from || /[\s;&|()<>]/.test(text[i - 1]))) {
-      const end = Math.min(lineEnd(text, i), to);
-      comments.push({ start: i, end });
-      i = end;
-    } else if (text.startsWith("<<", i) && text[i + 2] !== "<") {
-      const m = /^<<(-?)[ \t]*(['"]?)([A-Za-z_][\w]*)\2/.exec(text.slice(i, i + 200));
-      if (m) heredocs.push({ dash: Boolean(m[1]), word: m[3] });
-      i += m ? m[0].length : 2;
-    } else if (c === "\n" && heredocs.length) {
-      i++;
-      for (const { dash, word } of heredocs) {
-        while (i < to) {
-          const end = lineEnd(text, i);
-          const line = text.slice(i, end);
-          i = Math.min(text.indexOf("\n", end) + 1 || to, to);
-          if ((dash ? line.replace(/^\t+/, "") : line) === word) break;
+  const quoted = (j) => {
+    while (j < to && text[j] !== '"') {
+      if (text[j] === "\\") j += 2;
+      else if (text[j] === "$" && text[j + 1] === "(" && text[j + 2] !== "(") j = code(j + 2, true);
+      else j++;
+    }
+    return j + 1;
+  };
+  const code = (i, nested) => {
+    let depth = 0;
+    while (i < to) {
+      const c = text[i];
+      if (c === "\\") i += 2;
+      else if (c === "'") {
+        const close = text.indexOf("'", i + 1);
+        i = close < 0 ? to : close + 1;
+      } else if (c === "$" && text[i + 1] === "'") {
+        let j = i + 2;
+        while (j < to && text[j] !== "'") j += text[j] === "\\" ? 2 : 1;
+        i = j + 1;
+      } else if (c === '"') i = quoted(i + 1);
+      else if (c === "#" && (i === 0 || /[\s;&|()<>]/.test(text[i - 1]))) {
+        const end = lineEnd(text, i);
+        comments.push({ start: i, end });
+        i = end;
+      } else if (c === "(") {
+        depth++;
+        i++;
+      } else if (c === ")") {
+        if (nested && depth === 0) return i + 1;
+        depth--;
+        i++;
+      } else if (text.startsWith("<<", i) && text[i + 2] !== "<") {
+        const m = /^<<(-?)[ \t]*(['"]?)([A-Za-z_][\w]*)\2/.exec(text.slice(i, i + 200));
+        if (m) heredocs.push({ dash: Boolean(m[1]), word: m[3] });
+        i += m ? m[0].length : 2;
+      } else if (c === "\n" && heredocs.length) {
+        i++;
+        for (const { dash, word } of heredocs) {
+          while (i < to) {
+            const end = lineEnd(text, i);
+            const line = text.slice(i, end);
+            i = Math.min(text.indexOf("\n", end) + 1 || to, to);
+            if ((dash ? line.replace(/^\t+/, "") : line) === word) break;
+          }
         }
-      }
-      heredocs = [];
-    } else i++;
-  }
+        heredocs = [];
+      } else i++;
+    }
+    return i;
+  };
+  code(text.startsWith("#!") ? lineEnd(text, 0) : 0, false);
   return comments;
 }
 
@@ -336,7 +379,6 @@ function scanYaml(text) {
       if (line.trim() && /^\s*/.exec(line)[0].length <= indent) break;
       blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
     }
-    if (/^\s*(?:-\s+)?run\s*:/.test(code)) comments.push(...scanSh(text, i, blockEnd));
     i = blockEnd;
   }
   return comments;
@@ -487,6 +529,14 @@ export function stripComments(text, file, options = {}) {
   const refused = judgeComments(text, file, options).filter((c) => c.kind === "refused");
   if (!refused.length) return text;
   const family = familyOf(file);
+  if (family === "html") {
+    let out = "", at = 0;
+    for (const c of refused) {
+      out += text.slice(at, c.start);
+      at = c.end;
+    }
+    return out + text.slice(at);
+  }
   const removed = new Uint8Array(text.length);
   for (const c of refused) removed.fill(1, c.start, c.end);
   const code = (from, to) => {
@@ -589,7 +639,8 @@ function applyHunks(before, hunks) {
     }
     const old = hunk.lines.filter((l) => l.op !== "+").map((l) => l.text);
     const replacement = hunk.lines.filter((l) => l.op !== "-").map((l) => l.text);
-    const at = old.length ? findLines(lines, old, cursor) : lines.length - (lines[lines.length - 1] === "" ? 1 : 0);
+    const end = lines.length - (lines[lines.length - 1] === "" ? 1 : 0);
+    const at = !old.length ? end : hunk.eof ? (findLines(lines.slice(0, end), old, Math.max(cursor, end - old.length)) === end - old.length ? end - old.length : -1) : findLines(lines, old, cursor);
     if (at < 0) return null;
     lines.splice(at, old.length, ...replacement);
     cursor = at + replacement.length;

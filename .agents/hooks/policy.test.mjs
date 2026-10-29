@@ -74,7 +74,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.match(patch("*** Update File: src/anchored.ts\n@@ function f() {\n   target();\n+  // forbidden prose\n }") ?? "", /src\/anchored\.ts:6: `\/\/ forbidden prose`/, "a hunk is placed after its @@ anchor");
     assert.equal(patch("*** Update File: src/anchored.ts\n@@\n   target();\n+  // literal text\n `;"), null, "without an anchor the first matching context is the template");
 
-    write("src/trailing.ts","export const a = 1; // legacy note\n");
+    write("src/eof.ts", "export const t = `\ntarget();\n`;\ntarget();\n");
+    assert.match(patch("*** Update File: src/eof.ts\n@@\n target();\n+// forbidden prose\n*** End of File") ?? "", /src\/eof\.ts:5: `\/\/ forbidden prose`/, "an End of File hunk matches the file's last lines");
+
+    write("src/trailing.ts", "export const a = 1; // legacy note\n");
     assert.equal(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "a = 1", new_string: "a = 2" }), null, "editing code beside a legacy comment introduces no comment");
     assert.equal(judge("Write", { file_path: at("src/trailing.ts"), content: "export const a = 2; // legacy note\n" }), null);
     assert.match(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "// legacy note", new_string: "// legacy note, reworded" }) ?? "", /src\/trailing\.ts:1/, "a reworded comment is a new comment");
@@ -88,6 +91,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("const t = `a // no ${f(/* yes */ 1, `b // no ${2}`)} c // no`; const r = x / 2 / y; // yes", "a.ts"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const v = <a href=\"http://x\">see</a>; // yes", "a.tsx"), ["// yes"]);
     assert.deepEqual(comments("const a = {} / 2; // yes\nlet b = 2; const c = b++ / 2; // yes\nif (x) {} /re/.test(y); // yes\nconst o = { k: 1 } / 3; // yes\nconst s = `${d}` / 2; // yes", "a.ts"), ["// yes", "// yes", "// yes", "// yes", "// yes"]);
+    assert.deepEqual(comments("const n = function() {} / 2; // yes\nswitch (1) { case 1: {} /[/*]/.test(\"/\"); default: {} /a/.test(\"a\"); } // yes\nexport default {} / 2; // yes", "a.ts"), ["// yes", "// yes", "// yes"]);
+    assert.deepEqual(comments("const s = \"a\\\r\n// no\";\r\n// yes\r\n", "a.ts"), ["// yes"]);
+    assert.deepEqual(comments("const id = <T = string>(x: T) => x;\n// yes\nconst k = <const T,>(x: T) => x; // yes", "a.tsx"), ["// yes", "// yes"]);
+    assert.deepEqual(comments("const a = b <c && d > e;\n// yes\n", "a.tsx"), ["// yes"], "a guess at JSX that never closes is rescanned as code");
     assert.deepEqual(comments("if (true) /[/*]/.test(\"/\"); while (x) /a\\/b/.test(y); f(a) / 2 / g; // yes", "a.ts"), ["// yes"]);
     assert.deepEqual(comments("const el = <p>https://example.com {/* yes */} <br/> it's <b>x</b></p>; // yes", "a.tsx"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const id = <T,>(x: T) => x; // yes\nconst f = <>a // no</>; // yes", "a.tsx"), ["// yes", "// yes"]);
@@ -99,7 +106,8 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("#!/bin/sh\necho \"# no\" '# no' a#no $# ${#x} # yes\ncat <<'EOF'\n# no\nEOF\n# yes", "a.sh"), ["# yes", "# yes"]);
     assert.deepEqual(comments("s = '# no' + \"\"\"\n# no\n\"\"\"  # yes", "a.py"), ["# yes"]);
     assert.deepEqual(comments("$a = 'x # no' + \"y `\" # no\" ; a#no # yes\n<# yes #>\n@'\n# no\n'@", "a.ps1"), ["# yes", "<# yes #>"]);
-    assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - run: |\n      # yes\n      echo \"# no\"\n# lookaround: yes", "a.yml"), ["# yes", "# yes", "# lookaround: yes"]);
+    assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - run: |\n      # no\n      echo \"# no\"\n  - shell: pwsh\n    run: |\n      Write-Output \"foo `\" # no\"\n# lookaround: yes", "a.yml"), ["# yes", "# lookaround: yes"], "block scalar content, run blocks included, is text whose language the file does not settle");
+    assert.deepEqual(comments("echo \"$(\n  # yes\n  echo \"# no\" $((1 + 2))\n)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
 
     const kind = (text, file = "src/a.ts") => classifyComment(text, file, { root: checkout }).kind;
     assert.equal(kind("/// <reference types=\"vite/client\" />"), "directive");
@@ -172,6 +180,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(new Function(`${adjacentStripped}; return f();`)(), undefined);
     assert.equal(stripComments("div/* prose */.active { color: red; }\na /* prose */ b {}\n", "a.css", { root: checkout }), "div.active { color: red; }\na  b {}\n", "CSS removal inserts no whitespace a selector would read");
     assert.equal(stripComments("<p>hello<!-- prose -->world</p>\n", "a.html", { root: checkout }), "<p>helloworld</p>\n", "HTML removal inserts no text");
+    assert.equal(stripComments("<pre>A\n<!-- note --> B</pre><pre>A <!-- note -->\nB</pre>\n  <!-- line -->\n", "a.html", { root: checkout }), "<pre>A\n B</pre><pre>A \nB</pre>\n  \n", "HTML removal takes the comment and nothing around it");
+    const crlf = "const s = \"a\\\r\n// literal\";\r\n";
+    assert.equal(stripComments(crlf, "src/a.ts", { root: checkout }), crlf);
     assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
