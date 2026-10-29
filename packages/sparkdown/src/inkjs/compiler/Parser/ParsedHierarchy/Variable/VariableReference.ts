@@ -170,6 +170,10 @@ export class VariableReference extends Expression {
     if (this.name === "_G" && this.unresolvedMember === null) {
       return;
     }
+    // So is a stdlib library, which a bare name reads as its table (I-1441).
+    if (isStdLibNamespaceName(this.name!) && this.unresolvedMember === null) {
+      return;
+    }
     if (!this.IsResolvedVariable(context)) {
       if (this.unresolvedMember) {
         this.ReportUnresolvedPath(
