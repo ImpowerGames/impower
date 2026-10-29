@@ -195,6 +195,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments(folded, "w.yml"), ["# prose\n      echo second", "# tail"], "a folded run block is scanned as its folded value, so a comment runs to the end of its folded line");
     assert.equal(stripComments(folded, "w.yml", { root: checkout }), "steps:\n  - run: >\n      echo first\n\n      echo third\n", "stripping a folded comment removes every physical line it covers");
     assert.deepEqual(comments("echo \"$(\n  # yes\n  echo \"# no\" $((1 + 2))\n)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
+    assert.deepEqual(comments("printf '%s' foo\\\n#no\nprintf '%s' foo \\\n#yes\n", "a.sh"), ["#yes"], "a line continuation joins the word across lines, so # after it starts a comment only where a word would start");
+    assert.equal(stripComments("printf '%s' foo\\\n#bar\n", "a.sh", { root: checkout }), "printf '%s' foo\\\n#bar\n");
+    assert.deepEqual(comments("EOF=1\nx=$((1<<EOF))\n((y = 1 << EOF))\n# yes\nprintf '%s' \"$x\" # yes\n", "a.sh"), ["# yes", "# yes"], "an arithmetic shift is not a heredoc");
+    assert.deepEqual(comments("Write-Output a=#no b,#no\nWrite-Output 1<# no #>2\nWrite-Output 1 <# yes #> 2\n", "a.ps1"), ["#>2", "<# yes #>"], "PowerShell comments start only at a token start");
 
     const kind = (text, file = "src/a.ts") => classifyComment(text, file, { root: checkout }).kind;
     assert.equal(kind("/// <reference types=\"vite/client\" />"), "directive");

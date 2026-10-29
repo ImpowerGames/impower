@@ -356,16 +356,34 @@ function scanSh(text, indent = 0) {
     }
     return j + 1;
   };
+  const logicalPrevious = (i) => {
+    let k = i - 1;
+    for (;;) {
+      if (text[k] === "\n" && text[k - 1] === "\\") k -= 2;
+      else if (text[k] === "\n" && text[k - 1] === "\r" && text[k - 2] === "\\") k -= 3;
+      else return k < 0 ? null : text[k];
+    }
+  };
+  const arithmeticEnd = (j) => {
+    let level = 0;
+    for (; j < to; j++) {
+      if (text[j] === "(") level++;
+      else if (text[j] === ")" && --level === 0) return j + 1;
+    }
+    return to;
+  };
   const code = (i, nested) => {
     let depth = 0, cases = 0;
     while (i < to) {
       const c = text[i];
-      const wordStart = i === 0 || /[\s;&|()<>]/.test(text[i - 1]);
+      const previous = logicalPrevious(i);
+      const wordStart = previous === null || /[\s;&|()<>]/.test(previous);
       const keyword = wordStart ? /^(case|esac)(?![\w-])/.exec(text.slice(i, i + 5))?.[1] : undefined;
       if (keyword) {
         cases += keyword === "case" ? 1 : -1;
         i += keyword.length;
-      } else if (c === ")" && cases > 0 && depth === 0) i++;
+      } else if (text.startsWith("$((", i) || (wordStart && text.startsWith("((", i))) i = arithmeticEnd(c === "$" ? i + 1 : i);
+      else if (c === ")" && cases > 0 && depth === 0) i++;
       else if (c === "\\") i += 2;
       else if (c === "'") {
         const close = text.indexOf("'", i + 1);
@@ -375,7 +393,7 @@ function scanSh(text, indent = 0) {
         while (j < to && text[j] !== "'") j += text[j] === "\\" ? 2 : 1;
         i = j + 1;
       } else if (c === '"') i = quoted(i + 1);
-      else if (c === "#" && (i === 0 || /[\s;&|()<>]/.test(text[i - 1]))) {
+      else if (c === "#" && wordStart) {
         const end = lineEnd(text, i);
         comments.push({ start: i, end });
         i = end;
@@ -576,12 +594,13 @@ function scanPs1(text, indent = 0) {
     let depth = 0;
     while (i < text.length) {
       const c = text[i];
-      if (c === "<" && text[i + 1] === "#") {
+      const tokenStart = i === 0 || /[\s;|&(){}]/.test(text[i - 1]);
+      if (c === "<" && text[i + 1] === "#" && tokenStart) {
         const close = text.indexOf("#>", i + 2);
         const end = close < 0 ? text.length : close + 2;
         comments.push({ start: i, end });
         i = end;
-      } else if (c === "#" && (i === 0 || /[\s;|&(){}=,]/.test(text[i - 1]))) {
+      } else if (c === "#" && tokenStart) {
         const end = lineEnd(text, i);
         comments.push({ start: i, end });
         i = end;
