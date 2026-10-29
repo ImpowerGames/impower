@@ -17,6 +17,7 @@ import {
 import type { Node } from "../txml/txml";
 import { stringify } from "../txml/txml";
 import { IDENTITY, multiply, parseTransform, type Affine } from "./affine";
+import { cssTrim } from "./color";
 
 export type Element = Exclude<Node, string | null>;
 
@@ -137,6 +138,97 @@ export function setStyleProperty(element: Element, name: string, value: string |
   else delete element.attributes["style"];
 }
 
+// The inline style grammar the bake reads: names and values in ASCII with
+// space, tab and line breaks between tokens, declarations ended by `;`, each
+// with an optional trailing `!important`. Other text changes where a browser
+// ends a declaration or what it reads there, which a plain split does not
+// follow: non-ASCII text and other whitespace, a character reference (the
+// parser keeps `&…;` as written, and a browser decodes it before reading the
+// declaration), a comment, an escape, a string, a brace or bracket block, and
+// a parenthesis left open or holding a semicolon. Reading less than a browser
+// does is safe; reading something differently is not.
+
+/** Text outside the inline style grammar wherever it appears. */
+const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["'{}[\]&]/;
+
+const STYLE_IMPORTANT = /![ \t\n\r\f]*important$/i;
+
+export interface InlineDeclaration {
+  /** Lowercased. */
+  name: string;
+  /** As written, without its `!important`. */
+  value: string;
+  important: boolean;
+}
+
+/** Where an inline style leaves the grammar, or -1 when it stays inside it. */
+function styleOutsideAt(style: string): number {
+  const outside = STYLE_OUTSIDE.exec(style);
+  if (outside) return outside.index;
+  let depth = 0;
+  let open = -1;
+  for (let i = 0; i < style.length; i++) {
+    const ch = style[i];
+    if (ch === "(" && depth++ === 0) open = i;
+    // A stray `)` is an ordinary token to a browser.
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    else if (ch === ";" && depth > 0) return open;
+  }
+  return depth > 0 ? open : -1;
+}
+
+/** An element's inline style declarations in order, or null for a style outside the grammar. */
+export function inlineDeclarations(element: Element): InlineDeclaration[] | null {
+  const style = element.attributes["style"];
+  if (style === undefined) return [];
+  if (styleOutsideAt(style) >= 0) return null;
+  const out: InlineDeclaration[] = [];
+  for (const declaration of style.split(";")) {
+    const colon = declaration.indexOf(":");
+    if (colon < 0) continue;
+    const name = cssTrim(declaration.slice(0, colon)).toLowerCase();
+    const value = cssTrim(declaration.slice(colon + 1));
+    const important = STYLE_IMPORTANT.test(value);
+    if (name) out.push({ name, value: important ? cssTrim(value.replace(STYLE_IMPORTANT, "")) : value, important });
+  }
+  return out;
+}
+
+const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
+const SUBSTITUTION = /(?:^|[^a-z0-9_-])(?:var|env|attr)\(/i;
+
+/** Shows each character outside printable ASCII as its code point. */
+const visible = (text: string) =>
+  text.replace(/[^\x20-\x7e]/g, (ch) => `<U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`);
+
+/**
+ * The declaration that keeps the bake from reading an element's inline style
+ * safely, as written, or undefined: a style outside the grammar, an `all`
+ * declaration, a substituted value (`var()`, `env()`, `attr()`), or a
+ * CSS-wide keyword on a property the bake decides structure from by value
+ * (`display` and the compositing properties).
+ */
+export function unreadableStyle(element: Element): string | undefined {
+  const style = element.attributes["style"];
+  if (style === undefined) return undefined;
+  const at = styleOutsideAt(style);
+  if (at >= 0) {
+    // The declaration it happens in; an open parenthesis runs to the end, and
+    // a character reference's own `;` ends nothing.
+    const start = style.lastIndexOf(";", at) + 1;
+    const reference = style[at] === "&" ? style.indexOf(";", at) : -1;
+    const next = STYLE_OUTSIDE.exec(style)?.index === at ? style.indexOf(";", reference < 0 ? at : reference + 1) : -1;
+    return visible(cssTrim(style.slice(start, next < 0 ? style.length : next)));
+  }
+  const unreadable = inlineDeclarations(element)!.find(
+    ({ name, value }) =>
+      name === "all" ||
+      SUBSTITUTION.test(value) ||
+      ((name === "display" || COMPOSITING.includes(name)) && CSS_WIDE_KEYWORDS.has(value.toLowerCase())),
+  );
+  return unreadable && `${unreadable.name}: ${unreadable.value}${unreadable.important ? " !important" : ""}`;
+}
+
 /** Properties that make an element composite its content as one group. */
 const COMPOSITING = ["opacity", "filter", "mask", "mix-blend-mode", "isolation"];
 
@@ -179,10 +271,14 @@ function findStyleSheet(nodes: Node[]): string | undefined {
 /**
  * Whether the element is authored not to render at all, from the inline
  * `display` declaration that takes effect or else its `display` attribute.
- * Artwork with a style sheet is never baked live, so no sheet rule decides it.
+ * Artwork with a style sheet, or an inline style the bake cannot read
+ * safely, is never baked live, so no sheet rule or unread declaration
+ * decides it.
  */
-export const authoredHidden = (element: Element) =>
-  (styleProperty(element, "display") ?? element.attributes["display"])?.trim().toLowerCase() === "none";
+export const authoredHidden = (element: Element) => {
+  const display = styleProperty(element, "display") ?? element.attributes["display"];
+  return display !== undefined && cssTrim(display).toLowerCase() === "none";
+};
 
 /** Inline style properties that move an element where its `transform` attribute does not say. */
 const CSS_TRANSFORM_PROPERTIES = new Set([

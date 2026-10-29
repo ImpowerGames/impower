@@ -1,10 +1,11 @@
 // The solid paint a drawing is drawn with, read from the artwork's attributes
 // and inline styles within a closed grammar, and the record a `morph`
 // transition keeps of the paint its two drawings differ in. Artwork with a
-// style sheet is never baked live, so no sheet rule takes part.
+// style sheet, or an inline style the bake cannot read safely, is never
+// baked live, so no sheet rule takes part.
 
 import { cssTrim, readAlpha, readColor, type ReadColor } from "./color";
-import { ancestry, type ArtDocument, type Element } from "./svgDocument";
+import { ancestry, inlineDeclarations, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphColor, MorphPaint } from "./types";
 
 /**
@@ -28,8 +29,9 @@ type Inherited = keyof typeof INHERITED;
 // it is in this grammar: a fill or stroke as a colour the reader reads, or
 // `none`; `color` as a colour or `currentColor`; an opacity as a number or a
 // percentage; any of them as `inherit` or `initial`; each with an optional
-// trailing `!important`, in ASCII with space, tab and line breaks between
-// tokens. A declaration outside it (another CSS-wide keyword, `all`, `var()`,
+// trailing `!important`, in the inline style grammar `svgDocument.ts` reads
+// (ASCII with space, tab and line breaks between tokens). A declaration
+// outside it (another CSS-wide keyword, `all`, `var()`,
 // a comment, an escape, other whitespace, non-ASCII text) makes that paint
 // unknown, so the pair stays unblended and draws as authored. Reading less
 // than a browser does is safe; reading something differently is not.
@@ -42,28 +44,6 @@ const inGrammar = (name: string, value: string): boolean => {
   if (name === "color") return ["color", "current"].includes(readColor(value)?.kind ?? "");
   return readAlpha(value) !== undefined;
 };
-
-/** An inline style the grammar cannot split safely: non-ASCII text, a comment, an escape or a string. */
-const STYLE_OUTSIDE = /[^\x20-\x7e\t\n\r\f]|\/\*|\\|["']/;
-
-const IMPORTANT = /![ \t\n\r\f]*important$/i;
-
-/** An element's inline style declarations in order, or null for a style outside the grammar. */
-function inlineDeclarations(element: Element): { name: string; value: string; important: boolean }[] | null {
-  const style = element.attributes["style"];
-  if (style === undefined) return [];
-  if (STYLE_OUTSIDE.test(style)) return null;
-  const out: { name: string; value: string; important: boolean }[] = [];
-  for (const declaration of style.split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon < 0) continue;
-    const name = cssTrim(declaration.slice(0, colon)).toLowerCase();
-    const value = cssTrim(declaration.slice(colon + 1));
-    const important = IMPORTANT.test(value);
-    if (name) out.push({ name, value: important ? cssTrim(value.replace(IMPORTANT, "")) : value, important });
-  }
-  return out;
-}
 
 /**
  * What an element declares for `name`: its inline style (the last important
