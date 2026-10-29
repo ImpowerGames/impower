@@ -97,6 +97,8 @@ try {
   for (const file of Object.keys(separators)) write(file, "export {};\n");
   write("src/wrapped.css", "/* keeps the panel layout\n * stacked, since the host page forces a column on every element */\n.a { color: red; }\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 1;\n");
+  const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
+  write("src/licensed.ts", `${mpl}\nexport const l = 1;\n`);
   const base = commit("base");
 
   write("src/existing.ts", "export const a = 2; // legacy note kept from before the rule\n// re-asserts the border, since the normalize reset clears it\nexport const b = 2;\n");
@@ -114,6 +116,7 @@ try {
   for (const [file, code] of Object.entries(separators)) write(file, `export {};${String.fromCharCode(code)}// prose after a JavaScript line terminator\n`);
   write("src/wrapped-copy.css", ".b { color: blue; }\n/* keeps the panel layout stacked, since the host page forces a column on every element */\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
+  write("src/licensed-copy.ts", `${mpl}\nexport const m = 1;\n`);
   commit("head");
 
   const records = [
@@ -132,6 +135,7 @@ try {
     ...Object.keys(separators).map((file) => record(base, file)),
     record(base, "src/wrapped-copy.css", "added"),
     { ...record(base, "src/unpatched-legacy.ts"), patch: undefined },
+    record(base, "src/licensed-copy.ts", "added"),
   ];
   const result = checkComments({ root: checkout, records, mergeBase: base });
   const at = (file) => result.findings.filter((f) => f.file === file);
@@ -158,6 +162,7 @@ try {
   for (const file of Object.keys(separators)) assert.deepEqual(at(file).map((f) => f.line), [1], `${file}: a comment after a JavaScript-only line terminator is found on the patch's physical line`);
   assert.ok(at("src/wrapped-copy.css")[0]?.reasons.some((r) => /src\/wrapped\.css:1/.test(r)), "a duplicate of a block comment wrapped with leading asterisks names the original");
   assert.deepEqual(at("src/unpatched-legacy.ts"), [], "a file without a patch keeps the comments its merge base held");
+  assert.deepEqual(at("src/licensed-copy.ts"), [], "an added licence notice passes, even where the same notice is already in another file");
 
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/comment-check.yml"), "utf8");
   assert.match(workflow, /compare\/\$BASE_SHA\.\.\.\$HEAD_SHA" --jq '\.merge_base_commit\.sha'/, "the workflow takes the merge base the files endpoint diffs against");
