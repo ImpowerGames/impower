@@ -117,7 +117,7 @@ try {
   write("src/wrapped-copy.css", ".b { color: blue; }\n/* keeps the panel layout stacked, since the host page forces a column on every element */\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
   write("src/licensed-copy.ts", `${mpl}\nexport const m = 1;\n`);
-  write("src/licence-prose.ts", "export const p = 1;\n// Copyright handling must stay centralized because the generator depends on it\n");
+  write("src/licence-prose.ts", "export const p = 1;\n// keeps the copyright header because the generator depends on it\n");
   commit("head");
 
   const records = [
