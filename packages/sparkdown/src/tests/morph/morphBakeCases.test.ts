@@ -285,6 +285,14 @@ describe("morph bake: compositing and authored style", () => {
       "a CSS-wide keyword on display": ["display:revert", "display: revert"],
       "a CSS-wide keyword on a compositing property": ["opacity:inherit", "opacity: inherit"],
       "an opacity that is not a number or a percentage": ["opacity:calc(.5)", "opacity: calc(.5)"],
+      // A browser drops a value it does not accept, so the earlier `display:none` stays in force.
+      "a display value the bake does not know": ["display:none;display:bogus", "display: bogus"],
+      "an empty display value": ["display:none;display:!important", "display: !important"],
+      "a second !important": ["display:none;display:inline!important!important", "display: inline!important !important"],
+      "a stray !": ["display:none;display:inline!", "display: inline!"],
+      // `display: contents` hides a drawing.
+      "display: contents": ["display:contents", "display: contents"],
+      "an empty compositing value": ["filter:url(#f);filter:", "filter:"],
     };
     for (const [what, [style, named]] of Object.entries(styles)) {
       const svg = art(LASHES_OPEN, LASH_CLOSED, `<path id="shut" data-name="crease" d="M0,0H5V5H0Z" style="fill:#111;${style}"/>`);
@@ -405,6 +413,8 @@ describe("morph bake: compositing and authored style", () => {
     for (const [shape, named] of [
       ['<ellipse data-name="glint" cx="50%" cy="50%" rx="10%" ry="10%" fill="blue"/>', 'cx="50%"'],
       ['<circle data-name="glint" cx="50" cy="40" r="1em" fill="blue"/>', 'r="1em"'],
+      // A browser drops a length padded with a no-break space.
+      [`<circle data-name="glint" cx="50" cy="40" r="${String.fromCharCode(0xa0)}4" fill="blue"/>`, `r="${String.fromCharCode(0xa0)}4"`],
       ['<circle data-name="glint" cx="50" cy="40" r="4" style="r:8;fill:blue"/>', "style `r: 8`"],
     ] as const) {
       const artifact = bake(art(LASHES_OPEN + shape, LASH_CLOSED), recipe({ fallback: "scale" }));

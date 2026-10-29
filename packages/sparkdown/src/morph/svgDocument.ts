@@ -197,6 +197,51 @@ export function inlineDeclarations(element: Element): InlineDeclaration[] | null
 const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
 const SUBSTITUTION = /(?:^|[^a-z0-9_-])(?:var|env|attr)\(/i;
 
+/**
+ * The `display` values the bake reads: `none` and single keywords every
+ * browser accepts and draws an SVG element with. A browser drops a value it
+ * does not accept, so an earlier declaration takes effect instead, and
+ * `contents` hides most SVG elements; neither can be read as showing.
+ */
+const DISPLAY_KEYWORDS = new Set([
+  "none",
+  "inline",
+  "block",
+  "inline-block",
+  "flow-root",
+  "flex",
+  "inline-flex",
+  "grid",
+  "inline-grid",
+  "list-item",
+  "table",
+  "inline-table",
+  "table-row-group",
+  "table-header-group",
+  "table-footer-group",
+  "table-row",
+  "table-cell",
+  "table-column-group",
+  "table-column",
+  "table-caption",
+]);
+
+/**
+ * Whether the bake can read a declaration's value the way a browser does.
+ * Only a value the browser accepts takes effect, so where the bake reads
+ * structure by value (`display` and the compositing properties), a value it
+ * cannot vouch for could leave an earlier declaration in force unseen.
+ */
+const readableDeclaration = ({ name, value }: InlineDeclaration): boolean => {
+  // Anything but one trailing `!important` is outside the grammar.
+  if (name === "all" || value.includes("!") || SUBSTITUTION.test(value)) return false;
+  const keyword = value.toLowerCase();
+  if (name === "display") return DISPLAY_KEYWORDS.has(keyword);
+  if (name === "opacity") return readAlpha(value) !== undefined;
+  if (COMPOSITING.includes(name)) return value !== "" && !CSS_WIDE_KEYWORDS.has(keyword);
+  return true;
+};
+
 /** Shows each character outside printable ASCII as its code point. */
 const visible = (text: string) =>
   text.replace(/[^\x20-\x7e]/g, (ch) => `<U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`);
@@ -204,10 +249,11 @@ const visible = (text: string) =>
 /**
  * The declaration that keeps the bake from reading an element's styling
  * safely, as written, or undefined: an inline style outside the grammar, an
- * `all` declaration, a substituted value (`var()`, `env()`, `attr()`), a
- * CSS-wide keyword on a property the bake decides structure from by value
- * (`display` and the compositing properties), or an opacity, inline or as an
- * attribute, that is not a number or a percentage (`calc()` among them).
+ * `all` declaration, a substituted value (`var()`, `env()`, `attr()`), a `!`
+ * other than one trailing `!important`, a `display` value other than the
+ * keywords the bake reads, an empty or CSS-wide value of a compositing
+ * property, or an opacity, inline or as an attribute, that is not a number
+ * or a percentage (`calc()` among them).
  */
 export function unreadableStyle(element: Element): string | undefined {
   const opacity = element.attributes["opacity"];
@@ -223,14 +269,8 @@ export function unreadableStyle(element: Element): string | undefined {
     const next = STYLE_OUTSIDE.exec(style)?.index === at ? style.indexOf(";", reference < 0 ? at : reference + 1) : -1;
     return visible(cssTrim(style.slice(start, next < 0 ? style.length : next)));
   }
-  const unreadable = inlineDeclarations(element)!.find(
-    ({ name, value }) =>
-      name === "all" ||
-      SUBSTITUTION.test(value) ||
-      ((name === "display" || COMPOSITING.includes(name)) && CSS_WIDE_KEYWORDS.has(value.toLowerCase())) ||
-      (name === "opacity" && readAlpha(value) === undefined),
-  );
-  return unreadable && `${unreadable.name}: ${unreadable.value}${unreadable.important ? " !important" : ""}`;
+  const unreadable = inlineDeclarations(element)!.find((declaration) => !readableDeclaration(declaration));
+  return unreadable && [`${unreadable.name}:`, unreadable.value, unreadable.important ? "!important" : ""].filter(Boolean).join(" ");
 }
 
 /** Properties that make an element composite its content as one group. */
@@ -437,7 +477,7 @@ export function localGeometry(element: Element): Subpath[] | undefined {
 const GEOMETRY_ATTRIBUTES = ["x", "y", "width", "height", "rx", "ry", "cx", "cy", "r", "x1", "y1", "x2", "y2", "points", "pathLength"];
 
 /** A user-space number: unitless or in `px`. */
-const USER_LENGTH = /^\s*[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?(?:px)?\s*$/i;
+const USER_LENGTH = /^[ \t\n\r\f]*[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?(?:px)?[ \t\n\r\f]*$/i;
 const LENGTH_ATTRIBUTES: Record<string, string[]> = {
   rect: ["x", "y", "width", "height", "rx", "ry"],
   circle: ["cx", "cy", "r"],
@@ -459,7 +499,7 @@ export function unreadableGeometry(element: Element): string | undefined {
   for (const name of LENGTH_ATTRIBUTES[element.tagName.toLowerCase()] ?? []) {
     const value = element.attributes[name];
     if (value === undefined || USER_LENGTH.test(value)) continue;
-    if ((name === "rx" || name === "ry") && value.trim().toLowerCase() === "auto") continue;
+    if ((name === "rx" || name === "ry") && cssTrim(value).toLowerCase() === "auto") continue;
     return `\`${name}="${value}"\``;
   }
   return undefined;
