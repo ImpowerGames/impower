@@ -9,7 +9,7 @@ import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphArtifact, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
-import { blink, blinkScript, CLOSED, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
+import { blink, blinkScript, CLOSED, partnerPortrait, portrait } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { backgroundRect, layerValue, svgIntrinsicSize } from "../../app/morph/backgroundFit";
 import { MorphPlayback, type MorphImageContent } from "../../app/morph/MorphPlayback";
 import UIManager from "../../app/managers/UIManager";
@@ -317,6 +317,38 @@ end
     const ids = Array.from(shadow.querySelectorAll("[id]")).map((e) => e.id);
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
+  });
+
+  test("a drawing carried in its partner's shape shows at the held pose as the reference renderer draws it", async () => {
+    const source = SOURCE.replace(blinkScript(TIMING), `morph blink with
+  method = bend
+  layers {
+    eyeball-shadow-left { partner = eyelash-left }
+  }
+  keyframes {
+    0% { eyes { state = open } }
+    30% { eyes { state = closed } }
+    60% { eyes { state = closed } }
+    100% { eyes { state = open } }
+  }
+${TIMING}  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; eyeball-shadow-left; pupil-left } }
+  }
+end
+`);
+    const files = [{ ...FILES[0]!, data: partnerPortrait() }];
+    const { h, frames, playback } = await previewed(source, files);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    const [node, d] = Object.entries(artifact.segments[0]!.carry!.to!)[0]!;
+    frames.run(1000);
+    expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0));
+    expect(leafStates(shadow)[node]![0]!.shown).toBe(true);
+    expect(leafStates(shadow)[node]![0]!.d).not.toBe(d);
+    frames.run(1000 + 0.45 * 250);
+    expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.45));
+    expect(leafStates(shadow)[node]![0]).toEqual({ shown: true, d });
   });
 
   test("a moving lash takes its blended paint on the live leaf and its markup's paint at the poses", async () => {

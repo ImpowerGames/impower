@@ -32,6 +32,7 @@ const MORPH = `morph blink with
   method = bend
   layers {
     fill { fallback = cut }
+    eyeball-shadow-left { partner = { eyeball-shadow-left; eyelash-left } }
   }
   keyframes {
     from { eyes { state = open } }
@@ -85,6 +86,7 @@ describe("morph field hover", () => {
     expect((await hoverAt(MORPH, "method ="))?.value).toContain("How matched shapes morph");
     expect((await hoverAt(MORPH, "duration ="))?.value).toContain("Seconds one play lasts");
     expect((await hoverAt(MORPH, "layers {"))?.value).toContain("Per-label overrides");
+    expect(await hoverAt(MORPH, "partner =")).toEqual({ value: expect.stringContaining("priority order"), marked: "partner" });
   });
 
   it("does not document values, labels or anything outside the morph", async () => {

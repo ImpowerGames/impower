@@ -124,6 +124,37 @@ export function shadowedPortrait(): string {
 </svg>`;
 }
 
+export interface PartnerEyeOptions {
+  closed?: string;
+  closedShadow?: boolean;
+  more?: Record<string, string>;
+  shadow?: string;
+}
+
+export function partnerPortrait(options: PartnerEyeOptions = {}): string {
+  const closed = options.closed ?? `<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>`;
+  const more = Object.entries(options.more ?? {})
+    .map(([state, drawings]) => `<g data-name="eyes.${state}">\n${drawings}\n</g>`)
+    .join("\n");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
+<g transform="translate(0 -2)"><path data-name="eyeball-shadow-left" d="${shift(UPPER_OPEN, 0, 2)}" ${options.shadow ?? 'fill="#ccc"'}/></g>
+<path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
+<path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER_OPEN}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+${options.closedShadow ? `<path data-name="eyeball-shadow-left" d="${CLOSED}" fill="#ccc"/>` : ""}
+${closed}
+</g>
+${more}
+</svg>`;
+}
+
+export const shiftPath = shift;
+
 /** The blink as a script declares it; `extra` lines go in the morph's root. */
 export const blinkScript = (extra = "") => `morph blink with
   method = bend
