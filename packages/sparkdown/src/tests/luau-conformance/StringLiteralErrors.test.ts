@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
+// Luau: string_literals_escapes_broken
 describe("string literal escapes", () => {
   const expected = "String literal contains malformed escape sequence";
 
@@ -36,6 +37,7 @@ describe("string literal escapes", () => {
   });
 });
 
+// Luau: string_literals_broken
 describe("unfinished string literals", () => {
   const expected = "Malformed string; did you forget to finish it?";
 
@@ -112,6 +114,7 @@ describe("code points above U+10FFFF", () => {
   });
 });
 
+// Luau: parse_error_broken_comment
 describe("unfinished block comment", () => {
   const expected =
     "Expected identifier when parsing expression, got unfinished comment";

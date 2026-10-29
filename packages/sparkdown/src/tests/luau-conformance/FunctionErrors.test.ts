@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
+// Luau: parse_error_function_call
 describe("method call with a bare argument", () => {
   test("t:Parse 2", () => {
     const msgs = diagnoseInFunction(
@@ -12,6 +13,7 @@ describe("method call with a bare argument", () => {
   });
 });
 
+// Luau: parse_error_function_call_newline
 describe("method call with no argument list", () => {
   test("t:Parse then newline", () => {
     const msgs = diagnoseInFunction(
@@ -21,6 +23,7 @@ describe("method call with no argument list", () => {
   });
 });
 
+// Luau: parse_error_varargs
 describe("varargs outside a vararg function", () => {
   test("function add(x, y) return ... end", () => {
     expect(
@@ -35,6 +38,7 @@ describe("varargs inside a vararg function are well-formed", () => {
   });
 });
 
+// Luau: variadics_must_be_last
 describe("variadic not last (the type cases are N/A)", () => {
   test("function foo(..., a) end", () => {
     expect(diagnoseInFunction("function foo(..., a) end")).toContain(
@@ -55,3 +59,5 @@ describe("variadic not last (the type cases are N/A)", () => {
     expect(diagnoseInFunction(source)).toContain(expected);
   });
 });
+
+// Luau: extra_token_in_consume / extra_token_in_consume_match are the

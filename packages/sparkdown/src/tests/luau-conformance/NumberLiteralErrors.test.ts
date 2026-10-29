@@ -5,6 +5,7 @@ import {
   diagnoseInFunction,
 } from "./diagnosticTestHarness";
 
+// Luau: parse_numbers_error
 describe("malformed numbers", () => {
   const expected = "Malformed number";
 
@@ -32,6 +33,7 @@ describe("malformed numbers", () => {
   });
 });
 
+// Luau: number_literals
 describe("well-formed numbers are not flagged", () => {
   test.each([
     ["1", "return 1"],
@@ -79,6 +81,7 @@ describe("number contexts", () => {
   });
 });
 
+// Luau: parse_numbers_error (the `LuauIntegerType2` half)
 describe.skip("integer literals (N/A: no integer literal type)", () => {
   test.each([
     ["return 0x0xABCi", "Malformed integer"],

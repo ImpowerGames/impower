@@ -9,6 +9,7 @@ import {
 const lintInFunction = (body: string) => lintAllInFunction(body, "LocalUnused");
 const lintMessagesInFunction = (body: string) => lintAllMessagesInFunction(body, "LocalUnused");
 
+// Luau: LocalUnused
 describe("locals that are never read", () => {
   test("a shadowed outer local and a local that is only written", () => {
     expect(
@@ -32,6 +33,7 @@ return bar()
   });
 });
 
+// Sparkdown-specific
 describe("names after a typed name in one local", () => {
   test("untyped control", () => {
     expect(
@@ -52,6 +54,7 @@ return a
   });
 });
 
+// Luau: ImportOnlyUsedInTypeAnnotation (adapted)
 describe("a local read only in another local's type annotation", () => {
   test("only the annotated, unread local is reported", () => {
     expect(
@@ -64,6 +67,7 @@ describe("a local read only in another local's type annotation", () => {
   });
 });
 
+// Luau: LocalFunctionNotDead
 describe("a local assigned by a function statement", () => {
   test("local foo; function foo() end", () => {
     expect(
@@ -75,6 +79,7 @@ function foo() end
   });
 });
 
+// Sparkdown-specific
 describe("reads the rule recognizes", () => {
   test.each([
     ["a read in a nested function", "\nlocal x = 1\nlocal f = function() return x end\nreturn f\n"],
@@ -150,6 +155,7 @@ describe("names the rule does not report", () => {
   });
 });
 
+// Sparkdown-specific
 describe("a local read only by a method of a define in its function", () => {
   const localUnused = (source: string) =>
     diagnoseDetailed(source)

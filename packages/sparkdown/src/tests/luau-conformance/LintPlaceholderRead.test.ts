@@ -8,6 +8,7 @@ import {
 const PLACEHOLDER_READ =
   "Placeholder value '_' is read here; consider using a named variable";
 
+// Luau: PlaceholderRead
 describe("reading the local placeholder `_`", () => {
   test("local _ = 5; return _", () => {
     expect(
@@ -19,6 +20,7 @@ return _
   });
 });
 
+// Luau: PlaceholderReadGlobal
 describe("reading the global placeholder `_`", () => {
   test("_ = 5; print(_)", () => {
     expect(
@@ -30,6 +32,7 @@ print(_)
   });
 });
 
+// Luau: PlaceholderWrite
 describe("writing the placeholder `_` is not reported", () => {
   test("local _ = 5; _ = 6", () => {
     expect(

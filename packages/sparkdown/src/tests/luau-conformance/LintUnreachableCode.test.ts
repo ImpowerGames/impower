@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { lintInFunction } from "./diagnosticTestHarness";
 
+// Luau: UnreachableCodeBasic
 describe("a statement after a block that always returns", () => {
   test("do return end, then print", () => {
     expect(
@@ -17,6 +18,7 @@ print("hi!")
   });
 });
 
+// Luau: UnreachableCodeLoopBreak
 describe("a statement after a block that always breaks", () => {
   test("do break end, then print", () => {
     expect(
@@ -34,6 +36,7 @@ print("hi!")
   });
 });
 
+// Luau: UnreachableCodeLoopContinue
 describe("a statement after a block that always continues", () => {
   test("do continue end, then print", () => {
     expect(
@@ -54,6 +57,7 @@ print("hi!")
   });
 });
 
+// Luau: UnreachableCodeIfMerge
 describe("an if whose every arm returns", () => {
   test("only the if with an else that returns in both arms", () => {
     expect(
@@ -91,6 +95,7 @@ return { foo1, foo2, foo3 }
   });
 });
 
+// Luau: UnreachableCodeErrorReturnSilent
 describe("error() followed by a final return is not reported", () => {
   test("error then return in one arm, error in the other", () => {
     expect(
@@ -110,6 +115,7 @@ return foo1
   });
 });
 
+// Luau: UnreachableCodeAssertFalseReturnSilent
 describe("assert(false) as the last statement is not reported", () => {
   test("return in an if, then assert(false)", () => {
     expect(
@@ -128,6 +134,7 @@ return foo1
   });
 });
 
+// Luau: UnreachableCodeErrorReturnNonSilentBranchy
 describe("a return after an if whose every arm errors", () => {
   test("error in both arms, then return", () => {
     expect(
@@ -149,6 +156,7 @@ return foo1
   });
 });
 
+// Luau: UnreachableCodeErrorReturnPropagate
 describe("an arm ending in error() then return still errors", () => {
   test("error+return in one arm, error in the other, then return", () => {
     expect(
@@ -171,6 +179,7 @@ return foo1
   });
 });
 
+// Luau: UnreachableCodeLoopWhile
 describe("a loop that may not run does not end its block", () => {
   test("while a do return end, then return", () => {
     expect(
@@ -188,6 +197,7 @@ return foo1
   });
 });
 
+// Luau: UnreachableCodeLoopRepeat
 describe("a repeat loop does not end its block", () => {
   test("repeat return until a, then return", () => {
     expect(
@@ -205,6 +215,7 @@ return foo1
   });
 });
 
+// Luau: BreakFromInfiniteLoopMakesStatementReachable
 describe("a conditional break keeps what follows the loop reachable", () => {
   test("repeat with if-break, then return", () => {
     expect(
@@ -225,6 +236,7 @@ return 1
   });
 });
 
+// Sparkdown-specific
 describe("statements after a return in the same block", () => {
   test("return, then print", () => {
     expect(

@@ -5,6 +5,7 @@ import {
   diagnoseInFunction,
 } from "./diagnosticTestHarness";
 
+// Luau: recovery_error_limit_1
 describe("an assignment with no value", () => {
   test("local a = ", () => {
     const msgs = diagnose("-> s\nscene s\n  local a = \nend\n");
@@ -14,6 +15,7 @@ describe("an assignment with no value", () => {
   });
 });
 
+// Luau: error_const_not_initialized
 describe("const without an initializer", () => {
   test("const c", () => {
     expect(diagnoseInFunction("const c")).toEqual([
@@ -39,6 +41,7 @@ describe("const without an initializer", () => {
   });
 });
 
+// Luau: error_const_not_initialized (multi-name cases)
 describe("const with several names", () => {
   test.each([
     ["const a, b = nil", "const a, b = nil"],
@@ -51,6 +54,7 @@ describe("const with several names", () => {
   });
 });
 
+// Luau: error_const_reassignment / error_const_function_reassignment
 describe("const reassignment", () => {
   test.each([
     ["const a = 42; a = 43", "const a = 42; a = 43"],
@@ -69,6 +73,7 @@ describe("const reassignment", () => {
   });
 });
 
+// Luau: break_return_not_last_error / continue_not_last_error
 describe.skip("statements after return/break/continue (diverges: accepted silently)", () => {
   test.each([
     ["return 0 print(5)", "return 0 print(5)", "Expected <eof>, got 'print'"],
@@ -87,6 +92,7 @@ describe.skip("statements after return/break/continue (diverges: accepted silent
   });
 });
 
+// Luau: parse_error_loop_control
 describe("loop control outside a loop", () => {
   test.each([
     ["break", "repeat local function a() break end until false"],
@@ -119,6 +125,7 @@ describe("loop control outside a loop", () => {
   });
 });
 
+// Luau: incomplete_statement_error / statement_error_recovery_*
 describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
   test("fiddlesticks", () => {
     expect(diagnoseInFunction("fiddlesticks")).toContain(
@@ -126,17 +133,20 @@ describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
     );
   });
 
+  // Luau: statement_error_recovery_expected — exactly one error.
   test("some", () => {
     expect(
       diagnoseInFunction("function a(a, b) return a + b end\nsome\na(2, 5)"),
     ).toHaveLength(1);
   });
 
+  // Luau: statement_error_recovery_unexpected — exactly one error.
   test("+", () => {
     expect(diagnoseInFunction("+")).toHaveLength(1);
   });
 });
 
+// Luau: extra_token_in_consume / extra_token_in_consume_match /
 describe("unexpected token", () => {
   test("function test + (a, f)", () => {
     const msgs = diagnoseInFunction(
@@ -162,6 +172,7 @@ describe("unexpected token", () => {
   });
 });
 
+// Luau: parse_nesting_based_end_detection*
 describe.skip("missing `end` (diverges: an unclosed block runs to the end of the file silently)", () => {
   test("parse_nesting_based_end_detection", () => {
     const msgs = diagnoseInFunction(`-- i am line 1
@@ -290,6 +301,7 @@ end`);
   });
 });
 
+// Luau: parse_compound_assignment_error_call / _not_lvalue / _multiple
 describe("compound assignment targets", () => {
   test("a() += 5", () => {
     expect(diagnoseInFunction("a() += 5")).toContain(
@@ -310,6 +322,7 @@ describe("compound assignment targets", () => {
   });
 });
 
+// Luau: parse_error_assignment_lvalue
 describe("parenthesized assignment target", () => {
   test.each([
     ["(2), b = b, a", "local a, b\n(2), b = b, a"],
@@ -321,6 +334,7 @@ describe("parenthesized assignment target", () => {
   });
 });
 
+// Luau: parse_error_confusing_function_call
 describe("ambiguous call across a newline", () => {
   const expected =
     "Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of new statement; use ';' to separate statements";
@@ -348,6 +362,7 @@ describe("ambiguous call across a newline", () => {
   });
 });
 
+// Luau: error_on_unicode / error_on_confusable / error_on_non_utf8_sequence
 describe.skip("non-ASCII where an identifier is expected (diverges: accepted as narrative text)", () => {
   test("local ☃ = 10", () => {
     expect(diagnoseInFunction("local ☃ = 10")).toContain(
@@ -368,6 +383,7 @@ describe.skip("non-ASCII where an identifier is expected (diverges: accepted as 
   });
 });
 
+// Luau: recovery_error_limit_2
 describe.skip("error limit (N/A: no parse-error limit)", () => {
   test("escape escape escape", () => {
     const msgs = diagnoseInFunction("escape escape escape");

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
 
+// Luau: parse_error_messages
 describe.skip("function and table types (N/A: only a type that cannot begin is reported)", () => {
   test.each([
     [
@@ -40,6 +41,7 @@ describe.skip("function and table types (N/A: only a type that cannot begin is r
   });
 });
 
+// Luau: mixed_intersection_and_union_not_allowed
 describe.skip("mixed union and intersection (N/A: only a type that cannot begin is reported)", () => {
   test("type A = number & string | boolean", () => {
     expect(
@@ -50,6 +52,7 @@ describe.skip("mixed union and intersection (N/A: only a type that cannot begin 
   });
 });
 
+// Luau: parse_error_type_annotation / parse_error_missing_type_annotation
 describe("a value where a type is expected", () => {
   test("local a : 2 = 2", () => {
     expect(diagnoseInFunction("local a : 2 = 2")).toContain(
@@ -62,6 +65,7 @@ describe("a value where a type is expected", () => {
   });
 });
 
+// Luau: type_alias_error_messages
 describe.skip("type alias headers (N/A: only a type that cannot begin is reported)", () => {
   test.each([
     ["type 5 = number", "Expected identifier when parsing type name, got '5'"],
@@ -73,6 +77,7 @@ describe.skip("type alias headers (N/A: only a type that cannot begin is reporte
   });
 });
 
+// Luau: unparenthesized_function_return_type_list
 describe.skip("unparenthesized return type list (N/A: only a type that cannot begin is reported)", () => {
   test.each([
     ["function foo(): string, number end"],
@@ -84,6 +89,7 @@ describe.skip("unparenthesized return type list (N/A: only a type that cannot be
   });
 });
 
+// Luau: short_array_types_must_be_alone /
 describe.skip("table type fields (N/A: only a type that cannot begin is reported)", () => {
   test.each([
     [
@@ -115,6 +121,7 @@ describe.skip("table type fields (N/A: only a type that cannot begin is reported
   });
 });
 
+// Luau: extra_table_indexer_recovery — exactly one error.
 describe.skip("second table indexer (N/A: only a type that cannot begin is reported)", () => {
   test("local a : { [string] : number, [number] : string, count: number }", () => {
     expect(

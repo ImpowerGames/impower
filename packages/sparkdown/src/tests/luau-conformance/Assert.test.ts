@@ -68,6 +68,7 @@ end
   });
 
   test("returns its arguments; zero args raises missing-argument", () => {
+    // Luau: `assert(v, ...)` returns ALL its arguments on success
     const { errors } = compileAndRun(`& run()
 done
 

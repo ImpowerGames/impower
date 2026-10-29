@@ -5,6 +5,7 @@ import {
   diagnoseWithLintsInFunction,
 } from "./diagnosticTestHarness";
 
+// Luau: CleanCode
 describe("clean code has no warnings", () => {
   test("recursive fib", () => {
     expect(
@@ -17,6 +18,7 @@ end
   });
 });
 
+// Luau: type_function_fully_reduces
 describe("an and/or return that mixes types has no warnings", () => {
   test("return n < 2 or fib(n-2)", () => {
     expect(
@@ -29,6 +31,7 @@ end
   });
 });
 
+// Luau: UnknownGlobal
 describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
     expect(diagnoseWithLintsInFunction("return foo")).toEqual([
@@ -45,6 +48,7 @@ describe("an unknown global read at the top level (adapted)", () => {
   });
 });
 
+// Luau: DeprecatedGlobal (adapted)
 describe("a deprecated stdlib global (adapted)", () => {
   test("unpack", () => {
     const [d, ...rest] = diagnoseDetailed(
@@ -58,6 +62,7 @@ describe("a deprecated stdlib global (adapted)", () => {
   });
 });
 
+// Luau: DeprecatedApiUntyped
 describe("deprecated table members (adapted wording)", () => {
   test("table.getn and table.foreach", () => {
     const messages = diagnoseWithLintsInFunction(`
@@ -86,6 +91,7 @@ end
   });
 });
 
+// Luau: TypeAnnotationsShouldNotProduceWarnings
 describe("a type alias has no warnings", () => {
   test("type InputData = { ... }", () => {
     expect(
@@ -104,6 +110,7 @@ type InputData = {
   });
 });
 
+// Luau: TestStringInterpolation
 describe("an unknown global inside interpolation", () => {
   test("local _ = `unknown {foo}`", () => {
     expect(diagnoseWithLintsInFunction("local _ = `unknown {foo}`")).toEqual([
@@ -112,6 +119,7 @@ describe("an unknown global inside interpolation", () => {
   });
 });
 
+// Luau: no_spurious_warning_after_a_function_type_alias (adapted)
 describe("a function type alias between statements has no warnings (adapted)", () => {
   test("exports table with a function type alias", () => {
     expect(
@@ -125,6 +133,7 @@ describe("a function type alias between statements has no warnings (adapted)", (
   });
 });
 
+// Luau: type_instantiation_lints
 describe("explicit type instantiation has no warnings", () => {
   test('a<<"hi">>("hi")', () => {
     expect(

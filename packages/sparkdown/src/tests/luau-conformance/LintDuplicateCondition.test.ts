@@ -5,6 +5,7 @@ import {
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
+// Luau: DuplicateConditions
 describe("repeated conditions in if chains and and/or chains", () => {
   const lints = () =>
     lintInFunction(`
@@ -52,6 +53,7 @@ _ = if true then 1 elseif true then 2 else 3
   });
 });
 
+// Luau: DuplicateConditionsExpr
 describe("repeated compound conditions", () => {
   test("the same call with the same table and interpolation", () => {
     expect(
@@ -69,6 +71,7 @@ end
   });
 });
 
+// Luau: DuplicateConditionsIfStatAndExpr
 describe("an if expression as an if statement's condition", () => {
   test("the same if expression twice in one chain", () => {
     expect(
@@ -82,6 +85,7 @@ end
   });
 });
 
+// Sparkdown-specific
 describe("a narrative if block is not checked", () => {
   test("a repeated elseif around actions", () => {
     expect(
@@ -92,6 +96,7 @@ describe("a narrative if block is not checked", () => {
   });
 });
 
+// Sparkdown-specific
 describe("distinct conditions are not reported", () => {
   test.each([
     ["different comparisons", "\nlocal a = 1\nif a == 1 then\nelseif a == 2 then\nend\n"],

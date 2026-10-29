@@ -3,6 +3,7 @@ import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
 
 const MISSING_BRACE = "Malformed interpolated string; did you forget to add a";
 
+// Luau: parse_interpolated_string_without_end_brace
 describe("interpolated string without end brace", () => {
   test.each([
     ["backtick, single char", "store a = `{a`\n"],
@@ -18,6 +19,7 @@ describe("interpolated string without end brace", () => {
     ).toBe(true);
   });
 
+  // Luau: parse_interpolated_string_mid_without_end_brace_in_table.
   test("a closed interpolation followed by an unclosed one", () => {
     const msgs = diagnose('store a = `x {"y"} {z`\n');
     expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);
@@ -43,6 +45,7 @@ describe("well-formed interpolations are not flagged", () => {
   });
 });
 
+// Luau: parse_interpolated_string_without_expression
 describe("empty interpolation", () => {
   test.each([
     ["backtick", "store a = `{}`\n"],
@@ -67,6 +70,7 @@ describe("empty interpolation", () => {
   });
 });
 
+// Luau: parse_interpolated_string_double_brace_begin / _mid
 describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => {
   test.each([
     ["begin", "store a = `{{oops}}`\n"],
@@ -78,6 +82,7 @@ describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => 
   });
 });
 
+// Luau: parse_interpolated_string_malformed_escape
 describe("malformed escape", () => {
   test("`\\xQQ`", () => {
     expect(diagnoseInFunction("local a = `???\\xQQ {1}`")).toContain(
@@ -92,6 +97,7 @@ describe("malformed escape", () => {
   });
 });
 
+// Luau: parse_interpolated_string_call_without_parens
 describe.skip("call without parens (diverges: a backtick after a name is not a call, and the leftover string is accepted silently)", () => {
   test("_ = print `{42}`", () => {
     expect(diagnoseInFunction("_ = print `{42}`")).toContain(
@@ -100,6 +106,7 @@ describe.skip("call without parens (diverges: a backtick after a name is not a c
   });
 });
 
+// Luau: parse_interpolated_string_weird_token
 describe("a stray token inside an interpolation", () => {
   test("`??? {42 !!}`", () => {
     expect(diagnoseInFunction("local a = `??? {42 !!}`")).toContain(
@@ -108,6 +115,7 @@ describe("a stray token inside an interpolation", () => {
   });
 });
 
+// Luau: parse_interpolated_string_as_type_fail
 describe.skip("as a type (N/A: type annotations are parsed but ignored)", () => {
   test("in a type annotation", () => {
     expect(

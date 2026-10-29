@@ -10,6 +10,7 @@ import {
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
+// Luau: BuiltinGlobalWrite
 describe("overwriting a builtin global (BuiltinGlobalWrite)", () => {
   test("math = {} and function assert", () => {
     expect(
@@ -28,6 +29,7 @@ assert(5)
   });
 });
 
+// Sparkdown-specific
 const HELPER_LOCAL = "scene helper_setup\n  & local math = {}\nend\n";
 describe("overwriting a builtin global across sparkdown's units and scripts (BuiltinGlobalWrite)", () => {
   test("a future flow local does not hide a preceding write to an explicit global", () => {
@@ -179,6 +181,7 @@ return math, assert, f
   });
 });
 
+// Luau: GlobalAsLocal (adapted)
 describe("a global used only in one function", () => {
   test("foo written and read only in bar", () => {
     expect(
@@ -196,6 +199,7 @@ end
   });
 });
 
+// Luau: GlobalAsLocalMultiFx (adapted)
 describe("a global always written before read", () => {
   test("foo written then read in two functions", () => {
     expect(
@@ -218,6 +222,10 @@ end
   });
 });
 
+// Luau: GlobalAsLocalMultiFxWithRead (adapted)
+// Luau: GlobalAsLocalWithConditional (adapted)
+// Luau: GlobalAsLocal3WithConditionalRead (adapted)
+// Luau: GlobalAsLocalInnerRead (adapted)
 describe("globals that are genuinely shared are not reported", () => {
   test.each([
     [
@@ -298,6 +306,7 @@ return foo() + baz()
   });
 });
 
+// Luau: GlobalAsLocalMulti (adapted)
 describe("a function statement meant as a local", () => {
   test("moreInternalLogic declared inside createFunction", () => {
     expect(
@@ -330,6 +339,7 @@ fnB() -- prints "false", "nil"
   });
 });
 
+// Luau: LocalShadowLocal
 describe("a local redeclared in the same scope", () => {
   test("local arg twice", () => {
     expect(
@@ -344,6 +354,7 @@ print(arg)
   });
 });
 
+// Luau: LocalShadowGlobal
 describe("a local named like a global in use", () => {
   test("local global inside bar", () => {
     expect(
@@ -362,6 +373,7 @@ return bar()
   });
 });
 
+// Luau: LocalShadowArgument
 describe("a local named like a parameter", () => {
   test("local a inside bar(a, b)", () => {
     expect(
@@ -377,6 +389,7 @@ return bar()
   });
 });
 
+// Luau: FunctionUnused
 describe("functions that are never called", () => {
   test("bar and qux", () => {
     expect(
@@ -405,6 +418,7 @@ return foo()
   });
 });
 
+// Luau: ImportOnlyUsedInReturnType (adapted)
 describe("a function used only in a type", () => {
   test("foo(): Foo.Y", () => {
     expect(
@@ -418,6 +432,7 @@ describe("a function used only in a type", () => {
   });
 });
 
+// Luau: DeadLocalsUsed (adapted)
 describe("locals read but never assigned", () => {
   test("x hidden by a loop variable, c without a value", () => {
     expect(
@@ -449,6 +464,7 @@ end
   });
 });
 
+// Luau: DuplicateGlobalFunction
 describe("a global function defined twice", () => {
   test("function x twice", () => {
     expect(
@@ -463,6 +479,7 @@ describe("a global function defined twice", () => {
   });
 });
 
+// Luau: DuplicateLocalFunction
 describe("a local function defined twice", () => {
   test("local function x twice", () => {
     expect(
@@ -479,6 +496,7 @@ describe("a local function defined twice", () => {
   });
 });
 
+// Luau: DuplicateMethod
 describe("a method defined twice", () => {
   test("function T:x twice", () => {
     expect(
@@ -494,6 +512,7 @@ describe("a method defined twice", () => {
   });
 });
 
+// Luau: DontTriggerTheWarningIfTheFunctionsAreInDifferentScopes
 describe("the same function in two arms is not a duplicate", () => {
   test("function c in then and else", () => {
     expect(
@@ -510,6 +529,7 @@ describe("the same function in two arms is not a duplicate", () => {
   });
 });
 
+// Luau: DuplicateLocal
 describe("a name declared twice in one list", () => {
   test("parameters, locals and an explicit self", () => {
     expect(

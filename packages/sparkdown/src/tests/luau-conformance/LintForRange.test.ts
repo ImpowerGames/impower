@@ -4,6 +4,7 @@ import { diagnoseWithLints, lintInFunction } from "./diagnosticTestHarness";
 const BACKWARDS =
   "For loop should iterate backwards; did you forget to specify -1 as step?";
 
+// Luau: ForRangeTable
 describe("counting down from a table's length without a step", () => {
   test("for i=#t,1 warns; with -1 it does not", () => {
     expect(
@@ -20,6 +21,7 @@ end
   });
 });
 
+// Luau: ForRangeBackwards
 describe("a constant range that runs backwards without a step", () => {
   test("for i=8,1 warns; with -1 it does not", () => {
     expect(
@@ -34,6 +36,7 @@ end
   });
 });
 
+// Luau: ForRangeImprecise
 describe("a fractional range that stops short of its end", () => {
   test("for i=1.3,7.5 warns; with a step it does not", () => {
     expect(
@@ -54,6 +57,7 @@ end
   });
 });
 
+// Luau: ForRangeZero
 describe("a range over a table that starts or ends at 0", () => {
   test("for i=0,#t and for i=#t,0 warn; (0) silences", () => {
     expect(
@@ -77,6 +81,7 @@ end
   });
 });
 
+// Sparkdown-specific
 describe("bare lengths of compound operands", () => {
   const ZERO = "For loop starts at 0, but arrays start at 1";
   test.each([
@@ -95,6 +100,7 @@ describe("bare lengths of compound operands", () => {
   });
 });
 
+// Sparkdown-specific
 describe("ordinary ranges are not reported", () => {
   test.each([
     ["an increasing constant range", "\nfor i = 1, 10 do\nend\n"],

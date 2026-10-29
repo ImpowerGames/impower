@@ -3990,6 +3990,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         a5 instanceof Void;
       const a2 = a5Absent ? a1 : requireTableArg(story, a5, 5, "move");
       if (e >= f) {
+        // Luau: luaL_argcheck(f > 0 || e < INT_MAX + f, 3, ...)
         if (!(f > 0 || e < INT_MAX + f)) {
           story.Error(
             "invalid argument #3 to 'move' (too many elements to move)",

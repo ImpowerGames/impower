@@ -4,6 +4,7 @@ import { lintInFunction, lintMessagesInFunction } from "./diagnosticTestHarness"
 const UNCLOSED_SET =
   "Invalid match pattern: expected ] at the end of the string to close a set";
 
+// Luau: FormatStringFormat
 describe("malformed string.format specifiers", () => {
   test("unfinished and invalid specifiers", () => {
     expect(
@@ -28,6 +29,7 @@ string.format("hello %+10d %.02f %%", 4, 5)
   });
 });
 
+// Luau: FormatStringPack
 describe("malformed string.pack formats", () => {
   test("eleven bad formats", () => {
     expect(
@@ -77,6 +79,7 @@ string.packsize("=!1bbbI3c42")
   });
 });
 
+// Luau: FormatStringMatch (adapted)
 describe("malformed match patterns", () => {
   test("eight bad patterns", () => {
     expect(
@@ -120,6 +123,7 @@ string.match(s, "[A-Z]+(%d)%1")
   });
 });
 
+// Luau: FormatStringMatchNested
 describe("capture references into nested captures", () => {
   test("an unclosed and an out-of-range reference", () => {
     expect(
@@ -150,6 +154,7 @@ string.match(s, "((a)%3)")
   });
 });
 
+// Luau: FormatStringMatchSets (adapted)
 describe("malformed sets in match patterns", () => {
   test("two bad sets", () => {
     expect(
@@ -188,6 +193,7 @@ string.match(s, "[^]|'[]")
   });
 });
 
+// Luau: FormatStringFindArgs (adapted)
 describe("string.find with a plain-text flag", () => {
   test("only the pattern-mode calls are checked", () => {
     expect(
@@ -216,6 +222,7 @@ string.find("foo");
   });
 });
 
+// Luau: FormatStringReplace (adapted)
 describe("malformed string.gsub replacements", () => {
   test("three bad replacements", () => {
     expect(
@@ -240,6 +247,7 @@ string.gsub(s, 'foo', "%0")
   });
 });
 
+// Luau: FormatStringDate (adapted)
 describe("malformed os.date formats", () => {
   test("three bad formats", () => {
     expect(
@@ -262,6 +270,7 @@ os.date("!*t")
   });
 });
 
+// Luau: TableLiteral
 describe("duplicate keys in table literals and table types", () => {
   test("seven duplicates", () => {
     expect(
@@ -320,6 +329,7 @@ end
   });
 });
 
+// Luau: read_write_table_props
 describe("read and write table type properties", () => {
   test("six overlapping properties", () => {
     expect(
@@ -344,6 +354,7 @@ describe("read and write table type properties", () => {
   });
 });
 
+// Luau: TableOperations
 describe("suspicious table.insert, remove, move and create calls", () => {
   test("ten suspicious calls", () => {
     expect(
@@ -386,6 +397,7 @@ table.create(42, {} :: {})
   });
 });
 
+// Luau: DeprecatedApiFenv (adapted)
 describe("getfenv and setfenv", () => {
   test("getfenv(1) and setfenv(1, {})", () => {
     expect(

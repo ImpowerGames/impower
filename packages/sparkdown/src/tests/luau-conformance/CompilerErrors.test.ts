@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
+// Luau: LoopContinueUntil / LoopContinueUntilCapture / LoopContinueRespectsExplicitConstant / LoopContinueIgnoresImplicitConstant
 describe.skip("continue jumping over a local read by `until` (N/A: locals are runtime variables, not registers)", () => {
   test("LoopContinueUntil", () => {
     const msgs = diagnoseInFunction(`repeat
@@ -55,6 +56,7 @@ end`);
   });
 });
 
+// Luau: LocalRegisterLimit / UpvalueRegisterLimit / RegisterLimit /
 describe.skip("register limits (N/A: no register allocation)", () => {
   test("201 locals in one function", () => {
     const body = Array.from({ length: 201 }, (_, i) => `local foo${i}`).join(
