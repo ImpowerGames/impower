@@ -319,6 +319,22 @@ describe("morph bake: compositing and authored style", () => {
     expect(attribute.diagnostics[0]!.message).toContain('(`opacity="calc(.5)"`)');
   });
 
+  test("artwork with a transform attribute outside the grammar keeps its static render, naming the element and the attribute", () => {
+    for (const transform of [" translate(5 0)", "translate(5px,0)", "translate(5 junk 0)"]) {
+      const svg = art(LASHES_OPEN, LASH_CLOSED, `<path id="shut" data-name="crease" d="M0,0H5V5H0Z" transform="${transform}"/>`);
+      const artifact = bake(svg, recipe());
+      expect(artifact.status, transform).toBe("static");
+      expect(artifact.diagnostics, transform).toEqual([
+        expect.objectContaining({ code: "unsupported-transform", severity: "error", uri: URI, variant: "bunny", layer: "crease" }),
+      ]);
+      expect(artifact.diagnostics[0]!.message, transform).toContain('`<path id="shut">` in layer "crease" has a `transform` attribute');
+      expect(artifact.diagnostics[0]!.message, transform).toContain(`(\`${transform}\`)`);
+      expect(artifact.rest, transform).toBe(filterSVGAttributes(svg, {}));
+    }
+    const valid = bake(art(LASHES_OPEN, LASH_CLOSED, '<path data-name="crease" d="M0,0H5V5H0Z" transform="translate(5, 0) scale(2)"/>'), recipe());
+    expect(valid.status).toBe("live");
+  });
+
   test("an opacity written as a percentage composites as the number it is", () => {
     for (const dim of ['style="opacity:50%"', 'opacity="50%"']) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">

@@ -30,6 +30,7 @@ import {
   invert,
   isIdentity,
   multiply,
+  parseTransform,
   type Affine,
 } from "./affine";
 import { readEntryColor } from "./color";
@@ -440,6 +441,21 @@ export function* bakeSteps(
       "unsupported-element",
       "error",
       `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a style the bake cannot read safely (\`${unreadable}\`), so this variant shows without the morph. The bake reads inline styles in plain ASCII, without \`all\`, \`var()\`, comments, escapes, character references or strings, and opacity as a number or a percentage.`,
+      { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
+    );
+    return disable();
+  }
+  // A transform outside the grammar is one a browser drops or reads differently.
+  for (const element of subtree(doc.root)) {
+    const transform = element.attributes["transform"];
+    if (transform === undefined || parseTransform(transform)) continue;
+    const id = element.attributes["id"];
+    const key = doc.info.get(element)?.key;
+    const label = effectiveLabel(doc, element);
+    report(
+      "unsupported-transform",
+      "error",
+      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a \`transform\` attribute the bake cannot read safely (\`${transform}\`), so this variant shows without the morph. The bake reads the six transform functions with plain numbers, separated by space, tab, line breaks or a comma.`,
       { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
     );
     return disable();
