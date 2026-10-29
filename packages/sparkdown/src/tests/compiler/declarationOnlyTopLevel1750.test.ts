@@ -5,7 +5,12 @@
 // and a start scene that takes parameters reports on its header.
 
 import { describe, expect, it } from "vitest";
-import { programCompiler } from "../program/programHarness";
+import {
+  MAIN_URI,
+  errorsOf,
+  programCompiler,
+  programSession,
+} from "../program/programHarness";
 
 const MAIN = "file://proj/main.sd";
 const OTHER = "file://proj/scripts/other.sd";
@@ -123,6 +128,20 @@ describe("the syntax errors beside the top-level and start errors", () => {
       [1, "Expected ')' (to close '(' at line 1), got `a {"],
       [1, "Expected identifier when parsing expression, got } b`"],
       [1, "Expected identifier when parsing expression, got ')'"],
+    ]);
+  });
+});
+
+describe("an edit that leaves a scene's line at the top level", () => {
+  it("reports and leaves out the line as a cold compile does", () => {
+    const text = lines("scene start", "  First.", "  Second.", "end");
+    const session = programSession(text);
+    session.edit("  First.\n", "  First.\nend\n");
+    const cold = quiet(() => programCompiler({ [MAIN_URI]: session.text }).compile()).program;
+    expect(errorsOf(session.program)).toEqual(errorsOf(cold));
+    expect(errorsOf(session.program)).toEqual([
+      [3, TOP_LEVEL],
+      [4, "Expected <eof>, got 'end'"],
     ]);
   });
 });

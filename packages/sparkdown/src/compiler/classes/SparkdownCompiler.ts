@@ -2892,7 +2892,11 @@ export class SparkdownCompiler {
     // must not be one that would attach new body content into this flow.
     // A `run` statement among those chunks, or following them, refuses the
     // reuse: its content, the call of its file's wrapper, is made by each
-    // compile once it resolves the file, so the chunk's block holds none.
+    // compile once it resolves the file, so the chunk's block holds none. So
+    // does a chunk of the run the script's top level now holds and refuses
+    // (`refused`), which an edit above it can leave outside the flow: the
+    // compile records nothing of it. A refused chunk after the run adds
+    // nothing to any flow.
     const tryReuseFlowRun = (
       declBlock: object,
       startIdx: number,
@@ -2912,7 +2916,7 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
-        if (cb.run) {
+        if (cb.run || refused(chunkRecords[j]!)) {
           return undefined;
         }
         if (!cb.content || (k > 0 && isClosedFunctionChunk(cb))) {
@@ -2931,7 +2935,7 @@ export class SparkdownCompiler {
         if (cb.run) {
           return undefined;
         }
-        if (!cb.content || isClosedFunctionChunk(cb)) {
+        if (!cb.content || isClosedFunctionChunk(cb) || refused(chunkRecords[m]!)) {
           continue;
         }
         const kind = chunkFlowKind(cb);
@@ -2959,6 +2963,13 @@ export class SparkdownCompiler {
             document.read(from, to),
           )
         : undefined;
+    const refused = (rec: { block: any; from: number }): boolean => {
+      const declares = topLevel?.get(rec.from);
+      return (
+        declares === false ||
+        (declares === true && !onlyDeclares(rec.block.content))
+      );
+    };
     // A `local` outside a flow and a hoisted declaration inside one are
     // reported where they are written (`misplacedDeclarations`). A top-level
     // `local` reports that alone, and is left out as the other lines that run
@@ -3058,7 +3069,7 @@ export class SparkdownCompiler {
       let content = rec.block.content;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
-      if (declares === false || (declares === true && !onlyDeclares(content))) {
+      if (refused(rec)) {
         // A line that runs belongs in a scene or a branch. The statement is
         // reported and left out of the program, as if it were not written;
         // what its lowering itself reported still stands.
@@ -4517,6 +4528,7 @@ export class SparkdownCompiler {
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
+      topLevelFlow: hasLuauExtension(uri),
       blockOf: (obj) => this._placedBy.get(obj),
       record: (block) =>
         this._statementRecords.get(block) ??

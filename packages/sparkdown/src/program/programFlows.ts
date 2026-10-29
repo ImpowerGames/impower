@@ -81,6 +81,10 @@ export interface ProgramFlowsInput {
   /** The script the compiler seeds the builtins from, whose top-level
    *  content holds declarations alone. */
   preludeUri?: string;
+  /** Whether the top level of the script the compile starts from runs as
+   *  the flow named by the empty string, as a `.luau` file's chunk does,
+   *  rather than with the declarations. */
+  topLevelFlow?: boolean;
   /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
@@ -111,7 +115,8 @@ export interface ProgramFlows {
  * The flows of an assembled parsed story, each as the statements its weave
  * holds, grouped by the compiled block each placed object came from. A scene
  * or a branch is a flow named by its qualified name, and the flow named by
- * the empty string stands for the top level, which runs nothing. A block
+ * the empty string stands for the top level, which runs nothing but the
+ * chunk of a `.luau` file a compile starts from (`topLevelFlow`). A block
  * statement's statements carry the statements of its bodies, from the shape
  * its lowering recorded.
  *
@@ -404,17 +409,18 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
 
   // The starting script's top level, whose writes and calls run with the
   // declarations as each other script's do, in the order the story places
-  // them (`memberWrites`).
-  statementsOf(input.story._rootWeave?.content ?? [], input.uri, 0, (statement) =>
-    write(statement, input.uri),
-  );
+  // them (`memberWrites`), or as the top-level flow (`topLevelFlow`).
+  const rootContent = input.story._rootWeave?.content ?? [];
+  const rootStatements = input.topLevelFlow
+    ? statementsOf(rootContent, input.uri, 0)
+    : statementsOf(rootContent, input.uri, 0, (statement) => write(statement, input.uri));
   flows.push({
     name: ROOT_FLOW_NAME,
     kind: SymbolKind.Root,
     uri: input.uri,
     firstLine: 0,
     span: 0,
-    statements: [],
+    statements: rootStatements,
   });
   for (const flow of input.story.subFlowsByName.values()) {
     visitFlow(flow, "");
