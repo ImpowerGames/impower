@@ -7,9 +7,11 @@
 // differ, the story's reading of a paused condition among them: origin/main's
 // reading is `pausedJumpValue` here, since this branch's
 // `pausedConditionValue` also reads a choice's condition. Beyond that it
-// records what the route's report reads and nothing it searches by: a
-// verdict the program does not reach (`departs`), and each menu's options'
-// addresses (`RouteChoice.sources`).
+// records what the route's report reads: a verdict the program does not reach
+// (`departs`), and each menu's options' addresses (`RouteChoice.sources`). It
+// tries the author's pins first (`SearchOptions.pins`): a pinned option in
+// place of the favored one, and a pinned option's gate true, which is the
+// whole of what a pin does here.
 import type { SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
@@ -37,6 +39,14 @@ import {
   type SearchOptions,
   type SearchState,
 } from "./planRoute";
+import {
+  gateWinsMenu,
+  NO_PINS,
+  pinnedAtMenu,
+  pinnedOfferCounts,
+  pinsNextOffer,
+  type PinnedOptions,
+} from "./routePins";
 
 interface FallbackNode {
   /** The state the node runs from, which siblings share. */
@@ -430,6 +440,7 @@ export const planRouteFallback = (
           options?.stayWithinKnot !== false,
           options?.functions || [],
           budget,
+          options?.pins ?? NO_PINS,
         );
 
         if (result.hitTarget) {
@@ -521,6 +532,7 @@ const runUntilDecisionOrBranch = (
   stayWithinKnot: boolean,
   functions: string[],
   budget: SearchBudget,
+  pinned: PinnedOptions,
 ): FallbackRunResult => {
   // 1) Restore snapshot
   port.restore(node.state);
@@ -615,7 +627,17 @@ const runUntilDecisionOrBranch = (
           }
           const options = story.currentChoices.map((c) => c.text);
           const sources = story.currentChoices.map((c) => c.sourcePath);
-          const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
+          // A pinned offer takes the place of the favored choice.
+          const pinnedHere =
+            pinned.offers.size > 0
+              ? pinnedAtMenu(
+                  pinned,
+                  sources,
+                  pinnedOfferCounts(node.choices, pinned),
+                )
+              : [];
+          const favoredChoiceIndex =
+            pinnedHere[0] ?? favoredChoiceIndices[node.choices.length];
           if (favoredChoiceIndex != null) {
             const choice = story.currentChoices[favoredChoiceIndex]!;
             if (choice) {
@@ -749,8 +771,22 @@ const runUntilDecisionOrBranch = (
             },
             programVerdict,
           );
-        const favoredConditionalValue =
-          favoredConditionalValues[node.conditions.length];
+        // A pinned option's gate at its pinned offer is tried true first.
+        const site = story.pausedBeforeCondition!;
+        const counts = pinned.sites.has(site)
+          ? pinnedOfferCounts(node.choices, pinned)
+          : null;
+        const gate =
+          counts !== null &&
+          pinsNextOffer(pinned, String(site), counts.get(String(site)) ?? 0) &&
+          gateWinsMenu(
+            pinned,
+            story.state.generatedChoices.map((c) => c.sourcePath),
+            counts,
+          );
+        const favoredConditionalValue = gate
+          ? true
+          : favoredConditionalValues[node.conditions.length];
         if (favoredConditionalValue != null) {
           // Fork favored branch
           branches.push(forkVerdict(favoredConditionalValue));

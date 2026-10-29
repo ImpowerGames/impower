@@ -27,6 +27,7 @@ import {
   showsBeatAhead,
   routeChargeAt,
   stepsBeforeDeparture,
+  stepsBeforePinMet,
   sameFavoredReads,
   type LevelZeroStore,
   type LevelZeroWork,
@@ -38,6 +39,11 @@ import {
   routeDecisions,
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
+import {
+  pinnedOptionsOf,
+  type PinnedOptions,
+  type RoutePin,
+} from "@impower/sparkdown/src/compiler/utils/routePins";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/runtime/Error";
@@ -63,6 +69,7 @@ import type { DocumentLocation } from "../types/DocumentLocation";
 import type {
   PreviewRoute,
   PreviewRouteDecision,
+  PreviewRouteOption,
   ScriptSource,
 } from "../types/PreviewRoute";
 import { conditionText } from "../utils/conditionText";
@@ -670,6 +677,38 @@ export class Game<T extends M = {}> {
   }
   set previewRoute(value: PreviewRoute | undefined) {
     this._previewRoute = value;
+  }
+
+  protected _routePins: readonly RoutePin[] = [];
+  protected _pinnedOptions?: {
+    root: ProgramRoot;
+    pins: readonly RoutePin[];
+    value: PinnedOptions;
+  };
+
+  /** The pins the author set, as the host keeps them, which every route the
+   *  game plans takes: the preview's, the one PLAY starts from, and a
+   *  suggestion preview's. */
+  get routePins(): readonly RoutePin[] {
+    return this._routePins;
+  }
+  setRoutePins(pins: readonly RoutePin[]) {
+    this._routePins = pins;
+  }
+
+  /** The program's options the pins name, matched again whenever the
+   *  program or the pins change (`pinnedOptionsOf`). */
+  get pinnedOptions(): PinnedOptions {
+    const root = this._story.root;
+    const held = this._pinnedOptions;
+    if (held && held.root === root && held.pins === this._routePins) {
+      return held.value;
+    }
+    const value = pinnedOptionsOf(this._routePins, (uri, line) =>
+      root.optionAt(uri, line),
+    );
+    this._pinnedOptions = { root, pins: this._routePins, value };
+    return value;
   }
 
   /** Which compile the planned route was replayed in
@@ -1352,7 +1391,7 @@ export class Game<T extends M = {}> {
       // The replay below starts by loading a checkpoint or jumping to the
       // route's start, either of which replaces the story state, so the
       // search need not restore one of its own first.
-      const budget = { callerResetsStory: true };
+      const budget = { callerResetsStory: true, pins: this.pinnedOptions };
       let route;
       if (this.routesFromStartFirst(to)) {
         route = Game.planRouteFromStart(
@@ -2076,6 +2115,7 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
+      | "pins"
     >,
   ) {
     const route = Game.planRouteInFlow(
@@ -2126,6 +2166,7 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
+      | "pins"
     >,
   ) {
     return planRoute(story, from, to, {
@@ -2159,6 +2200,7 @@ export class Game<T extends M = {}> {
       | "callerResetsStory"
       | "resumeFrom"
       | "levelZeroStore"
+      | "pins"
     >,
   ) {
     return planRoute(story, "0", to, {
@@ -2462,6 +2504,11 @@ export class Game<T extends M = {}> {
     if (!route || route.from !== from) {
       return { replayOnly: false };
     }
+    if ((route.pins ?? "") !== this.pinnedOptions.key) {
+      // Planned with other pins, so its decisions are not the ones these
+      // pins make: the route is searched for from the top.
+      return { replayOnly: false };
+    }
     if (!this._program.changes) {
       // A program that says nothing about what it changed leaves the decision
       // exactly where it was: step identity alone, as it has always been.
@@ -2488,8 +2535,14 @@ export class Game<T extends M = {}> {
       // A route origin/main's search found (`planRoute`) is resumed and
       // replayed as origin/main's preview resumes its own routes: from the
       // deepest checkpoint the new program agrees with, by origin/main's
-      // search alone (a resume point without a charge).
-      const resume = this.findResumePoint(validSteps);
+      // search alone (a resume point without a charge), and no later than
+      // its first pinned meeting, whose decision another line may make
+      // otherwise.
+      const resume = this.findResumePoint(
+        replayOnly
+          ? validSteps
+          : Math.min(validSteps, stepsBeforePinMet(route, this.pinnedOptions)),
+      );
       if (!resume) {
         return { validSteps, replayOnly: false };
       }
@@ -2503,12 +2556,14 @@ export class Game<T extends M = {}> {
     }
     // A search resumed inside the route keeps every decision before the
     // point it resumes from, and a search from the top forces a verdict
-    // against the program only where the target needs it (`planRoute`).
-    // So a search resumes no later than the route's first such verdict, or
-    // the preview would show a branch the route took for another line.
+    // against the program only where the target needs it (`planRoute`). So a
+    // search resumes no later than the route's first such verdict, or the
+    // preview would show a branch the route took for another line; nor later
+    // than its first pinned meeting, since only a search from the top knows
+    // which pins each route met and how much of a pin's tier it spent.
     const searchSteps = replayOnly
       ? validSteps
-      : Math.min(validSteps, stepsBeforeDeparture(route));
+      : Math.min(validSteps, stepsBeforeDeparture(route, this.pinnedOptions));
     // The replay after it is held only by what the new program still agrees
     // with: it forces whatever the new route decides, so a checkpoint past
     // the route's forced verdicts holds a state it can resume from wherever
@@ -2586,8 +2641,9 @@ export class Game<T extends M = {}> {
     resumeFrom?: RouteResumePoint,
   ): boolean {
     const chunk = chunkOfAddress(to);
+    const pins = this.pinnedOptions.key;
     for (const work of this.heldLevelZeroWorks().values()) {
-      if (work.from !== from || work.chunks.has(chunk)) {
+      if (work.from !== from || work.pins !== pins || work.chunks.has(chunk)) {
         continue;
       }
       if (
@@ -4232,8 +4288,14 @@ export class Game<T extends M = {}> {
         }
         return found;
       });
+    const pinned = this.pinnedOptions;
     const decisions: PreviewRouteDecision[] = [];
-    for (const decision of routeDecisions(route, lineOf, structureOf)) {
+    for (const decision of routeDecisions(
+      route,
+      lineOf,
+      structureOf,
+      pinned,
+    )) {
       // A clipped loop is listed at its own first line.
       const location = decision.loop
         ? this.lineLocation(
@@ -4244,11 +4306,38 @@ export class Game<T extends M = {}> {
       if (!location) {
         continue;
       }
+      const options: PreviewRouteOption[] = [];
+      for (const option of decision.options ?? []) {
+        const at = this.documentLocationOf(option.site);
+        if (at) {
+          options.push({
+            location: at,
+            text: option.text,
+            offer: option.offer,
+            ...(option.pinned ? { pinned: true as const } : {}),
+          });
+        }
+      }
+      const menu =
+        decision.menu !== undefined
+          ? this.documentLocationOf(decision.menu)
+          : null;
+      const unofferedPins: RoutePin[] = [];
+      for (const { site, offer } of decision.unoffered ?? []) {
+        const at = this.documentLocationOf(site);
+        if (at) {
+          unofferedPins.push({
+            uri: at.uri,
+            line: at.range.start.line,
+            offer,
+          });
+        }
+      }
       decisions.push({
         kind: decision.kind,
         location,
         text:
-          decision.kind === "auto"
+          decision.kind === "auto" || decision.kind === "pinned"
             ? (decision.option ?? "")
             : conditionText(
                 source?.lineText(location.uri, location.range.start.line) ??
@@ -4257,13 +4346,24 @@ export class Game<T extends M = {}> {
         ...(decision.meeting !== undefined
           ? { meeting: decision.meeting }
           : {}),
+        ...(decision.options ? { options } : {}),
+        ...(menu ? { menu } : {}),
+        ...(decision.notFollowed ? { notFollowed: true as const } : {}),
+        ...(unofferedPins.length > 0 ? { unofferedPins } : {}),
         ...(decision.verdict !== undefined
           ? { verdict: decision.verdict }
           : {}),
         ...(decision.passes !== undefined ? { passes: decision.passes } : {}),
       });
     }
-    return { start, target, decisions };
+    return {
+      start,
+      target,
+      decisions,
+      ...(pinned.unresolved.length > 0
+        ? { unresolvedPins: [...pinned.unresolved] }
+        : {}),
+    };
   }
 
   /** The start of line `line` of the script `uri`. */

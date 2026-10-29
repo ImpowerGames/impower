@@ -92,12 +92,21 @@ import { workerHangMessage } from "./utils/workerHangMessage";
 import { profile } from "./utils/profile";
 import { renderRouteViews } from "./route/renderRouteViews";
 import {
+  changedPins,
   DEFAULT_ROUTE_TOGGLES,
+  PIN_NOT_SAVED,
   routeTogglesFrom,
   type RouteKind,
+  type RoutePinChange,
   type RouteViewState,
 } from "./route/routeView";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 
@@ -282,6 +291,7 @@ export class GamePlayerController {
   protected _routeState: RouteViewState = {
     open: false,
     toggles: { ...DEFAULT_ROUTE_TOGGLES },
+    pins: [],
   };
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
@@ -416,6 +426,9 @@ export class GamePlayerController {
       }
     >;
     breakpoints?: { file: string; line: number }[];
+    /** The author's pins, as the host last sent them, which the worker's
+     *  games plan their routes with. */
+    routePins?: RoutePin[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
     /** What the editor last asked of the preview's debug toggle, which the
@@ -853,6 +866,7 @@ export class GamePlayerController {
       onClose: () => this.setRouteOpen(false),
       onToggle: this.handleRouteToggle,
       onShowLine: this.handleRouteShowLine,
+      onChangePins: this.handleRouteChangePins,
     });
   }
 
@@ -1143,6 +1157,7 @@ export class GamePlayerController {
       this.handleSetRouteToggles,
       this.host,
     );
+    p.onRequest(SetRoutePinsMessage.type, this.handleSetRoutePins, this.host);
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
     p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
     p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
@@ -1869,6 +1884,138 @@ export class GamePlayerController {
     this.renderRoute();
     return SetRouteTogglesMessage.type.response(message.id, {});
   };
+
+  protected handleSetRoutePins = async (message: SetRoutePinsMessage.Request) => {
+    await this.applyRoutePins(message.params.pins);
+    return SetRoutePinsMessage.type.response(message.id, {});
+  };
+
+  /**
+   * Plan routes with `pins` from now on: the route list shows them, the
+   * worker's games take them, and the line the preview shows is shown again
+   * with them. Pins the worker already has change nothing more than the
+   * list.
+   */
+  protected async applyRoutePins(pins: RoutePin[]) {
+    this._savedRoutePins = pins;
+    this.showRoutePins();
+    this.renderRoute();
+    const held = this._options?.routePins ?? [];
+    if (JSON.stringify(pins) === JSON.stringify(held)) {
+      return;
+    }
+    this._options ??= {};
+    this._options.routePins = pins;
+    const link = workspace?.gameLink;
+    if (!link) {
+      return;
+    }
+    try {
+      await link.request(SetRoutePinsMessage.type, { pins });
+    } catch (e) {
+      reportUnlessRestarted(e);
+      return;
+    }
+    if (this.playing) {
+      return;
+    }
+    const shown = this._completionShown;
+    if (this.completionPreviewHoldsScreen()) {
+      // A suggestion holds the screen: it is drawn again, by the route the
+      // pins make for its program.
+      if (shown) {
+        const { evaluation, ...result } = shown;
+        await this.drawCompletion(evaluation, result);
+      }
+      return;
+    }
+    const startFrom = this._options.startFrom;
+    if (this._program && startFrom && startFrom.file in this._program.scripts) {
+      await this.updatePreview(this._program, startFrom.file, startFrom.line);
+    }
+  }
+
+  /** How long the host has to answer a change to the pins before the list
+   *  says it was not saved: a host that does not keep pins never answers. */
+  static readonly PIN_SAVE_TIMEOUT_MS = 5_000;
+
+  /** The pins the host last said it keeps. */
+  protected _savedRoutePins: RoutePin[] = [];
+
+  /** The changes the author made that the host has not answered yet, in the
+   *  order they were made. */
+  protected _pendingPinChanges: RoutePinChange[] = [];
+
+  /** The list shows the host's pins with every change it has not answered
+   *  yet, so a change the host does not save takes only itself back. */
+  protected showRoutePins() {
+    this._routeState = {
+      ...this._routeState,
+      pins: this._pendingPinChanges.reduce(changedPins, this._savedRoutePins),
+    };
+  }
+
+  /** The author changed pins from the route list: the list shows the change
+   *  at once, and the host saves it, answering with every pin it keeps. A
+   *  change the host does not save goes from the list, with a note. */
+  protected handleRouteChangePins = async (change: RoutePinChange) => {
+    this._pendingPinChanges = [...this._pendingPinChanges, change];
+    this._routeState = { ...this._routeState, pinNote: undefined };
+    this.showRoutePins();
+    this.renderRoute();
+    let saved: RoutePin[] | undefined;
+    try {
+      saved = (await this.requestHost(ChangeRoutePinsMessage.type, change))
+        .pins;
+    } catch {
+      saved = undefined;
+    }
+    this._pendingPinChanges = this._pendingPinChanges.filter(
+      (pending) => pending !== change,
+    );
+    if (saved) {
+      await this.applyRoutePins(saved);
+      return;
+    }
+    this._routeState = { ...this._routeState, pinNote: PIN_NOT_SAVED };
+    this.showRoutePins();
+    this.renderRoute();
+  };
+
+  /** Ask the host, which answers on the window the player's messages reach
+   *  it from; rejects with the host's error, or when it does not answer in
+   *  time. */
+  protected requestHost<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    timeoutMs = GamePlayerController.PIN_SAVE_TIMEOUT_MS,
+  ): Promise<R> {
+    const request = type.request(params);
+    return new Promise<R>((resolve, reject) => {
+      const done = () => {
+        clearTimeout(timer);
+        window.removeEventListener(MessageProtocol.event, onProtocol);
+      };
+      const onProtocol = (e: Event) => {
+        const message = e instanceof CustomEvent ? e.detail : undefined;
+        if (!type.isResponse(message, request.id)) {
+          return;
+        }
+        done();
+        if ("error" in message && message.error !== undefined) {
+          reject(message.error);
+        } else {
+          resolve(message.result as R);
+        }
+      };
+      const timer = setTimeout(() => {
+        done();
+        reject(new Error(`The host did not answer ${type.method}.`));
+      }, timeoutMs);
+      window.addEventListener(MessageProtocol.event, onProtocol);
+      sendProtocolMessage(request, this.host);
+    });
+  }
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     const app = this.controlledApp;
@@ -3137,6 +3284,11 @@ export class GamePlayerController {
         link.request(SetGameBreakpointsMessage.type, {
           breakpoints: options.breakpoints,
         }),
+      );
+    }
+    if (options?.routePins?.length) {
+      sent.push(
+        link.request(SetRoutePinsMessage.type, { pins: options.routePins }),
       );
     }
     if (options?.functionBreakpoints) {
