@@ -162,7 +162,7 @@ export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT 
       }
       const reasons = [];
       if (comment.kind === "refused") reasons.push(comment.reason);
-      if (comment.kind !== "directive" && comment.kind !== "workaround") {
+      if (!["directive", "workaround", "licence"].includes(comment.kind)) {
         const key = commentKey(comment.text);
         if (key.length >= DUPLICATE_MIN_LENGTH) {
           const elsewhere = duplicates(file, key, root, state);

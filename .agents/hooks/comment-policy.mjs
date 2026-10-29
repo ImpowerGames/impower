@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
 const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const licences = config.licences.map((l) => new RegExp(l.form));
 const platforms = new Set(config.platforms);
 
 const FAMILIES = {
@@ -17,7 +18,7 @@ const FAMILIES = {
 };
 
 export const rule =
-  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
+  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads, a licence or copyright notice, or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
   "Restructure or rename the code, or fix the cause, instead of explaining it; the rationale belongs in the ticket.";
 
 const posix = (file) => String(file).replaceAll("\\", "/").replace(/^\.\//, "");
@@ -762,6 +763,11 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
+function licenceNotice(lines) {
+  const body = lines.join(" ");
+  return licences.some((form) => form.test(body));
+}
+
 export function classifyComment(text, file, { root = defaultRoot } = {}) {
   const rel = posix(file);
   if (exemptPath(rel)) return { kind: "exempt", reason: `${rel} is under a path the rule exempts` };
@@ -769,6 +775,7 @@ export function classifyComment(text, file, { root = defaultRoot } = {}) {
   if (!FAMILIES[extension]) return { kind: "exempt", reason: `${extension || rel} is not a code file type the rule covers` };
   const lines = bodyLines(text);
   if (!lines.length) return { kind: "refused", reason: "an empty comment" };
+  if (licenceNotice(lines)) return { kind: "licence", reason: "a licence or copyright notice" };
   if (/^workaround\b/i.test(lines[0])) {
     const marker = /^workaround\(([^()\s]+)\):\s*\S/.exec(lines[0]);
     if (!marker) return { kind: "refused", reason: "a workaround note takes the form `workaround(<name>): <what the dependency or platform does wrong, with the version or link that retires the note>`" };
@@ -782,16 +789,34 @@ export function classifyComment(text, file, { root = defaultRoot } = {}) {
 
 export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
+  const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
   let previous = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
-    const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
     }
     previous = comment;
   }
+  const paragraph = [];
+  const close = () => {
+    const first = paragraph[0];
+    if (paragraph.length > 1 && licenceNotice(paragraph.flatMap((c) => bodyLines(c.text)))) {
+      for (const c of paragraph) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${first.line}` });
+    }
+    paragraph.length = 0;
+  };
+  for (const comment of comments) {
+    const last = paragraph[paragraph.length - 1];
+    if (!single(comment) || !bodyLines(comment.text).length) {
+      close();
+      continue;
+    }
+    if (last && (comment.line !== last.endLine + 1 || comment.column !== last.column)) close();
+    paragraph.push(comment);
+  }
+  close();
   return comments;
 }
 
