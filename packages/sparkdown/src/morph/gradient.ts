@@ -26,9 +26,9 @@
 
 import { IDENTITY, parseTransform, type Affine } from "./affine";
 import { own } from "./own";
-import { inlineDeclarations, stopColor } from "./paint";
+import { stopColor } from "./paint";
 import { gradientAttributes } from "./render";
-import { ancestry, type ArtDocument, type Element } from "./svgDocument";
+import { ancestry, inlineDeclarations, type ArtDocument, type Element } from "./svgDocument";
 import type { MorphGradient } from "./types";
 
 const KINDS: Record<string, MorphGradient["kind"]> = { linearGradient: "linear", radialGradient: "radial" };

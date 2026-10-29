@@ -56,7 +56,9 @@ import {
   readArtDocument,
   serialize,
   setStyleProperty,
+  subtree,
   unreadableGeometry,
+  unreadableStyle,
   type ArtDocument,
   type Element,
 } from "./svgDocument";
@@ -424,6 +426,21 @@ export function* bakeSteps(
       "unsupported-element",
       "error",
       `This artwork carries a style sheet (\`${doc.styleSheet}\`), whose rules the bake does not read, so this variant shows without the morph. Inline \`style\` attributes and presentation attributes are read.`,
+    );
+    return disable();
+  }
+  // The same holds for styling the bake cannot read safely.
+  for (const element of subtree(doc.root)) {
+    const unreadable = unreadableStyle(element);
+    if (unreadable === undefined) continue;
+    const id = element.attributes["id"];
+    const key = doc.info.get(element)?.key;
+    const label = effectiveLabel(doc, element);
+    report(
+      "unsupported-element",
+      "error",
+      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a style the bake cannot read safely (\`${unreadable}\`), so this variant shows without the morph. The bake reads inline styles in plain ASCII, without \`all\`, \`var()\`, comments, escapes, character references or strings, and opacity as a number or a percentage.`,
+      { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
     );
     return disable();
   }
