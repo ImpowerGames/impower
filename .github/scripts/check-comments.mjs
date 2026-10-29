@@ -63,21 +63,22 @@ function physicalLines(text) {
 const normalize = (text) => text.replace(/\s+/g, " ").trim().toLowerCase();
 const commentKey = (text) => normalize(bodyLines(text).join(" "));
 const sameComment = (text) => text.replace(/\s+/g, " ").trim();
+const letters = (text) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
 function git(root, args) {
   return spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true, maxBuffer: 1 << 30 });
 }
 
-function baseText(root, base, file, state) {
-  if (!base) throw new Error(`${file} has no patch in the listing and no base commit was given to compare it with`);
-  if (!state.fetched && git(root, ["cat-file", "-e", `${base}^{commit}`]).status !== 0) {
+function baseText(root, mergeBase, file, state) {
+  if (!mergeBase) throw new Error(`${file} has no patch in the listing and no merge base was given to compare it with`);
+  if (!state.fetched && git(root, ["cat-file", "-e", `${mergeBase}^{commit}`]).status !== 0) {
     state.fetched = true;
-    const fetched = git(root, ["fetch", "--no-tags", "--depth=1", "origin", base]);
-    if (fetched.status !== 0) throw new Error(`the base commit ${base} could not be fetched: ${fetched.stderr.trim()}`);
+    const fetched = git(root, ["fetch", "--no-tags", "--depth=1", "origin", mergeBase]);
+    if (fetched.status !== 0) throw new Error(`the merge base ${mergeBase} could not be fetched: ${fetched.stderr.trim()}`);
   }
-  const shown = git(root, ["show", `${base}:${file}`]);
-  if (shown.status === 0) return shown.stdout.replace(/\r\n/g, "\n");
-  if (git(root, ["cat-file", "-e", `${base}^{commit}`]).status !== 0) throw new Error(`the base commit ${base} is not in the checkout`);
+  const shown = git(root, ["show", `${mergeBase}:${file}`]);
+  if (shown.status === 0) return shown.stdout;
+  if (git(root, ["cat-file", "-e", `${mergeBase}^{commit}`]).status !== 0) throw new Error(`the merge base ${mergeBase} is not in the checkout`);
   return "";
 }
 
@@ -88,25 +89,25 @@ function corpus(root) {
   for (const file of listed.stdout.split("\0").filter(codeFile)) {
     try {
       const text = fs.readFileSync(path.join(root, file), "utf8");
-      files.set(file, { text, normalized: normalize(text) });
+      files.set(file, { text, letters: letters(text) });
     } catch {}
   }
   return files;
 }
 
-function duplicates(comment, file, key, root, state) {
+function duplicates(file, key, root, state) {
   state.corpus ??= corpus(root);
-  const needle = bodyLines(comment.text).map(normalize).sort((a, b) => b.length - a.length)[0];
+  const needle = letters(key);
   const found = [];
   for (const [other, entry] of state.corpus) {
-    if (other === file || !entry.normalized.includes(needle)) continue;
+    if (other === file || !entry.letters.includes(needle)) continue;
     const match = scanComments(entry.text, other, { root }).find((c) => commentKey(c.text) === key);
     if (match) found.push(`${other}:${physicalLines(entry.text)(match.start)}`);
   }
   return found;
 }
 
-export function checkComments({ root, records, base, limit = LISTING_LIMIT }) {
+export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT }) {
   const findings = [], problems = [], scanners = new Set();
   const state = {};
   const truncated = records.length >= limit;
@@ -128,7 +129,7 @@ export function checkComments({ root, records, base, limit = LISTING_LIMIT }) {
         before = baseFromPatch(text, parsed.hunks);
       } else if ((record.additions ?? 1) > 0) {
         added = new Set(text.split("\n").map((_, k) => k + 1));
-        before = baseText(root, base, record.previous_filename ?? file, state);
+        before = baseText(root, mergeBase, record.previous_filename ?? file, state);
       } else continue;
     } catch (error) {
       problems.push(`${file}: ${error.message}`);
@@ -157,7 +158,7 @@ export function checkComments({ root, records, base, limit = LISTING_LIMIT }) {
       if (comment.kind !== "directive" && comment.kind !== "workaround") {
         const key = commentKey(comment.text);
         if (key.length >= DUPLICATE_MIN_LENGTH) {
-          const elsewhere = duplicates(comment, file, key, root, state);
+          const elsewhere = duplicates(file, key, root, state);
           if (elsewhere.length) reasons.push(`the same text is already a comment in ${elsewhere.slice(0, 3).join(", ")}${elsewhere.length > 3 ? ` and ${elsewhere.length - 3} more` : ""}; ${file}:${comment.line} repeats it`);
         }
       }
@@ -194,7 +195,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   const filesPath = option("--files");
   if (!filesPath) {
-    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--base <sha>] [--root <checkout>] [--limit <n>]");
+    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--merge-base <sha>] [--root <checkout>] [--limit <n>]");
     process.exit(2);
   }
   const root = path.resolve(option("--root") ?? process.cwd());
@@ -203,7 +204,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   }
   const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));
-  const result = checkComments({ root, records, base: option("--base"), limit: Number(option("--limit") ?? LISTING_LIMIT) });
+  const result = checkComments({ root, records, mergeBase: option("--merge-base"), limit: Number(option("--limit") ?? LISTING_LIMIT) });
   const report = formatReport(result);
   console.log(report);
   for (const f of result.findings) console.log(`::error file=${f.file},line=${f.line},endLine=${f.endLine}::${escapeAnnotation(f.reasons.join("; "))}`);

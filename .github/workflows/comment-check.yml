@@ -55,11 +55,21 @@ jobs:
         run: |
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
             | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+      - name: Find the merge base the pull request's patches are taken from
+        id: merge-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq '.merge_base_commit.sha')
+          test -n "$sha" || { echo "The compare endpoint returned no merge base for $BASE_SHA...$HEAD_SHA"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - name: Check the comments the pull request adds
         env:
           COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1"
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --base "$BASE_SHA"
+          MERGE_BASE: ${{ steps.merge-base.outputs.sha }}
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --merge-base "$MERGE_BASE"
 
   comment-check:
     needs: [changes, comments]

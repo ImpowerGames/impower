@@ -95,6 +95,8 @@ try {
   write("src/template.ts", "export const t = `\n// prose that was only template text\n`;\n");
   const separators = { "src/line-separator.ts": 0x2028, "src/paragraph-separator.ts": 0x2029, "src/carriage-return.ts": 13 };
   for (const file of Object.keys(separators)) write(file, "export {};\n");
+  write("src/wrapped.css", "/* keeps the panel layout\n * stacked, since the host page forces a column on every element */\n.a { color: red; }\n");
+  write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 1;\n");
   const base = commit("base");
 
   write("src/existing.ts", "export const a = 2; // legacy note kept from before the rule\n// re-asserts the border, since the normalize reset clears it\nexport const b = 2;\n");
@@ -110,6 +112,8 @@ try {
   write("src/literal.ts", "/* prose that was only a string */\nexport {};\n");
   write("src/template.ts", "export {}; // prose that was only template text\n");
   for (const [file, code] of Object.entries(separators)) write(file, `export {};${String.fromCharCode(code)}// prose after a JavaScript line terminator\n`);
+  write("src/wrapped-copy.css", ".b { color: blue; }\n/* keeps the panel layout stacked, since the host page forces a column on every element */\n");
+  write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
   commit("head");
 
   const records = [
@@ -126,8 +130,10 @@ try {
     record(base, "src/literal.ts"),
     record(base, "src/template.ts"),
     ...Object.keys(separators).map((file) => record(base, file)),
+    record(base, "src/wrapped-copy.css", "added"),
+    { ...record(base, "src/unpatched-legacy.ts"), patch: undefined },
   ];
-  const result = checkComments({ root: checkout, records, base });
+  const result = checkComments({ root: checkout, records, mergeBase: base });
   const at = (file) => result.findings.filter((f) => f.file === file);
 
   assert.equal(result.truncated, false);
@@ -150,13 +156,19 @@ try {
   assert.deepEqual(at("src/literal.ts").map((f) => f.line), [1], "removed text that was a string, not a comment, does not excuse an added comment");
   assert.deepEqual(at("src/template.ts").map((f) => f.line), [1], "removed text that was template content, not a comment, does not excuse an added comment");
   for (const file of Object.keys(separators)) assert.deepEqual(at(file).map((f) => f.line), [1], `${file}: a comment after a JavaScript-only line terminator is found on the patch's physical line`);
+  assert.ok(at("src/wrapped-copy.css")[0]?.reasons.some((r) => /src\/wrapped\.css:1/.test(r)), "a duplicate of a block comment wrapped with leading asterisks names the original");
+  assert.deepEqual(at("src/unpatched-legacy.ts"), [], "a file without a patch keeps the comments its merge base held");
+
+  const workflow = fs.readFileSync(path.join(root, ".github/workflows/comment-check.yml"), "utf8");
+  assert.match(workflow, /compare\/\$BASE_SHA\.\.\.\$HEAD_SHA" --jq '\.merge_base_commit\.sha'/, "the workflow takes the merge base the files endpoint diffs against");
+  assert.match(workflow, /--merge-base "\$MERGE_BASE"/, "the workflow passes that merge base to the script");
 
   if (typescript) assert.ok(result.scanners.has(`TypeScript ${typescript.version}`), [...result.scanners].join(", "));
 
   const listing = path.join(tempDir("check-comments-listing-"), "files.json");
   const run = (files, env = {}, cwd = checkout) => {
     fs.writeFileSync(listing, JSON.stringify(files));
-    return spawnSync(process.execPath, [script, "--files", listing, "--base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", ...env } });
+    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", ...env } });
   };
 
   const failing = run(records);
@@ -183,10 +195,10 @@ try {
   bare.write("src/a.ts", "export {};\n// prose\n");
   bare.commit("head");
   fs.writeFileSync(listing, JSON.stringify([bare.record(bareBase, "src/a.ts")]));
-  const required = spawnSync(process.execPath, [script, "--files", listing, "--base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
+  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
   assert.equal(required.status, 1);
   assert.match(required.stdout + required.stderr, /COMMENT_POLICY_REQUIRE_TYPESCRIPT/, "a required scanner that does not resolve fails rather than falling back");
-  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "" } });
+  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "" } });
   assert.equal(fallback.status, 1);
   assert.match(fallback.stdout, /Scanned with the fallback JavaScript scanner/, "the report names the fallback when it judged the file");
 
