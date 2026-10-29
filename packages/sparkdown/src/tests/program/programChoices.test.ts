@@ -162,8 +162,7 @@ const bodyOf = (root: ProgramRoot, chunk: ProgramChunk, k: number): SequenceRow 
 describe("choose blocks on the program engine", () => {
   it("raises a block's choices and takes each one", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  The door is shut.",
       "  choose",
       "    + if true [Open the door]",
@@ -199,8 +198,7 @@ describe("choose blocks on the program engine", () => {
 
   it("runs nested blocks, whose inner choices continue after their own block", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    * Outer one",
       "      Inside one.",
@@ -238,8 +236,7 @@ describe("choose blocks on the program engine", () => {
     const text = [
       "store has_key = false",
       "store coins = 2",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if has_key then",
       "      * Unlock",
@@ -265,8 +262,7 @@ describe("choose blocks on the program engine", () => {
 
   it("hides a once-only choice taken before, and offers a sticky one again", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  choose",
       "    * Once",
@@ -323,8 +319,7 @@ describe("choose blocks on the program engine", () => {
   it("keeps the locals of the branch that gates a choice, through a jump inside its body, and drops them after it", () => {
     const [a, b] = runsOf(
       [
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         "    if true then",
         "      * A",
@@ -346,8 +341,7 @@ describe("choose blocks on the program engine", () => {
     expect(texts(b!.run)).toEqual(["B", "Value 7."]);
     const text = [
       "store flag = true",
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  local outer = \"o\"",
       "  choose",
@@ -410,8 +404,7 @@ describe("choose blocks on the program engine", () => {
     const [after] = runsOf(
       [
         "store open = false",
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         "    if false then",
         "      * Hidden",
@@ -442,8 +435,7 @@ describe("choose blocks on the program engine", () => {
     const { run: actual } = programRun(
       [
         "store open = false",
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         "    if true then",
         "      local open = true",
@@ -484,8 +476,7 @@ describe("choose blocks on the program engine", () => {
       ["      choose", "        * Inner A", "          Took inner A.", "      end", "      Still in the preamble."],
     ]) {
       const text = [
-        "-> main",
-        "scene main",
+        "scene start",
         "  label top",
         "  choose",
         "    Caption {top}.",
@@ -516,8 +507,7 @@ describe("choose blocks on the program engine", () => {
     }
     const [inner, middle, outer] = runsOf(
       [
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         "    choose",
         "      choose",
@@ -553,8 +543,7 @@ describe("choose blocks on the program engine", () => {
   // the outer block's chunk.
   it("runs a preamble block whose choices an if gates, with its then clause, and keeps the owner through an edit of the clause", () => {
     const nested = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    choose",
       "      if true then",
@@ -581,8 +570,7 @@ describe("choose blocks on the program engine", () => {
     ]);
     expect(texts(program(nested, [1]))).toEqual(["Outer", "Took outer."]);
     const mixed = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  choose",
       "    Caption {top}.",
@@ -662,8 +650,7 @@ describe("choose blocks on the program engine", () => {
     ];
     for (const preamble of preambles) {
       const text = [
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         ...preamble,
         "    * Outer",
@@ -685,8 +672,7 @@ describe("choose blocks on the program engine", () => {
   it("follows a fallback choice when every other choice is unavailable", () => {
     const text = [
       "store has_key = false",
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  choose",
       "    if has_key then",
@@ -718,8 +704,7 @@ describe("choose blocks on the program engine", () => {
 
   it("raises the choices a thread offers before the block's own, and takes one in the thread's scene", () => {
     const text = [
-      "-> hub",
-      "scene hub",
+      "scene start",
       "  <- side",
       "  Hub {side}.",
       "  choose",
@@ -731,7 +716,7 @@ describe("choose blocks on the program engine", () => {
       "scene side",
       "  choose",
       "    * Side choice",
-      "      In the side {side} {hub}.",
+      "      In the side {side} {start}.",
       "  end",
       "  Side after.",
       "  done",
@@ -753,8 +738,7 @@ describe("choose blocks on the program engine", () => {
 
   it("runs a labelled then clause another scene diverts to, and the scene after the clause", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    * Stay",
       "      Stayed.",
@@ -768,7 +752,7 @@ describe("choose blocks on the program engine", () => {
       "end",
       "scene away",
       "  Away.",
-      "  -> main.rejoin",
+      "  -> start.rejoin",
       "end",
       "",
     ].join("\n");
@@ -779,8 +763,7 @@ describe("choose blocks on the program engine", () => {
 
   it("gives a choice its tags and its text in parts, and a named choice a count that a divert reaches", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  choose",
       "    * Start [only] after # first # second",
@@ -793,7 +776,7 @@ describe("choose blocks on the program engine", () => {
       "  -> top",
       "end",
       "scene out",
-      "  -> main.pick",
+      "  -> start.pick",
       "end",
       "",
     ].join("\n");
@@ -814,8 +797,7 @@ describe("choose blocks on the program engine", () => {
   it("returns the first line of two with a thread that raises choices between them before the assignment after it", () => {
     const text = [
       "store x = 0",
-      "-> main",
-      "scene main",
+      "scene start",
       "  First line.",
       "  & x = 1",
       "  <- side",
@@ -850,8 +832,7 @@ describe("choose blocks on the program engine", () => {
 
 describe("the choose chunk", () => {
   const text = [
-    "-> main",
-    "scene main",
+    "scene start",
     "  The door is shut.",
     "  choose",
     "    + if true [Open the door]",
@@ -888,7 +869,7 @@ describe("the choose chunk", () => {
     }
     expect(new Set(choices.map((c) => c.symbol)).size).toBe(2);
     // The then clause's label is exported where its `Visit` counts it.
-    expect(root.kindOf(root.table.symbolIds.get("main.hallway")!)).toBe(SymbolKind.Label);
+    expect(root.kindOf(root.table.symbolIds.get("start.hallway")!)).toBe(SymbolKind.Label);
     // Each `Choice` and each entry stands under a line table row of its
     // choice's own line, which counts from the end of the body above it.
     const at = root.position(chunkId(chunk!))!;
@@ -912,8 +893,7 @@ describe("the choose chunk", () => {
   it("names each choice by the address of its Choice, pauses before a conditional one and takes the verdict and the choice a route forces", () => {
     const script = [
       "store open = true",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    * if open Enter",
       "      Entered.",
@@ -972,8 +952,7 @@ describe("the choose chunk", () => {
     const { program } = compileScript(
       [
         "store gold = 3",
-        "-> main",
-        "scene main",
+        "scene start",
         "  Caption {gold}.",
         "  choose",
         "    if gold > 1 then",
@@ -1007,8 +986,7 @@ describe("the choose chunk", () => {
   it("re-emits only the edited statement for an edit inside the body of a choice an if gates, and keeps the choose chunk", () => {
     const gated = [
       "store open = true",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if open then",
       "      Before the gated choice.",
@@ -1073,8 +1051,7 @@ describe("the counts of choices", () => {
   // a statement no edit below touches.
   const looping = (choices: string[]) =>
     [
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  Top.",
       "  Second.",
@@ -1234,8 +1211,7 @@ describe("a menu restored from the beat before it", () => {
   it("raises the same choices with the same texts, order, tags and flags, and a once-only choice taken stays hidden", () => {
     const text = [
       "store gold = 2",
-      "-> main",
-      "scene main",
+      "scene start",
       "  label top",
       "  Before the menu {top}.",
       "  choose",
@@ -1301,8 +1277,7 @@ describe("a state saved at a waiting menu", () => {
   // before it, is #699's.
   it("loads the choices waiting with their threads, and takes one with the thread's locals", () => {
     const text = [
-      "-> hub",
-      "scene hub",
+      "scene start",
       "  local here = \"hub local\"",
       "  <- side",
       "  Hub.",
@@ -1354,7 +1329,7 @@ describe("a state saved at a waiting menu", () => {
 describe("large blocks", () => {
   it("compiles and runs a choose of 5,000 choices", () => {
     const count = 5000;
-    const lines = ["-> main", "scene main", "  Pick one.", "  choose"];
+    const lines = ["scene start", "  Pick one.", "  choose"];
     for (let i = 0; i < count; i += 1) {
       lines.push(`    * Choice ${i}`, `      Took ${i}.`);
     }
@@ -1398,8 +1373,7 @@ describe("a label in the body of a then clause", () => {
 
   const reentered = [
     "store back = false",
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     "    * Up",
     "  then",
@@ -1412,7 +1386,7 @@ describe("a label in the body of a then clause", () => {
     "  Back.",
     "  if not back then",
     "    back = true",
-    "    -> main.inner",
+    "    -> start.inner",
     "  end",
     "  done",
     "end",
@@ -1434,11 +1408,11 @@ describe("a label in the body of a then clause", () => {
   it("keeps both names when the clause names its own label", () => {
     const named = reentered
       .replace("  then\n", "  then (after)\n")
-      .replace("-> main.inner", "-> main.after");
+      .replace("-> start.inner", "-> start.after");
     expect(diagnostics(silence(() => compileScript(named)).program)).toEqual([]);
     const [run] = runsOf(named, [[0]]);
     expect(texts(run!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
-    const [inner] = runsOf(named.replace("-> main.after", "-> main.inner"), [[0]]);
+    const [inner] = runsOf(named.replace("-> start.after", "-> start.inner"), [[0]]);
     expect(texts(inner!.run)).toEqual(["Up", "Then.", "Back.", "Then.", "Back."]);
   });
 });

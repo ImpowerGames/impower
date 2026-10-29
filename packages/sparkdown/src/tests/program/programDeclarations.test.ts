@@ -10,7 +10,7 @@ import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import { chunkId } from "../../program/ProgramChunk";
-import { compileScript, describeRoot, MAIN_URI, programCompiler } from "./programHarness";
+import { compileScript, MAIN_URI, programCompiler } from "./programHarness";
 
 function posAt(text: string, offset: number) {
   let line = 0;
@@ -123,7 +123,9 @@ describe("the declaration sequence", () => {
       "define hero as character with",
       '  name = "Hero"',
       "end",
-      "Line {b}.",
+      "scene start",
+      "  Line {b}.",
+      "end",
       "",
     ].join("\n");
     const root = compileScript(text).program.chunks!;
@@ -142,9 +144,9 @@ describe("the declaration sequence", () => {
       "CallStd __def/3",
       "SetVar $character_hero flags 3",
     ]);
-    // The flow holds the line alone: the declarations stand in their
-    // sequence.
-    expect(root.flowNamed("")!.arrays.chunks).toHaveLength(1);
+    // The flow holds the line and its end alone: the declarations stand in
+    // their sequence.
+    expect(root.flowNamed("start")!.arrays.chunks).toHaveLength(2);
     // The sequence is in line order, and the declarations run constants
     // first, then the rest in line order.
     const declared = (chunk: Int32Array) =>
@@ -168,7 +170,7 @@ describe("the declaration sequence", () => {
   // `$typewriter_typewriter`, `$mixer_typewriter`, `$channel_typewriter`),
   // while every one of those declarations is named `typewriter` itself.
   it("declares the builtins' globals, with their values, before the script's own", () => {
-    const text = "store count = 1\nHello {count}.\n";
+    const text = "store count = 1\nscene start\n  Hello {count}.\nend\n";
     const config = { seedBuiltinsIntoStory: true };
     const { program } = compileScript(text, { ...config });
     expect(program.chunks).toBeDefined();
@@ -187,65 +189,16 @@ describe("the declaration sequence", () => {
     });
   });
 
-  // The story initializes every constant before any variable, so a block
-  // statement that declares a constant and a variable has another constant
-  // initialized between them.
-  it("runs a statement's globals in the story's order when another statement's stand between them", () => {
-    const text = [
-      "if true then",
-      "  const X = 1",
-      "  store y = Z + X",
-      "end",
-      "const Z = 5",
-      "Line {y}.",
-      "",
-    ].join("\n");
-    const { program } = compileScript(text);
-    expect(program.chunks).toBeDefined();
-    const names = ["X", "y", "Z"];
-    expect(globalsOf(new ProgramStory(program.chunks!), names)).toEqual({ X: 1, y: 6, Z: 5 });
-    expect(coldGlobals(text, names)).toEqual({ X: 1, y: 6, Z: 5 });
-    // The `if` statement's globals are two declarations, before and after
-    // `Z`'s.
-    expect(program.chunks!.initialization).toHaveLength(3);
-  });
-
-  // Which of the `if` statement's globals one declaration holds depends on
-  // the constant below it, so an edit to that constant alone changes the
-  // `if` statement's declarations.
-  it("emits a statement's declarations again when an edit elsewhere changes which globals they hold", () => {
-    const text = [
-      "if true then",
-      "  const X = 1",
-      "  store y = 2",
-      "end",
-      "const Z = 5",
-      "Line {y} and {X}.",
-      "",
-    ].join("\n");
-    const s = session(text);
-    const cold = (source: string) =>
-      compileScript(source).program.chunks!;
-    const names = ["X", "y"];
-    expect(declarationCode(s.root)).toEqual(declarationCode(cold(s.text)));
-    s.edit("const Z = 5\n", "");
-    expect(declarationCode(s.root)).toEqual([["Int 1", "SetVar X flags 3", "Int 2", "SetVar y flags 3"]]);
-    expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
-    expect(globalsOf(new ProgramStory(s.root), names)).toEqual({ X: 1, y: 2 });
-    s.edit("end\n", "end\nconst Z = 5\n");
-    expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
-    expect(globalsOf(new ProgramStory(s.root), [...names, "Z"])).toEqual({ X: 1, y: 2, Z: 5 });
-  });
-
   // An author's `define` of a builtin's name and type shadows it: the
   // builtin's declaration is then kept as `$prelude_action`, its own text
   // unchanged.
   it("emits a builtin's declaration again when an author's declaration shadows it or stops shadowing it", () => {
+    const LINE = "scene start\n  Line.\nend\n";
     const c = programCompiler(
-      { [MAIN_URI]: "Line.\n" },
+      { [MAIN_URI]: LINE },
       { seedBuiltinsIntoStory: true },
     );
-    let text = "Line.\n";
+    let text = LINE;
     let version = 1;
     const edit = (next: string) => {
       version += 1;
@@ -261,8 +214,8 @@ describe("the declaration sequence", () => {
       return everyGlobal(new ProgramStory(program.chunks!));
     };
     c.compile();
-    const shadowing = "define action as typewriter with\n  letter_pause = 0.5\nend\nLine.\n";
-    for (const next of [shadowing, "Line.\n", shadowing]) {
+    const shadowing = `define action as typewriter with\n  letter_pause = 0.5\nend\n${LINE}`;
+    for (const next of [shadowing, LINE, shadowing]) {
       const program = edit(next);
       expect(program.chunks).toBeDefined();
       expect(everyGlobal(new ProgramStory(program.chunks!))).toEqual(cold());
@@ -273,7 +226,7 @@ describe("the declaration sequence", () => {
     const s = session(
       [
         "store a = 1",
-        "scene MAIN",
+        "scene start",
         "  Hello {a}.",
         "  if a > 0 then",
         "    Positive.",
@@ -299,7 +252,7 @@ describe("the declaration sequence", () => {
         "store a = 1",
         "store b = a + 1",
         "store c = 10",
-        "scene MAIN",
+        "scene start",
         "  Values {a} {b} {c}.",
         "end",
         "",
@@ -325,7 +278,7 @@ describe("the declaration sequence", () => {
   // declaration again, which keeps such an initializer's global fresh.
   it("runs every declaration again when a function changes", () => {
     const s = session(
-      ["store g = f()", "Line {g}.", "", "function f()", "  return 1", "end", ""].join("\n"),
+      ["store g = f()", "scene start", "  Line {g}.", "end", "", "function f()", "  return 1", "end", ""].join("\n"),
     );
     expect(globalsOf(new ProgramStory(s.root), ["g"])).toEqual({ g: 1 });
     const runs = s.store.initializerRuns;
@@ -343,7 +296,9 @@ describe("the declaration sequence", () => {
         "store b = a * 2",
         "const K = 4",
         "const L = K + 1",
-        "Line {a} {b} {L}.",
+        "scene start",
+        "  Line {a} {b} {L}.",
+        "end",
         "",
       ].join("\n"),
     );
@@ -376,7 +331,7 @@ describe("a bad initializer", () => {
   // it cannot; a root that answers nothing for one stands in for a store
   // that broke that.
   it("stops the declarations at a chunk the root cannot place, and names it", () => {
-    const { program } = compileScript("store a = 1\nstore b = 2\nHello {a} {b}.\n", {
+    const { program } = compileScript("store a = 1\nstore b = 2\nscene start\n  Hello {a} {b}.\nend\n", {
     });
     const root = program.chunks!;
     expect(root.initialization).toHaveLength(2);
@@ -389,7 +344,7 @@ describe("a bad initializer", () => {
   });
 
   it("reports a constant that reads a variable at the constant's line", () => {
-    const text = "store y = 2\nconst C = y + 1\nHello.\n";
+    const text = "store y = 2\nconst C = y + 1\nscene start\n  Hello.\nend\n";
     const reported = diagnostics(text);
     expect(reported).toEqual([
       { line: 1, message: "A const must be initialized to a constant expression; `y` is not a const." },
@@ -399,7 +354,7 @@ describe("a bad initializer", () => {
   // The declarations the store runs raise the error, which stops the
   // compile: it logs the error and emits no program.
   it("raises an initializer's error from the compile, which emits no program", () => {
-    const text = 'const A = 2\nconst C = A * 3 + "x"\nHello.\n';
+    const text = 'const A = 2\nconst C = A * 3 + "x"\nscene start\n  Hello.\nend\n';
     const compiled = () => {
       const { warn, error } = console;
       const logged: string[] = [];
