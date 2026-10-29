@@ -1,15 +1,3 @@
-// Invalid `const` declarations must be REPORTED, never silently fatal.
-//
-// A constant is initialized once, ahead of every mutable global, so its
-// initializer can only read other constants. When that doesn't hold — it
-// reads a `store`, it is part of a dependency cycle, or it reads a constant
-// that itself failed — the constant is left unregistered and diagnosed.
-//
-// The failure mode being guarded against is severe and was real: an
-// unregistered constant that still emitted an initializer would read an
-// uninitialized global, and the resulting nil arithmetic throws out of
-// `ResetState`, so `program.compiled` came back undefined and the author got
-// NO diagnostic at all — the game simply didn't run.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
@@ -40,7 +28,6 @@ const errorsOf = (p: any) =>
     : Object.values(p.diagnostics ?? {}).flat()
   ).filter((d: any) => d.severity === 1);
 
-/** Compile `body` plus a scene that references SHOW. */
 function check(body: string) {
   const realWarn = console.warn;
   const realError = console.error;
@@ -50,10 +37,6 @@ function check(body: string) {
     const p = compile(
       body + "\nscene main\n:\n  Value {SHOW}.\n-> DONE\nend\n",
     );
-    // The program's constants are the names its story registers as constant
-    // (`ProgramRoot.tables.constantNames`, which the current engine's
-    // compiled JSON listed as `constants`, and left out when there were
-    // none).
     const constants = [...(p.chunks?.tables?.constantNames ?? [])];
     return {
       hasProgram: Boolean(p.chunks),
@@ -78,7 +61,6 @@ describe("const declaration validity", () => {
     const r = check("const SHOW = SHOW + 1");
     expect(r.hasProgram).toBe(true);
     expect(r.errors).toBeGreaterThan(0);
-    // Never published as a constant: it has no initializer.
     expect(r.constants).toBeNull();
   });
 
@@ -86,7 +68,6 @@ describe("const declaration validity", () => {
     const r = check("const A = B + 1\nconst B = A + 1\nconst SHOW = 1");
     expect(r.hasProgram).toBe(true);
     expect(r.errors).toBeGreaterThan(0);
-    // The unrelated constant is unaffected.
     expect(r.constants).toEqual(["SHOW"]);
   });
 
@@ -95,7 +76,6 @@ describe("const declaration validity", () => {
       "const A = B + 1\nconst B = C + 1\nconst C = A + 1\nconst SHOW = 1",
     );
     expect(r.hasProgram).toBe(true);
-    // One per cycle member, not just the one where it was detected.
     expect(r.errors).toBeGreaterThanOrEqual(3);
   });
 
@@ -109,7 +89,6 @@ describe("const declaration validity", () => {
   it("a const built from an INVALID const is reported too", () => {
     const r = check("store s = 1\nconst A = s + 1\nconst SHOW = A + 1");
     expect(r.hasProgram).toBe(true);
-    // Both the direct failure and the one that depends on it.
     expect(r.errors).toBeGreaterThanOrEqual(2);
     expect(r.constants).toBeNull();
   });

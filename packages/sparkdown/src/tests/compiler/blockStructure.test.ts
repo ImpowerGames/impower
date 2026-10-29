@@ -1,11 +1,3 @@
-// A `style`, `layout`, `screen`, `component`, `animation`, `theme` or `morph`
-// block whose `end` is missing, or whose header line holds text the grammar
-// cannot read, must be reported instead of compiling silently. An unclosed
-// block runs on to the next `scene` / `branch` or the end of the file and
-// takes the top-level lines in between as its body (`store trust = 5` becomes
-// a body line); a `:` or a stray word on the header line cuts the block off
-// there, and the body below it is dropped. Text after `with` on a define's
-// header line is reported the same way. See issue #839.
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { MAIN_URI, programCompiler } from "../program/programHarness";
@@ -47,8 +39,6 @@ const errors = (source: string) =>
 const MISSING_END = "missing its closing `end`";
 const UNREADABLE = "cannot be read past";
 
-// Each form: its keyword, the name its header declares, a header and a body
-// line it reads.
 const FORMS = [
   { keyword: "style", name: "s", header: "style s", body: "  color = red" },
   { keyword: "layout", name: "main", header: "layout main", body: "  box {\n  }" },
@@ -101,9 +91,6 @@ describe("a block without `end`", () => {
   });
 
   test("a layout that stops at a body line it cannot read is an error on its header", () => {
-    // The `}` typed after the image closes the `for` and the column, so the
-    // `else` is a line the layout cannot read: the layout stops there, and
-    // the lines below it, its `end` among them, are read outside it.
     const source = [
       "layout inventory with",
       "  column {",
@@ -204,8 +191,6 @@ describe("text after `with` on a define header", () => {
   });
 
   test("a `:` after `with` is an error at the colon", () => {
-    // The `:` reads the next line's property name as a type annotation, so
-    // the property is dropped.
     const source = 'define hero as character with:\n  name = "Hero"\nend\n\nHi.\n';
     const errs = errors(source);
     expect(errs).toHaveLength(1);
@@ -250,11 +235,6 @@ describe("valid blocks report nothing new", () => {
   }
 });
 
-// The block diagnostics are raised while a chunk is lowered, and an
-// incremental compile re-lowers only the chunks an edit touches. Each step
-// applies one edit through `updateDocument` and compares the diagnostics with
-// a cold compile of the same text, including steps whose edit is far from the
-// block.
 describe("block diagnostics across incremental edits", () => {
   const summary = (diags: Diag[]) =>
     diags

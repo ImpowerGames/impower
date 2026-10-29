@@ -41,7 +41,6 @@ const quoteList = (list: readonly string[]): string =>
 const describeValue = (value: unknown): string =>
   typeof value === "string" ? `\`${value}\`` : `\`${JSON.stringify(value)}\``;
 
-// Where a field that is written in the wrong place belongs.
 const HOME: Record<string, string> = {};
 for (const f of MORPH_TIMING_FIELDS) HOME[f] = "in `timing { … }`";
 for (const f of MORPH_POLICY_FIELDS)
@@ -65,8 +64,6 @@ const ALLOWED: Record<Where, readonly string[]> = {
   paint: MORPH_PAINT_FIELDS,
 };
 
-// A layer property value's space-separated components, ignoring spaces inside
-// parentheses (`calc(1px + 2px) 3px` is two components).
 function components(value: unknown): string[] {
   if (typeof value === "number") return [String(value)];
   if (typeof value !== "string") return [];
@@ -87,8 +84,6 @@ function components(value: unknown): string[] {
   return parts;
 }
 
-// The enumerated policy fields and the values each accepts. `depth` names a
-// pose and is checked against the keyframes instead.
 const POLICY_VOCABULARY: Record<string, readonly string[]> = {
   blend: MORPH_BLENDS,
   method: MORPH_METHODS,
@@ -98,14 +93,12 @@ const POLICY_VOCABULARY: Record<string, readonly string[]> = {
 const DEPTH_FORMS =
   "Use `rest` or a state the keyframes name, written with its group, such as `eyes.closed`.";
 
-/** Why a `depth` value has the wrong form, or null when it is `rest` or `group.state`. */
 function depthFormProblem(value: unknown): string | null {
   return parseMorphDepth(value)
     ? null
     : `${describeValue(value)} is not a \`depth\`. ${DEPTH_FORMS}`;
 }
 
-/** Each group the keyframes drive, with the states they name for it. */
 function keyframeStates(keyframes: unknown): Map<string, string[]> {
   const states = new Map<string, string[]>();
   if (!Array.isArray(keyframes)) return states;
@@ -123,11 +116,6 @@ function keyframeStates(keyframes: unknown): Map<string, string[]> {
   return states;
 }
 
-/**
- * Why a `depth` value names no pose the morph shows, or null when it is
- * `rest` or a state its keyframes name. A bare state is pointed at the
- * qualified forms of the driven groups that name it.
- */
 function depthProblem(value: unknown, driven: Map<string, string[]>): string | null {
   const parsed = parseMorphDepth(value);
   const qualified = [...driven].flatMap(([group, states]) => states.map((s) => `${group}.${s}`));
@@ -153,11 +141,6 @@ function depthProblem(value: unknown, driven: Map<string, string[]>): string | n
 const PAINT_ENTRY =
   "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
 
-/**
- * Why a `paints` entry's `state` names no pose that can take a colour, or
- * null when it is a state the keyframes name for a driven group other than
- * the one that group starts from. `start` holds each group's starting state.
- */
 function paintStateProblem(value: unknown, driven: Map<string, string[]>, start: Map<string, string>): string | null {
   const poses = [...driven].flatMap(([group, states]) => states.filter((s) => s !== start.get(group)).map((s) => `${group}.${s}`));
   const choices = poses.length ? ` Use ${quoteList(poses)}.` : "";
@@ -182,7 +165,6 @@ function paintStateProblem(value: unknown, driven: Map<string, string[]>, start:
   return null;
 }
 
-/** Why a `paints` entry's `when` is not a state of a group the morph leaves alone, or null. */
 function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string | null {
   const parsed = parseMorphQualifiedState(value);
   if (!parsed) return `\`when\` names a state with its group, such as \`when = mask.on\`.`;
@@ -192,7 +174,6 @@ function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string
   return null;
 }
 
-/** Why a `paints` entry's `fill` or `stroke` is not a colour, or null. */
 function paintColorProblem(field: string, value: unknown): string | null {
   return readEntryColor(value)
     ? null
@@ -201,10 +182,6 @@ function paintColorProblem(field: string, value: unknown): string | null {
 
 const SPAN_PROBLEM = "`span` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `span = 40%`.";
 
-/**
- * The problems in one `paints` entry's values that do not depend on the
- * keyframes, by the field each is about (`""` for the entry as a whole).
- */
 function paintFormProblems(entry: Record<string, unknown>): { field: string; message: string }[] {
   const problems: { field: string; message: string }[] = [];
   if (!("state" in entry)) {
@@ -227,7 +204,6 @@ function paintFormProblems(entry: Record<string, unknown>): { field: string; mes
 const THREE_D_FUNCTION_RE =
   /\b(?:matrix3d|translate3d|translateZ|scale3d|scaleZ|rotate3d|rotateX|rotateY|perspective)\s*\(/i;
 
-/** Why a layer property value is unsupported, or null. */
 function layerPropertyProblem(key: string, value: unknown): string | null {
   if (key === "opacity") {
     if (typeof value === "number") {
@@ -262,31 +238,15 @@ function layerPropertyProblem(key: string, value: unknown): string | null {
 }
 
 export interface MorphDeclaration {
-  /** The morph's name node, where whole-declaration problems are reported. */
   name: Span;
-  /** The `as PARENT` name, where problems in inherited values are reported. */
   parent: Span | null;
-  /** The morph block, used when the name is missing. */
   block: Span;
-  /** The `with` keyword, or null when the author left it out. */
   withKeyword: Span | null;
-  /** The body as written in this declaration. */
   own: MorphBody;
-  /** The declaration after `$default` and every `as PARENT` are merged in. */
   effective: Record<string, unknown>;
-  /**
-   * The parent's own effective morph when the parent is a morph block, which
-   * reports the problems of its own values; null when it is not.
-   */
   parentEffective: Record<string, unknown> | null;
 }
 
-/**
- * Check a morph declaration: the body as written, then the concrete morph
- * after inheritance. Issues about written text are placed on that text; a
- * problem that only exists after inheritance (a required `method` that nothing
- * supplies) is placed on the morph's name.
- */
 export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const issues: MorphIssue[] = [...decl.own.issues];
   const { sources } = decl.own;
@@ -306,10 +266,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
   const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
 
-  // A block whose lines set fields with `:` reads as a list of text. Each
-  // such line naming one of the block's fields is reported where it is
-  // written, with its `=` form (a label list's block form); false when the
-  // block has none.
   const colonFields = (block: unknown, fields: readonly string[]): boolean => {
     if (!Array.isArray(block)) return false;
     let found = false;
@@ -330,7 +286,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     );
   }
 
-  // Report fields that do not belong where they are written.
   const checkFields = (
     obj: Record<string, unknown>,
     where: Where,
@@ -349,8 +304,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
-  // A `depth` names a pose of the morph after inheritance, so a child that
-  // writes its own keyframes is checked against them.
   const driven = keyframeStates(decl.effective["keyframes"]);
   const checkPolicy = (obj: Record<string, unknown>) => {
     for (const field of MORPH_POLICY_FIELDS) {
@@ -370,7 +323,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   checkFields(own, "root");
   checkPolicy(own);
 
-  // layers: label → policy overrides.
   const layers = own["layers"];
   if (layers !== undefined) {
     if (!isRecord(layers)) {
@@ -394,7 +346,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // timing
   const timing = own["timing"];
   if (timing !== undefined) {
     if (!isRecord(timing)) {
@@ -407,7 +358,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // keyframes
   const keyframes = own["keyframes"];
   if (keyframes !== undefined) {
     if (!Array.isArray(keyframes)) {
@@ -449,7 +399,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         for (const [key, container] of Object.entries(keyframe)) {
           if (key === "offset") continue;
           if (!isRecord(container)) {
-            // A container whose fields are reported here still poses its group.
             if (colonFields(container, MORPH_CONTAINER_FIELDS)) {
               poses += 1;
               continue;
@@ -508,7 +457,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // clips
   const clips = own["clips"];
   if (clips !== undefined) {
     if (!Array.isArray(clips)) {
@@ -559,8 +507,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // paints: a pose's colour for the drawings of some labels. A `state` names a
-  // pose of the morph after inheritance, as `depth` does.
   const start = morphRequirements(decl.effective).rest;
   const paints = own["paints"];
   if (paints !== undefined) {
@@ -602,7 +548,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // The concrete morph after inheritance.
   const effective = decl.effective;
   const effectiveKeyframes = effective["keyframes"];
   const poseCount = Array.isArray(effectiveKeyframes)
@@ -637,9 +582,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
-  // An inherited `depth` has to name a pose this morph shows, which its own
-  // keyframes or a `define` ancestor's can change. A problem the parent
-  // block has too is reported there, and a value's form where it is written.
   const parentDriven = decl.parentEffective && keyframeStates(decl.parentEffective["keyframes"]);
   const valueAt = (morph: Record<string, unknown> | null, field: string): unknown => {
     let current: unknown = morph;
@@ -665,8 +607,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (parentDriven && valueAt(decl.parentEffective, field) === value && depthProblem(value, parentDriven)) continue;
     push(decl.parent, `\`${field}\`, inherited: ${problem}`);
   }
-  // Inherited `paints` entries name poses and groups of this morph too. An
-  // entry's form is checked where it is written.
   const effectivePaints = effective["paints"];
   if (!("paints" in own) && Array.isArray(effectivePaints)) {
     const parentStart = decl.parentEffective && morphRequirements(decl.parentEffective).rest;
@@ -690,8 +630,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     const min = effectiveTiming["iteration_delay_min"];
     const max = effectiveTiming["iteration_delay_max"];
     const ownTiming = isRecord(timing) ? timing : undefined;
-    // A bound written here is underlined where it is written; an inherited
-    // one on the `as PARENT` that brings it in.
     const spanOf = (field: string) =>
       (ownTiming && keySpan(ownTiming, field)) || decl.parent || decl.name;
     if ((min === undefined) !== (max === undefined)) {
@@ -717,11 +655,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   return issues;
 }
 
-/**
- * The problems with a morph struct's policy, timing and `paints` values, for a parent
- * that no morph block wrote (`define base as morph with … end`) and that is
- * therefore not checked where it is written. Each message names the field.
- */
 export function morphValueProblems(
   struct: Record<string, unknown>,
 ): { field: string; message: string }[] {
@@ -751,8 +684,6 @@ export function morphValueProblems(
       problems.push({ field: `timing.${field}`, message }),
     );
   }
-  // A `paints` entry's form; its pose and condition are checked against the
-  // keyframes of the morph that inherits it.
   const paints = struct["paints"];
   if (paints !== undefined && !Array.isArray(paints) && !(isRecord(paints) && Object.keys(paints).length === 0)) {
     problems.push({ field: "paints", message: `\`paints\` is a list of \`{ … }\` entries. ${PAINT_ENTRY}` });
@@ -783,7 +714,6 @@ export function morphValueProblems(
   return problems;
 }
 
-/** Check the timing values written in one `timing` container. */
 function checkTiming(
   timing: Record<string, unknown>,
   report: (field: string, message: string) => void,

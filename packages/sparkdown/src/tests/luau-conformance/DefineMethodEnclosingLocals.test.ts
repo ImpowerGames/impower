@@ -1,12 +1,3 @@
-// A method of a define written in a function reads the locals of every
-// function around it, and a local of the scene the functions are written in,
-// as a Luau closure does (I-1373): each function between the method and the
-// local captures what its defines' methods read, as it captures what its own
-// body reads. A
-// define is no part of the converter's reading of a function's body, so its
-// methods' reads are added to the capture scan of each function around it
-// (`freeVariables`).
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyBeats } from "../program/programHarness";
@@ -160,8 +151,6 @@ describe("a method of a define written in a function", () => {
     ).toEqual(got("Got 10."));
   });
 
-  // A local of a block that has ended before the define does not hide the
-  // local further out.
   test("reads a local further out past an ended block's local of its name", () => {
     expect(
       run([
@@ -229,10 +218,6 @@ describe("a method of a define written in a function", () => {
   });
 });
 
-// Each function scans the defines written in it once, however deep they
-// nest; a scan that read every define under a function again for each
-// function around it grew exponentially with the nesting, past a million
-// method reads at twenty levels.
 describe("defines nested many levels in functions", () => {
   test("compile in time and read the outermost local", () => {
     const started = Date.now();
@@ -242,9 +227,6 @@ describe("defines nested many levels in functions", () => {
   });
 });
 
-// `outer(v)` holding `depth` defines, each written in the previous one's
-// method, which returns the next one's method's value; the innermost
-// method returns `outer`'s local.
 function nestedDefines(depth: number): string[] {
   const out = ["function outer(v)", "  local a = v"];
   const open = (i: number): void => {

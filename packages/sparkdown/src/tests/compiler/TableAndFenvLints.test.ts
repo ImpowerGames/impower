@@ -1,9 +1,3 @@
-// TableLiteral, TableOperations and DeprecatedApi for getfenv/setfenv
-// (I-614). The upstream cases are in
-// `luau-conformance/LintCandidatesStdlib.test.ts`; these are the controls
-// around them: ranges and severities, the escape hatches Luau gives, the
-// calls the rules cannot read without types, and code outside functions.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 import { testCompiler } from "../engineUnderTest";
@@ -13,7 +7,6 @@ const lints = (source: string) => diagnoseDetailed(source).filter((d) => CODES.h
 const messages = (source: string) => lints(source).map((d) => d.message);
 const inFunction = (body: string) => messages(`& run()\nfunction run()\n${body}\nend\n`);
 
-/** The diagnostics of a one-script compile, with their tags, which `diagnoseDetailed` leaves out. */
 function tagged(source: string) {
   const compiler = testCompiler();
   compiler.configure({ files: [{ uri: "inmemory:///main.sd", type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });

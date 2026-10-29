@@ -3,9 +3,6 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
-// A line of Luau code that begins with `.name` or `:name` continues the
-// expression or type on the line before it, as Luau reads it, and does not
-// end the enclosing function at the line break.
 const inFunction = (body: string) =>
   `Value {f()}.\nfunction f()\n${body
     .split("\n")
@@ -201,7 +198,6 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
 });
 
-// A line that does not begin with an access starts a new statement.
 test.each([
   [
     "after a blank line",
@@ -225,8 +221,6 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
 });
 
-// A continuation line after a line that does not end in a value is an error,
-// rather than text or a silently dropped access.
 test.each([
   ["after `end`", "if true then\nend\n  .a\nreturn 1"],
   ["at the start of a body", "  .a\nreturn 1"],
@@ -277,8 +271,6 @@ test("a continuation after a cast to a table type is reported with advice to par
   ]);
 });
 
-// Luau reads at most `module.Type`, so a continuation that gives a type name
-// a second module prefix is the same error as writing it on one line.
 test.each([
   ["annotation", "local x: types.ui\n  .Button = 3\nreturn x"],
   ["alias", "type A = types.ui\n  .Button\nreturn 1"],
@@ -291,7 +283,6 @@ test.each([
   ]);
 });
 
-// In a scene, a line that begins with `.` is prose.
 test("a line starting with a dot after a statement in a scene is prose", () => {
   const ctx = makeRuntimeStoryFromSource(
     "-> start\nscene start\n  local y = 1\n  .hello there\nend\n",
@@ -300,9 +291,6 @@ test("a line starting with a dot after a statement in a scene is prose", () => {
   expect(ctx.story.ContinueMaximally()).toBe(".hello there\n");
 });
 
-// No Luau statement begins with `-`, so a line that begins with it continues
-// the value on the line before it. Where no value comes before it (after a
-// comma, an opening bracket or a bare `return`) it begins a negative value.
 test.each([
   ["subtraction line", "local a = 10\nlocal b = 3\nlocal total = a\n  - b\nreturn total", "7"],
   ["unspaced subtraction line", "local a = 10\nlocal total = a\n  -3\nreturn total", "7"],
@@ -335,16 +323,11 @@ test.each([
   ]);
 });
 
-// A snippet is a `.luau` file, which is Luau from its first line (I-1320):
-// a line that begins with `->` is no divert there, and Luau reports it.
 test("a divert line in a .luau file is Luau's to report", () => {
   const [first] = checkLuau("local x = 1\n-> elsewhere\nreturn x").syntaxDiagnostics;
   expect(first?.message).toBe("Expected identifier when parsing expression, got '->'");
 });
 
-// Outside a table constructor no value begins with `[`, so a line that begins
-// with one indexes the value on the line before it. In a table it begins a
-// key.
 test.each([
   ["indexer line", "local t = { 5 }\nlocal y = t\n  [1]\nreturn y", "5"],
   ["indexer line after a member line", "local t = { a = { 5 } }\nlocal y = t\n  .a\n  [1]\nreturn y", "5"],

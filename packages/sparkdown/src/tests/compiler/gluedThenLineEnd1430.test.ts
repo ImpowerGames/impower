@@ -7,9 +7,6 @@ import { officialSyntaxErrors } from "./officialSyntax";
 const URI = "inmemory:///main.sd";
 
 function readings(text: string) {
-  // A rule that opens and closes without reading anything at one position
-  // over and over is a grammar loop, which the parser breaks out of with a
-  // warning; the tree it leaves behind is not the grammar's.
   const warn = vi.spyOn(console, "warn");
   try {
     const result = compile(text);
@@ -41,9 +38,6 @@ function compile(text: string) {
   return { errors, starts, official };
 }
 
-// Where each error begins, with a position on the line holding `then`
-// given relative to the end of that `then`, so that a glued and a spaced
-// `then` compare equal.
 function relativeStarts(text: string, starts: { line: number; character: number }[]) {
   const lines = text.split("\n");
   const thenLine = lines.findIndex((line) => /then\s*$/.test(line));
@@ -53,7 +47,6 @@ function relativeStarts(text: string, starts: { line: number; character: number 
   );
 }
 
-// The value of the arm is on the line after its `then`.
 const nextLine = (opening: string, trailing = "") =>
   `function f(c, ...)\n  local s = ${opening}${trailing}\n    1\n  else 2\n  return s\nend\n`;
 
@@ -118,8 +111,6 @@ describe("an if expression whose then is glued to its condition and ends its lin
     expect(result.errors).toEqual([]);
   });
 
-  // A then arm with no value reports the same errors whether or not its
-  // `then` is glued, and never asks for an `else` it has not reached.
   const missingValue: [string, (opening: string) => string][] = [
     ["at the end of the script", (opening) => `store c = true\nstore s = ${opening}`],
     ["at the end of the script before a final line break", (opening) => `store c = true\nstore s = ${opening}\n`],

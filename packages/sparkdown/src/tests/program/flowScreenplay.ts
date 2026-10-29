@@ -1,12 +1,3 @@
-// A screenplay made of the flow constructs the writer emits (#696): scenes
-// and branches, labels passed by falling through and by a jump, diverts with
-// fixed and variable targets, written in full and relative to the scene,
-// tunnels that return and that return onward, threads, branches with
-// parameters that a tunnel, a thread and an onward return pass arguments,
-// a variadic one among them (#1436), visit and turn counts
-// read through the language, and alternators of each kind, inline, glued, on
-// one line and as a block. Each scene runs to its end: its loop through its
-// first label stops after a few passes.
 export function flowScreenplay(scenes = 3): string {
   const L: string[] = [
     "store passes = 0",
@@ -74,9 +65,6 @@ export function flowScreenplay(scenes = 3): string {
   return L.join("\n");
 }
 
-// Edits the flow fuzz inserts: text inside lines, new lines, labels, diverts,
-// tunnels and threads, counts, alternators, and fragments that open or close
-// a block or a flow.
 export const FLOW_INSERTS = [
   "x",
   "\n",

@@ -1,9 +1,3 @@
-// DuplicateFunction (I-605): a function statement or local function whose
-// name an earlier one in the same block already defines. The upstream cases
-// are in `luau-conformance/LintCandidatesScope.test.ts`; these are the
-// controls around them, the top level the compiler already covers, and the
-// program-wide form for members of a global table.
-
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { testCompiler } from "../engineUnderTest";
@@ -75,8 +69,6 @@ describe("DuplicateFunction in one block", () => {
     expect(inFunction(" do\n  public y\n  local function f() end\n  local function f() end\n  f()\n end")).toEqual([]);
   });
 
-  // A structural word with no arms is a name (I-1310), so its call is one
-  // like any other.
   test("a structural word's call is a name's", () => {
     const body = (name: string) => ` local function ${name}() end\n local function ${name}() end\n ${name}(1)`;
     expect(inFunction(body("match"))).toEqual([message("match", 3)]);
@@ -94,8 +86,6 @@ describe("DuplicateFunction in one block", () => {
 });
 
 describe("DuplicateFunction at a script's top level", () => {
-  // Each plain-named function there is a story function, and the compiler
-  // reports a second one of the name as a duplicate identifier.
   test.each([
     ["global functions", "function x() return 1 end\nfunction x() return 2 end\nValue {x()}.\n"],
     ["functions in separate scenes, which the reading lifts to the top level", "& x()\n== A\nfunction x() end\n== B\nfunction x() end\n"],
@@ -105,9 +95,6 @@ describe("DuplicateFunction at a script's top level", () => {
     expect(found.some((d) => d.message.startsWith("Duplicate identifier `x`. A function named `x` already exists"))).toBe(true);
   });
 
-  // A local function in a scene is a local of the scene's scope, which a
-  // later one of the name shadows, as in Luau: Luau's lint warns of the
-  // second, and the compiler reports no duplicate story function.
   test("lints a scene's second local function of one name as Luau does, with no duplicate identifier", () => {
     const found = diagnoseDetailed(
       "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
@@ -142,15 +129,12 @@ describe("DuplicateFunction across scripts", () => {
     ["a definition inside a function", "function setup()\n function T.x() end\nend\n"],
     ["a different member", "function T.y() end\n"],
   ])("is silent for %s", (_label, chapter) => {
-    // The chapter is read: the same member at its top level warns.
     expect(programDuplicates(sources("function T.x() end\n"))).not.toEqual([]);
     expect(programDuplicates(sources(chapter))).toEqual([]);
   });
 
-  // Only main holds a top-level local, so the local table is main's.
   test("is silent for a member of a local table", () => {
     const main = "& local T = {}\nfunction T.x() end\n& T.x()\n";
-    // The chapter is read: a second definition of its own member warns there.
     expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\nfunction T.x() end\n" })).not.toEqual([]);
     expect(programDuplicates({ "main.sd": main, "chapter.sd": "store T = {}\nfunction T.x() end\n" })).toEqual([]);
   });

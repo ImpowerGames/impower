@@ -1,12 +1,3 @@
-// A reserved word read as a method's name wherever Luau reads it as one
-// (I-1344, closing I-1351): after a bracketed receiver (`(t):end`,
-// `f():end`), a type assertion (`t :: T:do`), an if expression's value
-// (`if t then a else b:do`) or a header's comma list (`while a, 1:do`).
-// Each form stands in a function in a `.sd` document with a story line
-// after it. The word opens no block and closes none, so the function ends at
-// its own `end`, the tree holds no `ERROR_INCOMPLETE`, the story line after
-// the function is the story's, and Sparkdown's syntax errors are the official
-// parser's, message and range, for the Luau of the function.
 import { describe, expect, test } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -20,7 +11,6 @@ const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
 const STORY = "After {run()}.\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -33,18 +23,12 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The top-level node a document offset lies in. */
 function topLevelAt(text: string, offset: number): SyntaxNode | null {
   let node = parseSource(text).topNode.firstChild;
   while (node && node.to <= offset) node = node.nextSibling;
   return node;
 }
 
-/**
- * The form's tree and errors: `first` is Luau's first error, which the
- * official parser must report first, and Sparkdown reports every one of the
- * official parser's errors at its range (I-1322).
- */
 function expectForm(form: string, first: string): void {
   const luau = `${HEADER}${form}${FOOTER}`;
   const text = `${luau}${STORY}`;
@@ -67,8 +51,6 @@ function expectForm(form: string, first: string): void {
 const METHOD_NAME = (word: string) => `Expected identifier when parsing method name, got '${word}'`;
 
 const CASES: Record<string, [form: string, first: string][]> = {
-  // A reserved word after a bracketed receiver (I-1344): a parenthesized
-  // value or a call's result, which no access path holds.
   "after a bracketed receiver": [
     ["local t = {}\n  local b = (t):end", METHOD_NAME("end")],
     ["local function f() end\n  local b = f():end", METHOD_NAME("end")],
@@ -101,8 +83,6 @@ const CASES: Record<string, [form: string, first: string][]> = {
     ["local t = {}\n  while (t):end do end", METHOD_NAME("end")],
     ["local t = {}\n  return (t):end", METHOD_NAME("end")],
     ["local t = {}\n  local b = (t) :end", METHOD_NAME("end")],
-    // A block comment of any level between the `:` and the word (round 2,
-    // `undirected` finding 1), after a bracket, a name and in a header.
     ["local t = {}\n  local b = (t): --[====[c]====] end", METHOD_NAME("end")],
     ["local t = {}\n  local b = (t): --[========[c]========] end", METHOD_NAME("end")],
     ["local t = {}\n  local b = t: --[====[c]====] end", METHOD_NAME("end")],
@@ -113,8 +93,6 @@ const CASES: Record<string, [form: string, first: string][]> = {
     ['local b = "s":end', "Expected identifier when parsing expression, got ':'"],
     ["local b = {}:end", "Expected identifier when parsing expression, got ':'"],
   ],
-  // A reserved word after a type assertion, an if expression or a comma in
-  // a header (I-1351).
   "after a type assertion, an if expression or a header's comma": [
     ["local b = t :: T:do", "Expected identifier when parsing expression, got ':'"],
     ["while t :: T:do end", "Expected 'do' when parsing while loop, got ':'"],
@@ -125,13 +103,10 @@ const CASES: Record<string, [form: string, first: string][]> = {
     ["while if t then a else b:do end", METHOD_NAME("do")],
     ["while a, 1:do end", "Expected 'do' when parsing while loop, got ','"],
     ["if a, 1:then end", "Expected 'then' when parsing if statement, got ','"],
-    // The other reserved words after a cast's type.
     ["local b = t :: T:end", "Expected identifier when parsing expression, got ':'"],
     ["local b = t :: T:function", "Expected identifier when parsing expression, got ':'"],
     ["local b = t :: {number}:end", "Expected identifier when parsing expression, got ':'"],
     ["local b = f(t :: T:end)", "Expected ')' (to close '(' at column 14), got ':'"],
-    // A type an operation or a suffix holds ends there too (round 1, `ax`
-    // finding 1).
     ["local b = t :: T | U:end", "Expected identifier when parsing expression, got ':'"],
     ["local b = t :: T & U:do", "Expected identifier when parsing expression, got ':'"],
     ["local b = t :: () -> T:end", "Expected identifier when parsing expression, got ':'"],
@@ -141,7 +116,6 @@ const CASES: Record<string, [form: string, first: string][]> = {
     ["while t :: T | U:do end", "Expected 'do' when parsing while loop, got ':'"],
     ["local b = if t then a else b:end", METHOD_NAME("end")],
   ],
-  // The readings these rules share keep their meaning.
   "well-formed code": [
     ["local t = {}\n  local b = (t):foo()", "none"],
     ["local t = {}\n  local b = t:m():n()", "none"],
@@ -156,10 +130,6 @@ const CASES: Record<string, [form: string, first: string][]> = {
   ],
 };
 
-// A `:` after a type operator, where no type has ended, still begins the type
-// that reads it as stray, so the operation around it is never left with
-// nothing to read (round 1, `undirected` finding 1). Where the function ends
-// there is as on the base revision.
 test.each([["local b = t :: T | :end"], ["local b = t :: T & :do"], ["local b = t :: () -> :end"]])(
   "a reserved method name after a type operator leaves the tree whole: %s",
   (form) => {
@@ -168,9 +138,6 @@ test.each([["local b = t :: T | :end"], ["local b = t :: T & :do"], ["local b = 
   },
 );
 
-// A close of another level inside a block comment is its text, so a reserved
-// word there is no method's name, and the call after the comment's real close
-// is read as it is (round 3, `undirected` finding 1).
 test.each([
   ["local t = {}\n  local b = (t): --[====[a]=====] end ]====] foo()"],
   ["local t = {}\n  local b = (t): --[=========[a]==========] end ]=========] foo()"],

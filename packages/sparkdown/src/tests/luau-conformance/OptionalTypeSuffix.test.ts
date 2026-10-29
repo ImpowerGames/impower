@@ -3,14 +3,6 @@ import { checkLuau, describeDiagnostic, expectLuauSyntax } from "./typecheckTest
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
-// In Luau `?` is a postfix suffix that ends the optional type it follows
-// (`number?`). It takes no right operand, so the word after it, on the same
-// line or the next, is never read as part of the type.
-
-/**
- * Every rule name the grammar gives to the text starting at `from` with length
- * `length`, without the `_c<N>` suffix a capture node carries.
- */
 function nodeNamesAt(source: string, from: number, length: number): string[] {
   const tree = parseSource(source);
   const names: string[] = [];
@@ -21,7 +13,6 @@ function nodeNamesAt(source: string, from: number, length: number): string[] {
   return names;
 }
 
-/** The furthest end of any node that starts at `from`. */
 function furthestEndFrom(source: string, from: number): number {
   const tree = parseSource(source);
   let end = from;
@@ -78,8 +69,6 @@ describe("a type ending in `?` ends at the `?`", () => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // A comment between an alias's `=` and its type is skipped, as it is after
-  // an annotation's `:`, so the type after it is read.
   test.each([
     ["a block comment before its type", "type T = --[[c]] number\nlocal y = 1\n"],
     ["a block comment before an optional type", "type T = --[[c]] number?\nlocal y = 1\n"],
@@ -90,10 +79,6 @@ describe("a type ending in `?` ends at the `?`", () => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // Luau rejects each of these: a `?` only ends the type before it. The `?` is
-  // reported in Luau's wording and range, from the end of the token before it
-  // to the end of the `?` (#1174), and nothing else is, so the rest reads as
-  // Luau.
   test.each([
     ["after a leading bar", "type Bar = |?\n", 12, 13],
     ["alone", "type Baz = ?\n", 10, 12],
@@ -168,9 +153,6 @@ describe("the code after a type ending in `?` still runs", () => {
   });
 });
 
-// Luau accepts whitespace before the `?` suffix, and scripts formatted before
-// #1065 contain `number ?` and `number ?= 1`, so a space before the `?` must
-// keep reading as Luau rather than turning the line into story text.
 describe("a space before the `?` suffix still reads as Luau", () => {
   test.each([
     ["a spaced local with a value", "local v: number ? = 1\n"],

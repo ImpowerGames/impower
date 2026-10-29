@@ -1,15 +1,3 @@
-// Ported from Luau's parser tests for malformed statements and blocks
-// (`luau/tests/Parser.test.cpp`). Snippets and expected messages are quoted
-// verbatim; the upstream test-case name is in the comment above each group.
-//
-// Every syntax error Luau's reading of a function body reports is reported
-// (I-1322), so an unexpected token, a bad assignment target or an ambiguous
-// call is reported as Luau words it. The groups still `describe.skip` say
-// the reason each does not match yet: the grammar closes a block at its own
-// `end` where Luau's indentation hint names another, story after a `return`
-// is read on, and non-ASCII text is narrative. Each skip is a todo for
-// parity; a silent omission would read as "covered".
-
 import { describe, expect, test } from "vitest";
 import {
   diagnose,
@@ -17,9 +5,6 @@ import {
   diagnoseInFunction,
 } from "./diagnosticTestHarness";
 
-// Luau: recovery_error_limit_1
-// `parse("local a = ")` reports exactly one error. The line stands in a scene,
-// where a declaration ends at its line as upstream's chunk ends after it.
 describe("an assignment with no value", () => {
   test("local a = ", () => {
     const msgs = diagnose("-> s\nscene s\n  local a = \nend\n");
@@ -29,8 +14,6 @@ describe("an assignment with no value", () => {
   });
 });
 
-// Luau: error_const_not_initialized
-// "Missing initializer in const declaration"
 describe("const without an initializer", () => {
   test("const c", () => {
     expect(diagnoseInFunction("const c")).toEqual([
@@ -49,8 +32,6 @@ describe("const without an initializer", () => {
     );
   });
 
-  // An `=` with a malformed value has an initializer; only the expression
-  // error applies, as for `local a = `.
   test("const c = ", () => {
     expect(diagnose("const c = ")).toEqual([
       "Expected identifier when parsing expression, got <eof>",
@@ -58,10 +39,6 @@ describe("const without an initializer", () => {
   });
 });
 
-// Luau: error_const_not_initialized (multi-name cases)
-// A `const` inside a function is Luau's (#1319). At the top level a `const`
-// is the story's published constant, which takes one name and one value
-// (`ConstMultiDeclaration.test.ts`).
 describe("const with several names", () => {
   test.each([
     ["const a, b = nil", "const a, b = nil"],
@@ -74,11 +51,6 @@ describe("const with several names", () => {
   });
 });
 
-// Luau: error_const_reassignment / error_const_function_reassignment
-// "Variable 'a' is constant and may not be reassigned"
-// Inside a function, in Luau's words (#1319). A top-level `const` is the
-// story's published constant, whose re-assignment the compiler reports in its
-// own words (`LuauNamesAndFunctionConst.test.ts`).
 describe("const reassignment", () => {
   test.each([
     ["const a = 42; a = 43", "const a = 42; a = 43"],
@@ -97,8 +69,6 @@ describe("const reassignment", () => {
   });
 });
 
-// Luau: break_return_not_last_error / continue_not_last_error
-// A statement after `return`, `break` or `continue` in the same block.
 describe.skip("statements after return/break/continue (diverges: accepted silently)", () => {
   test.each([
     ["return 0 print(5)", "return 0 print(5)", "Expected <eof>, got 'print'"],
@@ -117,12 +87,7 @@ describe.skip("statements after return/break/continue (diverges: accepted silent
   });
 });
 
-// Luau: parse_error_loop_control
-// "break statement must be inside a loop" / "continue statement must be inside a loop"
 describe("loop control outside a loop", () => {
-  // A `break` inside a nested function inside a loop is reported, because
-  // it lowers to a divert and functions may not contain diverts. The
-  // message names the lowering rather than the rule.
   test.each([
     ["break", "repeat local function a() break end until false"],
     ["continue", "repeat local function a() continue end until false"],
@@ -154,12 +119,6 @@ describe("loop control outside a loop", () => {
   });
 });
 
-// Luau: incomplete_statement_error / statement_error_recovery_*
-// "Incomplete statement: expected assignment or a function call"
-//
-// A bare identifier on its own line is accepted: sparkdown resolves it as a
-// bare call of that name (see BareCalls.test.ts), so there is no incomplete
-// statement to report.
 describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
   test("fiddlesticks", () => {
     expect(diagnoseInFunction("fiddlesticks")).toContain(
@@ -167,21 +126,17 @@ describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
     );
   });
 
-  // Luau: statement_error_recovery_expected — exactly one error.
   test("some", () => {
     expect(
       diagnoseInFunction("function a(a, b) return a + b end\nsome\na(2, 5)"),
     ).toHaveLength(1);
   });
 
-  // Luau: statement_error_recovery_unexpected — exactly one error.
   test("+", () => {
     expect(diagnoseInFunction("+")).toHaveLength(1);
   });
 });
 
-// Luau: extra_token_in_consume / extra_token_in_consume_match /
-// extra_token_in_consume_match_end
 describe("unexpected token", () => {
   test("function test + (a, f)", () => {
     const msgs = diagnoseInFunction(
@@ -207,9 +162,6 @@ describe("unexpected token", () => {
   });
 });
 
-// Luau: parse_nesting_based_end_detection*
-// A missing `end` is reported against the block it most likely belongs to,
-// using indentation as the hint.
 describe.skip("missing `end` (diverges: an unclosed block runs to the end of the file silently)", () => {
   test("parse_nesting_based_end_detection", () => {
     const msgs = diagnoseInFunction(`-- i am line 1
@@ -338,7 +290,6 @@ end`);
   });
 });
 
-// Luau: parse_compound_assignment_error_call / _not_lvalue / _multiple
 describe("compound assignment targets", () => {
   test("a() += 5", () => {
     expect(diagnoseInFunction("a() += 5")).toContain(
@@ -359,8 +310,6 @@ describe("compound assignment targets", () => {
   });
 });
 
-// Luau: parse_error_assignment_lvalue
-// "Assigned expression must be a variable or a field"
 describe("parenthesized assignment target", () => {
   test.each([
     ["(2), b = b, a", "local a, b\n(2), b = b, a"],
@@ -372,8 +321,6 @@ describe("parenthesized assignment target", () => {
   });
 });
 
-// Luau: parse_error_confusing_function_call
-// A parenthesized expression on the line after a callable is ambiguous.
 describe("ambiguous call across a newline", () => {
   const expected =
     "Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of new statement; use ';' to separate statements";
@@ -401,7 +348,6 @@ describe("ambiguous call across a newline", () => {
   });
 });
 
-// Luau: error_on_unicode / error_on_confusable / error_on_non_utf8_sequence
 describe.skip("non-ASCII where an identifier is expected (diverges: accepted as narrative text)", () => {
   test("local ☃ = 10", () => {
     expect(diagnoseInFunction("local ☃ = 10")).toContain(
@@ -415,8 +361,6 @@ describe.skip("non-ASCII where an identifier is expected (diverges: accepted as 
     );
   });
 
-  // N/A as well as skipped: sources arrive as JS strings, which are already
-  // decoded, so an invalid UTF-8 byte sequence cannot reach the parser.
   test("local pi = \\xFF!", () => {
     expect(diagnoseInFunction("local pi = �!")).toContain(
       "Expected identifier when parsing expression, got invalid UTF-8 sequence",
@@ -424,11 +368,6 @@ describe.skip("non-ASCII where an identifier is expected (diverges: accepted as 
   });
 });
 
-// Luau: recovery_error_limit_2
-// "Reached error limit (2)"
-//
-// N/A: the parse-error limit is a Luau parser setting (`LuauParseErrorLimit`)
-// with no equivalent in the diagnostics pipeline.
 describe.skip("error limit (N/A: no parse-error limit)", () => {
   test("escape escape escape", () => {
     const msgs = diagnoseInFunction("escape escape escape");

@@ -1,8 +1,3 @@
-// A divert-target literal in an expression whose target does not resolve to a
-// flow (#457): the compile makes a program and an error at the literal says
-// what is wrong, or it makes none and an error at the literal says why. Since
-// the one compile path (#705) the program engine does not serialize the
-// story, so the literal no longer aborts the compile; this pins that.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";

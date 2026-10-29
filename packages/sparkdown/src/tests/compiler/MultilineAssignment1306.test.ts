@@ -3,10 +3,6 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { ProgramStory } from "../../program/ProgramStory";
 import { officialSyntaxErrors } from "./officialSyntax";
 
-// A Luau declaration or reassignment whose `=` ends its line takes its value
-// from the next line, as Luau does (#1306), including a value list whose
-// lines end with commas, which the tree reads as an assignment's targets.
-
 const URI = "inmemory:///main.sd";
 
 const crlf = (text: string) => text.replaceAll("\n", "\r\n");
@@ -30,7 +26,6 @@ function execute(text: string) {
   return { errors, output: story.ContinueMaximally(), runtimeErrors };
 }
 
-// The official parser's errors as the compiler reports them (0-based lines).
 function officialErrors(text: string) {
   return officialSyntaxErrors(text).map((e) => ({ message: e.message, line: e.location.begin.line, column: e.location.begin.column }));
 }
@@ -94,22 +89,17 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
     expect(compile(lines(source)).errors).toEqual(official);
   });
 
-  // The unclosed function is reported too, so only the missing value is compared.
   test("reports a value missing at the end of the file", () => {
     const source = "function f()\n  local x =\n";
     expect(officialSyntaxErrors(source).length).toBeGreaterThan(0);
     expect(compile(lines(source)).errors.map((e) => e.message)).toContain("Expected identifier when parsing expression, got <eof>");
   });
 
-  // A comment after `else` is skipped as Luau skips it: the arm reads the
-  // next line's `b` and the error falls on its `=` with Luau's wording (#1432).
   test("reports an else arm with a comment after it at the next assignment's `=`", () => {
     const source = "function f()\n  local a = if true then 1 else -- note\n  b = 2\n  return a\nend\n";
     expect(compile(lines(source)).errors).toEqual(officialErrors(source));
   });
 
-  // An empty then arm reads the next line's `b` as its value, as Luau does,
-  // so the missing `else` falls on the `=` after it with Luau's wording (#1501).
   test.each(["if true then", "if (true)then", "if true then -- note"])(
     "reports the missing else of an empty then arm (%s) at the next assignment's `=`",
     (opening) => {

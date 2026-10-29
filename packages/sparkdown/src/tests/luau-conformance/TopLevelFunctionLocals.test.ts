@@ -1,13 +1,3 @@
-// A function or a define's method written at the top level reads and writes
-// a store, a const and a global, as Luau does (I-823), and reads the builtin
-// of a stdlib name; no local is in scope where it is written, as a `local`
-// at the top level is a compile error. A local function written in a scene
-// reads and writes the scene's local declared above it, and calls a closure
-// one holds. A define written in a function has its methods read that
-// function's locals through global cells its line points at them when it
-// runs (`DefineCellBinding`), which a save keeps. Saves an older engine wrote
-// of scripts with top-level locals still load.
-
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,8 +27,6 @@ const shown = (root: ProgramRoot) => {
   return { texts: beats.map((b) => b.text.trim()), errors };
 };
 
-// The root of a script that compiles with no error, so a case never runs
-// what a compile reported.
 const rootOf = (lines: string[]) =>
   quiet(() => {
     const { program } = compileScript([...lines, ""].join("\n"));
@@ -46,9 +34,6 @@ const rootOf = (lines: string[]) =>
     return program.chunks!;
   });
 
-// The root of a script an older engine wrote a save of. The script declares
-// locals at the top level, each a compile error; it reports no other error,
-// and its program runs.
 const legacyRootOf = (text: string) =>
   quiet(() => {
     const { program } = compileScript(`${text.trimEnd()}\n`);
@@ -60,7 +45,6 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `S`, which the story diverts to.
 const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
 
 describe("a function written at the top level", () => {
@@ -176,8 +160,6 @@ describe("a local function written in a scene and the scene's local", () => {
     ).toEqual(got("Got 4."));
   });
 
-  // A stdlib name read in a function names the builtin unless a local of
-  // the name is in scope, as the scene's is here.
   test.each([
     ["a function", ["local count = 0", "local function inc()", "  count = count + 1", "  return count", "end", "Got {inc()} {count}."]],
     ["a closure", ["local count = 0", "local inc = function() count = count + 1 return count end", "Got {inc()} {count}."]],
@@ -192,8 +174,6 @@ describe("a local function written in a scene and the scene's local", () => {
     );
   });
 
-  // At run time, a method call on such a local reaches the local's member
-  // (StdLibMissingMemberCall.test.ts checks what a compile reports of it).
   test("calls a method of a local that takes a stdlib namespace's name", () => {
     expect(
       run(
@@ -304,11 +284,6 @@ describe("a define written in a function", () => {
 });
 
 describe("a save holding a top-level method value", () => {
-  // `nested-define-method-value-save-569cfe902.json`, which the engine at
-  // 569cfe902 wrote of `nested-define-method-value.sd` after `First.`, holds
-  // the closure of a top-level method that captures nothing, though a define
-  // written in it has a method that reads a top-level local: the method's
-  // parameters are what its own body reads.
   test("loads, and a method whose define reads a top-level local passes its parameters", () => {
     const text = readFileSync(join(FIXTURES, "nested-define-method-value.sd"), "utf-8");
     const save = readFileSync(join(FIXTURES, "nested-define-method-value-save-569cfe902.json"), "utf-8");

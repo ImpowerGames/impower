@@ -1,12 +1,3 @@
-// The display() lowering's address COVERAGE. The screenplay preview's
-// click-to-line routing needs every display line to resolve to an address
-// that stands on that line (`ProgramRoot.addressAt`, `locationOf`), and no
-// spurious extra lines. Each synthesized display() FunctionCall is stamped with
-// its source range in `buildDisplayCall`. The expected SET of covered source
-// lines (0-based) of each fixture is every line of story content a statement
-// starts on: not a scene's header, an `end`, a blank line, a definition or a
-// function's body, which no story starts at.
-
 import { describe, expect, test, vi } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -62,7 +53,6 @@ scene start
 end
 `;
 
-// A separate scene exercises cross-scene line offsets.
 const MULTI_SCENE = `-> one
 
 scene one
@@ -75,7 +65,6 @@ scene two
 end
 `;
 
-// Glued chains: every line lowers to its own stamped display() call.
 const GLUED = `define HERO as character with
   name = "HERO"
 end
@@ -96,10 +85,6 @@ scene start
 end
 `;
 
-// One scene per producer, so a producer that loses or gains coverage shows up
-// by its own line. Each maps to its body and its covered lines: the
-// `-> start` divert (4), the body's lines from line 7, the `done` after the
-// body, and `Savile Row.` and `done` in `later`.
 const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
   "a tagged line": [
     `  The bell rings. # ominous\n  HERO: Goodbye. # final`,
@@ -121,7 +106,6 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     [4, 7, 8, 9, 13, 14],
   ],
   "a load arrow": [`  -> load later`, [4, 7, 8, 12, 13]],
-  // The alternator line (7) covers its own line with its statement (#944).
   "a single-line alternator": [
     `  queue | A # t | B end\n  After the alternator.`,
     [4, 7, 8, 9, 13, 14],
@@ -130,20 +114,13 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
     [4, 7, 8, 9, 10, 14, 15],
   ],
-  // The `& f()` logic line (7) covers its own line with its call (#824).
   "a print() call": [`  & f()\n  After the print.`, [4, 7, 8, 9, 13, 14]],
-  // The `choose` line (7) and its `end` (10) start no beat: the menu's
-  // choices (8, 9) do.
   "picked choices": [
     `  choose\n    * Take it # picked\n    * Leave it -> later\n  end`,
     [4, 8, 9, 11, 15, 16],
   ],
 };
 
-// Error diagnostics of a compile, so a fixture that does not compile cleanly
-// cannot pass on a partial program. An error the compiler cannot place in the
-// source (`getDiagnostic` drops a column below zero) is only logged, as
-// `console.warn("HIDDEN", message, severity, ...)`, so the log is read too.
 function compileErrors(source: string) {
   const hidden: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
@@ -195,7 +172,6 @@ describe("address coverage", () => {
     });
   }
 
-  // The `if true then` line (13) covers its own line with its statement (#944).
   test("a glued chain covers its source lines", () => {
     expect(coveredLines(GLUED)).toEqual([4, 7, 8, 9, 10, 11, 12, 13, 14, 16]);
   });

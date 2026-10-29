@@ -1,9 +1,3 @@
-// MisleadingAndOr and ComparisonPrecedence (I-611). The upstream cases are in
-// `luau-conformance/LintCandidatesStyle.test.ts` (MisleadingAndOr,
-// ComparisonPrecedence); these are the controls around them: every
-// comparison operator, the ranges, the escape hatches Luau gives, code
-// written in a type or holding a syntax error, and code outside functions.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 
@@ -11,7 +5,6 @@ const CODES = new Set(["MisleadingAndOr", "ComparisonPrecedence"]);
 const lints = (source: string) => diagnoseDetailed(source).filter((d) => CODES.has(String(d.code)));
 const messages = (source: string) => lints(source).map((d) => d.message);
 const inFunction = (body: string) => messages(`& run()\nfunction run(a, b, c)\n${body}\nend\n`);
-/** Each warning's code and the text its range covers. */
 const covered = (source: string) => {
   const lines = source.split("\n");
   return lints(source).map((d) => ({ code: d.code, text: lines[d.range!.start.line]!.slice(d.range!.start.character, d.range!.end.character) }));
@@ -68,7 +61,6 @@ describe("MisleadingAndOr", () => {
   });
 
   test("the and that ends the left side is the one read", () => {
-    // `a and b and false or c` is `((a and b) and false) or c`.
     expect(inFunction(" print(a and b and false or c)\n print(a and false and b or c)")).toEqual([
       "The and-or expression always evaluates to the second alternative because the first alternative is false; consider using if-then-else expression instead",
     ]);

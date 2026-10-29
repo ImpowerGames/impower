@@ -1,9 +1,5 @@
-/** The struct definitions by type, then by name, each the struct's value:
- *  the table a story's `structDefinitions` holds. */
 export type StructDefinitionTable = Record<string, Record<string, any>>;
 
-/** The table of `structs`: a struct with no type is left out, and one with
- *  a type but no name makes its type's entry only. */
 export const structDefinitionTable = (
   structs: readonly StructDefinition[],
 ): StructDefinitionTable => {

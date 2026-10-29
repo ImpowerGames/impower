@@ -1,7 +1,3 @@
-// Images of the program engine's state (#699, docs/engine/binary-program.md,
-// section 7): a capture holds the positional state whole and, past a
-// keyframe, only the keyed state the write barrier marked since the capture
-// before it, and a restore puts an earlier image back in place.
 import { describe, expect, it } from "vitest";
 import {
   faithfulBudget,
@@ -23,7 +19,6 @@ import { compileScript, programSession, rootChunks } from "./programHarness";
 const story = (text: string) =>
   new ProgramStory(compileScript(text).program.chunks!);
 
-/** The text of the next `count` beats. */
 const next = (s: ProgramStory, count: number): string[] => {
   const out: string[] = [];
   while (out.length < count && s.canContinue) {
@@ -107,10 +102,6 @@ describe("a save shares a closed cell between the closures that share it", () =>
   });
 });
 
-// A scene whose beats write tables in every way the barrier hears of: a
-// store, a builtin that writes in place, a metatable, a freeze, a clear and
-// the length hint `#` leaves, with a table two globals refer to, a closed
-// cell two closures share, counts and globals.
 const WRITES = [
   "store shared = { 1, 2, 3 }",
   "store other = nil",
@@ -168,10 +159,8 @@ describe("a fork, a run and a restore", () => {
     expect(s.state.toJson()).not.toBe(before);
     expect(s.restore(image)).toBe(true);
     expect(s.state.toJson()).toBe(before);
-    // In place: the table two globals refer to is the one it was.
     expect(global(s, "shared")).toBe(shared);
     expect(global(s, "other")).toBe(shared);
-    // And the run continues as it ran.
     expect(next(s, 20)).toEqual(run);
   });
 
@@ -202,7 +191,6 @@ describe("a fork, a run and a restore", () => {
 
   it("restores an image taken before a table's first write with its pristine content, in place", () => {
     const s = story(WRITES);
-    // The image before any line ran: `shared` is as its declaration made it.
     const image = s.capture();
     const shared = global(s, "shared") as ObjectValue;
     const entries = [...shared.value!.entries()];
@@ -212,8 +200,6 @@ describe("a fork, a run and a restore", () => {
     expect(s.restore(image)).toBe(true);
     expect(global(s, "shared")).toBe(shared);
     expect([...shared.value!.entries()]).toEqual(entries);
-    // `other` was assigned after the image, so it holds what it held then;
-    // the run assigns it the same table again.
     expect(global(s, "other")?.toString()).not.toBe(shared.toString());
     expect(next(s, 1)).toEqual(["First 3 0."]);
     expect(global(s, "other")).toBe(shared);
@@ -234,7 +220,6 @@ describe("a fork, a run and a restore", () => {
     expect(stats.deltas).toBe(1);
     expect(fork.parent).toBe(keyframe);
     expect(fork.visits).toBeNull();
-    // The counts the pass visited, and `hits` and nothing else assigned.
     const visited = [...s.state.visits.keys()].filter(
       (id) => s.state.visits[id] !== (keyframe.visits![id] ?? 0),
     );
@@ -245,7 +230,6 @@ describe("a fork, a run and a restore", () => {
     expect(fork.cells.size).toBe(1);
     expect(stats.globals - globalsBefore).toBe(1);
     expect(stats.counts - countsBefore).toBe(visited.length);
-    // Siblings fork from one image: a run restores it and forks again.
     expect(s.restore(fork)).toBe(true);
     const sibling = s.capture();
     expect(sibling.parent).toBe(fork);
@@ -255,8 +239,6 @@ describe("a fork, a run and a restore", () => {
   });
 });
 
-/** An engine on `root` that shares the pristine copies of `images`, as the
- *  engine a game builds for each program shares those of the one before. */
 const sharing = (root: ProgramRoot, images?: ProgramImages) =>
   new ProgramStory(root, { images });
 
@@ -278,9 +260,7 @@ describe("a checkpoint within a session", () => {
 
   it("taken before a compile, loads after it for every statement that was not emitted again, for an edit above and below it", () => {
     for (const [before, after, shown] of [
-      // Above the checkpoint.
       ["  One.", "  Zero.\n  One.", ["Three 1.", "Four."]],
-      // Below it.
       ["  Four.", "  Four.\n  Five.", ["Three 1.", "Four.", "Five."]],
     ] as const) {
       const s = programSession(TEXT);
@@ -294,29 +274,20 @@ describe("a checkpoint within a session", () => {
     }
   });
 
-  // #699 reported this checkpoint unplaced; #1429 translates it through the
-  // old root's saved form (docs/engine/binary-program.md, section 8, Within
-  // a session).
   it("whose position names a chunk the root no longer holds is translated through its saved form, and one it cannot place is reported unplaced and never run", () => {
     const s = programSession(TEXT);
     const game = sharing(s.root);
     expect(next(game, 2)).toEqual(["One.", "Two 1."]);
-    // The position rests at the start of the statement after the beat,
-    // which the edit emits again: it is placed at the edited statement.
     const checkpoint = game.captureBeat();
     const edited = s.edit("  Three {start}.", "  Three again {start}.");
     const resumed = sharing(edited, game.images);
     expect(resumed.canRestore(checkpoint)).toBe(true);
     expect(resumed.restore(checkpoint)).toBe(true);
     expect(next(resumed, 10)).toEqual(["Three again 1.", "Four."]);
-    // A scene whose statements are all gone places nothing.
     const gone = s.edit(
       ["  One.", "  & seen = seen + 1", "  Two {seen}.", "  Three again {start}.", "  Four."].join("\n"),
       "  Elsewhere.",
     );
-    // In a body: the body is placed by its part in the listing of its
-    // owner's parts, aligned with the parts of the owner the compile
-    // emitted again with an edited condition.
     const b = programSession(
       ["store x = 1", "", "-> start", "", "scene start", "  if x == 1 then", "    One.", "    Two.", "    Three.", "  end", "  After.", "end", ""].join("\n"),
     );
@@ -361,8 +332,6 @@ describe("a reseed of the program table", () => {
 
   it("leaves a running game's counts and symbol values reading the same through the remap", () => {
     const s = programSession(TEXT);
-    // `early` is gone before the reseed, which drops it, so the ids after it
-    // move.
     const played = s.edit("scene early\n  Early.\nend\n\n", "");
     const game = sharing(played);
     expect(next(game, 10)).toEqual(["Here 1 a.", "There 1 1."]);
@@ -381,11 +350,7 @@ describe("a reseed of the program table", () => {
         played.table.symbolIds.get(name),
       );
     }
-    // The game on its own root reads its counts as it did.
     expect(counts(game, played)).toEqual([1, 1]);
-    // An image of the ended game, which names no chunk, restores into an
-    // engine on the reseeded root with its counts and symbol values taken
-    // through the remap.
     const after = sharing(reseeded, game.images);
     expect(after.restore(ended)).toBe(true);
     expect(counts(after, reseeded)).toEqual([1, 1]);
@@ -404,8 +369,6 @@ describe("a reseed of the program table", () => {
     const reseeded = s.edit("  There {there}", "  There! {there}");
     const chunks = (root: ProgramRoot) => rootChunks(root).map(chunkId);
     expect(Math.min(...chunks(reseeded))).toBeGreaterThan(Math.max(...chunks(s.root)));
-    // A sequence id goes on naming the body it named: a flow's sequence
-    // keeps its id across the cold compile (section 1).
     const body = (root: ProgramRoot, id: number) => {
       const row = root.sequence(id)!;
       return `${row.flow >= 0 ? root.table.symbols[row.flow] : row.uri}:${row.block}`;
@@ -415,7 +378,6 @@ describe("a reseed of the program table", () => {
         expect(body(reseeded, row.id)).toBe(body(s.root, row.id));
       }
     }
-    // #699 reported it unplaced; #1429 translates it (section 8).
     const resumed = sharing(reseeded, game.images);
     expect(resumed.restore(checkpoint)).toBe(true);
     expect(next(resumed, 10)).toEqual(["There! 1 1."]);
@@ -423,10 +385,6 @@ describe("a reseed of the program table", () => {
 });
 
 describe("a route search on the program engine", () => {
-  // Decisions whose branches meet again, a table written in one of them, a
-  // menu and a decision after it: a search that finds no target goes
-  // everywhere, and a fork site reached twice in the same state is
-  // expanded once.
   const BRANCHES = [
     "store a = 0",
     "store t = { x = 0 }",
@@ -467,10 +425,6 @@ describe("a route search on the program engine", () => {
     const search = (stateImages: boolean) => {
       const story = new ProgramStory(root);
       const before = { ...story.images.stats };
-      // A target no chunk holds, so the search runs until it is stopped. A
-      // search that finds no route ends in origin/main's search
-      // (`planRoute`); the one that follows the program first is given no
-      // nodes, so it takes its start's image and expands nothing.
       const nodes = faithfulBudget.nodes;
       faithfulBudget.nodes = 0;
       const plan = planRoute(story, "start", 2 ** 40, {
@@ -499,13 +453,10 @@ describe("a route search on the program engine", () => {
     expect(json.search.nodesExpanded).toBeGreaterThan(5);
     expect(json.search.forkSitesSkipped).toBeGreaterThan(0);
     expect(json.keyframes + json.deltas).toBe(0);
-    // One keyframe where each search starts, and every fork a delta.
     expect(images.keyframes).toBe(2);
     expect(images.deltas).toBeGreaterThan(5);
-    // A delta copies the globals its run assigned, never all of them.
     expect(images.globals - images.globalsInProgram).toBeLessThan(images.deltas);
     expect(images.restores).toBe(images.search.nodesExpanded);
-    // Every node restores by what changed since the image it forked from.
     expect(images.wholeRestores).toBe(0);
   });
 });
@@ -518,15 +469,10 @@ describe("images along a long run", () => {
       s.Continue();
       taken.push({ image: s.capture(), json: s.state.toJson() });
     }
-    // More images than a chain holds, so that the run took a keyframe on its
-    // own after the first.
     expect(taken.length).toBeGreaterThan(MAX_DELTA_DEPTH + 10);
     const keyframes = taken.filter(({ image }) => image.keyframe === image);
     expect(keyframes.length).toBeGreaterThan(1);
-    // A keyframe keeps nothing before it alive.
     for (const { image } of keyframes) expect(image.parent).toBeNull();
-    // Each restored out of order, so that none is the image the state was
-    // last restored from or taken at.
     const order = taken.map((_, i) => (i * 37) % taken.length);
     for (const i of order) {
       expect(s.restore(taken[i]!.image)).toBe(true);
@@ -535,10 +481,7 @@ describe("images along a long run", () => {
   });
 });
 
-// Round 1 of the review of #1579 (report 6016969769).
 describe("the digest and restores a route search reads", () => {
-  // Two tables that hold the same, and a decision that writes one or the
-  // other: the two arrivals at the line after it differ only in which.
   const TWO_TABLES = [
     "store a = { x = 0 }",
     "store b = { x = 0 }",
@@ -559,7 +502,6 @@ describe("the digest and restores a route search reads", () => {
     "",
   ].join("\n");
 
-  // A route simulator that forces every decision to `verdict`.
   const forcing = (verdict: boolean) => ({
     forceCondition: () => verdict,
     forceChoice: () => null,
@@ -582,9 +524,7 @@ describe("the digest and restores a route search reads", () => {
     const left = arrive(true);
     const right = arrive(false);
     expect(right).not.toBe(left);
-    // The same arrival reads the same.
     expect(arrive(true)).toBe(left);
-    // And they do differ: the next line reads `a.x`.
     arrive(false);
     expect(next(s, 1)).toEqual(["Then 0."]);
   });
@@ -621,7 +561,6 @@ describe("the digest and restores a route search reads", () => {
       next(s, 1);
       s.capture();
     }
-    // The run took a keyframe of its own on top of the fork's chain.
     expect(stats.keyframes).toBe(keyframes + 1);
     next(s, 2);
     s.capture();
@@ -631,7 +570,6 @@ describe("the digest and restores a route search reads", () => {
   });
 });
 
-// Round 1 of the review of #1579 (report 6017530237).
 describe("images across engines, aliases and keyframes", () => {
   it("takes a keyframe after restoring an image of an older table generation, so the counts it remapped stay remapped", () => {
     const text = [
@@ -723,7 +661,6 @@ describe("images across engines, aliases and keyframes", () => {
     const s = story(WRITES.replace("if hits < 3 then", "if hits < 40 then"));
     const stats = s.images.stats;
     expect(next(s, 1)).toEqual(["First 3 0."]);
-    // The first image is a keyframe; the chain grows from the next.
     expect(s.capture().depth).toBe(0);
     let before = s.capture();
     expect(before.depth).toBe(1);
@@ -742,12 +679,7 @@ describe("images across engines, aliases and keyframes", () => {
   });
 });
 
-// Round 2 of the review of #1579 (report 6018735541): the digest a route
-// search claims a fork site by must read two states apart exactly when they
-// can run apart, and read two equal states the same however each was
-// reached from the keyframe.
 describe("the digest of two arrivals from one keyframe", () => {
-  // A route simulator that forces every decision to `verdict`.
   const forcing = (verdict: boolean) => ({
     forceCondition: () => verdict,
     forceChoice: () => null,
@@ -756,9 +688,6 @@ describe("the digest of two arrivals from one keyframe", () => {
     saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
   });
 
-  /** Plays `text` to its first beat, keyframes it, and returns a function
-   *  that restores the keyframe, forces the decision after it to `verdict`,
-   *  plays to the line `Same.` and returns the digest of an image there. */
   const arrivals = (text: string) => {
     const s = story(text);
     expect(next(s, 1)).toEqual(["Begin."]);

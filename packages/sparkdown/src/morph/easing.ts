@@ -1,18 +1,9 @@
-// CSS timing functions as numbers: the one evaluator a morph's playback maps
-// a play's progress through. It follows CSS Easing Functions Level 1
-// (https://www.w3.org/TR/css-easing-1/) for the names and the
-// `cubic-bezier()`, `steps()` and `linear()` functions `easingProblem`
-// accepts. Inputs are the directed progress of one play, from 0 to 1; a
-// morph never animates outside a play, so the before flag CSS uses at
-// negative inputs never applies.
-
 import { own } from "./own";
 
 export type MorphEasing = (x: number) => number;
 
 const linear: MorphEasing = (x) => x;
 
-/** A CSS cubic Bézier through (0, 0) and (1, 1), solved for x. */
 function cubicBezier(x1: number, y1: number, x2: number, y2: number): MorphEasing {
   if (x1 === y1 && x2 === y2) return linear;
   const cx = 3 * x1;
@@ -59,7 +50,6 @@ function steps(count: number, position: StepPosition): MorphEasing {
   };
 }
 
-/** `linear(…)` stops, with every input placed as CSS places omitted ones. */
 function linearStops(args: string[]): MorphEasing | undefined {
   const points: { output: number; input?: number }[] = [];
   for (const arg of args) {
@@ -72,14 +62,12 @@ function linearStops(args: string[]): MorphEasing | undefined {
   if (points.length < 2) return undefined;
   if (points[0]!.input === undefined) points[0]!.input = 0;
   if (points[points.length - 1]!.input === undefined) points[points.length - 1]!.input = 1;
-  // An input below an earlier one is raised to it.
   let largest = -Infinity;
   for (const point of points) {
     if (point.input === undefined) continue;
     point.input = Math.max(point.input, largest);
     largest = point.input;
   }
-  // Runs of omitted inputs are spread evenly between their neighbours.
   for (let i = 1; i < points.length; i++) {
     if (points[i]!.input !== undefined) continue;
     let j = i;
@@ -91,7 +79,6 @@ function linearStops(args: string[]): MorphEasing | undefined {
   }
   const placed = points as { output: number; input: number }[];
   return (x) => {
-    // The last stop at or before x starts the piece; equal inputs make a jump.
     let i = placed.length - 2;
     while (i > 0 && placed[i]!.input > x) i--;
     const a = placed[i]!;
@@ -113,10 +100,6 @@ const NAMED: Record<string, MorphEasing> = {
 
 const cache = new Map<string, MorphEasing | undefined>();
 
-/**
- * The timing function `text` names, or undefined when it is not one
- * (compilation reports that; a player then plays linearly).
- */
 export function parseMorphEasing(text: string): MorphEasing | undefined {
   const key = text.trim();
   if (cache.has(key)) return cache.get(key);

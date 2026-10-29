@@ -1,78 +1,24 @@
 import type { InkDiagnostic } from "../classes/annotators/CompilationAnnotator";
 import type { LowerContext, LoweringRead } from "./context";
 
-/**
- * The lowering context as one statement's lowering sees it, recording what
- * the lowering read through it (#656; docs/engine/binary-program.md, section
- * 1, Identity). A statement inside a block's body is lowered with it when
- * statement chunks are on, and what it recorded, with the statement's
- * syntax, is the key of the statement's memo (`statementMemo.ts`): a later
- * lowering of the block serves the statement from the memo, without lowering
- * it, while every recorded read reads the same.
- *
- * Nothing about the context is listed here as an input. Every field the
- * lowering reads is recorded as it reads it, down to the value it ends at: a
- * field of the context, an entry of an array, a member of a table, a method's
- * answer for the arguments it was asked with (`globalCallableNames.has`). A
- * field added to the context is recorded the first time a lowerer reads it.
- *
- * What is not a value of the context:
- *
- * - The document. `read`, `lineNumber` and `characterNumber` answer for
- *   positions; a read of the statement's own source is its syntax, which the
- *   memo's key holds, and a read outside it, like the offset a method marked
- *   `takesOffset` is asked at, is recorded relative to the statement's
- *   start, so that the statement keeps its memo when an edit above it moves
- *   it. `documentText` and `chunkFrom` are where the statement's own nodes
- *   are read from and where its offsets count from.
- * - The diagnostics a lowering reports (`diagnostics`), which are recorded
- *   and reported again by the memo, and the statement shape its own lowering
- *   writes (`statementStack`).
- * - The memo's own session (`statementMemo`).
- *
- * A lowering that writes into the context (pushes onto a shared stack or
- * buffer, sets a field and leaves it changed), or reads a value the record
- * cannot compare (a parsed object, a syntax node, a method asked about an
- * object), cannot be served from a memo: `unkeyable` says why.
- */
 export interface ContextRecording {
   reads: ContextRead[];
-  /** The `LoweringRead`s the lowering reported (`LowerContext.recordRead`),
-   *  which the memo asks the document again. */
   loweringReads: LoweringRead[];
-  /** The diagnostics the lowering pushed onto `LowerContext.diagnostics`. */
   diagnostics: InkDiagnostic[];
-  /** Why the statement cannot be served from a memo, or null. */
   unkeyable: string | null;
 }
 
 type Primitive = string | number | boolean | null | undefined | bigint;
 
-/** A read's answer: a primitive, or the kind of value a path went through. */
 export type ContextValue = Primitive | { readonly kind: "object" | "function" };
 
-/** One step of a path through the context: a property, or a call of a
- *  method with primitive arguments (`#all` stands for every entry of a map
- *  or a set, read whole). `at` marks a call of a method whose last argument
- *  is an offset in the document (`takesOffset`), recorded relative to the
- *  statement's start. */
 export type ContextStep =
   | string
   | number
   | { readonly call: string; readonly args: readonly Primitive[]; readonly at?: true };
 
-// The methods of the context whose last argument is an offset in the
-// document (`takesOffset`).
 const offsetMethods = new WeakSet<object>();
 
-/**
- * Marks `method`, a method the context holds, as one whose last argument is
- * an offset in the document: a call of it is recorded with that offset
- * counted from the statement's start, as a read of the document outside the
- * statement is, so that the statement keeps its memo when an edit above it
- * moves it with whatever the method reads (`localInScope`), and a read
- * asks it again from where the statement now starts.
- */
 export const takesOffset = <F extends (...args: never[]) => unknown>(method: F): F => {
   offsetMethods.add(method);
   return method;
@@ -80,12 +26,8 @@ export const takesOffset = <F extends (...args: never[]) => unknown>(method: F):
 
 export type ContextRead =
   | { readonly kind: "path"; readonly path: readonly ContextStep[]; readonly value: ContextValue }
-  /** The text between two offsets relative to the statement's start. */
   | { readonly kind: "text"; readonly from: number; readonly to: number; readonly value: string }
-  /** The line of an offset relative to the statement's start, counted from
-   *  the statement's own line. */
   | { readonly kind: "line"; readonly at: number; readonly value: number }
-  /** The column of an offset relative to the statement's start. */
   | { readonly kind: "column"; readonly at: number; readonly value: number };
 
 const OBJECT: ContextValue = Object.freeze({ kind: "object" as const });
@@ -98,19 +40,6 @@ const encode = (value: unknown): ContextValue => {
   return typeof value === "function" ? FUNCTION : OBJECT;
 };
 
-/**
- * A value as a read records it for the statement that starts at `from`: a
- * name the lowering made from a place in the document (`syntheticId`: the
- * document's tag, which ends with `__`, then `$` and the place, as a loop's
- * labels are named, which the loop pushes onto `loopStack` for the `break`
- * and `continue` in its body) with the place counted from the statement's
- * start, as a read of the document outside the statement is (#1683). The
- * name says where the code that made it stands, so a statement that an edit
- * above moves with that code reads the same, as a cold compile of the moved
- * text lowers it alike. Such a name is an identifier save for its one `$`,
- * which no name an author writes holds; any other value, a document's path
- * holding `__$` among them, is recorded as it is.
- */
 const placed = (value: unknown, from: number): unknown => {
   if (typeof value !== "string") {
     return value;
@@ -128,9 +57,6 @@ const sameValue = (a: ContextValue, b: ContextValue): boolean =>
 const isPrimitive = (value: unknown): value is Primitive =>
   value === null || (typeof value !== "object" && typeof value !== "function");
 
-// The values whose members a recording follows: plain objects, arrays, maps
-// and sets. Anything else (a parsed object, a syntax node) is no value a
-// later lowering's context could be compared with.
 const followable = (value: object): boolean => {
   if (Array.isArray(value) || value instanceof Map || value instanceof Set) {
     return true;
@@ -158,8 +84,6 @@ const COLLECTION_WHOLE: ReadonlySet<string> = new Set([
   "forEach",
 ]);
 
-/** A map's or a set's entries as one string, which `#all` reads, or
- *  undefined when an entry is no primitive. */
 const wholeOf = (value: unknown): string | undefined => {
   if (!(value instanceof Map || value instanceof Set)) {
     return undefined;
@@ -175,36 +99,19 @@ const wholeOf = (value: unknown): string | undefined => {
   return JSON.stringify(entries.map((pair) => pair.map((v) => (typeof v === "bigint" ? `${v}n` : v))));
 };
 
-// The fields that are not values of the context (see `ContextRecording`).
 const POSITIONS: ReadonlySet<string> = new Set(["documentText", "chunkFrom"]);
 
-// The context each recording context stands for.
 const raws = new WeakMap<object, LowerContext>();
 
-/** The context `ctx` records reads of, or `ctx` itself when it records
- *  none. A statement of a block's body is lowered with a recording of this
- *  context, not of its owner's recording: what the statements of a body
- *  read is theirs, and no read of their owner, whose chunk holds none of
- *  their code (docs/engine/binary-program.md, section 1, Blocks and
- *  sequences). */
 export const rawContext = (ctx: LowerContext): LowerContext => raws.get(ctx) ?? ctx;
 
-// The value each recording proxy stands for. A value a lowering writes into
-// the context is written as itself, never as a proxy (`unwrap`): the
-// context outlives the recording, and code outside it compares what it reads
-// there with what it holds by identity.
 const targets = new WeakMap<object, object>();
 
-/** The value `value` stands for when it is a recording proxy, or itself. */
 const unwrap = <T>(value: T): T =>
   value !== null && typeof value === "object"
     ? ((targets.get(value as object) as T | undefined) ?? value)
     : value;
 
-/**
- * The context for lowering the statement whose node spans `[from, to)`, and
- * `finish`, which returns what the lowering recorded once it has run.
- */
 export function recordLowering(
   ctx: LowerContext,
   from: number,
@@ -219,16 +126,12 @@ export function recordLowering(
   const refuse = (why: string) => {
     recording.unkeyable ??= why;
   };
-  // The step a call of `method` with `args` records: its offset counted from
-  // the statement's start when it takes one (`takesOffset`).
   const callStep = (method: unknown, call: string, args: readonly Primitive[]): ContextStep => {
     const at = args[args.length - 1];
     return typeof method === "function" && offsetMethods.has(method) && typeof at === "number"
       ? { call, args: [...args.slice(0, -1), at - from], at: true }
       : { call, args };
   };
-  // Each path once, with the value it first read: a later read of the same
-  // path reads what the lowering itself wrote there.
   const recorded = new Set<string>();
   const record = (path: readonly ContextStep[], value: unknown) => {
     const key = JSON.stringify(path);
@@ -237,11 +140,6 @@ export function recordLowering(
       recording.reads.push({ kind: "path", path, value: encode(placed(value, from)) });
     }
   };
-  // The length of each array of the context the lowering pushed onto or
-  // took from, before it first did: a read of its length after that reads
-  // what the lowering made of that one, which is its input (a loop pushes
-  // its labels onto `loopStack` and a `break` in its body then reads the
-  // stack's top).
   const lengths = new Map<object, number>();
   const recordOnce = (key: string, read: ContextRead) => {
     if (!recorded.has(key)) {
@@ -250,13 +148,6 @@ export function recordLowering(
     }
   };
   const proxies = new WeakMap<object, object>();
-  // The objects the lowering itself made and wrote into the context, which a
-  // read returns as themselves, unrecorded: what the lowering made is no
-  // input of it (the entry a rebind writes, which a later call of the name
-  // in the same statement reads back, `recordRebind`). An
-  // object of the context the lowering writes back (a save and restore
-  // around a block) is written as itself but stays an input: a read of it
-  // returns the proxy it was read as, recording its members as before.
   const own = new WeakSet<object>();
   const owned = <T>(value: T): T => {
     const raw = unwrap(value);
@@ -265,12 +156,7 @@ export function recordLowering(
     }
     return raw;
   };
-  // Once the lowering is done, the proxies it was handed stand for the
-  // values themselves: a closure that holds one and runs later (a block's
-  // end) reads and writes the context as itself, and records nothing.
   let finished = false;
-  // Every value the lowering read whose members it then wrote, with its
-  // entries as they were first read: a write that leaves them so is none.
   const written = new Map<object, { path: string; before: string | undefined }>();
 
   const wrap = (value: unknown, path: readonly ContextStep[]): unknown => {
@@ -280,7 +166,6 @@ export function recordLowering(
     record(path, value);
     if (value === null || typeof value !== "object") {
       if (typeof value === "function") {
-        // A function the context holds: a call records its answer.
         return (...args: unknown[]) => {
           if (!args.every(isPrimitive)) {
             refuse(`${describe(path)} asked about an object`);
@@ -348,7 +233,6 @@ export function recordLowering(
           const own = /^\d+$/.test(prop) ? Number(prop) : prop;
           const value = (t as any)[prop];
           if (typeof value === "function") {
-            // An array's own methods read its entries through this proxy.
             return value;
           }
           return wrap(value, [...path, own]);
@@ -384,8 +268,6 @@ export function recordLowering(
         }
         const value = (t as any)[prop];
         if (typeof value === "function") {
-          // A method of a plain object (`globalCallableNames.has`), which
-          // answers for its arguments.
           return (...args: unknown[]) => {
             if (!args.every(isPrimitive)) {
               refuse(`${describe(path)}.${prop} asked about an object`);
@@ -419,7 +301,6 @@ export function recordLowering(
       },
     });
 
-  // Reads a map or a set whole: its entries are recorded as one value.
   const whole = (t: Map<unknown, unknown> | Set<unknown>, path: readonly ContextStep[], prop: string | symbol) => {
     const all = wholeOf(t);
     if (all === undefined) {
@@ -431,7 +312,6 @@ export function recordLowering(
     return (...args: unknown[]) => method.apply(t, args);
   };
 
-  // The values a lowering's own writes may leave changed.
   const sinks = new Set<string>();
 
   const base = (() => {
@@ -569,10 +449,6 @@ export function recordLowering(
   };
 }
 
-/** What a value holds, as far as a write can change it, for telling whether a
- *  lowering left what it wrote into as it found it: entries that are objects
- *  count by identity. Undefined for a value that is none of those a
- *  recording follows. */
 const fingerprint = (value: object): string | undefined => {
   const ids = new Map<object, number>();
   const id = (v: unknown) => {
@@ -612,14 +488,6 @@ const describe = (path: readonly ContextStep[]): string =>
     )
     .join(".");
 
-/**
- * Whether every read of `reads` reads the same in `ctx` for the statement
- * whose node now starts at `from`. A read is asked through the context as the
- * lowering asked it, so what a read's own accessor records is recorded again:
- * the global callable names and define type names the statement consulted go
- * into the record of the statement on the statement stack, as its lowering
- * would put them there.
- */
 export function readsHold(
   ctx: LowerContext,
   from: number,
@@ -656,8 +524,6 @@ export function readsHold(
             if (step.call === "#all") {
               value = wholeOf(value);
             } else {
-              // An offset counted from the statement's start is asked from
-              // where the statement starts now (`takesOffset`).
               const args = step.at
                 ? [...step.args.slice(0, -1), (step.args[step.args.length - 1] as number) + from]
                 : step.args;

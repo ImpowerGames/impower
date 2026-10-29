@@ -1,9 +1,3 @@
-// #1592 — a `store` declaration whose value the parser could not read
-// (`store y =` with nothing after the `=`) is reported once, at the end of
-// its line, where its Luau meets its end of input (#1907), and
-// the story still runs: the store is declared nil and the lines after it
-// play as story lines, as they do after an unfinished `& x =` or `local x =`.
-
 import { describe, expect, test } from "vitest";
 import { compileScript } from "../program/programHarness";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -11,8 +5,6 @@ import type { TestStory } from "../engineUnderTest";
 
 const TAIL = "Well, then,\nStory follows.\n";
 
-// Runs the story to its end, saving its state after every step as the
-// preview does, and returns what it showed.
 function runSavingEachStep(story: TestStory): string {
   let out = "";
   while (story.canContinue) {
@@ -22,7 +14,6 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
-// The error diagnostics of a compile, with their zero-based start positions.
 function errorStarts(src: string): string[] {
   const { program } = compileScript(src);
   return Object.values(program.diagnostics ?? {})

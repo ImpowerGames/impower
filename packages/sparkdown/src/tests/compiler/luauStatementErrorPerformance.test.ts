@@ -5,8 +5,6 @@ import { SparkdownCombinedAnnotator } from "../../compiler/classes/SparkdownComb
 import { parseSource } from "./grammarSnapshot";
 import { luauStatementErrors } from "../../compiler/utils/luauStatementError";
 
-// The first name of each `Hello there` line: the statement candidate a define
-// body reports (`reportDefineStatement`).
 function candidates(node: SyntaxNode, source: string, result: SyntaxNode[] = []): SyntaxNode[] {
   if (node.name === "LuauAccessPath") {
     if (source.slice(node.from, node.to).trim() === "Hello") result.push(node);
@@ -14,9 +12,6 @@ function candidates(node: SyntaxNode, source: string, result: SyntaxNode[] = [])
   return result;
 }
 
-// Count actual source reads and tree-navigation operations, rather than a
-// timing threshold that changes with machine load. Keep token/range assertions
-// alongside the work bound so skipping diagnostics cannot make this pass.
 function measure(count: number, oneFunction: boolean) {
   const source = oneFunction
     ? `function f()\n${"  Hello there\n".repeat(count)}end\n`

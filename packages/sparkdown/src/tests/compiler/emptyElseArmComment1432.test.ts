@@ -2,10 +2,6 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
 
-// An empty `else` arm of an if expression that a line comment follows reports
-// the missing expression where Luau does: at the next line's token, with its
-// `got` part (#1432).
-
 const URI = "inmemory:///main.sd";
 
 function errors(text: string) {
@@ -63,10 +59,6 @@ end
     });
   }
 
-  // A then arm that takes the next line's `b` and then meets `=` lacks its
-  // `else`. The comment after `then` must change nothing: the errors equal
-  // those of the same script without the comment, and Luau's parser reads
-  // both alike.
   const withoutComment: [string, string, string][] = [
     ["an empty then arm before a line comment", "c then -- note", "c then"],
     ["an empty then arm before a block comment", "c then --[[ note ]]", "c then"],

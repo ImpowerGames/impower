@@ -1,7 +1,3 @@
-// #664: a host that enters a scene by name (`ChoosePathString`, as the
-// preview's scrub does) gives its parameters the arguments it passes, nil for
-// each one it leaves out and an empty `...`, as a call does, so the state
-// holds values its saves, the session save and the durable one, can write.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

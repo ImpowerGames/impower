@@ -1,15 +1,3 @@
-// A trailing line comment on a TYPED define's field silently changed the
-// field's TYPE.
-//
-// `coerceScalarLiteral` anchors every literal test to the whole RHS string, so
-// `delay = 5 -- note` failed the number test and fell through to "store it as a
-// string". A number became a string, a boolean became a string, and a quoted
-// string kept both its quotes and the comment. No diagnostic in any case.
-//
-// The style-block path was already correct (see sparkleValueComments) — which
-// is what made this easy to miss: the same syntax behaves differently depending
-// on which lowerer reads it.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -56,9 +44,6 @@ describe("a trailing comment does not change a typed field's value", () => {
     });
   }
 
-  // `//` is Luau's floor division, not a comment: `5 // note` divides by a
-  // name nothing declares, which the compiler reports, and the value is the
-  // expression as written rather than the number before it.
   test("`//` is floor division, reported", () => {
     const program = compile(
       `define Bird with\n  delay = 0\nend\n` +
@@ -71,7 +56,6 @@ describe("a trailing comment does not change a typed field's value", () => {
     expect(program.context?.Bird?.robin?.delay).not.toBe(5);
   });
 
-  // Inside quotes neither a URL nor a CSS custom property is a comment.
   test("a `://` URL and a `--custom` property survive", () => {
     const out = compile(
       `define Bird with\n  name = ""\n  tint = ""\nend\n` +
@@ -84,11 +68,6 @@ describe("a trailing comment does not change a typed field's value", () => {
     expect(out?.tint).toBe("var(--theme-color-red)");
   });
 
-  // A marker INSIDE the quotes is content, never a comment — the quotes bound
-  // the literal (`stripTrailingLineComment`'s own contract). Stripping before
-  // the quote test truncated the value to a malformed half-string WITH its
-  // leading quote (`"Chapter 1`), which then also pre-empted the correct
-  // parsed-expression fallback because it wasn't `undefined`.
   test("a ` -- ` or ` // ` inside a quoted string is kept verbatim", () => {
     const out = compile(
       `define Bird with\n  name = ""\n  alt = ""\n  note = ""\nend\n` +
@@ -103,8 +82,6 @@ describe("a trailing comment does not change a typed field's value", () => {
     expect(out?.note).toBe("single -- quoted");
   });
 
-  // Both at once: content marker inside the quotes AND a real trailing
-  // comment after the closing quote.
   test("an in-string marker and a real trailing comment coexist", () => {
     const out = compile(
       `define Bird with\n  name = ""\nend\n` +

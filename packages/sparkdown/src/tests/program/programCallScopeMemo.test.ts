@@ -1,14 +1,3 @@
-// A call by name whose scope decides whether it reaches a block's local or a
-// variadic function of an enclosing function (I-810) records the same reads
-// when an edit above it only moves it (I-1354). What a statement's lowering
-// reads through the lowering context is its memo's key and part of its
-// chunk's read key (`recordLowering`, `readsKey`), so a read of where the
-// local's block starts and ends, counted from the start of the document,
-// would lower and emit the statement again after every edit above it that
-// changes the text's length. Since I-1360 a variadic function is a local like
-// any other, and the call is a call of whichever local of the name is in
-// scope where it runs, so its lowering asks no local where it is in scope
-// (I-1434).
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -30,13 +19,8 @@ const quietly = <T>(run: () => T): T => {
   }
 };
 
-// Statements between the edits and the call, so that the incremental parse
-// rebuilds none of the call's lines.
 const PADDING = Array.from({ length: 10 }, (_, i) => `    local p${i} = ${i}`);
 
-// `foo(n, ...)` returns `n` plus the count of its further arguments, so
-// `foo(1, 2)` is 2; the local function of its name that hides it in its
-// block returns 100.
 const script = (block: string) =>
   [
     "function run()",
@@ -58,8 +42,6 @@ const UNBLOCKED = "local function foo(u) return u * 100 end";
 
 type Session = ReturnType<typeof programSession>;
 
-/** What the lowering of the call's statement recorded of the context, as
- *  its memo and its chunk's read key hold it. */
 const callReads = (compiler: SparkdownCompiler): string | undefined => {
   const found: StatementShape[] = [];
   const document = compiler.documents.get(MAIN_URI)!;
@@ -83,7 +65,6 @@ const callReads = (compiler: SparkdownCompiler): string | undefined => {
   return recorded;
 };
 
-/** What the program shows, and the errors it reports. */
 const shown = (s: Session): string[] => {
   const { beats, errors } = storyBeats(new ProgramStory(s.program.chunks!));
   return [beats.map((beat) => beat.text.trim()).join(" "), ...errors];
@@ -107,10 +88,6 @@ describe("a call whose scope decides between a block's local and a variadic func
     expect(shown(s)).toEqual(["Got 2."]);
   });
 
-  // Since I-1360 the variadic function is a local of `run` too, which `g`
-  // captures, so the call is a call of whichever `foo` is in scope where it
-  // runs, by name, either way: it records the same reads, and an incremental
-  // compile still gives what a cold one does.
   it.each([
     ["out of its block, so the call reaches it", BLOCK, UNBLOCKED, "100"],
     ["into a block, so the call reaches the function", UNBLOCKED, BLOCK, "2"],
@@ -125,10 +102,6 @@ describe("a call whose scope decides between a block's local and a variadic func
 });
 
 describe("the recorded scope of a call by name (I-1354)", () => {
-  // The function lowering around the call declares `foo` in a block that
-  // spans [10, 30], from 20; the call is written in the statement that
-  // starts at 35, past the block. The enclosing function's frame holds a
-  // rebind of `foo` when `rebound` is set (`recordRebind`).
   const context = (shift: number, rebound = false) => {
     const frame = new Set(["foo"]);
     scopeDeclaredLocals(
@@ -158,8 +131,6 @@ describe("the recorded scope of a call by name (I-1354)", () => {
     const { binding, recording } = record(context(0, rebound), 35);
     expect(binding).toBe("local");
     expect(recording.unkeyable).toBeNull();
-    // Nothing asked the frame where its names are in scope, so the reads
-    // hold wherever the block is.
     const paths = recording.reads.flatMap((read) => (read.kind === "path" ? [JSON.stringify(read.path)] : []));
     expect(paths.filter((path) => path.includes("bindings") || path.includes("inScope"))).toEqual([]);
     expect(readsHold(context(100, rebound), 135, recording.reads)).toBe(true);

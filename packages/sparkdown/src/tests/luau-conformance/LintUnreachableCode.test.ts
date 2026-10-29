@@ -1,13 +1,6 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// UnreachableCode rule. Snippets and expected messages are quoted verbatim
-// and placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import { lintInFunction } from "./diagnosticTestHarness";
 
-// Luau: UnreachableCodeBasic
 describe("a statement after a block that always returns", () => {
   test("do return end, then print", () => {
     expect(
@@ -24,7 +17,6 @@ print("hi!")
   });
 });
 
-// Luau: UnreachableCodeLoopBreak
 describe("a statement after a block that always breaks", () => {
   test("do break end, then print", () => {
     expect(
@@ -42,7 +34,6 @@ print("hi!")
   });
 });
 
-// Luau: UnreachableCodeLoopContinue
 describe("a statement after a block that always continues", () => {
   test("do continue end, then print", () => {
     expect(
@@ -63,7 +54,6 @@ print("hi!")
   });
 });
 
-// Luau: UnreachableCodeIfMerge
 describe("an if whose every arm returns", () => {
   test("only the if with an else that returns in both arms", () => {
     expect(
@@ -101,7 +91,6 @@ return { foo1, foo2, foo3 }
   });
 });
 
-// Luau: UnreachableCodeErrorReturnSilent
 describe("error() followed by a final return is not reported", () => {
   test("error then return in one arm, error in the other", () => {
     expect(
@@ -121,7 +110,6 @@ return foo1
   });
 });
 
-// Luau: UnreachableCodeAssertFalseReturnSilent
 describe("assert(false) as the last statement is not reported", () => {
   test("return in an if, then assert(false)", () => {
     expect(
@@ -140,7 +128,6 @@ return foo1
   });
 });
 
-// Luau: UnreachableCodeErrorReturnNonSilentBranchy
 describe("a return after an if whose every arm errors", () => {
   test("error in both arms, then return", () => {
     expect(
@@ -162,7 +149,6 @@ return foo1
   });
 });
 
-// Luau: UnreachableCodeErrorReturnPropagate
 describe("an arm ending in error() then return still errors", () => {
   test("error+return in one arm, error in the other, then return", () => {
     expect(
@@ -185,7 +171,6 @@ return foo1
   });
 });
 
-// Luau: UnreachableCodeLoopWhile
 describe("a loop that may not run does not end its block", () => {
   test("while a do return end, then return", () => {
     expect(
@@ -203,9 +188,6 @@ return foo1
   });
 });
 
-// Luau: UnreachableCodeLoopRepeat
-// Upstream notes this silence is technically a bug (the body always
-// returns); sparkdown keeps Luau's result.
 describe("a repeat loop does not end its block", () => {
   test("repeat return until a, then return", () => {
     expect(
@@ -223,7 +205,6 @@ return foo1
   });
 });
 
-// Luau: BreakFromInfiniteLoopMakesStatementReachable
 describe("a conditional break keeps what follows the loop reachable", () => {
   test("repeat with if-break, then return", () => {
     expect(
@@ -244,10 +225,6 @@ return 1
   });
 });
 
-// Sparkdown-specific. Luau refuses a `return` that is not the last statement
-// of its block as a syntax error, which is why the upstream cases wrap it in
-// `do ... end`. Sparkdown accepts it, so the lint is what reports the dead
-// statements after it.
 describe("statements after a return in the same block", () => {
   test("return, then print", () => {
     expect(
@@ -275,8 +252,6 @@ end
   });
 });
 
-// As in Luau, an expression on the line after a bare `return` is the value it
-// returns, and a statement there is not.
 describe("the line after a bare return", () => {
   test("an expression on the next line is the returned value", () => {
     expect(

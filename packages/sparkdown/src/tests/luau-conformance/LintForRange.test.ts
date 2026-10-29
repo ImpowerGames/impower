@@ -1,16 +1,9 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// ForRange rule. Snippets and expected messages are quoted verbatim and
-// placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseWithLints, lintInFunction } from "./diagnosticTestHarness";
 
 const BACKWARDS =
   "For loop should iterate backwards; did you forget to specify -1 as step?";
 
-// Luau: ForRangeTable
 describe("counting down from a table's length without a step", () => {
   test("for i=#t,1 warns; with -1 it does not", () => {
     expect(
@@ -27,7 +20,6 @@ end
   });
 });
 
-// Luau: ForRangeBackwards
 describe("a constant range that runs backwards without a step", () => {
   test("for i=8,1 warns; with -1 it does not", () => {
     expect(
@@ -42,7 +34,6 @@ end
   });
 });
 
-// Luau: ForRangeImprecise
 describe("a fractional range that stops short of its end", () => {
   test("for i=1.3,7.5 warns; with a step it does not", () => {
     expect(
@@ -63,7 +54,6 @@ end
   });
 });
 
-// Luau: ForRangeZero
 describe("a range over a table that starts or ends at 0", () => {
   test("for i=0,#t and for i=#t,0 warn; (0) silences", () => {
     expect(
@@ -87,9 +77,6 @@ end
   });
 });
 
-// Sparkdown-specific: a length whose operand is a field, a call or another
-// length is still a bare length. The grammar spells some of these operands
-// in several nodes.
 describe("bare lengths of compound operands", () => {
   const ZERO = "For loop starts at 0, but arrays start at 1";
   test.each([
@@ -108,7 +95,6 @@ describe("bare lengths of compound operands", () => {
   });
 });
 
-// Sparkdown-specific: ranges the rule must leave alone.
 describe("ordinary ranges are not reported", () => {
   test.each([
     ["an increasing constant range", "\nfor i = 1, 10 do\nend\n"],
@@ -116,8 +102,6 @@ describe("ordinary ranges are not reported", () => {
     ["negative bounds, which are not literals", "\nfor i = -1, -5 do\nend\n"],
     ["a generic for", "\nfor k, v in pairs({}) do\nend\n"],
     ["an expression bound", "\nlocal n = 3\nfor i = n, 1 do\nend\n"],
-    // Luau's rule looks for a bare `#t`; arithmetic on it is a different
-    // bound, and counting from 0 to `#t - 1` is correct.
     ["0 to #t - 1", "\nlocal t = {}\nfor i = 0, #t - 1 do\nend\n"],
     ["0 to #t // 2", "\nlocal t = {}\nfor i = 0, #t // 2 do\nend\n"],
     ["#t - 1 down to 1", "\nlocal t = {}\nfor i = #t - 1, 1 do\nend\n"],
@@ -128,8 +112,6 @@ describe("ordinary ranges are not reported", () => {
   });
 });
 
-// A Sparkle `layout` loop is a separate construct in the grammar, and the rule
-// does not reach it (docs/compiler/LINTS.md).
 describe("a loop in a Sparkle layout is not checked", () => {
   test("for i = 8, 1 in a layout", () => {
     expect(

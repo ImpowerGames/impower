@@ -36,110 +36,44 @@ import { parameterKinds } from "./ProgramFacts";
 import { Op } from "./ProgramInstructions";
 import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
 
-/** What the compile knows of one top-level statement: where it stands, its
- *  syntax, the lowering inputs it recorded, and the shape its lowering found
- *  (`StatementShape`), whose offsets count from the statement's start. */
 export interface StatementRecord {
   uri: string;
-  /** The statement's first line in its script, counting from 0. */
   line: number;
-  /** The statement's source text. */
   source: () => string;
-  /** The statement's node name, starting column and source text. */
   syntax: () => string;
   reads: string;
   range: DebugMetadata | null;
-  /** The shape the statement's lowering recorded. */
   shape?: StatementShape;
-  /** The line (counting from 0) and column of an offset relative to the
-   *  statement's start. */
   lineAt?: (offset: number) => number;
   columnAt?: (offset: number) => number;
-  /** The text between two offsets relative to the statement's start. */
   text?: (from: number, to: number) => string;
-  /** The text the statement's fingerprint hashes, its source as the
-   *  script's parse reads it (`fingerprintSource`). */
   fingerprint: () => string;
-  /** The text a fingerprint hashes of the source between two offsets
-   *  relative to the statement's start, with each range of `cuts`, relative
-   *  too, standing for one body (`fingerprintSource`). */
   fingerprintOf?: (
     from: number,
     to: number,
     cuts?: readonly { from: number; to: number }[],
   ) => string;
-  /** The column at which a line of the script ends. */
   lineEnd?: (line: number) => number;
 }
 
 export interface ProgramFlowsInput {
-  /** The assembled parsed story of the compile. */
   story: Story;
-  /** The script the compile started from, whose top-level content is the
-   *  program's top-level flow. */
   uri: string;
-  /** The script the compiler seeds the builtins from, whose top-level
-   *  content holds declarations alone. */
   preludeUri?: string;
-  /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
-  /** How many lines a script has. */
   lineCount(uri: string): number;
-  /** The line of the `end` that closes the scene or branch whose header
-   *  stands on `header` in the script `uri`, counting from 0. */
   flowEndLine?(uri: string, header: number): number | undefined;
 }
 
-/** The program's flows as the chunk store builds them, and the first
- *  construct among them the writer has no emit path for. */
 export interface ProgramFlows {
   flows: FlowSource[];
-  /** The global declarations, one source per run of a declaring statement's
-   *  globals, in the order the story initializes them. */
   declarations: DeclarationSource[];
-  /** The first placement the build-out has not reached, in program order. */
   unsupported?: UnsupportedConstructSite;
-  /** Every such placement, counted by the construct it names. */
   unsupportedCounts: Record<string, number>;
-  /** How many functions the program has: the functions declared at the top
-   *  level and those written inside statements. */
   functions: number;
 }
 
-/**
- * The flows of an assembled parsed story, each as the statements its weave
- * holds, grouped by the compiled block each placed object came from. The top
- * level of the starting script is the flow named by the empty string; a scene
- * or a branch is a flow named by its qualified name. A block statement's
- * statements carry the statements of its bodies, from the shape its lowering
- * recorded.
- *
- * The story places the top-level content of each story it includes in the
- * top level, in a weave of its own (`Story.PreProcessTopLevelObjects`): the
- * builtins prelude's, which holds declarations alone, and each script's
- * other than main, which holds declarations and the writes of its member
- * functions (`function api.f()`). Such a write is a declaration of its script that
- * declares no global (`memberWrites`): it runs after every global
- * initializes, in the order the story places the scripts (path order, after
- * main's), and before the top level runs, so no flow stands for it
- * (I-1438). An `include` line includes nothing, and a `run` statement is a
- * call of its file's wrapper where its line stands, a statement like any
- * other (I-1439).
- *
- * The compiler adds a few objects of its own: the `-> DONE` that ends a flow
- * that does not end itself, and the final gather and `done` of the top level.
- * A sequence that runs out ends its flow as those do, so they are left out.
- * Any other placement the build-out has not reached names a construct: an
- * object no statement placed. A scene or a branch that takes parameters
- * starts with the statement that binds them (`flowEntry`), and one that
- * enters no branch ends with a statement of its own (`flowEnd`).
- *
- * The global declarations become the declaration statements of their
- * scripts, each holding the globals it declares in the order the story's
- * `global decl` container initializes them (constants first), under the
- * names that container assigns them.
- */
 export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const flows: FlowSource[] = [];
   const out: ProgramFlows = {
@@ -153,16 +87,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     out.unsupportedCounts[construct] = (out.unsupportedCounts[construct] ?? 0) + 1;
   };
   const headerLines: { uri: string; line: number }[] = [];
-  // The flows of the functions declared at the top level, which span their
-  // own definitions.
   const functionFlows: FlowSource[] = [];
-  // The writes of the member functions of the scripts other than main, in
-  // the order the story places them (`memberWrites`).
   const writes: DeclarationSource[] = [];
 
-  /** The statements of `content`, a flow's weave, written in the script
-   *  `uri`. The weave of an included story's top-level content holds none of
-   *  them (`memberWrites`). */
   const statementsOf = (
     content: readonly ParsedObject[],
     uri: string,
@@ -177,14 +104,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       }
       const record = input.record(block);
       if (objects.every(isDeclaration)) {
-        // A statement that only declares runs nothing where it is written;
-        // its globals initialize with the declarations below.
       } else if (!record) {
         fail("Statement", uri, flowLine);
       } else if (record.uri !== uri) {
-        // The story keeps each script's top level in a weave of its own
-        // (`memberWrites` below), so a statement of another script in this
-        // list is a placement the listing does not know.
         fail("a statement of another script", record.uri, record.line);
       } else {
         statements.push(topLevelStatement(block, objects, record));
@@ -198,12 +120,8 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
         if (!owner) {
           close();
           if (obj instanceof Weave) {
-            // An included story's top level, which the story places in the
-            // top level, followed by the newline it places after it.
             memberWrites(obj);
           } else if (isDeclaration(obj)) {
-            // A declaration placed by no statement the compile recorded;
-            // the declarations below name it if it declares a global.
           } else if (!isCompilerEnding(list, i) && !isIncludeNewline(obj)) {
             fail(obj.typeName, uri, flowLine);
           }
@@ -214,10 +132,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
           block = owner;
         }
         if (obj instanceof Weave && obj.isChooseBlock && obj.assembledFrom) {
-          // A `choose` block that ends its chunk: the assembly placed a weave
-          // of its own in place of the block's, which goes on to hold the
-          // content of the chunks after it, as statements after the block.
-          // The block's statement is the weave its chunk lowered.
           objects.push(obj.assembledFrom);
           visit(obj.content.slice(obj.assembledFrom.content.length));
           return;
@@ -230,36 +144,16 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     return statements;
   };
 
-  /** The statements of an included story's top level, `weave`, each as a
-   *  declaration of its script that declares no global, which runs with the
-   *  declarations after the globals (I-1438). Only a member function's write
-   *  of a script other than main is such a statement: the rest of an
-   *  included story's top level declares, and its globals initialize with
-   *  the declarations below. The newline the story places after it shows
-   *  nothing and is left out (`isIncludeNewline`). */
   const memberWrites = (weave: Weave) => {
     const uri = scriptOf(weave.content, input);
     if (uri === undefined) {
       return;
     }
     for (const statement of statementsOf(weave.content, uri, 0)) {
-      // Known by a key of its own, kept for as long as the statement's block
-      // is: a statement that declares a global and writes a member function
-      // (`& store api = {}; function api.f() end`) is a declaration of that
-      // global under its block too, in the same declaration sequence.
       writes.push({ ...statement, block: writeKey(statement.block), uri, globals: [] });
     }
   };
 
-  // A function declared at the top level is a flow of its own, whose one
-  // statement is its definition: the chunk binds the parameters and enters
-  // the body. So is one written at the top level inside a `do` block, whose
-  // content the story takes as its own, with the function among its flows:
-  // its definition is the statement of the block's body that writes it. So
-  // is the evaluator a UI binding's lowering hoisted to the top level under a
-  // name of its own, whose definition is the binding's source. A function a
-  // statement creates as a value is a block of that statement's chunk, which
-  // the statement's source carries.
   const visitFunction = (flow: FlowBase, header: object | undefined) => {
     out.functions += 1;
     const own = functionShapeOf.get(flow);
@@ -276,9 +170,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     const shape = record?.shape;
-    // The definition at the top level is the statement, whose function the
-    // compile builds anew as the story's flow; one inside a block is the
-    // statement that writes the flow itself.
     const writer = !shape
       ? undefined
       : shape.bodies.some((b) => functionOfBody.has(b))
@@ -329,11 +220,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     headerLines.push({ uri: record.uri, line: record.line });
-    // A scene whose content starts with a branch enters that branch, as the
-    // object engine's knot diverted to its first stitch: one that
-    // takes no parameters by
-    // its row in the root, and one that takes some from its entry, after it
-    // binds them.
     const first = flow.content?.[0];
     const start =
       flow instanceof Knot &&
@@ -361,13 +247,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
     const startsWith = flow.hasParameters ? undefined : start;
     if (start === undefined) {
-      // A flow that enters no branch ends where its sequence runs out, on the
-      // line of its closing `end`. Only an empty flow has a row there, which
-      // its header falls through to: every other flow's `end` keeps the
-      // address of the line below it, and the player reaches the flow's end
-      // by its address (`ProgramRoot.flowEndAddress`). A scene whose content
-      // is branches it does not enter (the first takes parameters) has no
-      // row there either, since that line is in its last branch's lines.
       const opensBranch = first instanceof FlowBase && !first.isFunction;
       const end = input.flowEndLine?.(record.uri, record.line);
       statements.push(
@@ -405,8 +284,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     visitFlow(flow, "");
   }
 
-  // A flow's body runs to the line before the next flow's header in its
-  // script, or to the script's end; the top level runs to the first header.
   for (const flow of flows) {
     let end = input.lineCount(flow.uri);
     for (const header of headerLines) {
@@ -422,22 +299,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   }
   flows.push(...functionFlows);
 
-  // The globals the story initializes, in its order and under the names it
-  // assigns them (their keys in `variableDeclarations`), each given to the
-  // statement that declares it: its own placement's, or for a constant the
-  // placement of its `const` statement. A statement's globals that the story
-  // initializes one after another are one declaration; a statement whose
-  // globals it initializes with another statement's between them (a block
-  // that declares a constant, which the story initializes before every
-  // variable) is a declaration per run, so that the declarations run in the
-  // story's order.
   let current: { block: object; source: DeclarationSource } | undefined;
   const runs = new Map<object, number>();
   for (const [name, declaration] of input.story.variableDeclarations) {
     if (!declaration.isGlobalDeclaration || !declaration.expression) {
       continue;
     }
-    // A declaration inside a block's body is placed with the block.
     let placed: ParsedObject | null = declaration.isConstantDeclaration
       ? declaration.expression.parent
       : declaration;
@@ -452,10 +319,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       continue;
     }
     if (current?.block !== block) {
-      // A declaration statement is its whole text, a block statement's
-      // bodies included, since a declaration can stand inside a body. A
-      // later run of the same statement is known by a key of its own, kept
-      // for as long as the statement's block is.
       const run = runs.get(block) ?? 0;
       runs.set(block, run + 1);
       current = {
@@ -477,10 +340,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       };
       out.declarations.push(current.source);
     }
-    // The statement's objects are its globals' initializers, which the
-    // store reads the recorded values of. A function an initializer creates
-    // (a `define`'s method, a closure a `store` holds) is a block of the
-    // declaration's chunk.
     (current.source.globals as DeclaredGlobal[]).push({
       name,
       assignment: declaration,
@@ -497,15 +356,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       current.source.lineEnd = record.lineEnd;
     }
   }
-  // The member functions' writes run after every global initializes, as
-  // they ran when the top level ran them first: a write into a table another
-  // script declares finds it (`memberWrites`). A write's statement can also
-  // declare a global (`& store api = { make = function() … end }; function
-  // api.f() … end`), whose initializer's functions are bodies of the global's
-  // declaration: the write leaves them out, so it does not plan their
-  // symbols after the global and take the global's functions for its own
-  // (`ChunkStore.planFunctions` gives a function the symbol of the last
-  // statement planned with it).
   const globalFunctions = new Set<ParsedObject>();
   for (const declaration of out.declarations) {
     for (const body of declaration.bodies ?? []) {
@@ -525,16 +375,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   return out;
 };
 
-/**
- * The code that binds the parameters of a scene or a branch where the flow
- * is entered (docs/engine/binary-program.md, section 1): a `SetVar` with the
- * declare flag per parameter, last first as a divert pushed the arguments,
- * the `...` with the varargs flag, as the object engine's flow container
- * starts (`FlowBase.GenerateArgumentVariableAssignments`); then, for a scene
- * whose content starts with a branch that takes no parameters, the jump to
- * that branch, as the object engine's knot diverted to its first stitch
- * after it binds.
- */
 export class FlowEntry extends ParsedObject {
   constructor(
     readonly flow: FlowBase,
@@ -547,7 +387,6 @@ export class FlowEntry extends ParsedObject {
     return "FlowEntry";
   }
 
-  /** Nothing: the writer emits it, and generation makes nothing of it. */
   protected override Prepare(): boolean {
     return false;
   }
@@ -561,11 +400,6 @@ export class FlowEntry extends ParsedObject {
       })),
     );
     if (this.start) {
-      // The jump the entry ends with, which reads nothing of its target as a
-      // divert's does. The entry records no resolution: it holds no parsed
-      // object whose resolution the store could read again, and its syntax
-      // names the target, so a different target is a statement that reads
-      // otherwise.
       const symbol = emitter.targetSymbol(this.start.flow, this.start.name);
       emitter.referenceTarget(symbol);
       emitter.emit(Op.JumpSym, symbol);
@@ -573,18 +407,8 @@ export class FlowEntry extends ParsedObject {
   }
 }
 
-// The key of each flow entry a header has had, by the entry's syntax, so a
-// header the compile carried keeps its entry's key while the entry reads the
-// same.
 const entryKeys = new WeakMap<object, Map<string, object>>();
 
-/** The statement of a scene or a branch that takes parameters which binds
- *  them (`FlowEntry`): the first of the flow's sequence, standing on the
- *  flow's header line, the line before the body's first, so that a jump to
- *  the flow runs it and a jump to a label of the flow, which the label's own
- *  chunk exports, does not. Its syntax is the flow's name, its parameters
- *  and the branch it goes on to, which is everything its code depends on,
- *  so an edit to its parameter list emits it again. */
 const flowEntry = (
   flow: FlowBase,
   name: string,
@@ -621,20 +445,11 @@ const flowEntry = (
   };
 };
 
-/**
- * The end of a scene or a branch that enters no branch: the `Done` its
- * sequence runs out as, which the writer otherwise leaves out. It gives the
- * place where the flow finishes an address of its own, which a route reaches
- * only when a run runs off the flow's end, so PLAY and the preview at the
- * flow's closing `end` show the story as it stands then (I-1618). Running it
- * does what running out of the sequence does (`ProgramStory.done`).
- */
 export class FlowEnd extends ParsedObject {
   override get typeName(): string {
     return "FlowEnd";
   }
 
-  /** Nothing: the writer emits it, and generation makes nothing of it. */
   protected override Prepare(): boolean {
     return false;
   }
@@ -644,8 +459,6 @@ export class FlowEnd extends ParsedObject {
   }
 }
 
-/** The start of the line `line` (counting from 0) as a statement's range,
- *  whose line table row puts the statement on that line. */
 const lineRange = (line: number): DebugMetadata => {
   const range = new DebugMetadata();
   range.startLineNumber = line + 1;
@@ -655,8 +468,6 @@ const lineRange = (line: number): DebugMetadata => {
   return range;
 };
 
-/** The line after the last line `statements` hold, or after `header` when
- *  there are none. */
 const lineAfter = (
   statements: readonly StatementSource[],
   header: number,
@@ -671,19 +482,8 @@ const lineAfter = (
   return last + 1;
 };
 
-// The key of each flow end a header has had, by the flow end's syntax, so a
-// header the compile carried keeps its flow end's key while the flow end
-// reads the same.
 const flowEndKeys = new WeakMap<object, Map<string, object>>();
 
-/** The `FlowEnd` of the scene or branch whose header is `header`, standing
- *  on `line`, with a line table row there when `row` is set: an empty
- *  flow's, whose header and `end` resolve to it. Without a row no line
- *  resolves to it, and it stands where its location reads. Its source is
- *  the same for every flow and its syntax says only whether it has a row,
- *  which is everything its chunk depends on: the row counts from the
- *  statement's own line, so a move of that line or a rename of its flow
- *  changes nothing. */
 const flowEnd = (
   header: object,
   line: number,
@@ -711,8 +511,6 @@ const flowEnd = (
   };
 };
 
-/** The script whose top level the content of an included weave is: that of
- *  the first object a statement placed there, or nothing when none did. */
 const scriptOf = (
   content: readonly ParsedObject[],
   input: ProgramFlowsInput,
@@ -727,13 +525,6 @@ const scriptOf = (
   return undefined;
 };
 
-/** The flow of a UI binding's evaluator (`FunctionShape.named`): a function
- *  flow named by the evaluator's name, whose one statement defines it, holds
- *  the binding's source and has the evaluator's body as its one body. The
- *  definition is known by the evaluator, which the compile keeps for as long
- *  as it keeps the statement whose lowering built it. A statement of the body
- *  that has no range of its own takes the evaluator's, which is the
- *  binding's. */
 const evaluatorFlow = (
   flow: FlowBase,
   own: FunctionShape,
@@ -777,9 +568,6 @@ const evaluatorFlow = (
   };
 };
 
-/** The bodies of the functions the objects create as values, with their
- *  statements, for a statement whose own shape does not hold them (a
- *  declaration, whose initializers are the objects). */
 const functionBodiesOf = (
   objects: readonly ParsedObject[],
   record: StatementRecord,
@@ -803,15 +591,12 @@ const functionBodiesOf = (
         );
       }
     }
-    // A call reaches its arguments through `args`, since a call the runtime
-    // tree was generated for no longer holds them in `content`.
     const children = obj instanceof FunctionCall ? obj.args : obj.content;
     for (const child of children ?? []) {
       visit(child);
     }
   };
   objects.forEach(visit);
-  // In source order, so that each body's lines follow the one above it.
   out.sort((a, b) => a.firstLine - b.firstLine);
   let above = record.line;
   return out.map((body) => {
@@ -821,9 +606,6 @@ const functionBodiesOf = (
   });
 };
 
-/** Whether `obj` holds a divert target at any depth, which a function a
- *  declaration's initializer creates is (`functionBodiesOf`). An object's
- *  syntax never changes once it is lowered, so each is walked once. */
 const holdsDivertTarget = (obj: ParsedObject): boolean => {
   let holds = divertTargetHolders.get(obj);
   if (holds === undefined) {
@@ -839,9 +621,6 @@ const holdsDivertTarget = (obj: ParsedObject): boolean => {
 
 const divertTargetHolders = new WeakMap<ParsedObject, boolean>();
 
-// The keys of the runs after the first of a statement's declarations.
-// The key of a member function's write, by its statement's block
-// (`memberWrites`).
 const writeKeys = new WeakMap<object, object>();
 
 const writeKey = (block: object): object => {
@@ -864,12 +643,6 @@ const runKey = (block: object, run: number): object => {
   return (keys[run - 1] ??= {});
 };
 
-/** A statement source for a top-level statement, with the statements of its
- *  bodies when it is a block statement. A block the incremental parse
- *  carried keeps its record (`SparkdownCompiler.statementRecord`), whose
- *  readers read where the block stands now; while it stands on the same line
- *  with the same objects, its source is the one the compile before built,
- *  whose lines are its lines. */
 const topLevelStatement = (
   block: object,
   objects: ParsedObject[],
@@ -922,9 +695,6 @@ const statementOfRecord = (
   return statementOf(block, objects, record.range, record.line, shape, record);
 };
 
-/** A statement source for a statement with the shape `shape`. A statement
- *  whose function runs in place (`emitFunctionInPlace`) runs its body as a
- *  block of its own, as it runs a `do` block's. */
 const statementOf = (
   block: object,
   objects: ParsedObject[],
@@ -939,8 +709,6 @@ const statementOf = (
   const bodies: BodySource[] = [];
   let above = firstLine;
   const cuts: { from: number; to: number }[] = [];
-  // In source order: a function written in a loop's condition is lowered
-  // before the loop's body, but stands above it.
   const ordered = [...shape.bodies].sort((a, b) => a.headEnd - b.headEnd);
   for (const body of ordered) {
     const statements = bodyStatements(body).map((nested) =>
@@ -951,11 +719,6 @@ const statementOf = (
     above = source.firstLine + source.span;
     cuts.push({ from: lineAt(body.headEnd) + 1, to: lineAt(body.nextStart) });
   }
-  // The statement's own source is its text with the lines between the part
-  // that heads each body and the part after it left out, so that an edit
-  // inside a body leaves it as it was. A line that holds a part keeps what
-  // a body writes on it (`if x then n = 1 end`), since the part and the
-  // statement's rows, which hold columns, stand beside it.
   let own: string | undefined;
   const ownSource = () =>
     (own ??= cutLines(text(shape.from, shape.to), lineAt(shape.from), cuts));
@@ -982,11 +745,6 @@ const statementOf = (
   };
 };
 
-/** A statement of a body, from the shape its lowering recorded, without a
- *  flow the story took out of a `do` block it is (`bodyStatements`). Its
- *  syntax is read as a top-level statement's is, from the start of its node
- *  with the line's indentation, so that a statement moved into a body or out
- *  of one keeps its syntax. */
 const nestedStatement = (
   shape: StatementShape,
   record: StatementRecord,
@@ -994,8 +752,6 @@ const nestedStatement = (
   const firstLine = record.lineAt!(firstNonSpace(record.text!, shape));
   const served = shape.objects[0];
   if (served && memoOf(served) && shape.memo && shape.bodies.length > 0) {
-    // A block statement served from its memo, with the statements of its
-    // bodies, each served too.
     return {
       ...statementOf(shape.memo, [], served.ownDebugMetadata, firstLine, shape, record),
       memo: true,
@@ -1003,8 +759,6 @@ const nestedStatement = (
     };
   }
   if (served && memoOf(served) && shape.memo) {
-    // A statement served from its memo holds no objects: it keeps the chunk
-    // its memo holds, which the store finds by the memo (`ChunkStore`).
     let source: string | undefined;
     const sourceOf = () => (source ??= record.text!(shape.from, shape.to));
     let fingerprint: string | undefined;
@@ -1030,8 +784,6 @@ const nestedStatement = (
   const range = objects[0]?.ownDebugMetadata ?? null;
   if (shape.bodies.length > 0) {
     return statementOf(
-      // A block statement the memo remembered is known by its memo, as any
-      // statement it remembered is (below).
       shape.memo ?? shape,
       objects,
       range,
@@ -1046,8 +798,6 @@ const nestedStatement = (
   let fingerprint: string | undefined;
   let syntax: string | undefined;
   return {
-    // A statement the memo remembered is known by its memo, which a later
-    // lowering that serves it hands the store again.
     block: shape.memo ?? shape,
     objects,
     range,
@@ -1061,13 +811,6 @@ const nestedStatement = (
   };
 };
 
-/** A body's source: its statements and its lines. It runs from the line
- *  after the part that heads it to the line before the part after it; a
- *  statement written on the heading part's line, or on the next part's,
- *  widens it to hold the statement. `above` is the line after the owner's
- *  previous body, or the owner's first line. A function's body carries the
- *  function, and the function's own source as `fingerprintOf` reads it,
- *  unless the function runs in place (`inPlace`). */
 const bodyOf = (
   shape: BodyShape,
   statements: StatementSource[],
@@ -1104,9 +847,6 @@ const bodyOf = (
   };
 };
 
-// The offset of a statement's first character that is not a space or tab,
-// relative to the top-level statement's start: a node starts with its line's
-// indentation.
 const firstNonSpace = (
   text: (from: number, to: number) => string,
   shape: StatementShape,
@@ -1116,8 +856,6 @@ const firstNonSpace = (
   return shape.from + skipped;
 };
 
-// `text`, whose first line is `firstLine`, with each range of lines in
-// `cuts` replaced by one line that stands for a body.
 const cutLines = (
   text: string,
   firstLine: number,
@@ -1137,9 +875,6 @@ const cutLines = (
   return kept.join("\n");
 };
 
-// The ranges of `text`, which starts at offset `from`, that `cutLines`
-// leaves out for `bodies`, in source order: from the line after the part
-// that heads each body to the line of the part after it.
 const cutRanges = (
   text: string,
   from: number,
@@ -1160,10 +895,6 @@ const cutRanges = (
   return out;
 };
 
-/** The recorded reads of a statement as one string, which a chunk compares
- *  to decide whether its statement's lowering read the same. A statement's
- *  reads are recorded once, as it is lowered, and a statement lowered again
- *  records new ones, so the string is made once per statement. */
 export const readsKey = (reads: StatementReads): string => {
   let key = readsKeys.get(reads);
   if (key === undefined) {
@@ -1181,33 +912,20 @@ export const readsKey = (reads: StatementReads): string => {
 
 const readsKeys = new WeakMap<StatementReads, string>();
 
-/** The statements of a body that run where the body stands: every statement
- *  its lowering recorded but one that writes a function the story took out
- *  of the block as a flow of its own. The story takes the flows out of its
- *  own content, which a `do` block written at the top level lowers into
- *  (`FlowBase.SplitWeaveAndSubFlowContent`), and a `do` block inside it too;
- *  such a function's definition is a statement of its flow, and the block's
- *  body holds nothing of it. */
 export const bodyStatements = (body: BodyShape): StatementShape[] =>
   body.statements.filter(
     (statement) =>
       statement.objects.length === 0 || !statement.objects.every(isStoryFlow),
   );
 
-/** The objects of a body's statements that run where the body stands: those
- *  of `bodyStatements`, without a flow the story took out of a `do` block
- *  those statements hold. */
 export const heldObjectsOf = (body: BodyShape): ParsedObject[] =>
   bodyStatements(body).flatMap((statement) =>
     statement.objects.filter((obj) => !isStoryFlow(obj)),
   );
 
-// A flow the story holds among its own.
 const isStoryFlow = (obj: ParsedObject): boolean =>
   obj instanceof FlowBase && obj.parent !== null && obj.parent === obj.story;
 
-/** The statement that writes the function `flow`, among the statements of
- *  `shape`'s bodies at any depth. */
 const writerOf = (
   shape: StatementShape,
   flow: ParsedObject,
@@ -1231,8 +949,6 @@ const isDeclaration = (obj: ParsedObject): boolean =>
   obj instanceof ConstantDeclaration ||
   obj instanceof AuthorWarning;
 
-// The `-> DONE` the compiler ends a flow with, and the final gather and
-// `done` it ends the top level with (`FlowBase.SplitWeaveAndSubFlowContent`).
 const isCompilerEnding = (
   content: readonly ParsedObject[],
   i: number,
@@ -1249,8 +965,5 @@ const isCompilerEnding = (
   );
 };
 
-// The newline the story places where an included story's top-level content
-// ends (`Story.PreProcessTopLevelObjects`), after content that shows nothing
-// (`memberWrites`).
 const isIncludeNewline = (obj: ParsedObject | undefined): boolean =>
   obj instanceof Text && obj.text === "\n";

@@ -1,17 +1,8 @@
-// #1210 — a bare `count = 0` at the top level makes `count` a global only as
-// its assignment resolves, after every call the compile generates has found
-// its target. A call in a scene whose flow run an incremental compile reuses
-// finds its target again after that, and must resolve as a cold compile
-// does: to the function `count`, which a global made that way does not
-// shadow, while a global declared with `store` does, and a global made that
-// way that no flow is named after is the call's target.
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
-// With `start`, the top level diverts to scene B, so that a run from the
-// start assigns the global before the call.
 const script = (global: string, call: string, fn: string[], start = "") =>
   [
     global,
@@ -42,7 +33,6 @@ const file = (text: string) => ({
   languageId: "sparkdown",
 });
 
-/** A compiler and a story of its latest compile's program. */
 function compiler(text: string) {
   const c = testCompiler();
   c.configure({ files: [file(text)] as never });
@@ -53,8 +43,6 @@ function compiler(text: string) {
   };
 }
 
-/** What running scene `scene`, or the story from its start, shows: its text
- *  and the errors it raised. */
 function play(story: any, scene?: string) {
   const errors: string[] = [];
   const text: string[] = [];
@@ -69,9 +57,6 @@ function play(story: any, scene?: string) {
   return { text, errors };
 }
 
-/** Scene B, or with `fromStart` the story from its start, run on the story of
- *  a compile that followed an edit of scene A, and on a cold compile's story
- *  of the edited text. */
 function afterEditingSceneA(text: string, fromStart = false) {
   const scene = fromStart ? undefined : "B";
   const { warn, error } = console;

@@ -1,9 +1,3 @@
-// Text in a function body that Luau rejects is reported with Luau's error, at
-// Luau's range, as Luau's parser reports it for the same pure-Luau source:
-// an assignment written after an if expression's else value (#1205), and a
-// table type annotation whose field is written as an assignment (#1261).
-// Where the function body ends for #1261 is checked with the tiling slice
-// (#1905).
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
@@ -28,7 +22,6 @@ function compile(text: string) {
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
-/** Each error the compile reports, as `line:column-line:column message`. */
 function errors(text: string): string[] {
   const found: string[] = [];
   for (const list of Object.values(compile(text).diagnostics ?? {}) as any[]) {
@@ -45,7 +38,6 @@ function errors(text: string): string[] {
   return found;
 }
 
-/** Each error Luau's parser reports for the same text, in the same form. */
 function luauErrors(text: string): string[] {
   return officialSyntaxErrors(text).map(
     ({ message, location: { begin, end } }) =>
@@ -69,8 +61,6 @@ describe("an assignment after an if expression's else value (#1205)", () => {
     expect(errors(text)).toEqual(expected);
   });
 
-  // A story declaration ends at its line (#1907), so its else value is
-  // missing at the line's end and the next line is not read into it.
   it("after a scene's `local` declaration, is the missing else value at the line's end", () => {
     expect(
       errors("-> start\nscene start\n  local a = false\n  local y = 0\n  local x = if a then 1 else\n    y = 6\nend\n"),

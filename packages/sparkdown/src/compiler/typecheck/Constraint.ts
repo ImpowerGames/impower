@@ -31,7 +31,6 @@ export interface PackSubtypeConstraint {
   readonly kind: "PackSubtypeConstraint";
   subPack: TypePackId;
   superPack: TypePackId;
-  /** Whether the constraint checks a `return` against the function's return pack. */
   returns: boolean;
 }
 
@@ -192,16 +191,9 @@ export type ConstraintV =
 
 export type ConstraintKind = ConstraintV["kind"];
 
-/**
- * What constraint generation hands the solver (Luau's `ConstraintSet`). The
- * constraints themselves, the free types and the function of each signature
- * scope live in the `ConstraintGraph`.
- */
 export interface ConstraintSet {
   rootScope: Scope;
-  /** The rare errors constraint generation itself reports. */
   errors: LuauTypeError[];
-  /** The module's generalization constraints, dispatched after every other constraint. */
   deferredConstraints: Constraint[];
 }
 
@@ -221,10 +213,6 @@ export class Constraint {
     return this.c.kind === kind ? (this.c as Extract<ConstraintV, { kind: K }>) : undefined;
   }
 
-  /**
-   * The types this constraint may mutate the bounds of. Reduce and
-   * generalization constraints only bind types, so they contribute none.
-   */
   getMaybeMutatedTypes(): { types: TypeId[]; typePacks: TypePackId[] } {
     const rci = new ReferenceCountInitializer();
     const c = this.c;
@@ -277,8 +265,6 @@ export class Constraint {
         break;
       case "UnpackConstraint":
         for (const ty of c.resultPack) rci.traverse(ty);
-        // The source pack is mutated through the result, as `new[key] = value`
-        // mutates the table `table.clone` returned.
         rci.traversePack(c.sourcePack);
         break;
       case "ReducePackConstraint":
@@ -297,7 +283,6 @@ export class Constraint {
   }
 }
 
-/** Collects the types a constraint may mutate: free, blocked and pending types, and unsealed or free tables. */
 export class ReferenceCountInitializer extends TypeOnceVisitor {
   readonly mutatedTypes = new Set<TypeId>();
   readonly mutatedTypePacks = new Set<TypePackId>();

@@ -1,20 +1,3 @@
-// `@/pattern/flags` regex literals.
-//
-// Regexes previously lived in double-quoted strings, which forced DOUBLED
-// backslashes (`"\\p{L}"`) and collided with `{expr}` interpolation — a
-// `{2,}` quantifier parsed as an interpolation and errored with
-// "Cannot find variable named `L`".
-//
-// A literal lowers to the VERBATIM `@/pattern/flags` string, which is exactly
-// what the quoted form produced, so the runtime `Matcher` (which already splits
-// `@/source/flags`) is unchanged.
-//
-// The delicate part is DIVISION: `@/` is also an operator. Two things contain it
-// — the rule sits AFTER `LuauArithmeticOperation` in the expression
-// alternation, and the char after the opening `@/` may not be whitespace, `=`
-// or `@/`. The division cases below are the regression net (the Luau conformance
-// fixtures use `a / 2`, `1 / 0`, `a / (`).
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -56,13 +39,11 @@ describe("regex literals", () => {
     expect(lit.diags).toEqual([]);
     const got = (lit.program.context as any)?.typewriter?.t?.voiced;
     expect(got).toBe((quoted.program.context as any)?.typewriter?.t?.voiced);
-    // Single backslashes in source; the value keeps them.
     expect(got).toBe("/([\\p{L}\\p{N}']+)/u");
   });
 
   test("`{n,m}` quantifiers are NOT read as interpolation", () => {
     const r = typewriter(`@/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u`);
-    // The quoted form used to error with "Cannot find variable named `L`".
     expect(r.diags).toEqual([]);
     expect((r.program.context as any)?.typewriter?.t?.voiced).toBe(
       "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u",
@@ -86,8 +67,6 @@ describe("regex literals", () => {
     }
   });
 
-  // After a value, `//` is Luau's floor division, so the store divides by `b`,
-  // which holds a number here.
   test("`@//` line comments are not swallowed as an empty regex", () => {
     const r = compile(`store b = 2\nstore a = 1 // b\n`);
     expect(r.diags).toEqual([]);

@@ -1,7 +1,3 @@
-// Text after a divert on the same line (`A -> later > After`) is stray: the
-// divert ends the line, so the player shows only what the divert leads to,
-// exactly as it does for the same line without the trailing text.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

@@ -1,10 +1,3 @@
-// A preview compile's root shares with the real root, by identity, every
-// chunk and every array it did not change, and leaves the real root's arrays
-// as they were; and a body an edit removed has no row in the root it leaves.
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import {
@@ -16,9 +9,6 @@ import {
 import { describeRoot, MAIN_URI, programCompiler, rootChunks } from "./programHarness";
 import { CONFIG, preview, quiet, stable, update } from "./incrementalOracleHarness";
 
-// A scene whose `choose` has a `then` clause holding an `if` with a body of
-// three lines, statements before and after the `if`, and a statement of the
-// scene after the `choose`; then a second scene.
 const SHARING = [
   "store gold = 0",
   "",
@@ -55,9 +45,6 @@ const INSERTED = "    A new line in the clause.\n";
 const AT_INSERT = "    You look around.\n";
 const IF_LINES = "    if gold < 3 then\n      The hall is bright.\n      & gold = gold + 1\n      It glitters.\n    end\n";
 
-/** The scene's `choose` chunk, its `then` clause (the body that holds a
- *  block statement), the `if` chunk in it and the sequence ids of the `if`'s
- *  bodies. */
 function sharingParts(root: ProgramRoot) {
   const scene = root.flowNamed("FIRST")!;
   const choose = scene.arrays.chunks.find((chunk) => blockCount(chunk) > 0)!;
@@ -76,7 +63,6 @@ function sharingParts(root: ProgramRoot) {
 const rowName = (root: ProgramRoot, row: SequenceRow) =>
   `${row.id}(${row.flow >= 0 ? JSON.stringify(root.table.symbols[row.flow]) : "declarations"} owner ${row.owner} block ${row.block})`;
 
-/** Every array of a root, with a copy of its contents. */
 function snapshot(root: ProgramRoot) {
   return [...root.sequences()].map((row) => ({
     row,
@@ -89,7 +75,6 @@ function snapshot(root: ProgramRoot) {
   }));
 }
 
-/** How `root` no longer holds what `snap` took of it. */
 function changedSince(root: ProgramRoot, snap: ReturnType<typeof snapshot>): string[] {
   const out: string[] = [];
   for (const s of snap) {
@@ -107,11 +92,6 @@ function changedSince(root: ProgramRoot, snap: ReturnType<typeof snapshot>): str
   return out;
 }
 
-/** How `next`, built from `previous` by inserting a line into the `then`
- *  clause above the `if`, fails to share with it: every chunk but the one
- *  emitted, the chunks array of every sequence but the clause's, the line
- *  starts of every sequence but the clause's and the scene's (which holds
- *  statements below the `choose`), and the rows of the `if`'s bodies. */
 function sharingProblems(previous: ProgramRoot, next: ProgramRoot): string[] {
   const out: string[] = [];
   const before = sharingParts(previous);
@@ -171,7 +151,6 @@ describe("a preview compile's root", () => {
       }
       const snap = snapshot(real);
 
-      // Insert a line of dialogue into the clause above the `if`.
       const at = SHARING.indexOf(AT_INSERT);
       const inserted = SHARING.slice(0, at) + INSERTED + SHARING.slice(at);
       const result = preview(c.compiler, 1, at, at, SHARING, INSERTED);
@@ -186,7 +165,6 @@ describe("a preview compile's root", () => {
       expect(changedSince(real, snap)).toEqual([]);
       expect(describeRoot(previewRoot).join("\n")).toBe(describeRoot(coldRoot(inserted)).join("\n"));
 
-      // Delete the whole `if` from the clause.
       const ifAt = SHARING.indexOf(IF_LINES);
       const removed = SHARING.slice(0, ifAt) + SHARING.slice(ifAt + IF_LINES.length);
       const second = preview(c.compiler, 1, ifAt, ifAt + IF_LINES.length, SHARING, "");
@@ -198,8 +176,6 @@ describe("a preview compile's root", () => {
       expect(changedSince(real, snap)).toEqual([]);
       expect(describeRoot(without).join("\n")).toBe(describeRoot(coldRoot(removed)).join("\n"));
 
-      // The insertion made for real, after the previews, is built from the
-      // real root as the first preview was.
       update(c.compiler, SHARING, 2, at, at, INSERTED);
       const next = c.compile().program.chunks!;
       expect(store.current === next, "the real edit's root is current").toBe(true);

@@ -1,14 +1,9 @@
-// A call to a member a standard library table does not have names the
-// missing member, as the uncalled form does, never the library (#915).
 import { describe, expect, test } from "vitest";
 import {
   diagnoseFilesDetailed as diagnoseAllFiles,
 } from "./diagnosticTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// The functions these sources define only hold the call under test, and
-// nothing calls them, so their FunctionUnused warnings are left out, as are
-// the GlobalUsedAsLocal warnings of a global function one of them defines.
 const diagnoseFilesDetailed = (sources: Record<string, string>) =>
   diagnoseAllFiles(sources).filter((d) => d.code !== "FunctionUnused" && d.code !== "GlobalUsedAsLocal");
 const diagnoseDetailed = (source: string) =>
@@ -16,8 +11,6 @@ const diagnoseDetailed = (source: string) =>
 const diagnoseWithLints = (source: string) =>
   diagnoseDetailed(source).map((d) => d.message);
 
-// A local belongs in a scene or a function: these write lines as a scene's
-// body, or as the body of a function `host` that nothing calls.
 const inScene = (body: string) => `scene start\n${body.split("\n").map((line) => `  ${line}`).join("\n")}\nend\n`;
 const inHost = (body: string) => `function host()\n${body.split("\n").map((line) => `    ${line}`).join("\n")}\nend\n`;
 const notUnusedLint = (m: string) => !m.includes("never used");
@@ -75,8 +68,6 @@ describe("calling a missing stdlib member", () => {
   });
 });
 
-// A local named like a library shadows it only after its declaration and
-// inside its block; everywhere else the name is still the library (#1035).
 describe("a local named like a library", () => {
   const MISSING = ["Cannot find item or path named `table.nogetn`"];
   const SHADOW = "local table = { nogetn = function() return 1 end }";
@@ -161,7 +152,6 @@ describe("a local named like a library", () => {
     ).toEqual(MISSING);
   });
 
-  // Each function is written in `run` and returned, with the local between.
   const NESTED = [
     ["a variadic function", "function f(...)\n        return table.nogetn()\n    end"],
     ["a function stored on a table", "local obj = {}\n    function obj.f()\n        return table.nogetn()\n    end"],
@@ -355,10 +345,6 @@ describe("a local named like a library", () => {
   });
 });
 
-// Only main runs lines outside a scene, so a script's top-level local is
-// main's; the other scripts of the project hold declarations, and their lines
-// run in scenes. Main's top level comes first in the program, and the other
-// scripts after it.
 describe("a local named like a library in a project of several scripts", () => {
   const SHADOW = "local table = { nogetn = function() return 1 end }";
   const missing = (sources: Record<string, string>) =>
@@ -378,8 +364,6 @@ describe("a local named like a library in a project of several scripts", () => {
   test("is in scope in another script of the project, which comes after main", () => {
     const chapter = `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`;
     expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
-    // Without main's local the same script names the missing member, so the
-    // script is read and checked as part of the project.
     expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
       "scripts/chapter.sd:2",
       "scripts/chapter.sd:5",
@@ -605,8 +589,6 @@ describe("a colon call on a library and a local named like it in a project of se
   test("is in scope in another script of the project, which comes after main", () => {
     const chapter = `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`;
     expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
-    // Without main's local the same script names the missing member, so the
-    // script is read and checked as part of the project.
     expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
       "scripts/chapter.sd:2",
       "scripts/chapter.sd:5",

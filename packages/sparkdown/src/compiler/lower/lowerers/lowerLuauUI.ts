@@ -15,14 +15,6 @@ import {
   type ScreenNode,
 } from "../../types/SparkleNode";
 
-// `layout NAME [as PARENT] [in SCREEN] with <colon/indent element tree> end`
-// (and `component`). Structural UI keywords; lower to a COMPILE-TIME struct in
-// program.context.layout|component.<name> via the chunk's `context`. The
-// body is the colon/indent named-element tree the engine consumes
-// directly (`stage:` → `backdrop:` → `image = "black"` / bare markers),
-// parsed by the shared lowerStructBody.
-/** Collect the `LuauFunctionParameter` names declared in a component header
- *  (`component card(title, value)` → ["title", "value"]), in source order. */
 function collectFunctionParameterNames(
   node: SparkdownSyntaxNodeRef["node"],
   ctx: LowerContext,
@@ -60,9 +52,6 @@ export function lowerLuauUI(
     ? ctx.read(parentNode.from, parentNode.to).trim()
     : "";
 
-  // `layout NAME in SCREEN` — the navigation screen the layout belongs to
-  // (layout-only). The grammar restricts the `in SCREEN` clause to the layout
-  // header, so this node never appears for components.
   const screenNode =
     uiType === "layout"
       ? getDescendent("LuauLayoutScreenName", nodeRef.node)
@@ -71,12 +60,6 @@ export function lowerLuauUI(
     ? ctx.read(screenNode.from, screenNode.to).trim()
     : "";
 
-  // Component parameters (`component card(title, …)`): the header's
-  // LuauFunctionParameter names (spec §4.7). Read into ComponentNode.params AND
-  // pushed onto ctx.sparkleLoopVars while the body is lowered, so a `{title}`
-  // binding in the body compiles to `__binding$N(title) return title end` — the
-  // runtime passes each call-arg value as the matching arg (same mechanism as
-  // `for`-loop vars; see LowerContext.sparkleLoopVars / lowerBinding).
   const params =
     uiType === "component" ? collectFunctionParameterNames(nodeRef.node, ctx) : [];
 
@@ -97,7 +80,6 @@ export function lowerLuauUI(
     ...body,
   };
 
-  // Reactive UI tree consumed by the engine, read from the grammar tokens.
   const savedLoopVars = ctx.sparkleLoopVars;
   const savedOwner = ctx.sparkleOwner;
   if (params.length > 0) {
@@ -132,7 +114,6 @@ export function lowerLuauUI(
           },
         };
 
-  // Brace blocks left open, and control blocks in them left without `end`.
   const structure = validateSparkleBlocks(contentNode, ctx);
 
   return {
@@ -143,11 +124,6 @@ export function lowerLuauUI(
   };
 }
 
-// `screen NAME with … end` — a navigation SCREEN: the named group that holds
-// mutually-exclusive layouts (`layout X in NAME`). Lowers to a compile-time
-// `screen` struct in program.context.screen.<name> so `in SCREEN` references and
-// `[[navigate SCREEN to LAYOUT]]` validate against it (undefined screen =
-// error). The body is reserved for future screen-level config; ignored for now.
 export function lowerLuauScreen(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,

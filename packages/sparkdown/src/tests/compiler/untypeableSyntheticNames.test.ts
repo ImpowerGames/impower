@@ -1,7 +1,3 @@
-// Every name the compiler generates holds a `$`, which the identifier rule
-// (`LUAU_IDENTIFIER`, `[a-zA-Z_][a-zA-Z0-9_]*`) excludes, so no name an
-// author writes can equal one (#1729). An author's name of any shape is an
-// ordinary name: it is neither reported nor renamed.
 import { describe, expect, it } from "vitest";
 import { File } from "../../compiler/types/File";
 import { NUMBERED_SYNTHETIC_NAME } from "../../program/ProgramSymbols";
@@ -51,8 +47,6 @@ function errors(program: any): string[] {
   );
 }
 
-// The names the stdlib, the runtime and closures define for themselves,
-// which the program calls or reads by name but no lowering generates.
 const RUNTIME_NAMES = new Set([
   "__new",
   "__unjoined",
@@ -62,13 +56,9 @@ const RUNTIME_NAMES = new Set([
   "__index",
   "__def",
   "__adjust_iter",
-  // The builtins script's own name, which its uri holds.
   "__builtins__",
 ]);
 
-// Each `__`-prefixed name the program's symbol and string tables, its
-// listing and its layouts hold, with the `$` and the characters after it
-// that a generated name carries.
 function underscoredNames(program: any): string[] {
   const root = rootOf(program.chunks);
   const text = [
@@ -130,13 +120,6 @@ describe("names the compiler generates", () => {
   it("hold a character no identifier can contain", () => {
     const { program, compiler } = compileWith(EVERY_FAMILY);
     expect(errors(program)).toEqual([]);
-    // The names the compile numbers by document order within each flow
-    // (`__synth$<flow>$<n>`, #851): those of a function a statement writes
-    // (a redefined variadic one too, since I-1360), a `define`'s method, and
-    // the temporaries and labels of a method call, a property assignment, a
-    // multiple assignment and each kind of loop. The program names none of
-    // them (a function by its anonymous symbol, a temporary by the chunk's
-    // own name), so they are read from the compile.
     const numbered = [
       ...(compiler._syntheticNamesLastRun as Map<string, string>).values(),
     ];
@@ -161,8 +144,6 @@ describe("names the compiler generates", () => {
     }
     expect(numbered.filter((name) => !NUMBERED_SYNTHETIC_NAME.test(name))).toEqual([]);
     const names = underscoredNames(program);
-    // Each family the program keeps a name of: a continuation's group, a
-    // binding's evaluator, and a chunk's own name for a temporary.
     for (const family of ["__group$", "__binding$", "__t$"]) {
       expect(
         names.some((name) => name.startsWith(family)),
@@ -194,8 +175,6 @@ describe("names the compiler generates", () => {
     expect(text).toContain("Done at 20.");
   });
 
-  // A binding's evaluator is defined under its generated name, which its
-  // frame shows in a readable form, as a function a statement writes does.
   it("show a binding's evaluator as anonymous in its frame", () => {
     const program = compile(
       ["layout hud with", '  text "{debug.info(1, \'n\')}"', "end", ""].join("\n"),
@@ -210,7 +189,6 @@ describe("names the compiler generates", () => {
     expect(quiet(() => story.EvaluateFunction(exprId!))).toBe("<anonymous>");
   });
 
-  // The canonical form of an earlier compiler is an ordinary name now.
   it("leave an author's name of the old canonical shape as it is", () => {
     const main = [
       "store f = function() return 1 end",
@@ -237,8 +215,6 @@ describe("names the compiler generates", () => {
     const program = compile(main);
     expect(errors(program)).toEqual([]);
     const listing = programListing(program.chunks);
-    // The store writes the name as the author wrote it, never a name of
-    // the chunk's own.
     expect(listing.filter((line) => line.includes("__synth_0"))).not.toEqual([]);
     expect(listing.filter((line) => line.includes("__t$"))).toEqual([]);
     const story = testStory(program.chunks);

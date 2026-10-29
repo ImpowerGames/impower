@@ -2,14 +2,8 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 
-// Asset names are a FLAT namespace: a script references an asset by its bare
-// name (`[[show image forest]]` -> context.image.forest), so two assets sharing
-// a basename in different folders are ambiguous. The compiler must WARN (not
-// silently resolve to whichever file was processed last). Scripts are exempt —
-// they're keyed by their full path elsewhere, not by a flat basename.
-
 const MAIN_URI = "file://proj/main.sd";
-const COLLISION_HINT = "Asset name"; // substring of the collision message
+const COLLISION_HINT = "Asset name";
 
 const msg = (d: any): string =>
   typeof d?.message === "string" ? d.message : (d?.message?.value ?? "");

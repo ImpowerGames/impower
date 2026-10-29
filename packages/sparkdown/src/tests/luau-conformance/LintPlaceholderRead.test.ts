@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// PlaceholderRead rule. Snippets and expected messages are quoted verbatim and
-// placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLintsInFunction,
@@ -14,7 +8,6 @@ import {
 const PLACEHOLDER_READ =
   "Placeholder value '_' is read here; consider using a named variable";
 
-// Luau: PlaceholderRead
 describe("reading the local placeholder `_`", () => {
   test("local _ = 5; return _", () => {
     expect(
@@ -26,7 +19,6 @@ return _
   });
 });
 
-// Luau: PlaceholderReadGlobal
 describe("reading the global placeholder `_`", () => {
   test("_ = 5; print(_)", () => {
     expect(
@@ -38,7 +30,6 @@ print(_)
   });
 });
 
-// Luau: PlaceholderWrite
 describe("writing the placeholder `_` is not reported", () => {
   test("local _ = 5; _ = 6", () => {
     expect(
@@ -81,8 +72,6 @@ print(t._, t:_(), "_")
     ).toEqual([]);
   });
 
-  // The repeated keys are TableLiteral's duplicates too, which this
-  // rule's tests leave out.
   test("a table constructor's key `_` is a field name; its value is a read", () => {
     expect(
       lintInFunction(`

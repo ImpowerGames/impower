@@ -1,7 +1,3 @@
-// Sanity tests for stdlib entries that recently landed — especially
-// the n-ary pure path that `math.clamp` / `math.map` now use after
-// `NativeFunctionCall` learned arity >= 3.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -89,13 +85,6 @@ end
   });
 
   test("type / typeof return Lua-style type names", () => {
-    // Two grammar changes were needed to unblock `type(x)`:
-    //   1. `LuauDataTypeDeclaration` got a `(?!{{WS}}*[(])`
-    //      lookahead so `type(x)` falls through to the function-call
-    //      path (not consumed as a type-alias declaration start).
-    //   2. `LUAU_LOCAL_DECLARATION_KEYWORDS` no longer includes
-    //      `type`, so `LUAU_TERMINATOR_KEYWORDS` doesn't reject
-    //      `type` from `LuauAccessPath` in expression contexts.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -158,7 +147,6 @@ host_record(utf8.charpattern)
 end
 `);
     expect(errors).toEqual([]);
-    // The exact pattern string — see STDLIB_CONSTANTS in StdLib.ts.
     expect(typeof recorded[0]).toBe("string");
     expect((recorded[0] as string).length).toBeGreaterThan(0);
   });
@@ -198,14 +186,8 @@ end
   });
 
   test("utf8.nfcnormalize / nfdnormalize roundtrip", () => {
-    // "é" can be expressed as one codepoint (U+00E9) or two
-    // (U+0065 U+0301). NFC collapses to the precomposed form; NFD
-    // decomposes. Cross-checking length proves the normalization
-    // actually happened. Sparkdown doesn't decode `\u{}` escapes in
-    // string literals, so we embed the chars directly via JS string
-    // interpolation in the test source.
-    const combining = "é"; // "e" + COMBINING ACUTE
-    const precomposed = "é"; // "é" (NFC)
+    const combining = "é";
+    const precomposed = "é";
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -216,16 +198,10 @@ host_record(#utf8.nfdnormalize("${precomposed}"))
 end
 `);
     expect(errors).toEqual([]);
-    // CHAR counts via `#` — utf8.len isn't usable here: under the
-    // byte-string convention the precomposed U+00E9 char is the raw
-    // byte E9, which is not valid UTF-8.
     expect(recorded).toEqual([1, 2]);
   });
 
   test("utf8.len counts code points across byte ranges", () => {
-    // "héllo" with é spelled as its UTF-8 bytes \xC3\xA9 (under the
-    // byte-string convention a bare "é" char IS the raw byte E9) —
-    // 5 characters in 6 bytes.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -241,8 +217,6 @@ end
   });
 
   test("utf8.offset returns 1-based byte positions", () => {
-    // "héllo" (é as bytes \xC3\xA9): h=1byte, é=2bytes, l=1, l=1,
-    // o=1 → boundaries at bytes 1, 2, 4, 5, 6, 7.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -255,8 +229,6 @@ host_record(utf8.offset("h\\xC3\\xA9llo", 0, 3))
 end
 `);
     expect(errors).toEqual([]);
-    // n=0 with i=3 finds the char containing byte 3, which is the
-    // second byte of "é" (whose start is byte 2).
     expect(recorded).toEqual([1, 2, 4, 2]);
   });
 });
@@ -278,8 +250,6 @@ end
   });
 
   test("bracket-key + bare-key + array entries mix", () => {
-    // Array-style entries get auto-incremented int keys ("1", "2", …)
-    // independent of named keys, matching Lua semantics.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -314,8 +284,6 @@ end
 
 describe("stdlib os.time table form", () => {
   test("os.time({year, month, day [, hour, min, sec]}) converts to a Unix timestamp", () => {
-    // Luau semantics: date-table fields are UTC (timegm), so the
-    // result is timezone-independent. Hour defaults to 12.
     const expected = Math.floor(
       Date.UTC(2026, 0, 15, 12, 0, 0) / 1000,
     );
@@ -514,8 +482,6 @@ host_record(table.isfrozen(t))
 table.insert(t, 4)
 end
 `);
-    // The insert into the frozen table should error; everything
-    // up to that point should still record cleanly.
     expect(recorded).toEqual([false, true]);
     expect(errors.length).toBe(1);
     expect(errors[0]).toMatch(/frozen/);
@@ -624,9 +590,6 @@ host_record(n)
 end
 `);
     expect(errors).toEqual([]);
-    // Order is insertion order (string-keyed entries in declaration
-    // order). The recorded values are the visited keys plus the
-    // total number of visits.
     expect(recorded).toEqual(["name", "score", 2]);
   });
 

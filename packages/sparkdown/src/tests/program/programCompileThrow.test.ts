@@ -1,5 +1,3 @@
-// A throw the compile catches is an error at the statement that threw, and the
-// compile makes no program (#1895): it is never only a line on the console.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatementMemoRetry } from "../../compiler/lower/statementMemo";
 import { Conditional } from "../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
@@ -184,7 +182,6 @@ describe("a compile whose statement throws", () => {
   it("reports a compile whose memo retries run out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    // The first line holds only spacing, where the error still has a range.
     const c = programCompiler({ [MAIN_URI]: "   \nHello.\n" });
     const compiler = c.compiler as any;
     vi.spyOn(compiler, "compileStoryOnce").mockImplementation(() => ({

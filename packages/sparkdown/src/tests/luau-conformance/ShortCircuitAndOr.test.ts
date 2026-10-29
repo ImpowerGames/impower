@@ -1,16 +1,3 @@
-// Regression tests for Lua short-circuit `and`/`or` evaluation
-// (the `JumpIfKeep` instruction BinaryExpression emits).
-// Previously both operands were evaluated eagerly with operand-
-// returning semantics applied afterwards — correct results for pure
-// scalar operands, but the untaken branch's side effects ran (and
-// metamethod-bearing operands could recurse forever — basic.luau's
-// vec3t `type(r) == "number" and vec3t(l.x * r, ...) or
-// vec3t(l.x * r.x, ...)` pattern).
-//
-// Also covers the grammar fix that terminates a one-line
-// reassignment's value expression at a following bare CALL statement
-// (`mt = { f = 1 } setmetatable(a, mt)`) without truncating
-// parenthesized operands after logical keywords (`a = b and (x)`).
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 

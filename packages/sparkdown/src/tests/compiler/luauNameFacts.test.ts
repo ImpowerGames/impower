@@ -13,15 +13,12 @@ function script(text: string) {
   return { tree, text, result: lint.collectLuauLints(tree, (from, to) => text.slice(from, to)) };
 }
 
-// Access through the existing entry point so the base fails a behavioral
-// assertion for its absent facts, rather than failing to import a new module.
 function names(value: ReturnType<typeof script>) {
   expect(value.result).toHaveProperty("names");
   expect(value.result).toHaveProperty("roots");
   return (value.result as any).names;
 }
 
-/** The same public Lezer tree with its packed forests expanded to trees. */
 function unpack(part: Tree | TreeBuffer): Tree {
   if (part instanceof Tree) return new Tree(part.type, part.children.map(unpack), part.positions, part.length);
   const { buffer, set } = part;
@@ -44,13 +41,10 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
-  // A structural word with no construct after it is a name (#1906), so the
-  // AST represents its uses.
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
     ["match", "function inspect() local match = true; if match then print(1) end end\n"],
-    // A structural word whose rule holds no arms is a call (I-1304, I-1310).
     ["match", "function inspect() local match = print; match(1) end\n"],
     ["match", "function inspect() local match = print; match(\"a\") end\n"],
   ])("represents %s used as a name, with no uncertainty", (name, source) => {
@@ -62,8 +56,6 @@ describe("shared AST name facts", () => {
     expect(value.result.lints).toEqual([]);
   });
 
-  // Where the word opens an alternator, which Luau has no syntax for, the
-  // word stays uncertain.
   test.each([
     ["match", "function inspect() local match = print; return match(1) | a = 1 end end\n"],
     ["match", "function inspect() local match = print; return match(\"a\") | a = 1 end end\n"],
@@ -116,8 +108,8 @@ describe("shared AST name facts", () => {
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
-    expect(facts.globals.map((d: any) => [d.name, d.kind])).toEqual([["saved", "store"]]); // not a node name
-    const uses = facts.references.filter((r: any) => r.name === "saved"); // not a node name
+    expect(facts.globals.map((d: any) => [d.name, d.kind])).toEqual([["saved", "store"]]);
+    const uses = facts.references.filter((r: any) => r.name === "saved");
     expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]);
     expect(source.slice(uses[0].from, uses[0].to)).toBe("saved");
     const index = (lint as any).indexProgramNames([{ uri: "embedded", names: facts }]);
@@ -130,16 +122,14 @@ describe("shared AST name facts", () => {
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
-    const stored = facts.globals.find((d: any) => d.name === "storedCallback"); // not a node name
+    const stored = facts.globals.find((d: any) => d.name === "storedCallback");
     expect(stored).toBeDefined();
     expect(stored.kind).toBe("store");
     expect(stored.function instanceof AstExprFunction).toBe(true);
     expect(stored.node.values[0] === stored.function).toBe(true);
-    expect(facts.references.filter((r: any) => r.name === "storedCallback").map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]); // not a node name
+    expect(facts.references.filter((r: any) => r.name === "storedCallback").map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]);
   });
 
-  // A const in a function is Luau's: a local that shadows the binding before
-  // it, to the end of its block (#1319).
   test.each([
     ["local", "function inspect() local n = 1; const n = 2; return n end", "inspect()", 2, true],
     ["parameter", "function inspect(n) const n = 2; return n end", "inspect(7)", 2, true],
@@ -152,12 +142,12 @@ describe("shared AST name facts", () => {
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe(`Value ${expected}.\n`);
     const facts = names(script(source));
-    const constant = facts.declarations.find((d: any) => d.name === "n" && d.local.isConst); // not a node name
+    const constant = facts.declarations.find((d: any) => d.name === "n" && d.local.isConst);
     expect(constant).toBeDefined();
-    const reads = facts.references.filter((r: any) => r.name === "n" && r.access === "read"); // not a node name
+    const reads = facts.references.filter((r: any) => r.name === "n" && r.access === "read");
     expect(reads).toHaveLength(1);
     expect(reads[0].local === constant.local).toBe(readsConst);
-    expect(facts.globals.filter((d: any) => d.name === "n")).toEqual([]); // not a node name
+    expect(facts.globals.filter((d: any) => d.name === "n")).toEqual([]);
   });
 
   test("a rejected store/local collision still identifies the explicit global target", () => {
@@ -166,9 +156,9 @@ describe("shared AST name facts", () => {
     expect(runtime.errorMessages).toHaveLength(1);
     expect(runtime.errorMessages[0]).toContain("Duplicate identifier `saved`");
     const facts = names(script(source));
-    const local = facts.declarations.find((d: any) => d.name === "saved"); // not a node name
-    expect(facts.globals.filter((d: any) => d.name === "saved").map((d: any) => d.kind)).toEqual(["store"]); // not a node name
-    const uses = facts.references.filter((r: any) => r.name === "saved"); // not a node name
+    const local = facts.declarations.find((d: any) => d.name === "saved");
+    expect(facts.globals.filter((d: any) => d.name === "saved").map((d: any) => d.kind)).toEqual(["store"]);
+    const uses = facts.references.filter((r: any) => r.name === "saved");
     expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["read", false], ["write", false], ["read", true]]);
     expect(uses[2].local === local.local).toBe(true);
   });
@@ -178,27 +168,27 @@ describe("shared AST name facts", () => {
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual(["Variable 'n' is constant and may not be reassigned"]);
     const facts = names(script(source));
-    const constant = facts.declarations.find((d: any) => d.name === "n" && d.local.isConst); // not a node name
-    const uses = facts.references.filter((r: any) => r.name === "n" && r.enclosingFunction); // not a node name
+    const constant = facts.declarations.find((d: any) => d.name === "n" && d.local.isConst);
+    const uses = facts.references.filter((r: any) => r.name === "n" && r.enclosingFunction);
     expect(uses.map((r: any) => [r.access, r.local === constant.local])).toEqual([[access, true], ["read", true]]);
-    expect(facts.globals.filter((d: any) => d.name === "n")).toEqual([]); // not a node name
+    expect(facts.globals.filter((d: any) => d.name === "n")).toEqual([]);
   });
 
   test("a Sparkle handler's const is a local declaration, not a global", () => {
     const source = "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 g = a }\nend\nValue {g}.\n";
     const facts = names(script(source));
-    expect(facts.globals.filter((d: any) => d.name === "a")).toEqual([]); // not a node name
-    const constant = facts.declarations.find((d: any) => d.name === "a"); // not a node name
+    expect(facts.globals.filter((d: any) => d.name === "a")).toEqual([]);
+    const constant = facts.declarations.find((d: any) => d.name === "a");
     expect(constant?.local.isConst).toBe(true);
-    const read = facts.references.find((r: any) => r.name === "a" && r.access === "read"); // not a node name
+    const read = facts.references.find((r: any) => r.name === "a" && r.access === "read");
     expect(read?.local === constant.local).toBe(true);
   });
 
   test("a Sparkle handler's const function keeps its local in the function facts", () => {
     const source = "layout form with\n  button \"Go\" @click={ const function x() return 1 end local y = x() }\nend\nGo.\n";
     const facts = names(script(source));
-    const declared = facts.declarations.find((d: any) => d.name === "x"); // not a node name
-    const fn = facts.functions.find((f: any) => f.name === "x"); // not a node name
+    const declared = facts.declarations.find((d: any) => d.name === "x");
+    const fn = facts.functions.find((f: any) => f.name === "x");
     expect(declared).toBeDefined();
     expect(fn?.local === declared.local).toBe(true);
   });
@@ -209,8 +199,8 @@ describe("shared AST name facts", () => {
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
     const facts = names(script(source));
-    const local = facts.declarations.find((d: any) => d.name === "n" && !d.local.isConst); // not a node name
-    const read = facts.references.find((r: any) => r.name === "n" && r.enclosingFunction); // not a node name
+    const local = facts.declarations.find((d: any) => d.name === "n" && !d.local.isConst);
+    const read = facts.references.find((r: any) => r.name === "n" && r.enclosingFunction);
     expect(read.local.isConst).toBe(true);
     expect(read.local.shadow.isConst).toBe(true);
     expect(read.local.shadow.shadow === local.local).toBe(true);
@@ -222,22 +212,22 @@ describe("shared AST name facts", () => {
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
     const facts = names(script(source));
-    const constant = facts.declarations.find((d: any) => d.name === "T"); // not a node name
+    const constant = facts.declarations.find((d: any) => d.name === "T");
     expect(constant.local.isConst).toBe(true);
-    expect(facts.references.filter((r: any) => r.name === "T" && r.enclosingFunction).map((r: any) => [r.access, r.local === constant.local])).toEqual([["read", true], ["read", true]]); // not a node name
+    expect(facts.references.filter((r: any) => r.name === "T" && r.enclosingFunction).map((r: any) => [r.access, r.local === constant.local])).toEqual([["read", true], ["read", true]]);
     expect(facts.functions.map((f: any) => f.name)).toEqual(["inspect", "T.x"]);
-    expect(facts.globals.filter((d: any) => d.name === "T")).toEqual([]); // not a node name
+    expect(facts.globals.filter((d: any) => d.name === "T")).toEqual([]);
   });
 
   test.each([false, true])("const shadows distinguish a flow wrapper from a real local (authored %s)", (authored) => {
     const source = `scene intro()\n${authored ? " & local __flow = 1\n" : ""} & const __flow = 2\n & print(__flow)\nend\n`;
     const value = script(source);
     const facts = names(value);
-    const use = facts.references.find((r: any) => r.name === "__flow"); // not a node name
+    const use = facts.references.find((r: any) => r.name === "__flow");
     const wrapper = readDocumentUnits(value.tree, value.text).flows[0]!.root.body[0] as AstStatLocalFunction;
     expect(use.node.local.isConst).toBe(true);
     if (authored) {
-      const local = facts.declarations.find((d: any) => d.name === "__flow"); // not a node name
+      const local = facts.declarations.find((d: any) => d.name === "__flow");
       expect(use.local === local.local).toBe(true);
       expect(use.local === wrapper.name).toBe(false);
     } else {
@@ -254,8 +244,6 @@ describe("shared AST name facts", () => {
     const nodeNames = new Set<string>();
     value.tree.iterate({ enter(node) { nodeNames.add(node.name); } });
     expect(nodeNames.has("LuauSparkdownExplicitAccessPath")).toBe(bounded);
-    // A story statement's brackets are the Luau ones, which span lines
-    // (#1907), so what the call's parentheses hold is read as Luau.
     expect(nodeNames.has("LuauTable")).toBe(true);
     expect(nodeNames.has("LuauLogicalOperator")).toBe(true);
     const facts = names(value);
@@ -269,8 +257,8 @@ describe("shared AST name facts", () => {
     const value = script("function f()\n local a,\n type T = number\n local b,\n export type U = T\n local c,\n const d = 1\n local e,\n local g = 2\n return a\nend\n");
     expect(value.result.lints.map(lint => lint.message)).not.toContain("Variable '%error-id%' is never used; prefix with '_' to silence");
     expect(value.result.lints.some(lint => lint.message.includes("Variable 'g'"))).toBe(true);
-    expect(names(value).declarations.some((declaration: any) => declaration.name === "%error-id%")).toBe(false); // not a node name
-    expect(names(value).references.some((reference: any) => reference.name === "%error-id%")).toBe(false); // not a node name
+    expect(names(value).declarations.some((declaration: any) => declaration.name === "%error-id%")).toBe(false);
+    expect(names(value).references.some((reference: any) => reference.name === "%error-id%")).toBe(false);
     expect(value.result.roots[0]!.root).toBe(readDocumentUnits(value.tree, value.text).prelude.root);
   });
   test("keeps the checker's local binding identity through shadows, closures and repeat conditions", () => {
@@ -287,40 +275,40 @@ describe("shared AST name facts", () => {
     });
     for (const local of declarations) expect(facts.declarations.some((d: any) => d.local === local)).toBe(true);
     for (const use of uses) expect(facts.references.some((r: any) => r.node === use && r.local === use.local)).toBe(true);
-    const xs = facts.references.filter((r: any) => r.name === "x"); // not a node name
+    const xs = facts.references.filter((r: any) => r.name === "x");
     expect(new Set(xs.map((r: any) => r.local)).size).toBe(2);
     expect(xs.every((r: any) => r.enclosingFunction)).toBe(true);
-    const done = facts.references.find((r: any) => r.name === "done"); // not a node name
-    expect(done.local).toBe(facts.declarations.find((d: any) => d.name === "done").local); // not a node name
+    const done = facts.references.find((r: any) => r.name === "done");
+    expect(done.local).toBe(facts.declarations.find((d: any) => d.name === "done").local);
   });
 
   test("distinguishes reads, plain and compound writes, functions, stores and constants", () => {
     const facts = names(script("store saved = 1\nconst fixed = 2\nfunction f()\n local x = saved\n x = 3; x += fixed\n global = x\nend\n"));
-    expect(facts.globals.filter((g: any) => ["saved", "fixed", "f"].includes(g.name)).map((g: any) => [g.name, g.kind])).toEqual([["saved", "store"], ["fixed", "const"], ["f", "function"]]); // not a node name
-    expect(facts.references.filter((r: any) => r.name === "x").map((r: any) => r.access)).toEqual(["write", "readwrite", "read"]); // not a node name
-    expect(facts.references.find((r: any) => r.name === "global").access).toBe("write"); // not a node name
-    expect(facts.references.find((r: any) => r.name === "fixed").local).toBeUndefined(); // not a node name
+    expect(facts.globals.filter((g: any) => ["saved", "fixed", "f"].includes(g.name)).map((g: any) => [g.name, g.kind])).toEqual([["saved", "store"], ["fixed", "const"], ["f", "function"]]);
+    expect(facts.references.filter((r: any) => r.name === "x").map((r: any) => r.access)).toEqual(["write", "readwrite", "read"]);
+    expect(facts.references.find((r: any) => r.name === "global").access).toBe("write");
+    expect(facts.references.find((r: any) => r.name === "fixed").local).toBeUndefined();
   });
 
   test("function-valued stores retain explicit declaration kind and function metadata", () => {
     const source = "store callback = function() nestedWrite = 1; function nested() return nestedWrite end; return 1 end\nconst fixed = function() return 2 end\nstore function declared() return callback() end\nfunction authored() ordinary = 3; return callback() end\n& following = 4\n";
     const facts = names(script(source));
-    const stored = facts.globals.find((g: any) => g.name === "callback"); // not a node name
-    const constant = facts.globals.find((g: any) => g.name === "fixed"); // not a node name
-    const authored = facts.globals.find((g: any) => g.name === "authored"); // not a node name
+    const stored = facts.globals.find((g: any) => g.name === "callback");
+    const constant = facts.globals.find((g: any) => g.name === "fixed");
+    const authored = facts.globals.find((g: any) => g.name === "authored");
     expect(stored.kind).toBe("store");
     expect(stored.function instanceof AstExprFunction).toBe(true);
     expect(constant.kind).toBe("const");
     expect(constant.function instanceof AstExprFunction).toBe(true);
     expect(authored.kind).toBe("function");
     expect(authored.function instanceof AstExprFunction).toBe(true);
-    const declared = facts.globals.find((g: any) => g.name === "declared"); // not a node name
+    const declared = facts.globals.find((g: any) => g.name === "declared");
     expect(declared.kind).toBe("store");
     expect(declared.function instanceof AstExprFunction).toBe(true);
     for (const name of ["nestedWrite", "ordinary", "following"]) {
       expect(facts.globals.find((g: any) => g.name === name).kind).toBe("assignment");
     }
-    const nested = facts.globals.find((g: any) => g.name === "nested"); // not a node name
+    const nested = facts.globals.find((g: any) => g.name === "nested");
     expect(nested.kind).toBe("function");
     expect(nested.enclosingFunction).toBe(stored.function);
     expect(source.slice(stored.from, stored.to)).toBe("callback");
@@ -366,22 +354,22 @@ describe("shared AST name facts", () => {
 
   test("records qualified methods and separate branch scopes without writing their receivers", () => {
     const facts = names(script("function setup()\n local T = {}\n function T.x() end\n function T:x() end\n if flag then function conditional() end else function conditional() end end\nend\n"));
-    const methods = facts.functions.filter((f: any) => f.name === "T.x"); // not a node name
+    const methods = facts.functions.filter((f: any) => f.name === "T.x");
     expect(methods).toHaveLength(2);
     expect(methods.map((f: any) => f.method)).toEqual([false, true]);
     expect(methods[0].receiver.local).toBe(methods[1].receiver.local);
     expect(methods[0].scope).toBe(methods[1].scope);
-    expect(facts.references.filter((r: any) => r.name === "T").every((r: any) => r.access === "read")).toBe(true); // not a node name
-    expect(facts.globals.some((g: any) => g.name === "T")).toBe(false); // not a node name
-    const arms = facts.functions.filter((f: any) => f.name === "conditional"); // not a node name
+    expect(facts.references.filter((r: any) => r.name === "T").every((r: any) => r.access === "read")).toBe(true);
+    expect(facts.globals.some((g: any) => g.name === "T")).toBe(false);
+    const arms = facts.functions.filter((f: any) => f.name === "conditional");
     expect(arms).toHaveLength(2);
     expect(arms[0].scope).not.toBe(arms[1].scope);
   });
 
   test("handler uses stay outside authored functions while nested function values retain their enclosure", () => {
     const facts = names(script("layout main with\n button @click={ print(outside); local callback = function() print(inside) end }\nend\n"));
-    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
-    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined(); // not a node name
+    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined();
+    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined();
   });
 
   test.each(["scene", "branch"])("%s wrapper facts retain parameters and authored functions without a synthetic enclosure", (kind) => {
@@ -396,13 +384,13 @@ describe("shared AST name facts", () => {
     expect(parameter.kind).toBe("parameter");
     expect(parameter.scope === wrapper.func.body).toBe(true);
     expect(parameter.enclosingFunction).toBeUndefined();
-    expect(facts.references.find((r: any) => r.name === "parameter").local === parameter.local).toBe(true); // not a node name
-    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
-    const callback = facts.declarations.find((d: any) => d.name === "callback"); // not a node name
-    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction === callback.function).toBe(true); // not a node name
+    expect(facts.references.find((r: any) => r.name === "parameter").local === parameter.local).toBe(true);
+    expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined();
+    const callback = facts.declarations.find((d: any) => d.name === "callback");
+    expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction === callback.function).toBe(true);
     const authored = facts.functions[0];
-    expect(facts.references.find((r: any) => r.name === "nested").enclosingFunction === authored.function).toBe(true); // not a node name
-    expect(facts.references.find((r: any) => r.name === "__flow").local === authored.local).toBe(true); // not a node name
+    expect(facts.references.find((r: any) => r.name === "nested").enclosingFunction === authored.function).toBe(true);
+    expect(facts.references.find((r: any) => r.name === "__flow").local === authored.local).toBe(true);
     const index = (lint as any).indexProgramNames([{ uri: kind, names: facts }]);
     expect(index.functions.map((f: any) => [f.name, f.uri, f.node === wrapper])).toEqual([["__flow", kind, false]]);
     expect(value.result.roots.some(r => r.root === unit.root)).toBe(true);
@@ -420,12 +408,12 @@ describe("shared AST name facts", () => {
       expect(reference.enclosingFunction).toBeUndefined();
       if (reference.local) expect(facts.declarations.some((d: any) => d.local === reference.local)).toBe(true);
     }
-    const named = facts.functions.find((f: any) => f.name === "named"); // not a node name
-    const parameterUses = facts.references.filter((r: any) => r.name === "parameter"); // not a node name
+    const named = facts.functions.find((f: any) => f.name === "named");
+    const parameterUses = facts.references.filter((r: any) => r.name === "parameter");
     expect(parameterUses).toHaveLength(2);
     expect(parameterUses[0].local === parameterUses[1].local).toBe(true);
     expect(parameterUses[1].enclosingFunction === named.function).toBe(true);
-    expect(facts.references.find((r: any) => r.name === "prelude").enclosingFunction === facts.functions[0].function).toBe(true); // not a node name
+    expect(facts.references.find((r: any) => r.name === "prelude").enclosingFunction === facts.functions[0].function).toBe(true);
   });
 
   test.each(["scene", "branch"])("%s treats only the synthetic wrapper binding as global when authored names collide", (kind) => {
@@ -438,7 +426,7 @@ describe("shared AST name facts", () => {
     expect(global.definitions.map((d: any) => d.kind)).toEqual(["function", "assignment", "function"]);
     const unit = readDocumentUnits(value.tree, value.text).flows[0]!;
     const wrapper = unit.root.body[0] as AstStatLocalFunction;
-    const uses = facts.references.filter((r: any) => r.name === "__flow"); // not a node name
+    const uses = facts.references.filter((r: any) => r.name === "__flow");
     expect(uses.map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false], ["write", false], ["write", false], ["read", true]]);
     expect((uses[1].node as AstExprLocal).local === wrapper.name).toBe(true);
     expect((uses[2].node as AstExprLocal).local === wrapper.name).toBe(true);
@@ -456,7 +444,7 @@ describe("shared AST name facts", () => {
     const text = prefix + original.text;
     const shifted = lint.collectLuauLints(moved, (from, to) => text.slice(from, to));
     expect(shifted.lints).toEqual(original.result.lints.map(l => ({ ...l, from: l.from + prefix.length, to: l.to + prefix.length })));
-    expect(shifted.names.references.find((r: any) => r.name === "target")!.from).toBe(names(original).references.find((r: any) => r.name === "target").from + prefix.length); // not a node name
+    expect(shifted.names.references.find((r: any) => r.name === "target")!.from).toBe(names(original).references.find((r: any) => r.name === "target").from + prefix.length);
   });
 
   test("compiler recombination uses the program's current scripts and cached untouched trees", () => {

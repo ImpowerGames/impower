@@ -1,12 +1,3 @@
-// Save/restore round-trip for the display-as-Luau-call transport. A
-// `display(<table>)` beat parks its live instruction ObjectValue in the output
-// stream; if a checkpoint happens on that beat (gameplay saves constantly), the
-// output stream — and the ObjectValue in it — must serialize and reload intact,
-// or the restored beat would lose its content.
-//
-// Guards the follow-up the engine-wiring increment flagged: output-stream
-// ObjectValue save serialization.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { ObjectValue } from "../../runtime/Value";
@@ -50,22 +41,18 @@ done
     const storyA = testStory(compiled);
     const errorsA: string[] = [];
     storyA.onError = (m) => errorsA.push(m);
-    storyA.Continue(); // completes the display beat — table is in the output stream
+    storyA.Continue();
     expect(errorsA).toEqual([]);
-    // Sanity: the live story has the payload before saving.
     expect(storyA.currentDisplayInstructions).toHaveLength(1);
 
-    // Checkpoint mid-beat.
     const savedJson = storyA.state.ToJson() as string;
 
-    // Restore into a fresh story.
     const storyB = testStory(compiled);
     const errorsB: string[] = [];
     storyB.onError = (m) => errorsB.push(m);
     storyB.state.LoadJson(savedJson);
     expect(errorsB).toEqual([]);
 
-    // The instruction table survived the wire, structured and with live values.
     const restored = storyB.currentDisplayInstructions;
     expect(restored).toHaveLength(1);
     const table = restored[0]!;
@@ -73,7 +60,6 @@ done
     expect(field(table, "target")).toBe("action");
     expect(field(table, "text")).toBe("Hi.");
     expect(field(table, "value")).toBe(7);
-    // And currentText reads the restored table's text.
     expect((storyB.currentText ?? "").trim()).toBe("Hi.");
   });
 });

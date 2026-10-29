@@ -1,9 +1,3 @@
-// A `>` anywhere in a display line is a break: the text before it and
-// the text after it are separate beats, each its own `Continue()` and its own
-// `display()` call. A line holding only `>` is a pause: outside a block it is
-// a beat with no text, and inside a block it splits the block. `\>` is a
-// literal `>`.
-
 import { describe, expect, test } from "vitest";
 import {
   continueShowedSomething,
@@ -20,8 +14,6 @@ const flagged = (story: TestStory, flag: string): boolean =>
       true,
   );
 
-// Each beat's visible text, the routing of its table as `target:character`,
-// and whether its table asks the player to click through it.
 function continueBeats(
   story: TestStory,
 ): { text: string; routing: string | null; pause: boolean }[] {
@@ -123,10 +115,6 @@ $: E > F
         character: "HERO",
       });
       expect(flagged(ctx.story, "pause")).toBe(true);
-      // An action continuation's beat after the break asks for the routing
-      // of the beat the run joined the continuation to (`inherit`), and names
-      // the line the source reads before it for a run that never queued that
-      // beat. A continuation that names its speaker routes by its own cue.
       expect(ctx.story.Continue()).toBe("Bye.\n");
       expect(displayRouting(ctx.story)).toEqual([
         { target: "dialogue", character: "HERO" },
@@ -165,8 +153,6 @@ $: E > F
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe("A B C\n");
       expect(ctx.story.Continue()).toBe("D\n");
-      // The beat after the break inherits at run time, and names HERO for a
-      // run that never queued the beat it joins.
       expect(displayRouting(ctx.story)).toEqual([
         { target: "dialogue", character: "HERO" },
       ]);
@@ -174,12 +160,6 @@ $: E > F
   });
 
   test("continuations of different files are named apart", () => {
-    // Source offsets start again in every script, so both continuations of
-    // this fixture begin at the same offset in their own file. What a beat
-    // may inherit from is decided by that name, so the two must differ; a run
-    // that reaches one of them with the other's routing remembered — which
-    // takes a jump straight into the second file — would otherwise wear the
-    // wrong cue.
     const ctx = makeRuntimeStoryFromDirectory("display", "continuation-groups");
     expect(ctx.errorMessages).toEqual([]);
     const groups = new Set<string>();

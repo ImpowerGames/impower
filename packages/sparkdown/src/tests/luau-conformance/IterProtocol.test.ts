@@ -1,15 +1,3 @@
-// Regression tests for Luau's generalized iteration protocol
-// (iter.luau): the hidden `__adjust_iter` stdlib entry runs at
-// generic-for ENTRY and classifies the iterand —
-//   - `__iter` metamethod → its returns become (f, s, ctrl);
-//   - plain table → implicit pairs iteration (`for k, v in t do`);
-//   - function values / markers / callable tables pass through;
-//   - non-iterables raise the trappable "attempt to iterate over a
-//     X value"; nil (including an `__iter` that returned nothing)
-//     falls through to the step's "attempt to call a nil value".
-// Also: EMPTY loop bodies (`for x in t do end`) still lower — the
-// dispatcher used to silently drop the whole loop when the do-block
-// had no content child.
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 

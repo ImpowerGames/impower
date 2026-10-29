@@ -1,13 +1,3 @@
-// A function written inside a scene, a branch or a choice body, or a block of
-// one (a `local function`, a function value, a function passed as an
-// argument) reads the locals of its flow declared above it, so no read of one
-// is reported as an unknown name (I-1746). A branch, in its own lines and in
-// a function written in it, reads its scene's parameters but none of its
-// scene's locals, as the runtime scopes them (I-1674). A top-level function, a define's
-// method, a function in another scene and a read of a local declared below
-// the function still read the global, and are reported. A `local function`
-// in a flow is a closure (I-1674), so its unknown names are reported as a
-// function value's are, as Luau's unknown globals.
 import { describe, expect, it } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -147,8 +137,6 @@ describe("a function written in a flow reads the flow's locals declared above it
     ["a function in a branch", "scene main(bar)\n  Hello.\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n", 5],
     ["a block in a branch holding the function", "scene main(bar)\n  Hello.\n  branch b\n    do\n      local function g() return foo end\n      & g()\n    end\n  end\nend\n", 5],
   ])("follows an edit that adds or removes the scene's parameter read in %s", (_, text, line) => {
-    // Edits by range, after an edit elsewhere has warmed the compiler, so
-    // the branch's lines are reused unless what they read changed.
     const storyLine = 1;
     const c = compiler(text);
     let version = 1;

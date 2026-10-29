@@ -1,9 +1,3 @@
-// `pcall` and `xpcall` — protected call. The protected-call trap
-// (`story.CallLuauFunctionProtected`) catches StoryExceptions and
-// runtime errors added to `state.currentErrors` during the inner
-// call, returning them as `(false, msg)` instead of letting them
-// abort the story.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -122,7 +116,6 @@ function run()
 pcall(function() assert(false, "should be swallowed") end)
 end
 `);
-    // No errors should escape — host's onError stays empty.
     expect(errors).toEqual([]);
   });
 

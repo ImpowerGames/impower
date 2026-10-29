@@ -17,14 +17,12 @@ import { morphValueProblems, validateMorphDeclaration } from "./validateMorph";
 
 type Context = { [type: string]: { [name: string]: any } };
 
-/** A morph issue with the related artwork it concerns, if any. */
 export interface LocatedMorphIssue extends MorphIssue {
   related?: { uri: string; message: string };
 }
 
 export interface MorphScript {
   read: (from: number, to: number) => string;
-  /** 0-based line and character of an offset. */
   position: (offset: number) => { line: number; character: number };
   tree: Tree;
 }
@@ -32,7 +30,6 @@ export interface MorphScript {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 
-/** Every `morph` block in a syntax tree. */
 export function findMorphNodes(tree: Tree): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
   tree.iterate({
@@ -47,7 +44,6 @@ export function findMorphNodes(tree: Tree): SyntaxNode[] {
   return nodes;
 }
 
-/** A morph block as written: its name, node and own body. */
 export interface WrittenMorph {
   uri: string;
   node: SyntaxNode;
@@ -56,18 +52,12 @@ export interface WrittenMorph {
   own: ReturnType<typeof readMorphBody>;
 }
 
-/** One ancestor of a morph: a morph block's own body, or the compiled struct
- *  of a `define` that no morph block wrote. */
 export interface MorphLayer {
   name: string;
   struct: Record<string, unknown>;
   written: boolean;
 }
 
-// The compiled struct of an ancestor that is not a morph block, and its own
-// parent. `define base as morph with … end` is filed as `morph.base` and
-// inherits from the type; `define middle as base with … end` is filed under
-// its parent's name, as `base.middle`, and inherits from `base`.
 export function compiledAncestor(
   context: Context,
   name: string,
@@ -85,13 +75,6 @@ export function compiledAncestor(
   return undefined;
 }
 
-/**
- * A morph's `as PARENT` ancestors, nearest first. Morph blocks contribute the
- * bodies as written; a `define` ancestor contributes its compiled struct and
- * is followed through its own parent. `define` ancestors are kept only when
- * their chain reaches the `morph` type, so a parent name that resolves to
- * some unrelated define adds nothing. A name seen twice ends the chain.
- */
 export function morphAncestors(
   name: string,
   written: ReadonlyMap<string, Record<string, unknown>>,
@@ -124,14 +107,6 @@ export function morphAncestors(
   return layers;
 }
 
-/**
- * The morph as the engine sees it: the type's `$default`, then every
- * ancestor from the farthest to the nearest, then the morph's own body, each
- * layer overriding the one before. This is the order the runtime's `__index`
- * chain reads fields in. Morph blocks contribute their bodies as written,
- * because the compiled context already merges `$default` into every morph,
- * which would let a default hide a value the parent supplies.
- */
 export function effectiveMorph(
   base: Record<string, unknown> | undefined,
   ancestors: readonly MorphLayer[],
@@ -145,7 +120,6 @@ export function effectiveMorph(
   return inherit(result, own);
 }
 
-/** Read every morph block in the scripts. */
 export function readWrittenMorphs(scripts: readonly (MorphScript & { uri: string })[]): WrittenMorph[] {
   const morphs: WrittenMorph[] = [];
   for (const script of scripts) {
@@ -168,11 +142,6 @@ export function readWrittenMorphs(scripts: readonly (MorphScript & { uri: string
   return morphs;
 }
 
-/**
- * Every named morph declared in the scripts, as the engine sees it: the
- * builtin defaults, then its ancestors, then its own body. A name declared
- * twice keeps its last declaration.
- */
 export function collectEffectiveMorphs(
   scripts: readonly (MorphScript & { uri: string })[],
   context: Context,
@@ -198,17 +167,6 @@ export function collectEffectiveMorphs(
   return result;
 }
 
-/**
- * Check every morph declared in the scripts against its inherited struct and
- * the program's artwork, returning the issues for each script.
- *
- * Structural problems are errors placed on the text that causes them. Artwork
- * coverage is a warning: a group, state or label no candidate image has is
- * reported where it is written, and a candidate that lacks some of what the
- * morph drives, or a variant that cannot rest where the morph starts, is
- * reported on the morph's name with a link to the image. Images with none of
- * the morph's groups are not candidates and stay silent.
- */
 export function collectMorphIssues(
   scripts: readonly (MorphScript & { uri: string })[],
   context: Context,
@@ -272,7 +230,6 @@ export function collectMorphIssues(
   return result;
 }
 
-// Whether `obj` sets the dotted `path` (`timing.duration`, `layers.creases.method`).
 function sets(obj: unknown, path: string): boolean {
   let current: unknown = obj;
   for (const key of path.split(".")) {
@@ -282,13 +239,6 @@ function sets(obj: unknown, path: string): boolean {
   return true;
 }
 
-/**
- * Problems in the values a morph actually inherits from `define` ancestors,
- * which no morph block checks where they are written. Only the block whose
- * nearest ancestors are such defines reports them, once, on its `as PARENT`;
- * a value the block sets itself is not inherited and is not reported. Each
- * message names the ancestor that supplies the value.
- */
 function inheritedValueIssues(
   own: Record<string, unknown>,
   ancestors: readonly MorphLayer[],
@@ -316,7 +266,6 @@ function inheritedValueIssues(
   return issues;
 }
 
-// A deep merge of plain objects, `override` winning; arrays are replaced.
 function mergeRecords(
   base: Record<string, unknown>,
   override: Record<string, unknown>,
@@ -353,7 +302,6 @@ function coverageIssues(
   };
   const label = name ? `\`${name}\`` : "This morph";
 
-  // Artwork coverage of what this declaration writes.
   const allGroups = new Set(images.flatMap((image) => Object.keys(image.vocabulary.groups)));
   const candidateLabels = new Set<string>();
   const labelSource = binding.candidates.length > 0
@@ -415,7 +363,6 @@ function coverageIssues(
     }
   }
 
-  // Candidates that cannot take the morph, reported on its name.
   for (const candidate of binding.candidates) {
     const related = candidate.uri
       ? { uri: candidate.uri, message: `Artwork for \`${candidate.image}\`` }

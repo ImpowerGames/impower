@@ -1,20 +1,9 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// calls into the standard library and table literals. Snippets and expected
-// messages are quoted verbatim inside a function body; the upstream test-case
-// name is in the comment above each group.
-//
-// FormatString stays silent on a format Sparkdown's runtime runs
-// (docs/compiler/LINTS.md), so the cases whose format the runtime accepts
-// although Luau's linter warns keep their snippet and drop that warning; the
-// comment above each such group names what the runtime accepts.
-
 import { describe, expect, test } from "vitest";
 import { lintInFunction, lintMessagesInFunction } from "./diagnosticTestHarness";
 
 const UNCLOSED_SET =
   "Invalid match pattern: expected ] at the end of the string to close a set";
 
-// Luau: FormatStringFormat
 describe("malformed string.format specifiers", () => {
   test("unfinished and invalid specifiers", () => {
     expect(
@@ -39,7 +28,6 @@ string.format("hello %+10d %.02f %%", 4, 5)
   });
 });
 
-// Luau: FormatStringPack
 describe("malformed string.pack formats", () => {
   test("eleven bad formats", () => {
     expect(
@@ -89,10 +77,6 @@ string.packsize("=!1bbbI3c42")
   });
 });
 
-// Luau: FormatStringMatch (adapted)
-// Sparkdown's runtime runs `%q` and `%,`, an escape of a character that is
-// not a class or magic, as that character, and runs `[%1]` as a set holding
-// `1`, as Luau does, so their six warnings are dropped.
 describe("malformed match patterns", () => {
   test("eight bad patterns", () => {
     expect(
@@ -136,7 +120,6 @@ string.match(s, "[A-Z]+(%d)%1")
   });
 });
 
-// Luau: FormatStringMatchNested
 describe("capture references into nested captures", () => {
   test("an unclosed and an out-of-range reference", () => {
     expect(
@@ -167,10 +150,6 @@ string.match(s, "((a)%3)")
   });
 });
 
-// Luau: FormatStringMatchSets (adapted)
-// Sparkdown's runtime runs `[%a-b]` (letters, `-` and `b`), `[a-%b]`, `[%q]`,
-// `[%;]` and `[%1]` (which matches `1`, as in Luau), so their five warnings
-// are dropped.
 describe("malformed sets in match patterns", () => {
   test("two bad sets", () => {
     expect(
@@ -209,9 +188,6 @@ string.match(s, "[^]|'[]")
   });
 });
 
-// Luau: FormatStringFindArgs (adapted)
-// Sparkdown's runtime runs `%q`, so the pattern is `%`, which it rejects, and
-// the warnings are the unfinished class's.
 describe("string.find with a plain-text flag", () => {
   test("only the pattern-mode calls are checked", () => {
     expect(
@@ -240,9 +216,6 @@ string.find("foo");
   });
 });
 
-// Luau: FormatStringReplace (adapted)
-// Sparkdown's runtime, like Lua's, replaces `%1` with the whole match when the
-// pattern has no capture, so the warning for `''` and `"%1"` is dropped.
 describe("malformed string.gsub replacements", () => {
   test("three bad replacements", () => {
     expect(
@@ -267,9 +240,6 @@ string.gsub(s, 'foo', "%0")
   });
 });
 
-// Luau: FormatStringDate (adapted)
-// Sparkdown's runtime copies a NUL byte in a date format as text, so the
-// warning for the format holding one is dropped.
 describe("malformed os.date formats", () => {
   test("three bad formats", () => {
     expect(
@@ -292,7 +262,6 @@ os.date("!*t")
   });
 });
 
-// Luau: TableLiteral
 describe("duplicate keys in table literals and table types", () => {
   test("seven duplicates", () => {
     expect(
@@ -351,10 +320,6 @@ end
   });
 });
 
-// Luau: read_write_table_props
-// Upstream runs it under the new solver only, whose table types sparkdown's
-// type checker follows: a `read` and a `write` property of one name are not
-// duplicates of each other.
 describe("read and write table type properties", () => {
   test("six overlapping properties", () => {
     expect(
@@ -379,7 +344,6 @@ describe("read and write table type properties", () => {
   });
 });
 
-// Luau: TableOperations
 describe("suspicious table.insert, remove, move and create calls", () => {
   test("ten suspicious calls", () => {
     expect(
@@ -422,11 +386,6 @@ table.create(42, {} :: {})
   });
 });
 
-// Luau: DeprecatedApiFenv (adapted)
-// Upstream uses type casts to choose which calls warn, and the rule reads no
-// types, so only the uncast first call of each group is kept. Without the
-// casts that read them, `f`, `g` and `h` are unused, so only this rule's
-// warnings are compared.
 describe("getfenv and setfenv", () => {
   test("getfenv(1) and setfenv(1, {})", () => {
     expect(

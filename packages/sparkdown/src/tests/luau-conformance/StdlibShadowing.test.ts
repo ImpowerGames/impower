@@ -39,8 +39,6 @@ function compileAndCapture(source: string): {
 
 describe("local declarations can shadow built-in stdlib names", () => {
   test("local unpack = table.unpack does not error at compile time", () => {
-    // Even though `unpack` is a built-in stdlib name, declaring a
-    // local with the same name should be allowed (Lua-fidelity).
     const { errors } = compileAndCapture(`& run()
 done
 
@@ -50,9 +48,6 @@ host_record(1)
 end
 external host_record(v)
 `);
-    // Filter out the "variable not found: table.unpack" warning —
-    // that's a separate issue (stdlib functions aren't first-class
-    // values yet), not a problem with the local-declaration check.
     const fatal = errors.filter(
       (e) =>
         !e.includes("Variable not found") &&
@@ -62,12 +57,6 @@ external host_record(v)
   });
 
   test("local count can be reassigned from inside a closure body", () => {
-    // `count` is a stdlib namespace name — the grammar tags references
-    // to it as `LuauStdLibConstants` rather than `LuauVariableName`.
-    // Reassignment lowering historically only looked for
-    // `LuauVariableName`, silently dropping the write. Regression test
-    // for the fix that makes `count = count + 1` work inside a closure
-    // that captures `count` as an upval.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -86,8 +75,6 @@ end
   });
 
   test("function parameter can shadow a stdlib name", () => {
-    // `function f(print) ... end` should be legal — the local `print`
-    // parameter shadows the stdlib `print` inside the body.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done

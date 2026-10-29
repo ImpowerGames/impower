@@ -1,8 +1,3 @@
-// Text after a tunnel chain (`-> a -> c > After`) or after a divert inside an
-// alternator arm (`x .. queue|-> c > y|b .. z`) is stray, as it is after a
-// single-target divert: the player follows the same chain and shows the same
-// text as it does for the line without the stray text.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

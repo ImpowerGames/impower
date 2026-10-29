@@ -1,8 +1,3 @@
-// What the type checker reads of a `.sd` file (#599): the Luau statements,
-// wherever Sparkdown's own constructs put them, with the names Sparkdown
-// declares in scope. None of Sparkdown's own syntax may come out as a type
-// warning, and the Luau around it is still checked.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
@@ -26,7 +21,6 @@ function describeDiagnostics(program: SparkProgram, types: boolean): string[] {
     });
 }
 
-/** The type warnings, as `line:character-line:character message`. */
 function typeWarnings(program: SparkProgram): string[] {
   return describeDiagnostics(program, true);
 }
@@ -62,8 +56,6 @@ end
   end
 end
 `);
-    // A branch runs in a scope of its own beside its scene's lines (I-1674):
-    // the scene's parameters are bound there, and `value` and `copy` are not.
     expect(typeWarnings(program)).toEqual([
       "8:26-8:27 Expected this to be 'string', but got 'number'",
       "12:26-12:27 Expected this to be 'string', but got 'number'",
@@ -198,9 +190,6 @@ scene start
   end
 end
 `);
-    // Sparkdown's resolver reports a read it can place, and the checker leaves
-    // that read out; a read the resolver does not report yet, one in a scene's
-    // `local` (#992), is the checker's to report.
     const diagnostics = [...describeDiagnostics(program, true), ...describeDiagnostics(program, false)];
     const lines = (name: string) =>
       diagnostics.filter((d) => d.includes(`\`${name}\``) || d.includes(`'${name}'`)).map((d) => Number(d.split(":")[0]));
@@ -270,7 +259,6 @@ scene singletons
   local bad: string = 1
 end
 `);
-    // Each unit reports in turn: the scene's, then each branch's.
     expect(typeWarnings(program)).toEqual([
       "13:22-13:23 Expected this to be 'string', but got 'number'",
       "7:31-7:34 Expected this to be 'number', but got 'string'",
@@ -332,7 +320,6 @@ end
   local bad: string = 1
 end
 `);
-    // The scene's unit reports before its branch's (I-1674).
     expect(typeWarnings(program)).toEqual([
       "6:24-6:25 Expected this to be 'string', but got 'number'",
       "10:22-10:23 Expected this to be 'string', but got 'number'",
@@ -349,10 +336,6 @@ end
   end
 end
 `);
-    // The list reads `...any` as a variadic type (#876, #1924) and goes on
-    // to its own `)`, so the runtime binds `f` and `k`, and the type checker
-    // reads `k` as the `number` it is declared as. `any` is no parameter, so
-    // Sparkdown's own resolver reports its read (#990).
     expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
     expect(describeDiagnostics(program, false)).toEqual(["7:12-7:15 Cannot find variable named `any`"]);
   });

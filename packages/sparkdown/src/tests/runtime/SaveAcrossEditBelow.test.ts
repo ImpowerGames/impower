@@ -1,7 +1,3 @@
-// A save loaded into a program edited BELOW the saved position resumes at the
-// same statement. The route search resumes from checkpoints taken before the
-// first changed statement, and a checkpoint that resumed anywhere else would
-// run content the story never reached, in the wrong evaluation mode (#751).
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 

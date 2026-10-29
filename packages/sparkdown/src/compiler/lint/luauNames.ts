@@ -12,21 +12,11 @@ export interface NameRange { from: number; to: number }
 export interface LuauNameReference extends NameRange {
   name: string;
   node: AstExprGlobal | AstExprLocal;
-  /** The runtime local's converter identity; absent for global accesses. Const
-   * checking bindings can shadow this identity without declaring a local. */
   local?: AstLocal;
   access: "read" | "write" | "readwrite";
   enclosingFunction?: AstExprFunction;
-  /** Every authored function around the reference, outermost first;
-   * `enclosingFunction` is the last. */
   enclosingFunctions: readonly AstExprFunction[];
-  /** A global read (a compound write included) that a plain write of the
-   * global earlier in `enclosingFunction` always precedes, as Luau's
-   * GlobalUsedAsLocal tracks it: a write inside an `if`, a loop or a nested
-   * function does not count, nor one by the statement whose values hold the
-   * read. */
   dominated?: boolean;
-  /** Written in a type (`typeof(x)`), which Luau's linter does not walk. */
   inType?: boolean;
 }
 export interface LuauNameDeclaration extends NameRange {
@@ -36,11 +26,7 @@ export interface LuauNameDeclaration extends NameRange {
   enclosingFunction?: AstExprFunction;
   function?: AstExprFunction;
   scope?: AstStatBlock;
-  /** Declared in its unit's outermost block, outside every authored
-   * function, nested block and Sparkle handler body, so later units can
-   * still see it. */
   outermost?: boolean;
-  /** The document offset where `scope` ends; absent without a scope. */
   scopeTo?: number;
 }
 export interface LuauGlobalDefinition extends NameRange {
@@ -51,9 +37,6 @@ export interface LuauGlobalDefinition extends NameRange {
   function?: AstExprFunction;
   scope?: AstStatBlock;
 }
-/** An authored function statement; receiver/member definitions do not write
- * their receiver's global. Scope is AST block identity, so separate branch
- * arms are distinguishable without reconstructing a scope system. */
 export interface LuauFunctionDefinition extends NameRange {
   name: string;
   target: AstExpr | AstLocal;
@@ -70,10 +53,7 @@ export interface LuauNameFacts {
   references: LuauNameReference[];
   globals: LuauGlobalDefinition[];
   functions: LuauFunctionDefinition[];
-  /** Syntax occurrences absent from the AST. They establish no read, write
-   * or binding; absence-based conclusions must conservatively consult them. */
   uncertainNames: LuauUncertainName[];
-  /** The document offset where each authored function begins. */
   functionStarts: Map<AstExprFunction, number>;
 }
 export interface LuauUncertainName extends NameRange {
@@ -83,50 +63,31 @@ export interface LuauUncertainName extends NameRange {
 export interface NameRoot {
   root: AstNode;
   offsets: { range(location: Location): NameRange };
-  /** The converter's flow wrapper, identified by unit provenance, never by name. */
   syntheticFunction?: AstStatLocalFunction;
-  /** The root is the body of a function (a Sparkle handler's statements), so a `const` in it is a local, never the story's published constant. */
   functionBody?: boolean;
 }
 
-/** Missing identifiers have this recovery name in the converter, never in authored code. */
 export function isAuthoredLuauName(name: string): boolean {
   return !name.includes("%error-id%");
 }
 
-/** Names over the existing converter AST. The walk classifies assignment
- * targets without treating their receivers/indexes as written, and keeps
- * AstLocal identity rather than resolving names with another scope reader. */
 export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts {
   const facts: LuauNameFacts = { declarations: [], references: [], globals: [], functions: [], uncertainNames: [], functionStarts: new Map() };
   const seen = new Set<AstNode>();
   const locals = new Set<AstLocal>();
-  // The consts declared outside every function, the story's published
-  // constants (`lower/utils/publishesConst.ts`), each declared before any
-  // name that reads it.
   const published = new Set<AstLocal>();
   for (const { root, offsets, syntheticFunction, functionBody } of roots) {
     let enclosingFunction: AstExprFunction | undefined;
     let enclosingFunctions: readonly AstExprFunction[] = [];
-    // The globals plain writes of `enclosingFunction` have written so far,
-    // and whether the walk is inside one of its `if`s or loops, whose
-    // writes may not run (Luau's `dominatedGlobals`, `conditionalExecution`).
     let written: Set<string> | undefined;
     let conditional = false;
     let inType = false;
     let scope: AstStatBlock | undefined;
-    // Blocks entered below the unit's own (its root or its flow wrapper's body).
     let nested = 0;
     const unitBlocks = new Set<AstNode>([root]);
     if (syntheticFunction) unitBlocks.add(syntheticFunction.func.body);
-    // A flow's checking wrapper has no runtime binding. Keep the original
-    // expression node while classifying accesses to that exact binding as
-    // globals; a real authored local of the same spelling remains local.
     const binding = (node: AstExprLocal | AstExprGlobal): AstLocal | undefined => {
       let local = node instanceof AstExprLocal ? node.local : undefined;
-      // A const outside every function is global at runtime. Its
-      // checking-only local preserves the binding it shadows, which still
-      // wins over that global at runtime. A const in a function is a local.
       while (local && published.has(local)) local = local.shadow;
       return local === syntheticFunction?.name ? undefined : local;
     };
@@ -156,15 +117,12 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
         reference(expr, access);
         if (!binding(expr)) {
           const range = offsets.range(expr.location);
-          // Store lowering retains the original statement location; the
-          // store-function form likewise starts at its authored keyword.
           const start = offsets.range(stat.location).from;
           const store = explicitStore || /^store\b/.test(text.slice(start, start + 6));
           facts.globals.push({ name: expr instanceof AstExprGlobal ? expr.name : expr.local.name, kind: store ? "store" : fn ? "function" : "assignment", node: stat, ...range, enclosingFunction, function: fn, scope });
         }
       } else visitAst(expr, visitor);
     };
-    /** The global a plain assignment target names, if it names one. */
     const globalTarget = (expr: AstExpr): string | undefined => {
       if (expr instanceof AstExprError && expr.expressions.length === 1) return globalTarget(expr.expressions[0]!);
       if (expr instanceof AstExprGlobal) return expr.name;
@@ -173,8 +131,6 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
     };
     const visitor = {
       visit(node: AstNode): boolean {
-        // A type, and an `if` or a loop in a function, are walked again
-        // with their flag set, before `seen` records them.
         if ((node instanceof AstType || node instanceof AstTypePack) && !inType && !seen.has(node)) {
           inType = true;
           visitAst(node, visitor);
@@ -228,8 +184,6 @@ export function collectNameFacts(roots: NameRoot[], text: string): LuauNameFacts
           for (let i = 0; i < node.vars.length; i++) target(node.vars[i]!, "write", node, node.values[i] instanceof AstExprFunction ? node.values[i] as AstExprFunction : undefined, node instanceof AstStatSparkdownStore);
           if (node instanceof AstStatSparkdownStore) for (const annotation of node.annotations) if (annotation) visitAst(annotation, visitor);
           for (const value of node.values) visitAst(value, visitor);
-          // Luau marks the targets written before it reads the values; they
-          // are marked after, so `x = x + 1` still reads `x` first.
           if (node instanceof AstStatAssign && written && !conditional) {
             for (const variable of node.vars) {
               const name = globalTarget(variable);
@@ -270,12 +224,9 @@ export interface LuauProgramNames {
   scripts: Map<string, LuauNameFacts>;
   globals: Map<string, ProgramGlobalName>;
   functions: (LuauFunctionDefinition & { uri: string })[];
-  /** Kept separate: an uncertain occurrence cannot establish a global use. */
   uncertainNames: Map<string, ProgramUncertainName[]>;
 }
 
-/** Recombine the current script set each time: no removed script/use survives
- * an edit, and unchanged scripts retain their cached AST/binding identities. */
 export function indexProgramNames(scripts: Iterable<{ uri: string; names: LuauNameFacts }>): LuauProgramNames {
   const index: LuauProgramNames = { scripts: new Map(), globals: new Map(), functions: [], uncertainNames: new Map() };
   const global = (name: string) => {

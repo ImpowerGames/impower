@@ -1,11 +1,3 @@
-// A `store` whose default is a table keeps the same table when a field of it
-// is set, so the global still holds its default object. A save writes such a
-// store whether or not it changed, so a field set in place survives the load.
-// A default global's table is written with an anchor, and a load restores it
-// into the loading story's own default table, so a saved local, a define
-// built at init, or another store that shares it still shares it after the
-// load, and a define reached through a store table is the live define.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { VariablesState } from "../../runtime/VariablesState";
@@ -197,8 +189,6 @@ end
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     expect(story.Continue()).toBe("First.\n");
-    // A save whose copy of the constant differs from the compiled one, as a
-    // save written by an earlier version of the program would.
     const saved = JSON.parse(story.state.ToJson());
     let changed = 0;
     const visit = (node: unknown): void => {
@@ -320,9 +310,6 @@ end
       makeRuntimeStoryFromSource(source);
     const errors = [...errorMessages];
     expect(story.Continue()).toBe("First.\n");
-    // A save that names the shared table by the define's path rather than
-    // the store's, as a program whose globals are declared differently
-    // would write.
     const saved = story.state.ToJson();
     expect(saved).toContain(`"anchor":"[\\"a\\"]"`);
     const renamed = saved

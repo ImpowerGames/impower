@@ -1,6 +1,3 @@
-// A `match` whose lines are not written as `|` arms (`case 1`) is an error at
-// each such line, and a `match` with no arm an error at its keyword, never a
-// compile with no program and no diagnostic (#1502).
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";
@@ -37,13 +34,9 @@ describe("a match", () => {
 
   it("reports an inline match with no arm in a display line as the call it is", () => {
     const noArm: [number, string] = [1, "A `match` needs at least one arm, written `| value = ...`"];
-    // In Luau code the word opens an alternator only at a `|` (I-1310), so
-    // with none it is a call, and the `end` after it is a stray one, as it
-    // is after any other call.
     const { program } = compileScript("store k = 1\nBefore {match (k) end} After.\n");
     expect(errorsOf(program)).toEqual(errorsOf(compileScript("store k = 1\nBefore {foo (k) end} After.\n").program));
     expect(errorsOf(program)).not.toEqual([]);
-    // The glued form's own parse reports the missing arm's value as well.
     const glued = compileScript("store k = 1\nBefore .. match (k) .. After.\n").program;
     expect(errorsOf(glued)).toContainEqual(noArm);
   });

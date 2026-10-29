@@ -1,27 +1,11 @@
-// A `choose` block's `end` is where every choice in it continues once its
-// content runs out, whether or not the block has a `then` clause, and the
-// flow holds at the block until a choice is taken: what follows the block in
-// the script, at any nesting, runs after the choice. A scene that runs out of
-// content after a choice therefore reaches the scene's implicit `done` and
-// ends without a runtime error, including when the block sits inside an `if`.
-// A block that offers no choice holds nothing, and the flow runs on past it.
-// A block in another block's preamble offers its choices with that block's.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// Continues until the story stops, choosing `picks` in order, and returns the
-// text shown, the text shown before each pick and after the last one
-// (`steps`), the choices offered at each pick (`offered`), and the errors
-// `onError` received.
 function drive(source: string, ...picks: string[]) {
   const ctx = makeRuntimeStoryFromSource(source);
   const story: any = ctx.story;
   const runtimeErrors: string[] = [];
   story.onError = (message: string) => runtimeErrors.push(message);
-  // The game listens for the paths the story runs. Listening makes the story
-  // read the path of every pointer it steps through, including an empty
-  // gather's start, so the hook stays although nothing reads what it gets.
   story.onExecute = () => {};
   const lines: string[] = [];
   const steps: string[][] = [];

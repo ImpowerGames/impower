@@ -1,49 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Per-statement source mapping at the Luau-runtime level.
-//
-// Before this fix, EVERY runtime ControlCommand inside a `function
-// run() ... end` knot ended up with the same debug metadata —
-// the function definition's range, not the individual statement's.
-// `error("oops")` on user line N reported as line 1 (the formatter
-// clamped to >= 1 because the lookup walked up to the function's
-// L0 chunk-relative metadata and got a negative user line).
-//
-// Five coupled changes lit up per-statement granularity:
-//
-//   1. `appendBlockContent` copies the statement-level Weave
-//      wrapper's debug metadata down to its unwrapped children
-//      (preserving the per-statement line through re-parenting).
-//   2. `wrapInWeave` optionally accepts a range + ctx so callers
-//      that bypass `lower()`'s dispatcher (statement-level
-//      FunctionCall / CallValueExpression sites in lowerStatements)
-//      can stamp the wrapping Weave with the call's source range.
-//   3. `SparkdownCompiler.populateLocations` falls back to
-//      inherited metadata when an object has no own metadata —
-//      ensuring every path has a location entry.
-//   4. CheckForNamingCollisions: SymbolType.Temp can shadow
-//      parameters (Luau allows `function f(b) local b = 1 end`).
-//   5. `Divert.Error` forwards the `isWarning` flag when
-//      propagating warnings from child objects (a pre-existing
-//      inkjs bug — without this, the Luau-superset
-//      "Can't use a divert target like that" warning surfaced as
-//      a severity-1 error whenever its propagation chain crossed
-//      a Divert ancestor).
-//
-// Plus a related fix in `lowerExpression.ts` (already covered by
-// `ForLoopVarCapture.test.ts`): for-loop variable declarations are
-// now recognized by `collectImmediateBodyDeclarations` /
-// `scanFreeVariables` so they don't get captured as upvals.
-
 describe("per-statement debug metadata at runtime", () => {
-  // Each test verifies the formatter reports the EXACT user-fixture
-  // line that `error()` was called from. `pathLocations` stores
-  // `metadata.startLineNumber - 1`, and `metadata.startLineNumber` is
-  // now correctly 1-based (`buildDebugMetadata` adds 1 to the 0-based
-  // `ctx.lineNumber`), so the stored value is the true 0-based line and
-  // the harness lookup uses `best + 1 - PREAMBLE_LINE_COUNT`.
-
   test("error() at user line 1 reports line 1", () => {
     const r = runConformanceSource(`error("oops")`, undefined, "smoke");
     expect(
@@ -86,8 +44,6 @@ describe("per-statement debug metadata at runtime", () => {
   });
 
   test("pcall captures the error()'s precise source line", () => {
-    // basic.luau line 39 shape — verifies the line number flows
-    // through pcall correctly. The error() is on user line 1.
     const r = runConformanceSource(
       `local ok, err = pcall(function() error("oops") end)\n` +
       `assert(err == "basic.luau:1: oops", "got " .. tostring(err))`,
@@ -131,16 +87,9 @@ describe("Temp shadows parameter (Luau spec)", () => {
 
 describe("Divert.Error forwards isWarning flag", () => {
   test("a function value passed through a Divert ancestor raises no error", () => {
-    // An anonymous function lowers to a DivertTarget(synth_knot) value.
-    // It is a function value, so it raises no "Can't use a divert
-    // target like that" hint at all; the severity an authored
-    // `-> target` misuse keeps is pinned in
-    // compiler/logicLineLocations.test.ts.
     const r = runConformanceSource(
       `local function noinline(x, ...) local s, r = pcall(function(y) return y end, x) return r end\nassert(noinline(42) == 42)`,
     );
-    // The fixture should compile cleanly — divert-target-related
-    // warnings should NOT appear in errorMessages (severity 1).
     expect(
       r.errorMessages.filter(
         (e) => !e.startsWith("RUNTIME"),

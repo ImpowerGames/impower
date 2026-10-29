@@ -1,8 +1,3 @@
-// What the writer emits for a method call (I-1412): a colon call's
-// `CallValue` names its method, so a receiver that lacks it raises Luau's
-// `attempt to call missing method`, and nothing else of the call changes; a
-// dot call's `CallValue` names none. The name stays out of the layout hash,
-// so a save written before it places as it did.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,8 +28,6 @@ const code = (root: ProgramRoot): string[][] =>
 
 describe("a method call", () => {
   it("emits a colon call as before, with a CallValue that names the method", () => {
-    // Before I-1412 the colon calls ended `CallValue 2` and `CallValue 3`;
-    // every other instruction is unchanged.
     expect(code(compiled(SCRIPT))).toEqual([
       ["MakeTable 0", "SetVar t flags 1"],
       [
@@ -70,9 +63,6 @@ describe("a method call", () => {
   });
 });
 
-// The layout hash a save checks a frame's code by leaves the method's name
-// out, so a save written before calls named their method still places
-// inside a statement or a loop that holds a colon call.
 describe("a save written before colon calls named their method", () => {
   const SAVED_SCRIPT = [
     "store x = 0",

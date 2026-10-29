@@ -1,6 +1,3 @@
-// Writing a top-level function's name through the globals table (`_G.f = g`,
-// `_G['f'] = g`) rebinds it as `f = g` does (I-1091): in Luau `_G.f` and the
-// global `f` are the same slot.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -11,8 +8,6 @@ import {
   storyBeats,
 } from "../program/programHarness";
 
-// The text a compiled story runs to, with the compile's error and warning
-// diagnostics and the run's errors.
 const outcome = ({ program }: { program: SparkProgram }) => {
   const diagnostics = Object.values(program.diagnostics ?? {})
     .flat()
@@ -61,8 +56,6 @@ const cases: [string, string, string][] = [
   ],
 ];
 
-// The text a compile of `text` runs to after an edit that replaces `before`
-// with `after`, which compiles the edited script incrementally.
 const runAfterEdit = (text: string, before: string, after: string) => {
   const c = programCompiler({ [MAIN_URI]: text });
   c.compile();

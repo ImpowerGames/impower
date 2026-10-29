@@ -1,6 +1,3 @@
-// Pinned Luau DenseHashSet<ModuleName> iteration for the test oracle target:
-// Emscripten 4.0.10 wasm32, libc++ std::hash<string> (Murmur2). This is not a
-// claim about other native standard libraries' implementation-defined hashes.
 function moduleNameHash(name: string): number {
   const bytes = new TextEncoder().encode(name);
   const multiplier = 0x5bd1e995;
@@ -30,12 +27,10 @@ function moduleNameHash(name: string): number {
   return (hash ^ (hash >>> 15)) >>> 0;
 }
 
-/** Ascending occupied buckets, as pinned DenseHashSet::begin/iterator. */
 export function pinnedModuleDependencyOrder(names: Iterable<string>): string[] {
   let buckets: (string | undefined)[] = [];
   const inserted = new Set<string>();
   const place = (name: string) => {
-    // DenseHash::doHash mixes even the wasm32 hash through a uint64 product.
     const hash =
       (BigInt(moduleNameHash(name)) * 11400714819323198485n) &
       0xffffffffffffffffn;
@@ -46,8 +41,6 @@ export function pinnedModuleDependencyOrder(names: Iterable<string>): string[] {
   };
   for (const name of names) {
     if (inserted.has(name)) continue;
-    // DenseHash grows before a new insertion at 3/4 capacity, rehashing
-    // existing elements in ascending occupied-bucket order.
     if (inserted.size >= (buckets.length * 3) / 4) {
       const previous = buckets;
       buckets = new Array(previous.length === 0 ? 16 : previous.length * 2);

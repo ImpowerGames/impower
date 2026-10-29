@@ -1,7 +1,3 @@
-// `string.pack` / `string.unpack` / `string.packsize` — binary
-// packing via DataView. Output is encoded as a byte string (each
-// char ∈ [0, 255]) so it round-trips with `string.byte` / `char`.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -71,7 +67,6 @@ host_record(string.byte(s, 4))
 end
 `);
     expect(errors).toEqual([]);
-    // Little-endian: least significant byte first.
     expect(recorded).toEqual([0x04, 0x03, 0x02, 0x01]);
   });
 
@@ -101,7 +96,6 @@ host_record(string.byte(s, 1))
 end
 `);
     expect(errors).toEqual([]);
-    // -1 as int8 → 0xFF (255 unsigned).
     expect(recorded).toEqual([0xff]);
   });
 });
@@ -171,7 +165,6 @@ host_record(v)
 end
 `);
     expect(errors).toEqual([]);
-    // "hi" + null = 3 bytes; byte 3 is the null terminator.
     expect(recorded).toEqual([3, 0, "hi"]);
   });
 
@@ -203,7 +196,6 @@ host_record(v)
 end
 `);
     expect(errors).toEqual([]);
-    // length prefix = 5, then "hello".
     expect(recorded).toEqual([5, "hello"]);
   });
 });
@@ -238,7 +230,6 @@ host_record(string.len(s))
 end
 `);
     expect(errors).toEqual([]);
-    // 1.5 is exactly representable in float32 — should round-trip exact.
     expect(recorded).toEqual([1.5, 4]);
   });
 });
@@ -254,7 +245,6 @@ host_record(string.packsize("BHI4d"))
 end
 `);
     expect(errors).toEqual([]);
-    // 1 + 2 + 4 + 8 = 15.
     expect(recorded).toEqual([15]);
   });
 

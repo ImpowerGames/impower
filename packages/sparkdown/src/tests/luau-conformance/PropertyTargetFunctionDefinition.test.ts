@@ -1,37 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Lua/Luau allows declaring functions directly onto a table:
-//   `function a.f(p) BODY end`  → desugars to `a.f = function(p) BODY end`
-//   `function a:m(p) BODY end`  → desugars to `a.m = function(self, p) BODY end`
-//
-// The grammar's `LuauFunctionDeclarationName` has a negative lookahead
-// `(?!{{LUAU_ACCESSOR_OPERATOR}})` that rejects dotted/colon names, so
-// these forms parse with the name as a `LuauAccessPath` child of the
-// function definition instead. Previously the lowerer returned an
-// empty block when it didn't find a `LuauFunctionDeclarationName`,
-// silently dropping the declaration — calling `a.f(...)` at the
-// runtime then failed with "Tried to call a non-function value as a
-// function (got )" because `a.f` was nil.
-//
-// Lowerer now detects the LuauAccessPath child, builds an anonymous
-// synthetic Function (pushed as a subFlow of the enclosing scope),
-// and emits a StorePropertyAssignment writing the closure DivertTarget
-// into the table key.
-//
-// Limitations of this initial version:
-//   - Upval capture: no closure wrapper (just a bare DivertTarget),
-//     so outer locals referenced from the body don't update if
-//     reassigned after the declaration. Acceptable for the common
-//     "declare a method on a table" pattern.
-//
-// The colon form's `self.property` lookups were initially broken
-// because the access-path lowerer's LuauVariable case only checked
-// LuauVariableName / LuauStdLibConstants / LuauStdLibGlobals — but
-// the grammar tags `self` as `LuauSelfKeyword`. Fixed by adding
-// `LuauSelfKeyword` to the lookup list in both `lowerSimpleAccessPath`
-// and `lowerValueChainAccessPath`. See the `colon form` tests below.
-
 describe("function a.f(...) — property-target function definition", () => {
   test("simplest: function a.f() ... end", () => {
     const r = runConformanceSource(`a = {}
@@ -76,8 +45,6 @@ assert(a.g(5) == 7)`);
   });
 
   test("equivalent to explicit a.f = function() form", () => {
-    // Regression guard: the explicit form still works and produces
-    // the same observable behavior.
     const r = runConformanceSource(`a = {}
 a.f = function () return 1 end
 assert(a.f() == 1)`);
@@ -105,7 +72,6 @@ assert(a:m() == 10)`);
   });
 
   test("self + user arg (calls.luau line 36 pattern)", () => {
-    // `function a:x (x) return x + self.i end`
     const r = runConformanceSource(`a = {i = 10}
 function a:x (x) return x + self.i end
 assert(a:x(1) == 11)`);

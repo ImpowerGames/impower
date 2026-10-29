@@ -1,14 +1,3 @@
-// A backtick string's errors have one owner, the reading of the statement
-// the string stands in, in every context (I-1435): the type checker's in a
-// function and a story statement, a story store's own reading, a lowerer's
-// of a define's method or a Sparkle handler, and the lowerer's reading of the
-// expression in story braces, a define's value and an alternator's head and
-// arms. The validator reports none of the string's text, so a statement that
-// rejects the string before reading it reports Luau's rejection alone. In
-// story braces and alternator arms the lowerer's reading owns the
-// expression's other errors too, in Luau's words (I-1445,
-// `braceReadingOneOwner1445.test.ts`). Each form reports what a cold
-// compile of the same text reports after an edit away from it.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -17,7 +6,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
 
-/** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
 function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
   return diagnostics
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
@@ -37,12 +25,10 @@ function compileErrors(compiler: SparkdownCompiler): string[] {
   return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
 }
 
-/** A cold compile's syntax errors. */
 function sparkdownErrors(text: string): string[] {
   return compileErrors(newCompiler(text));
 }
 
-/** The official parser's errors for `text`, moved down by `line` lines and right by `shift` characters. */
 function official(text: string, line = 0, shift = 0): string[] {
   return officialErrorList(text)
     .map((error) =>
@@ -51,29 +37,16 @@ function official(text: string, line = 0, shift = 0): string[] {
     .sort();
 }
 
-/**
- * The official parser's first error for `text`, moved as `official` moves
- * it: a string's own error, where what Luau reads after the string it gave
- * up on is a statement's, which the context reports as its own (a define's
- * value its first error, from the tree; a double-quoted string's
- * interpolation none, being Sparkdown's own syntax).
- */
 function officialFirst(text: string, line = 0, shift = 0): string[] {
   const [first] = officialErrorList(text);
   return first ? official(text, line, shift).filter((error) => error.endsWith(first.slice(first.indexOf(" ")))).slice(0, 1) : [];
 }
 
-/** The position of `offset` in `text`, as an LSP position. */
 function positionAt(text: string, offset: number) {
   const lines = text.slice(0, offset).split("\n");
   return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
 }
 
-/**
- * Compiles `text`, applies one edit to it through `updateDocument`
- * (`insert` at `offset`, replacing `removed` characters), and compiles
- * again: the edited text and the incremental compile's errors.
- */
 function incrementally(text: string, offset: number, removed: number, insert: string): { text: string; errors: string[] } {
   const compiler = newCompiler(text);
   compiler.compile({ textDocument: { uri: URI } } as never);
@@ -84,11 +57,8 @@ function incrementally(text: string, offset: number, removed: number, insert: st
   return { text: text.slice(0, offset) + insert + text.slice(offset + removed), errors: compileErrors(compiler) };
 }
 
-// A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from every string, on a line before it, and changes no line count.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   for (const [offset, removed, insert] of [
@@ -100,11 +70,7 @@ function expectIncrementalEqualsCold(text: string): void {
   }
 }
 
-// Forms of a string's own errors: an empty interpolation, a stray token in
-// one, a malformed escape in a section with an interpolation after it, and
-// one in the last section, each with a closing backtick.
 const OWN = ["`a {} b`", "`a {1 2} b`", "`a\\x {y} b`", "`a {y} b\\x`"];
-// The same with no closing backtick, which runs to the end of its line.
 const UNFINISHED = ["`a {x} b", "`a {1 2} b", "`a {} b"];
 
 describe("a backtick string's own errors, from the reading of the statement it stands in", () => {
@@ -127,14 +93,10 @@ describe("a backtick string's own errors, from the reading of the statement it s
     });
     test(`a define's value s = ${string}`, () => {
       const text = `define Thing with\n  s = ${string}\nend\n`;
-      // A property's reading reports every error of its value (I-1500).
       expect(sparkdownErrors(text)).toEqual(official(`local s = ${string}\n`, 1, -4));
       expectIncrementalEqualsCold(text);
     });
   }
-  // A string Luau reads on after (`a {1 2} b`) leaves an if-condition's
-  // `then` to the tokens after it, which a story statement's reading does
-  // not report (a follow-up of I-1435).
   for (const string of ["`a {} b`", "`a {y} b\\x`"]) {
     test(`an if-condition ${string} == "x"`, () => {
       const text = `scene start\n  if ${string} == "x" then\n    Hi.\n  end\nend\n`;
@@ -149,18 +111,11 @@ describe("a backtick string's own errors, from the reading of the statement it s
   }
 });
 
-// What the lowerer's reading of an expression standing alone reports after
-// a string's own error, at the first token after the string it gave up on.
 const REST: Record<string, [number, string] | undefined> = {
   "`a {1 2} b`": [6, "'2'"],
   "`a\\x {y} b`": [6, "'y'"],
 };
 
-/**
- * The errors of `string` read alone at `line`:`column`: Luau's own error
- * for the string, as the official parser gives it for `local _ = ...`, then
- * the reading's end of the expression at the first token after it.
- */
 function aloneAt(string: string, line: number, column: number): string[] {
   const [own] = officialFirst(`local _ = ${string}\n`, line, column - 10);
   const rest = REST[string];
@@ -190,10 +145,6 @@ describe("a backtick string's own errors, from the lowerer's reading where no ot
   }
 });
 
-// What no lowerer lowers is still read for the string's errors: a `match`
-// alternator's condition and an alternator nested in another's arm where
-// Luau code uses the outer one as a value, a define's computed key, and an
-// alternator in a tag's braces (round 1).
 describe("a backtick string where no lowerer lowers the expression it stands in", () => {
   const places: [string, string, number, number][] = [
     ["a match alternator's condition, used as a value", "store c = match `a {} b` | 1 = 'one' | 'other' end\n", 0, 16],
@@ -201,8 +152,6 @@ describe("a backtick string where no lowerer lowers the expression it stands in"
     ["an alternator in another's arm, used as a value", "store n = cycle | cycle | `a {} b` | 'ok' end | 'last' end\n", 0, 26],
     ["an alternator in a sequential alternator's head, used as a value", "store n = cycle (cycle | `a {} b` | 'ok' end) | 'last' end\n", 0, 25],
     ["a define's computed key", "define Thing with\n  [`a {} b`] = 1\nend\n", 1, 3],
-    // A statement in an arm, in a story alternator's block and in one Luau
-    // code uses as a value (round 1).
     ["a statement in a story alternator's arm", "scene start\n  cycle\n    |\n      local s = `a {} b`\n    |\n      Hi.\n  end\nend\n", 3, 16],
     ["a statement in the arm of an alternator used as a value", "function f()\n  local c = cycle |\n    local s = `a {} b`\n  | 2 end\nend\n", 2, 14],
     ["an alternator in a tag's braces", "scene start\n  Hello # tag {cycle | `a {} b` | 2 end}\nend\n", 1, 23],
@@ -215,8 +164,6 @@ describe("a backtick string where no lowerer lowers the expression it stands in"
   }
 });
 
-// A tag's braces hold an expression the tag shows as its text unless it is
-// one name, so only the string's own error is reported there.
 describe("a backtick string's own error in a tag's braces", () => {
   for (const string of OWN) {
     test(`Hello # tag {${string}}`, () => {
@@ -233,7 +180,6 @@ describe("a string the statement rejects reports the statement's error, none of 
       const luau = `function f()\n  local ${rest}\n  return s\nend\n`;
       expect(sparkdownErrors(luau)).toEqual(official(luau));
     });
-    // A store's value read on after its end describes the string whole (I-1429).
     if (rest === "s = 1 `a {} b`") continue;
     test(`a story store ${rest}`, () => {
       const text = `store ${rest}\n`;
@@ -246,18 +192,11 @@ describe("a string the statement rejects reports the statement's error, none of 
     expect(sparkdownErrors(text)).toEqual(["1:11-1:15 Expected the end of the expression, got `a {"]);
     expectIncrementalEqualsCold(text);
   });
-  // An arm is a sequence of values, each lowered on its own (`lowerArms`):
-  // `1` and the string are two values, so the string is read as one and
-  // its own error stands.
   test("an alternator's arm cycle | 1 `a {} b` | 'c' end", () => {
     const text = "store s = cycle | 1 `a {} b` | 'c' end\n";
     expect(sparkdownErrors(text)).toEqual(officialFirst("local _ = `a {} b`\n", 0, 10));
     expectIncrementalEqualsCold(text);
   });
-  // A define's value reports a statement's first error from the tree
-  // (`validateAssignmentValue`); the string after it begins a statement of
-  // the body, whose reading goes on to Luau's `got } b``, as the official
-  // parser does (I-1489).
   test("a define's value s = 1 `a {} b`", () => {
     const text = "define Thing with\n  s = 1 `a {} b`\nend\n";
     const both = [
@@ -270,8 +209,6 @@ describe("a string the statement rejects reports the statement's error, none of 
   });
 });
 
-// In story braces and an alternator's arms, the lowerer's reading owns every
-// form, in Luau's words, naming the closing brace it ends at (I-1445).
 describe("story braces and alternator arms: one owner per form", () => {
   const forms: [string, string[]][] = [
     ["1 2", ["1:11-1:12 Expected the end of the expression, got '2'"]],
@@ -290,9 +227,6 @@ describe("story braces and alternator arms: one owner per form", () => {
       expectIncrementalEqualsCold(text);
     });
   }
-  // In an arm, values side by side are a sequence (`| second visit |`); the
-  // forms are those within one value, and an operation continues the value
-  // before it.
   const arms: [string, string[]][] = [
     ["1 2", []],
     ["x y", []],
@@ -309,9 +243,6 @@ describe("story braces and alternator arms: one owner per form", () => {
   }
 });
 
-// The undirected review of round 1: a string whose first interpolation is
-// left open where a statement rejects it, a define's value dropped with its
-// key, and errors beside a whole if expression in story braces.
 describe("round 1's undirected probes", () => {
   for (const line of [
     "local s = (1 `a {x)",
@@ -336,8 +267,6 @@ describe("round 1's undirected probes", () => {
     );
     expectIncrementalEqualsCold(text);
   });
-  // An expression that holds an if expression reports every error of its
-  // reading too (I-1445).
   for (const [expr, expected] of [
     ["(if true then 1 else 2) 3", ["1:33-1:34 Expected the end of the expression, got '3'"]],
     ["(if true then 1 else 2) `a {} b`", ["1:33-1:37 Expected the end of the expression, got `a {"]],
@@ -352,9 +281,6 @@ describe("round 1's undirected probes", () => {
   }
 });
 
-// Round 2's author-experience probes: a define's value on the line after its
-// `=` dropped with a key that does not lower, and a story `match`'s
-// condition that rejects a string.
 describe("round 2's author-experience probes", () => {
   test("a define's value on the next line, whose key does not lower", () => {
     const text = "define Bad with\n  [`a {} b`] =\n    `c {} d`\nend\n";
@@ -382,8 +308,6 @@ describe("round 2's author-experience probes", () => {
   });
 });
 
-// Round 2's undirected probes: an alternator a value holds after one that
-// lowers to nothing, which lowering never reaches.
 describe("round 2's undirected probes", () => {
   for (const [text, line, column] of [
     ["store s = (cycle | 1 | 2 end) .. (cycle | `a {} b` | 3 end)\n", 0, 42],
@@ -402,18 +326,13 @@ describe("round 2's undirected probes", () => {
   });
 });
 
-// Round 3's undirected probes: a rejection inside a whole if expression's
-// condition or value is the reading's, not the if expression's own.
 describe("round 3's undirected probes", () => {
   test("story braces Hello {if true then 1 else (2 `a {} b`)}.", () => {
     const text = "scene start\n  Hello {if true then 1 else (2 `a {} b`)}.\nend\n";
-    // The official parser over the same expression at the same columns.
     expect(official("\n  return if true then 1 else (2 `a {} b`)\n")).toContain("1:32-1:36 Expected ')' (to close '(' at column 30), got `a {");
     expect(sparkdownErrors(text)).toEqual(["1:32-1:36 Expected ')' (to close '(' at column 30), got `a {"]);
     expectIncrementalEqualsCold(text);
   });
-  // With Luau's recovery after the rejection, which the reading reports too
-  // (I-1445).
   for (const [expr, expected] of [
     [
       "if (1 `a {} b`) then 1 else 2",
@@ -432,11 +351,6 @@ describe("round 3's undirected probes", () => {
   }
 });
 
-// Round 4's undirected probes: an if expression whose recovery leaves a part
-// in error, in choice text, parenthesized in story text and in an arm,
-// reports the rejection of the string in its condition or value, and every
-// other error of the reading, Luau's recovery's included (I-1445, which
-// took back the retreat these probes pinned).
 describe("round 4's undirected probes", () => {
   const contexts = [
     ["choice text", (expr: string) => `scene start\n  choose\n    * Hello {${expr}}.\n  end\nend\n`],
@@ -500,10 +414,6 @@ describe("round 4's undirected probes", () => {
   }
 });
 
-// The probes of I-1419's fourth review round: a string split over lines by
-// an escape, and a statement's error at the string's first lexeme after
-// which Luau reads the string on, in a function the type checker reads and
-// in a define's method the lowerer reads.
 describe("the round-4 ownership probes (I-1419)", () => {
   const bodies = [
     "function `a \\\nb {x} c {} d`() end",
@@ -528,8 +438,6 @@ describe("the round-4 ownership probes (I-1419)", () => {
     });
   }
 
-  // The unrelated-error probe: Luau's error at the string's first lexeme is
-  // the loop's, and the string is still read, so its own error stands too.
   test("for i `a {x} b {} c` do end reports both errors", () => {
     expect(sparkdownErrors("function f()\nfor i `a {x} b {} c` do end\nend\nGo {f()}.\n")).toEqual(
       [
@@ -540,10 +448,6 @@ describe("the round-4 ownership probes (I-1419)", () => {
   });
 });
 
-// An edit ahead of a string, away from it, which a compile carries the
-// string's statement past: the incremental compile reports what a cold one
-// does (I-1419's fourth round, which found the validator's lexeme offsets
-// left behind by the edit).
 describe("an edit away from the string reports what a cold compile does", () => {
   const padding = (count: number) => `function padding()\n${"local p = 0\n".repeat(count)}end\n`;
   for (const count of [4, 8, 16, 80]) {

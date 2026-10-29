@@ -1,29 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Lua truthiness: ONLY `nil` and `false` are falsy — 0, 0.0, "", and
-// every table are truthy. Implemented as:
-//
-//   - `isLuauTruthy` (engine/LuauTruthiness.ts) — the predicate.
-//   - `TRUTHY` native op — Luau `if`/`elseif`/`while` conditions are
-//     wrapped in it at lower time (lowerSparkdownIfBlock /
-//     lowerLuauWhileLoop) so they reach the conditional-divert test
-//     as a real BoolValue. Ink-style narrative constructs (choice
-//     conditions, `{cond:}` interpolations) keep ink truthiness via
-//     Story.IsTruthy — read-count idioms like `* if seen_scene`
-//     still treat 0 as falsy.
-//   - `and`/`or` operand selection + `not` (NativeFunctionCall
-//     special cases) use the Lua predicate; `not` always returns a
-//     genuine boolean (it formerly returned ink Ints, corrupted the
-//     eval stack on nil, and threw on tables).
-//   - `repeat ... until cond` needs no wrapping — its lowerer wraps
-//     the condition in `not`, which now normalizes per Lua.
-//   - StdLib's JS-level `isTruthy` (assert, string.find plain flag,
-//     table.sort comparators) flipped to Lua semantics too.
-//
-// Unlocks basic.luau lines 86-87 and the and/or/not sections
-// (132-140, 149-151, 167-174).
-
 describe("Lua truthiness in conditions", () => {
   test("if 0 takes the then-branch (basic.luau line 86)", () => {
     const r = runConformanceSource(

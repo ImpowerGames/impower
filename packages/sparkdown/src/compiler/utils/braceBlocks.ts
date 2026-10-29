@@ -2,28 +2,12 @@ import { type SyntaxNode, type Tree } from "@lezer/common";
 import { findChildByName } from "./findChildByName";
 import { nodeNameSet } from "./nodeNameSet";
 
-// The brace blocks of a struct, layout or component body (#1222), read the
-// way the editor's help needs them: which blocks hold an offset, and the key
-// each one adds to a path. The annotator and the language server's
-// completion and folding use these, so a key's path is read from the blocks
-// around it, never from indentation.
-//
-//   keyframes {            LuauStructBlock > … > LuauStructBlockBody
-//     from { opacity = 0 }   LuauStructBlock (key `from`)
-//     { offset = 0.5 }       LuauStructListBlock (a list entry, key `-`)
-//   }
-//   column.panel {         LuauSparkleElement > … > LuauSparkleElementBlock
-//     text "a"
-//   }
-
-/** The braces of a block: everything from its `{` to its `}`. */
 export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauStructBlockBody",
   "LuauStructListBlock",
   "LuauSparkleElementBlock",
 ]);
 
-/** The tokens that name a struct key (`key = …`, `key { … }`). */
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
@@ -34,8 +18,6 @@ export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "SelectorPropertyNamePart",
 ]);
 
-/** A brace body's `{` part, entries and `}` part, each named literally so the
- *  grammar node-name check sees every name. */
 export function braceBodyParts(body: SyntaxNode): {
   begin: SyntaxNode | null;
   content: SyntaxNode | null;
@@ -63,22 +45,17 @@ export function braceBodyParts(body: SyntaxNode): {
   }
 }
 
-/** Where a brace body's `}` starts; the body's end when it has none (a block
- *  left open ends where its declaration does). */
 export function braceBodyCloseFrom(body: SyntaxNode): number {
   const { end } = braceBodyParts(body);
   return end && end.to > end.from ? end.from : body.to;
 }
 
-/** Whether `offset` lies between a brace body's `{` and its `}`. */
 export function braceBodyHolds(body: SyntaxNode, offset: number): boolean {
   const { begin } = braceBodyParts(body);
   const openTo = begin ? begin.to : body.from + 1;
   return offset >= openTo && offset <= braceBodyCloseFrom(body);
 }
 
-/** The node a brace body belongs to: the `LuauStructBlock` or
- *  `LuauSparkleElement` whose header it follows, or the list entry itself. */
 export function braceBodyOwner(body: SyntaxNode): SyntaxNode {
   if (body.name === "LuauStructListBlock") return body;
   const content = body.parent;
@@ -89,7 +66,6 @@ export function braceBodyOwner(body: SyntaxNode): SyntaxNode {
     : body;
 }
 
-/** A struct block's header key node (`LuauStructBlockKey`). */
 export function structBlockKeyNode(block: SyntaxNode): SyntaxNode | null {
   const begin = findChildByName(block, "LuauStructBlock_begin");
   if (!begin) return null;
@@ -101,11 +77,6 @@ export function structBlockKeyNode(block: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-/**
- * The token that names a struct key: its first key-name token, or the
- * whole key when it has none (a
- * selector such as `&.wide`, a keyframe position such as `from`).
- */
 export function structKeyToken(key: SyntaxNode): SyntaxNode {
   const walk = (node: SyntaxNode): SyntaxNode | null => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -118,11 +89,6 @@ export function structKeyToken(key: SyntaxNode): SyntaxNode {
   return walk(key) ?? key;
 }
 
-/** The name and dotted `.name` classes of a brace element's head, in
- *  source order: its name (and a call's arguments) in its begin, then the
- *  runs of parts (`LuauSparkleElementParts`) its content holds before its
- *  block, including those after an event closure's `}`. A component call
- *  (`card(1)`) has none of these in its key. */
 export function sparkleElementKeyParts(element: SyntaxNode): {
   name: SyntaxNode | null;
   words: SyntaxNode[];
@@ -153,12 +119,6 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
   return { name, words, call };
 }
 
-/**
- * The dotted `.name` classes in the runs of parts directly inside an
- * element's or a continuation line's content (`LuauSparkleElement_content`,
- * `LuauSparkleElementContinuation_content`), in source order, never inside
- * its block, an attribute or content.
- */
 export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   const words: SyntaxNode[] = [];
   const walk = (node: SyntaxNode) => {
@@ -182,7 +142,6 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
     if (child.name === "LuauSparkleElementParts") {
       walk(child);
     } else if (child.name === "LuauSparkleEventClosureAttribute") {
-      // The parts after the closure's `}` on its line.
       const inner = findChildByName(
         child,
         "LuauSparkleEventClosureAttribute_content",
@@ -195,12 +154,6 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   return words;
 }
 
-/**
- * The key a brace body adds to a path: a struct block's header key, `-` as
- * the internal list-entry marker, and an element's name and dotted classes
- * joined by single spaces, as the static struct keys it (`column.panel` is
- * `column panel`). A component call adds nothing to the static struct.
- */
 export function braceBodyKey(
   body: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -225,27 +178,17 @@ export function braceBodyKey(
 }
 
 export interface BraceBlockPath {
-  /** The keys of the blocks that hold the offset, outermost first. */
   path: string[];
-  /** The innermost brace body that holds the offset. */
   body: SyntaxNode;
-  /** Where the outermost block that holds the offset starts (its key, its
-   *  element, or a list entry's `{`). */
   outerFrom: number;
 }
 
-/** The tokens that start a new brace entry: a block's `{` and `}`, and a
- *  `;` between entries. */
 const ENTRY_SEPARATOR_NAMES = nodeNameSet([
   "LuauStructBlockOpen",
   "LuauStructBlockClose",
   "LuauStructBlockSeparator",
 ]);
 
-/** Element-head tokens that begin with the quote an author has opened but not
- *  yet closed: a quote the head cannot read (`text 'a`), or an attribute
- *  value the grammar takes as unquoted text because its closing quote is
- *  missing (`#label='a`). */
 const UNCLOSED_QUOTE_TOKEN_NAMES = nodeNameSet([
   "LuauSparkleElementInvalid",
   "InlinePropLiteralValue",
@@ -253,18 +196,6 @@ const UNCLOSED_QUOTE_TOKEN_NAMES = nodeNameSet([
 
 const QUOTES = ['"', "'", "`"];
 
-/**
- * The text of the brace entry being written at `offset` on the line starting
- * at `lineFrom`: what follows the last `{`, `}` or `;`, or starts at the
- * current element's grammar-owned head. Whether a `;` or a brace is structure is
- * the parser's decision: one inside a string (`"a;b"`, element content
- * `'a; b'`), an attribute value (`#label='a; b'`) or a bracket run
- * (`[data-label='a;b']`) is part of that token, while a quote or bracket the
- * grammar reads as text (`'tis`, `ease[`) changes nothing. While an element's
- * quote is still open (`text 'a; te`), the grammar ends the element at the
- * `;`, so the entry instead starts before the open quote. Inside a string the
- * entry therefore holds its opening quote; see `entryInsideQuote`.
- */
 export function braceEntryAt(
   tree: Tree,
   offset: number,
@@ -283,8 +214,6 @@ export function braceEntryAt(
       } else if (node.name === "LuauSparkleElement_begin" && node.from < offset) {
         separators.push(node.from);
       } else if (UNCLOSED_QUOTE_TOKEN_NAMES.has(node.name)) {
-        // Still open when the quote occurs an odd number of times from the
-        // opener to the cursor.
         const quote = read(node.from, node.from + 1);
         if (
           QUOTES.includes(quote) &&
@@ -305,8 +234,6 @@ export function braceEntryAt(
   return read(start, offset);
 }
 
-/** An element's attribute or handler value, whose text is Luau or a value,
- *  never an entry of the block around it. */
 const ELEMENT_VALUE_NAMES = nodeNameSet([
   "LuauSparklePropAttribute",
   "LuauSparkleEventAttribute",
@@ -314,11 +241,6 @@ const ELEMENT_VALUE_NAMES = nodeNameSet([
   "LuauSparkleHandlerClosure",
 ]);
 
-/**
- * Whether `offset` lies inside an element's attribute or handler value, as
- * the parse tree reads it, on whatever line the value started (a handler
- * closure `@click={` runs over later lines).
- */
 export function insideElementValue(tree: Tree, offset: number): boolean {
   for (
     let node: SyntaxNode | null = tree.resolveInner(offset, -1);
@@ -331,23 +253,14 @@ export function insideElementValue(tree: Tree, offset: number): boolean {
   return false;
 }
 
-/**
- * Whether the entry being written stands inside a value or a quoted string,
- * where neither a key nor an element name is being written: it holds an `=`
- * or a quote the author opened (`"`, a backtick, or a `'` that starts a token,
- * while `'` after a letter or digit is an apostrophe, as in `don't`).
- */
 export function entryInsideValue(entry: string): boolean {
   return entry.includes("=") || entryInsideQuote(entry);
 }
 
-/** Whether the entry holds a quote the author opened (see
- *  `entryInsideValue`). */
 export function entryInsideQuote(entry: string): boolean {
   return /["`]|(?:^|[^\p{L}\p{N}_])'/u.test(entry);
 }
 
-/** The brace blocks that hold `offset`, or null when no block does. */
 export function braceBlockPathAt(
   tree: Tree,
   offset: number,

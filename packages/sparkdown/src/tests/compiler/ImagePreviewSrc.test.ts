@@ -1,10 +1,3 @@
-// Asset completions/hovers show a thumbnail by resolving the struct down to a
-// loadable `<img src>`. Only a plain `image` carries `src` (copied off the
-// workspace file by `populateAssets`); `layered_image.assets` and
-// `filtered_image.image` hold bare REFERENCES (`{ $type, $name }`, with an
-// empty `$type` for a bare name), so reading `.src` straight off one always
-// yields undefined and the preview silently disappears (issue #290).
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -75,7 +68,6 @@ end
         assetFile("file://proj/a/bg_danbys__prop.png"),
       ],
     );
-    // Regression guard: `assets[0].src` is undefined — these are references.
     expect(
       program.context?.["layered_image"]?.["bg_danbys"]?.["assets"]?.[0]?.[
         "src"
@@ -114,8 +106,6 @@ end
   });
 
   it("falls back to the root image when a filtered_image has no filtered_src", () => {
-    // A filtered_image over a RASTER layered_image can't produce a filtered
-    // svg source, so it must preview the underlying layer instead of nothing.
     const program = compile(
       `define bg_town as layered_image with
   assets = {
@@ -191,18 +181,7 @@ end
   });
 });
 
-// The thumbnail's height has to survive a host stylesheet that resets images
-// to `height: auto`, which the web editor's page does. An HTML `height`
-// attribute is a presentational hint and loses to any author rule, so on its
-// own it is cancelled; an SVG root that declares only a `viewBox` then has no
-// intrinsic size to fall back on and the preview collapses to nothing (#432).
-// An inline style outranks author rules, so the markup states the height both
-// ways: hosts that strip inline styles read the attribute, hosts that reset
-// image heights read the inline style.
 describe("image preview markup height", () => {
-  // The shape every portrait in the reported project is exported as: an
-  // aspect ratio and nothing else. An SVG that declares its own width and
-  // height does not reproduce the defect.
   const VIEWBOX_ONLY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5760 3240"><circle cx="1" cy="1" r="1"/></svg>`;
 
   const markupFor = (program: any, type: string, name: string) =>
@@ -255,9 +234,6 @@ end
     expect(inline).toBe(attribute);
   });
 
-  // Everything above compares the markup against the constant, so all of it
-  // would still pass if the constant itself became 0 or NaN -- which renders
-  // as the same empty box the ticket is about. Pin the literal once.
   it("asks for a height that draws something", () => {
     expect(IMAGE_PREVIEW_HEIGHT).toBe(180);
     const program = compile("", [assetFile("file://proj/a/backdrop.png")]);

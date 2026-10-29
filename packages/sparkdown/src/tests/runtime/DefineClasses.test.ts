@@ -1,15 +1,3 @@
-// `define` OOP class sugar — class tables + `new` instance
-// construction + metatable-chain method dispatch.
-//
-//   define Bird with ... end            → Bird = { defaults, methods }
-//   define Penguin as Bird with ... end → setmetatable(Penguin, { __index = Bird })
-//   local b = new Bird()                → instance with __index → Bird
-//   b:fly()                             → colon dispatch up the chain, self threaded
-//
-// `store`-marked properties copy into the instance at construction
-// (instance-owned → always serialized with the instance); unmarked
-// properties stay on the class until written.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -93,9 +81,9 @@ end
       "I'm a bird and I'm flying!",
       "Penguins can't fly...",
       "I'm a penguin and I'm swimming!",
-      true, // bird:fly() wrote the instance
-      false, // penguin's override never set isFlying — class default
-      true, // penguin:swim() wrote the instance
+      true,
+      false,
+      true,
     ]);
   });
 
@@ -133,11 +121,11 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([
-      true, // Bird default
-      false, // Penguin override shadows the parent default
-      false, // b1's own write
-      true, // b2 untouched — still reads the class default
-      true, // the class itself untouched
+      true,
+      false,
+      false,
+      true,
+      true,
     ]);
   });
 
@@ -166,11 +154,6 @@ b:speak()
 end
 `);
     expect(errors).toEqual([]);
-    // Penguin has no methods of its own here BUT has a method-less
-    // body — note: a define without methods is a data-define, so give
-    // Penguin a method? No — Penguin inherits speak through the
-    // chain, and `noise` resolves to the INSTANCE's class default
-    // first ("honk"), demonstrating self-driven lookup.
     expect(recorded).toEqual(["honk", "tweet"]);
   });
 
@@ -226,9 +209,9 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([
-      10, // store prop copied into the instance at construction
-      null, // non-store prop NOT on the instance...
-      "wanderer", // ...but reads fine through __index
+      10,
+      null,
+      "wanderer",
       11,
     ]);
   });
@@ -261,9 +244,6 @@ end
   });
 
   test("data-only defines keep the legacy struct path (no runtime class)", () => {
-    // A define with NO methods must not become a runtime global —
-    // it routes through the compile-time struct registry exactly as
-    // before (flat dot-access globals for its properties).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
 define Settings with

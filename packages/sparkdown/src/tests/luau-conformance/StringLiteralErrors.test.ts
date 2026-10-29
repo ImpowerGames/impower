@@ -1,19 +1,7 @@
-// Ported from Luau's parser tests for malformed string literals and block
-// comments (`luau/tests/Parser.test.cpp`), so "we match Luau here" is an
-// executable claim. Snippets and expected messages are quoted verbatim from
-// upstream; the upstream test-case name is in the comment above each group.
-//
-// Luau's lexer emits a `BrokenString` / `BrokenComment` token for an
-// unfinished literal; sparkdown's grammar cannot fail a token, so the
-// equivalent is the validator noticing a string or comment node with no
-// closing part. Escape sequences are checked per escape node, mirroring
-// `Lexer::fixupQuotedString`.
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
-// Luau: string_literals_escapes_broken
 describe("string literal escapes", () => {
   const expected = "String literal contains malformed escape sequence";
 
@@ -29,33 +17,25 @@ describe("string literal escapes", () => {
     expect(diagnoseInFunction(source)).toContain(expected);
   });
 
-  // `'...'` takes the same escapes as `"..."` in Luau.
   test("single quotes are checked the same way", () => {
     expect(diagnoseInFunction("return '\\xFO'")).toContain(expected);
   });
 
-  // `[[...]]` is raw in Luau: a backslash is just a backslash.
   test("multiline strings are not checked", () => {
     expect(diagnoseInFunction("return [[\\xFO \\u{ \\359]]")).toEqual([]);
   });
 
-  // Every escape `fixupQuotedString` accepts. An unknown letter after a
-  // backslash (`\q`) is not an error in Luau either: it yields the letter.
   test("well-formed escapes are not flagged", () => {
     const source =
       'return "\\a\\b\\f\\n\\r\\t\\v\\\\\\"\\\'\\z\\x41\\u{41}\\u{10FFFF}\\65\\255\\q"';
     expect(diagnoseInFunction(source)).toEqual([]);
   });
 
-  // Luau's parser rejects a code point above U+10FFFF (upstream's
-  // `utf8.luau` writes `"\u{110000}"` only as Lua 5.4's), and in Luau code
-  // its error is reported (I-1322).
   test("code points above U+10FFFF are malformed, not crashed on", () => {
     expect(diagnoseInFunction('return "\\u{110000}"')).toEqual([expected]);
   });
 });
 
-// Luau: string_literals_broken
 describe("unfinished string literals", () => {
   const expected = "Malformed string; did you forget to finish it?";
 
@@ -75,8 +55,6 @@ describe("unfinished string literals", () => {
     expect(diagnoseInFunction(source)).toContain(expected);
   });
 
-  // The grammar closes an unfinished `"` at the next `"` it finds, which may
-  // be lines away; in Luau a quoted string ends at its line.
   test("a quoted string does not continue onto the next line", () => {
     expect(
       diagnoseInFunction('local a = "abc\nlocal b = "x"'),
@@ -97,16 +75,12 @@ describe("unfinished string literals", () => {
     expect(diagnoseInFunction(source)).toEqual([]);
   });
 
-  // `\z` skips whitespace only; text on the next line is still a newline
-  // inside a quoted string when nothing escaped it.
   test("\\z does not excuse a later unescaped newline", () => {
     expect(diagnoseInFunction('return "abc\\z\ndef\nghi"')).toContain(
       expected,
     );
   });
 
-  // Luau's `\z` skips ASCII whitespace only; a non-breaking space or a BOM
-  // ends the run, so the newline after one is unescaped.
   test.each([
     ["non-breaking space", 'return "abc\\z \ndef"'],
     ["byte order mark", 'return "abc\\z﻿\ndef"'],
@@ -119,9 +93,6 @@ describe("unfinished string literals", () => {
   });
 });
 
-// Luau's parser rejects `\u{110000}` through `\u{7FFFFFFF}`, and Luau code
-// reports its error for each (I-1322); U+10FFFF, the last code point, stays
-// as written.
 describe("code points above U+10FFFF", () => {
   test('"\\u{110000}" and "\\u{7FFFFFFF}" are malformed escapes', () => {
     const r = runConformanceSource(
@@ -135,19 +106,12 @@ describe("code points above U+10FFFF", () => {
   });
 
   test('"\\u{10FFFF}" stays U+10FFFF', () => {
-    // Compared as a number so the test cannot pass by a wrong lowering.
     const r = runConformanceSource('assert(utf8.codepoint("\\u{10FFFF}") == 0x10FFFF, "in range stays")\n');
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
 });
 
-// Luau: parse_error_broken_comment
-//
-// Luau's parser reports the broken comment from wherever it was looking for
-// its next token, and the upstream test pins the expression-position wording
-// for all three placements. Sparkdown uses that wording for every unfinished
-// `--[[`, including one after a complete statement.
 describe("unfinished block comment", () => {
   const expected =
     "Expected identifier when parsing expression, got unfinished comment";

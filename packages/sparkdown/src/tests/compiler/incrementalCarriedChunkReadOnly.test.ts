@@ -1,13 +1,3 @@
-// The assembly never changes the `content` of a chunk carried from the
-// previous compile (#674).
-//
-// A `choose … then … end` lowers to a chunk whose content ends in a nested
-// weave, and the lines after the block are assembled into a weave that follows
-// that one's children. The carried chunk's own objects must come out of every
-// compile holding exactly the children they held before it, or the next
-// compile starts from whatever this one assembled. The assembly does set the
-// `parent` of those children, which this test does not check. The edits leave a line between themselves
-// and the block, because the chunk just above an edit is lowered again.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing, pushesString } from "../programListing";
@@ -83,11 +73,6 @@ function contains(content: ParsedObject[] | undefined, type: Function): boolean 
   );
 }
 
-/**
- * Every object reachable through `content` in walk order, each written as its
- * type and the numbers of the objects it holds. An object met for the first
- * time is numbered by `ids`, so two walks agree only over the same objects.
- */
 function graph(content: ParsedObject[], ids: Map<ParsedObject, number>) {
   const out: string[] = [];
   const seen = new Set<ParsedObject>();

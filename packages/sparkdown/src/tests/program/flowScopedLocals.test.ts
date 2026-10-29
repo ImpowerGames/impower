@@ -1,12 +1,3 @@
-// A scene's and a branch's locals belong to that flow, as a function's
-// belong to the function (#1674): a scene opens a scope of its own and a
-// branch one nested in its scene's. A branch the scene falls into reads the
-// scene's parameters; a divert into a scene or a branch opens fresh scopes,
-// so what the flow declared before is nil there; a tunnel and a thread run
-// in scopes of their own. Only a closure written in the flow reads the
-// flow's locals, as upvalues; a top-level function and a define's method
-// read the global.
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -23,7 +14,6 @@ const quiet = <T>(run: () => T): T => {
   }
 };
 
-// The root of a script that compiles with no error.
 const rootOf = (lines: string[]): ProgramRoot =>
   quiet(() => {
     const { program } = compileScript([...lines, ""].join("\n"));

@@ -1,14 +1,3 @@
-// Valid Luau forms that the grammar did not read (#1924, a slice of #1904).
-// Since #1905 a pure-Luau body tiles with `LuauUnreadToken`, so a token no
-// rule read there is an unread leaf (`LuauUnreadName`, `LuauUnreadCharacter`)
-// with no scope of its own, or a statement rule closed unfinished at it.
-// Outside a pure-Luau body, or where the tree read the form as something
-// else, the form also compiled or ran wrongly (a header's name, a loop's
-// condition, an attributed function at the top level). Each form here is read by the grammar's own rules: no unread leaf
-// and no unfinished node, each token carries the scope it carries in the
-// forms the grammar already read (`@deprecated`, `T...`, `number | string`,
-// ...), and the script compiles and runs. Each form is a grammar fixture in
-// `__snapshots__/grammar/luau-forms/`.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,26 +33,10 @@ const WRITE_TARGET = "variable.other.property.write.target.sd";
 const STORY_TEXT = "markup.raw.text.sd";
 
 interface Form {
-  /** The grammar fixture that holds the form, in `luau-forms`. */
   fixture: string;
-  /**
-   * Tokens in the order they are written, each with the innermost scope
-   * vscode-textmate gives it. A token is the whole text one scope covers
-   * (`T...`), and each is looked for after the one before it.
-   */
   scopes: [text: string, scope: string][];
-  /**
-   * Text written once in the source, with a rule whose node holds its last
-   * character in the tree.
-   */
   within?: [text: string, rule: string][];
-  /** What the story shows, when the form's value reaches it. */
   output?: string;
-  /**
-   * The same script written in a form the grammar already read, whose
-   * compile errors the form's must equal, where the script has some of its
-   * own; otherwise the form compiles with no error.
-   */
   control?: string;
 }
 
@@ -180,34 +153,28 @@ const FORMS: Record<string, Form> = {
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["f", FUNCTION_NAME],
-      // indented
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["k", FUNCTION_NAME],
-      // with a block comment before the function
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["m", FUNCTION_NAME],
-      // with a block comment between two attributes
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["@", ATTRIBUTE_OPERATOR],
       ["checked", ATTRIBUTE],
       ["function", FUNCTION],
       ["n", FUNCTION_NAME],
-      // with a long string in a list's argument
       ["@", ATTRIBUTE_OPERATOR],
       ["deprecated", ATTRIBUTE],
       ["function", FUNCTION],
       ["q", FUNCTION_NAME],
-      // with no space after a list
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
       ["r", FUNCTION_NAME],
-      // with a `]` in a level-four long string
       ["@", ATTRIBUTE_OPERATOR],
       ["deprecated", ATTRIBUTE],
       ["function", FUNCTION],
@@ -226,24 +193,19 @@ const FORMS: Record<string, Form> = {
       ["@", ATTRIBUTE_OPERATOR],
       ["checked", ATTRIBUTE],
       ["function", FUNCTION],
-      // a block comment between them on the line
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
-      // a list that spans lines
       ["@", ATTRIBUTE_OPERATOR],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
-      // with a `]` in an argument's string on its first line
       ["@", ATTRIBUTE_OPERATOR],
       ["deprecated", ATTRIBUTE],
       ["native", ATTRIBUTE],
       ["function", FUNCTION],
-      // with a long string in an argument
       ["@", ATTRIBUTE_OPERATOR],
       ["deprecated", ATTRIBUTE],
       ["function", FUNCTION],
-      // with a long string over lines in an argument
       ["@", ATTRIBUTE_OPERATOR],
       ["deprecated", ATTRIBUTE],
       ["function", FUNCTION],
@@ -256,12 +218,8 @@ const FORMS: Record<string, Form> = {
       ["checked", ATTRIBUTE],
       ["function", FUNCTION],
     ],
-    // In Luau code; a story declaration ends at its line, so there an
-    // attribute that ends it has no function (#1907, `storyBodyLineRule`).
     within: [
-      // an unindented function line
       ["@[native]\nfunction", "LuauVariableDefinition"],
-      // past a line comment that ends with the word `end`
       ["@checked\n    function", "LuauVariableDefinition"],
       ["@[native] --[[c]] function", "LuauVariableDefinition"],
       ["    native\n  ]\n  function", "LuauVariableDefinition"],
@@ -316,7 +274,6 @@ const FORMS: Record<string, Form> = {
       ["<<", OPEN],
       ["number...", VARARGS],
       [">>", CLOSE],
-      // in a narrative `&` line
       ["->", TYPE_OPERATOR],
       ["...", VARARGS],
       ["number", PRIMITIVE],
@@ -348,7 +305,6 @@ const FORMS: Record<string, Form> = {
       ["&", TYPE_OPERATOR],
       ["string", PRIMITIVE],
       [">>", CLOSE],
-      // after a method's name too
       ["<<", OPEN],
       ["number", PRIMITIVE],
       ["|", TYPE_OPERATOR],
@@ -426,10 +382,8 @@ const FORMS: Record<string, Form> = {
       ["other", DEFINE_NAME],
       ["with", WITH],
       ["blue", "string.unquoted.identifier.sd"],
-      // a comment whose text ends with a `]` right before its close
       ["third", DEFINE_NAME],
       ["green", "string.unquoted.identifier.sd"],
-      // a comment of level four
       ["fourth", DEFINE_NAME],
       ["green", "string.unquoted.identifier.sd"],
       ["h", FUNCTION_NAME],
@@ -471,17 +425,12 @@ const FORMS: Record<string, Form> = {
       ["Keys", TYPE],
       ["T", TYPE],
       ["t", PARAMETER],
-      // after an attribute
       ["h", FUNCTION_NAME],
       ["z", PARAMETER],
-      // after an attribute and a block comment
       ["p", FUNCTION_NAME],
       ["w", PARAMETER],
     ],
   },
-  // At story scope a loop's header ends at its line (#1907), so the story
-  // form of #1344 (fixture loop-condition-next-line-1344) is missing its
-  // condition; `storyBodyLineRule.test.ts` pins that reading.
   "#1344 a loop condition on the line after for or while, in a function": {
     fixture: "loop-condition-next-line-in-function-1344",
     scopes: [
@@ -510,7 +459,6 @@ const FORMS: Record<string, Form> = {
       ["if", "keyword.control.if.luau"],
       ["then", "keyword.control.then.luau"],
       ["else", "keyword.control.else.luau"],
-      // after two comments
       ["if", "keyword.control.if.luau"],
       ["then", "keyword.control.then.luau"],
       ["else", "keyword.control.else.luau"],
@@ -538,7 +486,6 @@ function compile(text: string) {
     .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
 }
 
-/** The unread leaves and unfinished nodes of a tree, with the text at each. */
 function unreadOrUnfinished(source: string): string[] {
   const found: string[] = [];
   const cursor = parseSource(source).topNode.cursor();
@@ -550,7 +497,6 @@ function unreadOrUnfinished(source: string): string[] {
   return found;
 }
 
-/** Each expected token's text with the innermost scope vscode-textmate gives the token found for it. */
 async function scopesOf(source: string, expected: [string, string][]): Promise<[string, string][]> {
   const tokens = (await tokenize(source)).flatMap((line) => line.tokens);
   const found: [string, string][] = [];
@@ -567,7 +513,6 @@ async function scopesOf(source: string, expected: [string, string][]): Promise<[
   return found;
 }
 
-/** Each text with its rule, when a node of that rule holds the text's last character. */
 function holders(source: string, expected: [string, string][]): [string, string][] {
   const tree = parseSource(source);
   return expected.map(([text, rule]) => {
@@ -579,8 +524,6 @@ function holders(source: string, expected: [string, string][]): [string, string]
   });
 }
 
-// Both engines' agreement on each fixture is `scopeEquality.test.ts`'s, and
-// its tree and tokens are the grammar snapshots'.
 describe("valid Luau forms the grammar reads with their usual scopes (#1924)", () => {
   for (const [name, form] of Object.entries(FORMS)) {
     const source = readFileSync(join(FORMS_DIR, `${form.fixture}.sd`), "utf8");
@@ -610,19 +553,12 @@ describe("valid Luau forms the grammar reads with their usual scopes (#1924)", (
   }
 });
 
-// The attributes before a top-level function are read with the function, as
-// Luau reads them, so an invalid list reports Luau's error for it.
 test("an invalid attribute list before a top-level function reports Luau's error (#1924)", () => {
   expect(compile("@[native; deprecated] function first()\n  return 7\nend\nValue: {first()}.\n")).toContain(
     "Expected ']' (to close '[' at column 2), got ';'",
   );
 });
 
-// A top-level line that begins with an attribute is Luau wherever its
-// function stands (#921's question, decided for #1924), so no text inside
-// a list's arguments or a comment decides it: strings holding `]` and
-// `function`, escaped quotes, backticks, long brackets at every level and
-// line comments all leave the attributes with the function that follows.
 const LEXICAL_LINES = [
   '@[deprecated{reason = "] function"}] function f() return 7 end',
   '@[deprecated{reason = "\\"] function"}] function f() return 7 end',
@@ -645,30 +581,20 @@ test.each([...LEXICAL_LINES, "@[deprecated{reason = `] function`}] function f() 
   },
 );
 
-// Each attributed function ends at its own `end`, after a block comment on
-// its line too, so the next one on the line or the next line is its own
-// statement.
 test.each([
   ["@native function a() return 1 end @native function b() return 2 end\nValues {a()} {b()}.\n"],
   ["@native --[[c]] function a() return 1 end\n@native --[[c]] @checked function b() return 2 end\nValues {a()} {b()}.\n"],
   ["@native -- a note that ends with end\nfunction a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
-  // A `--` in a string or a block comment's text is no line comment.
   ['@native function a() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
   ["@native --[[ -- note ]] function a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
   ['store a = @native function() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
 ])("attributed functions in a row are each their own statement (#1924): %j", (source) => {
-  // The second function is a top-level statement of its own, not held by
-  // the statement or value before it.
   expect(holders(source, [["return 2 end", "LuauFunctionAttributes"]])).toEqual([["return 2 end", "LuauFunctionAttributes"]]);
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Values 1 2.\n");
 });
 
-// A documentation comment between attributes and their function keeps its
-// own scopes, and one that ends with the word `end` does not end the
-// attributes' statement. A function value's attributes and the function
-// span lines in Luau code; a story declaration ends at its line (#1907).
 test.each([
   ["@native\n---@param x number\nfunction f(x) return x end\nValue {f(3)}.\n", "Value 3.\n"],
   ["function m()\n  local f = @native\n    ---@param x number\n    function(x) return x end\n  return f(4)\nend\nValue {m()}.\n", "Value 4.\n"],
@@ -682,8 +608,6 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe(output);
 });
 
-// A write after an attributed function, or after an attribute line with no
-// function, is still a write.
 test.each([
   ['@[deprecated{reason="--"}] function greet() return "Hello" end\n@hud: text\nThe story continues.\n', "hud"],
   ["@native --[[ -- note ]] function greet() return \"Hello\" end\n@hud.panel: text\nThe story continues.\n", "hud.panel"],
@@ -693,24 +617,18 @@ test.each([
   expect(compile(source).filter((message: string) => message.includes(`'@${target.split(".")[0]}'`))).toEqual([]);
 });
 
-// Attributes before a declaration that is not a function report Luau's
-// error for the missing function.
 test("attributes before a local declaration report the missing function (#1924)", () => {
   expect(compile("-> start\nscene start\n  @native\n  local answer = 42\n  The story continues.\nend\n")).toContain(
     "Expected 'function' after local declaration with attribute, but got 'answer' instead",
   );
 });
 
-// An attribute line with no function is still Luau, and Luau reports the
-// missing function; a story line with `@` anywhere else stays story.
 test("an attribute line with no function reports Luau's error (#1924)", () => {
   const missing = "Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got <eof> instead";
   expect(compile(readFileSync(join(FORMS_DIR, "line-start-attribute-alone-921.sd"), "utf8"))).toContain(missing);
   expect(compile('@[deprecated{reason = "] function"}]\nHello.\n')).toContain(missing);
 });
 
-// A long string closes only at a close of its own level, so a longer close
-// inside it is its text and the function after the list is still found.
 test.each([
   ["@[deprecated{reason = [====[a]=====]b]====]}] function first() return 7 end\nThe answer is {first()}.\n"],
   ["@[deprecated{reason = [=======[a]=====]b]=======]}] function first() return 7 end\nThe answer is {first()}.\n"],
@@ -722,8 +640,6 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe("The answer is 7.\n");
 });
 
-// Luau's errors for an attribute list, which the grammar reads whole, are
-// reported as Luau's, in a `store` declaration's value too.
 test.each([
   ["@[native deprecated] function first() return 7 end\nThe answer is {first()}.\n", "Expected ']' (to close '[' at column 2), got 'deprecated'"],
   ["store f = @[nativ] function() return 7 end\nThe answer is {f()}.\n", "Invalid attribute '@nativ'"],
@@ -732,8 +648,6 @@ test.each([
   expect(compile(source)).toContain(message);
 });
 
-// A line of many attribute lists with no function is read at once: no
-// pattern looks ahead along it for the function.
 test("a line of many attribute lists parses at once (#1924)", () => {
   const source = "@[native] ".repeat(28) + "\n";
   const start = performance.now();
@@ -741,8 +655,6 @@ test("a line of many attribute lists parses at once (#1924)", () => {
   expect(performance.now() - start).toBeLessThan(2000);
 });
 
-// Luau reads an attribute's arguments only as literals. The grammar reads
-// the list, so Luau's errors for its arguments are reported as Luau's.
 test("an attribute argument that is not a literal reports Luau's errors (#1924)", () => {
   const source = 'function main()\n  local reason = "why"\n  @[deprecated{reason=reason}]\n  function f() end\nend\nHello.\n';
   const expected = ["Only literals can be passed as arguments for attributes", "Only constant string allowed as value for 'reason'"];
@@ -750,8 +662,6 @@ test("an attribute argument that is not a literal reports Luau's errors (#1924)"
   expect(checkLuau('local reason = "why"\n@[deprecated{reason=reason}]\nfunction f() end\n').syntaxDiagnostics.map((d) => d.message)).toEqual(expected);
 });
 
-// A header keyword written inside a comment in a block's body is no header,
-// so the word after the comment declares nothing.
 test("a header keyword inside a body line's comment declares no name (#1924)", () => {
   const source = "style banner with\n  --[[style --[[note]] accidental\nend\nHello.\n";
   const names: string[] = [];
@@ -763,10 +673,6 @@ test("a header keyword inside a body line's comment declares no name (#1924)", (
   expect(names).toEqual(["banner"]);
 });
 
-// Forms that already ran correctly, whose tree still held an unfinished node
-// where the form goes on, which the checker reports as a syntax error.
-// #922's `then` and `end` glued to a `)` are left to #1906, which changes
-// how the grammar reads closers.
 describe("tree-shape residues read to their end (#1924)", () => {
   test.each([
     ["#1373 a statement after a repeat-until call condition", "local x = 1\nlocal function p() return true end\nrepeat until p() x = x\n"],

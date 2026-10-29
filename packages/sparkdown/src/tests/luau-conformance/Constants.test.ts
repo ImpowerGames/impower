@@ -35,11 +35,6 @@ end
   });
 
   test("math.huge evaluates to true Infinity", () => {
-    // `SimpleJson.WriteFloat` serializes Infinity as the "inff"
-    // string marker (JSON has no Infinity literal) and the loader
-    // recovers it as a real Infinity FloatValue — so math.huge is
-    // genuinely infinite end-to-end, matching Lua. (It was formerly
-    // clamped to 3.4e38, a documented divergence now removed.)
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done

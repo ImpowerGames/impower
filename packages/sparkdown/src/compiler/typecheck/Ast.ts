@@ -9,7 +9,6 @@
 import type { Location, Position } from "./Location";
 
 export class AstLocal {
-  /** Set after construction when the local is exported. */
   isExported = false;
 
   constructor(
@@ -27,10 +26,6 @@ export abstract class AstNode {
   constructor(public location: Location) {}
   abstract readonly kind: string;
 }
-
-// ---------------------------------------------------------------------------
-// Expressions
-// ---------------------------------------------------------------------------
 
 export abstract class AstExpr extends AstNode {}
 
@@ -78,7 +73,6 @@ export const enum QuoteStyle {
 
 export class AstExprConstantString extends AstExpr {
   readonly kind = "ExprConstantString";
-  /** @param value the string's bytes, one character per byte */
   constructor(
     location: Location,
     public value: string,
@@ -131,8 +125,6 @@ export class AstExprCall extends AstExpr {
     public self: boolean,
     public typeArguments: AstTypeOrPack[],
     public argLocation: Location,
-    // Not part of Luau: the argument list has a syntax error before its
-    // `)`, so `args` holds only the arguments read before it (I-1428).
     public malformed = false,
   ) {
     super(location);
@@ -172,10 +164,8 @@ export const enum AstAttrType {
   Unknown,
 }
 
-/** What a `@deprecated` attribute says (Luau's `AstAttr::DeprecatedInfo`). */
 export interface DeprecatedInfo {
   deprecated: boolean;
-  /** What to use instead. */
   use?: string;
   reason?: string;
 }
@@ -257,11 +247,8 @@ export class AstExprFunction extends AstExpr {
 }
 
 export const enum TableItemKind {
-  /** `foo`; the key is absent. */
   List,
-  /** `foo = bar`; the key is an `AstExprConstantString`. */
   Record,
-  /** `[foo] = bar`. */
   General,
 }
 
@@ -443,10 +430,6 @@ export class AstExprError extends AstExpr {
     super(location);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Statements
-// ---------------------------------------------------------------------------
 
 export abstract class AstStat extends AstNode {
   hasSemicolon = false;
@@ -646,7 +629,6 @@ export class AstStatTypeFunction extends AstStat {
     public nameLocation: Location,
     public body: AstExprFunction,
     public exported: boolean,
-    /** Whether the declaration has parse errors, which keep a use of it from being evaluated. */
     public hasErrors: boolean,
   ) {
     super(location);
@@ -741,15 +723,10 @@ export class AstStatError extends AstStat {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export abstract class AstType extends AstNode {}
 
 export interface AstTypeList {
   types: AstType[];
-  /** Absent when the list has no tail. */
   tailType?: AstTypePack;
 }
 
@@ -816,7 +793,6 @@ export class AstTypeTypeof extends AstType {
   }
 }
 
-/** The `?` of an optional type, standing for `nil` in the union the parser makes of it. */
 export class AstTypeOptional extends AstType {
   readonly kind = "TypeOptional";
 }
@@ -915,36 +891,19 @@ export class AstTypePackGeneric extends AstTypePack {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Sparkdown's own constructs
-// ---------------------------------------------------------------------------
-//
-// Not part of Luau: the constructs Sparkdown writes inside its Luau, which
-// `readLuauAst.ts` reads from the syntax tree. Each extends `AstExpr` or
-// `AstStat`, so a pass that does not know them can treat an expression as a
-// value of type `any` and walk a statement's children through `visitAst`.
-// A construct whose meaning is Sparkdown's own (a divert target, a regular
-// expression, an alternator) keeps the syntax node it was read from, which
-// the lowerers read it through.
-
-/** Whether a node is one of Sparkdown's own constructs rather than Luau's. */
 export function isSparkdownNode(node: AstNode): boolean {
   return node.kind.startsWith("Sparkdown");
 }
 
-/** The syntax node a Sparkdown construct was read from: its name, its document offsets, and the node itself. */
 export interface SparkdownSource {
   name: string;
   from: number;
   to: number;
-  /** The node, a `@lezer/common` `SyntaxNode`, kept untyped so the checker does not depend on the tree. */
   node: unknown;
 }
 
-/** A divert target as a value (`-> scene.branch`). */
 export class AstExprSparkdownDivertTarget extends AstExpr {
   readonly kind = "SparkdownDivertTarget";
-  /** @param path the target as written after `->`, without whitespace */
   constructor(
     location: Location,
     public path: string,
@@ -954,7 +913,6 @@ export class AstExprSparkdownDivertTarget extends AstExpr {
   }
 }
 
-/** A regular expression literal (`@/pattern/flags`). */
 export class AstExprSparkdownRegex extends AstExpr {
   readonly kind = "SparkdownRegex";
   constructor(
@@ -967,11 +925,6 @@ export class AstExprSparkdownRegex extends AstExpr {
   }
 }
 
-/**
- * A conditional alternator used as a value. `visibleLocals` are the locals in scope where it is
- * read, by name, which its head and arms, read on their own, read as globals
- * (`alternatorPartsAst`).
- */
 export class AstExprSparkdownConditionalAlternator extends AstExpr {
   readonly kind = "SparkdownConditionalAlternator";
   constructor(
@@ -983,11 +936,6 @@ export class AstExprSparkdownConditionalAlternator extends AstExpr {
   }
 }
 
-/**
- * A sequential alternator used as a value. `visibleLocals` are the locals in scope where it is
- * read, by name, which its head and arms, read on their own, read as globals
- * (`alternatorPartsAst`).
- */
 export class AstExprSparkdownSequentialAlternator extends AstExpr {
   readonly kind = "SparkdownSequentialAlternator";
   constructor(
@@ -999,10 +947,6 @@ export class AstExprSparkdownSequentialAlternator extends AstExpr {
   }
 }
 
-/**
- * An instance of a `define`d class (`new ClassName(args)`). `hasArgs` says
- * whether the argument list is written; `new ClassName` alone passes none.
- */
 export class AstExprSparkdownNew extends AstExpr {
   readonly kind = "SparkdownNew";
   constructor(
@@ -1016,10 +960,6 @@ export class AstExprSparkdownNew extends AstExpr {
   }
 }
 
-/**
- * The `{{f}}` shorthand inside an interpolated string, which writes the text
- * `f()` returns; `expr` is the expression between the braces as written.
- */
 export class AstExprSparkdownCallShorthand extends AstExpr {
   readonly kind = "SparkdownCallShorthand";
   constructor(
@@ -1030,12 +970,6 @@ export class AstExprSparkdownCallShorthand extends AstExpr {
   }
 }
 
-/**
- * A double-quoted string that interpolates, as Sparkdown reads `"..."` (see
- * `docs/runtime/DIVERGENCES.md`), with its parts as Luau's
- * `AstExprInterpString` holds them. Luau reads the same text as a plain
- * string, whose value is `luauValue`.
- */
 export class AstExprSparkdownInterpString extends AstExpr {
   readonly kind = "SparkdownInterpString";
   constructor(
@@ -1048,16 +982,10 @@ export class AstExprSparkdownInterpString extends AstExpr {
   }
 }
 
-/**
- * The value a branch's caller passes for one of its parameters. A branch
- * runs in its scene's function, so its parameters are locals of that
- * function, bound when the branch is entered; the value has no type.
- */
 export class AstExprSparkdownFlowArgument extends AstExpr {
   readonly kind = "SparkdownFlowArgument";
 }
 
-/** A statement marked with `&`, which writes Luau where narrative would stand. */
 export class AstStatSparkdownExplicit extends AstStat {
   readonly kind = "SparkdownExplicit";
   constructor(
@@ -1069,7 +997,6 @@ export class AstStatSparkdownExplicit extends AstStat {
   }
 }
 
-/** A `store` declaration: globals the story saves, each with its annotation, if written, and the values assigned. */
 export class AstStatSparkdownStore extends AstStat {
   readonly kind = "SparkdownStore";
   constructor(
@@ -1083,10 +1010,6 @@ export class AstStatSparkdownStore extends AstStat {
   }
 }
 
-/**
- * A `choose` block's Luau: the statements among its choices, and those of
- * its `then` clause. The block opens no scope; its locals are its flow's.
- */
 export class AstStatSparkdownChoose extends AstStat {
   readonly kind = "SparkdownChoose";
   constructor(
@@ -1098,19 +1021,8 @@ export class AstStatSparkdownChoose extends AstStat {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Visiting
-// ---------------------------------------------------------------------------
-
-/**
- * Luau's `AstVisitor`: `visit` sees every node before its children, in the
- * order Luau visits them, and returning false skips the children.
- */
 export interface AstVisitor {
   visit(node: AstNode): boolean;
-  // Not part of Luau: a method for each of Sparkdown's own constructs, which
-  // `visitAst` calls in place of `visit` when the visitor has it. A visitor
-  // without them sees the constructs through `visit`.
   visitSparkdownDivertTarget?(node: AstExprSparkdownDivertTarget): boolean;
   visitSparkdownRegex?(node: AstExprSparkdownRegex): boolean;
   visitSparkdownConditionalAlternator?(node: AstExprSparkdownConditionalAlternator): boolean;
@@ -1124,7 +1036,6 @@ export interface AstVisitor {
   visitSparkdownChoose?(node: AstStatSparkdownChoose): boolean;
 }
 
-/** Calls the visitor's method for a node: its Sparkdown construct's own, if it has one, otherwise `visit`. */
 function dispatchVisit(node: AstNode, v: AstVisitor): boolean {
   if (!isSparkdownNode(node)) return v.visit(node);
   if (node instanceof AstExprSparkdownDivertTarget && v.visitSparkdownDivertTarget) return v.visitSparkdownDivertTarget(node);
@@ -1278,7 +1189,6 @@ export function visitAst(node: AstNode, v: AstVisitor): void {
   }
 }
 
-/** The function a call expression names, written as a dotted path, as Luau's `getFunctionNameAsString`. */
 export function getFunctionNameAsString(expr: AstExpr): string | undefined {
   let curr: AstExpr = expr;
   let s = "";

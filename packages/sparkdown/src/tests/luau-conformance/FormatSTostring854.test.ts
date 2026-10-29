@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// `string.format`'s `%s` stringifies its argument the way `tostring`
-// does, so a table's `__tostring` metamethod is honored (I-854).
 const passes = (source: string) => {
   const r = runConformanceSource(source, undefined, "main");
   expect(r.errorMessages).toEqual([]);

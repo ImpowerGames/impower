@@ -1,7 +1,3 @@
-// An edit near a run of top-level declarations reads again only the
-// declarations it touched (#1637): the incremental parse carries every
-// unchanged declaration below the edit, so the chunk store keeps its chunk
-// and the compile's work does not grow with the run.
 import { describe, expect, it } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";
@@ -47,8 +43,6 @@ const script = (n: number) =>
     "",
   ].join("\n");
 
-/** Compiles `text`, replaces the first `find` with `replace` as one minimal
- *  edit, and compiles again. */
 function editOnce(text: string, find: string, replace: string) {
   const c = programCompiler({ [MAIN_URI]: text }, config);
   quietly(() => c.compile());
@@ -95,8 +89,6 @@ describe("an edit near a run of top-level declarations", () => {
   }
 });
 
-/** The tree an incremental parse of `text` after replacing the first `find`
- *  with `replace` gives, and the tree a cold parse of the result gives. */
 function parsedBothWays(text: string, find: string, replace: string) {
   const offset = text.indexOf(find);
   expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
@@ -126,9 +118,6 @@ function parsedBothWays(text: string, find: string, replace: string) {
   };
 }
 
-// The old chunks below an edit are spliced in where the reparse arrives at a
-// line that starts a top-level construct; the tree is the one a cold parse
-// builds wherever the edit stands against those lines.
 describe("an incremental parse of a run of top-level declarations", () => {
   const edits: [string, string, string][] = [
     ["a line above the run", "Before.", "Edited."],
@@ -148,8 +137,6 @@ describe("an incremental parse of a run of top-level declarations", () => {
   }
 
   it("keeps the tree of a parse bounded above the old chunks inside its range", () => {
-    // A parse asked for a range that ends inside the run: the old chunks
-    // below the edit run on past the range's end, so they are not spliced in.
     const text = script(30);
     const find = "Before.";
     const offset = text.indexOf(find);

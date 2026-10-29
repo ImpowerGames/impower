@@ -2,11 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
-// A parameter, or a local declared inside a flow, shadows a top-level `store`
-// of the same name as it shadows a `const` (#1177): references inside its
-// scope read the local. A local at the story's own top level is refused
-// (I-1673), and two declarations in one scope still collide.
-
 const MAIN = "file://proj/main.sd";
 
 const message = (d: any): string =>
@@ -35,11 +30,6 @@ const compile = (text: string, otherText?: string) => {
   return compiler.compile({ textDocument: { uri: MAIN } } as never).program;
 };
 
-/**
- * Every error in every file as `L<line>:<character> <message>`, the
- * message cut after "already exists" (where the first declaration is named is
- * #453's concern).
- */
 const errors = (text: string, otherText?: string): string[] =>
   Object.values(compile(text, otherText).diagnostics ?? {})
     .flat()
@@ -130,8 +120,6 @@ describe("a local or parameter that shares a store's name", () => {
     ]);
   });
 
-  // Luau lets a second `local` of one name shadow the first in one scope, and
-  // the compiler accepts it with no store in sight; a store changes nothing.
   it("treats two locals of one name in one scene as it does without the store", () => {
     const scene = [
       "scene main",

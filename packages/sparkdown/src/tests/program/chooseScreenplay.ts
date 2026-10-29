@@ -1,11 +1,3 @@
-// A screenplay made of the `choose` constructs the writer emits (#697): a
-// caption, a choice an `if` gates, a conditional once-only choice whose text
-// has start, choice-only and chosen parts, a sticky choice whose body holds a
-// nested block, a tagged choice, a fallback choice, a choice raised inside a
-// thread, a labelled `then` clause that another scene diverts to, and a
-// `then` clause followed by more of the scene. Each scene loops back to its
-// block a few times, so a once-only choice taken once is hidden the next
-// time, and then runs on to the next scene.
 export function chooseScreenplay(scenes = 3): string {
   const L: string[] = [
     "store gold = 0",
@@ -69,9 +61,6 @@ export function chooseScreenplay(scenes = 3): string {
   return L.join("\n");
 }
 
-// Edits the choose fuzz inserts: text inside lines, new lines, choices of
-// each kind, lines inside a body and inside a `then` clause, conditions, and
-// fragments that open or close a block.
 export const CHOOSE_INSERTS = [
   "x",
   "\n",

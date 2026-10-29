@@ -9,7 +9,6 @@ import { follow, followPack, get, getPack, Type, TypePackVar, type TypeId, type 
 
 export type ConstraintVertex = TypeId | TypePackId | Constraint;
 
-/** An ordered set that remembers the order entries were first added in. */
 class ConstraintList implements Iterable<ConstraintVertex> {
   private readonly present = new Map<ConstraintVertex, boolean>();
   private readonly order: ConstraintVertex[] = [];
@@ -64,7 +63,6 @@ export class ConstraintGraph {
   private readonly dependencies = new Map<ConstraintVertex, ConstraintList>();
   private readonly reverseDependencies = new Map<ConstraintVertex, ConstraintList>();
 
-  /** Makes `dependency` block `target`; returns false when it already did. */
   addDependencyOf(dependency: ConstraintVertex, target: ConstraintVertex): boolean {
     const deps = this.findDependencyList(target);
     const reverseDeps = this.findReverseDependencyList(dependency);
@@ -74,7 +72,6 @@ export class ConstraintGraph {
     return true;
   }
 
-  /** Makes everything that `existingVertex` blocks also blocked by `newVertex`. */
   inheritBlocks(existingVertex: ConstraintVertex, newVertex: ConstraintVertex): void {
     const existingReverseDeps = this.findReverseDependencyList(existingVertex);
     const newReverseDeps = this.findReverseDependencyList(newVertex);
@@ -94,11 +91,6 @@ export class ConstraintGraph {
     this.clearReverseDependenciesOf(followPack(vertex));
   }
 
-  /**
-   * Unblocks everything a dispatched constraint was blocking, repairs the
-   * graph for any types the constraint bound, and returns the types and
-   * packs it had blocked.
-   */
   unblockConstraint(c: Constraint): { types: TypeId[]; packs: TypePackId[] } {
     const types: TypeId[] = [];
     const packs: TypePackId[] = [];
@@ -116,8 +108,6 @@ export class ConstraintGraph {
     }
     for (let type of types) {
       this.repairTypeReferences(type);
-      // A free type's bounds may be mutated through it, as a call's return
-      // pack is by a second call to the same function.
       type = follow(type);
       const ft = get(type, "FreeType");
       if (ft) {
@@ -171,7 +161,6 @@ export class ConstraintGraph {
     this.clearReverseDependenciesOf(source);
   }
 
-  /** Makes the root of a chain of bound types the target of every reference to a type in the chain. */
   private repairTypeReferences(ty: TypeId): void {
     const root = follow(ty);
     const seen = new Set<TypeId>([root]);
@@ -194,7 +183,6 @@ export class ConstraintGraph {
     }
   }
 
-  /** Copies the dependencies of `source` to the mutable types reachable from `target`, keeping the source's. */
   copyDependenciesOf(source: TypeId | TypePackId, target: TypeId | TypePackId): void {
     const sourceDependencies = this.findDependencyList(source);
     const rci = new ReferenceCountInitializer();

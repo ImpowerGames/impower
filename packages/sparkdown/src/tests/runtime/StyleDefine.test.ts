@@ -1,12 +1,3 @@
-// `style NAME [as PARENT] with <colon/indent body> end` — a structural UI
-// keyword that lowers to a compile-time `style` struct in
-// program.context.style.<name>. The body is the colon/indent struct form
-// (props, nested `key:` blocks, `> selector:` rules, `@breakpoint:`
-// directives) — parsed by lowerStructBody into the nested struct the
-// engine consumes. (Matches the production ui.sd shape.)
-//
-// Run: npx vitest run .../StyleDefine.test.ts
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -63,8 +54,6 @@ end
   });
 
   test("whole-line `--` Luau comments are skipped (not bogus props)", () => {
-    // style bodies are Luau contexts: `--` is the comment (`//` is floor
-    // division). A commented-out line must NOT leak as a property/CSS decl.
     const r = compileStyle(`style panel with
   position = absolute
   -- background_color = rgba(0,0,0,0.8)
@@ -72,7 +61,6 @@ end
 end
 `);
     expect(r.errors).toEqual([]);
-    // The `--` line is gone; a mid-line `--` (theme var) is untouched.
     expect(r.style["panel"]).toEqual({
       $type: "style",
       $name: "panel",
@@ -98,10 +86,6 @@ end
   });
 
   test("`<type>.<name>` references resolve to { $type, $name } (not raw strings)", () => {
-    // The style→CSS transformer turns `{ $type, $name }` into
-    // `var(--theme-<type>-<name>)`; a raw `"image.ui_dialogue_box"` string
-    // would become the invalid `var(--theme-image-image.ui_dialogue_box)`,
-    // so the dialogue box / fonts silently fail to render.
     const r = compileStyle(`style dialogue_background with
   background_image = image.ui_dialogue_box
   font_family = font.courier_prime_sans
@@ -119,17 +103,12 @@ end
       $type: "font",
       $name: "courier_prime_sans",
     });
-    // Non-references (keyword, ratio) stay raw strings.
     expect(s["position"]).toBe("absolute");
     expect(s["aspect_ratio"]).toBe("1341/381");
   });
 });
 
 describe("style · nested (breakpoints + selectors)", () => {
-  // NOTE the deliberately unique name. Authoring a style that shares a BUILTIN's
-  // name deep-merges onto the builtin (author wins per-key) rather than
-  // replacing it, so an exact-shape assertion has to use a name the builtins
-  // prelude does not define.
   test("@breakpoint and > selector nest under their literal keys", () => {
     const r = compileStyle(`style speech_box with
   height = 100%
@@ -193,9 +172,6 @@ style c with
 end
 `);
     expect(r.errors).toEqual([]);
-    // All three authored styles coexist (builtins from the prelude are also
-    // present in context.style, so assert the authored set is a subset rather
-    // than the exhaustive key list).
     for (const name of ["a", "b", "c"]) {
       expect(r.style[name]?.$name).toBe(name);
     }

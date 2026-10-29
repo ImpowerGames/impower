@@ -1,9 +1,3 @@
-// A class on a Sparkle element line is written `.name` (`row.hud`, #1222), and
-// until the indented forms are removed a bare word after the tag (`row hud`)
-// is still one. The "classes are space-separated" warning a dotted class used
-// to get is gone (#1224); `braceLayoutBodies.test.ts` checks how a dotted
-// class lowers.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -60,10 +54,6 @@ describe("dotted-class warning", () => {
 });
 
 describe("a CSS-nesting selector is not a dotted class", () => {
-  // `&.secondary:` compiles to a real, populated compound rule (`builtins.sd`
-  // uses the idiom 13 times), and taking the suggested fix turns it into a
-  // descendant TYPE selector matching nothing — with no further warning. The
-  // advice was not just noise; following it silently broke working styles.
   for (const selector of [
     "&.secondary",
     "&.outline.secondary",

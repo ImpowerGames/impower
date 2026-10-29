@@ -1,30 +1,3 @@
-// Stale-resolved-path oracle for incremental ExportRuntime.
-//
-// Resolution writes a resolved path INTO a runtime object. Under flow reuse
-// that runtime object survives across compiles, so every such write needs a
-// matching "no target this compile" reset or the reused flow keeps a path to
-// something that no longer exists. `Divert.ResolveReferences` got that reset
-// with the reuse work; these cover the two OTHER runtime values that hold an
-// independently-resolved path:
-//
-//   - `DivertTarget` -> `runtimeDivertTargetValue` (a `-> knot` used as a
-//     VALUE, e.g. inside `TURNS_SINCE(-> gamma)`)
-//   - `TunnelOnwards` -> `_overrideDivertTarget` (`->-> gamma`)
-//
-// Both are reached by deleting a divert target while an unrelated flow that
-// references it stays unchanged (and therefore reused). The general
-// incremental-vs-cold oracles never construct that shape.
-//
-// SCOPE, measured rather than assumed: with the callee-signature guard in
-// place these tests do NOT isolate the resets. Deleting a top-level flow
-// changes the flow-name map, which disables reuse for that compile, so the
-// invariant holds even with the resets removed (verified by removing them —
-// both tests still passed). What they pin is the end-to-end invariant
-// (incremental == cold when a divert target disappears), whichever guard
-// upholds it. The resets stay as defense-in-depth: they become load-bearing
-// the moment a guard is narrowed, and narrowing the guards is exactly the
-// planned follow-up. Isolating them needs a target whose removal does not
-// change the flow set (a labelled gather inside a `choose` block).
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -92,8 +65,6 @@ function configured(text: string) {
   return c;
 }
 
-// No front matter: zero root-region chunks, so the root-region guard stays
-// quiet and flow reuse genuinely engages on the edit under test.
 function doc(callerLine: string): string {
   const L: string[] = [];
   L.push("scene caller");
@@ -122,7 +93,6 @@ function doc(callerLine: string): string {
 
 const GAMMA_BLOCK = "scene gamma\n:\n  Gamma action.\n-> DONE\nend\n";
 
-/** Drive edits through one compiler, comparing to a cold compile each step. */
 function runSteps(base: string, steps: { find: string; replace: string }[]) {
   const incr = configured(base);
   incr.compile({ textDocument: { uri: URI } } as never);
@@ -161,8 +131,6 @@ function runSteps(base: string, steps: { find: string; replace: string }[]) {
   return divergences;
 }
 
-// Warm-up edits in a filler scene, so `caller` is untouched and gets reused,
-// then delete the target `caller` points at.
 const WARM = (n: number) => ({
   find: `Filler action 1.${"!".repeat(n)}`,
   replace: `Filler action 1.${"!".repeat(n + 1)}`,

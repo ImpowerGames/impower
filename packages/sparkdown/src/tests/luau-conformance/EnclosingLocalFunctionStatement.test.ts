@@ -1,13 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// `function NAME ... end` whose NAME is a local of an enclosing function
-// assigns that local through an upvalue, as Luau's does: the definition is
-// `NAME = function ... end`, and NAME resolves to the enclosing local
-// (#1349). A NAME that is a local of the same function is assigned in place
-// (#415), and a NAME that is no local of any enclosing function is the
-// global NAME, which the definition assigns (I-1422).
-
 describe("function statement naming an enclosing function's local", () => {
   test("assigns the enclosing local", () => {
     const r = runConformanceSource(`local function g() return 1 end
@@ -86,9 +79,6 @@ assert(f() == 5, tostring(f()))`);
   });
 });
 
-// A define's method is a function like any other: a function nested in it
-// captures the method's parameters and locals, even one named like a stdlib
-// namespace, which is otherwise read as the builtin.
 describe("a function nested in a define's method", () => {
   test("a function statement assigns the method's parameter", () => {
     const r = runConformanceSource(`define thing with

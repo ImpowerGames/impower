@@ -1,11 +1,3 @@
-// A return in a Luau function's body completes its statement memo, so an
-// edit elsewhere in the function that leaves its reads unchanged serves it
-// from that memo instead of lowering it again (I-1423). Before, a return was
-// among what the story's passes over the whole program take of a statement
-// (`holdsWhatTheStoryWalks`), so the resolver gave its memo no resolution and
-// the compile never completed it; but those passes take only a return a
-// scene, a branch or the file's top level holds, which they report, and such
-// a return is still lowered whenever its block is.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { loweredOutsideRebuilt } from "./memoLowering";
@@ -25,12 +17,9 @@ const quietly = <T>(run: () => T): T => {
 
 type Session = ReturnType<typeof programSession>;
 
-// Statements between the edits and the return, so that the incremental parse
-// rebuilds none of the return's lines.
 const padding = (indent: string) =>
   Array.from({ length: 10 }, (_, i) => `${indent}local p${i} = ${i}`);
 
-// The ticket's script: `foo(1, 2)` is 2, so the story shows `Got 2.`.
 const script = (ending: readonly string[]) =>
   [
     "function run()",
@@ -71,8 +60,6 @@ describe("a return in a function's body (I-1423)", () => {
     ["a local the return returns", ["local r = foo(1, 2)", "return r"], "Got 2."],
   ])("is served from its memo after an edit elsewhere in the function: %s", (_, ending, result) => {
     const s = programSession(script(ending));
-    // The first incremental parse of a block after a cold one reparses the
-    // whole block.
     s.edit("local p0 = 0", "local p0 = 10");
     for (const value of ["2", "3", "4"]) {
       s.edit(/local x = \d+/.exec(s.text)![0], `local x = ${value}`);

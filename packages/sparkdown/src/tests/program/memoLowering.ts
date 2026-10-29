@@ -1,13 +1,5 @@
-// What the statement-memo tests read of an update's memo counts (#656,
-// #1757): which statements it lowered that the incremental parse rebuilt
-// none of. Imports nothing of the compiler, so a test that mocks lowerers and
-// loads the compiler again (`programStatementMemo.test.ts`) can import it
-// statically.
 import type { MemoStats } from "../../compiler/lower/statementMemo";
 
-/** Where the statement starting at `at` ends: before the first line after
- *  it, other than a blank one, indented no deeper than its first line, or
- *  past that line when it closes the statement (`end`, `else`). */
 export const statementEnd = (text: string, at: number): number => {
   const lineStart = text.lastIndexOf("\n", at - 1) + 1;
   const indent = (line: string) => line.length - line.trimStart().length;
@@ -24,8 +16,6 @@ export const statementEnd = (text: string, at: number): number => {
   return text.length;
 };
 
-/** The first lines of the statements an update (`stats`) lowered that the
- *  incremental parse rebuilt none of, in `text`, the text the update made. */
 export const loweredOutsideRebuilt = (stats: MemoStats, text: string): string[] => {
   const rebuilt = stats.rebuilt;
   const lineAt = (at: number) => text.slice(at, text.indexOf("\n", at)).trim();

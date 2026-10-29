@@ -1,13 +1,9 @@
-// 2D affine matrices in SVG's `matrix(a b c d e f)` order, mapping
-// (x, y) to (a·x + c·y + e, b·x + d·y + f).
-
 import type { Cubic, Point, Subpath } from "@impower/spark-morph/src/index";
 
 export type Affine = [number, number, number, number, number, number];
 
 export const IDENTITY: Affine = [1, 0, 0, 1, 0, 0];
 
-/** `m · n`: apply `n` first, then `m`. */
 export function multiply(m: Affine, n: Affine): Affine {
   return [
     m[0] * n[0] + m[2] * n[1],
@@ -19,7 +15,6 @@ export function multiply(m: Affine, n: Affine): Affine {
   ];
 }
 
-/** The inverse, or null when the matrix collapses the plane. */
 export function invert(m: Affine): Affine | null {
   const det = m[0] * m[3] - m[1] * m[2];
   if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return null;
@@ -41,7 +36,6 @@ export const applyPoint = (m: Affine, p: Point): Point => [
   m[1] * p[0] + m[3] * p[1] + m[5],
 ];
 
-/** Affine maps send cubics to cubics, so control points map exactly. */
 export function applySubpaths(m: Affine, subpaths: Subpath[]): Subpath[] {
   if (isIdentity(m)) return subpaths;
   return subpaths.map((s) => ({
@@ -62,7 +56,6 @@ const WSP = /^[ \t\n\r]+|[ \t\n\r]+$/g;
 const ARGUMENT_SEPARATOR = /[ \t\n\r]*,[ \t\n\r]*|[ \t\n\r]+/;
 const deg = (n: number) => (n * Math.PI) / 180;
 
-/** Plain numbers separated by XML whitespace or one comma, or null. */
 const readArguments = (text: string): number[] | null => {
   const source = text.replace(WSP, "");
   if (!source) return null;
@@ -75,12 +68,6 @@ const readArguments = (text: string): number[] | null => {
   return args;
 };
 
-/**
- * Parses an SVG `transform` attribute, or returns null for text outside the
- * transform-list grammar: the six transform functions with plain numbers,
- * separated by XML whitespace (space, tab, line breaks) or a comma. Functions
- * compose left to right, as written.
- */
 export function parseTransform(text: string | undefined): Affine | null {
   if (text === undefined) return IDENTITY;
   const source = text.replace(WSP, "");

@@ -15,14 +15,10 @@ import { lowerExpressionFromContainer } from "../../compiler/lower/expression/lo
 import { explicitRuleNames } from "../../compiler/utils/explicitRuleNames";
 import { parseSource } from "./grammarSnapshot";
 
-// Lowers a luau expression by wrapping it in `& __ = <expr>` and extracting
-// the RHS of the assignment from the parsed tree.
 export function lowerExpressionFromText(text: string): Expression | null {
   const source = `& __ = ${text}`;
   const tree = parseSource(source);
   const ctx = createLowerContextFromSource(source);
-  // Find LuauAssignmentOperation_content — its children (minus the assignment
-  // operator) form the value expression.
   const opContent = findDescendentByName(
     tree.topNode,
     "LuauAssignmentOperation_content",

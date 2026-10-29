@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
 
-// The video guide's `[[animate ...]]` row is the example an author copies to
-// animate the layer a movie is on (I-1736). Written after a movie on that
-// layer, it names an animation and no picture, so it compiles without a
-// diagnostic.
-
 const uri = "file:///project/main.sd";
 const video: File = {
   uri: "file:///project/assets/bunny_idle.webm",

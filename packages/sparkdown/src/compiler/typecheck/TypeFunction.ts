@@ -1,10 +1,5 @@
 // Type function reduction, ported from Luau's `TypeFunction.h`/
 // `TypeFunction.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// A type function instance, such as `add<number, T>`, stands for a type that
-// is not known until its arguments are. `reduceTypeFunctions` finds every
-// instance under a type and tries to reduce each one, innermost first,
-// binding it to its result.
 
 import type { Constraint, ConstraintV } from "./Constraint";
 import type { ConstraintSolver } from "./ConstraintSolver";
@@ -40,22 +35,14 @@ import {
 } from "./Type";
 import { RecursionLimitError, TypeOnceVisitor } from "./VisitType";
 
-// Luau's `LuauTypeFamilyGraphReductionMaximumSteps`.
 const TYPE_FUNCTION_GRAPH_REDUCTION_MAXIMUM_STEPS = 1_000_000;
 
-/**
- * The runtime of user-defined type functions. Sparkdown has no `type
- * function` declarations, so it only carries the state the solver reads.
- */
 export class TypeFunctionRuntime {
-  /** Type functions are evaluated only in a module without parse errors. */
   allowEvaluation = true;
   rootScope: Scope | undefined;
-  /** Output of `print` in a user-defined type function. */
   messages: string[] = [];
 }
 
-/** Luau's `TypeCheckLimits`. */
 export interface TypeCheckLimits {
   instantiationChildLimit?: number;
   unifierIterationLimit?: number;
@@ -69,16 +56,9 @@ export class TypeFunctionContext {
   readonly typeFunctionRuntime: TypeFunctionRuntime;
   readonly limits: TypeCheckLimits;
   readonly subtyping: Subtyping;
-  /** Undefined when the type function is reduced outside the constraint solver. */
   readonly solver: ConstraintSolver | undefined;
-  /** The constraint being reduced in this run of the reduction. */
   readonly constraint: Constraint | undefined;
-  /** The name of the user-defined type function; only set for those. */
   userFuncName: string | undefined;
-  /**
-   * The instances a reduction minted, such as the `union<number, number>`
-   * that `add<number | number, number>` reduces through.
-   */
   freshInstances: TypeId[] = [];
 
   constructor(options: {
@@ -123,36 +103,23 @@ export class TypeFunctionContext {
     const constraint = this.constraint;
     const location = constraint ? constraint.location : new Location();
     const newConstraint = solver.pushConstraint(this.scope, location, c, constraint ? constraint.moduleName : solver.representativeModuleName);
-    // Every constraint blocked on the current one is also blocked on the new one.
     if (constraint) solver.inheritBlocks(constraint, newConstraint);
     return newConstraint;
   }
 }
 
 export const enum Reduction {
-  /** The type function is either known to be reducible or the determination is blocked. */
   MaybeOk,
-  /** The type function is irreducible, but maybe not erroneous, as over generics or free types. */
   Irreducible,
-  /** The type function is irreducible and definitely erroneous. */
   Erroneous,
 }
 
-/**
- * A reduction result: the type reduced, the reduction failed for good, or it
- * is stuck without more information.
- */
 export interface TypeFunctionReductionResult<T> {
-  /** The result, when the type function reduced. */
   result: T | undefined;
   reductionStatus: Reduction;
-  /** Types that must progress before the reduction can. */
   blockedTypes: TypeId[];
-  /** Type packs that must progress before the reduction can. */
   blockedPacks: TypePackId[];
-  /** A runtime error from a user-defined type function. */
   error?: string;
-  /** Messages a user-defined type function printed. */
   messages?: string[];
 }
 
@@ -172,16 +139,12 @@ export type ReducerFunction<T> = (
   ctx: TypeFunctionContext,
 ) => TypeFunctionReductionResult<T>;
 
-/** A type function that maps types and type packs to one type. */
 export interface TypeFunction {
-  /** The name printed for its instances. */
   readonly name: string;
   readonly reducer: ReducerFunction<TypeId>;
-  /** Whether it can reduce when parameterized on a generic. */
   readonly canReduceGenerics: boolean;
 }
 
-/** A type function that maps types and type packs to one type pack. */
 export interface TypePackFunction {
   readonly name: string;
   readonly reducer: ReducerFunction<TypePackId>;
@@ -214,8 +177,6 @@ class InstanceCollector extends TypeOnceVisitor {
 
   override visitType(ty: TypeId, v: TypeVariant): boolean {
     if (v.kind === "TypeFunctionInstanceType") {
-      // The traversal is depth first, so pushing to the front reduces the
-      // innermost instances first, as in add<add<number, number>, number>.
       this.typeFunctionInstanceStack.push(ty);
       if (!this.recordedTys.has(ty)) {
         this.recordedTys.add(ty);
@@ -232,7 +193,6 @@ class InstanceCollector extends TypeOnceVisitor {
 
   override cycle(ty: TypeId): void {
     const t = follow(ty);
-    // A type seen again while it is on the instance stack is a real cycle.
     if (get(t, "TypeFunctionInstanceType") && this.typeFunctionInstanceStack.includes(t)) this.cyclicInstance.push(t);
   }
 
@@ -270,7 +230,6 @@ class UnscopedGenericFinder extends TypeOnceVisitor {
       case "ExternType":
         return this.visitExtern(v);
       default:
-        // Once an unscoped generic is found, the traversal stops.
         return !this.foundUnscoped;
     }
   }
@@ -308,17 +267,11 @@ class UnscopedGenericFinder extends TypeOnceVisitor {
 }
 
 const enum SkipTestResult {
-  /** A cyclic type function cannot be reduced. */
   CyclicTypeFunction,
-  /** Not reducible this time; constraint resolution may make it reducible later. */
   Irreducible,
-  /** No valid reduction exists, as for add<number, string>. */
   Stuck,
-  /** Some type functions can operate on generic parameters. */
   Generic,
-  /** Maybe reducible, but not yet. */
   Defer,
-  /** Reducible now. */
   Okay,
 }
 
@@ -419,7 +372,6 @@ class TypeFunctionReducer {
         if (this.getState(subject) === TypeFunctionInstanceState.Unsolved) {
           if (reduction.reductionStatus === Reduction.Erroneous) this.setState(subject, TypeFunctionInstanceState.Stuck);
           else if (reduction.reductionStatus === Reduction.Irreducible) this.setState(subject, TypeFunctionInstanceState.Solved);
-          // Something is unsolved, but the reduction is forced.
           else this.setState(subject, TypeFunctionInstanceState.Stuck);
         }
         const tf = get(subject, "TypeFunctionInstanceType");
@@ -427,8 +379,6 @@ class TypeFunctionReducer {
           this.result.errors.push(new LuauTypeError(this.location, { kind: "UninhabitedTypeFunction", ty: subject }));
         }
       } else {
-        // Not forcing, and the reduction could not proceed but is not
-        // obviously wrong: what it waits on blocks further reduction.
         for (const b of reduction.blockedTypes) this.result.blockedTypes.add(b);
         for (const b of reduction.blockedPacks) this.result.blockedPacks.add(b);
       }
@@ -452,7 +402,6 @@ class TypeFunctionReducer {
         this.result.errors.push(new LuauTypeError(this.location, { kind: "UserDefinedTypeFunctionError", message: reduction.error }));
       }
       if (reduction.reductionStatus !== Reduction.MaybeOk || this.force) {
-        // Type pack functions have no state.
         this.result.errors.push(new LuauTypeError(this.location, { kind: "UninhabitedTypePackFunction", tp: subject }));
       } else {
         for (const b of reduction.blockedTypes) this.result.blockedTypes.add(b);
@@ -502,9 +451,6 @@ class TypeFunctionReducer {
     return true;
   }
 
-  // Luau reduces by guessing only below `LuauTypeFamilyUseGuesserDepth`,
-  // which is -1 by default, so guessing never runs.
-
   private stepType(): void {
     const subject = follow(this.queuedTys.shift()!);
     if (this.irreducible.has(subject)) return;
@@ -514,7 +460,6 @@ class TypeFunctionReducer {
       const finder = new UnscopedGenericFinder();
       finder.traverse(subject);
       if (finder.foundUnscoped) {
-        // The type is not stepped into again, and will not become reducible.
         this.irreducible.add(subject);
         this.result.irreducibleTypes.add(subject);
         if (this.getState(subject) === TypeFunctionInstanceState.Unsolved) this.setState(subject, TypeFunctionInstanceState.Solved);
@@ -554,8 +499,6 @@ function reduceFunctionsInternal(
 ): FunctionGraphReductionResult {
   const reducer = new TypeFunctionReducer(queuedTys, queuedTps, cyclics, location, ctx, force);
   let iterationCount = 0;
-  // A reduction inside a reduction (reduction, then overload selection, then
-  // subtyping, then reduction again) is refused.
   const sharedState = ctx.normalizer.sharedState;
   if (sharedState.reentrantTypeReduction) return new FunctionGraphReductionResult();
   sharedState.reentrantTypeReduction = true;
@@ -603,10 +546,6 @@ export function reduceTypeFunctionsPack(
   return reduceFunctionsInternal(collector.tys, collector.tps, collector.cyclicInstance, location, ctx, force);
 }
 
-/**
- * Whether a type blocks a type function from reducing: a blocked type, a
- * pending expansion, or an unsolved type function instance.
- */
 export function isPending(ty: TypeId, solver: ConstraintSolver | undefined): boolean {
   const tfit = get(ty, "TypeFunctionInstanceType");
   if (tfit && tfit.state === TypeFunctionInstanceState.Unsolved) return true;

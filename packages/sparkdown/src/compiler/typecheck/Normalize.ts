@@ -1,10 +1,5 @@
 // Normalized types, ported from Luau's `Normalize.h`/`Normalize.cpp`; Luau
 // is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// A normalized type splits a type into disjoint parts by kind (tops,
-// booleans, extern types, errors, nil, numbers, strings, threads, buffers,
-// tables, functions and type variables), which makes semantic subtyping,
-// inhabitation and refinement decidable in the common cases.
 
 import { addIntersection } from "./TypeUtils";
 import { relate, Relation, simplifyIntersection } from "./Simplify";
@@ -85,7 +80,6 @@ export class NormalizedStringType {
     return false;
   }
 
-  /** The singletons in name order, as Luau's `std::map` holds them. */
   sortedSingletons(): [string, TypeId][] {
     return [...this.singletons.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   }
@@ -93,7 +87,6 @@ export class NormalizedStringType {
 
 export function isSubtypeOfStrings(subStr: NormalizedStringType, superStr: NormalizedStringType): boolean {
   if (subStr.isIntersection() && superStr.isIntersection()) {
-    // Every exclusion of the superset must also be excluded in the subset.
     for (const name of superStr.singletons.keys()) if (!subStr.singletons.has(name)) return false;
     return true;
   }
@@ -105,14 +98,11 @@ export function isSubtypeOfStrings(subStr: NormalizedStringType, superStr: Norma
     for (const name of subStr.singletons.keys()) if (superStr.singletons.has(name)) return false;
     return true;
   }
-  // A cofinite set is never a subset of a finite one.
   return false;
 }
 
 export class NormalizedExternType {
-  /** `(C1 & ~N11 & ...) | (C2 & ~N21 & ...) | ...`, in `ordering`. */
   externTypes = new Map<TypeId, TypeIds>();
-  /** Table shapes that extend the extern types, as one big intersection. */
   shapeExtensions = new TypeIds();
   ordering: TypeId[] = [];
 
@@ -343,7 +333,6 @@ export class NormalizedType {
 }
 
 function isShallowInhabited(norm: NormalizedType): boolean {
-  // A shallow check: `{ p: never }` counts as inhabited.
   return (
     !get(norm.tops, "NeverType") ||
     !get(norm.booleans, "NeverType") ||
@@ -408,7 +397,6 @@ function isCacheablePack(tp: TypePackId, seen: Set<TypeId>): boolean {
   return true;
 }
 
-// Luau's `LuauNormalizeCacheLimit` and `LuauNormalizerInitialFuel`.
 const NORMALIZE_CACHE_LIMIT = 100000;
 const NORMALIZER_INITIAL_FUEL = 3000;
 
@@ -476,8 +464,6 @@ export class Normalizer {
     this.cachedIntersections.clear();
     this.cachedUnions.clear();
   }
-
-  // ------- Inhabitation
 
   isInhabitedNormal(norm: NormalizedType | undefined): NormalizationResult {
     try {
@@ -549,8 +535,6 @@ export class Normalizer {
       const ttv = get(ty, "TableType");
       if (ttv) {
         for (const [, prop] of ttv.props) {
-          // A table with an uninhabited read property is uninhabited; a
-          // write property of an uninhabited type merely makes it read-only.
           if (prop.readTy) {
             const res = this.isInhabitedSeen(prop.readTy, seen);
             if (res !== NormalizationResult.True) return res;
@@ -598,9 +582,6 @@ export class Normalizer {
     return result;
   }
 
-  // ------- Normalizing
-
-  /** The normal form of a type, or undefined when normalization hit its limits. Never mutate the result. */
   normalize(ty: TypeId): NormalizedType | undefined {
     const found = this.cachedNormals.get(ty);
     if (found) return found;
@@ -702,8 +683,6 @@ export class Normalizer {
     this.cachedIntersections.set(tmps.key(), result);
     return result;
   }
-
-  // ------- Unions
 
   private unionOfTops(here: TypeId, there: TypeId): TypeId {
     this.consumeFuel();
@@ -851,7 +830,6 @@ export class Normalizer {
       note(ty, hty, tty);
       head.push(ty);
     }
-    // One side is longer: its extra elements combine with the other side's variadic tail.
     const extend = (longer: TypeId[], otherTail: TypePackId | undefined, longerIsHere: boolean): boolean => {
       if (longer.length <= common) return true;
       let tty = this.builtinTypes.nilType;
@@ -1004,11 +982,6 @@ export class Normalizer {
     }
   }
 
-  /**
-   * Unions `there` into `here`, ignoring type variables of `there` whose
-   * index is at most `ignoreSmallerTyvars`, which keeps the type variables
-   * ordered as in an ordered decision diagram.
-   */
   unionNormals(here: NormalizedType, there: NormalizedType, ignoreSmallerTyvars = -1): NormalizationResult {
     this.consumeFuel();
     here.isCacheable = here.isCacheable && there.isCacheable;
@@ -1176,7 +1149,6 @@ export class Normalizer {
         const res = this.unionNormals(here, tn);
         if (res !== NormalizationResult.True) return res;
       }
-      // Pending expansions, type functions and *no-refine* add nothing.
 
       for (const [tyvar, intersect] of [...here.tyvars]) {
         const res = this.unionNormalWithTy(intersect, there, seenSetTypes, tyvarIndex(tyvar));
@@ -1186,16 +1158,12 @@ export class Normalizer {
     });
   }
 
-  // ------- Negations
-
   negateNormal(here: NormalizedType): NormalizedType | undefined {
     this.consumeFuel();
     const b = this.builtinTypes;
     const result = new NormalizedType(b);
     result.isCacheable = here.isCacheable;
-    // The negation of unknown or any is never.
     if (!get(here.tops, "NeverType")) return result;
-    // Negating an error yields the same error.
     if (!get(here.errors, "NeverType")) {
       result.errors = here.errors;
       return result;
@@ -1225,11 +1193,9 @@ export class Normalizer {
     result.strings.isCofinite = !result.strings.isCofinite;
     result.threads = get(here.threads, "NeverType") ? b.threadType : b.neverType;
     result.buffers = get(here.buffers, "NeverType") ? b.bufferType : b.neverType;
-    // Arbitrary function types are not runtime-testable, so only top and never negate.
     if (here.functions.isNever()) result.functions.resetToTop();
     else if (here.functions.isTop) result.functions.resetToNever();
     else return undefined;
-    // Likewise only `table` and never negate among tables.
     if (here.tables.empty()) result.tables.insert(b.tableType);
     else if (here.tables.size === 1 && here.tables.front() === b.tableType) result.tables.clear();
     else return undefined;
@@ -1296,18 +1262,14 @@ export class Normalizer {
       } else here.strings.singletons.delete(ss.value);
     } else if (bs) {
       if (get(here.booleans, "NeverType")) {
-        // Nothing to subtract from.
       } else if (get(here.booleans, "PrimitiveType")) {
         here.booleans = bs.value ? this.builtinTypes.falseType : this.builtinTypes.trueType;
       } else {
         const hereBool = getSingleton(here.booleans, "BooleanSingleton");
-        // `bs` is the value negated out, so equal values reduce to never.
         if (hereBool && bs.value === hereBool.value) here.booleans = this.builtinTypes.neverType;
       }
     }
   }
-
-  // ------- Intersections
 
   private intersectionOfTops(here: TypeId, there: TypeId): TypeId {
     this.consumeFuel();
@@ -1385,7 +1347,6 @@ export class Normalizer {
         let emptyIntersectWithNegation = false;
         for (const n of negations) {
           if (isSubclass(there, n)) {
-            // `Dog & ~Animal` is never.
             emptyIntersectWithNegation = true;
             break;
           }
@@ -1508,7 +1469,6 @@ export class Normalizer {
           if (hprop.readTy) {
             if (tprop.readTy) {
               const ty = simplifyIntersection(this.builtinTypes, this.arena, hprop.readTy, tprop.readTy).result;
-              // A property of type never makes the whole table never.
               if (get(ty, "NeverType")) return this.builtinTypes.neverType;
               prop.readTy = ty;
               hereSubThere = hereSubThere && ty === hprop.readTy;
@@ -1568,7 +1528,6 @@ export class Normalizer {
       else table = this.arena.addType(result ?? tableType({ state, level, scope }));
 
       if (tmtable && hmtable) {
-        // Metatables are assumed invariant.
         const mtable = this.intersectionOfTables(hmtable, tmtable, seenSet);
         if (!mtable) return undefined;
         if (table === htable && mtable === hmtable) return here;
@@ -1633,10 +1592,6 @@ export class Normalizer {
     return this.arena.addType(functionType(argTypes, retTypes, { generics: hftv.generics, genericPacks: hftv.genericPacks }));
   }
 
-  /**
-   * The overload that takes the union of two overloads' arguments and returns
-   * the union of their results, which union-saturates an overloaded function.
-   */
   private unionSaturatedFunctions(here: TypeId, there: TypeId): TypeId | undefined {
     this.consumeFuel();
     const hftv = get(here, "FunctionType");
@@ -1792,8 +1747,6 @@ export class Normalizer {
         const externTypes = here.externTypes;
         const tables = here.tables;
         this.clearNormal(here);
-        // Intersect the table part, which may include the top table type,
-        // and the extern types as a shape.
         this.intersectTablesWithTable(tables, there, seenSetTypes);
         if (!externTypes.isNever()) this.intersectExternTypesWithShape(externTypes, there);
         here.tables = tables;
@@ -1802,7 +1755,6 @@ export class Normalizer {
         const nct = here.externTypes;
         const tables = here.tables;
         this.clearNormal(here);
-        // An extern type intersects with at most one table shape.
         if (tables.size === 0) {
           this.intersectExternTypesWithExternType(nct, there);
           here.externTypes = nct;
@@ -1872,16 +1824,11 @@ export class Normalizer {
             if (res === NormalizationResult.HitLimits || res === NormalizationResult.False) return res;
           }
         } else if (get(t, "AnyType") || get(t, "NoRefineType") || get(t, "NeverType")) {
-          // Refinements treat ~any as any; ~*no-refine* and ~never change
-          // nothing. As in Luau, the type variables set aside above are not
-          // restored on this path.
           return NormalizationResult.True;
         } else if (get(t, "UnknownType")) {
-          // ~unknown is never.
           this.clearNormal(here);
           return NormalizationResult.True;
         } else if (get(t, "ErrorType")) {
-          // ~error is still an error.
           const errors = here.errors;
           this.clearNormal(here);
           here.errors = get(errors, "ErrorType") ? errors : t;
@@ -1889,7 +1836,6 @@ export class Normalizer {
           here.tyvars = tyvars;
           return this.intersectNormalWithTy(here, get(t, "NegationType")!.ty, seenSetTypes);
         }
-        // Negated intersections, tables and functions are not handled.
       } else if (get(there, "NeverType")) {
         here.externTypes.resetToNever();
       } else if (get(there, "NoRefineType")) {
@@ -1902,8 +1848,6 @@ export class Normalizer {
       return NormalizationResult.True;
     });
   }
-
-  // ------- Back to a type
 
   typeFromNormal(norm: NormalizedType): TypeId {
     const b = this.builtinTypes;
@@ -1963,7 +1907,6 @@ export class Normalizer {
   }
 }
 
-/** Makes every property of a table (and its metatable) share one type for reading and writing. */
 export function makeTableShared(ty: TypeId, seen = new Set<TypeId>()): void {
   ty = follow(ty);
   if (seen.has(ty)) return;

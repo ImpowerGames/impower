@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
-// #1708: a divert to a function reported its error at line 0, column 0
-// instead of at the divert, so an author could not find the cause.
 const uri = "file:///project/main.sd";
 
-// The one error, which names the function and says how to call it.
 const GREET_MESSAGE =
   "A function can't be diverted to: call `greet` instead, as `& greet()` on a line of its own or `{greet()}` in a line.";
 

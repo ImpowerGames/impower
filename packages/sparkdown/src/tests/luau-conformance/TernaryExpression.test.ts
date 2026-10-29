@@ -1,11 +1,3 @@
-// Regression tests for Luau's `if cond then a else b` EXPRESSION
-// form (ifelseexpr.luau). Lowered to a `TernaryExpression`
-// (TernaryExpression.ts) that emits conditional content-pointer
-// jumps via the `sc:if` / `sc:jump` ControlCommand ops — only the
-// taken arm's value ops execute (verified by the side-effect test).
-// An unparenthesized if expression in a condition ends before the
-// enclosing `then` or `do` once its else arm is complete, including when
-// that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
@@ -50,8 +42,6 @@ function compileAndCapture(source: string): {
   return { errors, recorded, text };
 }
 
-// The if-expression syntax errors of a source, as `line:col-line:col message`
-// with one-based positions.
 function ifDiagnostics(source: string): string[] {
   const compiler = testCompiler();
   compiler.configure({
@@ -77,7 +67,6 @@ function ifDiagnostics(source: string): string[] {
     });
 }
 
-// The official parser's "when parsing" errors, in `ifDiagnostics`'s form.
 function officialIfDiagnostics(source: string): string[] {
   return officialSyntaxErrors(source)
     .filter((e) => e.message.includes("when parsing"))
@@ -87,13 +76,6 @@ function officialIfDiagnostics(source: string): string[] {
     });
 }
 
-/**
- * The official parser's "when parsing" errors for the source's function
- * `f`, read alone, in `ifDiagnostics`'s form and in the source's lines:
- * every one, Luau's recovery's included, as Sparkdown reports every one in a
- * function's Luau (I-1322). Sorted, as `sortedIfDiagnostics` sorts
- * Sparkdown's.
- */
 function officialFunctionIfDiagnostics(source: string): string[] {
   const from = source.indexOf("function f(");
   const to = source.indexOf("\nend\n", from) + "\nend\n".length;
@@ -103,12 +85,10 @@ function officialFunctionIfDiagnostics(source: string): string[] {
     .sort();
 }
 
-// Sparkdown's "when parsing" errors for a source, sorted.
 function sortedIfDiagnostics(source: string): string[] {
   return ifDiagnostics(source).sort();
 }
 
-// How many reassignment statements a source parses into.
 function reassignmentCount(source: string): number {
   return stripAnsi(dumpTree(source)).match(/\bLuauReassignment \[/g)?.length ?? 0;
 }
@@ -135,9 +115,6 @@ end
   });
 
   test("elseif chains evaluate in order", () => {
-    // NB: don't name the helper `chain` — that's a reserved sparkdown
-    // alternator keyword (`queue|chain|cycle|shuffle`) and hijacks the
-    // parse.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -200,9 +177,6 @@ end
   });
 });
 
-// An unparenthesized if expression is a valid condition for an if statement
-// or a while loop; the statement's own `then` or `do` follows the
-// expression's else arm.
 describe("if expression as a statement condition", () => {
   test("issue sources through the conformance harness", () => {
     const cases = [
@@ -462,8 +436,6 @@ end`);
   });
 });
 
-// An if expression continues across line breaks until its else arm has a
-// value, as any Luau expression does.
 describe("if expression across lines", () => {
   test.each([
     [
@@ -606,8 +578,6 @@ describe("if expression across lines", () => {
   });
 });
 
-// After `=`, `return` or an opening bracket, an `if` begins an expression
-// even when an `=` comes before its else, as in a table field.
 describe("if expression with an = before its else", () => {
   test.each([
     ['local x = if t[1] then {a = "y"} else 2\n  return x.a', "Value y.\n"],
@@ -623,9 +593,6 @@ describe("if expression with an = before its else", () => {
   });
 });
 
-// Luau rejects an if expression with no else arm. One whose then or else is
-// not yet written ends with its own lines, so the lines and functions after
-// it are still read as they are written.
 describe("if expression without an else", () => {
   const MISSING_CONDITION = "Expected identifier when parsing expression";
   const MISSING_THEN = "Expected 'then' when parsing if then else expression";
@@ -659,8 +626,6 @@ describe("if expression without an else", () => {
 
   test.each([
     ["no then before elseif", "  local y = if true elseif false then 1 else 2\n", MISSING_THEN, "2:13-2:15"],
-    // A missing value that Luau finds missing too is Luau's error, at the
-    // token Luau finds instead (#1175).
     ["an empty then arm", "  local y = if true then\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "3:3-3:7"],
     ["an empty else arm", "  local y = if true then 1 else\n", `${MISSING_CONDITION}, got 'return'`, "3:3-3:9"],
     ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "3:3-3:7"],
@@ -669,7 +634,6 @@ describe("if expression without an else", () => {
     ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
     ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
-    // A cast's `::` is Sparkdown's to report.
     ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
@@ -682,9 +646,6 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
   });
 
-  // Sparkdown ends the statement at the value at column 0, but the `else`
-  // after it closes nothing there (#1906), so the lines are Luau's to read,
-  // and Luau reads the value as the arm's.
   test("a then arm at column 0 on the line after then is read as Luau reads it", () => {
     const source = "function f()\n  local y = if true then\n1\n  else 2\n  return y\nend\nSum {f()}.\n";
     expect(ifDiagnostics(source)).toEqual([]);
@@ -694,11 +655,8 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 1.\n");
   });
 
-  // The function's own `end` at column 0 comes straight after the unfinished
-  // expression, so nothing indented separates the two.
   test.each([
     ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", `${MISSING_CONDITION}, got 'end'`, "4:1-4:4"],
-    // A missing else is Luau's error, at the token Luau finds instead (#1501).
     ["no else yet", "  local y = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
     ["a reassignment with no else yet", "  x = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
@@ -710,10 +668,6 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
 
-  // Where Sparkdown's own syntax ends the expression, the missing else is
-  // reported there: a marked `&` statement at its line's end, as its
-  // authored end of file, whatever follows it (#1501); a `store`
-  // declaration, which the checker does not read, on its `if`.
   test.each([
     ["an & statement before story", "& x = 0\n& x = if true then 1\nStory follows.\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
     ["an & statement before another", "& x = 0\n& x = if true then 1\n& x = 2\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
@@ -741,13 +695,6 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
-  // Each clause that can end the line of an unfinished if expression. An
-  // empty then or else arm stops the call when it runs, with or without the
-  // next line, so every row also counts the two reassignments in the tree.
-  // A `then` missing before the line at column 0 is Luau's error at that
-  // line's first token, which Luau's reading reads on into (I-1322); a
-  // missing arm value there is reported where it is missing, since
-  // Sparkdown ends the statement at the reassignment at column 0 (#1906).
   test.each([
     ["no then yet", "  x = if true\n", "luau", "Value 6.\n"],
     ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
@@ -780,10 +727,6 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
-  // A column-0 line after an if expression's line that belongs to the
-  // expression still does in Luau code: a clause keyword, a continuation, and
-  // the value of an else arm. A story declaration ends at its line instead
-  // (#1907, #1658), as storyBodyLineRule pins.
   test.each([
     ["then and else at column 0", "local a = true\nlocal x = if a\nthen 1\nelse 2\n", "Value 1.\n"],
     ["a continuation at column 0", 'local a = true\nlocal x = if a then "x"\n.. "z"\nelse "y"\n', "Value xz.\n"],

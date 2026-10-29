@@ -37,18 +37,10 @@ export class ControlCommand extends InkObject {
 
 export namespace ControlCommand {
   export enum CommandType {
-    // The program engine pushes these onto the output stream: `BeginString`
-    // opens a string evaluation (an interpolation or a choice's text) and
-    // `BeginTag` / `EndTag` bracket a tag's text. The state reads them back
-    // when it builds the current text and tags, and a save writes them.
     BeginString,
     BeginTag,
     EndTag,
 
-    // Push / pop a temporary-variable scope frame. The lowerers wrap block
-    // bodies (`if`/`for`/`while`/`repeat`/`do`) in these so `local x`
-    // declarations follow Luau's block-scoping rules, and the program writer
-    // reads them as the bounds of a block's scope.
     BeginScope,
     EndScope,
 

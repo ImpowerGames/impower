@@ -4,49 +4,27 @@ import { checkLuau, describeDiagnostic, type LuauDiagnostic } from "./typecheckT
 import { parseSource } from "../compiler/grammarSnapshot";
 import { inPositionOrder } from "../compiler/officialSyntax";
 
-// A type that is missing, or that cannot start with the token where one must
-// stand, is reported wherever a type can appear, worded and placed as Luau's
-// parser reports it: from the end of the token before it to the end of the
-// token Luau found instead (#1174), or to the end of its line where that
-// token is on a later line (#1286), with every error of Luau's recovery
-// after it (I-1322). So is an annotation written with `::`, which Luau words
-// by where it stands, and one with no name before it.
-
-// Luau's errors for those; its other syntax errors are not type errors.
 const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing (?:variable name|table field), got ':'$/;
 
-/**
- * Luau's own syntax errors for a snippet, in position order: every one,
- * Luau's recovery's included, since Sparkdown reports every one (I-1322),
- * where a token is named again as the parser recovers (`Expected type, got
- * '::'`, then `Expected ')' (to close '(' at column 11), got '::'`) too.
- */
 function luauSyntaxErrors(diagnostics: LuauDiagnostic[]): string[] {
   return inPositionOrder(
     diagnostics
       .filter((d) => d.code === "SyntaxError")
-      // Sparkdown ends a missing type's range that Luau runs on to a token
-      // on a later line with the line the type is missing from (#1286).
       .map((d) => (TYPE_ERROR.test(d.message) && (d.endLine > d.line + 1 || (d.endLine === d.line + 1 && d.endColumn > 0)) ? { ...d, endLine: d.line + 1, endColumn: 0 } : d))
       .map(describeDiagnostic),
   );
 }
 
-/** Luau's type errors among a snippet's syntax errors (`TYPE_ERROR`). */
 function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
   return luauSyntaxErrors(diagnostics.filter((d) => TYPE_ERROR.test(d.message)));
 }
 
-/** A `.sd` document's errors, as `line:character-line:character message`. */
 function documentErrors(source: string): string[] {
   return diagnoseDetailed(`${source}\n`)
     .filter((d) => d.code !== "LocalUnused")
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
 }
 
-// Every position a type can appear, with `T` where the type goes and `F`
-// where what follows it goes, and what can follow it there. Luau allows
-// empty type arguments (`B<>`), so there nothing is not malformed.
 const POSITIONS: { name: string; template: string; followers: string[]; nothingIsValid?: true }[] = [
   { name: "local target", template: "local x: T F", followers: ["= 1", ", y = 1, 2", ";", "\nlocal z = 1", "", "-- note\nlocal z = 1", "--[[c]] = 1"] },
   { name: "local target continued", template: "local a,\n  b: T F", followers: ["= 1, 2", "\nlocal z = 1", ""] },
@@ -69,7 +47,6 @@ const POSITIONS: { name: string; template: string; followers: string[]; nothingI
   { name: "table indexer", template: "local t: { [string]: T F", followers: ["} = nil"] },
 ];
 
-// The malformed shapes a type can take, and a valid one.
 const SHAPES: { name: string; type: string; valid?: true }[] = [
   { name: "nothing", type: "" },
   { name: "a trailing |", type: "number |" },
@@ -82,8 +59,6 @@ const SHAPES: { name: string; type: string; valid?: true }[] = [
   { name: "a type", type: "number", valid: true },
 ];
 
-// A snippet as written by hand: one space between tokens where an empty
-// shape leaves two, none at a line's end, and a line break at the end.
 const tidy = (source: string) => `${source.replace(/(?<=\S) {2,}/g, " ").replace(/ +(?=\n|$)/g, "")}\n`;
 
 const cases: { position: string; shape: string; source: string; valid: boolean }[] = [];
@@ -94,14 +69,11 @@ for (const { name, template, followers, nothingIsValid } of POSITIONS) {
       const valid = !!shape.valid || (!!nothingIsValid && shape.type === "");
       cases.push({ position: name, shape: shape.name, source, valid });
     }
-    // The annotation's own `:` doubled (also after a block comment), or
-    // written twice.
     if (template.includes(": T")) {
       for (const colon of [" :: number", " --[[c]] :: number", " : : number"]) {
         cases.push({ position: name, shape: `\`${colon.trim()}\` for its \`:\``, source: tidy(template.replace(": T", colon).replace("F", follower)), valid: false });
       }
     }
-    // No name before the annotation.
     const named = /\w+: T/;
     if (named.test(template)) {
       for (const colon of [": number", ":: number"]) {
@@ -133,38 +105,30 @@ describe("a malformed type at every position", () => {
 
 describe("the reported layouts", () => {
   test.each([
-    // #1152: a `:` at the end of its line, with the next line's token.
     ["local w:\nlocal z = 1", "0:8-1:0 SyntaxError: Expected type, got 'local'"],
     ["function g()\n  local w:\nend", "1:10-2:0 SyntaxError: Expected type, got 'end'"],
     ["local w:", "0:8-1:0 SyntaxError: Expected type, got <eof>"],
     ["function g():\n  return 1\nend", "0:13-1:0 SyntaxError: Expected type, got 'return'"],
     ["function g(a: number): end", "0:22-0:26 SyntaxError: Expected type, got 'end'"],
     ["function g(): = nil end", "0:13-0:15 SyntaxError: Expected type, got '='"],
-    // #1164: before `in`.
     ["for k: in pairs({}) do end", "0:6-0:9 SyntaxError: Expected type, got 'in'"],
     ["for k, v: in pairs({}) do end", "0:9-0:12 SyntaxError: Expected type, got 'in'"],
-    // #1166: a `::` on a target continued onto the next line.
     ["local a,\n  b :: number", "1:4-1:6 SyntaxError: Expected identifier when parsing expression, got '::'"],
-    // #1167: no name before the annotation.
     ["local :: number", "0:6-0:8 SyntaxError: Expected identifier when parsing variable name, got '::'"],
     ["local : number", "0:6-0:7 SyntaxError: Expected identifier when parsing variable name, got ':'"],
     ["local a, : number", "0:9-0:10 SyntaxError: Expected identifier when parsing variable name, got ':'"],
-    // #1168: two separate colons.
     ["local c : : number", "0:9-0:11 SyntaxError: Expected type, got ':'"],
     ["local c: : number", "0:8-0:10 SyntaxError: Expected type, got ':'"],
-    // #1170: a trailing `|` or `&` before a closing bracket.
     ["local t: { a: number | } = nil", "0:22-0:24 SyntaxError: Expected type, got '}'"],
     ["local f: (number |) -> nil = nil", "0:18-0:19 SyntaxError: Expected type, got ')'"],
     ["type A<T> = T\nlocal a: A<number |> = nil", "1:19-1:20 SyntaxError: Expected type, got '>'"],
     ["local g: (number &) -> nil = nil", "0:18-0:19 SyntaxError: Expected type, got ')'"],
     ["local h: () -> (number |) = nil", "0:24-0:25 SyntaxError: Expected type, got ')'"],
     ["function f(a: ) end", "0:13-0:15 SyntaxError: Expected type, got ')'"],
-    // A `::` after a block comment.
     ["function f(a --[[c]] :: number) end", "0:21-0:23 SyntaxError: Expected ')' (to close '(' at column 11), got '::'"],
     ["local t: { a --[[c]] :: number } = nil", "0:21-0:23 SyntaxError: Expected '}' (to close '{' at column 10), got '::'"],
     ["function f() --[[c]] :: number end", "0:21-0:23 SyntaxError: Expected identifier when parsing expression, got '::'"],
     ["for k --[[c]] :: number in pairs({}) do end", "0:14-0:16 SyntaxError: Expected 'in' when parsing for loop, got '::'"],
-    // A table type's field with no name.
     ["local t: { a: number, : string } = nil", "0:22-0:23 SyntaxError: Expected identifier when parsing table field, got ':'"],
     ["local t: { a: number, :: string } = nil", "0:22-0:24 SyntaxError: Expected identifier when parsing table field, got '::'"],
   ])("%j reports %j and the errors of Luau's recovery", (source, message) => {
@@ -184,24 +148,12 @@ describe("the reported layouts", () => {
     "local m: number |\n  string = 1",
     "function g():\n  number\n  return 1\nend",
     "local t = {m = function(self) return {} end}\nfor k in t:m() do end",
-    // Sparkdown's divert-target type and a label, which Luau's parser rejects.
     "function cut_to(escape: ->) end",
     "::top::\nlocal x = 1",
   ])("%j is unaffected", (source) => {
     expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // In a narrative body a declaration ends at its line, so a target on the
-  // line after a comma is story (`LocalAnnotationColons.test.ts`).
-
-  // In a Sparkdown document the checker reads its Luau statements with the
-  // rest left out: the error at the end of that Luau runs to the next line as
-  // Luau's end-of-file range does. A story declaration ends at its line
-  // (#1907), so what follows it, a scene's `end` too, is never what its Luau
-  // meets. A `store` declaration and a scene's parameters are Sparkdown's own,
-  // and the validator reports them, with the range the checker would give; a
-  // `store` in a scene is also misplaced. A local belongs in a scene, so each
-  // local is written in one.
   test.each([
     ["scene s\n  local x: --[[c]]\n  Story.\nend", ["1:10-2:0 Expected type, got <eof>"]],
     ["scene s\n  local x:\nend", ["1:10-2:0 Expected type, got <eof>"]],
@@ -218,20 +170,15 @@ describe("the reported layouts", () => {
     ["scene s(a, :: number)\nend", ["0:11-0:13 Expected identifier when parsing variable name, got '::'"]],
     ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
     ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
-    // An opener in a string or a line comment before the real comment.
     ['scene s\n  local marker = "--[["\n  local x --[[c]] :: number\nend', ["2:18-2:20 Expected identifier when parsing expression, got '::'", "2:21-2:27 Incomplete statement: expected assignment or a function call"]],
     ["scene s\n  -- --[[\n  local x --[[real]] :: number\nend", ["2:21-2:23 Expected identifier when parsing expression, got '::'", "2:24-2:30 Incomplete statement: expected assignment or a function call"]],
-    // A block comment that never closes where the type goes is the one
-    // error there.
     ["store x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
-    // A token Luau reads whole.
     ["scene s(a: 123)\nend", ["0:10-0:14 Expected type, got '123'"]],
     ["scene s(a: ..)\nend", ["0:10-0:13 Expected type, got '..'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     expect(documentErrors(source)).toEqual(messages);
   });
 
-  // A block comment of any length before the `::` or the token Luau finds.
   const long = "x".repeat(5000);
   test.each([
     ["a local target", `scene s\n  local x --[[${long}]] :: number\nend`, ["1:5017-1:5019 Expected identifier when parsing expression, got '::'", "1:5020-1:5026 Incomplete statement: expected assignment or a function call"]],
@@ -254,7 +201,6 @@ describe("the reported layouts", () => {
     expect(inPositionOrder(result.syntaxDiagnostics.map(describeDiagnostic))).toEqual(luauSyntaxErrors(result.diagnostics));
   });
 
-  // The loop still binds its variables when they are annotated.
   test("an annotated loop variable is bound", () => {
     const tree = parseSource("function f(t)\n  for k: number | string, v: number in pairs(t) do end\nend\n");
     const targets: string[] = [];
@@ -278,7 +224,6 @@ describe("the reported layouts", () => {
     ]);
   });
 
-  // A method call after a comma in the header is not a variable's annotation.
   test.each([
     "function f(t)\n  for k, v in pairs({}), t:m() do end\nend\n",
     "function f(t)\n  for k, v in pairs({}), t:m --[[c]] () do end\nend\n",

@@ -1,22 +1,8 @@
-// Ported from Luau's own parser tests for interpolated strings
-// (`luau/tests/Parser.test.cpp`, the `parse_interpolated_string_*` cases), so
-// "we match Luau here" is an executable claim rather than an assertion.
-//
-// Sparkdown extends interpolation to `"..."` as well as backticks (see
-// DIVERGENCES.md), so where a case is meaningful for both, both are checked.
-// `'...'` and `[[...]]` are literal and are therefore expected NOT to raise
-// any of these.
-//
-// Cases sparkdown deliberately does not (yet) match are kept here as
-// `test.skip` with the reason, rather than deleted — they are the todo list
-// for full parity, and a silent omission would read as "covered".
-
 import { describe, expect, test } from "vitest";
 import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
 
 const MISSING_BRACE = "Malformed interpolated string; did you forget to add a";
 
-// Luau: parse_interpolated_string_without_end_brace
 describe("interpolated string without end brace", () => {
   test.each([
     ["backtick, single char", "store a = `{a`\n"],
@@ -32,19 +18,12 @@ describe("interpolated string without end brace", () => {
     ).toBe(true);
   });
 
-  // Luau: parse_interpolated_string_mid_without_end_brace_in_table.
-  // Luau also emits a cascading "Expected '}' (to close '{' ...)" for the
-  // enclosing table; only the interpolation message is asserted here, since
-  // the recovery cascade is parser-specific.
   test("a closed interpolation followed by an unclosed one", () => {
     const msgs = diagnose('store a = `x {"y"} {z`\n');
     expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);
   });
 
   test("an unterminated `{` does not swallow the following lines", () => {
-    // Before the string-bounded interpolation rules, the scope ran past the
-    // closing quote and consumed the rest of the FILE, which turned one typo
-    // into a cascade of unrelated errors.
     const msgs = diagnose("store a = `{x`\nstore after = 1\n");
     expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);
     expect(msgs.some((m) => m.includes("closing `end`"))).toBe(false);
@@ -64,19 +43,7 @@ describe("well-formed interpolations are not flagged", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Not yet matching Luau. Each is a real divergence with a stated reason.
-// ---------------------------------------------------------------------------
-
-// Luau: parse_interpolated_string_without_expression
-// "Malformed interpolated string, expected expression inside '{}'"
-//
-// Before this was an error, `{}` lowered to nothing and silently DELETED
-// itself from the string, so `` `a={}; x=3` `` became `a=; x=3`. A string that
-// should hold literal braces uses `'...'` or `[[...]]`.
 describe("empty interpolation", () => {
-  // Identical for every interpolating quote form — `"..."` is not a weaker
-  // dialect of `` `...` ``.
   test.each([
     ["backtick", "store a = `{}`\n"],
     ["backtick, mid", "store a = `{}{1}`\n"],
@@ -91,8 +58,6 @@ describe("empty interpolation", () => {
     ).toBe(true);
   });
 
-  // `'...'` and `[[...]]` are the literal forms, so a string that genuinely
-  // holds braces — a Lua pattern like `%b{}`, or JSON — is written with those.
   test.each([
     ["single quotes stay literal", "store a = '{}'\n"],
     ["a Lua pattern in single quotes", "store a = '%b{}'\n"],
@@ -102,16 +67,6 @@ describe("empty interpolation", () => {
   });
 });
 
-// Luau: parse_interpolated_string_double_brace_begin / _mid
-// "Double braces are not permitted within interpolated strings; did you mean '\{'?"
-//
-// DELIBERATE divergence (issue #223): in sparkdown `{{name}}` is the
-// function-call shorthand — `{{oops}}` means "call oops() and interpolate its
-// return value" in every interpolation context, including Luau interpolated
-// strings — so Luau's flat-out rejection of `{{` will never be adopted. (It
-// used to diverge for a different reason: `{{` was Sparkle's literal-brace
-// escape per spec decision D3, since superseded; the literal escape is now
-// `\{` — same as Luau's own suggestion.)
 describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => {
   test.each([
     ["begin", "store a = `{{oops}}`\n"],
@@ -123,8 +78,6 @@ describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => 
   });
 });
 
-// Luau: parse_interpolated_string_malformed_escape
-// "Interpolated string literal contains malformed escape sequence"
 describe("malformed escape", () => {
   test("`\\xQQ`", () => {
     expect(diagnoseInFunction("local a = `???\\xQQ {1}`")).toContain(
@@ -132,8 +85,6 @@ describe("malformed escape", () => {
     );
   });
 
-  // Sparkdown's `"..."` interpolates too, but takes the plain-string wording
-  // because that is what Luau says for a `"` string (StringLiteralErrors).
   test('"\\xQQ"', () => {
     expect(diagnoseInFunction('local a = "???\\xQQ {1}"')).toContain(
       "String literal contains malformed escape sequence",
@@ -141,14 +92,6 @@ describe("malformed escape", () => {
   });
 });
 
-// Luau: parse_interpolated_string_call_without_parens
-// "Expected identifier when parsing expression, got `{"
-//
-// Luau rejects an interpolated string as a paren-less call argument. The
-// grammar's paren-less call sugar (`LUAU_FUNCTION_CALL_START`) covers `"`,
-// `'`, `[[` and `{` but not a backtick, so `print `{42}`` is not read as a
-// call at all: `print` stands alone and the string after it is accepted
-// silently.
 describe.skip("call without parens (diverges: a backtick after a name is not a call, and the leftover string is accepted silently)", () => {
   test("_ = print `{42}`", () => {
     expect(diagnoseInFunction("_ = print `{42}`")).toContain(
@@ -157,12 +100,6 @@ describe.skip("call without parens (diverges: a backtick after a name is not a c
   });
 });
 
-// Luau: parse_interpolated_string_weird_token
-// "Malformed interpolated string, got '!'"
-//
-// The interpolation reads the stray tokens as tokens it left unread, as a
-// bracket does (I-1318), and goes on to its `}`, so Luau's first error is
-// reported at them.
 describe("a stray token inside an interpolation", () => {
   test("`??? {42 !!}`", () => {
     expect(diagnoseInFunction("local a = `??? {42 !!}`")).toContain(
@@ -171,10 +108,6 @@ describe("a stray token inside an interpolation", () => {
   });
 });
 
-// Luau: parse_interpolated_string_as_type_fail
-// "Interpolated string literals cannot be used as types"
-// Sparkdown parses type annotations but ignores them (see DIVERGENCES.md),
-// so there is no type position to reject one in.
 describe.skip("as a type (N/A: type annotations are parsed but ignored)", () => {
   test("in a type annotation", () => {
     expect(

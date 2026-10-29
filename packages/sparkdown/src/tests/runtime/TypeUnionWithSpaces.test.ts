@@ -1,7 +1,3 @@
-// A Luau type union or intersection written with spaces around its operator
-// (`number | string`) is one type, as Luau reads it: the type does not end at
-// the space before the `|` (#875).
-
 import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic } from "../luau-conformance/typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";

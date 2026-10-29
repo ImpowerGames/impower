@@ -5,8 +5,6 @@ export type SimulatorSnapshot = {
   choicePointer: Record<ProgramAddress, number>;
 };
 
-/** Forces the verdicts a route takes, each asked by the address of its
- *  decision site. */
 export type Simulator = {
   forceCondition: (site: ProgramAddress) => boolean | null;
   forceChoice: (site: ProgramAddress) => string | null;

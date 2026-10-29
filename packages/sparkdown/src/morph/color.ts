@@ -1,14 +1,8 @@
-// A CSS colour reader for the forms SVG paint uses: hex, `rgb()`, `rgba()`,
-// `hsl()`, `hsla()`, the named colours, `transparent`, `currentColor` and
-// `none`. Colours come out in gamma-encoded sRGB, the space a morph blends
-// paint in.
-
 import { own } from "./own";
 import type { MorphColor } from "./types";
 
 export type ReadColor = { kind: "color"; color: MorphColor } | { kind: "current" } | { kind: "none" };
 
-// CSS Color 4's named colours.
 const NAMED: Record<string, number> = {
   aliceblue: 0xf0f8ff,
   antiquewhite: 0xfaebd7,
@@ -162,24 +156,12 @@ const NAMED: Record<string, number> = {
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-/** Removes ASCII space, tab and line breaks from both ends. */
 export const cssTrim = (text: string) => text.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, "");
 
-/**
- * A character no value this reader reads contains: anything but ASCII
- * letters, digits, `#%().,+-/`, space, tab and line breaks. A value with a
- * comment, an escape, other whitespace or non-ASCII text is unknown.
- */
 const OUTSIDE = /[^ \t\n\r\fA-Za-z0-9#%().,+\-/]/;
 
-/** A CSS number: digits after a decimal point, if it has one. */
 const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?$/i;
 
-/**
- * A CSS number or percentage, as a fraction of `scale` for a percentage;
- * undefined otherwise, and for a number too large for a double, whose blend
- * would not be a number.
- */
 const component = (text: string, scale: number): number | undefined => {
   const percent = text.endsWith("%");
   const body = percent ? text.slice(0, -1) : text;
@@ -189,7 +171,6 @@ const component = (text: string, scale: number): number | undefined => {
   return percent ? (n / 100) * scale : n;
 };
 
-/** An alpha value: a number or a percentage, clamped to 0..1. */
 export const readAlpha = (text: string): number | undefined => {
   if (OUTSIDE.test(text)) return undefined;
   const n = component(cssTrim(text), 1);
@@ -205,10 +186,6 @@ const hue = (text: string): number | undefined => {
   return Number.isFinite(degrees) ? degrees : undefined;
 };
 
-/**
- * The arguments of a colour function: split by commas (the legacy syntax) or
- * by spaces with an optional `/ alpha` (the modern syntax).
- */
 const argumentsOf = (body: string): { parts: string[]; legacy: boolean } | undefined => {
   const text = cssTrim(body);
   if (text.includes(",")) {
@@ -224,7 +201,6 @@ const argumentsOf = (body: string): { parts: string[]; legacy: boolean } | undef
 };
 
 const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
-  // CSS Color 4's `hslToRgb`.
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
     const a = s * Math.min(l, 1 - l);
@@ -233,18 +209,12 @@ const hslToRgb = (h: number, s: number, l: number): [number, number, number] => 
   return [f(0) * 255, f(8) * 255, f(4) * 255];
 };
 
-/**
- * Reads one CSS colour as SVG paint writes it. Anything outside the forms
- * this reader knows (a paint server, a system colour, `color-mix()`, a wide
- * gamut space) is undefined.
- */
 export function readColor(value: string): ReadColor | undefined {
   if (OUTSIDE.test(value)) return undefined;
   const text = cssTrim(value).toLowerCase();
   if (text === "none") return { kind: "none" };
   if (text === "currentcolor") return { kind: "current" };
   if (text === "transparent") return { kind: "color", color: [0, 0, 0, 0] };
-  // Own entries only: a name such as `constructor` is no colour.
   const named = own(NAMED, text);
   if (named !== undefined) return { kind: "color", color: [(named >> 16) & 255, (named >> 8) & 255, named & 255, 1] };
   if (text.startsWith("#")) {
@@ -260,21 +230,16 @@ export function readColor(value: string): ReadColor | undefined {
     }
     return undefined;
   }
-  // CSS whitespace inside the parentheses includes line breaks.
   const call = /^(rgba?|hsla?)\(([\s\S]*)\)$/.exec(text);
   if (!call) return undefined;
   const parsed = argumentsOf(call[2]!);
   if (!parsed) return undefined;
   const { parts: args, legacy } = parsed;
-  // The modern syntax reads `none` as zero; the legacy syntax has no `none`.
   const or = <T>(text: string, read: (text: string) => T | undefined): T | 0 | undefined =>
     !legacy && text === "none" ? 0 : read(text);
   const alpha = args[3] === undefined ? 1 : or(args[3], readAlpha);
   if (alpha === undefined) return undefined;
   if (call[1]!.startsWith("rgb")) {
-    // In the legacy syntax the channels are all numbers or all percentages;
-    // a browser drops a declaration that mixes them. The modern syntax
-    // reads each channel on its own.
     const percents = args.slice(0, 3).filter((a) => a.endsWith("%")).length;
     if (legacy && percents !== 0 && percents !== 3) return undefined;
     const channels = args.slice(0, 3).map((a) => or(a, (t) => component(t, 255)));
@@ -282,8 +247,6 @@ export function readColor(value: string): ReadColor | undefined {
     const [r, g, b] = channels.map((c) => clamp(c!, 0, 255));
     return { kind: "color", color: [r!, g!, b!, alpha] };
   }
-  // Saturation and lightness are percentages; the modern syntax also takes
-  // plain numbers, read as percentages.
   const percent = (text: string) => (legacy && !text.endsWith("%") ? undefined : component(text.endsWith("%") ? text : `${text}%`, 1));
   const h = or(args[0]!, hue);
   const s = or(args[1]!, percent);
@@ -293,11 +256,6 @@ export function readColor(value: string): ReadColor | undefined {
   return { kind: "color", color: [r, g, b, alpha] };
 }
 
-/**
- * A colour a morph's `paints` entry gives a drawing: one `readColor` reads as
- * a colour. `none` and `currentColor` name no colour of their own, so they are
- * undefined, as is anything else the reader does not read.
- */
 export function readEntryColor(value: unknown): MorphColor | undefined {
   if (typeof value !== "string") return undefined;
   const read = readColor(value);
@@ -306,7 +264,6 @@ export function readEntryColor(value: unknown): MorphColor | undefined {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Two colours blended at `t` in gamma-encoded sRGB with premultiplied alpha. */
 export function blendColor(from: MorphColor, to: MorphColor, t: number): MorphColor {
   const alpha = lerp(from[3], to[3], t);
   if (alpha <= 0) return [lerp(from[0], to[0], t), lerp(from[1], to[1], t), lerp(from[2], to[2], t), 0];
@@ -316,6 +273,5 @@ export function blendColor(from: MorphColor, to: MorphColor, t: number): MorphCo
 
 const fmt = (n: number) => String(Math.round(n * 1000) / 1000 || 0);
 
-/** A colour written as CSS: `rgba()` with whole channels. */
 export const formatColor = ([r, g, b, a]: MorphColor): string =>
   `rgba(${Math.round(clamp(r, 0, 255))},${Math.round(clamp(g, 0, 255))},${Math.round(clamp(b, 0, 255))},${fmt(clamp(a, 0, 1))})`;

@@ -1,11 +1,3 @@
-// A tag written after a line's text belongs to that line's beat, whether a
-// space separates it from the text (`door # t`) or not (`door# t`), and on a
-// `..` continuation too (#1710). A continue returns at its line's newline and
-// never looks past it (docs/engine/binary-program.md, section 6), so a line's
-// tags must ride its own display call: a tag touching the text used to be
-// parsed as a `# tag` line of its own after the line, whose tags go to the
-// next beat, as a standalone tag line's do (Tags.test.ts).
-
 import { describe, expect, test } from "vitest";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -27,7 +19,6 @@ const compile = (lines: string[]) => {
   return ctx;
 };
 
-// Each beat's text and the tags it carries.
 function beats(story: {
   canContinue: boolean;
   Continue(): string | null | undefined;
@@ -73,7 +64,6 @@ describe("a tag written after a line's text", () => {
     ]);
   });
 
-  // The form with a space was already the beat's own; it stays so.
   test("is the beat's own when a space separates it from the text", () => {
     for (const lines of [
       ["You see a door # t", "After."],
@@ -86,7 +76,6 @@ describe("a tag written after a line's text", () => {
     }
   });
 
-  // A tag line of its own still goes to the beat after it.
   test("on a line of its own still tags the next beat", () => {
     const ctx = compile(["Before.", "# t", "After."]);
     expect(beats(ctx.story)).toEqual([
@@ -102,15 +91,11 @@ describe("a tag written after a line's text", () => {
     expect(last).toBe(first);
     expect(opAt(root, last)).toBe(Op.LineStart);
     expect(root.addressAt(URI, 1)).not.toBe(last);
-    // What a story stopped at that address shows is the line with its tag.
     const story = new ProgramStory(root);
     story.ChooseAddress(last);
     expect(beats(story)[0]).toEqual(["You see a door\n", ["t"]]);
   });
 
-  // An edit that writes the tag against the text, or moves it off, is
-  // compiled again from the edited window, and gives the same beats as a cold
-  // compile of the edited script.
   test("is the beat's own after an edit that writes it, as on a cold compile", () => {
     const session = programSession("You see a door\nAfter.\n");
     for (const [before, after, tags] of [
@@ -137,13 +122,9 @@ describe("a tag written after a line's text", () => {
     const first = root.addressAt(URI, 1)!;
     expect(root.addressAt(URI, 1, { beat: "last" })).toBe(first);
     expect(root.addressAt(URI, 2)).not.toBe(first);
-    // The address's location is the continuation's own line.
     expect(root.locationOf(first)).toMatchObject({ startLine: 1, endLine: 1 });
   });
 
-  // Every kind of line that ended at a `#` shows the same beats, tags and
-  // display tables for the touching form as for the spaced one, and a line's
-  // last address is on that line.
   test("behaves as the spaced form on every kind of display line", () => {
     const pairs: [touching: string[], spaced: string[]][] = [
       [["^: A TITLE# t"], ["^: A TITLE # t"]],

@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 
-// A type's `|`, `&` or `->` with no type before the `=`, `,` or `;` that
-// follows it (`local m: number | = 1`) is a syntax error in Luau, worded with
-// the token it found instead of a type (#1153).
-
 describe("a type binary operator with no type after it", () => {
   test.each([
     ["local m: number | = 1", "Expected type, got '='"],
@@ -29,9 +25,7 @@ describe("a type binary operator with no type after it", () => {
     "local m: number & string = 1",
     "local f: (number) -> string = nil",
     "local m: number|string = 1",
-    // A union continued onto the next line (#1053).
     "local m: number |\n  string = 1",
-    // A bare `->` is sparkdown's divert-target type, not a dangling operator.
     "function cut_to(escape: ->, b) end",
     "function cut_to(escape: ->) end",
   ])("%j is unaffected", (statement) => {

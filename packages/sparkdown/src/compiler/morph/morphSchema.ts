@@ -1,17 +1,5 @@
-// The author vocabulary of a `morph NAME with … end` block: which fields exist,
-// where each one belongs, and the values the enumerated fields accept. The
-// compiler's checks, the builtin type and the language server's completion all
-// read these lists, so a field or value is added in one place.
-
 export const MORPH_BLENDS = ["morph", "fade", "cut", "scale"] as const;
 export const MORPH_FALLBACKS = ["fade", "cut", "scale"] as const;
-/**
- * The geometry methods, each named by the motion an artist chooses it for:
- * `match` moves node to node between two drawings with the same nodes in the
- * same order, `bend` bends or straightens the middle of a thin shape with two
- * pointed ends while the ends keep their shape, and `trace` pairs points
- * traced along the outline of any closed shape.
- */
 export const MORPH_METHODS = ["match", "bend", "trace"] as const;
 export const MORPH_DIRECTIONS = [
   "normal",
@@ -37,7 +25,6 @@ export const MORPH_STEP_POSITIONS = [
   "end",
 ] as const;
 
-/** Fields a morph's root holds. */
 export const MORPH_ROOT_FIELDS = [
   "blend",
   "method",
@@ -50,16 +37,10 @@ export const MORPH_ROOT_FIELDS = [
   "paints",
 ] as const;
 
-/** Transition-policy fields: at the root, or under a label in `layers { … }`. */
 export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback", "depth"] as const;
 
-/** The `depth` that keeps each moving shape at its place in the rest pose. */
 export const MORPH_DEPTH_REST = "rest";
 
-/**
- * The pose a `depth` value names: `rest`, or the group and state of a
- * qualified state such as `eyes.closed`. Undefined for any other value.
- */
 export function parseMorphDepth(
   value: unknown,
 ): typeof MORPH_DEPTH_REST | { group: string; state: string } | undefined {
@@ -67,17 +48,12 @@ export function parseMorphDepth(
   return parseMorphQualifiedState(value);
 }
 
-/** The group and state of a qualified state such as `eyes.closed`; undefined for any other value. */
 export function parseMorphQualifiedState(value: unknown): { group: string; state: string } | undefined {
   if (typeof value !== "string") return undefined;
   const match = /^([^.\s]+)\.(\S+)$/.exec(value);
   return match ? { group: match[1]!, state: match[2]! } : undefined;
 }
 
-/**
- * A `paints` entry's `span` as a fraction from 0 to 1: a percentage from
- * `0%` to `100%`, or a number from 0 to 1. Undefined for any other value.
- */
 export function parseMorphSpan(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined;
   if (typeof value !== "string") return undefined;
@@ -97,7 +73,6 @@ export const MORPH_TIMING_FIELDS = [
   "iteration_delay_max",
 ] as const;
 
-/** 2D layer properties a keyframe container can pose. */
 export const MORPH_LAYER_PROPERTIES = [
   "translate",
   "rotate",
@@ -107,7 +82,6 @@ export const MORPH_LAYER_PROPERTIES = [
   "opacity",
 ] as const;
 
-/** Fields of one keyframe container (`eyes { … }` inside a keyframe). */
 export const MORPH_CONTAINER_FIELDS = [
   "state",
   ...MORPH_LAYER_PROPERTIES,
@@ -115,15 +89,11 @@ export const MORPH_CONTAINER_FIELDS = [
 
 export const MORPH_CLIP_FIELDS = ["between", "targets"] as const;
 
-/** Fields of one `paints { … }` entry. */
 export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "span"] as const;
 
-/** The `span` a `paints` entry takes when it sets none: the whole segment. */
 export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
-/** Keys whose values are literal text rather than numbers or references. */
 export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke"]);
-/** Keys whose list values are literal labels. */
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set(
   MORPH_CLIP_FIELDS,
 );
@@ -136,7 +106,6 @@ export const MORPH_TIMING_DEFAULTS = {
   direction: "normal",
 } as const;
 
-/** One-line documentation shown by completion and hover. */
 export const MORPH_FIELD_DOCS: Record<string, string> = {
   blend: "How shapes change between poses: `morph` (default), `fade`, `cut` or `scale`.",
   method:
@@ -188,11 +157,6 @@ const splitArgs = (text: string): string[] =>
 const isFiniteNumberText = (text: string): boolean =>
   /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i.test(text);
 
-/**
- * Why `easing` is not a supported timing function, or null when it is. Accepts
- * the CSS easing names and the `cubic-bezier()`, `steps()` and `linear()`
- * functions.
- */
 export function easingProblem(easing: string): string | null {
   const text = easing.trim();
   if ((MORPH_EASING_KEYWORDS as readonly string[]).includes(text)) return null;

@@ -1,9 +1,3 @@
-// A read of a name that nothing declares or assigns is reported on the name
-// itself, from its first character to its last, in every script expression:
-// statements, `&` lines, `local` declarations, `return` values, the conditions
-// and subjects of block statements, and interpolations in display lines. An
-// unknown dotted path is reported on the whole path (#990).
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed, diagnosticMessage } from "./diagnosticTestHarness";
 import { testCompiler } from "../engineUnderTest";
@@ -19,7 +13,6 @@ function rangesOf(source: string, message: string): Range[] {
     .map((d) => d.range as Range);
 }
 
-// The range of the last occurrence of `name` as a whole word on `line`.
 function nameRange(source: string, line: number, name: string): Range {
   const text = source.split("\n")[line]!;
   const matches = [
@@ -130,8 +123,6 @@ describe("the reported name among others", () => {
   });
 });
 
-// An edit above a chunk carries it into the next compile, shifted; the names in
-// it keep their own ranges, at their new lines.
 describe("an unknown global read in a carried chunk", () => {
   const URI = "inmemory:///main.sd";
   const FIRST_LINE = "  Line one.";

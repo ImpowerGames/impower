@@ -1,11 +1,3 @@
-// A closure that calls a function declared with `...` in the same function
-// passes that function the locals it captures, whether or not the closure
-// reads them itself (I-817). Since I-1360 the function lowers as a closure
-// assigned to the variable its name resolves to (since I-1422, the global
-// when no local of the name is in scope), which captures the locals it reads
-// where it is defined, and a closure that calls it reads that variable
-// (`lowerNestedNamedFunction`).
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -20,7 +12,6 @@ function run(source: string): { text: string; errors: string[] } {
   return { text, errors };
 }
 
-// `foo` returns the `base` it closes over.
 const story = (body: string[]) =>
   [
     "function run()",
@@ -146,14 +137,6 @@ describe("a closure that calls a variadic function of the same function", () => 
   });
 });
 
-// An edit to the function's body alone that changes the locals it captures
-// changes the function's statement, while the closure that calls it captures
-// only the function's local and keeps its own: an incremental compile gives
-// the closure's call what a cold compile of the edited script does. `other`
-// is declared before the function, so the function's body
-// reads it as Luau scopes it: these cases expected the same results with
-// `other` declared after the function, which a call reached only because
-// it looked the captured names up where the call was written (I-1361).
 describe("an edit to the body of a variadic function a closure calls", () => {
   const texts = (root: ProgramRoot) =>
     storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text);

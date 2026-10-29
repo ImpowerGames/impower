@@ -2,11 +2,6 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
-// #1223: `style`, `animation`, `theme` and `morph` bodies accept brace blocks
-// (#1222). A brace body lowers to the struct its multiline blocks lowers to, in
-// both struct readers: the style reader (`lowerStructBody`) and the typed
-// reader behind `animation`, `theme` and `morph` (`lowerStructBodyTyped`).
-
 type StructType = "style" | "animation" | "theme" | "morph";
 
 function structOf(source: string, type: StructType, name: string): any {
@@ -26,7 +21,6 @@ interface Found {
   text: string;
 }
 
-/** Every diagnostic a full compile reports, with the text it underlines. */
 function diagnosticsOf(text: string): Found[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -240,7 +234,6 @@ end
     expect(struct["&.card--large"]).toEqual({ opacity: "0.5" });
     expect(struct).toEqual(structOf(indented, "style", "t"));
     expect(errorsOf(braced)).toEqual([]);
-    // An `=` inside a selector does not start a value.
     const attribute = `style t with
   &[data-label=true--suffix] { color = red }
 end
@@ -260,7 +253,6 @@ end
     expect(structOf(attribute, "style", "t")["&[data-label=true--suffix]"]).toEqual({
       color: "red",
     });
-    // A quoted attribute value is part of the selector, braces and all.
     const quoted = `style t with
   &[data-label="x"] { color = red }
   &[data-label="true--suffix"] { color = green }
@@ -286,7 +278,6 @@ end
       color: "red",
     });
     expect(errorsOf(quoted)).toEqual([]);
-    // So is a single-quoted one, and the rules after it are kept.
     const single = `style t with
   &[data-label='a;b'] { opacity = 0.5 }
   &[data-label='space ; { --'], &[data-kind="x"] = { opacity = 0.25 }
@@ -313,7 +304,6 @@ end
       expect.arrayContaining(["&[data-label='a;b']", "> text"]),
     );
     expect(errorsOf(single)).toEqual([]);
-    // A quoted key is a block header too, with or without `=`.
     for (const type of ["theme", "style"] as const) {
       const quotedKey = `${type} t with
   "quoted key" { v = 1 }
@@ -368,8 +358,6 @@ end
       [POSITIONS_INDENTED, POSITIONS_BRACED, "animation", "fade"],
       [THEME_INDENTED, THEME_BRACED, "theme", "dusk"],
     ] as const) {
-      // The brace body is read as blocks, so the comparison below is between
-      // two readings of the same struct, not two bodies that both fail to read.
       expect(structOf(braced, type, name), braced).toEqual(
         structOf(indented, type, name),
       );
@@ -482,7 +470,6 @@ end
       content: "a { b } ; c",
       width: "10px",
     });
-    // A full compile reports what the multiline form of the same body reports.
     const indented = `style s with
   &.a {
     color = red
@@ -547,7 +534,6 @@ end
 `;
     const struct = structOf(braced, "theme", "t");
     expect(struct.a).toEqual({ x: 1, y: true, z: "q", w: "var(--gap)" });
-    // A whitespace-led `//` is a comment too, in both forms.
     const slashBraced = `theme t with
   colors {
     value = 1 // } note
@@ -577,8 +563,6 @@ end
       list: ["red"],
     });
     expect(errorsOf(slashBraced)).toEqual([]);
-    // After a whole literal and whitespace, `//` begins a comment even with no
-    // whitespace after it, as the multiline form's literal value rules read it.
     const literalBraced = `theme t with
   colors {
     a = 1 //c }
@@ -605,8 +589,6 @@ end
     });
     expect(errorsOf(literalBraced)).toEqual([]);
     expect(errorsOf(literalMultiline)).toEqual([]);
-    // A value the readers do not take as a literal (`+1`) reads as the same
-    // text in both forms.
     const notLiteralBraced = `theme t with
   colors {
     c = +1--c
@@ -629,10 +611,6 @@ end
       d: "+1//c",
     });
     expect(errorsOf(notLiteralBraced)).toEqual([]);
-    // A `//` directly after a literal begins a comment in the brace form. The
-    // indented form's literal value rules mean the same, but the tree engine
-    // cuts their node short there, so it reads `1//c` as `1/` and `true//c` as
-    // false; the brace form reads the literal.
     const adjacent = `theme t with
   colors { a = 1//c }
     b = true//c }
@@ -694,12 +672,10 @@ end
     expect(errors).toHaveLength(1);
     expect(errors[0]).toMatchObject({ line: 1, text: "," });
     expect(errors[0]!.message).toContain("`;`");
-    // Both entries are still read.
     expect(structOf(text, "animation", "a").timing).toEqual({
       duration: 1,
       delay: 2,
     });
-    // Any key a property may have starts the next entry.
     for (const key of ['"b"', "$b", '["b"]', "2"]) {
       const keyed = `theme t with
   g { a = 1, ${key} = 2 }
@@ -711,8 +687,6 @@ end
       expect(keyedErrors[0]!.message, key).toContain("`;`");
       expect(structOf(keyed, "theme", "t").g.a, key).toBe(1);
     }
-    // A key with a non-ASCII letter starts the next entry too, and the
-    // entries after it are kept.
     const unicode = `theme t with
   g { a = 1, 名 = 2; tail = 3 }
 end
@@ -741,8 +715,6 @@ end
     expect(structOf(text, "morph", "m").clips).toEqual([
       { between: ["a"], targets: ["b", "c"] },
     ]);
-    // A comma before a `{ … }` entry separates two entries; it does not end
-    // a header, quoted or not, so the container stays a list.
     for (const value of ['"a"', "a"]) {
       const beforeObject = `theme t with
   entries { ${value}, { v = 1 } }
@@ -868,8 +840,6 @@ end
       { message: "Invalid syntax", line: 1, character: 12, text: "}" },
     ]);
     expect(structOf(scalar, "theme", "t").value).toBe(1);
-    // A `--` or `//` inside a value is not a comment, so a `}` after it is
-    // still stray.
     const inValue = `theme t with
   good { width = var(--gap) }
   width = var(--gap) }
@@ -888,7 +858,6 @@ end
       height: "var(gap)",
       link: "http://example.com",
     });
-    // `--` after a letter or a digit inside a word is part of the value.
     const inWord = `theme t with
   a = blue--gap }
   b = foo1--bar }
@@ -905,8 +874,6 @@ end
       b: "foo1--bar",
       c: "labelN--suffix",
     });
-    // Only a whole literal value is ended by a `--` right after it, wherever
-    // an `=` or a `-` stands in the text.
     const midValue = `theme t with
   font = Arial 1--display }
   dash = Arial - 1--display }
@@ -923,9 +890,6 @@ end
       dash: "Arial - 1--display",
       eq: "Arial x=1--display",
     });
-    // A value is read from its first character, as the value readers trim it
-    // before looking for a comment, so a `--` or `//` that starts it is text
-    // however the `=` is spaced.
     const atStart = `theme t with
   a = --gap }
   b=--gap }
@@ -942,8 +906,6 @@ end
       b: "--gap",
       c: "//x",
     });
-    // An apostrophe is not a quote, and an attribute selector in a value is
-    // read whole, so neither hides the `}`.
     const quotes = `theme t with
   content = don't }
   pick = a[x='}'] }
@@ -1000,7 +962,6 @@ end
     const expected = structOf(BODY, "morph", "m");
     expect(expected.clips).toEqual([{ between: ["a"], targets: ["b", "c"] }]);
     const lines = BODY.split("\n");
-    // Every line after a block's `{` up to its `}`.
     const isInside = (index: number) =>
       index >= 3 && index <= 18 && index !== 10;
     const inside = lines
@@ -1082,10 +1043,6 @@ end
       names: ["a"],
       group: { k: 4, j: false, pick: "a[x='}']", label: '&[data-label="}"]' },
     });
-    // Two items. The indented form's own reading of `true//` (a `//` with no
-    // whitespace after a literal) is the pre-existing truncation described in
-    // "a `--` right after a number, boolean or quoted value begins a comment",
-    // so its value is not pinned here.
     expect(struct.flags).toHaveLength(2);
   });
 
@@ -1102,8 +1059,6 @@ end
       { message: "Invalid syntax", line: 2, text: ":" },
       { message: "Invalid syntax", line: 3, text: "-" },
     ]);
-    // A header with quoted runs or an attribute selector is one too, with or
-    // without a `{` after its colon.
     const quoted = `style t with
   outer {
     &[data-label="x"]:
@@ -1119,7 +1074,6 @@ end
       ["Invalid syntax", 4, ":"],
       ["Invalid syntax", 6, ":"],
     ]);
-    // A trailing comma after the colon does not hide it.
     const comma = `theme t with
   outer {
     accents:,

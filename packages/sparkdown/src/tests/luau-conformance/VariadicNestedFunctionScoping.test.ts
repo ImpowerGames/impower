@@ -1,17 +1,3 @@
-// A function declared with `...` inside another function is a closure
-// assigned to the variable its name resolves to, as a function without
-// `...` is (`lowerNestedNamedFunction`, I-1422). Before I-1360 it lowered as
-// a subflow registered by name in lexical order, whose calls passed the
-// locals it closes over as pointers named where the call was written. These
-// cases hold it to Luau's scoping:
-//
-// - a closure written before the function statement calls the function once
-//   the statement has run (I-1360);
-// - a multiple assignment over the function's name rebinds it, as a single
-//   one does (I-1355);
-// - a call passes the locals the function closes over, not the caller's
-//   locals or parameters of the same names (I-1361).
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -63,9 +49,6 @@ describe("a closure written before a variadic function statement (I-1360)", () =
   });
 
   test("a call before the statement runs fails as Luau's does", () => {
-    // `foo` is a declared local of `run`, which the statement assigns, so
-    // the call reads a nil local. The call message of a nil global, or of a
-    // nil top-level local, is I-1559's.
     const source = lines(
       "function run()",
       "  local foo",
@@ -86,7 +69,6 @@ describe("a closure written before a variadic function statement (I-1360)", () =
 
 describe("a variadic function statement in a function (I-1360)", () => {
   test("defined twice in one body, a call before the second reaches the first", () => {
-    // vararg.luau lines 9 and 64.
     const source = lines(
       "function run()",
       "  function f(a, ...)",
@@ -145,7 +127,6 @@ describe("a variadic function statement in a function (I-1360)", () => {
     ["local function foo(...)"],
     ["local function foo()"],
   ])("`%s` is named foo in debug.info and a traceback", (header) => {
-    // upstream/conformance/debug.luau line 63 names a variadic function.
     const source = lines(
       "function run()",
       `  ${header}`,

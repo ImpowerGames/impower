@@ -1,9 +1,3 @@
-// End-to-end test for native `assert(cond [, message])`. The
-// implementation routes `assert` through the `STDLIB` registry
-// (StdLib.ts) → the program engine's `CallStd` instruction, which calls `entry.fn(story, args)`, which in
-// `assert`'s case raises a runtime error via `story.AddError` on
-// falsy condition.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -74,13 +68,6 @@ end
   });
 
   test("returns its arguments; zero args raises missing-argument", () => {
-    // Luau: `assert(v, ...)` returns ALL its arguments on success
-    // (`assert(1) == 1`, `select('#', assert(1,2,3)) == 3`). The
-    // `chunk:line: ` message prefix (Luau routes assert through
-    // luaL_error, unlike PUC Lua) only appears when the host installs
-    // `errorMessageFormatter` — this harness doesn't, so check the
-    // message body by substring. The prefixed form is covered by the
-    // gated assert.luau fixture in UpstreamConformance.test.ts.
     const { errors } = compileAndRun(`& run()
 done
 
@@ -101,10 +88,6 @@ end
   });
 
   test("assert(0) and assert('') pass under Lua truthiness", () => {
-    // Only nil and false are falsy in Lua — 0 and "" are truthy, so
-    // these assertions succeed. (Formerly a documented divergence
-    // where sparkdown treated 0/"" as falsy; removed for Luau
-    // conformance — basic.luau's truthiness section.)
     const { errors } = compileAndRun(`& run()
 done
 

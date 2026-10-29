@@ -1,10 +1,3 @@
-// A divert, a tunnel, a thread or an onward return to a dotted target passes
-// its arguments (`-> outer.second(a, "b")`), as one to a relative target does
-// (#1642). The grammar reads the arguments after a dotted path into the
-// target, both grammar engines scope the line alike, and the compiler reports
-// whatever the target holds after the one argument list it passes, which it
-// would otherwise drop without a word.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { parseSource } from "./grammarSnapshot";
@@ -38,8 +31,6 @@ const LINES = [
   "-> a.b(x + 1,\n  \"s\")\nAfter.",
 ];
 
-/** The names of a line's `DivertTarget` children, in order, for each
- *  target on the line. */
 const targetShapes = (line: string): string[][] => {
   const shapes: string[][] = [];
   parseSource(`${line}\n`).iterate({
@@ -103,7 +94,6 @@ describe("the grammar reads a dotted target's arguments", () => {
 
 const URI = "file:///main.sd";
 
-/** Every error a full compile reports, with the text it underlines. */
 const errorsOf = (text: string) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -133,7 +123,6 @@ const errorsOf = (text: string) => {
     });
 };
 
-/** A scene whose branches take parameters, entered through `line`. */
 const script = (line: string) =>
   [
     "scene outer",
@@ -194,9 +183,6 @@ describe("text after a divert's one argument list is reported", () => {
 });
 
 describe("a bracketed argument list spans lines in every spelling (#1655)", () => {
-  // The editor closes a `(` as it is typed, so a list written across lines
-  // reads to its `)` whether the target is relative or dotted. A dotted path
-  // itself stays on its line.
   test.each([
     "-> outer.second(\n      1\n    )",
     "-> outer.second(1,\n      2)",
@@ -221,8 +207,6 @@ describe("a bracketed argument list spans lines in every spelling (#1655)", () =
   });
 
   test("an unclosed list, dotted or relative, scopes the same in both engines", async () => {
-    // An unclosed list ends before the `end` after it, a closer, in both
-    // engines (#1906), and before the next `scene` or `branch` line.
     const shape = async (target: string, shift: number) =>
       (
         await compareEnginesFull(
@@ -266,5 +250,4 @@ describe("a bracketed argument list spans lines in every spelling (#1655)", () =
   });
 });
 
-/** What `-> outer.` followed by story text reports on main at bbc912833. */
 const MAIN_DOTTED_PATH_ERRORS: ReturnType<typeof errorsOf> = [];

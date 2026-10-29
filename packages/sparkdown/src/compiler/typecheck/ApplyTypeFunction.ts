@@ -5,9 +5,7 @@
 import { Substitution } from "./Substitution";
 import { get, getPack, type TypeArena, type TypeId, type TypePackId } from "./Type";
 
-/** A substitution that replaces the type parameters of a type alias (Luau's "type function") with its arguments. */
 export class ApplyTypeFunction extends Substitution {
-  /** Never set under the new solver. */
   encounteredForwardedType = false;
   typeArguments = new Map<TypeId, TypeId>();
   typePackArguments = new Map<TypePackId, TypePackId>();

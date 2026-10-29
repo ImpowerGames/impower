@@ -1,7 +1,3 @@
-// #1703: a divert target to DONE or END used as a value (`-> DONE`,
-// `-> END`) can't be stored, passed or held. The compile reports that on the
-// target's name, where a divert reports `target not found`, and still builds
-// its program, rather than throwing with no diagnostic and no program.
 import { describe, expect, it } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -54,8 +50,6 @@ function diagnostics(program: any): Found[] {
   }));
 }
 
-/** Where `target` (the target's name) is written on `line` of `text`: its
- *  line and columns. */
 function rangeOf(text: string, line: number, target: string) {
   const lineText = text.split("\n")[line]!;
   const start = lineText.indexOf(target);
@@ -90,8 +84,6 @@ describe("a divert target to DONE or END used as a value", () => {
     },
   );
 
-  // The next keystroke: an edit elsewhere in the script compiles again with
-  // the error still reported, and on the line the target moved to.
   it.each([
     ["below the target", "  Hello.", "  Hello again."],
     ["above the target", "-> main", "-> main\n"],

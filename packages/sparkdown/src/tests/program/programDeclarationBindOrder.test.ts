@@ -1,7 +1,3 @@
-// A multiple declaration evaluates every value before it binds any name, as
-// Luau does (I-1409): a later value that reads an earlier name sees it
-// unassigned. Separate declarations still bind one after another, and an
-// issue a value raises is still reported on the declaration it belongs to.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
@@ -83,8 +79,6 @@ describe("a multiple declaration binds after its values", () => {
     expect(edited).toEqual(["Value nil then 1.\n"]);
   });
 
-  // A save names globals by name and a position in the story, never one in
-  // a declaration chunk, which runs before any save is taken.
   it("loads a save taken before an edit adds a name to the list", () => {
     const before = `${READ_X}store x = 1\n\nValue {x}.\n\nMore {x}.\n`;
     const after = `${READ_X}store x, y = 1, readX()\n\nValue {x}.\n\nMore {x} {y}.\n`;
@@ -98,9 +92,6 @@ describe("a multiple declaration binds after its values", () => {
     expect(story.Continue()).toBe("More 1 nil.\n");
   });
 
-  // Locals take another path and already bind after their values; these
-  // keep them in step with the store's order. A top-level `const` takes one
-  // name (ConstMultiDeclaration.test.ts).
   it.each([
     [
       "a scene's local list",
@@ -122,10 +113,6 @@ describe("a multiple declaration binds after its values", () => {
   });
 });
 
-// A name the story refuses as a duplicate keeps its first declaration's value,
-// and the store's other names still take theirs. These pin the
-// bindings only: the refused name's value expression is not evaluated, on
-// main as here, which the Bug filed from round 2 of I-1409 tracks.
 it.each([
   ["a spread call", "function pair()\n  return 3, 4\nend\nstore a = 1\nstore b, a = pair()\n\nValue {a} {b}.\n", 4, "Value 1 3.\n"],
   ["its own value", "store a = 1\nstore b, a = 5, 6\n\nValue {a} {b}.\n", 1, "Value 1 5.\n"],
@@ -162,8 +149,6 @@ describe("separate declarations bind one after another", () => {
 });
 
 describe("the declaration code", () => {
-  // A store of one name, a constant, and a run of them, are what main
-  // emitted before I-1409: no `DeclareValue`.
   it("is unchanged for declarations of one name", () => {
     expect(declarationCode(compileScript("store x = 1\nconst Y = 2\n\nHello.\n").program.chunks!)).toEqual([
       ["Int 1", "SetVar x flags 3"],
@@ -217,7 +202,6 @@ describe("an issue a store's value raises", () => {
   const WARN = "trigger()";
   const TRIGGER = 'function trigger()\n  display({text = "A", continues = true})\n  return 0\nend\n';
 
-  // The store of several names is on line 6, between stores on lines 5 and 7.
   const holder = (values: string, after = "2") =>
     `${TRIGGER}function holder()\n  store c = 1\n  store a, b, e = ${values}\n  store d = ${after}\n  return 0\nend\nHello.\n`;
 

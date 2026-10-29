@@ -64,8 +64,6 @@ describe("a function value written into a line", () => {
     ).toEqual(["Value function: h, function: h."]);
   });
 
-  // Round 1 of the review of #2116 (report 6305108271): a multiple value, a
-  // closure and a builtin printed their table text in a line.
   it("prints the first of several returned values as a function", () => {
     expect(
       texts(
@@ -134,10 +132,6 @@ describe("a function value written into a line", () => {
     ]);
   });
 
-  // `program-save-function-key.json` is the state main's engine (9c826c4b1)
-  // saved after the first line of this script: it holds `t[f]` under the key
-  // text saves have always held a function under, the class name of the
-  // deleted object engine around the label.
   it("still finds t[f] in a save that holds it under the old key text", () => {
     const { program } = compileScript(
       [

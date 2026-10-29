@@ -1,7 +1,3 @@
-// Compile checks on statements and declarations at column 0 are reported like
-// any others. These pin what each check reports for Sparkdown: the shapes
-// Sparkdown runs are not errors, and the ones that break a story are.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";

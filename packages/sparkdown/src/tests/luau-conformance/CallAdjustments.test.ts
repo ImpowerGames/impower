@@ -1,22 +1,3 @@
-// Regression tests for the calls.luau batch — Lua's call/value
-// "adjustment" rules:
-//   - Method-call receivers evaluate exactly ONCE
-//     (StashAndRereadExpression): `a:add(10):add(20)` must not re-run
-//     `add(10)` for the chained link's lookup + threaded self.
-//   - `LuauChainedPropertyAccess` links fold after method calls
-//     (`a:m(x).y`, `a:get().x`).
-//   - A multi-return PACK treats a no-value tail correctly: the LAST
-//     expression returning zero values spreads to zero (recursive
-//     `return t[i], rest(...)` chains), a non-last one adjusts to nil.
-//   - Zero-arg value-call sites don't spread the CALLER's pending
-//     multi-return off the eval stack (`local a,b,c = g(), g()`).
-//   - Parenthesized expressions adjust to ONE value
-//     (SingleValueExpression): `(ret2(f()))` truncates.
-//   - Over-applied fixed-arity natives evaluate all args then discard
-//     the extras: `math.sin(1,2) == math.sin(1)`.
-//   - `self` is an ordinary variable outside method bodies —
-//     `self = 20` at chunk level assigns a global the dot-form
-//     `function a.y (x) return x+self end` reads.
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -158,9 +139,6 @@ end
   });
 
   test("table constructor entries lower whole node groups", () => {
-    // Paren-less call sugar followed by an operator inside a
-    // constructor (`{f'alo'..'xixi'}` — constructs.luau line 50)
-    // arrives as two sibling nodes; the entry must lower BOTH.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done

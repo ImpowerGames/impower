@@ -1,12 +1,3 @@
-// The complete message/location inventory of the two fixed integer corpus
-// inputs, read by readLuauUnits at #1309's base 40abe4554 and read again
-// when I-1322 made the reading lex a number on through the letters, digits
-// and `_` after it, as Luau's lexer does, so each integer literal is one
-// malformed number to the reading. Lines and columns are zero-based document
-// positions. Any added, removed, or changed error must fail the
-// intentional exception rather than hiding an unrelated syntax regression.
-// The recorded error limit is retained; the suffix-neutralized full-AST
-// control separately covers syntax beyond that limit.
 import type { DetailedDiagnostic } from "../luau-conformance/diagnosticTestHarness";
 export const UNSUPPORTED_INTEGER_SYNTAX_ERRORS_1309: Record<string, readonly string[]> = {
   "conformance/integers_regspill.luau": [
@@ -138,10 +129,6 @@ export const UNSUPPORTED_INTEGER_SYNTAX_ERRORS_1309: Record<string, readonly str
   ]
 };
 
-// The compiler scans the whole input. No recovery diagnostic accompanies the
-// explicit unsupported literal errors in the pinned corpus: Luau's lexer
-// reads an integer literal as one token, as the reading does (I-1322), so its
-// only error is at the literal, where the unsupported literal error stands.
 export const UNSUPPORTED_INTEGER_RECOVERY_DIAGNOSTICS_1309: Record<string, readonly Pick<DetailedDiagnostic, "message" | "range">[]> = {
   "conformance/integers_regspill.luau": [],
   "conformance/integers.luau": [],

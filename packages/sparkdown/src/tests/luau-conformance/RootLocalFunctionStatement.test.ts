@@ -1,10 +1,3 @@
-// A function statement (`function g() ... end`, no `local`) written inside a
-// function is `g = function() ... end`, as Luau's is (I-1422). Naming a
-// local of the scene in scope where the function is written, it assigns
-// that local. With no local of the name in scope, it assigns the global. It
-// never declares a local of the function. The enclosing-function case is
-// EnclosingLocalFunctionStatement.test.ts (I-1349).
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -42,7 +35,6 @@ const run = (lines: string[]) =>
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `S`, which the story diverts to.
 const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
 
 describe("a function statement in a scene's local function naming the scene's local", () => {
@@ -263,10 +255,6 @@ describe("a function statement in a scene's local function naming the scene's lo
   });
 });
 
-// With no local of the name in scope, the statement assigns the global, as
-// an assignment of the name does: a top-level `function` is a function of
-// the story, and a `store` is a global, in whatever script and form they are
-// declared.
 describe("a function statement in a top-level function naming a global", () => {
   test.each([
     ["a top-level function", "function g() return 1 end"],
@@ -326,9 +314,6 @@ describe("a function statement in a top-level function naming a global", () => {
   });
 });
 
-// A later call of the name dispatches through the value the statement
-// assigned, as after `g = function() ... end`, even where the name is a
-// builtin's, which a call would otherwise reach.
 describe("a call after a function statement named after a builtin", () => {
   const forms = [
     ["the function statement", "  function type(x) return 'replacement' end"],
@@ -445,8 +430,6 @@ describe("a call after a function statement named after a builtin", () => {
   });
 });
 
-// The statement's lowering depends on what the lines above the function
-// declare of its name, so an edit there lowers the function again.
 describe("an incremental compile of a function statement naming a top-level name", () => {
   test.each([
     ["a top-level function added", "store b = 0", "store b = 0\nfunction g() return 1 end", "Got 3 3."],

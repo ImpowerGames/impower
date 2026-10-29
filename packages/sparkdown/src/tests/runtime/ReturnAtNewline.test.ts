@@ -1,7 +1,3 @@
-// A continue returns at the newline that ends its line. The statements after
-// that newline run once, in order, in the next continue: nothing runs ahead of
-// the line to find out what follows it, so nothing has to be taken back.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -81,8 +77,6 @@ describe("choices after a line", () => {
     expect(choiceTexts(ctx.story)).toEqual(["One", "Two"]);
   });
 
-  // The `-> END` after the line's newline runs in the next continue, which
-  // ends the story with no text.
   test("a line followed by `-> END` returns, and the next continue ends the story", () => {
     const ctx = makeRuntimeStoryFromSource(`Last.\n-> END\n`);
     expect(ctx.errorMessages).toEqual([]);

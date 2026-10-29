@@ -2,12 +2,6 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import { checkLuau } from "../luau-conformance/typecheckTestHarness";
 
-// A block comment right after a Luau type that closes on a later line
-// (#1180). The type reads it in, since its opening line cannot see what
-// follows the close; code after the close, with or without whitespace
-// before it, is the next statement, while a type operator, `=` or comma
-// there continues the type or its declaration.
-
 function run(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   return { errors: ctx.errorMessages, output: ctx.story.ContinueMaximally() };
@@ -118,8 +112,6 @@ describe("closing brackets before code", () => {
     expect(syntax(source)).toEqual([]);
   });
 
-  // No trailing type comment opened before them, so they are the first token
-  // Luau cannot read, and it names the first `]`.
   test.each([
     ["in a function body", `function f()\n]]print(1)\n  return 15\nend\n`, 1, 0],
     ["right after a function header", `function f()]]print(1)\n  return 15\nend\n`, 0, 12],

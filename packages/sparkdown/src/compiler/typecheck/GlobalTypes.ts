@@ -7,9 +7,7 @@ import { emplaceType, freeTypePack, persist, PrimitiveKind, primitiveType, TypeA
 
 export class GlobalTypes {
   readonly globalTypes = new TypeArena();
-  /** Shared by all modules. */
   readonly globalScope: Scope;
-  /** Shared by all modules. */
   readonly globalTypeFunctionScope: Scope;
 
   constructor(readonly builtinTypes: BuiltinTypes) {

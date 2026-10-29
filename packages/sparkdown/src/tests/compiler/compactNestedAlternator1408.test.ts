@@ -1,9 +1,3 @@
-// An alternator in a candidate's head whose `end` stands against the outer
-// `|` (`match match(x) | a = 1 end| b = 2 end`) leaves the outer candidate
-// the same reading the spaced spelling (`end | b`) gives it (I-1408): the
-// head takes the `|`, with the first arm's key, as it takes the whitespace
-// otherwise, so the candidate ends after its own arms' `end` and the code
-// after it on the line is the code around it.
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { SyntaxNode } from "@lezer/common";
 import { describe, expect, test } from "vitest";
@@ -23,12 +17,8 @@ const run = (text: string) => {
   return { errors: ctx.errorMessages, warnings: ctx.warningMessages, output: ctx.story.ContinueMaximally() };
 };
 
-// The offsets of the compact spelling where the spaced one has a space: the
-// `|` each `end` stands against.
 const gapsOf = (compact: string): number[] => [...compact.matchAll(/\bend(?=\|)/g)].map((m) => m.index! + 3);
 const spacedOf = (compact: string) => compact.replace(/\bend\|/g, "end |");
-// Where the character at a compact offset stands in the spaced spelling,
-// and where a range ending at a compact offset ends there.
 const startIn = (gaps: number[], offset: number) => offset + gaps.filter((gap) => gap <= offset).length;
 const endIn = (gaps: number[], offset: number) => (offset === 0 ? 0 : startIn(gaps, offset - 1) + 1);
 
@@ -37,7 +27,6 @@ const offsetAt = (text: string, position: { line: number; character: number }) =
   return lines.slice(0, position.line).reduce((sum, line) => sum + line.length + 1, 0) + position.character;
 };
 
-/** Every diagnostic a full compile reports, as offsets. */
 const diagnosticsOf = (text: string) => {
   const c = new SparkdownCompiler();
   c.configure({
@@ -54,23 +43,16 @@ const diagnosticsOf = (text: string) => {
     .sort((a: any, b: any) => a.from - b.from || a.to - b.to || a.message.localeCompare(b.message));
 };
 
-/**
- * Each candidate's arms as `lowerArms` and `reportAlternatorValue` read
- * them: the first arm from the separator its head took, when it took one,
- * and each later one from its separator in the arms.
- */
 const armsOf = (source: string): string[] => {
   const view: string[] = [];
   getParser().parse(source).iterate({
     enter: (ref) => {
       if (!ALTERNATOR_CANDIDATES.has(ref.name)) return;
       const armsNode = alternatorArms(ref.node);
-      // The separator the head took, read from the tree as written.
       let head = ref.node.getChild(`${ref.name}_content`)?.firstChild ?? null;
       while (head && !/AlternatorLineStartHead$|AlternatorHead$/.test(head.name)) head = head.nextSibling;
       const headEnd = head?.getChild(`${head.name}_end`) ?? null;
       const found = headEnd ? getDescendent("LuauAlternatorSeparator", headEnd) : undefined;
-      // `getDescendent` also visits a node that begins where its parent ends.
       const lead = found && headEnd && found.to <= headEnd.to ? found : null;
       if (!armsNode && !lead) return void view.push("none");
       const arms: string[] = [];
@@ -100,12 +82,6 @@ const semanticsOf = (text: string) => {
   return tokens;
 };
 
-// Each form in its compact spelling, the story's output (base's for the
-// spaced spelling, which this change leaves as it was), and its arms. Since
-// I-1284 and I-1397, an alternator Luau code uses as a value (a condition, a
-// declaration's value, a table field) or writes as a statement runs as a
-// displayed one does: it gives its selected arm's value, nil for an empty
-// arm, and runs that arm's calls.
 const FORMS: [string, string, string, string[]][] = [
   [
     "a function body's local, with a statement after it",
@@ -142,9 +118,6 @@ const FORMS: [string, string, string, string[]][] = [
     "Value 133.\n",
     ["mage = print(2) | other = print(3)", "x = print(1)"],
   ],
-  // An empty arm right after the separator the head took: the candidate's
-  // end does not read the arm's `end` as a closer, nor end at its line, before
-  // its arms open (round 1, review comment 6340004336).
   ["story braces, with an empty unkeyed arm", 'Value {cycle match("x") | x = "a" end| end}.\n', "Value .\n", ["", 'x = "a"']],
   ["story braces, with an empty keyed arm", 'Value {match match("x") | x = "a" end|other= end}.\n', "Value .\n", ["other =", 'x = "a"']],
   ["story braces, with an empty arm against its end", 'Value {cycle match("x") | x = "a" end|end}.\n', "Value .\n", ["", 'x = "a"']],
@@ -155,9 +128,6 @@ const FORMS: [string, string, string, string[]][] = [
     [" | other = print(3)", "x = print(1)"],
   ],
   ["a narrative statement's local with an empty arm, in the bounded rules", '& local v = match match("x") | x = 1 end| end\nDone.\n', "Done.\n", ["", "x = 1"]],
-  // An empty last arm before a closer, a separator or the bounded line's end,
-  // with no `end`: the candidate ends there and its head's separator is its
-  // one arm (`headSeparator`).
   ["story braces, with an empty arm before the brace's end", 'Value {cycle match("x") | x = "a" end|}.\n', "Value .\n", ["", 'x = "a"']],
   [
     "a parenthesized value with an empty arm before its closer",
@@ -168,7 +138,6 @@ const FORMS: [string, string, string, string[]][] = [
   [
     "a table field with an empty arm before its separator",
     'function f()\n  local t = { cycle match("x") | x = "a" end|, 2 }\n  return #t\nend\nValue {f()}.\n',
-    // The table is `{ nil, 2 }`, whose length Luau reads as 2 (I-1502).
     "Value 0.\n",
     ["", 'x = "a"'],
   ],
@@ -179,8 +148,6 @@ const FORMS: [string, string, string, string[]][] = [
     ["", 'x = "a"'],
   ],
   ["a narrative statement's local with an empty arm at its line's end", '& local v = match match("x") | x = 1 end|\nDone.\n', "Done.\n", ["", "x = 1"]],
-  // The bounded arms end before a branch keyword or `until`, as the Luau
-  // arms do (round 2, review comment 6340950796).
   ["a bounded `else` after an empty arm", '& if true then local v = cycle match("x") | x = "a" end|else end\nDone.\n', "Done.\n", ["", 'x = "a"']],
   ["a bounded `elseif` after an empty arm", '& if true then local v = cycle match("x") | x = "a" end|elseif false then end\nDone.\n', "Done.\n", ["", 'x = "a"']],
   ["a bounded `until` after an empty arm", '& repeat local v = cycle match("x") | x = "a" end|until true\nDone.\n', "Done.\n", ["", 'x = "a"']],
@@ -245,7 +212,6 @@ describe("a nested alternator whose end stands against the outer bar reads as th
     const source = FORMS.find(([label]) => label === "a reading error in the first arm")![1];
     const errors = diagnosticsOf(source).filter((d: any) => d.severity === 1);
     expect(errors.map((d: any) => `${source.slice(d.from, d.to)}: ${d.message}`)).toEqual([
-      // The head the separator ends is no value (I-1446), reported once.
       'match("x") | x = "a" end: A `cycle` takes no value before its first `|`; write its arms as `| ...`',
       "..: Expected identifier when parsing expression, got '..'",
       "end: Expected identifier when parsing expression, got 'end'",

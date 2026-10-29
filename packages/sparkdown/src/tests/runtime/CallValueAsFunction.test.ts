@@ -1,11 +1,3 @@
-// Pressure-test for calling a value as a function: a function whose target is
-// a value on the evaluation stack at runtime (as opposed to a
-// compile-time-bound name).
-//
-// The function `double` is called through a local that holds it, with 5, and
-// the story prints what it returns, "10". A value that is not a function
-// raises Luau's error when it is called.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

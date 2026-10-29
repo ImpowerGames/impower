@@ -1,10 +1,3 @@
-// #1056 — a `store` with no value holds nil, and a story state holding it
-// serializes and reloads.
-//
-// A nil global compares equal to a nil default, so it serializes and is left
-// out of the save like any other unchanged store; a nil written over a
-// non-nil default is saved and reloaded as nil.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { NullValue } from "../../runtime/Value";

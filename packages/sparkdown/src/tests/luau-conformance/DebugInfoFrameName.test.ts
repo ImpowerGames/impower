@@ -4,11 +4,6 @@ import {
   runToEnd,
 } from "../runtime/runtimeTestHarness";
 
-// I-778: `debug.info(level, "n")` and `debug.traceback()` name the function a
-// frame runs, wherever the call stands in the function's body, as Luau does.
-// The object engine named the block's container instead (`$b`,
-// `outer.0.$b`).
-
 function run(source: string) {
   const { story, errorMessages } = makeRuntimeStoryFromSource(source);
   const output = runToEnd(story);

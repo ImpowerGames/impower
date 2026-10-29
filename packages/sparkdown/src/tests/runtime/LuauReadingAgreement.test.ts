@@ -1,7 +1,3 @@
-// Where the compiler used to re-derive Luau's structure from the syntax tree
-// and read it differently from Luau, it now lowers the AST the type checker
-// reads (#1287), so the story runs what Luau reads.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";

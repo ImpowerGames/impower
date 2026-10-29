@@ -67,8 +67,6 @@ it("revalidates remote image bytes behind unchanged local URL pointer versions",
   let bytes = "old";
   const httpCache = new Map<string, string>();
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
-    // A fresh HTTP response can satisfy default-mode fetch without contacting
-    // the origin. Model that boundary, not merely a changing fetch stub.
     if (!httpCache.has(url) || ["no-cache", "reload", "no-store"].includes(init?.cache ?? "")) {
       httpCache.set(url, bytes);
     }

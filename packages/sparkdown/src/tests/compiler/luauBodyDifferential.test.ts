@@ -1,20 +1,3 @@
-// A function body is Luau (#1158). This compares Sparkdown's reading of
-// generated function bodies with the pinned official C++ parser:
-//
-//  - a body Luau reads without an error gets no Sparkdown error, and the
-//    story after the function plays;
-//  - a body Luau rejects gets Luau's first error among Sparkdown's, at its
-//    place and in Luau's wording;
-//  - after edits inside the body, an incremental compile reports what a cold
-//    compile of the same text reports, errors and warnings with their ranges.
-//
-// The bodies mix ordinary Luau statements (values on later lines, calls with
-// later-line arguments, long strings and comments that run on) with lines
-// Luau cannot read as statements, inside every kind of Luau block, in
-// functions and type functions. Shapes
-// whose divergence is filed separately are left out: a `(` line after a
-// callable line, which Luau calls ambiguous (#1288); `repeat` blocks (#1195,
-// #1209); and `...` in a function that takes none (#1289).
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
@@ -39,9 +22,6 @@ interface Found {
   message: string;
 }
 
-// Sparkdown's own convention, kept here: an access path ends with its line,
-// so a `.` that no name follows on its line is reported there, where Luau
-// reads the next line's first name as its member.
 const NAME_ON_LATER_LINE = /on the same line/;
 
 function errors(program: any): Found[] {
@@ -59,7 +39,6 @@ function errors(program: any): Found[] {
   return found.sort((a, b) => a.line - b.line || a.character - b.character || a.message.localeCompare(b.message));
 }
 
-// Every diagnostic, errors and warnings, with its whole range.
 function diagnostics(program: any): string[] {
   const found: string[] = [];
   for (const list of Object.values(program.diagnostics ?? {}) as any[]) {
@@ -82,7 +61,6 @@ function played(program: any): string[] {
   return lines;
 }
 
-// One statement each, one or more lines, without indentation.
 const LUAU: string[][] = [
   ["local x = 1"],
   ["x = 2"],
@@ -164,11 +142,8 @@ const NOT_STATEMENTS: string[][] = [
   ["local y: number", '  "s"'],
 ];
 
-// Lines with a block's `end` in them close the block there, as in Luau, so
-// the lines after them are story; they are compared by their errors only.
 const CLOSING: string[][] = [["The end."], ["Oh no, the end"], ["Hello there;end"]];
 
-// [header lines, closing lines, indentation of the statements]
 const BLOCKS: [string[], string[], string][] = [
   [[], [], "  "],
   [["  if x then"], ["  end"], "    "],
@@ -200,7 +175,6 @@ function generate(seed: number) {
   }
   const [header, closing, indent] = BLOCKS[Math.floor(random() * BLOCKS.length)]!;
   const lines = statements.map((s) => s.map((l) => (l ? indent + l : l)).join("\n"));
-  // A type function's body is Luau too, though it reaches no runtime code.
   const outer = random() < 0.2 ? "type function g(...)" : "function f(...)";
   const luau = [
     outer,
@@ -232,8 +206,6 @@ describe("a function body read as Luau reads it (#1158)", () => {
     const first = errors(program)[0];
     expect(first, source).toBeDefined();
     if (NAME_ON_LATER_LINE.test(first!.message)) return;
-    // Luau's recovery errors are reported too (I-1322), and one can begin
-    // before Luau's first (`Incomplete statement` at the statement's start).
     expect(found, source).toContainEqual({
       line: expected[0]!.location.begin.line,
       character: expected[0]!.location.begin.column,

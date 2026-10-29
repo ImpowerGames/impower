@@ -1,15 +1,3 @@
-// An OOP define's NON-scalar properties (Luau tables / arrays, and the
-// references inside them) must reach `program.context` so the engine's spec
-// system can consume them. The motivating case: a `layered_image`'s
-// `assets = { … }` table — `UIModule.getImageAssets` does
-// `Object.values(layeredImage.assets)` and reads each entry's `$type`/`$name`,
-// so a missing `assets` crashes backdrop rendering (`Object.values(undefined)`).
-//
-// `coerceScalarLiteral` only emits scalars; `expressionToContextValue` fills
-// the gap, mirroring `StructPropertyDefinition.GetValue`'s reference rule:
-// a bare reference → `{ $type: "", $name }` (empty `$type` = engine searches
-// every type by name), a typed reference `t.n` → `{ $type: "t", $name: "n" }`.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -44,7 +32,6 @@ end
     expect(li).toBeDefined();
     expect(li!["$type"]).toBe("layered_image");
     expect(li!["$name"]).toBe("bg_print_shop");
-    // Array-style table → JS array; bare refs → { $type: "", $name }.
     expect(li!["assets"]).toEqual([
       { $type: "", $name: "bg_int_print_shop_night__base" },
       { $type: "", $name: "bg_int_print_shop_night__prop" },
@@ -81,11 +68,6 @@ end
   });
 
   test("a define whose table holds DOTTED struct refs still compiles to a runnable story", () => {
-    // `audio.mus_a_bass` is a struct reference, not a runtime global lookup.
-    // Evaluating it live at init would index the `audio` type global (nil,
-    // since nothing inherits from `audio`) and throw — unsetting
-    // `program.compiled`. The runtime `__def` table must instead hold inert
-    // `{ $type, $name }` literals. Guards that the story is runnable.
     const result = compile(`-> main
 
 define mus_a_group as layered_audio with
@@ -100,13 +82,11 @@ scene main
   done
 end
 `);
-    // Context carries the typed refs.
     const la = result.program.context?.["layered_audio"]?.["mus_a_group"];
     expect(la!["assets"]).toEqual([
       { $type: "audio", $name: "mus_a_bass" },
       { $type: "audio", $name: "mus_a_flute" },
     ]);
-    // And the story actually compiled + runs (no init throw).
     expect(result.program.chunks).toBeDefined();
     const story = testStory(result.program.chunks);
     const errors: string[] = [];
@@ -117,12 +97,6 @@ end
   });
 
   test("a SCALAR bare reference emits a {$type,$name} object, not a string", () => {
-    // Regression: a `filtered_image`'s `image = bunny_realization` is a struct
-    // reference, but `coerceScalarLiteral` used to claim the bare identifier as
-    // a plain string "bunny_realization". The engine's `filterImage` reads
-    // `image.$name`, so a string left it unable to find the base image and the
-    // portrait silently rendered nothing. It must reach context as a reference
-    // object, matching `schema_filtered_image` / `default_filtered_image`.
     const result = compile(`define bunny_angry as filtered_image with
   image = bunny_realization
   attributes = {

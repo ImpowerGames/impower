@@ -1,10 +1,3 @@
-// Glued display lines: every line of the chain lowers to its own
-// `display(<table>)` call, every call but the last is `glue` so its newline
-// waits, every call but the first begins with `..` and takes the wait up, and
-// the runtime joins the tables into one step whose `currentText` reads as the
-// flat text of the lowering the tables replaced. Those texts were captured
-// from that lowering at commit ffd59219a.
-
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -20,8 +13,6 @@ function field(obj: ObjectValue, key: string): unknown {
   return (obj.value?.get(key) as { value?: unknown } | undefined)?.value;
 }
 
-// A route simulator with nothing to say, as a replay's is for every site past
-// the end of its route.
 const SILENT_SIMULATOR: Simulator = {
   forceCondition: () => null,
   forceChoice: () => null,
@@ -160,9 +151,6 @@ describe("step boundaries around glue", () => {
     ]);
   });
 
-  // The preview replays a route with a simulator attached. A condition the
-  // route does not cover keeps its evaluated value, so the branch holding the
-  // continuation runs.
   test("a simulator with no verdict leaves an if to its own value", () => {
     const source = `You see a ..\nif true then\n  .. red door.\nend\nIt is locked.\n`;
     expect(steps(source, SILENT_SIMULATOR).map((s) => s.text)).toEqual([
@@ -171,15 +159,11 @@ describe("step boundaries around glue", () => {
     ]);
   });
 
-  // A continuation with no visible words that ends with `..` keeps the step
-  // open, so the next visible line joins the same step and the line after it
-  // starts its own.
   test("an empty continuation keeps the step open for the next line only", () => {
     const source = `You see ..\n.. {if true then "" else ""} ..\n.. The door.\nAfter.\n`;
     expect(texts(source)).toEqual(["You see The door.\n", "After.\n"]);
   });
 
-  // The tag is metadata, so the boundaries match the untagged case.
   test("a tag on an empty continuation does not move the step boundary", () => {
     const source = `You see ..\nif true then\n  .. {if true then "" else ""} .. # marker\nend\n.. The door.\nAfter.\n`;
     const result = steps(source);

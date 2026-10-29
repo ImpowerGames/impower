@@ -1,9 +1,3 @@
-// A statement's fingerprint, which a durable save aligns by
-// (docs/engine/binary-program.md, sections 1 and 8), reads the statement as
-// the grammar parses it (I-1112): a comment the grammar reads is left out
-// wherever it stands, a displayed line's after its markup included; a
-// displayed line that starts with `--` is text, not a comment; and the text
-// of a string or of a displayed line is kept as written.
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { fingerprintOf } from "../../program/ProgramSave";
@@ -27,8 +21,6 @@ const rootOf = (text: string): ProgramRoot => {
   return program.chunks!;
 };
 
-/** The fingerprints of the statements of a scene that holds `lines`, its
- *  end (`flowEnd`) left out. */
 const prints = (lines: string[]): string[] =>
   rootOf(
     ["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join(
@@ -62,9 +54,6 @@ describe("a fingerprint read from the parse", () => {
     ).toEqual(plain);
   });
 
-  // Round 1 of the review of PR #2210 (report 6382490624): a block comment
-  // whose second line is the first line of a function's body covers the
-  // start of the body's cut.
   it("leaves out a block comment that runs into a function's body", () => {
     const all = (lines: string[]) =>
       [...rootOf(lines.join("\n")).sequences()].flatMap((sequence) =>

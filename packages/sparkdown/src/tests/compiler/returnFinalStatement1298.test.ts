@@ -16,7 +16,6 @@ function asDiagnostic(error: { message: string; location: { begin: { line: numbe
   const { begin, end } = error.location;
   return { message: error.message, range: { start: { line: begin.line, character: begin.column }, end: { line: end.line, character: end.column } } };
 }
-/** Diagnostics in the order of where each begins. */
 function inOrder(diagnostics: Located[]): Located[] {
   return [...diagnostics].sort((a, b) => a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character);
 }
@@ -106,8 +105,6 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
     expect(errors).toEqual([]);
   });
-  // Every error Luau reports: the function ends at the first, and the `end`
-  // after the statements read on is met where the chunk ends (I-1430).
   it.each(cases)("reports Luau's syntax errors for %s", (_name, source) => {
     const oracle = officialSyntaxErrors(source.replaceAll("&", " "));
     expect(oracle.length).toBeGreaterThan(0);

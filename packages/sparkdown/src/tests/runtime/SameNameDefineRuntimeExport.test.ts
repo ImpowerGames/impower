@@ -1,27 +1,3 @@
-// Same-name different-type defines (e.g. `define raffles as character` +
-// `define raffles as synth` — the engine links a character to its voice
-// synth BY NAME, so this pairing is required) must:
-//   1. produce a RUNNABLE program (not just clean diagnostics), and
-//   2. each be reachable as a type-namespaced runtime singleton
-//      (character.raffles / synth.raffles), matching how `context`
-//      namespaces them.
-//
-// Regression: the first define keeps the flat global slot; the second used
-// to lose it AND get suppressed, so its `__def(...)` expression was never
-// generated — its `-> __def` divert never got a runtimeDivert, and its
-// `ResolveReferences` threw, ABORTING the whole resolve pass. Anything
-// resolved after it (e.g. a later choice's start-content return target) was
-// left with a null path, so `JsonSerialisation` crashed on a divert
-// target with no path, the exception was swallowed, and `program.compiled`
-// was never set — the engine refused to run the game (black preview) despite
-// 0 errors.
-//
-// Fix: the second define registers under a synthetic global key
-// (`$type_name`) so it stays a real runtime table — `__def(table, "raffles",
-// "synth")` registers it into the `synth` type table (so `synth.raffles`
-// resolves), its expression generates normally, and the resolve pass no
-// longer aborts. See FlowBase.AddNewVariableDeclaration.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -56,9 +32,6 @@ function compile(src: string) {
 
 describe("same-name define runtime export", () => {
   test("char+synth same name + later choice still produces a runnable program", () => {
-    // The choice has START CONTENT (text before `[...]`), which generates
-    // a return-target divert target — the construct that previously
-    // serialized null after the resolve pass aborted.
     const r = compile(
       `define raffles as character with
   name = "RAFFLES"
@@ -85,7 +58,6 @@ end
     );
     expect(r.errors).toBe(0);
     expect(r.chunks).toBeDefined();
-    // Both structs reach the engine, type-namespaced.
     expect(r.program.context?.["character"]?.["raffles"]).toBeDefined();
     expect(r.program.context?.["synth"]?.["raffles"]).toBeDefined();
   });
@@ -125,8 +97,6 @@ end
     story.ContinueMaximally();
 
     expect(storyErrors).toEqual([]);
-    // The first define owns the flat global; BOTH are reachable through
-    // their type namespace.
     expect(recorded).toEqual(["RAFFLES", 340]);
   });
 });

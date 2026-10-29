@@ -13,7 +13,6 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<string>>[] {
     if (nodeRef.name === "AssetCommandName") {
       const context = getContextNames(nodeRef.node);
-      // Define implicit filtered_image
       if (context.includes("ImageCommand")) {
         const text = this.read(nodeRef.from, nodeRef.to);
         if (/[:~]/.test(text)) {

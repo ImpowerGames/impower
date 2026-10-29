@@ -7,8 +7,6 @@ import {
 } from "../../compiler/utils/profile";
 import { generatePerfScreenplay } from "./perfFixture";
 
-// `profile()` writes to the *global* performance timeline, which is what these
-// assertions read back.
 const perf = globalThis.performance;
 
 const countEntries = () =>
@@ -17,8 +15,6 @@ const countEntries = () =>
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Entries are cleared as soon as they are emitted, so the buffer cannot be read
-// back. An observer still receives them — that is the whole basis for clearing.
 const observeMeasures = async (run: () => void | Promise<void>) => {
   const seen: { name: string; duration: number }[] = [];
   const observer = new PerformanceObserver((list) => {
@@ -63,30 +59,22 @@ describe("profiler user-timing entries", () => {
   });
 
   it("measures BOTH of two overlapping same-name phases", async () => {
-    // Phase names are `${profilerId} ${method} ${uri}` — no request id — and the
-    // workspace brackets awaited compiles, so same-name overlap is routine.
     const seen = await observeMeasures(async () => {
-      profile("start", "test", "compile", "inmemory:///main.sd"); // A
+      profile("start", "test", "compile", "inmemory:///main.sd");
       await sleep(80);
-      profile("start", "test", "compile", "inmemory:///main.sd"); // B
+      profile("start", "test", "compile", "inmemory:///main.sd");
       await sleep(80);
-      profile("end", "test", "compile", "inmemory:///main.sd"); // A (~160ms)
+      profile("end", "test", "compile", "inmemory:///main.sd");
       await sleep(80);
-      profile("end", "test", "compile", "inmemory:///main.sd"); // B (~160ms)
+      profile("end", "test", "compile", "inmemory:///main.sd");
     });
-    // Both phases must be measured. Clearing marks by name would have deleted
-    // B's start mark when A finished, losing B's measurement entirely.
     expect(seen).toHaveLength(2);
     expect(countEntries()).toBe(0);
   });
 
   it("a phase that never ended does not corrupt the next one's duration", async () => {
-    // `SparkdownWorkspace.compile` returns early on the no-change and piggyback
-    // paths, and `SparkdownCompiler` swallows a mid-parse throw, so a stale
-    // start is routine. Charging the next phase the whole idle gap would make
-    // every later compile timing wrong, permanently.
     const seen = await observeMeasures(async () => {
-      profile("start", "test", "compile", "inmemory:///main.sd"); // orphaned
+      profile("start", "test", "compile", "inmemory:///main.sd");
       await sleep(300);
       profile("start", "test", "compile", "inmemory:///main.sd");
       await sleep(100);
@@ -104,8 +92,6 @@ describe("profiler user-timing entries", () => {
   });
 
   it("retains nothing for phases that never end, and still drains", async () => {
-    // `SparkdownWorkspace.compile` opens a phase and then returns early on the
-    // no-op and piggyback paths, so unmatched starts are a real occurrence.
     const seen = await observeMeasures(async () => {
       for (let i = 0; i < 200; i += 1) {
         profile("start", "test", "orphan", "inmemory:///main.sd");
@@ -127,8 +113,6 @@ describe("profiler user-timing entries", () => {
   });
 
   it("clears by default — a freshly loaded module retains nothing", async () => {
-    // Every other test here forces the flag off in `beforeEach`, so without
-    // this one, flipping the module's initial value would go unnoticed.
     vi.resetModules();
     const fresh = await import("../../compiler/utils/profile");
     fresh.profile("start", "test", "default", "inmemory:///main.sd");
@@ -149,14 +133,11 @@ describe("profiler user-timing entries", () => {
     }
   });
 
-  // The behaviour from the ticket: with profiling on, a long-lived compiler
-  // realm must not grow its user-timing buffer edit after edit.
   it("does not accumulate entries across repeated compiles", async () => {
     const uri = "inmemory:///main.sd";
     const sceneCount = 4;
     let source = generatePerfScreenplay(sceneCount);
 
-    // The compiler logs diagnostics verbosely; keep the test output readable.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -180,9 +161,6 @@ describe("profiler user-timing entries", () => {
       });
       compiler.compile({ textDocument: { uri } });
 
-      // Insert one character immediately AFTER a stable marker each iteration,
-      // so the marker survives and the edit stays in the same place — mirrors a
-      // keystroke, and is the shape that was measured on the ticket.
       const marker = `This is dialogue line one in scene ${Math.floor(
         sceneCount / 2,
       )}.`;
@@ -211,7 +189,6 @@ describe("profiler user-timing entries", () => {
         compiler.compile({ textDocument: { uri } });
       };
 
-      // The profiler must actually be live, or the counts below are vacuous.
       const seen = await observeMeasures(() => edit());
       expect(seen.length).toBeGreaterThan(0);
 
@@ -225,9 +202,7 @@ describe("profiler user-timing entries", () => {
       }
       const afterTwentyEdits = countEntries();
 
-      // Tripling the edit count must not move the retained-entry count at all.
       expect(afterTwentyEdits).toBe(afterFiveEdits);
-      // And whatever it settles at is a handful of in-flight phases, not a log.
       expect(afterTwentyEdits).toBeLessThan(50);
     } finally {
       console.warn = realWarn;

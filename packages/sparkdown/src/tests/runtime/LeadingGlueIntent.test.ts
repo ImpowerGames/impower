@@ -1,11 +1,3 @@
-// A line that begins with `..` joins the line shown before it when that line
-// ends with `..`: glue needs a mark on both sides. Which line is shown before
-// it can depend on the run (a divert, a branch, a scene's first line), so the
-// compiler reports nothing about the marks. The call's table carries
-// `continues`, and `display` joins it or, when the line before does not end
-// with `..`, warns and shows it as a line of its own. Inside a block body both
-// lines are known, and the compiler joins them in the body's text.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -19,7 +11,6 @@ import type { TestStory } from "../engineUnderTest";
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
-// Each step's text, and every runtime error and warning the run raised.
 function run(story: TestStory): { texts: string[]; warnings: string[] } {
   const warnings: string[] = [];
   story.onError = (message) => {
@@ -39,8 +30,6 @@ function runSource(source: string) {
   return run(ctx.story);
 }
 
-// Every compile error and warning the source reports, leaving out the ones
-// about characters these sources never define.
 function diagnosticsOf(source: string) {
   const compiler = new SparkdownCompiler();
   const uri = "inmemory:///main.sd";
@@ -65,10 +54,6 @@ function diagnosticsOf(source: string) {
     .filter((message) => !message.startsWith("Cannot find character"));
 }
 
-// What the compiled program holds: how many display tables carry
-// `continues`, read from the keys its chunks push (`programListing`). The
-// program's instruction set has no instruction for ink's glue, so no join
-// can emit one.
 function programShape(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
@@ -137,8 +122,6 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
     });
   });
 
-  // The `..` after a cue's parenthetical and a `\` is the line's trailing
-  // mark; only the `..` right after the colon begins its text.
   test("after a cue's parenthetical and a chain", () => {
     expect(runSource(`BUNNY: (aside) \\ ..\n..joined\n`)).toEqual({
       texts: ["(aside)\njoined\n"],
@@ -148,8 +131,6 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
 });
 
 describe("a line that begins with `..` after a line that does not end with `..`", () => {
-  // The compiler cannot always tell which line runs before, so it reports
-  // nothing; the run warns and shows the line on its own.
   test.each([
     ["inline", `A\n.. B\n`],
     ["touching", `A\n..B\n`],
@@ -215,8 +196,6 @@ describe("a line that ends with `..` before a line that does not begin with `..`
   });
 });
 
-// The offer a line that ends with `..` makes (`StoryState.lineJoinable`) is
-// part of the story's state: a click falls between the two steps of `.. >`.
 describe("the offer to join", () => {
   const CLICK = `A .. >\n.. B\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
   const continuesOf = (story: TestStory) =>
@@ -265,8 +244,6 @@ describe("the offer to join", () => {
   });
 });
 
-// Lowering decides a `load` directive per beat: after a `>` break, a beat of
-// text that ends with `..` joins the next line.
 test("after a break in a `load` statement, the text beat joins", () => {
   for (const load of [
     `load overworld > You see a ..`,

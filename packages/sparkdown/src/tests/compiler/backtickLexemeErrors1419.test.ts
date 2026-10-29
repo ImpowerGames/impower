@@ -1,11 +1,3 @@
-// A backtick string with interpolations that an expectation rejects is
-// described and ranged as Luau's lexer reads it, its first lexeme
-// (`` `a { ``), and read on lexeme by lexeme (I-1419); an empty
-// interpolation reports Luau's one error at the string's opening section
-// (I-1420); and an unfinished string's last section after a stray
-// interpolation token is Luau's malformed-string lexeme (I-1421). Each
-// form reports every error Luau's parser reports, once each, in Luau's
-// words at Luau's range.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -15,7 +7,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -27,7 +18,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for `text`, moved down by `line` lines and right by `shift` characters. */
 function official(text: string, line = 0, shift = 0): string[] {
   return officialErrorList(text)
     .map((error) =>
@@ -37,7 +27,6 @@ function official(text: string, line = 0, shift = 0): string[] {
 }
 
 describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => {
-  // Unindented, since an error naming a bracket gives its column.
   const bodies = [
     "`a {x} b`",
     "local t = (1 `a {x} b`)",
@@ -47,28 +36,21 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
     "local t = {1 `a {x} b`}",
     "local t = 1 `a {x} b`",
     "x = 1 `a {x} b`",
-    // Read as one string again where an expression begins at its first lexeme.
     "for i `a {x} b` do end",
     "local x: `a {x} b` = 1",
     "g `a {x} b`",
     "local t = (`a {x} b` `c {y} d`)",
-    // An empty interpolation, or no closing backtick, in a string the
-    // statement rejects before reading it (round 1).
     "`a {} b`",
     "local t = (1 `a {} b`)",
     "`a {x} b",
     "`a {x} b {y} c",
     "local t = (1 `a {x} b)",
-    // A later interpolation left open, a string as a type, and a loop
-    // header's hint naming the string's first lexeme's kind (round 2).
     "local s = (1 `a {x} b {y)",
     "local s: `a {} b` = 1",
     "local s: `a {x} b",
     "local s: `a {1 2} b` = 1",
     "while true `a {x} b` do end",
     "for k in t `a {x} b` do end",
-    // A header rejects the string at its first lexeme and reports none of
-    // its later sections' errors (round 3).
     "function `a {x} b {} c`() end",
     "local function g(`a {x} b {} c`) end",
   ];
@@ -100,33 +82,21 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
   });
 });
 
-/** The forms of `s = <value>` as a story `store`, a scene-level `local` and a function's `local`, with Luau's errors for each. */
 function placements(rest: string): [string, string, string[]][] {
   const luau = `local ${rest}\n`;
   return [
     ["store", `store ${rest}\n${SCENE}`, official(luau)],
     ["store alone", `store ${rest}\n`, official(luau)],
-    // Indented as written, since an error naming a bracket gives its column.
-    // A blank line stands for the scene's header, so a message naming a line names the document's.
     ["a scene-level local", `scene start\n  local ${rest}\n  Hello.\nend\n`, official(`\n  ${luau}`)],
     ["a function's local", `function f()\n  local ${rest}\n  return s\nend\n`, official(`function f()\n  ${luau}  return s\nend\n`)],
   ];
 }
 
 describe("a rejected backtick string in a story statement is read as Luau's lexemes (I-1419)", () => {
-  // On a line of its own, the string still follows the expression it
-  // cannot continue (round 2).
-  // After an index's `.`, and with no closing backtick (round 2). A bracket
-  // the unfinished string leaves open reads on into a scene's story lines,
-  // which the comparison's one statement does not hold, so those forms are
-  // compared where nothing follows them or in a function.
   const unfinished = ["s = (1 `a {} b)", "s = (1\n  `a {x} b)"];
   for (const rest of ["s = (1 `a {x} b`)", "s = {1 `a {x} b`}", "s = (1 `a {} b`)", "s = (1\n  `a {} b`)", "s = {1,\n  2 `a {} b`}", "s = (\n  `a {} b`)", "s = x.`a {} b`", ...unfinished]) {
     for (const [form, text, luauExpected] of placements(rest)) {
       if (unfinished.includes(rest) && form === "a scene-level local") continue;
-      // A story statement's bracket that never closes ends with its line,
-      // and the line after it is story (I-1532): Luau's errors are the
-      // first line's alone.
       const unclosed = rest === "s = (1\n  `a {x} b)" && form.startsWith("store");
       const expected = unclosed ? official(`local ${rest.slice(0, rest.indexOf("\n"))}\n`) : luauExpected;
       test(`${form} ${rest}`, () => {
@@ -155,15 +125,11 @@ describe("an empty interpolation reports Luau's error at the string's opening se
     expect(sparkdownErrors(`function f()\n  local s = \`a {} b\`\n  return s\nend\n${SCENE}`)).toEqual([`1:12-1:16 ${message}`]);
   });
 
-  // A double-quoted string's interpolation is Sparkdown's own syntax.
   test("a double-quoted string's {} is Sparkdown's own", () => {
     expect(sparkdownErrors(`store s = "a {} b"\n${SCENE}`).filter((e) => /expected expression inside/.test(e))).toHaveLength(1);
   });
 });
 
-// A define's method and a Sparkle handler's closure are read by their
-// lowerers, whose errors stand for the statement's reading (round 3). The
-// body is the third line, indented four, as the Luau it is compared with.
 describe("a rejected backtick string in a body a lowerer reads is read as Luau's lexemes (I-1419)", () => {
   for (const body of ["`a {} b`", "local t = (1 `a {} b`)", "`a {x} b {} c`"]) {
     const expected = () => official(`\n\n    ${body}\n`);
@@ -177,9 +143,6 @@ describe("a rejected backtick string in a body a lowerer reads is read as Luau's
   }
 });
 
-// Each edit that makes a statement reject its string, or read it again,
-// reports what a cold compile of the edited text does: the string's own
-// error stands only while the statement reads the string (round 3, I-1435).
 test("an incremental compile reports what a cold one does", () => {
   let text = "store s = `a {} b`\n\nscene start\n  local t = `a {x} b\n  Hello.\nend\n";
   const compiler = new SparkdownCompiler();
@@ -191,7 +154,6 @@ test("an incremental compile reports what a cold one does", () => {
     const lines = text.slice(0, offset).split("\n");
     return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
   };
-  // Where each edit goes in the text as the edits before it left it, and how much it removes.
   const steps: [() => number, string, number][] = [
     [() => text.indexOf("`a {} b`"), "(1 ", 0],
     [() => text.indexOf("`a {} b`") + 8, ")", 0],
@@ -236,9 +198,6 @@ describe("an unfinished string's last section after a stray token is a malformed
       expect(sparkdownErrors(luau)).toEqual(official(luau));
     });
   }
-  // What a sequential alternator holds before its first `|` is read by the
-  // alternator's own reading, which reports the string's own error, the
-  // one Luau reports, at the string's opening section (round 2, I-1435).
   for (const [text, error] of [
     ["store s = cycle `a {} b` | 'c' end\n", "0:16-0:20"],
     ["store s = shuffle `a {} b` | 'c' end\n", "0:18-0:22"],
@@ -249,7 +208,6 @@ describe("an unfinished string's last section after a stray token is a malformed
       expect(sparkdownErrors(text)).toEqual([`${error} Malformed interpolated string, expected expression inside '{}'`]);
     });
   }
-  // The open interpolation's form already matches; it keeps matching.
   test("store s = `a {1 2} b {c", () => {
     expect(sparkdownErrors("store s = `a {1 2} b {c\n")).toEqual(official("local s = `a {1 2} b {c\n"));
   });

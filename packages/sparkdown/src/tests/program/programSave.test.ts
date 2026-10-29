@@ -1,8 +1,3 @@
-// The durable save of the program engine (#699, docs/engine/binary-program.md,
-// sections 7 and 8): the image of the newest beat with every position in the
-// saved form, which loads into a fresh game of the same program, in another
-// process, after the table was reseeded, and which is refused, naming the
-// flow, when a statement it names differs.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,8 +28,6 @@ const silence = <T>(run: () => T): T => {
 const rootOf = (text: string): ProgramRoot | undefined =>
   silence(() => compileScript(text).program.chunks);
 
-/** A story that keeps its beats' images, as a game does, sharing the
- *  pristine copies of `images` when given, as the engines of one game do. */
 const engine = (
   root: ProgramRoot,
   images?: ProgramStory["images"],
@@ -53,14 +46,9 @@ const shows = (story: ProgramStory) =>
 interface Transcript {
   beats: string[];
   menus: string[][];
-  /** Whether the last continue showed something. */
   captioned?: boolean;
 }
 
-/** Runs on from where the story stands, taking `picks[n]` at the n-th menu
- *  from `menusTaken` on (the first choice past the end), until the story
- *  ends or `maxMenus` menus were taken; `onBeat` and `onMenu` hear each
- *  beat and each menu as they come. */
 const play = (
   story: ProgramStory,
   {
@@ -122,21 +110,14 @@ describe("a save taken at any beat of the shared fixtures", () => {
     for (const file of fixtureFiles(FIXTURES)) {
       const name = relative(FIXTURES, file);
       const text = readFileSync(file, "utf-8");
-      // The game that plays the fixture, and the program compiled again by
-      // another compiler, as another process would.
       const played = rootOf(text);
       const again = rootOf(text);
       if (!played || !again) {
         continue;
       }
       fixtures += 1;
-      // Saves of one beat, so that the save at the end compares the state
-      // the load reached with the uninterrupted run's, and not the beats
-      // the two passed.
       const story = engine(played, undefined, 1);
       const taken: { save: string; beats: number; menus: number }[] = [];
-      // A beat whose continue raised a menu is the menu's, which `onMenu`
-      // takes.
       const take = (shown: Transcript) => {
         if (!story.canContinue && story.currentChoices.length > 0) {
           return;
@@ -154,9 +135,6 @@ describe("a save taken at any beat of the shared fixtures", () => {
         whole = silence(() =>
           play(story, {
             onBeat: take,
-            // A save at a menu holds the beat before it, which is before
-            // the menu's caption, if it has one; the menu is not taken
-            // yet.
             onMenu: (shown) =>
               taken.push({
                 save: story.toSave(),
@@ -199,7 +177,6 @@ describe("a save taken at any beat of the shared fixtures", () => {
   });
 });
 
-/** The text of the next beat that shows something. */
 const nextBeat = (story: ProgramStory): string => {
   while (story.canContinue) {
     story.Continue();
@@ -213,8 +190,6 @@ const nextBeat = (story: ProgramStory): string => {
 const choiceTexts = (story: ProgramStory) =>
   story.currentChoices.map((choice) => choice.text);
 
-/** The newest beat of a save, with the globals of the beats up to it put
- *  together as `variablesState`. */
 const newestBeat = (save: string): any => {
   const beats = JSON.parse(save).beats as any[];
   const globals: Record<string, unknown> = { ...(beats[0]!.variablesState ?? {}) };
@@ -277,9 +252,6 @@ describe("a save holds the values of its state", () => {
     expect(nextBeat(loaded)).toBe("There.");
   });
 
-  // The engine keeps the program's constants (`ProgramRoot.tables`) as the
-  // variables state's `constantNames`, which a save leaves out and a load
-  // takes from the program rather than from the save.
   it("leaves a constant out, and a load takes the constant the program compiled", () => {
     const script = (limit: number) =>
       [
@@ -306,11 +278,6 @@ describe("a save holds the values of its state", () => {
   });
 });
 
-// A menu whose condition calls an author function that assigns a global,
-// raises a count (the function's) and draws a random number. The condition
-// is an `if` of the block's preamble that gates the first choice: a choice's
-// own `if (...)` does not take a call (the grammar reads the call as the
-// choice's text).
 const MENU_TEXT = [
   "store calls = 0",
   "store drawn = 0",
@@ -345,16 +312,13 @@ describe("a save taken while choices are waiting", () => {
     expect(nextBeat(story)).toBe("Before the menu.");
     story.Continue();
     expect(choiceTexts(story)).toHaveLength(2);
-    // The condition ran once: the function's global and its count.
     const calls = (s: ProgramStory) =>
       s.variablesState.GetVariableWithName("calls")?.toString();
     expect(calls(story)).toBe("1");
     const atMenu = story.state.toJson();
     const save = story.toSave();
     expect(newestBeat(save).choices).toBeUndefined();
-    // The save is the beat before the condition ran.
     expect(newestBeat(save).variablesState.calls ?? 0).toBe(0);
-    // Saving put back the state as it stands.
     expect(story.state.toJson()).toBe(atMenu);
     const loaded = engine(root);
     for (let i = 0; i < 3; i += 1) {
@@ -371,10 +335,6 @@ describe("a save taken while choices are waiting", () => {
     expect(loaded.state.toJson()).toBe(story.state.toJson());
   });
 
-  // The shape of `threads/multi-threads.sd`, and the same with a line the
-  // guard's thread displays after the merchant's thread raised its choice,
-  // so that the image of that line's beat holds the merchant's choice with
-  // its thread.
   const THREADS = (guardSpeaks: boolean) =>
     [
       "-> hub",
@@ -416,7 +376,6 @@ describe("a save taken while choices are waiting", () => {
         story.Continue();
         if (shows(story)) before.push(story.currentText!.trim());
         if (guardSpeaks && before.at(-1) === "The guard nods." && story.canContinue) {
-          // The merchant's choice is raised and waits, with its thread.
           expect(story.state.generatedChoices.map((c) => c.text)).toEqual([
             '"What do you sell?"',
           ]);
@@ -494,7 +453,6 @@ describe("a save taken while choices are waiting", () => {
     const loaded = engine(root);
     loaded.loadSave(save);
     expect(loaded.toSave()).toBe(save);
-    // And once the load raised the menu again, which is no beat.
     loaded.Continue();
     expect(loaded.toSave()).toBe(save);
   });
@@ -595,11 +553,6 @@ describe("a save's header", () => {
     }
   });
 
-  // The shipped saves were written of this script, where `cell` is a local
-  // function of the scene. A scene's local function is a closure of the
-  // scene's scope (#1674), named apart from the story function the saves'
-  // closures were built in, so their function values name nothing here:
-  // the load warns of each, and calling one fails.
   it("loads a shipped save whose closures a scene's local function built, with each closure naming nothing", () => {
     const script = [
       "store picks = 0",
@@ -650,8 +603,6 @@ const session = programSession;
 describe("a save in another process", () => {
   const SCRIPT = LOOP_TUNNEL_SCRIPT;
 
-  // Round 1 of the review of #1579 (report 6016969769): the test below
-  // loads in the process that wrote the save; this one does not.
   it("written by another process, which reseeded its table, loads here and continues as the writer's run would", () => {
     const writer = join(HERE, "programSaveWriter.ts");
     const viteNode = createRequire(import.meta.url).resolve("vite-node/vite-node.mjs");
@@ -665,7 +616,6 @@ describe("a save in another process", () => {
     const line = run.stdout.split("\n").find((l) => l.startsWith(SAVE_MARKER));
     expect(line).toBeDefined();
     const save = line!.slice(SAVE_MARKER.length);
-    // This process compiles the program once, with no reseed.
     const here = session(SCRIPT);
     const rest = (() => {
       const story = engine(here.root);
@@ -685,12 +635,9 @@ describe("a save in another process", () => {
     expect(nextBeat(story)).toBe("Begin a.");
     expect(nextBeat(story)).toBe("Inside 0.");
     const save = story.toSave();
-    // The tunnel's frame returns inside its statement, in the loop's body.
     expect(save).toContain('"loop"');
     const rest = play(story);
     expect(rest.beats).toEqual(["After 1 1 1."]);
-    // Another process: a compiler that compiled another program first, then
-    // this one, then reseeded and compiled it again.
     const other = session(
       SCRIPT.replace("scene early", "scene before\n  Before.\nend\n\nscene early"),
     );
@@ -706,8 +653,6 @@ describe("a save in another process", () => {
     expect(play(loaded)).toEqual(rest);
   });
 
-  // #699 refused this save; #1429 places it by the alignment of section 8,
-  // since the statement it stands at is unchanged.
   it("loads when a statement of a sequence it names differs by its fingerprint, at the statement it stands at", () => {
     const played = session(SCRIPT);
     const story = engine(played.root);
@@ -724,30 +669,20 @@ describe("a save in another process", () => {
     expect(play(loaded).beats).toEqual(["After 2 2 1."]);
   });
 
-  // The source of a statement the same and its code not, as a compiler
-  // that lowers it differently makes it: the save's layout hashes, of the
-  // loop whose body the frame is in and of the tunnel statement the frame
-  // returns inside, are changed in place of the program's.
   it("is placed after the loop a position is inside when the loop's layout hash differs, with a warning", () => {
     const played = session(SCRIPT);
-    // One beat, so that no earlier beat is placed exactly.
     const story = engine(played.root, undefined, 1);
     nextBeat(story);
     nextBeat(story);
     const written = story.toSave();
     const differ = (hash: string) =>
       hash.replace(/^./, (c) => (c === "0" ? "1" : "0"));
-    // The frame the tunnel pushed, which returns past its statement's last
-    // instruction, in the loop's body: the statement has run, so its
-    // anchor names no layout (#1429).
     const frameOf = (save: any) =>
       save.beats.at(-1).frames.find((f: { returnTo?: unknown }) => f.returnTo).returnTo;
     const loopOf = (save: any) =>
       frameOf(save).st.levels.find((l: { loop?: string }) => l.loop);
     expect(frameOf(JSON.parse(written)).a).toBe("done");
     expect(loopOf(JSON.parse(written))).toBeDefined();
-    // After the loop: the tunnel runs to its return, and the loop's
-    // remaining passes are left.
     const save = JSON.parse(written);
     loopOf(save).loop = differ(loopOf(save).loop);
     const loaded = engine(session(SCRIPT).root);
@@ -755,7 +690,6 @@ describe("a save in another process", () => {
     expect(loaded.loadedSaveReport?.exact).toBe(false);
     expect(loaded.loadedSaveReport?.warnings.join(" ")).toMatch(/loop/);
     expect(play(loaded).beats).toEqual(["After 0 0 1."]);
-    // And the save as written loads.
     const exact = engine(session(SCRIPT).root);
     exact.loadSave(written);
     expect(exact.loadedSaveReport?.exact).toBe(true);
@@ -763,7 +697,6 @@ describe("a save in another process", () => {
   });
 });
 
-// Round 1 of the review of #1579 (report 6016565874).
 describe("a save at the boundaries the first review found", () => {
   it("keeps the cells a waiting choice's thread borrowed, so a closure and the local it captured stay one variable", () => {
     const text = [
@@ -806,7 +739,6 @@ describe("a save at the boundaries the first review found", () => {
     const story = engine(root);
     while (story.canContinue) story.Continue();
     const save = story.toSave();
-    // The image holds the merchant's choice, raised before the guard's line.
     expect((newestBeat(save).choices ?? []).map((c: { text: string }) => c.text)).toEqual([
       '"Ask"',
     ]);
@@ -857,7 +789,6 @@ describe("a save at the boundaries the first review found", () => {
     expect(() => loaded.loadSave(JSON.stringify(save))).toThrow();
     expect(loaded.state.toJson()).toBe(before);
     expect(choiceTexts(loaded)).toEqual(choices);
-    // And it runs on as it would have.
     loaded.ChooseChoiceIndex(0);
     expect(nextBeat(loaded)).toMatch(/^First 1/);
   });
@@ -873,7 +804,6 @@ describe("a save at the boundaries the first review found", () => {
     const keyframe = story.captureBeat(true);
     expect(keyframe.keyframe).toBe(keyframe);
     expect(keyframe.positional.choices).toHaveLength(0);
-    // The state as it stands is put back.
     expect(story.state.toJson()).toBe(atMenu);
     const restored = new ProgramStory(root, { images: story.images });
     restored.onError = () => {};

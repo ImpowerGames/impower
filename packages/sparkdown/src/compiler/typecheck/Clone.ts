@@ -17,7 +17,6 @@ import {
   type TypeVariant,
 } from "./Type";
 
-/** A copy of a variant whose own containers are fresh, referring to the same types. */
 export function copyVariant(v: TypeVariant): TypeVariant {
   switch (v.kind) {
     case "FunctionType":
@@ -69,11 +68,6 @@ export function copyPackVariant(v: TypePackVariant): TypePackVariant {
   }
 }
 
-/**
- * A new type holding a copy of a type's contents, as Luau's `shallowClone`
- * with a fresh clone state: its parts are shared, and a generic, free or
- * table type loses its scope.
- */
 export function shallowClone(ty: TypeId, arena: TypeArena, clonePersistentTypes = false): TypeId {
   ty = follow(ty, false);
   if (ty.persistent && !clonePersistentTypes) return ty;
@@ -84,11 +78,6 @@ export function shallowClone(ty: TypeId, arena: TypeArena, clonePersistentTypes 
   return target;
 }
 
-/**
- * Deep-copies a type graph into an arena, sharing persistent types, as
- * Luau's `clone`. `seenTypes` and `seenTypePacks` map originals to copies and
- * may be shared across calls to keep identities consistent.
- */
 export class TypeCloner {
   readonly seenTypes = new Map<TypeId, TypeId>();
   readonly seenTypePacks = new Map<TypePackId, TypePackId>();
@@ -215,7 +204,6 @@ export class TypeCloner {
   }
 }
 
-/** A copy of a type alias whose types are cloned (Luau's `clone` of a `TypeFun`). */
 export function cloneTypeFun(typeFun: TypeFun, cloneState: TypeCloner): TypeFun {
   const typeParams: GenericTypeDefinition[] = [];
   for (const param of typeFun.typeParams) {

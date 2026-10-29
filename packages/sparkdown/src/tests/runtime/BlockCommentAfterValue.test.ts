@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// A block comment is trivia in Luau, so a statement after it on the same line
-// is the next statement, not a continuation of the value before the comment
-// (#1157). `print(1)` displays `1` before the returned value.
 function run(body: string) {
   const source = `Value {f()}.\nfunction f()\n${body}\n  return w\nend\n`;
   const ctx = makeRuntimeStoryFromSource(source);
@@ -98,8 +95,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     );
   });
 
-  // A `(` after the comment begins the next statement after a value Luau
-  // cannot call: a literal.
   test.each([
     "5",
     "0x5",
@@ -122,7 +117,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run(body)).toBe("Value 15.\n");
   });
 
-  // After a prefix expression, the `(` calls what it holds, as in Luau.
   test.each([
     ["a call's result", "  local w = g() --[[c]] (2)"],
     ["a parenthesized value", "  local w = (h) --[[c]] (2)"],
@@ -149,7 +143,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ).toBe("Value 5.\n");
   });
 
-  // A comment between a callee and its arguments is trivia: the call stands.
   test.each([
     ["parentheses", "  local w = g --[[c]] (2)", "Value 6.\n"],
     ["parentheses, no spaces", "  local w = g--[[c]](2)", "Value 6.\n"],
@@ -162,8 +155,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run(callees + body)).toBe(expected);
   });
 
-  // A call statement, not a value: the comment between the callee and its
-  // arguments is trivia, so the call runs.
   test.each([
     ["on its line", "  g --[[c]] (2)"],
     ["with no spaces", "  g--[[c]](2)"],
@@ -173,7 +164,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run(body)).toBe("Value 2.\n");
   });
 
-  // A comment between an assignment target and its `=` is trivia as well.
   test.each([
     ["a name", "  local w = 0\n  w --[[c]] = 5", "Value 5.\n"],
     ["a field", "  local t = {}\n  t.x --[[c]] = 5\n  local w = t.x", "Value 5.\n"],
@@ -188,10 +178,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ).toBe("Value 2.\n");
   });
 
-  // In a value, Luau does not read a `(` on a later line as a call of the
-  // value before it ("Ambiguous syntax"); a comment spanning the line break
-  // does not change that, so the value is read as the same lines without
-  // the comment read it.
   test.each([
     [
       "a call's result",
@@ -241,7 +227,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     );
   });
 
-  // #880: a line comment after arithmetic is a comment, not `- -`.
   test("a line comment after arithmetic is a comment", () => {
     expect(run("  local w = 1 * 2 -- the product")).toBe("Value 2.\n");
     expect(run("  local a, b = 3, 4\n  local w = a * b -- a note")).toBe(
@@ -249,8 +234,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     );
   });
 
-  // A literal type keeps reading past a block comment to its `?` or `|`, as
-  // other types do.
   test.each([
     ["string type, `?`", '  local w: "a" --[[c]] ? = "a"', "Value a.\n"],
     ["boolean type, `?`", "  local w: true --[[c]] ? = true", "Value true.\n"],
@@ -270,7 +253,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run("  local w = 5 -- print(1)")).toBe("Value 5.\n");
   });
 
-  // A leveled comment closes only at brackets of its own level.
   test.each([
     ["an operator", "  local w = 5 --[=[a]]b]=] + 1", "Value 6.\n"],
     ["a statement", "  local w = 5 --[=[a]]b]=] print(1)", "Value 15.\n"],
@@ -309,8 +291,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
   });
 });
 
-// A block comment after a value that closes on a later line: a statement
-// after the close is the next statement, as on one line.
 describe("a statement after a block comment spanning lines runs", () => {
   test.each([
     ["local", "  local w = 5 --[[a\n  ]] print(1)", "Value 15.\n"],

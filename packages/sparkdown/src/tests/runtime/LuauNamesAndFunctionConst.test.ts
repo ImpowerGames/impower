@@ -1,13 +1,3 @@
-// Names and `const` inside function bodies follow Luau (#1319).
-//
-// - Only Luau's own keywords are reserved as names (#1292): the ink-era words
-//   (`var`, `temp`, `const`, `include`, `scene`, ...) are valid Luau names for
-//   a local, a parameter, a function and a table key.
-// - A `const` inside a function or block is a block-scoped binding that
-//   cannot be reassigned, as in Luau (#1293): it takes several names, shadows
-//   and is shadowed, belongs to its own function and takes any value. A
-//   top-level `const` stays the story's published constant.
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -20,7 +10,6 @@ function run(source: string) {
   };
 }
 
-// The ink-era words the reserved list held that Luau allows as names.
 const INK_WORDS = [
   "var",
   "temp",
@@ -37,9 +26,6 @@ const INK_WORDS = [
   "branch",
 ];
 
-// The words that begin Sparkdown's `define` and `store` declarations, which
-// they begin only before a name: anywhere else in a function body they are
-// names, as Luau reads them, and the function ends at its own `end` (#1328).
 const STRUCTURAL_WORDS = ["define", "store"];
 
 const POSITIONS: [string, (word: string) => string, string][] = [
@@ -113,8 +99,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     });
   }
 
-  // The ticket's shapes not in `POSITIONS`: a value read alone, a call, an
-  // assignment to the name and a field of a table it names.
   test.each(STRUCTURAL_WORDS)("`%s` as a value, a call and an assignment target", (word) => {
     const { errors, text } = run(
       [
@@ -133,8 +117,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(text).toBe("Go 4.\n");
   });
 
-  // At the start of a line a token that carries a name on keeps the word a
-  // name: a field, an index and a call, with or without a space before `(`.
   test.each(STRUCTURAL_WORDS)("`%s` beginning a line as a table and a function", (word) => {
     const { errors, text } = run(
       [
@@ -159,10 +141,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(text).toBe("Go 3 5.\n");
   });
 
-  // Before anything but a name, the word is a name wherever it stands in a
-  // function: before a string or a table (call sugar), before a comment and
-  // a call, on the line after `return`, and before a comment spanning lines
-  // where it does not begin its line.
   test.each(STRUCTURAL_WORDS)("`%s` as a name before a string, a table or a comment", (word) => {
     const source = [
       "Go {f()} {g()} {h()} {k()}.",
@@ -195,9 +173,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 7 3 4 5.\n" });
   });
 
-  // A function body's line at column 0 is Luau too: the word is a name
-  // there before anything but a name. The one warning is Luau's lint on the
-  // `return` whose value is the unindented next line, which it reads.
   test.each(STRUCTURAL_WORDS)("`%s` as a name at column 0 in a function", (word) => {
     const source = [
       "Go {f()} {g()}.",
@@ -222,9 +197,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 1 5.\n" });
   });
 
-  // After a keyword a block's statements follow, the word begins a
-  // statement, so before a comment spanning lines it still begins its
-  // declaration.
   test("a store and a const after `do` and `then` whose name follows a comment spanning lines", () => {
     const source = [
       "function f()",
@@ -245,9 +217,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
   });
 
-  // Wherever a statement begins, after a function's header, after another
-  // statement on its line or after a comment, the word before a comment
-  // spanning lines still begins its declaration.
   test.each([
     ["after a function's header", "function f() store --[[ note\n  ]] tally = 2\n  return tally\nend\n"],
     ["after a statement on its line", "function f()\n  local a = 0 store --[[ note\n    ]] tally = 2\n  return a + tally\nend\n"],
@@ -258,10 +227,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
   });
 
-  // The grammar cannot see past a comment that spans lines, so a statement
-  // that begins with the word before one begins a declaration there; with
-  // no name after the comment, the reading takes the word as the name Luau
-  // reads, here an assignment's target.
   test.each(["const", "store"])("`%s` assigned after a comment spanning lines", (word) => {
     const source = [
       "function f()",
@@ -277,8 +242,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
   });
 
-  // A store or const whose name follows on the next line, after the line's
-  // end or a line comment, still declares it.
   test.each([
     ["store", ""],
     ["store", " -- note"],
@@ -290,9 +253,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 2.\n" });
   });
 
-  // A define opens in a function only before its name, so before a comment
-  // spanning lines it is the name, here an assignment's target and a
-  // table's, and the function keeps its `end`.
   test("`define` assigned after a comment spanning lines", () => {
     const source = [
       "Go {f()} {g()}.",
@@ -314,9 +274,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 3 4.\n" });
   });
 
-  // `const` is a keyword to an access path only before the name it
-  // declares, as `define` is, so a table named `const` takes a spaced
-  // field or index assignment as base did (round 4 of #1328).
   test.each([
     ["a spaced field", "const .x = 3"],
     ["a spaced index", 'const ["x"] = 3'],
@@ -326,8 +283,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 3.\n" });
   });
 
-  // `const` used as a name in a function is scoped as a name, not as the
-  // scope modifier's keyword (ImpowerGames/impower-internal#1432).
   test.each(["a + const", "a + const + 1", "(const)", "const"])(
     "`const` as a declared name and as a value in `return %s` is a name in the tree",
     (body) => {
@@ -338,8 +293,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     },
   );
 
-  // Where an expression goes on, on a later line, the word before a comment
-  // spanning lines is its value or a list's next name, as Luau reads it.
   test.each(["const", ...STRUCTURAL_WORDS])("`%s` continuing an expression before a comment spanning lines", (word) => {
     const source = [
       "Go {f()} {g()} {h()}.",
@@ -367,9 +320,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 3 4 3.\n" });
   });
 
-  // A block comment that closes on a later line hides the name from the
-  // grammar's lookahead, so a word that begins its line still begins its
-  // declaration there.
   test("a store and a const whose name follows a comment spanning lines", () => {
     const source = [
       "function f()",
@@ -386,8 +336,6 @@ describe("`define` and `store` as Luau names (#1328)", () => {
     expect(run(source)).toEqual({ errors: [], text: "Go 5.\n" });
   });
 
-  // The declarations the words begin before a name keep their reading, at
-  // the top level and inside a function.
   test("a store and a define keep their reading before a name", () => {
     const { errors, text } = run(
       [
@@ -443,9 +391,6 @@ describe("names in a list (#1292)", () => {
     expect(text).toBe("Go 3.\n");
   });
 
-  // `const`, `store` and `define` begin a declaration only before a name, so
-  // on the next line of a list they are its next name, as Luau reads them
-  // (#1328).
   test.each(["const", ...STRUCTURAL_WORDS])(
     "a list continued with `%s` on the next line takes it as the name",
     (word) => {
@@ -457,8 +402,6 @@ describe("names in a list (#1292)", () => {
     },
   );
 
-  // The lowerer reads these as Luau where the type checker does not, so the
-  // name after the comma is the reading's binding there too (round 2).
   test.each([
     [
       "a function value in an interpolation",
@@ -611,9 +554,6 @@ describe("a `const` inside a function follows Luau (#1293)", () => {
   });
 });
 
-// The type checker reads a function's body, and reports Luau's const errors
-// there; the lowerer reports them where it does not read the Luau. Each is
-// reported once, in Luau's words (round 2).
 describe("a function's `const` errors in every place Luau is read", () => {
   const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
   const MISSING = "Missing initializer in const declaration";
@@ -689,9 +629,6 @@ describe("a function's `const` errors in every place Luau is read", () => {
   });
 });
 
-// A body read on its own (a define's property or method, a Sparkle handler, a
-// nested function) holds no binding for the enclosing function's const; the
-// lowerer resolves the name against the functions around it (round 5).
 describe("a function's `const` reassigned from a body read on its own", () => {
   const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
   const fn = (body: string) => `Go {f()}.\nfunction f()\n${body}\nend\n`;
@@ -706,8 +643,6 @@ describe("a function's `const` reassigned from a body read on its own", () => {
     expect([...ctx.errorMessages]).toEqual([REASSIGNED]);
   });
 
-  // The layout is itself an error, written in a function (I-1405), and its
-  // handler is still read.
   test.each([
     ["an assignment", "a = 2"],
     ["a nested function", "local g = function() a = 2 end g()"],
@@ -742,9 +677,6 @@ describe("a function's `const` reassigned from a body read on its own", () => {
   });
 });
 
-// A function body a type holds (`typeof(function() ... end)`) lowers no code,
-// so the lowerer checks it on its own where the type checker does not
-// (round 6).
 describe("a function's `const` errors in a function body a type holds", () => {
   const REASSIGNED = "Variable 'a' is constant and may not be reassigned";
   const MISSING = "Missing initializer in const declaration";
@@ -766,8 +698,6 @@ describe("a function's `const` errors in a function body a type holds", () => {
     });
   }
 
-  // An erased function's signature types, and a type function's body, which
-  // is erased too (round 7).
   const signatureShapes: [string, string, string][] = [
     ["an erased function's parameter type", "type T = typeof(function(x: typeof(function() const b end)) end); return 1", MISSING],
     ["an erased function's return type", "type T = typeof(function(): typeof(function() const b end) end); return 1", MISSING],

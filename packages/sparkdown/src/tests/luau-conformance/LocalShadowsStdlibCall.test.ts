@@ -1,11 +1,3 @@
-// A local of a standard-library name or namespace hides the library for the
-// rest of its scope, as in Luau: a direct call of the name (`type(7)`) or of
-// a member of the namespace (`math.abs(-3)`) written there calls the local's
-// value, as a read of the name as a value already does (I-1372). A call
-// written before the local, or with no local of the name, still calls the
-// builtin. A script that replaces a namespace (`math = { ... }`) calls its
-// own function, which no arity of the builtin's describes (I-1375).
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -40,8 +32,6 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines as the body of a scene the story diverts to, where a local
-// belongs.
 const inScene = (...body: string[]) => ["-> start", "scene start", ...body.map((line) => `  ${line}`), "end"];
 
 describe("a scene's local of a stdlib name", () => {
@@ -127,8 +117,6 @@ describe("a scene's local of a stdlib name", () => {
     ).toEqual(got("Got mine."));
   });
 
-  // A block's later statements read its locals by name (I-1468): a direct
-  // call there still reaches the library.
   test("leaves the builtin to a direct call inside a block of the scene", () => {
     expect(
       run(
@@ -176,8 +164,6 @@ describe("a function's local of a stdlib name", () => {
 });
 
 describe("a function's local of a stdlib name out of scope at the call", () => {
-  // `outer` holds the locals the calls in its local function `g` read when
-  // nothing in `g` hides them, and returns what `g` gives.
   const outer = (...g: string[]) => [
     "function outer()",
     "  local math = { abs = function(v) return 77 end }",
@@ -251,8 +237,6 @@ describe("a function's local of a stdlib name out of scope at the call", () => {
 });
 
 describe("an incremental compile", () => {
-  // The edits leave the calls' own lines as they were, so the chunks that
-  // hold them are carried unless the `local` above them is asked again.
   const base = [
     "store n = 0",
     ...inScene("Got {type(7)} {math.abs(-3)}."),
@@ -372,8 +356,6 @@ describe("the arity of a stdlib namespace member's call", () => {
     ).toEqual([]);
   });
 
-  // Luau's library tables are read-only: a write of one member leaves the
-  // builtin's type describing the call.
   test("is the builtin's when the script writes only the member", () => {
     expect(
       arityWarnings([

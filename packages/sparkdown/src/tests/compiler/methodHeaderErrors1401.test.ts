@@ -1,7 +1,3 @@
-// A define's method reports the syntax errors Luau reports in its header
-// (its parameter list), as it reports those of its body, once each, in
-// Luau's words at Luau's range, as the function it stands for read whole
-// reports them (I-1401, after I-1368).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -10,7 +6,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -22,16 +17,10 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-// Headers with a syntax error in their parameter list.
 const HEADERS = ["f(a b)", "f(a, , b)", "f(a: number b)"];
 
 const FUNCTION = "function ";
 
-/**
- * The official errors of `function <header>` on line 1, placed where the
- * author wrote the header without `function ` (the `name(args)` form): each
- * character and the column a message names move back by its length.
- */
 function withoutFunctionKeyword(errors: string[]): string[] {
   const shift = FUNCTION.length;
   return errors.map((e) =>
@@ -43,7 +32,6 @@ function withoutFunctionKeyword(errors: string[]): string[] {
 
 describe("a define's method reports the errors Luau reports in its header (I-1401)", () => {
   for (const header of HEADERS) {
-    // The method stands for the function `function f(…) … end` on its lines.
     const official = officialErrorList(`\n  ${FUNCTION}${header}\n    x = 1\n  end\n`).sort();
     const empty = officialErrorList(`\n  ${FUNCTION}${header}\n  end\n`).sort();
     test(`${JSON.stringify(header)} in a method`, () => {
@@ -61,8 +49,6 @@ describe("a define's method reports the errors Luau reports in its header (I-140
     });
   }
 
-  // A call written as a line of the body is no method: it leaves the define
-  // its `end`, and its arguments are no parameter list to report (I-1411).
   for (const call of ['print("x")', "print(1)"]) {
     test(`${JSON.stringify(call)} as a line of the body reports nothing`, () => {
       expect(sparkdownErrors(`define X with\n  x = 1\n  ${call}\nend\n`)).toEqual([]);

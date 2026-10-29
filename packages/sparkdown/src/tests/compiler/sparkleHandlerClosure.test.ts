@@ -1,9 +1,3 @@
-// Inline event-handler closures (`@input={ name = event.value }`) may span
-// lines (#1225): a closure its line leaves open goes on to its `}`. One left
-// without its `}` ends where a line starts with `end`, `else`, `elseif` or
-// `case`, and the lowerer reports the missing `}` instead of silently
-// dropping the statements.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

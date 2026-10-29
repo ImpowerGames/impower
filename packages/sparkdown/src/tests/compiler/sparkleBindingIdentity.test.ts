@@ -1,9 +1,3 @@
-// Binding evaluator names, and the loop-variable list handed to them.
-//
-// Both produced severity-1 errors in the Problems panel for source that is
-// legal, and one of them also produced WRONG OUTPUT — two layouts resolving to
-// a single evaluator, so one rendered the other's value.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -41,10 +35,6 @@ const bindingIds = (program: unknown): string[] => [
 ];
 
 describe("binding ids are unique across files", () => {
-  // The id was the node's byte offset within its OWN file, but every hoisted
-  // evaluator lands in one flow namespace. Two files whose bindings start at
-  // the same offset — near-inevitable for a copy-and-adapt pair of layouts —
-  // both minted `__binding_35` (now `__binding$35`).
   const FILES = {
     main: `-> END\n`,
     fa: `store a = 1\nlayout la with\n  text "{a}"\nend\n`,
@@ -53,13 +43,9 @@ describe("binding ids are unique across files", () => {
 
   test("two files colliding on byte offset get distinct evaluators", () => {
     const { program, diagnostics } = compileFiles(FILES);
-    // Both layouts compiled…
     expect(Object.keys(program.sparkle?.layouts ?? {})).toEqual(
       expect.arrayContaining(["la", "lb"]),
     );
-    // …with one evaluator each, not one shared between them. Count the
-    // evaluators the two authored layouts reference, not every evaluator in
-    // the program: the builtins prelude carries bindings of its own.
     const authored = bindingIds({
       la: program.sparkle?.layouts?.["la"],
       lb: program.sparkle?.layouts?.["lb"],
@@ -72,10 +58,6 @@ describe("binding ids are unique across files", () => {
 });
 
 describe("a shadowed loop variable is not a compile error", () => {
-  // The loop-var stack is push/restore, so an inner loop re-binding an outer
-  // name put BOTH on it; handing both to the evaluator produced
-  // `params: ["i","i"]` and "Multiple arguments with the same name" on every
-  // keystroke — for a construct that is legal Luau in this same language.
   test("nested loops binding the same name compile clean", () => {
     const { diagnostics } = compileFiles({
       main: `store rows = { 1 }

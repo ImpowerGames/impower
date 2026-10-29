@@ -1,11 +1,5 @@
-// The scripts the shift oracle (#938) compiles with and without blank lines
-// above them: the fixtures of the incremental equivalence oracles and the
-// reproduction scripts of the offset-derived name families (#845, #848, #870,
-// #912). Both back ends run it: `shiftEquivalence.test.ts` on the compiled
-// program, `programShift.test.ts` on the binary program's chunks.
 import { coupledScreenplay, cumulativeScreenplay } from "./coupledScreenplay";
 
-/** A project's scripts by file name, without the extension. */
 export type Project = Record<string, string>;
 
 export interface ShiftCase {
@@ -15,8 +9,6 @@ export interface ShiftCase {
 
 export const lines = (...l: string[]) => [...l, ""].join("\n");
 
-// `main` beside two other scripts of the project that hold a body at the same
-// offset of each.
 const copiedIntoTwoFiles = (main: string[], body: (name: string) => string): Project => ({
   main: lines(...main),
   pre: body("pf"),

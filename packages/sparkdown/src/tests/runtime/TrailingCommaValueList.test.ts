@@ -1,13 +1,3 @@
-// A `local` or `store` value list that ends its line with a comma. In Luau
-// code (a function body or a Luau block) the list continues on the next line,
-// as in Luau: a comma ends nothing, and a comment after the comma, or blank
-// and comment-only lines before the next value, leave the list open. A line
-// that starts with something that is not a value (`end`, `else`, `until`, a
-// statement, a `scene` header) belongs to the enclosing block, and the comma
-// before it is Luau's parse error. In a narrative body the declaration ends
-// at its line: the next line is story, and a comma that ends the line is the
-// same error.
-
 import { describe, expect, test } from "vitest";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -139,7 +129,6 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     expect(text).toBe("Value 7.\n");
   });
 
-  // Luau reads an if expression after a comma wherever its line starts.
   test.each([
     ["indented", "    "],
     ["unindented", ""],
@@ -193,7 +182,6 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
   });
 });
 
-// Luau's parse error for the missing value, reported on the comma's line.
 const missingValue = (got: string) =>
   `Expected identifier when parsing expression, got '${got}'`;
 
@@ -270,7 +258,6 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(";")]);
   });
 
-  // `continue` is a name where a value can stand, as Luau reads it (#1906).
   test("before `continue` in a loop: `continue` is the list's value", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
@@ -282,8 +269,6 @@ describe("Luau code: a comma with nothing after it", () => {
     const { errorMessages } = collectDiagnostics(
       "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nValue {f(true)}.\n",
     );
-    // Luau then reads `if c then 2 else 3` as an if statement, whose arms are
-    // values and which takes the function's `end` (I-1322).
     expect(errorMessages).toEqual([
       "Expected identifier when parsing variable name, got 'if'",
       "Expected identifier when parsing expression, got '2'",
@@ -300,8 +285,6 @@ describe("Luau code: a comma with nothing after it", () => {
   });
 });
 
-// Its Luau meets its end of input at the end of its line (#1907), so the
-// value missing after the comma is `<eof>`, never the next line's word.
 const missingAtLineEnd = "Expected identifier when parsing expression, got <eof>";
 
 describe("narrative body: the declaration ends at its line", () => {
@@ -361,8 +344,6 @@ describe("narrative body: the declaration ends at its line", () => {
   });
 });
 
-// As for a reassignment (#1147): a value after the comma that starts with a
-// token no value can begin with is Luau's missing-value error at the comma.
 describe("Luau code: a declaration comma before a token that cannot begin a value", () => {
   test.each([
     ["an operator on the next line", "  local a, g = 1,\n    + 2", "+"],

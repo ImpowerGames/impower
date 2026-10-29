@@ -1,38 +1,3 @@
-// `FunctionCall.PrepareIntoContainer` must leave `this.content` holding
-// exactly what the rest of the compiler expects, on the first preparation pass
-// and on every subsequent one — the incremental pipeline carries parsed chunks
-// forward by identity, so a carried-forward `FunctionCall` is prepared more
-// than once (measured: deleting a divert target prepares its caller's node
-// again). The call's code generation (deleted in #705) had the same two
-// halves, which is where they were first found.
-//
-// Two halves of that method write to `content`, and they used to be coupled by
-// accident (issue #323):
-//
-//   - the TURNS_SINCE / READ_COUNT branch `AddContent`s the counted argument —
-//     the same parsed node every pass;
-//   - the tail `splice(this.content.indexOf(this._proxyDivert), 1)` deletes the
-//     TRAILING element once the proxy divert is already gone, because
-//     `indexOf` returns -1 and `splice(-1, 1)` splices from the end.
-//
-// On the counted-argument branch those two cancel exactly — the element the
-// stray splice reaches is the duplicate the stray add just pushed — so
-// `content` settled on the right single entry and nothing accumulated. That
-// cancellation is what makes the two halves impossible to change one at a
-// time: guarding only the splice grows `content` by one entry per pass, and
-// guarding only the `AddContent` empties it, which drops the counted argument
-// out of every content-based tree walk (`ParsedObject.ResolveReferences`'s own
-// recursion, `Find`/`FindAll`, `CollectByType`).
-//
-// The third test below is the one that goes red on the unguarded splice alone:
-// on a branch that adds nothing, there is no duplicate for `splice(-1, 1)` to
-// land on, so it deletes real content instead.
-//
-// A note on assertion style: parsed nodes are deeply cyclic, and a failing
-// `expect(node).toBe(other)` makes vitest build a diff of the whole graph,
-// which exhausts the worker heap and reports as "Worker exited unexpectedly"
-// instead of as the assertion that failed. Every node comparison here is
-// reduced to a boolean BEFORE it reaches `expect`.
 import { describe, expect, it } from "vitest";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -53,7 +18,6 @@ const quiet = <T,>(fn: () => T): T => {
   }
 };
 
-/** Every `FunctionCall` reachable from the compiler, in discovery order. */
 function reachableFunctionCalls(root: object): FunctionCall[] {
   const seen = new Set<unknown>([root]);
   const queue: any[] = [root];
@@ -73,7 +37,6 @@ function reachableFunctionCalls(root: object): FunctionCall[] {
     } else {
       children = [];
       for (const key of Object.getOwnPropertyNames(cur)) {
-        // Skip accessors — invoking a getter here could compute or throw.
         const d = Object.getOwnPropertyDescriptor(cur, key);
         if (d && !d.get) children.push(d.value);
       }
@@ -90,11 +53,8 @@ function reachableFunctionCalls(root: object): FunctionCall[] {
   return found;
 }
 
-/** The one reachable `FunctionCall` with this name. Fails if there isn't exactly one. */
 function soleCall(compiler: SparkdownCompiler, name: string): FunctionCall {
   const calls = reachableFunctionCalls(compiler).filter((f) => {
-    // `name` throws if a call has no parsed target path; treat that as "not
-    // the one we're looking for" rather than as an opaque TypeError.
     try {
       return f.name === name;
     } catch {
@@ -105,11 +65,6 @@ function soleCall(compiler: SparkdownCompiler, name: string): FunctionCall {
   return calls[0]!;
 }
 
-/**
- * `content` must be exactly the counted argument — the parsed node that is
- * also `args[0]` — and nothing else. Reported as plain numbers/booleans so a
- * failure prints a readable assertion instead of a graph diff.
- */
 function expectContentIsCountedArgOnly(call: FunctionCall, label: string) {
   const countedArg = call.args[0];
   expect({
@@ -123,9 +78,6 @@ function expectContentIsCountedArgOnly(call: FunctionCall, label: string) {
     length: 1,
     firstIsCountedArg: true,
     holdsProxyDivert: false,
-    // `AddContent`'s other effect. `DivertTarget.ResolveReferences` reads it
-    // to decide turn-counting vs. count-everything, so it has to survive the
-    // passes that no longer re-add.
     countedArgParentIsCall: true,
   });
 }
@@ -160,9 +112,6 @@ function configured(text: string): SparkdownCompiler {
   return c;
 }
 
-/** Compiles, and requires the compile to have finished building its chunks:
- *  a compile that threw answers with none, having prepared nothing past the
- *  throw. */
 function compileBuilt(compiler: SparkdownCompiler): void {
   const { program } = quiet(() =>
     compiler.compile({ textDocument: { uri: URI } } as never),
@@ -176,13 +125,6 @@ function compiledOnce(text: string): SparkdownCompiler {
   return compiler;
 }
 
-// Same document shape as `incrementalStaleTargetPaths.test.ts`: no front
-// matter, a `caller` scene holding the call under test, filler scenes to edit
-// in, and a `gamma` scene to delete. Measured, not assumed: this is the shape
-// that actually drives a SECOND generation pass over a carried-forward
-// `FunctionCall`. Deleting the divert target is what forces the regeneration —
-// warm edits alone leave the node at a single pass, and editing inside the
-// caller scene re-parses it into a fresh node each time.
 function doc(callerLine: string, preamble: string[] = []): string {
   const L: string[] = [...preamble];
   L.push("scene caller");
@@ -216,10 +158,6 @@ const WARM = (n: number) => ({
   replace: `Filler action 1.${"!".repeat(n + 1)}`,
 });
 
-// Both counted-argument shapes: a `-> knot` DivertTarget, and the no-arrow
-// VariableReference form (as in the runtime fixture
-// `builtins/read-count-variable-target.sd`), which takes the other arm of the
-// guarded `AddContentOnce` call.
 const COUNTED_FORMS = [
   { label: "TURNS_SINCE(-> gamma)", name: "TURNS_SINCE", preamble: [] as string[] },
   { label: "READ_COUNT(-> gamma)", name: "READ_COUNT", preamble: [] as string[] },
@@ -240,25 +178,16 @@ describe("FunctionCall preparation leaves `content` intact", () => {
       const call = soleCall(compiler, form.name);
       expect(call.args.length).toBe(1);
 
-      // After the first pass the proxy divert is gone (this is not a normal
-      // function call) and the counted argument has taken its place.
       expectContentIsCountedArgOnly(call, "after first compile");
 
       for (let i = 0; i < 5; i++) {
         quiet(() => call.PrepareIntoContainer());
-        // Guarding only the splice grows this by one entry per pass; guarding
-        // only the `AddContent` empties it.
         expectContentIsCountedArgOnly(call, `after extra preparation ${i + 1}`);
       }
     });
   }
 
   it("the proxy-divert splice removes only the proxy divert", () => {
-    // A builtin whose branch adds nothing to `content`: after pass 1 the proxy
-    // divert has been spliced out and `content` is empty, so a second pass
-    // reaches the splice with `indexOf(...) === -1` and NO duplicate sitting at
-    // the end to absorb it. Whatever `content` ends with is what an unguarded
-    // `splice(-1, 1)` deletes — which is the defect in the ticket title.
     const compiler = compiledOnce(doc("  Caller action {FLOOR(1.5)}."));
     const call = soleCall(compiler, "FLOOR");
 
@@ -270,7 +199,6 @@ describe("FunctionCall preparation leaves `content` intact", () => {
     const sentinel = new Text("sentinel");
     call.content.push(sentinel);
 
-    // The sentinel is not the proxy divert, so the splice must not touch it.
     quiet(() => call.PrepareIntoContainer());
     expect({
       prepared: true,
@@ -283,12 +211,6 @@ describe("FunctionCall preparation leaves `content` intact", () => {
     const base = doc(CALLER_LINE);
     const compiler = compiledOnce(base);
 
-    // Pass 1 has happened. Instrument the carried-forward node so the
-    // assertions below cannot pass vacuously by never preparing it again.
-    // The compiles build statement chunks, whose resolver prepares the call
-    // rather than generating it (`PrepareIntoContainer`, #705); every caller
-    // reaches the method by property access on the instance, so this wrapper
-    // on the instance sees every pass.
     const call = soleCall(compiler, "TURNS_SINCE");
     let passes = 0;
     const prepare = call.PrepareIntoContainer.bind(call);
@@ -336,15 +258,10 @@ describe("FunctionCall preparation leaves `content` intact", () => {
         step.replace +
         text.slice(offset + step.find.length);
 
-      // The node is carried forward by identity for this whole sequence, so
-      // its `content` must survive every one of those compiles.
       expect(soleCall(compiler, "TURNS_SINCE") === call).toBe(true);
       expectContentIsCountedArgOnly(call, `after step ${i + 1}`);
 
       if (i === deletionStep) {
-        // Pin WHICH edit drives the regeneration. If invalidation changes so
-        // that deleting the target no longer regenerates the caller, this
-        // fails rather than quietly covering something else.
         expect({
           step: "delete divert target",
           regenerated: passes > passesBeforeDeletion,

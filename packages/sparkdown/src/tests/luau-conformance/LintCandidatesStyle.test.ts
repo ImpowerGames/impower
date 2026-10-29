@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// statement layout, control flow and expressions. Snippets and expected
-// messages are quoted verbatim inside a function body; the upstream test-case
-// name is in the comment above each group, marked adapted where sparkdown's
-// result differs. Upstream cases whose expected result is silence run too.
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import {
@@ -16,7 +10,6 @@ import {
 const SAME_LINE =
   "A new statement is on the same line; add semi-colon on previous statement to silence";
 
-// Luau: MultilineBlock
 describe("several statements on one line of a block", () => {
   test("if true then print(1) print(2) print(3) end", () => {
     expect(
@@ -27,7 +20,6 @@ if true then print(1) print(2) print(3) end
   });
 });
 
-// Luau: MultilineBlockSemicolonsWhitelisted
 describe("statements separated by semicolons are not reported", () => {
   test("print(1); print(2); print(3)", () => {
     expect(
@@ -38,7 +30,6 @@ print(1); print(2); print(3)
   });
 });
 
-// Luau: MultilineBlockMissedSemicolon
 describe("one missing semicolon among several", () => {
   test("print(1); print(2) print(3)", () => {
     expect(
@@ -49,7 +40,6 @@ print(1); print(2) print(3)
   });
 });
 
-// Luau: MultilineBlockLocalDo
 describe("a declaration followed by do on its line is not reported", () => {
   test("local _x do ... end", () => {
     expect(
@@ -62,7 +52,6 @@ end
   });
 });
 
-// Luau: ConfusingIndentation
 describe("a continuation line that is not indented", () => {
   test("print(math.max(1,\\n2))", () => {
     expect(
@@ -74,7 +63,6 @@ print(math.max(1,
   });
 });
 
-// Luau: UnbalancedAssignment
 describe("value lists shorter or longer than the names", () => {
   test("pcall() with 1 to 4 values for 3 names", () => {
     expect(
@@ -109,7 +97,6 @@ end
   });
 });
 
-// Luau: ImplicitReturn
 describe("functions that can fall off the end after returning a value", () => {
   test("f1, f4 and the anonymous f6", () => {
     expect(
@@ -189,7 +176,6 @@ return f1,f2,f3,f4,f5,f6,f7
   });
 });
 
-// Luau: ImplicitReturnInfiniteLoop
 describe("infinite loops with and without a break", () => {
   test("f3 and f4 can leave their loops", () => {
     expect(
@@ -250,7 +236,6 @@ return f1,f2,f3,f4
   });
 });
 
-// Luau: MisleadingAndOr
 describe("a and b or c where b is falsy", () => {
   test("false and nil as the middle operand", () => {
     expect(
@@ -268,7 +253,6 @@ _ = (math.random() < 0.5 and false) or 42 -- currently ignored
   });
 });
 
-// Luau: ComparisonPrecedence
 describe("not and chained comparisons without parentheses", () => {
   test("five misleading forms, each silenced by parentheses", () => {
     expect(
@@ -306,9 +290,6 @@ local _ = a <= (b == 0)
 const IMPRECISE =
   "Number literal exceeded available precision and was truncated to closest representable number";
 
-// Luau: IntegerParsing
-// Adapted: Sparkdown's runtime preserves exact powers beyond uint64, so the
-// original overflow inputs are silent controls; their inexact neighbors warn.
 describe("binary and hex literals past 2^64", () => {
   test("original powers stay exact, while their neighbors lose precision", () => {
     expect(
@@ -325,9 +306,6 @@ local _ = 0x10000000000000001
   });
 });
 
-// Sparkdown-specific: IntegerParsing against the runtime's own conversion,
-// its spelling boundary, and literals in Sparkdown's text, which upstream has
-// no counterpart for.
 describe("IntegerParsing boundaries and spellings", () => {
   test("the largest uint64 rounds, while the next integer stays exact", () => {
     expect(lintMessagesInFunction(`
@@ -403,7 +381,6 @@ end
   });
 });
 
-// Luau: IntegerParsingDecimalImprecise
 describe("decimal literals a double cannot hold exactly", () => {
   test("five imprecise literals", () => {
     expect(
@@ -437,7 +414,6 @@ local _ = -9223372036854775808
   });
 });
 
-// Luau: IntegerParsingHexImprecise
 describe("hex literals a double cannot hold exactly", () => {
   test("two imprecise literals", () => {
     expect(

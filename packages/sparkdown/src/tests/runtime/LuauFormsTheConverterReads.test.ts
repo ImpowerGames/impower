@@ -1,11 +1,3 @@
-// Luau forms inside a function body whose syntax tree is shaped wrongly, or
-// left unfinished, run as Luau runs them. Since #1283 the converter reads the
-// body's tokens in document order and decides precedence, chains, call sugar
-// and statement boundaries itself, so a wrong tree shape inside a body that
-// still ends at its own `end` no longer changes what the code does. Each test
-// is its ticket's reproduction; the tree shapes themselves stay with the
-// grammar slices of #1904.
-
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
@@ -18,7 +10,6 @@ const run = (source: string) => {
   };
 };
 
-// Luau's parser's error for an `=` where an expression must start.
 const GOT_EQUALS = "Expected identifier when parsing expression, got '='";
 
 describe("a keyword right after an operand (#922)", () => {
@@ -68,8 +59,6 @@ describe("an if expression before the `end` of its block on the same line (#924)
 });
 
 describe("an assignment after an if expression's else value (#1205)", () => {
-  // The ranges are checked against Luau's parser in
-  // `compiler/luauErrorsAfterUnreadText.test.ts`.
   test("on the next line, it is Luau's error and nothing is assigned", () => {
     const r = run(
       "Value {f()}.\nfunction f()\n  local x = 0\n  x = if false then 1 else\n  x = 6\n  return x\nend\n",
@@ -84,8 +73,6 @@ describe("an assignment after an if expression's else value (#1205)", () => {
     expect(r.errors).toEqual([GOT_EQUALS]);
   });
 
-  // A story declaration ends at its line (#1907): the else value is missing
-  // at the line's end, and the indented line is a reassignment of its own.
   test("after a `local` declaration's if expression in a scene, the else value is missing at its line's end", () => {
     const r = run(
       "-> start\nscene start\n  local a = false\n  local y = 0\n  local x = if a then 1 else\n    y = 6\n  Value {x} {y}.\nend\n",
@@ -95,8 +82,6 @@ describe("an assignment after an if expression's else value (#1205)", () => {
 });
 
 describe("an indented else value that begins with `end` (#1206)", () => {
-  // In Luau code; a story declaration ends at its line, so there both
-  // layouts leave the else value missing (`storyBodyLineRule.test.ts`).
   let logged: string[];
   beforeEach(() => {
     logged = [];

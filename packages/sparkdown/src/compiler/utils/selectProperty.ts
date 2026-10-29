@@ -42,7 +42,6 @@ export const selectProperty = <T>(
       return [undefined, found.join(".")];
     }
     if (part) {
-      // Continue to next part of path
       const next = Object.hasOwn(cur, part) ? cur[part] : undefined;
       if (next === undefined) {
         return [undefined, found.join(".")];
@@ -50,7 +49,6 @@ export const selectProperty = <T>(
       cur = next;
       found.push(part);
     } else {
-      // Empty part is treated as a recursive wildcard
       let target = "";
       while (!target && i < parts.length - 1) {
         i += 1;

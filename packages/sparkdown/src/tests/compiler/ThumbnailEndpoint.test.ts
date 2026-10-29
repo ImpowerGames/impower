@@ -1,12 +1,3 @@
-// Coverage for the thumbnail endpoint the editor's service worker serves
-// (`?thumb=<width>`) and the base64 encoding both hosts rely on.
-//
-// This logic used to live inside sw.ts, where nothing could reach it — a
-// service worker module can't be imported under vitest without executing its
-// event registrations. Cache Storage is a parameter here precisely so the
-// decisions around it are testable; the SW is now a thin adapter that supplies
-// the real cache.
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bytesToBase64,
@@ -16,7 +7,6 @@ import {
   type ThumbnailFile,
 } from "../../thumbnails/composeThumbnail";
 
-/** Minimal in-memory stand-in for Cache Storage, with call counts. */
 const makeCache = () => {
   const entries = new Map<string, Response>();
   const calls = { match: 0, put: 0 };
@@ -80,10 +70,6 @@ describe("bytesToBase64", () => {
   });
 
   it("handles buffers far past the argument limit", () => {
-    // Deliberately past where an unchunked `String.fromCharCode(...bytes)`
-    // starts throwing RangeError — measured at somewhere between 100k and 130k
-    // elements on this runtime, so a chunk-sized buffer would NOT catch a
-    // regression here. Real assets are this big, which is the whole point.
     const bytes = new Uint8Array(400_000);
     for (let i = 0; i < bytes.length; i++) {
       bytes[i] = i % 256;
@@ -125,10 +111,8 @@ describe("thumbnail endpoint", () => {
     const { cache } = makeCache();
     await getOrCreateThumbnail(cache, "/a/x.png", makeFile(64, 1000), "144");
     const afterFirst = rasterizeCalls;
-    // Same signature — a re-stamped `?v=` must NOT cause a regeneration.
     await getOrCreateThumbnail(cache, "/a/x.png", makeFile(64, 1000), "144");
     expect(rasterizeCalls).toBe(afterFirst);
-    // Edited file — different mtime, so it must regenerate.
     await getOrCreateThumbnail(cache, "/a/x.png", makeFile(64, 2000), "144");
     expect(rasterizeCalls).toBe(afterFirst + 1);
   });
@@ -157,7 +141,6 @@ describe("thumbnail endpoint", () => {
   });
 
   it("returns undefined so the caller can serve the original when generation fails", async () => {
-    // No rasterizer in this host.
     vi.stubGlobal("OffscreenCanvas", undefined);
     vi.stubGlobal("createImageBitmap", undefined);
     const { cache, calls } = makeCache();
@@ -168,7 +151,6 @@ describe("thumbnail endpoint", () => {
       "144",
     );
     expect(res).toBeUndefined();
-    // Nothing cached, so a later request in a capable host still works.
     expect(calls.put).toBe(0);
   });
 
@@ -180,17 +162,12 @@ describe("thumbnail endpoint", () => {
       },
       async put() {},
     };
-    // A broken cache must degrade to "serve the original", not reject.
     await expect(
       getOrCreateThumbnail(cache, "/a/x.png", makeFile(), "144"),
     ).resolves.toBeUndefined();
   });
 
   it("serves the generated thumbnail when the cache refuses to store it (#477)", async () => {
-    // Same shape as the filtered-SVG generator (#477): the thumbnail is
-    // already composed when the memoising write throws, and discarding it
-    // sends the caller back to the full-resolution original — the decode this
-    // endpoint exists to keep off the virtualized scroll.
     stubRasterizer();
     const cache: ThumbnailCache = {
       async match() {

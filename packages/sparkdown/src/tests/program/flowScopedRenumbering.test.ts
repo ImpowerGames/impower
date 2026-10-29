@@ -1,9 +1,3 @@
-// The compiler numbers the names a lowering makes from its place, and the
-// groups of continuations, by document order within the top-level flow each
-// first stands in (#851). A continuation or a function typed into one scene
-// renames names in that scene only, so the scenes after it keep their
-// statements' chunks and resolutions, and an incremental compile still
-// matches a cold one.
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -34,8 +28,6 @@ const quietly = <T>(run: () => T): T => {
 const cold = (texts: Record<string, string>): SparkProgram =>
   quietly(() => programCompiler(texts, { seedBuiltinsIntoStory: true }).compile().program);
 
-/** A compiler over `texts`, and an editor of its main script that compiles
- *  after each edit. */
 function session(texts: Record<string, string>) {
   const c = programCompiler(texts, { seedBuiltinsIntoStory: true });
   const compiler = c.compiler as SparkdownCompiler;
@@ -49,7 +41,6 @@ function session(texts: Record<string, string>) {
     get root(): ProgramRoot {
       return program.chunks!;
     },
-    /** Replaces the first `find` with `replace` as one edit. */
     edit(find: string, replace: string) {
       const offset = text.indexOf(find);
       expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
@@ -69,7 +60,6 @@ function session(texts: Record<string, string>) {
         describeRoot(cold({ ...texts, [MAIN_URI]: text }).chunks!),
       );
     },
-    /** The top-level flows holding an object the last compile renamed. */
     renamedFlows(): string[] {
       const names = new Set<string>();
       for (const obj of (compiler as any)._renamedNames as ParsedObject[]) {
@@ -81,26 +71,20 @@ function session(texts: Record<string, string>) {
       }
       return [...names].sort();
     },
-    /** How many statements the last compile resolved again because a pass
-     *  renamed a name they hold. */
     resolvedForRenames(): number {
       return (compiler as any)._programResolver
         .freshLastResolve()
         .filter((unit: { reason: string }) => unit.reason === "renamed").length;
     },
-    /** The chunks the last build emitted. */
     emitted(): number {
       return compiler.chunkStore!.emittedLastBuild;
     },
-    /** Every name the last compile numbered. */
     numbered(): string[] {
       return [...((compiler as any)._syntheticNamesLastRun as Map<string, string>).values()];
     },
   };
 }
 
-/** The group each display call of the program names, in the order of its
- *  instructions: the string pushed after the table key `group`. */
 function groups(root: ProgramRoot): string[] {
   const listing = programListing(root);
   return listing.flatMap((line, i) => {
@@ -111,7 +95,6 @@ function groups(root: ProgramRoot): string[] {
 
 const SCENES = Array.from({ length: 12 }, (_, i) => `s${i + 1}`);
 
-/** Twelve scenes, each holding `body(name)` above four plain lines. */
 const scenes = (body: (name: string) => string[]) =>
   SCENES.flatMap((name) => [
     `scene ${name}`,
@@ -129,14 +112,11 @@ describe("names numbered within their flow (#851)", () => {
     });
     const before = new Set(groups(s.root));
     s.edit("  Line 0 of s3.\n", "  Line 0 of s3.\nHERO: New glue ..\n.. new tail.\n");
-    // The new continuation's statement and the scene's flow; before #851
-    // every continuation of the nine scenes after it was emitted again.
     expect(s.emitted()).toBeLessThanOrEqual(2);
     const after = groups(s.root);
     const added = after.filter((group) => !before.has(group));
     expect(added.length).toBeGreaterThan(0);
     expect(added.every((group) => group.startsWith("__group$s3$"))).toBe(true);
-    // A word edit costs the same.
     s.edit("  Line 1 of s3.", "  Line 1 of s3, edited.");
     expect(s.emitted()).toBeLessThanOrEqual(2);
   });
@@ -149,16 +129,12 @@ describe("names numbered within their flow (#851)", () => {
       ]),
     });
     s.edit("  The room s3 is quiet.\n", "  The room s3 is quiet.\n  local extra = function() return 2 end\n");
-    // Scene `s3` and the functions written in it; before #851 every scene
-    // after it, and every function written in those, held renamed names.
     expect(s.renamedFlows().filter((name) => !name.startsWith("__synth$s3$"))).toEqual(["s3"]);
     expect(s.resolvedForRenames()).toBe(0);
     expect(s.emitted()).toBeLessThanOrEqual(2);
   });
 
   it("keeps names unique across scenes, the top-level content and another script of the project", () => {
-    // The other script's store stands at its top level and its continuation
-    // in a scene of its own, beside main's top-level store and scenes.
     const shared = [
       "store shared_fn = function() return 3 end",
       "",
@@ -206,8 +182,6 @@ describe("names numbered within their flow (#851)", () => {
       expect(names.some((name) => name.startsWith("__group$shared$"))).toBe(true);
     };
     unique();
-    // A function and a continuation added above the others of a scene
-    // renumber that scene's names, and the top-level content's after them.
     s.edit("scene first\n", "scene first\n  local g = function() return 0 end\nHERO: Early ..\n.. early.\n");
     unique();
     s.edit("store top = function() return 1 end\n", "store before = function() return 0 end\nstore top = function() return 1 end\n");

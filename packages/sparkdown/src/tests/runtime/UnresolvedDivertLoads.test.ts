@@ -1,7 +1,3 @@
-// A divert whose target does not resolve reports `target not found` at compile
-// time, and that diagnostic is its only symptom: the compiled program still
-// loads, so one bad target never stops the rest of the story from running.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

@@ -1,14 +1,3 @@
-// A builtin TYPE (a root define, `define image with …`) and a same-named
-// INSTANCE of a DIFFERENT type (`define image as style …`, i.e. style.image)
-// must coexist — the type keeps the flat global `image`, the instance registers
-// as a type-namespaced singleton (context.style.image). This is the same
-// coexistence as two same-named typed instances (character.raffles +
-// synth.raffles), extended to the type-vs-instance case (a root define has no
-// structDefinition, so its type identity is its own name).
-//
-// Motivating case: the builtins prelude has both the `image`/`screen` TYPES and
-// `style.image`/`style.screen` (styles for image/screen elements).
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

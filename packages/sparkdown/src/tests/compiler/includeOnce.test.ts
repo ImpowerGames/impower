@@ -1,6 +1,3 @@
-// Every script of the project folder is read once per compile, so the flows
-// it declares are declared once, whatever other scripts the project holds. An
-// `include` line includes nothing: it is an error at its line.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -63,8 +60,6 @@ function errors(program: any): string[] {
   );
 }
 
-// Every line the story shows from its start, or from the scene `scene`,
-// choosing the first choice whenever it offers any.
 function play(program: any, scene?: string): string {
   const story = testStory(program.chunks);
   if (scene) {
@@ -85,7 +80,6 @@ function play(program: any, scene?: string): string {
 
 const count = (text: string, part: string) => text.split(part).length - 1;
 
-// `shared.sd` beside `main.sd` and `chapter.sd` in the project folder.
 const threeScripts = (shared: string, mainBody: string[] = ["  Main."]): Project => ({
   main: ["scene main_one", ...mainBody, "end", ""].join("\n"),
   chapter: ["scene chapter_one", "  Chapter.", "end", ""].join("\n"),
@@ -127,9 +121,6 @@ describe("a script of a project of three scripts", () => {
   });
 
 
-  // An edit to the entry script keeps the flows of every other script for
-  // reuse, the shared script's among them; an edit to another script
-  // rebuilds them all.
   it.each([
     ["the entry script", "main", "  Value {shared_helper()}.", "  Value {shared_helper()}, again."],
     ["another script", "chapter", "  Chapter.", "  Chapter, now a good deal longer."],
@@ -168,9 +159,6 @@ describe("a script of a project of three scripts", () => {
   });
 });
 
-// A `run` statement's Luau file is the body of a function the compile
-// declares once, however many `run` lines name the file, and each line calls
-// it where it stands. A function declared twice would be an error.
 describe("a Luau file that main runs twice", () => {
   const luau = (name: string, text: string): File => ({
     uri: `file://proj/${name}.luau`,
@@ -222,8 +210,6 @@ describe("a Luau file that main runs twice", () => {
     expect(play(program)).toBe("Scene 2.\n");
   });
 
-  // I-1439: a run runs where its line stands, so the text between two runs
-  // sees the first alone.
   it("runs where each of its lines stands", () => {
     const program = compileWithLuau(
       {
@@ -235,8 +221,6 @@ describe("a Luau file that main runs twice", () => {
     expect(play(program)).toBe("After one 1.\nAfter two 2.\n");
   });
 
-  // I-1439: a run inside a scene runs when the scene does, after main's top
-  // level has shown what stands before the divert.
   it("runs where its line stands in main's top level and where it stands in a scene of main", () => {
     const program = compileWithLuau(
       {
@@ -262,7 +246,6 @@ describe("a Luau file that main runs twice", () => {
 
 const INCLUDE_LINE = "Scripts in the project folder are part of the story. Delete this line.";
 
-// Every error of a program, with the script and line it is reported at.
 const errorLines = (program: any): [string, number, string][] =>
   Object.entries(program.diagnostics ?? {}).flatMap(([uri, list]: [string, any]) =>
     list
@@ -285,9 +268,6 @@ describe("a script with an include line of the script that would include it", ()
   });
 });
 
-// #316: an include line was an error when the project had no such script. An
-// include line is now an error whatever it names, in a cold compile and in one
-// after an edit elsewhere.
 describe("an include line", () => {
   const main = ["Opening.", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join("\n");
   const atInclude: [string, number, string] = [MAIN_URI, 1, INCLUDE_LINE];
@@ -311,7 +291,6 @@ describe("an include line", () => {
     expect(errorLines(program)).toEqual([atInclude]);
   });
 
-  // An `include` with no path is the neighbouring mistake (#1956 review).
   it.each(["include", "include  # tag"])("is an error at `%s`, which names no script", (line) => {
     const text = main.replace("include nope.sd", line);
     expect(errorLines(compileOnce({ main: text }))).toEqual([atInclude]);

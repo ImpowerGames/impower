@@ -1,12 +1,3 @@
-// The slim `compiler/didCompile` relay (#1815). The web editor initializes the
-// language server with `slimProgramNotifications`, and its main thread clones
-// every compile result the server relays. The relay carries only what the page
-// reads: the compile's identity (uri, scripts, version) and the per-file
-// diagnostic counts. A program's `files` table describes every asset of the
-// project and measured 5.8 MB of JSON on a real one, so it stays behind.
-//
-// The workspace is driven with a stand-in compiler connection that answers a
-// compile at once with a program carrying a large `files` table.
 import { describe, expect, it } from "vitest";
 import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
@@ -117,7 +108,6 @@ describe("the compiler/didCompile relay", () => {
   it("leaves the program's files table out of a slim relay", async () => {
     const { program, params } = await compiled(true);
     expect(params.program.files).toEqual({});
-    // The workspace keeps the full program for its own requests.
     expect(Object.keys(program!.files)).toHaveLength(200);
   });
 

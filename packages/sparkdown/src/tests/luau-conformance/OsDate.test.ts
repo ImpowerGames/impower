@@ -1,15 +1,7 @@
-// `os.date` — strftime-style date formatting. Tests use a fixed
-// epoch second so they're stable across timezones / runs:
-//
-//   2026-05-20 14:30:45 UTC  =  Unix timestamp 1779287445
-//
-// Local-time tests assert via `!` prefix (UTC) so the harness
-// produces deterministic output regardless of host timezone.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-const FIXED_EPOCH = 1779287445; // 2026-05-20 14:30:45 UTC (Wednesday)
+const FIXED_EPOCH = 1779287445;
 
 function compileAndCapture(source: string): {
   errors: string[];
@@ -136,7 +128,6 @@ host_record(os.date("!%j", ${FIXED_EPOCH}))
 end
 `);
     expect(errors).toEqual([]);
-    // 2026-05-20 — May is month 5. 31+28+31+30+20 = 140.
     expect(recorded).toEqual(["140"]);
   });
 });

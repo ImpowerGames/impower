@@ -3,21 +3,11 @@ import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
-// As in Luau, a type union may go on to the next line: a line that starts
-// with `|` continues the type that ended the line before it, whether or not
-// that type ends in `?`. Any other line ends the type. A story declaration
-// ends at its line (#1907), so the locals here are in a function body;
-// storyBodyLineRule pins the story reading.
-
 const TYPES = [
   ["an optional type", "number?"],
   ["a plain type", "number"],
 ] as const;
 
-/**
- * Whether the type that starts at the first `type` in `source` is one type
- * node that takes in the next line's `| string` member.
- */
 function isOneType(source: string, type: string): boolean {
   const from = source.indexOf(type);
   const member = source.indexOf("| string");
@@ -62,9 +52,6 @@ describe("the code after a union that goes on to the next line still runs", () =
   });
 });
 
-// A type that ends its line takes the line break in, so each rule around it
-// has to end at the start of the next line, indented or not. A local belongs
-// in a scene, so the story's locals are written in one.
 describe("a type at the end of a line still ends at the next line's code", () => {
   test.each([
     ["a local and prose", `-> start\nscene start\n  local x: number\n  Hello {f()}.\nend\nfunction f()\n  return 5\nend\n`, "Hello 5.\n"],
@@ -82,9 +69,6 @@ describe("a type at the end of a line still ends at the next line's code", () =>
   });
 });
 
-// The function body opens on the header's line when a statement follows it
-// there, so the statements on that line run with the ones after it; a
-// declaration's values keep their call arguments.
 describe("every statement of a function runs", () => {
   test.each([
     ["a typed local on the header's line", `Value {f()}.\nfunction f() local x: number = 5\n  return x\nend\n`, "Value 5.\n"],
@@ -109,8 +93,6 @@ describe("every statement of a function runs", () => {
     expect(ctx.story.ContinueMaximally()).toBe(output);
   });
 
-  // A `;` ends a statement, so Luau rejects one with no statement before it
-  // (#1175); the statements after it still run.
   test.each([
     ["a `;` right after a return type", `Value {f()}.\nfunction f(): number; print(1) return 5 end\n`],
     ["a `;` right after the parameters", `Value {f()}.\nfunction f(); print(1) return 5 end\n`],
@@ -120,8 +102,6 @@ describe("every statement of a function runs", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 15.\n");
   });
 
-  // A header ending in a colon has an empty return type, which Luau rejects
-  // (#1152); the body still opens at the next line, so its statements run.
   test("with a header ending in a colon, which is reported", () => {
     const ctx = makeRuntimeStoryFromSource(
       `Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`,
@@ -131,16 +111,12 @@ describe("every statement of a function runs", () => {
   });
 });
 
-// In Luau code, a type goes on past comments as Luau reads it: a union
-// member line after a comment-only line, and code after a block comment
-// that ends the type on its line.
 describe("a type in Luau code goes on past comments", () => {
   test.each([
     ["a line comment between union members", `Value {f()}.\nfunction f()\n  local _v: number\n  -- note\n  | string\n  return 5\nend\n`],
     ["a block comment line between union members", `Value {f()}.\nfunction f()\n  local _v: number?\n  --[[note]]\n  | string\n  return 5\nend\n`],
     ["a comment line and a blank line between union members", `Value {f()}.\nfunction f()\n  local _v: number\n\n  -- note\n    | string\n    | boolean\n  return 5\nend\n`],
     ["a comment line before a union member with a value", `Value {f()}.\nfunction f()\n  local v: number\n  -- note\n  | string = 5\n  return v\nend\n`],
-    // The `=` inside the table type is the type's, not the declaration's.
     ["a comment line before a union member with a value, after a table type", `Value {f()}.\nfunction f()\n  local v: typeof({ k = 1 })\n  -- note\n  | string = { k = 5 }\n  return v.k\nend\n`],
     ["a comment line in a type alias", `Value {f()}.\nfunction f()\n  type T = number\n  -- note\n  | string\n  return 5\nend\n`],
     ["a comment line in a return type", `Value {f()}.\nfunction f(): number\n  -- note\n  | string\n  return 5\nend\n`],
@@ -175,8 +151,6 @@ describe("a type in Luau code goes on past comments", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });});
 
-// A `|` line after a comment line that continues no type is Luau's error, and
-// its value goes to no declaration.
 describe("a union member line that continues no type", () => {
   test.each([
     ["after a call", `Value {f()}.\nfunction f()\n  print(1)\n  -- note\n  | string\n  return 5\nend\n`],
@@ -188,8 +162,6 @@ describe("a union member line that continues no type", () => {
   });
 });
 
-// In Luau code a comma that ends its line continues the list on the next
-// line, indented or not, unless that line starts a statement.
 describe("a value on an unindented line after a trailing comma", () => {
   test.each([
     ["a number", `Value {f()}.\nfunction f()\n  local a, g = 1,\n2\n  return g\nend\n`, "Value 2.\n"],
@@ -208,7 +180,6 @@ describe("a value on an unindented line after a trailing comma", () => {
   });
 });
 
-// A declaration goes on across any run of whitespace before a comma or `=`.
 describe("a declaration with extra whitespace before a comma or `=`", () => {
   test.each([
     ["two spaces before a comma", `Value {f()}.\nfunction f()\n  local a, b = 2  , 3\n  return a + b\nend\n`],
@@ -221,8 +192,6 @@ describe("a declaration with extra whitespace before a comma or `=`", () => {
   });
 });
 
-// A return type takes in its line break, so a `.Name` line after it that
-// qualifies the type is the body's first line; it is still part of the type.
 describe("a return type qualified on the next line", () => {
   test.each([
     ["a function", `Value {f()}.\nfunction f(): types\n  .Button\n  return 5\nend\n`],
@@ -239,10 +208,6 @@ describe("a return type qualified on the next line", () => {
   });
 });
 
-// The body opens only where a statement can begin: never at a line no
-// statement begins with, and with no whitespace only right after the
-// parameter list. Anywhere else the parser would open and close empty bodies
-// at one position until its empty-match limit.
 describe("a function body opens only where a statement can begin", () => {
   test.each([
     ["a stray `|`", "function f()\n| x\nend\n"],

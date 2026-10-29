@@ -1,8 +1,3 @@
-// A `store` or `const` named after a define type raises a shadow warning, and
-// whether it does depends on the define types anywhere in the document. An edit
-// elsewhere that adds or removes such a define changes the answer, so the
-// incremental compile has to lower the store's chunk again even when the
-// edit's reparse window does not reach it.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -45,8 +40,6 @@ function coldCompile(text: string) {
   });
 }
 
-// Compiles `base`, replaces `[from, to)` with `insert` through
-// `updateDocument`, and compiles again.
 function incrementalAfterEdit(base: string, from: number, to: number, insert: string) {
   return quiet(() => {
     const compiler = new SparkdownCompiler();
@@ -62,7 +55,6 @@ function incrementalAfterEdit(base: string, from: number, to: number, insert: st
   });
 }
 
-// Every diagnostic as `sev<severity> L<line>: <message>`.
 function diagList(program: any): string[] {
   return Object.values(program.diagnostics ?? {})
     .flatMap((list: any) =>
@@ -76,8 +68,6 @@ function diagList(program: any): string[] {
 
 const shadowWarnings = (list: string[]) => list.filter((d) => d.includes("shadows the define type"));
 
-// Six scenes keep the store's chunk outside the region an edit at the top of
-// the document reparses, so the incremental compile carries it.
 const BASE = [
   "-> s0",
   "",

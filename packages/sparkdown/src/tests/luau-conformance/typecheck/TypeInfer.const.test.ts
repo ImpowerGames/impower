@@ -1,12 +1,7 @@
-// Luau's type-checker tests from `tests/TypeInfer.const.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.const.test.cpp", [
   {
-    // TypeInfer.const.test.cpp:14 TEST_CASE_FIXTURE(Fixture, "basic_declarations_work")
     name: "basic_declarations_work",
     fixture: "Fixture",
     source: `
@@ -15,7 +10,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     expect: [{ errors: 0 }, { type: "PI", equals: "number" }],
   },
   {
-    // TypeInfer.const.test.cpp:23 TEST_CASE_FIXTURE(Fixture, "reassignments_dont_affect_type_state")
     name: "reassignments_dont_affect_type_state",
     malformed: "`PI` is a const and is reassigned",
     fixture: "Fixture",
@@ -31,7 +25,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:40 TEST_CASE_FIXTURE(Fixture, "empty_domain_is_ok")
     name: "empty_domain_is_ok",
     malformed: "the const `PI` has no value",
     fixture: "Fixture",
@@ -47,7 +40,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:59 TEST_CASE_FIXTURE(Fixture, "const_extra_lvalues_are_nil_and_syntax_error_from_call")
     name: "const_extra_lvalues_are_nil_and_syntax_error_from_call",
     fixture: "Fixture",
     source: `
@@ -66,7 +58,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:83 TEST_CASE_FIXTURE(Fixture, "const_extra_lvalues_are_nil_and_syntax_error_from_underfill")
     name: "const_extra_lvalues_are_nil_and_syntax_error_from_underfill",
     malformed: "the const has more names than values",
     fixture: "Fixture",
@@ -81,9 +72,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:102 TEST_CASE_FIXTURE(Fixture, "const_syntax_error_in_annotation")
-    // Upstream asserts nothing: checking a snippet with a broken annotation
-    // must finish.
     name: "const_syntax_error_in_annotation",
     malformed: "a table type must close before the second unseparated field name",
     fixture: "Fixture",
@@ -98,7 +86,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.const.test.cpp:118 TEST_CASE_FIXTURE(Fixture, "assign_different_values_to_const_x")
     name: "assign_different_values_to_const_x",
     malformed: "`x` is a const and is reassigned",
     fixture: "Fixture",
@@ -117,7 +104,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:137 TEST_CASE_FIXTURE(Fixture, "const_recursive_function_works")
     name: "const_recursive_function_works",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -129,7 +115,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     expect: [{ errors: 0 }, { type: "f", equals: "(unknown) -> ()" }],
   },
   {
-    // TypeInfer.const.test.cpp:154 TEST_CASE_FIXTURE(BuiltinsFixture, "const_tables_are_still_mutable")
     name: "const_tables_are_still_mutable",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -150,9 +135,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     ],
   },
   {
-    // TypeInfer.const.test.cpp:177 TEST_CASE_FIXTURE(Fixture, "const_shadowing")
-    // Upstream leaves the types of `y` and `X` unchecked, because they differ
-    // between platforms (CLI-197269).
     name: "const_shadowing",
     fixture: "Fixture",
     source: `

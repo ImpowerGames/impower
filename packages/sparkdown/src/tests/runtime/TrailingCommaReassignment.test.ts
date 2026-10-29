@@ -1,12 +1,3 @@
-// A reassignment whose value list ends its line with a comma. In Luau code (a
-// function body or a Luau block) the list continues on the next line, as in
-// Luau and as a declaration's does (`TrailingCommaValueList.test.ts`): a
-// comment after the comma, or blank and comment-only lines before the next
-// value, leave the list open. A line that starts with a statement belongs to
-// the enclosing block, and the comma before it is Luau's parse error. In a
-// narrative body the reassignment ends at its line: the next line is story,
-// and a comma that ends the line is the same error.
-
 import { describe, expect, test } from "vitest";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -99,7 +90,6 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     expect(text).toBe(expected);
   });
 
-  // Luau evaluates every value, then assigns as many as there are targets.
   const bump = "  local calls = 0\n  local function bump() calls = calls + 1 return 9 end\n";
   test.each([
     ["on the next line", `${bump}  g = 1,\n    bump()`, "return g * 10 + calls"],
@@ -127,7 +117,6 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
   });
 });
 
-// Luau's parse error for the missing value, reported on the comma's line.
 const missingValue = (got: string) =>
   `Expected identifier when parsing expression, got '${got}'`;
 
@@ -165,8 +154,6 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue("=")]);
   });
 
-  // Every other statement that can start the line after the comma, each in a
-  // place it can stand, and the statement stays with its block.
   const inLoop = (line: string) =>
     `function f()\n  local a, g = 0, 0\n  for i = 1, 2 do\n    a, g = 1,\n    ${line}\n  end\n  return a\nend\nValue {f()}.\n`;
   const inBody = (lines: string) =>
@@ -193,8 +180,6 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
-  // `continue` is a name where a value can stand, as Luau reads it (#1906),
-  // so it is the list's second value.
   test("before `continue`: `continue` is the second value", () => {
     const { errorMessages } = collectDiagnostics(inLoop("continue"));
     expect(errorMessages).toEqual([]);
@@ -219,8 +204,6 @@ describe("Luau code: an operator that cannot begin a value after a comma", () =>
   });
 });
 
-// Its Luau meets its end of input at the line's end, as an `&` line's does,
-// so the comma's value is missing at `<eof>` (#1907).
 describe("narrative body: the reassignment ends at its line", () => {
   test.each([
     ["next line", "  a, b = 1,\n  2\n"],
@@ -245,7 +228,6 @@ describe("narrative body: the reassignment ends at its line", () => {
     ["one target", "store a = 0\n& a = 1,\nThe hero has {a} health.\n"],
   ])("a reassignment in an `&` statement ends at its line too (%s)", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
-    // The authored island ends before prose: its native EOF owns this error.
     expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
@@ -265,10 +247,6 @@ describe("narrative body: the reassignment ends at its line", () => {
   });
 });
 
-// A target list that ends its line with a comma continues on the next line
-// in Luau code, as in Luau (`a,` then `g = 1, 2`). Nothing else in Luau code
-// starts with a name followed by a comma, so calls, tables, `return` lists
-// and `for` headers that break after a comma read as before.
 describe("Luau code: a target list continues after a trailing comma", () => {
   test.each([
     ["next line", "  a,\n    g = 1, 2", "return a * 10 + g", "Value 12.\n"],
@@ -332,7 +310,6 @@ describe("Luau code: targets the reassignment's start reads", () => {
   });
 });
 
-// A compound assignment (`+=`) takes one target and one value, as in Luau.
 describe("Luau code: a compound assignment with a list", () => {
   test.each([
     ["an extra value on the same line", "  g += 1, 2"],
@@ -340,8 +317,6 @@ describe("Luau code: a compound assignment with a list", () => {
     ["a comma that ends the line", "  g += 1,"],
   ])("%s: the comma is the error", (_name, body) => {
     const { errorMessages } = collectDiagnostics(fn(body, "return g"));
-    // Luau's reading then reads on from the token after the comma, and its
-    // errors there are reported too (I-1322).
     expect(errorMessages[0]).toEqual(missingValue(","));
   });
 
@@ -365,7 +340,6 @@ describe("Sparkle handler closures", () => {
   });
 });
 
-// A bracket inside a quoted key is text, not structure (review round 4).
 describe("Luau code: a target whose key is a string holding a bracket", () => {
   test.each([
     ["on one line", '  t["["], g = 1, 2', 'return t["["] * 10 + g'],
@@ -392,8 +366,6 @@ describe("Luau code: a target whose key is a string holding a bracket", () => {
   });
 });
 
-// As in Luau, whose compiler evaluates complex targets before the values, a
-// call in a target runs before a call among the values (review round 4).
 describe("evaluation order of targets and values", () => {
   const order =
     "  local calls = 0\n  local function key() calls = calls * 10 + 1 return \"g\" end\n  local function bump() calls = calls * 10 + 2 return 9 end\n";

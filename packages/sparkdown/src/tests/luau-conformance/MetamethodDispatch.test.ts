@@ -1,15 +1,3 @@
-// Regression tests for the basic.luau lines 438-570 batch:
-//   - `__namecall` fallback for colon-calls whose method lookup misses
-//     (newproxy userdata pattern), including a callable-table handler
-//     (`__namecall` set to a table with `__call`).
-//   - `__call` resolution inside CallLuauFunction /
-//     CallLuauFunctionProtected (callable tables passed to pcall).
-//   - `__eq` getequalhandler rule: primitive identity first, handler
-//     fires only when BOTH operands share the SAME `__eq` value.
-//   - First-class stdlib builtins dispatched through pcall
-//     (`pcall(rawequal, ...)`), including the missing-argument trap.
-//   - `__idiv` / `__tostring` metamethods and C-style `%g` formatting
-//     (the vec3t pattern).
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -102,9 +90,6 @@ end
 });
 
 describe("__eq same-handler rule", () => {
-  // Luau, unlike Lua 5.x, has no identity shortcut: `luaV_equalval`
-  // calls the handler `get_compTM` finds even for a table compared with
-  // itself (events.luau: `t ~= t` under `__eq = print`).
   test("the handler is consulted for a == a", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()

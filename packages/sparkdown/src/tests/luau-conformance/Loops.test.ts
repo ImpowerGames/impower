@@ -460,11 +460,6 @@ end
 
 describe("generic for-in loop (iterator protocol)", () => {
   test("iterates a closure-based user iterator (range)", () => {
-    // The classic "stateful iterator" form: `range(a, b)` returns a
-    // closure that walks a..b. Each iteration calls the closure with
-    // (state, ctrl); the closure ignores those args and uses its
-    // captured `i` instead. When the closure returns nil (i > b),
-    // the loop exits.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -490,9 +485,6 @@ end
   });
 
   test("zero iterations — iterator returns nil on first call", () => {
-    // An iterator that immediately runs out: the closure returns
-    // without producing a value, the loop should terminate before
-    // executing the body once.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -571,12 +563,6 @@ end
   });
 
   test("iterator yielding 0 does NOT terminate (nil != 0)", () => {
-    // First-class nil regression guard. Sparkdown used to lower `nil`
-    // as `IntValue(0)`, which meant `n == nil` was true when `n` was
-    // 0 — accidentally terminating loops that yielded a literal zero.
-    // After promoting nil to a real `NullValue`, equality is strict:
-    // `nil == nil` is true; `nil == 0` is false. The countdown iter
-    // below yields 3, 2, 1, 0 and only nil stops the loop.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done

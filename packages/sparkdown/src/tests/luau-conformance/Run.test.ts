@@ -1,7 +1,3 @@
-// End-to-end tests for the `run "path"` statement. Tests both the
-// happy path (load + execute a .luau file via run) and the failure
-// modes (missing file, cycle detection).
-
 import { describe, expect, test } from "vitest";
 import {
   testCompiler,
@@ -52,9 +48,6 @@ describe("run statement", () => {
     "run 'helpers'\t",
     "run helpers",
   ])("loads a .luau file and runs its body: %s", (runLine) => {
-    // The .luau file's body becomes a wrapper function called from
-    // main flow, so the call is written as Luau writes it, with no
-    // `&` marker (#1374).
     const luau = `harness_record(42)
 `;
     const main = `external harness_record(v)
@@ -85,8 +78,6 @@ done
     expect(errs.some((m) => m.includes("doesnotexist"))).toBe(true);
   });
 
-  // #316: a run that names no file is an error, not a statement that runs
-  // nothing.
   test.each(["run", 'run ""', "run ''", 'run ".luau"', "run  # tag"])(
     "errors on a run with no path: %s",
     (runLine) => {
@@ -97,11 +88,8 @@ done
     },
   );
 
-  // #887: a file run from two places declares its wrapper function once and
-  // calls it from each place.
   function recordedRun(chunks: unknown) {
     const story = testStory(chunks as any);
-    // A story that loops fails the test instead of hanging it.
     story.stepLimit = 20000;
     const recorded: unknown[] = [];
     story.BindExternalFunction("harness_record", (v: unknown) => {
@@ -152,8 +140,6 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([42, 42]);
   });
 
-  // I-1439: a run line calls the wrapper where it stands, between the
-  // statements around it, and one in a scene each time the scene plays.
   test("runs where its line stands, at the top level and each time a scene that holds it plays", () => {
     const { result, errs } = compileWithFiles([
       {
@@ -191,8 +177,6 @@ done
     ]);
   });
 
-  // I-1415: a run line in a scene of a script other than main is a statement
-  // of the scene, and runs when the scene plays.
   test("runs a run line in a scene of a script other than main", () => {
     const { result, errs } = compileWithFiles([
       { uri: "inmemory:///main.sd", text: "external harness_record(v)\n-> s\n" },
@@ -206,8 +190,6 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([7]);
   });
 
-  // A script other than main holds declarations only (#1387): a run line
-  // there is reported and dropped, and main's run line runs the file once.
   test("reports a run line in a script other than main, and runs main's alone", () => {
     const { result, errs } = compileWithFiles([
       {
@@ -224,8 +206,6 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([1]);
   });
 
-  // Two files whose URIs a 32-bit hash would give one value (round 3 of PR
-  // #1928's review) each keep a wrapper of their own.
   test("runs two files whose URIs share a 32-bit hash", () => {
     const { result, errs } = compileWithFiles([
       {
@@ -245,12 +225,7 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([1, 2]);
   });
 
-  // Every reordering of a script that runs three files from three
-  // directories, by several paths each, compiles incrementally to what a
-  // cold compile of the same text gives (round 2 of PR #1928's review).
   test("runs files from several directories alike, cold and after each reordering", () => {
-    // Only main runs a file (#1387), so every path is written from main's
-    // folder.
     const sections = [
       `run "helper"\nrun "./helper"\n`,
       `run "a/helper"\nrun "./a/helper"\n`,
@@ -300,9 +275,6 @@ done
     }
   });
 
-  // The wrapper's name is the file's alone: an edit elsewhere neither
-  // changes what `debug.info` reports for it nor makes it collide with an
-  // author's function (round 3 of PR #1928's review).
   test("names the wrapper alike cold and after an edit above a run line", () => {
     const text = `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\nfunction __run_helper_2()\n  return 9\nend\nfunction __run_helper_3()\n  return 9\nend\n`;
     const helper = {
@@ -315,7 +287,6 @@ done
     ]);
     const before = recordedRun(first.program.chunks);
     expect(before).toHaveLength(2);
-    // Shown by the file's name (I-1266).
     expect(before[0]).toBe("helper");
     expect(before[1]).toBe(before[0]);
     compiler.updateDocument({
@@ -367,15 +338,11 @@ done
     expect(recompile("inmemory:///main.sd", mainWith(3))).toEqual([42, 42, 42]);
     expect(recompile("inmemory:///main.sd", mainWith(1))).toEqual([42]);
     expect(recompile("inmemory:///main.sd", mainWith(2))).toEqual([42, 42]);
-    // An edit to the file gives each run line its new body (#316).
     expect(
       recompile("inmemory:///helper.luau", `harness_record(7)\n`),
     ).toEqual([7, 7]);
   });
 
-  // #316: the wrapper document is set again when the file changes, so a
-  // compile after `updateFile` runs the file's new body, and one after
-  // that, with the file unchanged, runs it too.
   test("runs a file's new body after the file is updated", () => {
     const helper = (text: string, version: number) => ({
       uri: "inmemory:///helper.luau",
@@ -403,14 +370,4 @@ done
       expect(recordedRun(result.program.chunks)).toEqual([2]);
     }
   });
-
-  // Cycle detection guards against a future scenario where `run`
-  // might be reachable from inside a wrapped function body. Today
-  // the grammar's `^`-anchored `Run` rule only matches at file top
-  // level, so a `run` inside `function ... end` never parses as a
-  // Run statement — meaning today's wrap design makes `run`-cycles
-  // structurally impossible to trigger. The runStack is defensive
-  // code we keep for when that constraint loosens (e.g. if `run`
-  // is later allowed inside scenes/branches, which DO get spliced
-  // inline rather than wrapped).
 });
