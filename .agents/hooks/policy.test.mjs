@@ -215,6 +215,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("/// @internal"), "refused");
     assert.equal(kind("//"), "refused");
     assert.equal(kind("// prose", "packages/spark-evaluate/src/_modules/x.ts"), "exempt");
+    assert.equal(kind("// prose", "packages/sparkdown/src/tests/luau-conformance/upstream/ast/luau-ast.cjs"), "exempt");
+    assert.equal(kind("/* Copyright (c) 2015 Tobias Nickel */", "packages/sparkdown/src/txml/txml.ts"), "exempt");
+    assert.equal(kind("// prose", "packages/sparkdown/vendor/luau-analysis/backend.js"), "exempt");
     assert.equal(kind("// prose", "README.md"), "exempt");
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
