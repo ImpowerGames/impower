@@ -687,7 +687,9 @@ export function* bakeSteps(
   /** The centre of a drawing's box in root space, curves included. */
   const centre = (leaf: Leaf): Point | undefined => {
     const geometry = rootGeometry(leaf);
-    if (!geometry) return undefined;
+    return geometry ? boxCentre(geometry) : undefined;
+  };
+  const boxCentre = (geometry: Subpath[]): Point | undefined => {
     let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const subpath of geometry) {
       for (const cubic of subpath.segments) {
@@ -707,11 +709,12 @@ export function* bakeSteps(
    * the moving frames: where it has several, the one whose box centre is
    * nearest `leaf`'s, the first in paint order on a tie.
    */
-  const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined => {
-    const origin = centre(leaf);
+  const drawingIn = (pose: Record<string, boolean>, leaf: Leaf, group: string): Leaf | undefined =>
+    nearestDrawing(pose, leaf.label, group, centre(leaf));
+  const nearestDrawing = (pose: Record<string, boolean>, label: string, group: string, origin: Point | undefined): Leaf | undefined => {
     let best: { leaf: Leaf; distance: number } | undefined;
     for (const candidate of leaves) {
-      if (!candidate.live || candidate.group !== group || candidate.label !== leaf.label) continue;
+      if (!candidate.live || candidate.group !== group || candidate.label !== label) continue;
       if (!visibleAt(candidate.element, pose)) continue;
       const at = centre(candidate);
       if (!at) continue;
@@ -720,6 +723,40 @@ export function* bakeSteps(
     }
     return best?.leaf;
   };
+  const edgeLabels = new Set(recipe.clips.flatMap((clip) => clip.between));
+  const partnersOf = (leaf: Leaf): string[] | undefined => {
+    const list = leaf.label ? own(recipe.layers, leaf.label)?.partner : undefined;
+    return list?.length && !edgeLabels.has(leaf.label) && rootGeometry(leaf) && elementSpace(leaf) ? list : undefined;
+  };
+  const partnerChoice = (
+    leaf: Leaf,
+    list: readonly string[],
+    pose: Record<string, boolean>,
+    group: string,
+    origin: Point | undefined,
+    carriedThere: Iterable<Leaf> = [],
+  ): "name" | Leaf | undefined => {
+    for (const label of list) {
+      if (label !== leaf.label) {
+        const found = nearestDrawing(pose, label, group, origin);
+        if (found) return found;
+      } else if (
+        [...carriedThere].some((c) => c !== leaf && c.label === label) ||
+        leaves.some((c) => c !== leaf && c.live && c.group === group && c.label === label && visibleAt(c.element, pose))
+      ) {
+        return "name";
+      }
+    }
+    return undefined;
+  };
+  const shapeIn = (leaf: Leaf, partner: Leaf): string => pathData(applySubpaths(elementSpace(leaf)!, rootGeometry(partner)!));
+  const reportMissingPartner = (leaf: Leaf, list: readonly string[]) =>
+    report(
+      "partner-missing",
+      "warning",
+      `"${leaf.label}" takes the drawing of ${list.map((l) => `"${l}"`).join(", ")} where a pose draws none of its own, but a pose it moves to or from draws none of them either, so there it ${inTarget(leaf.element) ? "holds while the aperture moves" : "uses its fallback"}.`,
+      { layer: leaf.label },
+    );
   /**
    * Each `paints` entry where it applies to this variant. The entry recolours
    * the drawings of its labels that the pose shows, among those that change
@@ -769,7 +806,7 @@ export function* bakeSteps(
         const arriving = segment.to.state === pose.state;
         const leaving = segment.from.state === pose.state;
         for (const t of segment.transitions) {
-          if (t.kind !== "morph" || !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
+          if (t.kind !== "morph" || t.partner || !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
           // The paint the track shows without the entry: the blend its ends
           // record, else the paint its ends and the node it draws on share.
           const ends: MorphPaintPose["tracks"][number]["ends"] = {};
@@ -907,7 +944,7 @@ export function* bakeSteps(
     return { index: frames.length - 1, reversed };
   };
 
-  const morphFor = (from: Leaf, to: Leaf, method: MorphMethodName): { morph: SubpathMorph | null; cacheKey: string; reversed: boolean } => {
+  const morphFor = (from: Leaf, to: Leaf, method: MorphMethodName, who: Leaf = from): { morph: SubpathMorph | null; cacheKey: string; reversed: boolean } => {
     const forward = `${from.key}>${to.key}:${method}`;
     const backward = `${to.key}>${from.key}:${method}`;
     let found: { result: MorphResult; cacheKey: string; reversed: boolean } | undefined;
@@ -928,10 +965,10 @@ export function* bakeSteps(
       report(
         "method-failed",
         "warning",
-        `\`${method}\` could not morph "${from.label}" (${result.failure.code}: ${result.failure.message}), so it uses its fallback.`,
+        `\`${method}\` could not morph "${who.label}" (${result.failure.code}: ${result.failure.message}), so it uses its fallback.`,
         // The pair's canonical source, so the segment that moves the same
         // pair back reports the same problem rather than a second one.
-        { layer: from.label, path: cacheKey.slice(0, cacheKey.indexOf(">")) },
+        { layer: who.label, path: cacheKey.slice(0, cacheKey.indexOf(">")) },
       );
       return { morph: null, cacheKey, reversed };
     }
@@ -984,8 +1021,10 @@ export function* bakeSteps(
     }
   }
 
+  type PartnerEnd = { own: Leaf } | { shape: Leaf; held: boolean } | undefined;
   for (const [group, entries] of schedules) {
     const byState = visibleIn.get(group)!;
+    let carried = new Map<Leaf, Leaf>();
     for (let i = 0; i + 1 < entries.length; i++) {
       const a = entries[i]!;
       const b = entries[i + 1]!;
@@ -1004,8 +1043,61 @@ export function* bakeSteps(
         const geometry = rootGeometry(leaf);
         return geometry ? { id: leaf.node, label: leaf.label, subpaths: geometry } : undefined;
       };
-      const fromShapes = fromOnly.map(shape).filter((s): s is LabelledShape => !!s);
-      const toShapes = toOnly.map(shape).filter((s): s is LabelledShape => !!s);
+      const moves: { leaf: Leaf; from: PartnerEnd; to: PartnerEnd }[] = [];
+      const carriedByName = new Map<Leaf, Leaf>();
+      const nextCarried = new Map<Leaf, Leaf>();
+      const moved = new Set<Leaf>();
+      const arrive = (leaf: Leaf, from: PartnerEnd, partner: Leaf) => {
+        const held = b.state !== REST;
+        moves.push({ leaf, from, to: { shape: partner, held } });
+        if (held) nextCarried.set(leaf, partner);
+      };
+      for (const leaf of fromOnly) {
+        const list = partnersOf(leaf);
+        const choice = list && partnerChoice(leaf, list, vb, group, centre(leaf));
+        if (!list || choice === "name") continue;
+        moved.add(leaf);
+        if (choice) arrive(leaf, { own: leaf }, choice);
+        else {
+          reportMissingPartner(leaf, list);
+          unpairedFrom.push(leaf);
+        }
+      }
+      for (const leaf of toOnly) {
+        const list = carried.has(leaf) ? undefined : partnersOf(leaf);
+        const choice = list && partnerChoice(leaf, list, va, group, centre(leaf), carried.keys());
+        if (!list || choice === "name") continue;
+        moved.add(leaf);
+        if (choice) moves.push({ leaf, from: { shape: choice, held: false }, to: { own: leaf } });
+        else {
+          reportMissingPartner(leaf, list);
+          unpairedTo.push(leaf);
+        }
+      }
+      for (const [leaf, partner] of carried) {
+        const from = { shape: partner, held: true };
+        if (visibleAt(leaf.element, vb)) {
+          moved.add(leaf);
+          moves.push({ leaf, from, to: { own: leaf } });
+          continue;
+        }
+        const list = partnersOf(leaf)!;
+        const choice = partnerChoice(leaf, list, vb, group, boxCentre(rootGeometry(partner)!));
+        if (choice === "name") carriedByName.set(leaf, partner);
+        else if (choice) arrive(leaf, from, choice);
+        else {
+          reportMissingPartner(leaf, list);
+          moves.push({ leaf, from, to: undefined });
+        }
+      }
+      const fromShapes = [
+        ...fromOnly.filter((l) => !moved.has(l)).map(shape),
+        ...[...carriedByName].map(([leaf, partner]) => ({ id: leaf.node, label: leaf.label, subpaths: rootGeometry(partner)! })),
+      ].filter((s): s is LabelledShape => !!s);
+      const toShapes = toOnly
+        .filter((l) => !moved.has(l))
+        .map(shape)
+        .filter((s): s is LabelledShape => !!s);
       unpairedFrom.push(...fromOnly.filter((l) => !rootGeometry(l)));
       unpairedTo.push(...toOnly.filter((l) => !rootGeometry(l)));
       const byNode = new Map(leaves.filter((l) => l.live).map((l) => [l.node, l]));
@@ -1016,13 +1108,23 @@ export function* bakeSteps(
         const [fewer, more] = [d.fromCount, d.toCount].sort((a, b) => a - b);
         report("pairing-count", "warning", `"${d.label}" has ${fewer} drawings in one pose and ${more} in the other; neither is a single drawing, so they cannot pair and each uses its fallback.`, { layer: d.label });
       }
-      for (const u of pairing.unpaired) (u.side === "from" ? unpairedFrom : unpairedTo).push(byNode.get(u.shape.id)!);
+      for (const u of pairing.unpaired) {
+        const leaf = byNode.get(u.shape.id)!;
+        const partner = u.side === "from" ? carriedByName.get(leaf) : undefined;
+        if (partner) moves.push({ leaf, from: { shape: partner, held: true }, to: undefined });
+        else (u.side === "from" ? unpairedFrom : unpairedTo).push(leaf);
+      }
       // Tracks of this segment already drawing on each home drawing.
       const homed = new Map<Leaf, { node: boolean; carriers: number }>();
       for (const pair of pairing.pairs) {
         yield;
         const from = byNode.get(pair.from.id)!;
         const to = byNode.get(pair.to.id)!;
+        const partner = carriedByName.get(from);
+        if (partner) {
+          moves.push({ leaf: from, from: { shape: partner, held: true }, to: { own: to } });
+          continue;
+        }
         const blend: MorphBlend = policy(from, "blend");
         if (blend === "fade" || blend === "cut") {
           transitions.push({ kind: blend, from: nodeOf(from), to: nodeOf(to) });
@@ -1132,6 +1234,95 @@ export function* bakeSteps(
             report("edge-not-bend", "error", `Clip ${clipIndex + 1}'s edge "${leaf.label}" does not morph to a matching drawing, so it cannot bound an aperture.`, { layer: leaf.label, path: leaf.key });
             return disable();
           }
+        }
+      }
+      const shapes: Record<string, string> = table();
+      const carryFrom: Record<string, string> = table();
+      const carryTo: Record<string, string> = table();
+      const slotsOf = (leaf: Leaf) => {
+        const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
+        homed.set(leaf, slots);
+        return slots;
+      };
+      const slot = (leaf: Leaf, node: boolean): string => {
+        const slots = slotsOf(leaf);
+        if (!node || !isPath(leaf) || slots.node) return carrierOf(leaf, slots.carriers++);
+        slots.node = true;
+        return nodeOf(leaf);
+      };
+      for (const { leaf, from, to } of moves) {
+        yield;
+        const space = elementSpace(leaf)!;
+        const drawingAt = (end: Exclude<PartnerEnd, undefined>) => ("own" in end ? end.own : end.shape);
+        const nodeAt = (end: Exclude<PartnerEnd, undefined>) => nodeOf(drawingAt(end));
+        const carry = (end: PartnerEnd, node: string, side: Record<string, string>) => {
+          if (end && "shape" in end && end.held) side[node] = shapeIn(leaf, end.shape);
+        };
+        const onCarrier = (end: { shape: Leaf; held: boolean }, side: Record<string, string>) => {
+          const node = slot(leaf, false);
+          shapes[node] = shapeIn(leaf, end.shape);
+          carry(end, node, side);
+          return node;
+        };
+        const blend = policy(leaf, "blend");
+        let action: MorphBlend | "hold" = !to ? (inTarget(leaf.element) ? "hold" : blend === "morph" ? policy(leaf, "fallback") : blend) : blend;
+        let ref: MorphGeometryRef | undefined;
+        if (action === "morph" && from && to) {
+          const method = policy(leaf, "method");
+          const [a, b] = [drawingAt(from), drawingAt(to)];
+          if (!method) {
+            report("missing-method", "error", `"${leaf.label}" morphs but has no \`method\`, so it uses its fallback.`, { layer: leaf.label, path: [a.key, b.key].sort()[0] });
+          } else {
+            const found = morphFor(a, b, method, leaf);
+            if (found.morph) ref = addFrames(found.cacheKey, found.morph, space, found.reversed);
+          }
+          if (!ref) action = policy(leaf, "fallback");
+        }
+        if (action === "morph" && from && to && ref) {
+          const draw = slot(leaf, true);
+          const named = "own" in to && to.own !== leaf ? to.own : undefined;
+          const blended = named ? gradientBlends(leaf, named, leaf, draw, space) : undefined;
+          const paint = named ? paintBlend(paintOf(leaf), paintOf(named), paintOf(leaf), blended!.matched) : undefined;
+          const gradients = blended?.gradients;
+          transitions.push({
+            kind: "morph",
+            from: nodeAt(from),
+            to: nodeAt(to),
+            draw,
+            shared: false,
+            frames: ref,
+            ...(paint ? { paint } : {}),
+            ...(gradients?.fill || gradients?.stroke ? { gradients } : {}),
+            partner: true,
+          });
+          carry(from, draw, carryFrom);
+          carry(to, draw, carryTo);
+        } else if (action === "cut") {
+          const start = from && ("own" in from ? from.own.node : onCarrier(from, carryFrom));
+          const end = to && ("own" in to ? to.own.node : to.held ? slot(leaf, true) : undefined);
+          if (end && to && "shape" in to) carry(to, end, carryTo);
+          transitions.push({ kind: "cut", ...(start ? { from: start } : {}), ...(end ? { to: end } : {}) });
+        } else if (action === "fade") {
+          for (const end of [from, to]) if (end && "own" in end) slotsOf(end.own).node = true;
+          const start = from && ("own" in from ? from.own.node : onCarrier(from, carryFrom));
+          const end = to && ("own" in to ? to.own.node : onCarrier(to, carryTo));
+          transitions.push({ kind: "fade", ...(start ? { from: start } : {}), ...(end ? { to: end } : {}) });
+        } else if (action === "scale") {
+          for (const [end, direction] of [[from, "shrink"], [to, "grow"]] as const) {
+            if (!end) continue;
+            if ("own" in end) {
+              const drawing = end.own;
+              const frames = addFrames(`${drawing.key}:${direction}`, morphScale(rootGeometry(drawing)!, direction), elementSpace(drawing)!, false);
+              const draw = isPath(drawing) && !slotsOf(drawing).node ? slot(drawing, true) : slot(drawing, false);
+              transitions.push({ kind: "scale", node: drawing.node, draw, direction, frames });
+            } else {
+              const node = onCarrier(end, direction === "shrink" ? carryFrom : carryTo);
+              const frames = addFrames(`${end.shape.key}:${direction}`, morphScale(rootGeometry(end.shape)!, direction), space, false);
+              transitions.push({ kind: "scale", node, draw: node, direction, frames });
+            }
+          }
+        } else if (action === "hold" && from && "shape" in from) {
+          transitions.push({ kind: "hold", node: onCarrier(from, carryFrom) });
         }
       }
       const oneSided = (leaf: Leaf, side: "from" | "to") => {
@@ -1248,7 +1439,12 @@ export function* bakeSteps(
         to: { offset: b.offset, state: b.state === REST ? restName(group) : b.state },
         transitions,
         clips,
+        ...(Object.keys(shapes).length ? { shapes } : {}),
+        ...(Object.keys(carryFrom).length || Object.keys(carryTo).length
+          ? { carry: { ...(Object.keys(carryFrom).length ? { from: carryFrom } : {}), ...(Object.keys(carryTo).length ? { to: carryTo } : {}) } }
+          : {}),
       });
+      carried = nextCarried;
     }
   }
   // A label none of whose moving shapes the named pose draws keeps its

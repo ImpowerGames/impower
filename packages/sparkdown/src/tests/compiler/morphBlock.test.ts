@@ -1416,3 +1416,167 @@ end
     expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
   });
 });
+
+describe("`partner`", () => {
+  const CLIPS = "  clips {\n    { between { eyelash-left }; targets { eyeball-white-left; eyeball-shadow-left; pupil-left } }\n  }\n";
+  const PARTNERED = (layers: string, root = "", clips = CLIPS) => `morph m with
+  method = bend
+${root}  layers {
+    ${layers}
+  }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+${clips}end
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const partnerIssues = (text: string) => morphDiagnostics(text).filter((d) => d.message.includes("partner") || d.message.includes("labelled"));
+
+  test("one label, a `= { … }` list and a `{ … }` block lower to the same recipe, the label as a one-label list", () => {
+    const scalar = PARTNERED("eyeball-shadow-left { partner = eyelash-left }");
+    const listed = PARTNERED("eyeball-shadow-left { partner = { eyelash-left } }");
+    const block = PARTNERED("eyeball-shadow-left {\n      partner {\n        eyelash-left\n      }\n    }");
+    for (const text of [scalar, listed, block]) {
+      expect(morphDiagnostics(text)).toEqual([]);
+      expect(recipeOf(text).layers["eyeball-shadow-left"]).toEqual({ partner: ["eyelash-left"] });
+    }
+    expect(structOf(scalar, "m").layers["eyeball-shadow-left"].partner).toBe("eyelash-left");
+    expect(structOf(listed, "m").layers["eyeball-shadow-left"].partner).toEqual(["eyelash-left"]);
+  });
+
+  test("a list keeps its written order, which is its priority", () => {
+    const text = PARTNERED("eyeball-shadow-right { partner = { eyeball-shadow-right; eyelash-right; eyelash-left } }");
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text).layers["eyeball-shadow-right"]).toEqual({ partner: ["eyeball-shadow-right", "eyelash-right", "eyelash-left"] });
+  });
+
+  test("a morph without `partner` keeps the recipe text it has without the field", () => {
+    const text = PARTNERED("creases { fallback = scale }");
+    expect(compile(text).morphs!.recipes["m"]).toBe(
+      '{"name":"m","blend":"morph","method":"bend","fallback":"fade","layers":{"creases":{"fallback":"scale"}},"keyframes":[{"offset":0,"states":{"eyes":"open"}},{"offset":0.5,"states":{"eyes":"closed"}},{"offset":1,"states":{"eyes":"open"}}],"clips":[{"between":["eyelash-left"],"targets":["eyeball-white-left","eyeball-shadow-left","pupil-left"]}]}',
+    );
+  });
+
+  test("adding a partner changes the bake key", () => {
+    const keys = (text: string) => JSON.stringify(compile(text).morphs!.variants);
+    expect(keys(PARTNERED("creases { fallback = scale }"))).not.toBe("{}");
+    expect(keys(PARTNERED("creases { fallback = scale }\n    eyeball-shadow-left { partner = eyelash-left }"))).not.toBe(keys(PARTNERED("creases { fallback = scale }")));
+  });
+
+  test("a child morph inherits `partner` from its parent, field by field with the label's other fields", () => {
+    const text = `${PARTNERED("eyeball-shadow-left { partner = { eyeball-shadow-left; eyelash-left } }")}
+morph child as m with
+  layers {
+    eyeball-shadow-left { fallback = cut }
+  }
+end
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text, "child").layers["eyeball-shadow-left"]).toEqual({ fallback: "cut", partner: ["eyeball-shadow-left", "eyelash-left"] });
+  });
+
+  test("a child morph inherits `partner` from a `define` parent", () => {
+    const text = `define base as morph with
+  method = "bend"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+  layers = { ["eyeball-shadow-left"] = { partner = { "eyeball-shadow-left", "eyelash-left" } } }
+end
+
+morph child as base with
+  fallback = cut
+end
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text, "child").layers["eyeball-shadow-left"]).toEqual({ partner: ["eyeball-shadow-left", "eyelash-left"] });
+  });
+
+  test.each([
+    ["`partner` at the morph root", PARTNERED("creases { fallback = scale }", "  partner = eyelash-left\n"), "partner", "`partner` belongs under a label in `layers { … }`."],
+    [
+      "`partner` in a clip entry",
+      PARTNERED("creases { fallback = scale }", "", "  clips {\n    { between { eyelash-left }; targets { pupil-left }; partner = eyelash-left }\n  }\n"),
+      "partner",
+      "`partner` belongs under a label in `layers { … }`.",
+    ],
+    ["a value that is not a label", PARTNERED("eyeball-shadow-left { partner { eyelash-left = 2 } }"), "partner", "`partner` names a label or a list of labels"],
+    ["a list item that is not a label", PARTNERED("eyeball-shadow-left { partner { eyelash-left; { eyelash-right } } }"), "{", "`partner` names a label or a list of labels"],
+    ["an empty list", PARTNERED("eyeball-shadow-left { partner { } }"), "partner", "`partner` needs at least one label"],
+    ["`partner` on a clip's `between` label", PARTNERED("eyelash-left { partner = eyeball-shadow-left }"), "partner", "`eyelash-left` forms an aperture in `clips`, so it cannot take a partner"],
+  ])("%s is an error on its span", (_, text, span, message) => {
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: span });
+    expect(found[0]!.message).toContain(message);
+  });
+
+  test("a child whose clip makes an inherited partner's label an aperture edge is reported on its `as`, and loses the partner", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }", "", "")}
+morph child as m with
+  clips {
+    { between { eyelash-left }; targets { pupil-left } }
+  }
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([
+      expect.objectContaining({ text: "m", message: "`layers.eyelash-left.partner`, inherited: `eyelash-left` forms an aperture in `clips`, so it cannot take a partner: an aperture edge pairs by its own label." }),
+    ]);
+    expect(found[0]!.line).toBeGreaterThan(10);
+    expect(recipeOf(text, "child").layers["eyelash-left"]).toBeUndefined();
+  });
+
+  test("a parent's own partner on its aperture edge is reported once, where it is written", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }")}
+morph child as m with
+  fallback = cut
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([expect.objectContaining({ text: "partner", message: expect.stringContaining("forms an aperture in `clips`") })]);
+    expect(found[0]!.line).toBeLessThan(10);
+  });
+
+  test("a rejected value leaves `partner` out of the recipe", () => {
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner { eyelash-left = 2 } }")).layers["eyeball-shadow-left"]).toBeUndefined();
+    expect(recipeOf(PARTNERED("eyelash-left { partner = eyeball-shadow-left }")).layers["eyelash-left"]).toBeUndefined();
+  });
+
+  test.each([
+    ["a list that names only the label itself", "eyeball-shadow-left { partner = eyeball-shadow-left }", "eyeball-shadow-left", "names only `eyeball-shadow-left` itself"],
+    ["a label listed twice", "eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }", "eyelash-left", "`eyelash-left` is listed twice"],
+    ["a label no candidate image has", "eyeball-shadow-left { partner = { eyeball-shadow-left; eyelash-middle } }", "eyelash-middle", "No image the morph applies to has a layer labelled `eyelash-middle`."],
+  ])("%s is a warning on its span", (_, layers, span, message) => {
+    const found = partnerIssues(PARTNERED(layers));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: span, severity: 2 });
+    expect(found[0]!.message).toContain(message);
+  });
+
+  test("the duplicate is warned on its second mention, and a self-only list leaves `partner` out of the recipe", () => {
+    const layers = "eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }";
+    const duplicate = partnerIssues(PARTNERED(layers));
+    expect(duplicate).toHaveLength(1);
+    expect(duplicate[0]!.character).toBe(4 + layers.lastIndexOf("eyelash-left"));
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }")).layers["eyeball-shadow-left"]).toEqual({
+      partner: ["eyelash-left", "eyeball-shadow-left"],
+    });
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner = eyeball-shadow-left }")).layers["eyeball-shadow-left"]).toBeUndefined();
+  });
+
+  test("an invalid `partner` a `define` parent supplies is reported on the child's `as`", () => {
+    const text = `define base as morph with
+  method = "bend"
+  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
+  layers = { ["eyeball-shadow-left"] = { partner = {} } }
+end
+
+morph child as base with
+  fallback = cut
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([expect.objectContaining({ line: 6, text: "base", message: expect.stringContaining("`layers.eyeball-shadow-left.partner`, inherited from `base`") })]);
+  });
+});
