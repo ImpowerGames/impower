@@ -188,6 +188,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments(workflow({ top: ["defaults:", "  run:", "    shell: pwsh"] }), "w.yml"), ps, "the workflow default applies when the job sets none");
     assert.deepEqual(comments(workflow(), "w.yml"), sh, "an unset shell is sh");
     assert.deepEqual(comments(workflow({ step: ["        shell: cmd"] }), "w.yml"), ["# next"], "a cmd run block has no scanner and stays text");
+    assert.deepEqual(comments("steps:\n  - shell: cmd\n    run: echo ok\n  - run: |\n      # yes\n      echo ok\n    shell: bash\n", "w.yml"), ["# yes"], "a step whose run comes first keeps its own shell, not the step before");
+    assert.deepEqual(comments("steps:\n  - shell: pwsh\n    run: echo ok\n  - run: |\n      cat <<'EOF'\n      # no\n      EOF\n", "w.yml"), [], "a run-first step after a PowerShell step is sh");
+    assert.deepEqual(comments("steps:\n  - 'run': |\n      # yes\n  - \"run\": |\n      # yes\n", "w.yml"), ["# yes", "# yes"], "a quoted run key is a run key");
+    const folded = "steps:\n  - run: >\n      echo first\n      # prose\n      echo second\n\n      echo third # tail\n";
+    assert.deepEqual(comments(folded, "w.yml"), ["# prose\n      echo second", "# tail"], "a folded run block is scanned as its folded value, so a comment runs to the end of its folded line");
+    assert.equal(stripComments(folded, "w.yml", { root: checkout }), "steps:\n  - run: >\n      echo first\n\n      echo third\n", "stripping a folded comment removes every physical line it covers");
     assert.deepEqual(comments("echo \"$(\n  # yes\n  echo \"# no\" $((1 + 2))\n)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
 
     const kind = (text, file = "src/a.ts") => classifyComment(text, file, { root: checkout }).kind;

@@ -438,13 +438,14 @@ const RUN_SCANNERS = { sh: scanSh, bash: scanSh, pwsh: scanPs1, powershell: scan
 function runShell(records, index) {
   const col = records[index].col;
   const shellName = (record) => /^['"]?([^\s'"]+)/.exec(record.value)?.[1].toLowerCase() ?? "";
+  const startsItem = (r) => r.dashCol === col - 2 && r.col === col;
   let first = index;
-  for (let k = index - 1; k >= 0; k--) {
+  for (let k = startsItem(records[index]) ? -1 : index - 1; k >= 0; k--) {
     const r = records[k];
     if (r.blank) continue;
-    if (r.indent < col && !(r.dashCol === col - 2 && r.col === col)) break;
+    if (r.indent < col && !startsItem(r)) break;
     first = k;
-    if (r.dashCol === col - 2 && r.col === col) break;
+    if (startsItem(r)) break;
   }
   let last = index;
   for (let k = index + 1; k < records.length && (records[k].blank || records[k].indent >= col); k++) last = k;
@@ -476,6 +477,30 @@ function runShell(records, index) {
   return (job >= 0 ? defaultShell(job) : null) ?? defaultShell(-1) ?? "sh";
 }
 
+function foldedComments(text, from, to, indent, scan) {
+  const lines = [];
+  for (let k = from; k < to; ) {
+    const stop = lineEnd(text, k);
+    lines.push({ start: k, end: stop, text: text.slice(k, stop) });
+    k = Math.min(text.indexOf("\n", stop) + 1 || to, to);
+  }
+  const indentOf = (line) => /^ */.exec(line)[0].length;
+  let value = "";
+  const origin = [];
+  lines.forEach((line, n) => {
+    const blank = !line.text.trim();
+    for (let k = line.start + (blank ? line.text.length : Math.min(indent, indentOf(line.text))); k < line.end; k++) {
+      value += text[k];
+      origin.push(k);
+    }
+    const next = lines[n + 1];
+    const folds = next && !blank && next.text.trim() && indentOf(line.text) <= indent && indentOf(next.text) <= indent;
+    value += folds ? " " : "\n";
+    origin.push(line.end);
+  });
+  return scan(value, 0).map((c) => ({ start: origin[c.start], end: origin[c.end - 1] + 1 }));
+}
+
 function scanYaml(text) {
   const comments = [];
   let i = 0, quote = null, records = null;
@@ -501,10 +526,10 @@ function scanYaml(text) {
     }
     i = next;
     if (quote) continue;
-    const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?[|>]([-+1-9]*)\s*$/.exec(code);
+    const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?([|>])([-+1-9]*)\s*$/.exec(code);
     if (!header) continue;
     const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+[|>]/.test(code) ? 0 : -1);
-    const indicator = /[1-9]/.exec(header[2]);
+    const indicator = /[1-9]/.exec(header[3]);
     const indentOf = (line) => /^ */.exec(line)[0].length;
     let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
     let blockEnd = i;
@@ -517,11 +542,12 @@ function scanYaml(text) {
       }
       blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
     }
-    if (/^\s*(?:-\s+)*run\s*:/.test(code)) {
-      records ??= yamlRecords(text);
-      const scan = RUN_SCANNERS[runShell(records, records.findIndex((r) => r.start === lineStart))];
-      if (scan) for (const c of scan(text.slice(i, blockEnd), Number.isFinite(content) ? content : 0)) comments.push({ start: c.start + i, end: c.end + i });
-    }
+    records ??= yamlRecords(text);
+    const index = records.findIndex((r) => r.start === lineStart);
+    const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
+    const indent = Number.isFinite(content) ? content : 0;
+    if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
+    else if (scan) for (const c of scan(text.slice(i, blockEnd), indent)) comments.push({ start: c.start + i, end: c.end + i });
     i = blockEnd;
   }
   return comments;
