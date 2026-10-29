@@ -21,7 +21,7 @@ Read the full body, labels and type with `gh issue view N -R <tickets> --json nu
 
 ## 2. Create the worktree
 
-Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after the worktree is created, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
+Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after worktree creation, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
 
 ## 3. Reproduce before you fix
 
@@ -34,7 +34,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 ## 4. Fix it
 
-Make the scoped change. Follow repository-wide artifact, generated-source and concurrency rules. Note out-of-scope findings in one line with a `file:line`; reproducing, investigating or filing them waits for the sweep after review. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its expected count, CI triggers and sparse-checkout inputs together.
+Make the scoped change. Follow repository-wide artifact, generated-source, concurrency and comment rules; a comment the code seems to need means the code is unfinished. Note out-of-scope findings in one line with a `file:line`; reproducing, investigating or filing them waits for the sweep after review. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its expected count, CI triggers and sparse-checkout inputs together.
 
 ## 5. Regression test
 
@@ -48,25 +48,25 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 
 ## 7. Commit, push, and open a draft PR
 
-Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft from its template. Include the closing reference, actual test evidence, limitations and any known performance cost. Read the PR back.
+Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft from its template. Include the closing reference, test evidence, limitations and any known performance cost. Read the PR back.
 
-Opening the PR starts the Test Suite workflow. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files and are otherwise skipped; its `test-suite` gate job is the required check and passes either way. Do not wait for it: read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran in Testing and verification, and fix any failure it reports as your own correction, even one arriving after the PR is ready. Every later push starts a new run.
+Opening the PR starts the Test Suite workflow. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files and are otherwise skipped; its `test-suite` gate job is the required check and passes either way. Without waiting, read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran in Testing and verification, and fix any failure it reports as your own correction, even after the PR is ready. Every later push starts a new run.
 
 ## 8. Adversarial review
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default review cap is three rounds; only an explicit user request (a named bounded limit or a delegated choice) may extend it.
+Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default review cap is three rounds; only an explicit user request (a named bounded limit or a delegated choice) may extend it.
 
 ## The completion gate
 
-Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
+Implementation is ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR carries its closing reference and verification; and review has satisfied its gates and marked it ready.
 
 Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head passed, failed or was pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe the remaining work and next action. Disclosing blockers does not make the implementation complete or the ticket resolved.
 
 After review's last correction is adjudicated, just before marking the PR ready or asking the user to authorize more rounds, read [outstanding work](references/follow-ups.md) once: fix what this PR can carry and ticket only the rest.
 
-Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. Most sessions have none and post nothing.
+Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. Most sessions post nothing.
 
 At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat.
 
