@@ -70,7 +70,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(patch("*** Update File: src/template.ts\n@@\n alpha\n+// literal text\n middle"), null, "a hunk inside a template literal adds text, not a comment");
     assert.match(patch("*** Update File: src/template.ts\n@@\n-alpha\n+alpha changed\n@@\n export const after = 1;\n+// forbidden note") ?? "", /src\/template\.ts:7: `\/\/ forbidden note`/, "a hunk is judged in the patched file, not beside the other hunks");
 
-    write("src/trailing.ts", "export const a = 1; // legacy note\n");
+    write("src/anchored.ts", "export const t = `\n  target();\n`;\nfunction f() {\n  target();\n}\n");
+    assert.match(patch("*** Update File: src/anchored.ts\n@@ function f() {\n   target();\n+  // forbidden prose\n }") ?? "", /src\/anchored\.ts:6: `\/\/ forbidden prose`/, "a hunk is placed after its @@ anchor");
+    assert.equal(patch("*** Update File: src/anchored.ts\n@@\n   target();\n+  // literal text\n `;"), null, "without an anchor the first matching context is the template");
+
+    write("src/trailing.ts","export const a = 1; // legacy note\n");
     assert.equal(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "a = 1", new_string: "a = 2" }), null, "editing code beside a legacy comment introduces no comment");
     assert.equal(judge("Write", { file_path: at("src/trailing.ts"), content: "export const a = 2; // legacy note\n" }), null);
     assert.match(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "// legacy note", new_string: "// legacy note, reworded" }) ?? "", /src\/trailing\.ts:1/, "a reworded comment is a new comment");
@@ -83,6 +87,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments(String.raw`const s = "// no", t = '/* no */', u = /\/\/no[/]/g; // yes`, "a.ts"), ["// yes"]);
     assert.deepEqual(comments("const t = `a // no ${f(/* yes */ 1, `b // no ${2}`)} c // no`; const r = x / 2 / y; // yes", "a.ts"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const v = <a href=\"http://x\">see</a>; // yes", "a.tsx"), ["// yes"]);
+    assert.deepEqual(comments("const a = {} / 2; // yes\nlet b = 2; const c = b++ / 2; // yes\nif (x) {} /re/.test(y); // yes\nconst o = { k: 1 } / 3; // yes\nconst s = `${d}` / 2; // yes", "a.ts"), ["// yes", "// yes", "// yes", "// yes", "// yes"]);
     assert.deepEqual(comments("if (true) /[/*]/.test(\"/\"); while (x) /a\\/b/.test(y); f(a) / 2 / g; // yes", "a.ts"), ["// yes"]);
     assert.deepEqual(comments("const el = <p>https://example.com {/* yes */} <br/> it's <b>x</b></p>; // yes", "a.tsx"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const id = <T,>(x: T) => x; // yes\nconst f = <>a // no</>; // yes", "a.tsx"), ["// yes", "// yes"]);
@@ -161,6 +166,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(asiStripped, "function f() { return\n1; }", "a removed block comment holding a line break leaves one, so automatic semicolon insertion is unchanged");
     assert.equal(new Function(`${asiStripped}; return f();`)(), new Function(`${asi}; return f();`)());
     assert.equal(stripComments("<div title=\"<!-- kept -->\">ok</div><!-- note -->\n", "a.html", { root: checkout }), "<div title=\"<!-- kept -->\">ok</div>\n");
+    const adjacent = "function f() { return /* first *//* second\n*/ 1; }";
+    const adjacentStripped = stripComments(adjacent, "src/a.ts", { root: checkout });
+    assert.equal(adjacentStripped, "function f() { return\n1; }", "merged removals keep the strongest separator either needed");
+    assert.equal(new Function(`${adjacentStripped}; return f();`)(), undefined);
+    assert.equal(stripComments("div/* prose */.active { color: red; }\na /* prose */ b {}\n", "a.css", { root: checkout }), "div.active { color: red; }\na  b {}\n", "CSS removal inserts no whitespace a selector would read");
+    assert.equal(stripComments("<p>hello<!-- prose -->world</p>\n", "a.html", { root: checkout }), "<p>helloworld</p>\n", "HTML removal inserts no text");
     assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });

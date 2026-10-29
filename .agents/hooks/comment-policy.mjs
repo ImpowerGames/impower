@@ -50,22 +50,30 @@ const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", 
 
 const CONDITION_WORDS = new Set(["if", "while", "for", "with"]);
 
+const EXPRESSION_WORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "yield", "await"]);
+
+function blockOpens(last) {
+  if (["", "=>", ")", ";", "{", "}"].includes(last)) return true;
+  return /^[A-Za-z_$][\w$]*$/.test(last) && last !== "value" && !EXPRESSION_WORDS.has(last);
+}
+
 function scanJs(text, jsx = false) {
   const comments = [];
-  const frames = [{ mode: "code", braces: 0 }];
+  const frames = [{ mode: "code", blocks: [] }];
   const parens = [];
-  let regexAllowed = true, lastWord = "";
+  let regexAllowed = true, last = "";
   let i = text.startsWith("#!") ? lineEnd(text, 0) : 0;
   const enterCode = () => {
-    frames.push({ mode: "code", braces: 0 });
+    frames.push({ mode: "code", blocks: [] });
     regexAllowed = true;
-    lastWord = "";
+    last = "";
   };
   const endTag = (frame) => {
     if (frame.open > 0) frame.mode = "jsxText";
     else {
       frames.pop();
       regexAllowed = false;
+      last = "value";
     }
   };
   while (i < text.length) {
@@ -76,6 +84,7 @@ function scanJs(text, jsx = false) {
       else if (c === "`") {
         frames.pop();
         regexAllowed = false;
+        last = "value";
         i++;
       } else if (c === "$" && n === "{") {
         enterCode();
@@ -136,6 +145,7 @@ function scanJs(text, jsx = false) {
     } else if (c === "'" || c === '"') {
       i = skipQuoted(text, i, c);
       regexAllowed = false;
+      last = "value";
     } else if (c === "`") {
       frames.push({ mode: "template" });
       i++;
@@ -152,31 +162,36 @@ function scanJs(text, jsx = false) {
         while (/[A-Za-z]/.test(text[j] ?? "")) j++;
         i = j;
         regexAllowed = false;
+        last = "value";
       } else {
         i++;
         regexAllowed = true;
+        last = "/";
       }
     } else if (word) {
       let j = i;
       while (j < text.length && /[A-Za-z0-9_$]/.test(text[j])) j++;
-      lastWord = text.slice(i, j);
-      regexAllowed = REGEX_AFTER_WORD.has(lastWord) && text[i - 1] !== ".";
+      last = text.slice(i, j);
+      regexAllowed = REGEX_AFTER_WORD.has(last) && text[i - 1] !== ".";
       i = j;
-      continue;
     } else if (/\s/.test(c)) {
       i++;
-      continue;
-    } else if (c === "}" && frame.braces === 0 && frames.length > 1) {
+    } else if (c === "}" && !frame.blocks.length && frames.length > 1) {
       frames.pop();
       i++;
+    } else if ((c === "+" || c === "-") && n === c) {
+      i += 2;
     } else {
-      if (c === "{") frame.braces++;
-      else if (c === "}") frame.braces--;
-      if (c === "(") parens.push(CONDITION_WORDS.has(lastWord));
-      regexAllowed = c === ")" ? parens.pop() ?? false : c !== "]";
+      if (c === "{") frame.blocks.push(blockOpens(last));
+      if (c === "}") regexAllowed = frame.blocks.pop() ?? true;
+      else if (c === "(") {
+        parens.push(CONDITION_WORDS.has(last));
+        regexAllowed = true;
+      } else if (c === ")") regexAllowed = parens.pop() ?? false;
+      else regexAllowed = c !== "]";
+      last = c === ">" && text[i - 1] === "=" ? "=>" : c;
       i++;
     }
-    lastWord = "";
   }
   return comments;
 }
@@ -471,6 +486,7 @@ export function refusedComments(text, file, options = {}) {
 export function stripComments(text, file, options = {}) {
   const refused = judgeComments(text, file, options).filter((c) => c.kind === "refused");
   if (!refused.length) return text;
+  const family = familyOf(file);
   const removed = new Uint8Array(text.length);
   for (const c of refused) removed.fill(1, c.start, c.end);
   const code = (from, to) => {
@@ -486,6 +502,8 @@ export function stripComments(text, file, options = {}) {
       let from = c.start;
       while (from > c.lineStart && /[ \t]/.test(text[from - 1])) from--;
       cuts.push({ from, to: c.end });
+    } else if (family !== "js" && leading) {
+      cuts.push({ from: c.start, to: c.end });
     } else {
       let from = c.start, to = c.end;
       while (to < text.length && /[ \t]/.test(text[to])) to++;
@@ -496,12 +514,14 @@ export function stripComments(text, file, options = {}) {
     }
   }
   cuts.sort((a, b) => a.from - b.from);
+  const strength = (replacement) => ["", " ", "\n"].indexOf(replacement ?? "");
   const merged = [];
   for (const cut of cuts) {
     const last = merged[merged.length - 1];
     if (last && cut.from <= last.to) {
       last.to = Math.max(last.to, cut.to);
       last.whole ||= cut.whole;
+      if (strength(cut.replacement) > strength(last.replacement)) last.replacement = cut.replacement;
     } else merged.push({ ...cut });
   }
   const blankAt = (offset) => offset < text.length && !text.slice(offset, lineEnd(text, offset)).trim();
@@ -553,9 +573,7 @@ function applyEdits(before, edits) {
 function findLines(lines, wanted, from) {
   const fits = (at, same) => wanted.every((line, k) => same(lines[at + k] ?? "", line));
   for (const same of [(a, b) => a === b, (a, b) => a.trimEnd() === b.trimEnd(), (a, b) => a.trim() === b.trim()]) {
-    for (const start of [from, 0]) {
-      for (let at = start; at + wanted.length <= lines.length; at++) if (fits(at, same)) return at;
-    }
+    for (let at = from; at + wanted.length <= lines.length; at++) if (fits(at, same)) return at;
   }
   return -1;
 }
@@ -564,8 +582,13 @@ function applyHunks(before, hunks) {
   const lines = before.split("\n");
   let cursor = 0;
   for (const hunk of hunks) {
-    const old = hunk.filter((l) => l.op !== "+").map((l) => l.text);
-    const replacement = hunk.filter((l) => l.op !== "-").map((l) => l.text);
+    for (const anchor of hunk.anchors) {
+      const found = findLines(lines, [anchor], cursor);
+      if (found < 0) return null;
+      cursor = found + 1;
+    }
+    const old = hunk.lines.filter((l) => l.op !== "+").map((l) => l.text);
+    const replacement = hunk.lines.filter((l) => l.op !== "-").map((l) => l.text);
     const at = old.length ? findLines(lines, old, cursor) : lines.length - (lines[lines.length - 1] === "" ? 1 : 0);
     if (at < 0) return null;
     lines.splice(at, old.length, ...replacement);
@@ -629,7 +652,7 @@ export function introducedCommentReason(files, cwd = process.cwd()) {
       offending = introducedRefusal(before, after, rel, root);
       if (offending) where = `${rel}:${offending.line}`;
     } else {
-      const fragments = Array.isArray(file.hunks) ? file.hunks : (file.edits ?? []).map((e) => String(e?.new_string ?? "").split(/\r?\n/).map((text) => ({ op: "+", text })));
+      const fragments = Array.isArray(file.hunks) ? file.hunks.map((h) => h.lines) : (file.edits ?? []).map((e) => String(e?.new_string ?? "").split(/\r?\n/).map((text) => ({ op: "+", text })));
       for (const fragment of fragments) if ((offending = fragmentRefusal(fragment, rel, root))) break;
     }
     if (!offending) continue;

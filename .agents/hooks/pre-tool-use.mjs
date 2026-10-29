@@ -23,10 +23,13 @@ function patchFiles(command) {
     } else if (!file || line.startsWith("*** ")) continue;
     else if (file.added) {
       if (line.startsWith("+")) file.added.push(line.slice(1));
-    } else if (line.startsWith("@@")) file.hunks.push((hunk = []));
-    else if (/^[ +-]/.test(line)) {
-      if (!hunk) file.hunks.push((hunk = []));
-      hunk.push({ op: line[0], text: line.slice(1) });
+    } else if (line.startsWith("@@")) {
+      if (!hunk || hunk.lines.length) file.hunks.push((hunk = { anchors: [], lines: [] }));
+      const anchor = line.slice(2).trim();
+      if (anchor) hunk.anchors.push(anchor);
+    } else if (/^[ +-]/.test(line)) {
+      if (!hunk) file.hunks.push((hunk = { anchors: [], lines: [] }));
+      hunk.lines.push({ op: line[0], text: line.slice(1) });
     }
   }
   return files.map(({ added, ...rest }) => (added ? { ...rest, content: added.length ? added.join("\n") + "\n" : "" } : rest));
