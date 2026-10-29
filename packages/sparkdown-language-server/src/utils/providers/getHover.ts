@@ -10,8 +10,11 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
+import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
+import { own } from "@impower/sparkdown/src/morph/own";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
-import { type Tree } from "@lezer/common";
+import { type SyntaxNode, type Tree } from "@lezer/common";
 import {
   MarkupKind,
   type Hover,
@@ -83,6 +86,57 @@ const getGlueHover = (
   };
 };
 
+// The documentation of a morph field under the cursor: a name written as a
+// field (followed by `=` or a `{ … }` block) inside a `morph` block, with the
+// text completion shows for it. A field a `paints` entry shares with another
+// place (`state`, `targets`) shows the entry's own documentation there. A
+// layer label under `layers { … }` is a label, not a field.
+const getMorphFieldHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  let inMorph = false;
+  for (let node: SyntaxNode | null = tree.resolveInner(offset, -1); node; node = node.parent) {
+    if (node.name === "LuauMorph") {
+      inMorph = true;
+      break;
+    }
+  }
+  if (!inMorph) {
+    return null;
+  }
+  const line = document.getLineText(position.line);
+  const isNameChar = (ch: string | undefined) => !!ch && /[\w]/.test(ch);
+  let start = position.character;
+  let end = position.character;
+  while (isNameChar(line[start - 1])) start -= 1;
+  while (isNameChar(line[end])) end += 1;
+  const name = line.slice(start, end);
+  if (!name || !/^[ \t]*(=|\{)/.test(line.slice(end))) {
+    return null;
+  }
+  const read = (from: number, to: number) => document.read(from, to);
+  const path = braceBlockPathAt(tree, offset, read)?.path ?? [];
+  if (path[0] === "layers" && path.length === 1) {
+    return null;
+  }
+  const doc =
+    (path[0] === "paints" ? own(MORPH_FIELD_DOCS, `paints.${name}`) : undefined) ??
+    own(MORPH_FIELD_DOCS, name);
+  if (!doc) {
+    return null;
+  }
+  return {
+    contents: { kind: MarkupKind.Markdown, value: doc },
+    range: {
+      start: { line: position.line, character: start },
+      end: { line: position.line, character: end },
+    },
+  };
+};
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -96,6 +150,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const morphFieldHover = getMorphFieldHover(document, tree, position);
+    if (morphFieldHover) {
+      return morphFieldHover;
     }
   }
   if (!document || !annotations || !program) {

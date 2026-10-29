@@ -47,6 +47,7 @@ export const MORPH_ROOT_FIELDS = [
   "keyframes",
   "timing",
   "clips",
+  "paints",
 ] as const;
 
 /** Transition-policy fields: at the root, or under a label in `layers { … }`. */
@@ -63,9 +64,27 @@ export function parseMorphDepth(
   value: unknown,
 ): typeof MORPH_DEPTH_REST | { group: string; state: string } | undefined {
   if (value === MORPH_DEPTH_REST) return MORPH_DEPTH_REST;
+  return parseMorphQualifiedState(value);
+}
+
+/** The group and state of a qualified state such as `eyes.closed`; undefined for any other value. */
+export function parseMorphQualifiedState(value: unknown): { group: string; state: string } | undefined {
   if (typeof value !== "string") return undefined;
   const match = /^([^.\s]+)\.(\S+)$/.exec(value);
   return match ? { group: match[1]!, state: match[2]! } : undefined;
+}
+
+/**
+ * A `paints` entry's `span` as a fraction from 0 to 1: a percentage from
+ * `0%` to `100%`, or a number from 0 to 1. Undefined for any other value.
+ */
+export function parseMorphSpan(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const match = /^(\d+(?:\.\d+)?|\.\d+)%$/.exec(value.trim());
+  if (!match) return undefined;
+  const percent = Number(match[1]);
+  return percent <= 100 ? percent / 100 : undefined;
 }
 
 export const MORPH_TIMING_FIELDS = [
@@ -96,8 +115,14 @@ export const MORPH_CONTAINER_FIELDS = [
 
 export const MORPH_CLIP_FIELDS = ["between", "targets"] as const;
 
+/** Fields of one `paints { … }` entry. */
+export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "span"] as const;
+
+/** The `span` a `paints` entry takes when it sets none: the whole segment. */
+export const MORPH_PAINT_SPAN_DEFAULT = 1;
+
 /** Keys whose values are literal text rather than numbers or references. */
-export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth"]);
+export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke"]);
 /** Keys whose list values are literal labels. */
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set(
   MORPH_CLIP_FIELDS,
@@ -146,6 +171,15 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   opacity: "The layer's opacity, from 0 to 1.",
   between: "The layer labels this aperture accepts as edges, such as `eyelash-right`, `eyelash-top-right` and `eyelash-bottom-right`. An image may draw any of them; the ones it draws must form the aperture.",
   targets: "The layers the aperture clips.",
+  paints:
+    "Colours that layers take at one pose, as `{ … }` entries with `targets`, `state`, an optional `when`, a `fill` or `stroke`, and an optional `span`: `{ targets { eyelash-left }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }`. Where two entries recolour one drawing, the later wins.",
+  "paints.targets": "The layer labels whose drawings this entry recolours, such as `eyelash-left`.",
+  "paints.state":
+    "The pose the colour belongs to, written with its group, such as `eyes.closed`: a state the keyframes name, other than the one the morph starts from. The colour shows while the pose is held and moves in over the neighbouring segments.",
+  when: "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
+  fill: "The fill colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
+  stroke: "The stroke colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
+  span: "How much of each segment next to the pose the colour change takes: a percentage from `0%` to `100%`, or a number from 0 to 1. Default `100%`; `0%` changes the colour only where the pose's own drawings show.",
 };
 
 const splitArgs = (text: string): string[] =>

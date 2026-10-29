@@ -1,16 +1,21 @@
-import { table } from "./own";
+import { formatColor, readEntryColor } from "./color";
+import { own, table } from "./own";
 import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyframes";
 import {
   MORPH_BLENDS,
   MORPH_FALLBACKS,
   MORPH_DEPTH_REST,
   MORPH_METHODS,
+  MORPH_PAINT_SPAN_DEFAULT,
   parseMorphDepth,
+  parseMorphQualifiedState,
+  parseMorphSpan,
 } from "../compiler/morph/morphSchema";
 import type {
   MorphBlend,
   MorphFallback,
   MorphMethodName,
+  MorphPaintEntry,
   MorphPolicy,
   MorphRecipe,
 } from "./types";
@@ -35,6 +40,27 @@ const policyOf = (struct: Record<string, unknown>): MorphPolicy => {
 
 const labels = (list: unknown): string[] =>
   Array.isArray(list) ? list.filter((v): v is string => typeof v === "string" && v !== "") : [];
+
+/**
+ * A `paints` entry's bake inputs, its colours written as `formatColor`
+ * writes them; undefined for an entry with a value the checks reject.
+ */
+const paintEntryOf = (entry: Record<string, unknown>): MorphPaintEntry | undefined => {
+  const targets = labels(entry["targets"]);
+  const state = entry["state"];
+  const when = entry["when"];
+  const span = entry["span"] === undefined ? MORPH_PAINT_SPAN_DEFAULT : parseMorphSpan(entry["span"]);
+  if (!targets.length || !parseMorphQualifiedState(state) || span === undefined) return undefined;
+  if (when !== undefined && !parseMorphQualifiedState(when)) return undefined;
+  const out: MorphPaintEntry = { targets, state: state as string, ...(when === undefined ? {} : { when: when as string }), span };
+  for (const name of ["fill", "stroke"] as const) {
+    if (entry[name] === undefined) continue;
+    const color = readEntryColor(entry[name]);
+    if (!color) return undefined;
+    out[name] = formatColor(color);
+  }
+  return out.fill || out.stroke ? out : undefined;
+};
 
 /**
  * The bake inputs of an effective morph (the builtin defaults, then every
@@ -81,6 +107,24 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
       if (between.length && targets.length) clips.push({ between, targets });
     }
   }
+  // An entry's pose is a state the keyframes name for a group they drive,
+  // other than the one it starts from, and its condition is on a group they
+  // do not drive.
+  const named = new Map<string, Set<string>>();
+  for (const keyframe of keyframes) {
+    for (const [group, state] of Object.entries(keyframe.states)) named.set(group, (named.get(group) ?? new Set()).add(state));
+  }
+  const paints: MorphPaintEntry[] = [];
+  if (Array.isArray(morph["paints"])) {
+    for (const entry of morph["paints"]) {
+      const paint = isRecord(entry) ? paintEntryOf(entry) : undefined;
+      const pose = paint && parseMorphQualifiedState(paint.state)!;
+      const when = paint?.when === undefined ? undefined : parseMorphQualifiedState(paint.when)!;
+      if (!paint || !pose || !named.get(pose.group)?.has(pose.state) || own(keyframes[0]?.states ?? {}, pose.group) === pose.state) continue;
+      if (when && named.has(when.group)) continue;
+      paints.push(paint);
+    }
+  }
   return {
     name,
     blend: root.blend ?? "morph",
@@ -92,6 +136,8 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     layers,
     keyframes,
     clips,
+    // Left out when empty, as `depth` is at its default.
+    ...(paints.length ? { paints } : {}),
   };
 }
 
