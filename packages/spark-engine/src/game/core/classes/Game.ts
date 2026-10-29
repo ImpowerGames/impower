@@ -4298,18 +4298,25 @@ export class Game<T extends M = {}> {
     };
   }
 
-  runMenus(route?: RoutePlan | null): RunMenu[] {
+  static routeMenus(route: RoutePlan): RunMenu[] {
     const menus: RunMenu[] = [];
-    for (const choice of route?.choices ?? []) {
+    for (const choice of route.choices) {
       const taken = choice.sources?.[choice.selected];
       if (choice.sources && taken !== undefined) {
         menus.push({ sources: [...choice.sources], taken });
       }
     }
-    for (const menu of this._playedMenus) {
-      menus.push({ sources: [...menu.sources], taken: menu.taken });
-    }
     return menus;
+  }
+
+  runMenus(route: RunMenu[]): RunMenu[] {
+    return [
+      ...route,
+      ...this._playedMenus.map((menu) => ({
+        sources: [...menu.sources],
+        taken: menu.taken,
+      })),
+    ];
   }
 
   runMeetings(menus: RunMenu[]): RunMeeting[] | null {

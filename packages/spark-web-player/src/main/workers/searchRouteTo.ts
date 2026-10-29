@@ -123,6 +123,7 @@ export const searchRouteFor = (
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
       route: report,
+      menus: reachedTarget ? Game.routeMenus(route) : undefined,
       fromStart: searchedFromStart,
     });
     return checkpoint ?? undefined;

@@ -15,7 +15,6 @@ import type {
   RunMenu,
   ScriptSource,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
-import type { RoutePlan } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import {
   installGameWorker,
@@ -540,6 +539,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     /** The route the checkpoint was replayed along, as the preview reports
      *  it. */
     route?: PreviewRoute;
+    menus?: RunMenu[];
   };
 
   /** What `log` holds about the address `to`, as the display and PLAY read
@@ -556,6 +556,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       ...report,
       checkpoint: log.checkpointFor(to),
       route: log.outcomeFor(to)?.route,
+      menus: log.outcomeFor(to)?.menus,
     };
   };
 
@@ -837,7 +838,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     | {
         run: number;
         game: Game;
-        plan?: RoutePlan | null;
+        prefix: RunMenu[];
         stopped: Promise<void>;
         stop: () => void;
         channel?: BroadcastChannel;
@@ -894,7 +895,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
-    const plan = start ? game.plannedRoute : null;
     lastRun = [];
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
@@ -932,7 +932,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     gameState.running = running;
     let stop!: () => void;
     const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = { run: ++runs, game: running, plan, stopped, stop };
+    current = {
+      run: ++runs,
+      game: running,
+      prefix: route.menus ?? [],
+      stopped,
+      stop,
+    };
     return {
       built: true,
       compiled: isRunnableProgram(program),
@@ -1023,7 +1029,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       return { location: null };
     }
     const location = ending.game.getLastExecutedDocumentLocation();
-    lastRun = ending.game.runMenus(ending.plan);
+    lastRun = ending.game.runMenus(ending.prefix);
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();

@@ -57,6 +57,33 @@ scene s
 end
 `;
 
+const UNREACHED = `scene s
+  choose
+    * [Alpha.]
+      HERO:
+        Alpha said.
+    * [Beta.]
+      HERO:
+        Beta said.
+  end
+  HERO:
+    Shared line.
+end
+
+scene other
+  HERO:
+    Before.
+  done
+  HERO:
+    Jump start.
+  choose
+    * [New.]
+      HERO:
+        New said.
+  end
+end
+`;
+
 const lineIn = (source: string, text: string) =>
   source.split("\n").findIndex((l) => l.includes(text));
 const pinIn = (source: string, text: string, offer = 1) => ({
@@ -250,6 +277,27 @@ describe("PLAY and the pins", () => {
       const wait = pinIn(GATED, "[Wait.]");
       expect(requests.map((r: any) => r.params)).toEqual([
         { add: [{ ...wait, line: wait.line + 2 }], remove: [] },
+      ]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("pins only the run's own choices when PLAY starts at a line no route reaches", async () => {
+    const h = await playerOf(UNREACHED, lineIn(UNREACHED, "Shared line."));
+    try {
+      await h.compile();
+      await h.select(lineIn(UNREACHED, "Shared line."));
+      await settle(40);
+      expect(shown(h).decisions).toEqual([["auto", "Alpha."]]);
+      await playAndStop(h, lineIn(UNREACHED, "Jump start."), ["New."]);
+      await h.select(lineIn(UNREACHED, "Shared line."));
+      await settle(40);
+
+      const { text, requests } = await pressFoot(h);
+      expect(text).toBe("Pin the 1 choice from the last run");
+      expect(requests.map((r: any) => r.params)).toEqual([
+        { add: [pinIn(UNREACHED, "[New.]")], remove: [] },
       ]);
     } finally {
       h.dispose();
