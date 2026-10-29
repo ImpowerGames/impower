@@ -9,7 +9,6 @@ import {
   MORPH_DIRECTIONS,
   MORPH_FALLBACKS,
   MORPH_LAYER_PROPERTIES,
-  MORPH_LITERAL_LIST_KEYS,
   MORPH_METHODS,
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
@@ -306,23 +305,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
   const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
 
-  // A block whose lines set fields with `:` reads as a list of text. Each
-  // such line naming one of the block's fields is reported where it is
-  // written, with its `=` form (a label list's block form); false when the
-  // block has none.
-  const colonFields = (block: unknown, fields: readonly string[]): boolean => {
-    if (!Array.isArray(block)) return false;
-    let found = false;
-    block.forEach((item, i) => {
-      const match = typeof item === "string" ? /^([A-Za-z_][\w-]*)[ \t]*:[ \t]*(.*)$/.exec(item.trim()) : null;
-      if (!match || !fields.includes(match[1]!)) return;
-      const written = MORPH_LITERAL_LIST_KEYS.has(match[1]!) ? `${match[1]} { ${match[2]} }` : `${match[1]} = ${match[2]}`;
-      push(src(block)?.items[i], `\`${match[1]}:\` does not set a field: write \`${written}\`.`);
-      found = true;
-    });
-    return found;
-  };
-
   if (!decl.withKeyword) {
     push(
       decl.name,
@@ -381,7 +363,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
-          if (colonFields(policy, MORPH_POLICY_FIELDS)) continue;
           push(
             src(layers)?.lines.get(label),
             `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
@@ -398,7 +379,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const timing = own["timing"];
   if (timing !== undefined) {
     if (!isRecord(timing)) {
-      if (!colonFields(timing, MORPH_TIMING_FIELDS)) push(valueSpan(own, "timing"), "`timing` is a block of fields: `timing { duration = 0.25 }`.");
+      push(valueSpan(own, "timing"), "`timing` is a block of fields: `timing { duration = 0.25 }`.");
     } else {
       checkFields(timing, "timing");
       checkTiming(timing, (field, message) =>
@@ -449,11 +430,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         for (const [key, container] of Object.entries(keyframe)) {
           if (key === "offset") continue;
           if (!isRecord(container)) {
-            // A container whose fields are reported here still poses its group.
-            if (colonFields(container, MORPH_CONTAINER_FIELDS)) {
-              poses += 1;
-              continue;
-            }
             const line = src(keyframe)?.lines.get(key);
             if (HOME[key] && !(MORPH_CONTAINER_FIELDS as readonly string[]).includes(key)) {
               push(keySpan(keyframe, key), `\`${key}\` belongs ${HOME[key]}.`);
@@ -520,7 +496,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       clips.forEach((clip, index) => {
         const itemLine = src(clips)?.items[index];
         if (!isRecord(clip)) {
-          if (colonFields(clip, MORPH_CLIP_FIELDS)) return;
           push(itemLine, "A clip entry is a `{ … }` entry with `between { … }` and `targets { … }` label lists.");
           return;
         }
@@ -570,7 +545,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       paints.forEach((entry, index) => {
         const itemLine = src(paints)?.items[index];
         if (!isRecord(entry)) {
-          if (!colonFields(entry, MORPH_PAINT_FIELDS)) push(itemLine, PAINT_ENTRY);
+          push(itemLine, PAINT_ENTRY);
           return;
         }
         checkFields(entry, "paint");
