@@ -452,38 +452,57 @@ function indexOfWord(text: string, word: string): number {
 }
 
 /** The type annotation `rest` begins with (`: number | string = 1` gives
- *  `number | string`), up to the `=`, `,` or comment that ends it outside any
- *  bracket or string, or the end of the line; none when `rest` holds none. */
-function annotationAt(rest: string): string | undefined {
+ *  `number | string`), up to the `=` or `,` that ends it outside any bracket
+ *  or string, or the end of its line. A bracket still open at the end of a
+ *  line continues the annotation on the lines after it (`lineAfter`, from
+ *  0), and comments are left out of it. None when `rest` holds none. */
+function annotationAt(
+  rest: string,
+  lineAfter: (index: number) => string | undefined,
+): string | undefined {
   const colon = /^\s*:/.exec(rest);
   if (!colon) {
     return undefined;
   }
+  let text = rest.slice(colon[0].length);
+  let annotation = "";
   let depth = 0;
   let quote: string | undefined;
-  let i = colon[0].length;
-  for (; i < rest.length; i += 1) {
-    const c = rest[i]!;
-    if (quote) {
-      if (c === quote) {
-        quote = undefined;
-      } else if (c === "\\") {
-        i += 1;
+  for (let next = 0; ; next += 1) {
+    let i = 0;
+    for (; i < text.length; i += 1) {
+      const c = text[i]!;
+      if (quote) {
+        if (c === quote) {
+          quote = undefined;
+        } else if (c === "\\") {
+          annotation += c;
+          i += 1;
+          annotation += text[i] ?? "";
+          continue;
+        }
+      } else if (text.startsWith("--", i)) {
+        break;
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if ("({[<".includes(c)) {
+        depth += 1;
+      } else if (")}]".includes(c) || (c === ">" && text[i - 1] !== "-")) {
+        depth -= 1;
+      } else if (depth === 0 && (c === "=" || c === ",")) {
+        return annotation.trim() || undefined;
       }
-    } else if (c === '"' || c === "'") {
-      quote = c;
-    } else if ("({[<".includes(c)) {
-      depth += 1;
-    } else if (")}]".includes(c) || (c === ">" && rest[i - 1] !== "-")) {
-      depth -= 1;
-    } else if (
-      depth === 0 &&
-      (c === "=" || c === "," || rest.startsWith("--", i))
-    ) {
-      break;
+      annotation += c;
     }
+    // A string does not go on past its line.
+    quote = undefined;
+    const line = depth > 0 && next < 200 ? lineAfter(next) : undefined;
+    if (line === undefined) {
+      return annotation.trim() || undefined;
+    }
+    annotation += "\n";
+    text = line;
   }
-  return rest.slice(colon[0].length, i).trim() || undefined;
 }
 
 /**
@@ -4960,9 +4979,14 @@ export class SparkdownCompiler {
               // A top-level `store`: the annotation written after the name
               // the parse marks (`store hp: number = 0`), whole.
               const line = doc.getLineText(range.end.line) ?? "";
-              const annotation = annotationAt(line.slice(range.end.character));
-              if (annotation && /^\s*store\b/.test(line)) {
-                program.storeTypes ??= {};
+              const annotation = /^\s*store\b/.test(line)
+                ? annotationAt(line.slice(range.end.character), (index) =>
+                    doc.getLineText(range.end.line + 1 + index),
+                  )
+                : undefined;
+              if (annotation) {
+                // No prototype, so a store named `__proto__` is an entry.
+                program.storeTypes ??= Object.create(null) as {};
                 program.storeTypes[name] = annotation;
               }
             }

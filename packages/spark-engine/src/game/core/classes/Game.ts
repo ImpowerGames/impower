@@ -50,6 +50,7 @@ import {
 } from "@impower/sparkdown/src/program/startingValues";
 import {
   TOP_LEVEL_FLOW,
+  ownEntry,
   type StartingValueListing,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
@@ -1599,7 +1600,7 @@ export class Game<T extends M = {}> {
         this._story,
         from,
         this.startingValueSource(),
-        this._startingValues[from],
+        ownEntry(this._startingValues, from),
         unsetSeed,
       );
       kept = { plan, json: JSON.stringify(plan) };

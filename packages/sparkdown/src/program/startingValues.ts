@@ -5,6 +5,7 @@
  * of a route and its other starts all start a story through `startStoryAt`,
  * so that each arrives at the same state.
  */
+import { tableFromPairs } from "../runtime/evaluation";
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import { VariableAssignment } from "../runtime/VariableAssignment";
 import type { InkObject } from "../runtime/Object";
@@ -36,6 +37,7 @@ import {
 import type { ProgramRoot } from "./ProgramRoot";
 import { entryParameters } from "./ProgramSave";
 import { ProgramStory } from "./ProgramStory";
+import { flowScopesOf } from "./ProgramStoryState";
 import { SymbolKind, countIdOf } from "./ProgramSymbols";
 import {
   SEED_KEY,
@@ -100,11 +102,11 @@ const declaredType = (
 
 /** A runtime value as a literal, or nothing for one no literal writes (a
  *  function, or a table with a metatable). A table's entries that no literal
- *  writes are left out, and `partial`, when given, records that some were. */
+ *  writes, by their value or by their key (a table or a function), are left
+ *  out, and the table is marked `partial`. */
 export const literalOfValue = (
   value: InkObject | null | undefined,
   depth = 0,
-  partial?: { skipped: boolean },
 ): Literal | undefined => {
   if (value == null || value instanceof NullValue) {
     return null;
@@ -129,10 +131,10 @@ export const literalOfValue = (
     let position = 1;
     let gap = false;
     for (; map.has(String(position)); position++) {
-      const item = literalOfValue(map.get(String(position)), depth + 1, partial);
+      const item = literalOfValue(map.get(String(position)), depth + 1);
       if (item === undefined) {
         gap = true;
-        if (partial) partial.skipped = true;
+        table.partial = true;
       } else if (gap) {
         table.entries.push({ key: position, value: item });
       } else {
@@ -143,9 +145,11 @@ export const literalOfValue = (
       if (/^[1-9]\d*$/.test(key) && Number(key) < position) {
         continue;
       }
-      const item = literalOfValue(field, depth + 1, partial);
+      // The runtime's key for a table or a function (`luauMapKeyString`).
+      const keyed = /^__(tableid|stdlibfn):/.test(key);
+      const item = keyed ? undefined : literalOfValue(field, depth + 1);
       if (item === undefined) {
-        if (partial) partial.skipped = true;
+        table.partial = true;
         continue;
       }
       table.entries.push({
@@ -158,21 +162,24 @@ export const literalOfValue = (
   return undefined;
 };
 
-/** A literal as the runtime value it makes, a table a fresh one with its
- *  entries assigned in the order they were written. */
+/** A literal as the runtime value it makes, a table a fresh one built as
+ *  its constructor builds it (`tableFromPairs`): its entries assigned in
+ *  the order they were written, a list entry at the next position. */
 export const valueOfLiteral = (literal: Literal): AbstractValue => {
   if (literal === null) {
     return new NullValue();
   }
   if (isLiteralTable(literal)) {
-    const entries = new Map<string, AbstractValue>();
-    for (const { key, value } of literalTableFields(literal).values()) {
-      entries.set(
-        typeof key === "string" ? key : valueOfLiteral(key).toString(),
-        valueOfLiteral(value),
+    const pairs: AbstractValue[] = [];
+    let position = 1;
+    for (const entry of literal.entries) {
+      const key = "key" in entry ? entry.key : position++;
+      pairs.push(
+        typeof key === "string" ? new StringValue(key) : valueOfLiteral(key),
+        valueOfLiteral(entry.value),
       );
     }
-    return new ObjectValue(entries);
+    return tableFromPairs(pairs, 0);
   }
   return Value.Create(literal)!;
 };
@@ -412,18 +419,21 @@ const storesOf = (
           }
           continue;
         }
-        const partial = { skipped: false };
-        const first = literalOfValue(value, 0, partial);
+        const first = literalOfValue(value);
         if (first === undefined) {
           continue;
         }
-        const declared = declaredType(source.storeTypes?.[name]);
+        const declared = declaredType(
+          source.storeTypes && Object.hasOwn(source.storeTypes, name)
+            ? source.storeTypes[name]
+            : undefined,
+        );
         const type = declared ? declared.type : literalTypeOf(first);
         const item: StartingValueItem = {
           key: storeKey(name),
           group: "stores",
           name,
-          first: formatLiteral(first, partial.skipped),
+          first: formatLiteral(first),
           ...(type ? { type } : {}),
           ...(declared
             ? { declared: true, ...(declared.nullable ? { nullable: true } : {}) }
@@ -749,23 +759,37 @@ export const applyStartValues = (story: ProgramStory, plan: StartPlan): void => 
 /**
  * Binds a plan's parameters in the frame of a story moved into its start
  * past the entry that binds them (`ChooseAddress` to a line no route
- * reaches): each parameter given a value is declared with it, as the
- * entry's own declaration would have, and one given none reads nil.
+ * reaches), as the entry's own declarations would have: every parameter,
+ * one given no value as nil, so a global of its name stays hidden. They are
+ * bound in the scene's scope, the first a flow holds open in the frame
+ * (`flowScopesOf`), beneath the scopes of the blocks the line is in, so
+ * they outlive those blocks.
  */
 export const bindStartArguments = (
   story: ProgramStory,
   plan: StartPlan,
 ): void => {
-  if (!plan.args) {
+  const params = parametersOf(story.root!, plan.from);
+  if (params.length === 0) {
     return;
   }
-  const params = parametersOf(story.root!, plan.from);
-  plan.args.forEach((literal, i) => {
-    const name = params[i];
-    if (name !== undefined && literal !== null) {
+  const scopes = story.state.frame?.temporaryScopes;
+  const position = story.state.position;
+  const sceneScope =
+    scopes &&
+    scopes.length > 1 &&
+    position &&
+    flowScopesOf(story.root!, position.sequence) > 0
+      ? scopes[1]
+      : undefined;
+  params.forEach((name, i) => {
+    const value = valueOfLiteral(plan.args?.[i] ?? null);
+    if (sceneScope) {
+      sceneScope.set(name, value);
+    } else {
       story.state.variablesState.Assign(
         new VariableAssignment(name, true, false, false),
-        valueOfLiteral(literal),
+        value,
       );
     }
   });

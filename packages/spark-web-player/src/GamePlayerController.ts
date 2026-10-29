@@ -109,6 +109,7 @@ import {
   TOP_LEVEL_FLOW,
   changeStartingValues,
   listingItems,
+  ownEntry,
   startingValuesFrom,
   type StartingValueListing,
   type StartingValues,
@@ -900,7 +901,7 @@ export class GamePlayerController {
               this._listing?.listing?.start === start
                 ? this._listing.listing
                 : undefined,
-            values: this._startingValues[start] ?? {},
+            values: ownEntry(this._startingValues, start) ?? {},
           }
         : undefined;
     this._routeState = { ...this._routeState, values };
@@ -973,7 +974,7 @@ export class GamePlayerController {
     onResetAll: () => {
       const start = this.valuesStart();
       const set =
-        start !== undefined ? this._startingValues?.[start] : undefined;
+        start !== undefined ? ownEntry(this._startingValues, start) : undefined;
       if (set) {
         void this.changeValues(
           Object.fromEntries(Object.keys(set).map((key) => [key, null])),
@@ -1012,7 +1013,7 @@ export class GamePlayerController {
     if (saved || !this._startingValues) {
       return;
     }
-    const kept = before[start] ?? {};
+    const kept = ownEntry(before, start) ?? {};
     const items = listingItems(this._listing?.listing);
     const putBack: Record<string, string | null> = {};
     const failed = { ...this._valuesView.unsaved };
@@ -2124,7 +2125,7 @@ export class GamePlayerController {
     const start = this.valuesStart();
     const unsaved = { ...this._valuesView.unsaved };
     for (const key of Object.keys(unsaved)) {
-      if (start !== undefined && values[start]?.[key] !== undefined) {
+      if (start !== undefined && ownEntry(values, start)?.[key] !== undefined) {
         delete unsaved[key];
       }
     }

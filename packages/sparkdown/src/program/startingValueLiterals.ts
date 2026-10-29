@@ -5,6 +5,7 @@
  * the engine: the keys, the literal a value is written as, and the checks a
  * value is given against what the program declares.
  */
+import { numberLiteralValue } from "../compiler/utils/numberLiteralValue";
 import {
   processLuauEscapes,
   stringLiteralValue,
@@ -118,9 +119,28 @@ export const movePlaceLines = (
         moved[movePlaceKey(key, to)] = value;
       }
     }
-    out[start] = moved;
+    setOwnEntry(out, start, moved);
   }
   return changed ? out : values;
+};
+
+/** `record`'s own entry for `key`, never one it inherits: a scene can be
+ *  named `toString` or `__proto__`. */
+export const ownEntry = <T>(
+  record: Readonly<Record<string, T>> | undefined,
+  key: string,
+): T | undefined =>
+  record && Object.hasOwn(record, key) ? record[key] : undefined;
+
+/** Sets `record`'s own entry for `key`, which assigning `__proto__` would
+ *  not. */
+const setOwnEntry = <T>(record: Record<string, T>, key: string, value: T) => {
+  Object.defineProperty(record, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 };
 
 /** Every start's values with one start's changes applied: a key given a
@@ -131,7 +151,7 @@ export const changeStartingValues = (
   start: string,
   changes: Record<string, string | null>,
 ): StartingValues => {
-  const set: StartingValueSet = { ...values[start] };
+  const set: StartingValueSet = { ...ownEntry(values, start) };
   for (const [key, value] of Object.entries(changes)) {
     if (value === null) {
       delete set[key];
@@ -141,7 +161,7 @@ export const changeStartingValues = (
   }
   const out = { ...values };
   if (Object.keys(set).length > 0) {
-    out[start] = set;
+    setOwnEntry(out, start, set);
   } else {
     delete out[start];
   }
@@ -166,7 +186,7 @@ export const startingValuesFrom = (stored: unknown): StartingValues => {
       }
     }
     if (Object.keys(kept).length > 0) {
-      out[start] = kept;
+      setOwnEntry(out, start, kept);
     }
   }
   return out;
@@ -185,6 +205,9 @@ export type LiteralEntry =
  *  later entry for the same key wins. */
 export interface LiteralTable {
   entries: LiteralEntry[];
+  /** Read from a table that also held entries no literal writes (a
+   *  function), which `entries` leaves out. */
+  partial?: boolean;
 }
 
 /** A value written as a literal: nil, a boolean, a number, a string or a
@@ -209,7 +232,8 @@ export const literalTypeOf = (value: Literal): LiteralType =>
 
 /** A table's entries by key, as its constructor leaves them: a list entry
  *  under the next position, a later entry replacing an earlier one of the
- *  same key, and a nil value no entry. */
+ *  same key, and a nil value no entry. A table key is a table of its own,
+ *  equal to no other key. */
 export const literalTableFields = (
   table: LiteralTable,
 ): Map<string, { key: Exclude<Literal, null>; value: Exclude<Literal, null> }> => {
@@ -218,9 +242,14 @@ export const literalTableFields = (
     { key: Exclude<Literal, null>; value: Exclude<Literal, null> }
   >();
   let position = 1;
-  for (const entry of table.entries) {
+  for (const [index, entry] of table.entries.entries()) {
     const key = "key" in entry ? entry.key : position++;
-    const id = typeof key === "string" ? `s:${key}` : `${typeof key}:${String(key)}`;
+    const id =
+      typeof key === "string"
+        ? `s:${key}`
+        : typeof key === "object"
+          ? `table:${index}`
+          : `${typeof key}:${String(key)}`;
     if (entry.value === null) {
       fields.delete(id);
     } else {
@@ -237,22 +266,20 @@ export type ParsedLiteral =
 const NAME = /[A-Za-z_][A-Za-z0-9_]*/y;
 const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
+const UNWRITTEN_NUMBER = /-?math\.huge(?![\w.])|0\/0(?![\w.])/y;
 const LONG_OPEN = /^\[(=*)\[/;
 const KEYWORDS = new Set(["nil", "true", "false"]);
 /** How deep a literal's tables may nest, which keeps the reader, the writer
  *  and the runtime's copy of a value within the call stack. */
 const MAX_TABLE_DEPTH = 64;
 
-/** A number's token as its value: decimal, hexadecimal or binary, with `_`
- *  separators and a sign. */
+/** A number's token as its value, as the compiler reads the literal after
+ *  its sign (`numberLiteralValue`). */
 const numberOf = (token: string): number => {
   const negative = token.startsWith("-");
-  const digits = (negative ? token.slice(1) : token).replace(/_/g, "");
-  const magnitude = /^0[xX]/.test(digits)
-    ? parseInt(digits.slice(2), 16)
-    : /^0[bB]/.test(digits)
-      ? parseInt(digits.slice(2), 2)
-      : Number(digits);
+  const magnitude = numberLiteralValue(
+    (negative ? token.slice(1) : token).replace(/_/g, ""),
+  );
   return negative ? -magnitude : magnitude;
 };
 
@@ -325,6 +352,15 @@ class LiteralReader {
     }
     if (char === "`") {
       this.fail("expected a string in quotes; a backtick string is an expression");
+    }
+    // The numbers no digits write, as the writer writes them.
+    const unwritten = this.match(UNWRITTEN_NUMBER);
+    if (unwritten !== undefined) {
+      return unwritten === "0/0"
+        ? NaN
+        : unwritten.startsWith("-")
+          ? -Infinity
+          : Infinity;
     }
     const number = this.match(NUMBER);
     if (number !== undefined) {
@@ -518,7 +554,8 @@ const quote = (s: string) =>
             ? "\\r"
             : c === "\t"
               ? "\\t"
-              : `\\${c.charCodeAt(0)}`,
+              : // Three digits, so a digit after it is not read into it.
+                `\\${String(c.charCodeAt(0)).padStart(3, "0")}`,
   )}"`;
 
 const formatNumber = (n: number) =>
@@ -531,9 +568,9 @@ const formatNumber = (n: number) =>
         : String(n);
 
 /** A literal written as an author writes it: `nil`, `true`, `3`, `"Ana"`,
- *  `{ name = "Ana", hp = 10 }`. A table that holds more than a literal
- *  writes (`partial`) ends with `…`. */
-export const formatLiteral = (value: Literal, partial = false): string => {
+ *  `{ name = "Ana", hp = 10 }`. A table read from a value that held more
+ *  than a literal writes (`partial`) ends with `…`. */
+export const formatLiteral = (value: Literal): string => {
   if (value === null) {
     return "nil";
   }
@@ -557,7 +594,7 @@ export const formatLiteral = (value: Literal, partial = false): string => {
       ? `${key} = ${formatLiteral(entry.value)}`
       : `[${formatLiteral(key)}] = ${formatLiteral(entry.value)}`;
   });
-  if (partial) {
+  if (value.partial) {
     entries.push("…");
   }
   return entries.length === 0 ? "{ }" : `{ ${entries.join(", ")} }`;
@@ -646,7 +683,8 @@ export const checkStartingValue = (
   const type = literalTypeOf(parsed.value);
   if (
     item.type &&
-    item.type !== "nil" &&
+    // A store that starts as nil, with no annotation, takes any value.
+    !(item.type === "nil" && !item.declared) &&
     type !== item.type &&
     !(type === "nil" && item.nullable)
   ) {

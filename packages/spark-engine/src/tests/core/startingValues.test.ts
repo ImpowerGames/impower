@@ -39,6 +39,7 @@ import {
   SEED_KEY,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
+import { valueOfLiteral } from "@impower/sparkdown/src/program/startingValues";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
@@ -405,6 +406,28 @@ describe("a value is a literal", () => {
   });
 
   test.each([
+    ["math.huge", Infinity],
+    ["-math.huge", -Infinity],
+    ["0/0", NaN],
+  ])("%s, as a first value is written, reads as its value", (text, value) => {
+    expect(formatLiteral(value as any)).toBe(text);
+    expect(parseLiteral(text)).toEqual({ ok: true, value });
+  });
+
+  test.each([["\u000123"], ["\u000723"], [{ entries: [{ key: "s", value: "\u001f9" }] }]])(
+    "%j is written as a literal that reads back as it",
+    (value) => {
+      expect(parseLiteral(formatLiteral(value as any))).toEqual({ ok: true, value });
+    },
+  );
+
+  test("a table key is a table of its own, equal to no other key", () => {
+    const parsed = parseLiteral("{ [{ a = 1 }] = 5, [{ b = 2 }] = 9 }");
+    const table = valueOfLiteral((parsed as any).value) as any;
+    expect([...table.value.values()].map((v: any) => v.value).sort()).toEqual([5, 9]);
+  });
+
+  test.each([
     ["", "expected a value"],
     ["{ found =", "expected } to close the table"],
     ["{ 1 2 }", "expected , or } after a table's entry"],
@@ -558,9 +581,100 @@ describe("a table's starting value", () => {
     });
     expect(shown(game)).toContain("Value 3.");
   });
+
+  test("of a table inside a store's table with an entry no literal writes ends with … in its field too", () => {
+    const listed = routeTo(
+      [
+        "store bag = { inner = { hp = 10, method = math.abs } }",
+        "scene s",
+        "  Hello.",
+        "end",
+      ],
+      3,
+    ).game.startingValueListing("s");
+    const bag = listed.items.find((i: any) => i.name === "bag");
+    expect(bag.first).toBe("{ inner = { hp = 10, … } }");
+    expect(bag.fields.map((f: any) => f.first)).toEqual(["{ hp = 10, … }"]);
+  });
+});
+
+describe("a line no route reaches, jumped to with the start's values", () => {
+  /** What the story writes from the 1-based `line` of `lines` on, jumped
+   *  to with `values`. */
+  const runFrom = (lines: string[], line: number, values: StartingValues) => {
+    const { program } = compileSrc(lines.join("\n"));
+    const game: any = newGame(program);
+    game.setStartingValues(values);
+    game.jumpTo(program.chunks!.addressAt(URI, line - 1), true);
+    return game.story.ContinueMaximally() as string;
+  };
+
+  test("keeps the scene's parameters past the end of the block the line is in", () => {
+    const text = runFrom(
+      [
+        "scene s(hour)",
+        "  done",
+        "  if true then",
+        "    Inside {hour}.",
+        "  end",
+        "  Outside {hour}.",
+        "end",
+      ],
+      4,
+      { s: { [paramKey("hour")]: '"late"' } },
+    );
+    expect(text).toContain("Inside late.");
+    expect(text).toContain("Outside late.");
+  });
+
+  test("binds a parameter set to nil, or not set, as nil, hiding a global of its name", () => {
+    const lines = [
+      'store hour = "global"',
+      "scene s(hour)",
+      "  done",
+      "  After {hour}.",
+      "end",
+    ];
+    expect(runFrom(lines, 4, { s: { [paramKey("hour")]: "nil" } })).not.toContain(
+      "global",
+    );
+    expect(runFrom(lines, 4, {})).not.toContain("global");
+  });
 });
 
 describe("a store's type annotation", () => {
+  test("that spans lines, or is nil, is the type a value is checked against", () => {
+    const { game } = routeTo(
+      [
+        "store bag: {",
+        "  hp: number -- a comment { with a brace",
+        "} = { hp = 1 }",
+        "store nothing: nil = nil",
+        "store toString = 1",
+        "scene s",
+        "  Hello.",
+        "end",
+      ],
+      7,
+    );
+    const items = game.startingValueListing("s").items;
+    const check = (name: string, text: string) =>
+      checkStartingValue(
+        items.find((i: any) => i.name === name),
+        text,
+      );
+    expect(check("bag", '"wrong"')).toEqual({
+      status: "warning",
+      message: "bag is declared as a table. This still applies.",
+    });
+    expect(check("bag", "{ hp = 2 }").status).toBe("ok");
+    expect(check("nothing", "3")).toEqual({
+      status: "warning",
+      message: "nothing is declared as nil. This still applies.",
+    });
+    expect(check("toString", '"a"').status).toBe("warning");
+  });
+
   test("is the type a value is checked against, an optional one taking nil", () => {
     const { game } = routeTo(
       [
