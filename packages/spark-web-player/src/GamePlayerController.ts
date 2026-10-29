@@ -418,13 +418,6 @@ export class GamePlayerController {
   _options?: {
     workspace?: string;
     startFrom?: { file: string; line: number } | null;
-    simulationOptions?: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >;
     breakpoints?: { file: string; line: number }[];
     /** The author's pins, as the host last sent them, which the worker's
      *  games plan their routes with. */
@@ -2256,7 +2249,6 @@ export class GamePlayerController {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
-        this._options.simulationOptions ??= program.simulationOptions;
         if (this.completionPreviewHoldsScreen(program)) {
           // Not awaited: the next real program must not wait on a suggestion.
           void this.refreshCompletionFiles().catch(console.error);
@@ -2368,6 +2360,7 @@ export class GamePlayerController {
   ): Promise<boolean> {
     const play: WorkerPlay = { program, state: "starting", stepped: 0 };
     this._workerPlay = play;
+    this._routeState = { ...this._routeState, lastRun: undefined };
     // STOP, a restart or the controller going ends this start at whichever
     // step it has reached (`endWorkerPlay`).
     const current = () => this._workerPlay === play;
@@ -2404,7 +2397,6 @@ export class GamePlayerController {
         program: programIdentity(program)!,
         startFrom: this._options?.startFrom ?? undefined,
         restarted,
-        simulationOptions: this._options?.simulationOptions,
       });
       play.run = built.run;
       if (!built.built) {
@@ -2566,6 +2558,12 @@ export class GamePlayerController {
       const stopped = await link?.request(StopPlayMessage.type, {
         run: play.run,
       });
+      if (stopped?.run && !this._workerPlay) {
+        // The route list offers to pin the run as played until the next
+        // PLAY.
+        this._routeState = { ...this._routeState, lastRun: stopped.run };
+        this.renderRoute();
+      }
       return stopped?.location ?? null;
     } catch (e) {
       reportUnlessRestarted(e);

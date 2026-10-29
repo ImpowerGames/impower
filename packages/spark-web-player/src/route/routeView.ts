@@ -3,6 +3,7 @@ import type {
   PreviewRouteDecision,
   PreviewRouteOption,
   RoutePin,
+  RunMeeting,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 
@@ -57,8 +58,8 @@ export interface RouteFailure {
  * Everything the route button and the route list show, which they render
  * from and nothing else: the route the preview took, or why it found none,
  * whether the list is open, which kinds it shows, every pin in the project
- * as the host keeps it, and a note when the host did not save a change to
- * them.
+ * as the host keeps it, a note when the host did not save a change to
+ * them, and the menus of the last PLAY's run until the next PLAY.
  */
 export interface RouteViewState {
   route?: PreviewRoute;
@@ -67,6 +68,7 @@ export interface RouteViewState {
   toggles: RouteToggles;
   pins: RoutePin[];
   pinNote?: string;
+  lastRun?: RunMeeting[];
 }
 
 /** What the list says when the host does not save a change to the pins. */
@@ -129,6 +131,30 @@ export const stopIsPinned = (
   pins: RoutePin[],
   decision: PreviewRouteDecision,
 ): boolean => pinsAtStop(pins, decision).length > 0;
+
+/** Pinning each menu of a run as played: the pin on the option taken at
+ *  each, and every other pin at those menus removed. Nothing when the pins
+ *  already say so. */
+export const lastRunChange = (
+  pins: RoutePin[],
+  run: RunMeeting[],
+): RoutePinChange | null => {
+  const add = run
+    .map((meeting) => meeting.pin)
+    .filter((pin) => !pins.some((at) => samePin(at, pin)));
+  const remove = run
+    .flatMap((meeting) => meeting.others)
+    .filter(
+      (other) =>
+        pins.some((at) => samePin(at, other)) &&
+        !run.some((meeting) => samePin(meeting.pin, other)),
+    );
+  return add.length > 0 || remove.length > 0 ? { add, remove } : null;
+};
+
+/** The foot's action that pins a run of `count` choices. */
+export const lastRunText = (count: number): string =>
+  `Pin the ${count} ${count === 1 ? "choice" : "choices"} from the last run`;
 
 /** The pins `change` leaves of `pins`, in the order the host would keep
  *  them, which the list shows until the host answers. */

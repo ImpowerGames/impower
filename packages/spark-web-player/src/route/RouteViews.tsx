@@ -11,6 +11,8 @@ import {
   decisionText,
   isPinned,
   kindCounts,
+  lastRunChange,
+  lastRunText,
   pinChange,
   stopIsPinned,
   unpinChange,
@@ -175,6 +177,10 @@ export function RouteList({
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
+  // Offered after a PLAY until the next, while pressing it changes a pin.
+  const lastRun = state.lastRun?.length
+    ? lastRunChange(state.pins, state.lastRun)
+    : null;
   // An entry is known by its stop: the menu it met, by where it is met, and
   // which meeting of that menu it is. A pin that changes the option taken
   // there, or the options a gate lets it offer, leaves it as it was, so the
@@ -327,9 +333,18 @@ export function RouteList({
           {state.pinNote}
         </p>
       ) : null}
-      {hidden > 0 || state.pins.length > 0 ? (
+      {hidden > 0 || state.pins.length > 0 || lastRun ? (
         <footer class="route-list-foot">
           {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+          {lastRun ? (
+            <button
+              type="button"
+              class="route-pin-last-run"
+              onClick={() => onChangePins(lastRun)}
+            >
+              {lastRunText(state.lastRun!.length)}
+            </button>
+          ) : null}
           {state.pins.length > 0 ? (
             <button
               type="button"

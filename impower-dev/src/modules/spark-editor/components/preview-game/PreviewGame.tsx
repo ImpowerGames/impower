@@ -60,7 +60,7 @@ const STYLE = `
  *   - On iframe `load`: open a Port1MessageConnection over a new
  *     MessageChannel and Initialize the player with project files, LSP
  *     settings, builtin/optional/schema/description definitions, and the
- *     game configuration (workspace + startFrom + simulationOptions).
+ *     game configuration (workspace + startFrom).
  *   - Forward messages from the editor (game/preview/workspace/text-
  *     Document/*) into the iframe channel.
  *   - Forward incoming iframe messages back into the editor's global
@@ -174,7 +174,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           return {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
-            simulationOptions: Workspace.window.store.debug.simulationOptions,
           };
         };
 
@@ -332,33 +331,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             }
           }
           if (GameExecutedMessage.type.is(message)) {
-            const {
-              executedLines,
-              state,
-              restarted,
-              simulateFlow,
-              conditions,
-              choices,
-              route,
-            } = message.params;
-            // A route the author's pins steered is not a choice to favor
-            // next time, so clearing the pins leaves nothing of them.
-            const pinned =
-              route?.decisions.some(
-                (d: { kind: string }) => d.kind === "pinned",
-              ) ?? false;
-            if (simulateFlow != null && !pinned) {
-              const favoredConditions = conditions.map(
-                (c: { selected?: boolean }) => c.selected,
-              );
-              const favoredChoices = choices.map(
-                (c: { selected?: number }) => c.selected,
-              );
-              Workspace.window.setSimulationOptions(simulateFlow, {
-                favoredConditions,
-                favoredChoices,
-              });
-            }
+            const { executedLines, state, restarted } = message.params;
             const executedMap: Record<string, number[]> = {};
             for (const [uri, lines] of Object.entries(executedLines ?? {})) {
               executedMap[uri] = expandLineRanges(lines.ranges);

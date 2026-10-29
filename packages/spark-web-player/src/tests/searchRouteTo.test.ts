@@ -1,9 +1,8 @@
-// The route a preview replays to reach the author's line records the choices
-// it took, and the next route to the same scene favors them, so a preview
-// keeps showing the branch the author has been looking at. A route replayed
-// for an autocomplete suggestion (#634) is replayed in a program the author
-// has not written, so nothing it takes may be kept: the real program's next
-// route, and PLAY, must go exactly where they would have gone without it.
+// The route a preview replays to reach the author's line records what it
+// established in the log it is given and nowhere else. A route replayed for an
+// autocomplete suggestion (#634) is replayed in a program the author has not
+// written, so it records in a log of its own: the real program's log, which
+// PLAY reuses, holds nothing of it.
 //
 // The game is built from the compiled program, as the player's worker builds
 // both its preview game and PLAY's.
@@ -49,34 +48,25 @@ function routeToLeft() {
 }
 
 describe("a route search", () => {
-  test("for the real program remembers the choices its route took", () => {
+  test("records its route in the log it is given", () => {
     const { game, to } = routeToLeft();
-    const config: { simulationOptions?: Record<string, any> } = {};
     const log = new RouteSearchLog();
 
-    const checkpoint = searchRouteTo(game, to, log, { config });
+    const checkpoint = searchRouteTo(game, to, log, {});
 
     expect(checkpoint).toBeTruthy();
     expect(log.last).toMatchObject({ address: to, reachedTarget: true });
-    const favored = Object.values(config.simulationOptions ?? {});
-    expect(favored).toHaveLength(1);
-    expect(favored[0].favoredChoices).toHaveLength(1);
   });
 
-  test("for a suggestion remembers nothing, and still answers", () => {
+  test("for a suggestion records nothing in the real program's log, and still answers", () => {
     const { game, to } = routeToLeft();
-    const config: { simulationOptions?: Record<string, any> } = {};
     const real = new RouteSearchLog();
     const suggestion = new RouteSearchLog();
 
-    const checkpoint = searchRouteTo(game, to, suggestion, {
-      config,
-      remember: false,
-    });
+    const checkpoint = searchRouteTo(game, to, suggestion, {});
 
     expect(checkpoint).toBeTruthy();
     expect(suggestion.last).toMatchObject({ address: to, reachedTarget: true });
-    expect(config.simulationOptions).toBeUndefined();
     expect(real.last).toBeNull();
   });
 });

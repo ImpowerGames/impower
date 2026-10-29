@@ -460,6 +460,46 @@ describe("the pin control", () => {
   });
 });
 
+describe("pinning the last run", () => {
+  /** A run that took "Tell the truth." at line 8 and then "Lie." at line 8's
+   *  menu met again, its second offer there. */
+  const run = [
+    { pin: pin(8), others: [pin(10), pin(12)] },
+    { pin: pin(12, 2), others: [pin(8, 2), pin(10, 2)] },
+  ];
+  const lastRun = (p: ReturnType<typeof player>) => {
+    (p.controller as any)._routeState.lastRun = run;
+    p.report(pinnedRoute());
+    p.open();
+  };
+
+  test("pins each menu of the run as played and removes the other pins at those menus", async () => {
+    const p = player();
+    await p.hostPins([pin(10), pin(10, 2), pin(10, 3)]);
+    lastRun(p);
+    p.button("Pin the 2 choices from the last run")!.click();
+    expect(p.requests().at(-1)!.params).toEqual({
+      add: [pin(8), pin(12, 2)],
+      remove: [pin(10), pin(10, 2)],
+    });
+  });
+
+  test("is offered only while it changes a pin", async () => {
+    const p = player();
+    await p.hostPins([pin(8), pin(12, 2)]);
+    lastRun(p);
+    expect(p.routeList.querySelector(".route-pin-last-run")).toBeNull();
+  });
+
+  test("is offered for one choice in the singular", async () => {
+    const p = player();
+    (p.controller as any)._routeState.lastRun = [run[0]];
+    p.report(pinnedRoute());
+    p.open();
+    expect(p.button("Pin the 1 choice from the last run")).toBeDefined();
+  });
+});
+
 describe("the route button's pin", () => {
   test("shows when pins steered the route and nothing was forced or clipped", () => {
     const p = player();

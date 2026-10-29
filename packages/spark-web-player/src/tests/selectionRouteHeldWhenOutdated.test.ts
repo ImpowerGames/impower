@@ -2,10 +2,7 @@
 // cover: the workspace worker plans and replays a story route to the selected
 // line, against the game holding the last compiled program. Run against a
 // program the document has outrun, that replay reaches whatever used to stand
-// at the line — and it caches that route's favored conditions and choices into
-// the compiler config, which the NEXT compile starts its own search from. So a
-// stale search does not merely waste work; it biases the compile that is meant
-// to correct it.
+// at the line, which is work for a route the author never asked for.
 //
 // Deleting the guard leaves the player's own tests passing, because the player
 // suppresses the preview either way. These are the tests that notice.

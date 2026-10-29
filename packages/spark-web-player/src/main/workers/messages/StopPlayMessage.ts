@@ -1,6 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { RunMeeting } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 
 export type StopPlayMethod = typeof StopPlayMessage.method;
 
@@ -13,6 +14,9 @@ export interface StopPlayParams {
 export interface StopPlayResult {
   /** Where PLAY's game last executed, read before it went. */
   location: DocumentLocation | null;
+  /** The menus of the run as played (`Game.runMeetings`), when it stopped
+   *  the run. */
+  run?: RunMeeting[];
 }
 
 /** End PLAY's game in the worker. */

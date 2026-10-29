@@ -76,8 +76,7 @@ interface DisplayableProgram {
   id: string;
   program: SparkProgram;
   /** Its own: a search run in one program says nothing about another. The
-   *  newest real program's is `routeSearches`, whose searches the compiler
-   *  remembers the choices of; no other program's are remembered. */
+   *  newest real program's is `routeSearches`. */
   log: RouteSearchLog;
 }
 
@@ -173,7 +172,6 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  PLAY's game (#1758). */
   const searchRealRouteTo = (game: Game, to: ProgramAddress) =>
     searchRouteFor(game, to, routeSearches, {
-      config: compiler.config,
       profilerId: compiler.profilerId,
       source,
     });
@@ -390,12 +388,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("end", profilerId + " " + "game/setStartFrom");
     const to = game.startAddress;
     if (to != null) {
-      searchRouteFor(game, to, log, {
-        config: compiler.config,
-        profilerId,
-        remember: false,
-        source,
-      });
+      searchRouteFor(game, to, log, { profilerId, source });
       log.report(params, to);
     }
     const entry: DisplayableProgram = {
@@ -608,9 +601,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     (entry: DisplayableProgram, fromStart: boolean) =>
     (searched: Game, address: ProgramAddress) =>
       searchRouteFor(searched, address, entry.log, {
-        config: compiler.config,
         profilerId: compiler.profilerId,
-        remember: entry.log === routeSearches,
         fromStart,
         source,
       });
@@ -842,12 +833,14 @@ export function installPlayerWorker(connection: MessageConnection) {
   // selection.
 
   /** PLAY's game while it runs, with the run the page knows it by, a
-   *  settlement that STOP answers everything still waiting on it with, and
-   *  the channel it sends the page its stream on once connected. */
+   *  settlement that STOP answers everything still waiting on it with, the
+   *  route it started from, and the channel it sends the page its stream on
+   *  once connected. */
   let current:
     | {
         run: number;
         game: Game;
+        route?: PreviewRoute;
         stopped: Promise<void>;
         stop: () => void;
         channel?: BroadcastChannel;
@@ -921,7 +914,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     const errors = player.putAtStartPoint(
       running,
-      params.simulationOptions,
       {
         // PLAY's game is a game of its own, whose story loads the route's
         // checkpoint from its full save, written here by the game that ran
@@ -940,7 +932,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     gameState.running = running;
     let stop!: () => void;
     const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = { run: ++runs, game: running, stopped, stop };
+    current = { run: ++runs, game: running, route: route.route, stopped, stop };
     return {
       built: true,
       compiled: isRunnableProgram(program),
@@ -1025,21 +1017,22 @@ export function installPlayerWorker(connection: MessageConnection) {
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
-  /** End PLAY's game, answering where it last executed: the run the page
-   *  names, or whichever runs when it names none. A run already replaced is
-   *  left alone. */
+  /** End PLAY's game, answering where it last executed and the menus of
+   *  its run as played: the run the page names, or whichever runs when it
+   *  names none. A run already replaced is left alone. */
   const stopPlay = (params: StopPlayParams): StopPlayResult => {
     const ending = current;
     if (!ending || (params.run != null && params.run !== ending.run)) {
       return { location: null };
     }
     const location = ending.game.getLastExecutedDocumentLocation();
+    const run = ending.game.runMeetings(ending.route);
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();
     ending.channel?.close();
     ending.stop();
-    return { location };
+    return { location, run };
   };
 
   /** PLAY's game for the run the page names, if it still runs. */

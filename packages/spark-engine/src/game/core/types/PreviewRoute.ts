@@ -52,6 +52,14 @@ export interface PreviewRouteDecision {
   passes?: number;
 }
 
+/** A menu a run met, as played: the pin on the option taken there, at the
+ *  offer it was taken at, and the pins the menu's other options would carry
+ *  there. */
+export interface RunMeeting {
+  pin: RoutePin;
+  others: RoutePin[];
+}
+
 /** The route the preview took to the line it shows, as `game/executed`
  *  reports it. */
 export interface PreviewRoute {

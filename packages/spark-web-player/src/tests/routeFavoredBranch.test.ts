@@ -2,8 +2,7 @@
 // the next line of the same scene, whether the search for that line resumes
 // inside the earlier route or starts from the top (#637).
 //
-// Previewing a line inside a branch the program skips forces that branch, and
-// the worker remembers the verdict (`searchRouteTo`'s `simulationOptions`). A
+// Previewing a line inside a branch the program skips forces that branch. A
 // later preview of a line after the branch shows the program's own timeline:
 // a fresh search forces nothing the line does not need, and a search resumed
 // from a checkpoint of the earlier route resumes no later than its forced
@@ -81,15 +80,10 @@ describe("a forced branch", () => {
   test("does not carry over to a later line, resumed or searched afresh", () => {
     const { compiler, program } = compile(TEXT);
     const kept = gameOf(program);
-    const config: any = {};
     const inside = target(kept, TEXT, "Another inside beat.");
-    searchRouteTo(kept, inside, new RouteSearchLog(), { config });
+    searchRouteTo(kept, inside, new RouteSearchLog(), {});
     expect(kept.simulation).toBe("success");
     expect(kept.story.variablesState["total"]).toBe(7);
-    const remembered = structuredClone(config);
-    expect(
-      remembered.simulationOptions[kept.routeStartOf(inside)].favoredConditions,
-    ).toEqual([true]);
 
     const updated = compiler.compile({ textDocument: { uri: URI } }).program;
     kept.updateProgram(updated);
@@ -97,14 +91,12 @@ describe("a forced branch", () => {
     expect(
       kept.routeResumption(kept.routeStartOf(shared), shared).resumeFrom,
     ).toBeDefined();
-    searchRouteTo(kept, shared, new RouteSearchLog(), { config });
+    searchRouteTo(kept, shared, new RouteSearchLog(), {});
     expect(kept.simulation).toBe("success");
 
     const fresh = gameOf(updated);
     const freshShared = target(fresh, TEXT, "Shared beat");
-    searchRouteTo(fresh, freshShared, new RouteSearchLog(), {
-      config: remembered,
-    });
+    searchRouteTo(fresh, freshShared, new RouteSearchLog(), {});
     expect(fresh.simulation).toBe("success");
 
     expect({

@@ -54,13 +54,15 @@ A Clipped entry gives how many passes the loop ran before the preview left it: `
 
 ## Pins
 
-Where you have no pin, the preview chooses an option that reaches your line. To decide yourself, pin the option you want it to take.
+Where you have no pin, the preview chooses an option that reaches your line. Its choice depends only on your script, the line and your pins: previewing another line first, or choosing options while the game plays, does not change it. To decide yourself, pin the option you want it to take.
 
 Press a choice entry's text to open its pin control. It says what the preview did at that menu, lists the options the menu offered there in the order the script lists them, marks the one taken, and gives each a Pin button. Press Pin to pin that option; its button then reads Pinned, and pressing it again unpins it. Unpin removes the pin at that menu. Pinning an option at a menu removes any other pin at that menu, so each menu has one pin at most. That includes a pin on an option the menu did not offer there, such as a gated option whose condition the route left false: the list does not show it, but Unpin removes it and pinning another option replaces it.
 
 A pin names an option's line and which time the route is offered that option: the first time, the second time, and so on. So a menu inside a loop, such as a hub you come back to, can be pinned meeting by meeting: ask about the key the first time, the letter the second, then leave. A pin stays on its line as you edit, the way a breakpoint does: lines added or removed above it move it with its line, and deleting the option's line deletes its pin. Pins are kept for you in this project and are never written into the project's files. Clear pins, at the foot of the list, removes every pin in the project.
 
 At a pinned menu the preview takes your pinned option wherever your line can be reached through it, even when that means forcing an `if` the game would skip; each forced condition is listed. A pinned option written with a condition (`* if key [Show the key.]`) is offered by forcing its condition, which is listed too. A pin says which option to take at a menu, never to avoid the menu: the preview does not force a condition just to keep a route away from your pinned menu. The preview takes another option only when your line cannot be reached through the pin, and then the route is the one it would take without the pin, and the entry says so: "Previewing line 11, which can't be reached through your pin, so the preview took another option here. The pin still holds for other lines." Pins apply to every route the preview plans: the one to the line you are previewing, the one Play starts from, and the one a suggestion's preview takes. Playing the game changes no pin.
+
+After you play, the foot of the list offers "Pin the 3 choices from the last run", counting the run's menus. It pins the option taken at each menu of the run, from the top of the scene, the route Play started from included, and removes any other pin at those menus, so the preview follows the run you just played. It stays until you play again, while it would change a pin.
 
 A pin has these limits:
 
