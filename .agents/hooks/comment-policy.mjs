@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import * as nodeModule from "node:module";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -339,7 +340,11 @@ function scanPy(text) {
   return comments;
 }
 
-function scanSh(text) {
+function dedent(line, indent) {
+  return line.slice(Math.min(indent, /^ */.exec(line)[0].length));
+}
+
+function scanSh(text, indent = 0) {
   const comments = [];
   const to = text.length;
   let heredocs = [];
@@ -392,7 +397,8 @@ function scanSh(text) {
             const end = lineEnd(text, i);
             const line = text.slice(i, end);
             i = Math.min(text.indexOf("\n", end) + 1 || to, to);
-            if ((dash ? line.replace(/^\t+/, "") : line) === word) break;
+            const own = dedent(line, indent);
+            if ((dash ? own.replace(/^\t+/, "") : own) === word) break;
           }
         }
         heredocs = [];
@@ -404,10 +410,77 @@ function scanSh(text) {
   return comments;
 }
 
+function yamlRecords(text) {
+  const records = [];
+  let start = 0;
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/\r$/, "");
+    const indent = /^ */.exec(line)[0].length;
+    const item = /^ *((?:- +)*)/.exec(line);
+    const col = item[0].length;
+    const entry = /^("[^"]*"|'[^']*'|[^\s#'"][^#]*?)\s*:(?:\s+(.*)|$)/.exec(line.slice(col));
+    records.push({
+      start,
+      indent,
+      col,
+      dashCol: item[1] ? indent + item[1].lastIndexOf("-") : -1,
+      blank: !line.trim() || line.trim().startsWith("#"),
+      key: entry ? entry[1].replace(/^(['"])(.*)\1$/, "$2") : null,
+      value: entry ? (entry[2] ?? "").replace(/\s+#.*$/, "").trim() : "",
+    });
+    start += raw.length + 1;
+  }
+  return records;
+}
+
+const RUN_SCANNERS = { sh: scanSh, bash: scanSh, pwsh: scanPs1, powershell: scanPs1, python: scanPy };
+
+function runShell(records, index) {
+  const col = records[index].col;
+  const shellName = (record) => /^['"]?([^\s'"]+)/.exec(record.value)?.[1].toLowerCase() ?? "";
+  let first = index;
+  for (let k = index - 1; k >= 0; k--) {
+    const r = records[k];
+    if (r.blank) continue;
+    if (r.indent < col && !(r.dashCol === col - 2 && r.col === col)) break;
+    first = k;
+    if (r.dashCol === col - 2 && r.col === col) break;
+  }
+  let last = index;
+  for (let k = index + 1; k < records.length && (records[k].blank || records[k].indent >= col); k++) last = k;
+  for (let k = first; k <= last; k++) if (records[k].col === col && records[k].key === "shell") return shellName(records[k]);
+  const parentOf = (k, below) => {
+    for (let p = k - 1; p >= 0; p--) if (!records[p].blank && records[p].key !== null && records[p].col < below) return p;
+    return -1;
+  };
+  const child = (parent, key) => {
+    const parentIndent = parent < 0 ? -1 : records[parent].indent;
+    let childCol = null;
+    for (let k = parent + 1; k < records.length; k++) {
+      const r = records[k];
+      if (r.blank) continue;
+      if (r.indent <= parentIndent && !(parent >= 0 && r.dashCol >= 0 && r.col > records[parent].col)) break;
+      childCol ??= r.col;
+      if (r.col === childCol && r.key === key) return k;
+    }
+    return -1;
+  };
+  const defaultShell = (mapping) => {
+    const defaults = child(mapping, "defaults");
+    const run = defaults < 0 ? -1 : child(defaults, "run");
+    const shell = run < 0 ? -1 : child(run, "shell");
+    return shell < 0 ? null : shellName(records[shell]);
+  };
+  const steps = parentOf(first, col);
+  const job = steps < 0 ? -1 : parentOf(steps, records[steps].col);
+  return (job >= 0 ? defaultShell(job) : null) ?? defaultShell(-1) ?? "sh";
+}
+
 function scanYaml(text) {
   const comments = [];
-  let i = 0, quote = null;
+  let i = 0, quote = null, records = null;
   while (i < text.length) {
+    const lineStart = i;
     const end = lineEnd(text, i);
     const next = Math.min(text.indexOf("\n", end) + 1 || text.length, text.length);
     let code = "";
@@ -444,16 +517,28 @@ function scanYaml(text) {
       }
       blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
     }
+    if (/^\s*(?:-\s+)*run\s*:/.test(code)) {
+      records ??= yamlRecords(text);
+      const scan = RUN_SCANNERS[runShell(records, records.findIndex((r) => r.start === lineStart))];
+      if (scan) for (const c of scan(text.slice(i, blockEnd), Number.isFinite(content) ? content : 0)) comments.push({ start: c.start + i, end: c.end + i });
+    }
     i = blockEnd;
   }
   return comments;
 }
 
-function scanPs1(text) {
+function scanPs1(text, indent = 0) {
   const comments = [];
+  const hereClose = (j, quote) => {
+    if (text[j] !== "\n") return -1;
+    let k = j + 1;
+    while (k - j - 1 < indent && text[k] === " ") k++;
+    return text.startsWith(quote + "@", k) ? k + 2 : -1;
+  };
   const expandable = (j, here) => {
     while (j < text.length) {
-      if (here && text[j] === "\n" && text.startsWith('"@', j + 1)) return j + 3;
+      const close = here ? hereClose(j, '"') : -1;
+      if (close >= 0) return close;
       if (!here && text[j] === '"' && text[j + 1] !== '"') return j + 1;
       if (text[j] === "`" || (!here && text[j] === '"')) j += 2;
       else if (text[j] === "$" && text[j + 1] === "(") j = code(j + 2, true);
@@ -476,8 +561,9 @@ function scanPs1(text) {
         i = end;
       } else if (c === "`") i += 2;
       else if (c === "@" && text[i + 1] === "'" && /^\r?\n/.test(text.slice(i + 2, i + 4))) {
-        const close = text.indexOf("\n'@", i + 2);
-        i = close < 0 ? text.length : close + 3;
+        let line = text.indexOf("\n", i + 2);
+        while (line >= 0 && hereClose(line, "'") < 0) line = text.indexOf("\n", line + 1);
+        i = line < 0 ? text.length : hereClose(line, "'");
       } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = expandable(i + 2, true);
       else if (c === "'") {
         let j = i + 1;
@@ -501,16 +587,82 @@ function scanPs1(text) {
 
 const SCANNERS = { js: scanJs, css: scanCss, html: scanHtml, py: scanPy, sh: scanSh, yaml: scanYaml, ps1: scanPs1 };
 
-export function scanComments(text, file) {
+const defaultRoot = path.resolve(here, "../..");
+const typescriptCache = new Map();
+
+function resolveTypescriptFrom(base) {
+  try {
+    nodeModule.enableCompileCache?.();
+    const require = nodeModule.createRequire(path.join(base, "package.json"));
+    const resolved = require.resolve("typescript");
+    if (path.relative(base, resolved).startsWith("..")) return null;
+    return require(resolved);
+  } catch {
+    return null;
+  }
+}
+
+function mainCheckout(root) {
+  const result = spawnSync("git", ["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", windowsHide: true, timeout: 15000 });
+  return result.status === 0 && result.stdout.trim() ? path.dirname(path.resolve(result.stdout.trim())) : null;
+}
+
+export function loadTypescript(root = defaultRoot) {
+  if (typescriptCache.has(root)) return typescriptCache.get(root);
+  let ts = resolveTypescriptFrom(root);
+  if (!ts) {
+    const main = mainCheckout(root);
+    if (main && path.resolve(main) !== path.resolve(root)) ts = resolveTypescriptFrom(main);
+  }
+  typescriptCache.set(root, ts);
+  return ts;
+}
+
+function scanTypescript(ts, text, file) {
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  const kind = extension === ".tsx" ? ts.ScriptKind.TSX : extension === ".ts" ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const source = ts.createSourceFile(posix(file), text, ts.ScriptTarget.Latest, false, kind);
+  const { SyntaxKind } = ts;
+  const regexStarts = new Set(), templateStarts = new Set(), literalEnds = new Map();
+  const visit = (node, parent) => {
+    if (node.kind === SyntaxKind.RegularExpressionLiteral) regexStarts.add(node.getStart(source));
+    else if (node.kind === SyntaxKind.TemplateMiddle || node.kind === SyntaxKind.TemplateTail) templateStarts.add(node.getStart(source));
+    else if (node.kind === SyntaxKind.JsxText || (node.kind === SyntaxKind.StringLiteral && parent?.kind === SyntaxKind.JsxAttribute)) literalEnds.set(node.kind === SyntaxKind.JsxText ? node.pos : node.getStart(source), node.end);
+    ts.forEachChild(node, (child) => visit(child, node));
+  };
+  visit(source);
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, kind === ts.ScriptKind.TSX || kind === ts.ScriptKind.JS ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard, text);
+  const tokenStart = () => (scanner.getTokenStart ?? scanner.getTokenPos).call(scanner);
+  const moveTo = (position) => (scanner.resetTokenState ?? scanner.setTextPos).call(scanner, position);
+  const comments = [];
+  for (let token = scanner.scan(); token !== SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+    const start = tokenStart();
+    if (literalEnds.has(start)) moveTo(literalEnds.get(start));
+    else if (token === SyntaxKind.SingleLineCommentTrivia || token === SyntaxKind.MultiLineCommentTrivia) comments.push({ start, end: scanner.getTextPos() });
+    else if ((token === SyntaxKind.SlashToken || token === SyntaxKind.SlashEqualsToken) && regexStarts.has(start)) scanner.reScanSlashToken();
+    else if (token === SyntaxKind.CloseBraceToken && templateStarts.has(start)) scanner.reScanTemplateToken(false);
+  }
+  return comments;
+}
+
+function scanFamily(text, file, family, options) {
+  if (family !== "js") return { scanner: `the ${family} scanner`, comments: SCANNERS[family](text) };
+  const ts = options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
+  if (ts) return { scanner: `TypeScript ${ts.version}`, comments: scanTypescript(ts, text, file) };
+  return { scanner: "the fallback JavaScript scanner, since typescript does not resolve from this checkout or its main checkout", comments: scanJs(text, /\.tsx$/i.test(posix(file))) };
+}
+
+export function scanComments(text, file, options = {}) {
   const family = familyOf(file);
   if (!family) return [];
   const { starts, ends, lineOf } = lineIndex(text, family === "js");
-  return (family === "js" ? scanJs(text, /\.tsx$/i.test(posix(file))) : SCANNERS[family](text))
+  const { scanner, comments } = scanFamily(text, file, family, options);
+  return comments
     .sort((a, b) => a.start - b.start)
     .map(({ start, end }) => {
       const line = lineOf(start), endLine = lineOf(Math.max(start, end - 1));
       const lineStart = starts[line];
-      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end) };
+      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end), scanner };
     });
 }
 
@@ -561,7 +713,7 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
-export function classifyComment(text, file, { root = path.resolve(here, "../..") } = {}) {
+export function classifyComment(text, file, { root = defaultRoot } = {}) {
   const rel = posix(file);
   if (exemptPath(rel)) return { kind: "exempt", reason: `${rel} is under a path the rule exempts` };
   const extension = path.posix.extname(rel).toLowerCase();
@@ -580,7 +732,7 @@ export function classifyComment(text, file, { root = path.resolve(here, "../..")
 }
 
 export function judgeComments(text, file, options = {}) {
-  const comments = scanComments(text, file);
+  const comments = scanComments(text, file, options);
   let previous = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
@@ -597,7 +749,7 @@ export function judgeComments(text, file, options = {}) {
 export function refusedComments(text, file, options = {}) {
   return judgeComments(text, file, options)
     .filter((c) => c.kind === "refused")
-    .map(({ line, endLine, text: comment, reason }) => ({ line, endLine, text: comment, reason }));
+    .map(({ line, endLine, text: comment, reason, scanner }) => ({ line, endLine, text: comment, reason, scanner }));
 }
 
 export function stripComments(text, file, options = {}) {
@@ -725,7 +877,7 @@ const commentKey = (comment) => comment.text.replace(/\s+/g, " ").trim();
 
 function introducedRefusal(before, after, rel, root) {
   const existing = new Map();
-  for (const c of scanComments(before, rel)) existing.set(commentKey(c), (existing.get(commentKey(c)) ?? 0) + 1);
+  for (const c of scanComments(before, rel, { root })) existing.set(commentKey(c), (existing.get(commentKey(c)) ?? 0) + 1);
   return judgeComments(after, rel, { root }).find((c) => {
     const key = commentKey(c);
     if (existing.get(key) > 0) {
@@ -781,7 +933,7 @@ export function introducedCommentReason(files, cwd = process.cwd()) {
     }
     if (!offending) continue;
     const excerpt = offending.text.split(/\r?\n/)[0].trim();
-    return `${rule} This edit adds a comment the rule refuses at ${where}: \`${excerpt.length > 120 ? excerpt.slice(0, 117) + "..." : excerpt}\` (${offending.reason}).`;
+    return `${rule} This edit adds a comment the rule refuses at ${where}: \`${excerpt.length > 120 ? excerpt.slice(0, 117) + "..." : excerpt}\` (${offending.reason}; scanned with ${offending.scanner}).`;
   }
   return null;
 }

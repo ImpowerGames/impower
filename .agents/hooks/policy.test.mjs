@@ -6,7 +6,8 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import { decide } from "./policy.mjs";
 import { normalize } from "./pre-tool-use.mjs";
-import { classifyComment, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
+import { createRequire } from "node:module";
+import { classifyComment, loadTypescript, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -86,7 +87,49 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.match(patch("*** Add File: src/c.ts\n+export {};\n+// added prose") ?? "", /src\/c\.ts:2/);
     assert.equal(patch("*** Add File: src/d.ts\n+// @ts-nocheck\n+export {};"), null);
 
-    const comments = (text, file) => scanComments(text, file).map((c) => c.text);
+    const typescript = loadTypescript(root);
+    if (!typescript) console.log("SKIP: typescript does not resolve from this checkout or its main checkout, so the JavaScript and TypeScript cases ran through the fallback scanner only");
+    const labelBlock = "outer: {} /[/*]/.test(\"/\"); // yes";
+    const heuristicLimits = new Map([[labelBlock, "a brace after a statement label is read as an object literal, so the regex after it reads as division"]]);
+    const javascript = (file) => /\.(?:ts|tsx|js|mjs|cjs)$/.test(file);
+    const comments = (text, file) => {
+      const fallback = scanComments(text, file, { scanner: "fallback" }).map((c) => c.text);
+      if (!typescript || !javascript(file)) return fallback;
+      const exact = scanComments(text, file).map((c) => c.text);
+      if (heuristicLimits.has(text)) assert.notDeepEqual(fallback, exact, `known fallback limit still differs: ${heuristicLimits.get(text)}`);
+      else assert.deepEqual(fallback, exact, `both scanners agree on ${JSON.stringify(text)}`);
+      return exact;
+    };
+    if (typescript) assert.deepEqual(comments(labelBlock, "a.js"), ["// yes"]);
+    assert.match(scanComments("a(); // x", "src/a.ts", { root: checkout })[0].scanner, /^the fallback JavaScript scanner/, "a checkout without typescript, whose main checkout cannot be found, takes the fallback");
+    assert.match(added("// prose through the fallback") ?? "", /scanned with the fallback JavaScript scanner/, "the refusal names the scanner that judged the file");
+    if (typescript) {
+      assert.equal(scanComments("a(); // x", "src/a.ts")[0].scanner, `TypeScript ${typescript.version}`);
+      const tsCheckout = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-ts-"));
+      try {
+        fs.mkdirSync(path.join(tsCheckout, ".git"));
+        fs.mkdirSync(path.join(tsCheckout, ".agents/hooks"), { recursive: true });
+        fs.copyFileSync(path.join(root, ".agents/hooks/comment-policy.json"), path.join(tsCheckout, ".agents/hooks/comment-policy.json"));
+        fs.mkdirSync(path.join(tsCheckout, "node_modules/typescript"), { recursive: true });
+        fs.writeFileSync(path.join(tsCheckout, "node_modules/typescript/package.json"), JSON.stringify({ name: "typescript", version: typescript.version, main: "index.js" }));
+        const common = spawnSync("git", ["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).stdout.trim();
+        const resolveFrom = (base) => {
+          try {
+            return createRequire(path.join(base, "package.json")).resolve("typescript");
+          } catch {
+            return null;
+          }
+        };
+        const real = resolveFrom(root) ?? resolveFrom(path.dirname(common));
+        fs.writeFileSync(path.join(tsCheckout, "node_modules/typescript/index.js"), `module.exports = require(${JSON.stringify(real)});\n`);
+        fs.mkdirSync(path.join(tsCheckout, "src"));
+        fs.writeFileSync(path.join(tsCheckout, "src/a.ts"), "export const a = 1;\n");
+        const reason = decide(normalize({ ...event("Edit", { file_path: path.join(tsCheckout, "src/a.ts"), old_string: "export", new_string: "// prose\nexport" }), cwd: tsCheckout }, "claude"));
+        assert.match(reason ?? "", new RegExp(`src/a\\.ts:1: .*scanned with TypeScript ${typescript.version.replaceAll(".", "\\.")}`), "a checkout holding typescript is judged by TypeScript's scanner");
+      } finally {
+        fs.rmSync(tsCheckout, { recursive: true, force: true });
+      }
+    }
     assert.deepEqual(comments(String.raw`const s = "// no", t = '/* no */', u = /\/\/no[/]/g; // yes`, "a.ts"), ["// yes"]);
     assert.deepEqual(comments("const t = `a // no ${f(/* yes */ 1, `b // no ${2}`)} c // no`; const r = x / 2 / y; // yes", "a.ts"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const v = <a href=\"http://x\">see</a>; // yes", "a.tsx"), ["// yes"]);
@@ -96,7 +139,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("const r = /a//* yes */; const q = /b/// yes\nconst n = function () {} / 2; // yes\nfunction g() {} /c/.test(d); // yes", "a.ts"), ["/* yes */", "// yes", "// yes", "// yes"]);
     assert.deepEqual(comments("switch (1) { case true ? 1 : 2: {} /[/*]/.test(\"/\"); case a?.b ?? c: {} /d/.test(e); } // yes", "a.ts"), ["// yes"]);
     const breaks = [0x2028, 0x2029, 13].map((code) => String.fromCharCode(code));
-    for (const lineBreak of breaks) assert.deepEqual(scanComments(`a(); // yes${lineBreak}b(); // yes`, "a.ts").map((c) => [c.text, c.line]), [["// yes", 1], ["// yes", 2]], `JavaScript line terminator ${lineBreak.charCodeAt(0)}`);
+    for (const lineBreak of breaks) {
+      for (const scanner of typescript ? ["fallback", "typescript"] : ["fallback"]) {
+        assert.deepEqual(scanComments(`a(); // yes${lineBreak}b(); // yes`, "a.ts", { scanner }).map((c) => [c.text, c.line]), [["// yes", 1], ["// yes", 2]], `JavaScript line terminator ${lineBreak.charCodeAt(0)} through the ${scanner} scanner`);
+      }
+    }
     assert.deepEqual(comments("|\n  # no\n", "a.yaml"), []);
     assert.deepEqual(comments("key: |2\n  value\n # yes\nnext: ok\nother: >\n    text\n  # yes\n- |\n  # no\n", "a.yaml"), ["# yes", "# yes"]);
     assert.deepEqual(comments("echo \"$(case x in\nx)\n  # yes\n  echo hi;;\n(y) echo y;;\nesac)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
@@ -114,7 +161,32 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("#!/bin/sh\necho \"# no\" '# no' a#no $# ${#x} # yes\ncat <<'EOF'\n# no\nEOF\n# yes", "a.sh"), ["# yes", "# yes"]);
     assert.deepEqual(comments("s = '# no' + \"\"\"\n# no\n\"\"\"  # yes", "a.py"), ["# yes"]);
     assert.deepEqual(comments("$a = 'x # no' + \"y `\" # no\" ; a#no # yes\n<# yes #>\n@'\n# no\n'@", "a.ps1"), ["# yes", "<# yes #>"]);
-    assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - run: |\n      # no\n      echo \"# no\"\n  - shell: pwsh\n    run: |\n      Write-Output \"foo `\" # no\"\n# lookaround: yes", "a.yml"), ["# yes", "# lookaround: yes"], "block scalar content, run blocks included, is text whose language the file does not settle");
+    assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - shell: pwsh\n    run: |\n      Write-Output \"foo `\" # no\" # yes\n# lookaround: yes", "a.yml"), ["# yes", "# yes", "# lookaround: yes"], "a run block is scanned in its shell's language and other block scalars are text");
+    const workflow = ({ top = [], job = [], step = [] } = {}) => [
+      ...top,
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      ...job,
+      "    steps:",
+      "      - name: probe",
+      ...step,
+      "        run: |",
+      "          # shell",
+      "          <# block #>",
+      "          cat <<EOF",
+      "          # heredoc",
+      "          EOF",
+      "      - run: echo next # next",
+      "",
+    ].join("\n");
+    const sh = ["# shell", "# block #>", "# next"], ps = ["# shell", "<# block #>", "# heredoc", "# next"], py = ["# shell", "# block #>", "# heredoc", "# next"];
+    assert.deepEqual(comments(workflow({ step: ["        shell: pwsh"] }), "w.yml"), ps, "the step's shell selects the scanner");
+    assert.deepEqual(comments(workflow({ step: ["        shell: python"], job: ["    defaults:", "      run:", "        shell: pwsh"] }), "w.yml"), py, "the step's shell wins over the job default");
+    assert.deepEqual(comments(workflow({ job: ["    defaults:", "      run:", "        shell: powershell"], top: ["defaults:", "  run:", "    shell: bash"] }), "w.yml"), ps, "the job default wins over the workflow default");
+    assert.deepEqual(comments(workflow({ top: ["defaults:", "  run:", "    shell: pwsh"] }), "w.yml"), ps, "the workflow default applies when the job sets none");
+    assert.deepEqual(comments(workflow(), "w.yml"), sh, "an unset shell is sh");
+    assert.deepEqual(comments(workflow({ step: ["        shell: cmd"] }), "w.yml"), ["# next"], "a cmd run block has no scanner and stays text");
     assert.deepEqual(comments("echo \"$(\n  # yes\n  echo \"# no\" $((1 + 2))\n)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
 
     const kind = (text, file = "src/a.ts") => classifyComment(text, file, { root: checkout }).kind;
@@ -138,6 +210,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
 
+    const strip = (text, file) => {
+      const fallback = stripComments(text, file, { root: checkout, scanner: "fallback" });
+      if (typescript && javascript(file)) assert.equal(stripComments(text, file), fallback, `both scanners strip ${JSON.stringify(text)} alike`);
+      return fallback;
+    };
     const source = [
       "// a whole-line note",
       "import { a } from \"./a\"; // a trailing note",
@@ -165,7 +242,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       "const s = \"// kept\";",
       "",
     ].join("\n");
-    const stripped = stripComments(source, "src/a.ts", { root: checkout });
+    const stripped = strip(source, "src/a.ts");
     assert.equal(stripped, expected, "a removed comment takes its line and one neighbouring blank line when it stood between two blanks, at the file start, or at the file end");
     const codeTokens = (text) => {
       let code = "", at = 0;
@@ -176,29 +253,29 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       return (code + text.slice(at)).match(/[\w$]+|\S/g);
     };
     assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
-    assert.equal(stripComments("a();\r\n// note\r\nb();\r\n", "src/a.ts", { root: checkout }), "a();\r\nb();\r\n");
+    assert.equal(strip("a();\r\n// note\r\nb();\r\n", "src/a.ts"), "a();\r\nb();\r\n");
     const asi = "function f() { return /* why\n*/ 1; }";
-    const asiStripped = stripComments(asi, "src/a.ts", { root: checkout });
+    const asiStripped = strip(asi, "src/a.ts");
     assert.equal(asiStripped, "function f() { return\n1; }", "a removed block comment holding a line break leaves one, so automatic semicolon insertion is unchanged");
     assert.equal(new Function(`${asiStripped}; return f();`)(), new Function(`${asi}; return f();`)());
-    assert.equal(stripComments("<div title=\"<!-- kept -->\">ok</div><!-- note -->\n", "a.html", { root: checkout }), "<div title=\"<!-- kept -->\">ok</div>\n");
+    assert.equal(strip("<div title=\"<!-- kept -->\">ok</div><!-- note -->\n", "a.html"), "<div title=\"<!-- kept -->\">ok</div>\n");
     const adjacent = "function f() { return /* first *//* second\n*/ 1; }";
-    const adjacentStripped = stripComments(adjacent, "src/a.ts", { root: checkout });
+    const adjacentStripped = strip(adjacent, "src/a.ts");
     assert.equal(adjacentStripped, "function f() { return\n1; }", "merged removals keep the strongest separator either needed");
     assert.equal(new Function(`${adjacentStripped}; return f();`)(), undefined);
-    assert.equal(stripComments("div/* prose */.active { color: red; }\na /* prose */ b {}\n", "a.css", { root: checkout }), "div.active { color: red; }\na  b {}\n", "CSS removal inserts no whitespace a selector would read");
-    assert.equal(stripComments("<p>hello<!-- prose -->world</p>\n", "a.html", { root: checkout }), "<p>helloworld</p>\n", "HTML removal inserts no text");
-    assert.equal(stripComments("<pre>A\n<!-- note --> B</pre><pre>A <!-- note -->\nB</pre>\n  <!-- line -->\n", "a.html", { root: checkout }), "<pre>A\n B</pre><pre>A \nB</pre>\n  \n", "HTML removal takes the comment and nothing around it");
+    assert.equal(strip("div/* prose */.active { color: red; }\na /* prose */ b {}\n", "a.css"), "div.active { color: red; }\na  b {}\n", "CSS removal inserts no whitespace a selector would read");
+    assert.equal(strip("<p>hello<!-- prose -->world</p>\n", "a.html"), "<p>helloworld</p>\n", "HTML removal inserts no text");
+    assert.equal(strip("<pre>A\n<!-- note --> B</pre><pre>A <!-- note -->\nB</pre>\n  <!-- line -->\n", "a.html"), "<pre>A\n B</pre><pre>A \nB</pre>\n  \n", "HTML removal takes the comment and nothing around it");
     const separator = String.fromCharCode(0x2028);
     const terminated = `function f() { const value = 1; // prose${separator}return value + 1; }`;
-    const terminatedStripped = stripComments(terminated, "src/a.ts", { root: checkout });
+    const terminatedStripped = strip(terminated, "src/a.ts");
     assert.equal(terminatedStripped, `function f() { const value = 1;${separator}return value + 1; }`);
     assert.equal(new Function(`${terminatedStripped}; return f();`)(), 2);
     const adjacentRegex = "function f() { const r = /a//* prose */; return r.test(\"a\"); }";
-    assert.equal(new Function(`${stripComments(adjacentRegex, "src/a.ts", { root: checkout })}; return f();`)(), true, "a regex followed directly by a comment keeps its code");
+    assert.equal(new Function(`${strip(adjacentRegex, "src/a.ts")}; return f();`)(), true, "a regex followed directly by a comment keeps its code");
     const crlf = "const s = \"a\\\r\n// literal\";\r\n";
-    assert.equal(stripComments(crlf, "src/a.ts", { root: checkout }), crlf);
-    assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
+    assert.equal(strip(crlf, "src/a.ts"), crlf);
+    assert.equal(strip(source, "packages/sparkdown/src/inkjs/a.ts"), source, "an exempt file is returned unchanged");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
