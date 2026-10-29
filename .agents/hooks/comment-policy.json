@@ -1,0 +1,26 @@
+{
+  "directives": [
+    { "form": "^@ts-(?:expect-error|ignore|check|nocheck)\\b" },
+    { "form": "^eslint-(?:disable|enable)(?:-next-line|-line)?\\b" },
+    { "form": "^prettier-ignore\\b" },
+    { "form": "^biome-ignore\\b" },
+    { "form": "^(?:c8|v8|istanbul) ignore\\b" },
+    { "form": "^@vitest-environment\\s+\\S", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
+    { "form": "^@vite-ignore$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
+    { "form": "^/\\s*<(?:reference|amd-module|amd-dependency)\\b", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
+    { "form": "^@(?:type|param|returns?)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
+    { "form": "^value-level:", "extensions": [".ts"] },
+    { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
+  ],
+  "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
+  "exempt": [
+    "packages/sparkdown/src/inkjs/",
+    "packages/spark-evaluate/src/_modules/",
+    "packages/spec-component/src/idiomorph/",
+    "packages/spark-engine/src/game/core/types/",
+    "impower-dev/src/modules/spark-editor/workspace/types/RemoteStorageTypes.ts",
+    "impower-app/"
+  ]
+}
