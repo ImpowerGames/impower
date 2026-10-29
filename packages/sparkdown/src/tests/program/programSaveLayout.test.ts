@@ -110,7 +110,7 @@ const insideFrame = (beat: any) =>
 describe("a fingerprint", () => {
   it("reads two statements that differ in comments or in the spacing between tokens as the same, and two that differ inside a string or a displayed line as different", () => {
     const prints = (lines: string[]) =>
-      rootOf(["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
+      rootOf(["scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
         .flowNamed("start")!
         // The scene's end (`flowEnd`) is no statement of these lines.
         .arrays.chunks.slice(0, -1)
@@ -141,7 +141,7 @@ describe("a fingerprint", () => {
   // tokens includes none, and a long string keeps every line it holds.
   it("reads a statement written with no space between its tokens as the same, and keeps the lines and edge spaces of a long string", () => {
     const prints = (lines: string[]) =>
-      rootOf(["-> start", "scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
+      rootOf(["scene start", ...lines.map((l) => `  ${l}`), "end", ""].join("\n"))
         .flowNamed("start")!
         .arrays.chunks.map(fingerprintOf);
     const [spaced, packed, unary, joined] = prints([
@@ -189,7 +189,6 @@ describe("a fingerprint", () => {
           `  ${field}`,
           "end",
           "",
-          "-> start",
           "scene start",
           "  Hello {t.a} {hero.name}.",
           "end",
@@ -357,8 +356,6 @@ describe("a save written by another process", () => {
   it("inside a tunnel whose scene binds its parameters in other code drops the frame and places the caller after the tunnel", () => {
     const TUNNEL = (params: string) =>
       [
-        "-> start",
-        "",
         "scene start",
         "  Before.",
         "  -> helper(10, 20, 30) ->",
@@ -403,8 +400,6 @@ describe("a save written by another process", () => {
   it("at a menu inside a tunnel whose scene binds its parameters in other code drops the frame and the choice a thread raised in it", () => {
     const TUNNEL = (params: string) =>
       [
-        "-> start",
-        "",
         "scene start",
         "  Before.",
         "  -> helper(10, 20) ->",
@@ -481,8 +476,6 @@ describe("a save written by another process", () => {
       "store t = { n = 0 }",
       "store keep = nil",
       "",
-      "-> start",
-      "",
       "scene start",
       "  for i = 1, 3 do",
       "    & local v = i * 10",
@@ -528,8 +521,6 @@ describe("a save written by another process", () => {
   it("of several beats inside a loop whose layout changed closes a captured variable on the newest beat's value, whatever an older beat's cut closed it on", () => {
     const LOOP = [
       "store keep = nil",
-      "",
-      "-> start",
       "",
       "scene start",
       "  for i = 1, 1 do",
@@ -599,8 +590,6 @@ describe("a save written by another process", () => {
 describe("a save inside a scene entered by a divert", () => {
   const SCENE = (params: string, line: string) =>
     [
-      "-> start",
-      "",
       "scene start",
       "  -> s(10, 20)",
       "end",
@@ -701,7 +690,9 @@ describe("a save inside a scene entered by a divert", () => {
   it("inside the first branch of a scene whose parameters changed restarts the scene, which enters the branch again", () => {
     const OUTER = (params: string) =>
       [
-        "-> outer(10, 20)",
+        "scene start",
+        "  -> outer(10, 20)",
+        "end",
         "",
         `scene outer(${params})`,
         "  branch inner",
@@ -747,8 +738,6 @@ describe("a save inside a scene entered by a divert", () => {
   it("at a label a frame jumped to, past the scene's entry, loads in place when the scene's parameters changed", () => {
     const LABEL = (params: string) =>
       [
-        "-> start",
-        "",
         "scene start",
         "  -> s.middle",
         "end",
@@ -774,8 +763,6 @@ describe("a save inside a scene entered by a divert", () => {
     const CAPTURE = (params: string) =>
       [
         "store keep = nil",
-        "",
-        "-> start",
         "",
         "scene start",
         "  & local c = 30",
@@ -806,7 +793,9 @@ describe("a save inside a scene entered by a divert", () => {
       [
         "store keep = nil",
         "",
-        `-> s(10${extra})`,
+        "scene start",
+        `  -> s(10${extra})`,
+        "end",
         "",
         `scene s(${params})`,
         "  & keep = keep or function() return a end",
@@ -876,7 +865,9 @@ describe("a save inside a scene entered by a divert", () => {
   // A scene whose content starts with a branch, entered by a divert.
   const STARTS = (header: string, divert: string) =>
     [
-      `-> ${divert}`,
+      "scene start",
+      `  -> ${divert}`,
+      "end",
       "",
       `scene ${header}`,
       "  branch inner",
@@ -917,7 +908,7 @@ describe("a save inside a scene entered by a divert", () => {
   // entry's jump to the scene's first branch is no part of its parameters.
   it("inside a branch of a scene whose parameters did not change loads in place when its branches were reordered", () => {
     const BRANCHES = (first: string, second: string) =>
-      ["-> outer(10)", "", "scene outer(a)", first, second, "end", ""].join("\n");
+      ["scene start", "  -> outer(10)", "end", "", "scene outer(a)", first, second, "end", ""].join("\n");
     const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
     // The divert to `two` enters it with fresh scopes, so `a` reads the
     // global there.
@@ -936,7 +927,9 @@ describe("a save inside a scene entered by a divert", () => {
   it("at a label a frame jumped to past the entry loads in place, though a block's local takes a parameter's name", () => {
     const BLOCK = (header: string) =>
       [
-        "-> s.middle",
+        "scene start",
+        "  -> s.middle",
+        "end",
         "",
         `scene ${header}`,
         "  Skipped.",
@@ -963,7 +956,9 @@ describe("a save inside a scene entered by a divert", () => {
   it("inside a branch a divert entered loads in place, though the branch's local takes its scene's parameter's name", () => {
     const BRANCH = (header: string) =>
       [
-        "-> s.b",
+        "scene start",
+        "  -> s.b",
+        "end",
         "",
         `scene ${header}`,
         "  Skipped.",
@@ -987,8 +982,6 @@ describe("a save inside a scene entered by a divert", () => {
   it("at a label a frame jumped to loads in place when the scene, which took no parameters, gains one", () => {
     const LABEL = (header: string) =>
       [
-        "-> start",
-        "",
         "scene start",
         "  -> s.middle",
         "end",
@@ -1010,7 +1003,7 @@ describe("a save inside a scene entered by a divert", () => {
 
   it("inside a variadic scene keeps the saved varargs under the same name when a parameter before them is removed", () => {
     const VARIADIC = (params: string, line: string) =>
-      ["-> s(10, 20, 30)", "", `scene s(${params})`, `  First ${line}.`, `  Second ${line}.`, "end", ""].join(
+      ["scene start", "  -> s(10, 20, 30)", "end", "", `scene s(${params})`, `  First ${line}.`, `  Second ${line}.`, "end", ""].join(
         "\n",
       );
     const save = saveAt(VARIADIC("a, ...", '{a} {select("#", ...)}'), "First 10 2.");
@@ -1026,8 +1019,6 @@ describe("a save inside a scene entered by a divert", () => {
 describe("a save inside a scene entered by a thread", () => {
   const THREAD = (params: string) =>
     [
-      "-> start",
-      "",
       "scene start",
       "  <- s(10, 20)",
       "  Main.",
@@ -1102,8 +1093,6 @@ describe("a local declared again in the scope that binds it", () => {
       rootOf(
         [
           "store keep = nil",
-          "",
-          "-> start",
           "",
           "scene start",
           "  & local c = 30",

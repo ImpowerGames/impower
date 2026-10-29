@@ -15,7 +15,7 @@ function run(source: string) {
 }
 
 const local = (declaration: string, body: string) =>
-  `Value {f()}.\nfunction f()\n  ${declaration}\n  ${body}\nend\n`;
+  `scene start\n  Value {f()}.\nend\nfunction f()\n  ${declaration}\n  ${body}\nend\n`;
 
 describe("anonymous function in a declaration value list", () => {
   test.each([
@@ -68,7 +68,7 @@ describe("anonymous function in a declaration value list", () => {
     ["parenthesized control", "store a, g = 1, (function() return 7 end)"],
   ])("store: %s", (_name, declaration) => {
     const ctx = makeRuntimeStoryFromSource(
-      `${declaration}\nValue {a + g()}.\n`,
+      `${declaration}\nscene start\n  Value {a + g()}.\nend\n`,
     );
     const errors = [...ctx.errorMessages];
     ctx.story.onError = (m: string) => errors.push(m);
