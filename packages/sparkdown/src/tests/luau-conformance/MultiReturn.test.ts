@@ -40,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("stdlib multi-return", () => {
   test("math.modf splits into integer + fractional parts (multi-target)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local i, f = math.modf(3.7)
@@ -59,8 +61,10 @@ end
 
   test("math.modf handles negative numbers (integer part follows sign of x)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local i, f = math.modf(-2.3)
@@ -76,8 +80,10 @@ end
   test("single-target assignment auto-unwraps to first value", () => {
     // `local x = math.modf(3.7)` discards the fractional part.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local x = math.modf(3.7)
@@ -93,8 +99,10 @@ end
     // truncates to a single value; sparkdown applies the same rule
     // unconditionally for now (spread-into-call-args is V2).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.modf(3.7))
@@ -108,8 +116,10 @@ end
 describe("user-defined multi-return", () => {
   test("return a, b packs and unpacks across function boundary", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function pair()
 return 100, 200
@@ -127,8 +137,10 @@ end
 
   test("return a, b in single-target context gives first value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function pair()
 return 100, 200
@@ -145,8 +157,10 @@ end
 
   test("return a, b, c with three-target consumer", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function triple()
 return 1, 2, 3
@@ -167,8 +181,10 @@ end
 describe("math.frexp", () => {
   test("frexp(8) = (0.5, 4) since 8 = 0.5 * 2^4", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local m, e = math.frexp(8)
@@ -183,8 +199,10 @@ end
 
   test("frexp(0) = (0, 0)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local m, e = math.frexp(0)
@@ -198,8 +216,10 @@ end
 
   test("frexp(-3) gives negative mantissa", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local m, e = math.frexp(-3)
@@ -214,8 +234,10 @@ end
 
   test("frexp roundtrips via ldexp", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local m, e = math.frexp(42.5)
@@ -230,8 +252,10 @@ end
 describe("string.byte", () => {
   test("string.byte(s) returns first byte", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.byte("A"))
@@ -243,8 +267,10 @@ end
 
   test("string.byte(s, i, j) returns range", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b, c = string.byte("ABC", 1, 3)
@@ -259,8 +285,10 @@ end
 
   test("string.byte with negative index counts from end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.byte("hello", -1))
@@ -274,8 +302,10 @@ end
 describe("utf8.codepoint", () => {
   test("utf8.codepoint(s) returns first codepoint", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(utf8.codepoint("A"))
@@ -290,8 +320,10 @@ end
     // — under the byte-string convention a bare "é" char IS the raw
     // byte E9, which is not valid UTF-8.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(utf8.codepoint("\\xC3\\xA9"))
@@ -303,8 +335,10 @@ end
 
   test("utf8.codepoint(s, i, j) returns multiple codepoints", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b, c = utf8.codepoint("ABC", 1, 3)
@@ -321,8 +355,10 @@ end
 describe("table.unpack / unpack", () => {
   test("table.unpack returns array values as multi-return", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 10, 20, 30 }
@@ -338,8 +374,10 @@ end
 
   test("table.unpack with i, j returns a slice", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "a", "b", "c", "d" }
@@ -354,8 +392,10 @@ end
 
   test("unpack global alias works identically", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 100, 200, 300 }
@@ -373,8 +413,10 @@ end
 describe("select(n, ...)", () => {
   test("select(2, a, b, c) returns b, c", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b = select(2, "x", "y", "z")
@@ -388,8 +430,10 @@ end
 
   test("select(1, ...) returns all of the varargs", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b, c = select(1, 10, 20, 30)
@@ -404,8 +448,10 @@ end
 
   test("select(-1, ...) returns the last arg", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(select(-1, "x", "y", "z"))
@@ -419,8 +465,10 @@ end
 describe("spread context — return", () => {
   test("return f() (single expression) forwards all values", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function inner()
 return 1, 2, 3
@@ -443,8 +491,10 @@ end
 
   test("return a, b, f() spreads the last expression", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 30, 40, 50
@@ -469,8 +519,10 @@ end
 
   test("return f(), b truncates a non-last multi-return", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 10, 20, 30
@@ -496,8 +548,10 @@ end
 describe("spread context — table literal", () => {
   test("{a, b, f()} spreads the last array-style entry", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 30, 40, 50
@@ -515,8 +569,10 @@ end
 
   test("{f()} alone spreads", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 1, 2, 3, 4
@@ -533,8 +589,10 @@ end
 
   test("{f(), b} truncates non-last multi-return", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 10, 20, 30
@@ -551,8 +609,10 @@ end
 
   test("named-key last entry does NOT spread (key is not numeric)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 100, 200
@@ -572,8 +632,10 @@ end
 describe("spread context — call args", () => {
   test("last variadic-call arg spreads", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 100, 200, 300
@@ -591,8 +653,10 @@ end
 
   test("non-last arg truncates a multi-return", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 100, 200, 300
@@ -613,8 +677,10 @@ end
 describe("multi-RHS positional assignment", () => {
   test("local a, b = 10, 20 — basic multi-RHS", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b = 10, 20
@@ -628,8 +694,10 @@ end
 
   test("local a, b = f(), g() — multi-RHS with function calls", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function f()
 return 10
@@ -651,8 +719,10 @@ end
 
   test("local a, b, c = 10, 20 — pads missing RHS with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b, c = 10, 20
@@ -667,8 +737,10 @@ end
 
   test("local a, b = 10, multi() — last expression spreads", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 20, 30
@@ -688,8 +760,10 @@ end
 
   test("local a, b, c = 10, multi() — spread fills remaining targets", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 20, 30, 40
@@ -709,8 +783,10 @@ end
 
   test("local a, b = multi(), 99 — non-last multi-return truncates", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 10, 20, 30
@@ -731,8 +807,10 @@ end
 describe("multi-target reassignment", () => {
   test("& a, b = 99, 100 — multi-RHS reassignment", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = 1
@@ -748,8 +826,10 @@ end
 
   test("& a, b = pair() — single-RHS multi-return reassignment", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function pair()
 return 99, 100
@@ -769,8 +849,10 @@ end
 
   test("& a, b, c = 10, multi() — spread fills trailing targets", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 20, 30
@@ -794,8 +876,10 @@ end
 describe("implicit multi-target reassignment", () => {
   test("a, b = 10, 20 (no &)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = 1
@@ -811,8 +895,10 @@ end
 
   test("a, b = pair() (no &)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function pair()
 return 99, 100
@@ -832,8 +918,10 @@ end
 
   test("a, b, c = 10, multi() — spread fills trailing targets", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function multi()
 return 20, 30
@@ -859,9 +947,11 @@ describe("multi-target globals (store)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 store a, b = 10, 20
 
-& host_record(a)
-& host_record(b)
-done
+scene start
+  & host_record(a)
+  & host_record(b)
+  done
+end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([10, 20]);
@@ -871,9 +961,11 @@ done
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 store a, b = 10, 20, 30
 
-& host_record(a)
-& host_record(b)
-done
+scene start
+  & host_record(a)
+  & host_record(b)
+  done
+end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([10, 20]);
@@ -883,8 +975,10 @@ done
 describe("multi-target padding and truncation", () => {
   test("multi-target with single-value RHS pads remaining with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a, b = 42
@@ -898,8 +992,10 @@ end
 
   test("multi-target with fewer-return RHS pads remaining with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function pair()
 return 1, 2
@@ -919,8 +1015,10 @@ end
 
   test("multi-target with more-return RHS drops extras", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function quad()
 return 10, 20, 30, 40
