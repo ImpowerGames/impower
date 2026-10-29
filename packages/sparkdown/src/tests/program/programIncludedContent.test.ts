@@ -198,6 +198,7 @@ describe("a script other than main", () => {
     ).toMatchObject([
       { uri: MAIN, startLine: 4 },
       { uri: MAIN, startLine: 5 },
+      { uri: MAIN, startLine: 6 },
     ]);
     expect(shows(texts, [], luau).beats).toEqual(["Main 7.\n", "In S 8.\n", "More.\n"]);
   });
@@ -280,6 +281,7 @@ describe("a script other than main", () => {
     ).toMatchObject([
       { uri: MAIN, startLine: 4 },
       { uri: MAIN, startLine: 5 },
+      { uri: MAIN, startLine: 6 },
     ]);
     expect(shows(texts, [], luau)).toEqual({
       beats: ["Main 6 11.\n", "In S 20.\n"],
@@ -313,6 +315,7 @@ describe("a script other than main", () => {
     ).toMatchObject([
       { uri: MAIN, startLine: 1 },
       { uri: MAIN, startLine: 2 },
+      { uri: MAIN, startLine: 3 },
     ]);
     // A story started at a line of the scene runs the rest of it and the
     // scene it diverts to.

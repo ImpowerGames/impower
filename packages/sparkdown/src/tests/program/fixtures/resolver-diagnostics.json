@@ -419,10 +419,9 @@
   "diagnostics": []
  },
  "functions/function-call-restrictions.sd": {
-  "fallback": null,
+  "fallback": "Divert",
   "diagnostics": [
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"aKnot hasn't been marked as a function, but it's being called as one. Do you need to declare the knot as '== function aKnot =='?\"},\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}",
-   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"A function can't be diverted to: call `myFunc` instead, as `& myFunc()` on a line of its own or `{myFunc()}` in a line.\"},\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":5,\"line\":3}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":3},\"start\":{\"character\":5,\"line\":3}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
+   "inmemory:///main.sd {\"message\":{\"kind\":\"markdown\",\"value\":\"aKnot hasn't been marked as a function, but it's being called as one. Do you need to declare the knot as '== function aKnot =='?\"},\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"relatedInformation\":[{\"location\":{\"range\":{\"end\":{\"character\":11,\"line\":2},\"start\":{\"character\":0,\"line\":2}},\"uri\":\"inmemory:///main.sd\"},\"message\":\"\"}],\"severity\":1,\"source\":\"sparkdown\"}"
   ]
  },
  "glue/inline-conditional-empty-then.sd": {
