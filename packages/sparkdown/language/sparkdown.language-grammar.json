@@ -497,9 +497,11 @@
     "LUAU_LINE_COMMENT_START": "(?:{{LUAU_COMMENT_START}}(?!\\[=*\\[))",
     "LUAU_IDENTIFIER": "(?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})",
     "LUAU_DEFINE_COLON_KEY": "(?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}{{WS}}*:{{WS}}+(?=\\S))",
-    "LUAU_DEFINE_KEYWORD_KEY": "(?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_SINGLE_EQUALS}}))",
+    "LUAU_DEFINE_KEY_COLON": "(?:[:]{{WS}}+\\S)",
+    "LUAU_DEFINE_KEY_OPERATOR": "(?:{{LUAU_SINGLE_EQUALS}}|{{LUAU_DEFINE_KEY_COLON}})",
+    "LUAU_DEFINE_KEYWORD_KEY": "(?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}))",
     "LUAU_NOT_BEFORE_LONE_EQUALS": "(?!{{WS}}*{{LUAU_SINGLE_EQUALS}})",
-    "LUAU_AFTER_DEFINE_KEYWORD_KEY": "(?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_SINGLE_EQUALS}}",
+    "LUAU_AFTER_DEFINE_KEYWORD_KEY": "(?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}",
     "LUAU_SINGLE_EQUALS": "=(?!=)",
     "LUAU_WORD": "(?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_END}})",
     "LUAU_NAME_OR_CONSTANT": "(?:(?:nil|true|false){{LUAU_NAME_END}}|{{LUAU_IDENTIFIER}})",
@@ -6040,7 +6042,7 @@
       }
     },
     "LuauPropertyDefinition": {
-      "begin": "((?:[^\\S\\n\\r])*)(?:(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)(?!(?:[^\\S\\n\\r])*=(?!=)))?((?:[^\\S\\n\\r])*)((?:(?!(?:(?:end|else|elseif|until)(?![a-zA-Z0-9_])))(?:(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]))|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)(?=(?:[^\\S\\n\\r])*=(?!=))))?(?=(?:(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))|\\[[^\\]\\r\\n]*\\])(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?<=[a-zA-Z0-9_])(?:[^\\S\\n\\r])*=(?!=)|(?:(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*[:](?:[^\\S\\n\\r])*(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))|(?:[^\\S\\n\\r]))*(?:<<|[({\"']|\\[=*\\[))(?:[^\\S\\n\\r])*:(?:[^\\S\\n\\r])+(?=\\S)))",
+      "begin": "((?:[^\\S\\n\\r])*)(?:(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)(?!(?:[^\\S\\n\\r])*=(?!=)))?((?:[^\\S\\n\\r])*)((?:(?!(?:(?:end|else|elseif|until)(?![a-zA-Z0-9_])))(?:(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_]))|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)(?=(?:[^\\S\\n\\r])*(?:=(?!=)|(?:[:](?:[^\\S\\n\\r])+\\S)))))?(?=(?:(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))|\\[[^\\]\\r\\n]*\\])(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|\\[[^\\]\\r\\n]*\\](?:[^\\S\\n\\r])*(?:[:](?:[^\\S\\n\\r])+\\S)|(?<=[a-zA-Z0-9_])(?:[^\\S\\n\\r])*(?:=(?!=)|(?:[:](?:[^\\S\\n\\r])+\\S))|(?:(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*[:](?:[^\\S\\n\\r])*(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))|(?:[^\\S\\n\\r]))*(?:<<|[({\"']|\\[=*\\[))(?:[^\\S\\n\\r])*:(?:[^\\S\\n\\r])+(?=\\S)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6090,6 +6092,9 @@
         },
         {
           "include": "#LuauAssignmentOperation"
+        },
+        {
+          "include": "#LuauPropertyColonOperation"
         }
       ],
       "applyEndPatternLast": true,
@@ -6121,16 +6126,23 @@
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=^|$|(?:[^\\S\\n\\r])|[,;)\\]}])|(?:(?:(?<=(?:[\\w)}\\]\"'`]|\\.\\.\\.|@/(?:\\\\.|[^/\\\\\\r\\n])+/)(?:[^\\S\\n\\r])*)(?<!(?:^|[^\\w.])(?:and|or|not|local|store|const)(?:[^\\S\\n\\r])*))(?=(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))(?=(?!(?:and|or)\\b)[A-Za-z_]))|(?<=(?:[}\"'`]|\\]=*\\]|\\.\\.\\.|@/(?:\\\\.|[^/\\\\\\r\\n])+/[dgimsuvy]*|(?:^|[^\\w.])(?:\\.?\\d[\\w.]*|true|false|nil|end))(?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[(?:\\[(?:[^\\]\\n]|\\](?!\\]))*\\]\\]|=\\[(?:[^\\]\\n]|\\](?!=\\]))*\\]=\\]|==\\[(?:[^\\]\\n]|\\](?!==\\]))*\\]==\\]|===\\[(?:[^\\]\\n]|\\](?!===\\]))*\\]===\\])(?:(?:[^\\S\\n\\r])*))[(]))|(?<=^(?:[^\\S\\n\\r])*)(?!(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))"
     },
     "LuauPropertyColonOperation": {
-      "begin": "([:])((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#LuauStructInvalidColon"
             }
           ]
         },
-        "2": {
+        "3": {
           "patterns": [
             {
               "include": "#OptionalWhitespace"

@@ -1,4 +1,4 @@
-sparkdown [0..207]
+sparkdown [0..232]
  ├─ LuauTheme [0..94]
  │   ├─ LuauTheme_begin [0..6]
  │   │   ├─ LuauTheme_begin_c1 0
@@ -229,7 +229,7 @@ sparkdown [0..207]
  │       └─ LuauLayout_end_c3 145
  ├─ Newline [145..146]: "\n"
  ├─ Newline [146..147]: "\n"
- ├─ LuauDefine [147..206]
+ ├─ LuauDefine [147..231]
  │   ├─ LuauDefine_begin [147..154]
  │   │   ├─ LuauDefine_begin_c1 147
  │   │   │   └─ OptionalWhitespace 147
@@ -238,7 +238,7 @@ sparkdown [0..207]
  │   │   └─ LuauDefine_begin_c3 [153..154]
  │   │       └─ LuauDefine_begin_c3 [153..154]
  │   │           └─ OptionalWhitespace [153..154]: " "
- │   ├─ LuauDefine_content [154..203]
+ │   ├─ LuauDefine_content [154..228]
  │   │   ├─ LuauDefineNameAndInheritance [154..165]
  │   │   │   ├─ LuauDefineNameAndInheritance_begin [154..160]
  │   │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [154..160]
@@ -269,9 +269,11 @@ sparkdown [0..207]
  │   │   │   │       ├─ LuauPropertyColonAssignment_content [173..176]
  │   │   │   │       │   └─ LuauPropertyColonOperation [173..176]
  │   │   │   │       │       ├─ LuauPropertyColonOperation_begin [173..175]
- │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c1 [173..174]
+ │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c1 173
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 173
+ │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c2 [173..174]
  │   │   │   │       │       │   │   └─ LuauStructInvalidColon [173..174]: ":"
- │   │   │   │       │       │   └─ LuauPropertyColonOperation_begin_c2 [174..175]
+ │   │   │   │       │       │   └─ LuauPropertyColonOperation_begin_c3 [174..175]
  │   │   │   │       │       │       └─ OptionalWhitespace [174..175]: " "
  │   │   │   │       │       ├─ LuauPropertyColonOperation_content [175..176]
  │   │   │   │       │       │   └─ LuauNumericDecimal [175..176]
@@ -300,9 +302,11 @@ sparkdown [0..207]
  │   │   │   │       ├─ LuauPropertyColonAssignment_content [184..189]
  │   │   │   │       │   └─ LuauPropertyColonOperation [184..189]
  │   │   │   │       │       ├─ LuauPropertyColonOperation_begin [184..186]
- │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c1 [184..185]
+ │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c1 184
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 184
+ │   │   │   │       │       │   ├─ LuauPropertyColonOperation_begin_c2 [184..185]
  │   │   │   │       │       │   │   └─ LuauStructInvalidColon [184..185]: ":"
- │   │   │   │       │       │   └─ LuauPropertyColonOperation_begin_c2 [185..186]
+ │   │   │   │       │       │   └─ LuauPropertyColonOperation_begin_c3 [185..186]
  │   │   │   │       │       │       └─ OptionalWhitespace [185..186]: " "
  │   │   │   │       │       ├─ LuauPropertyColonOperation_content [186..189]
  │   │   │   │       │       │   └─ LuauDoubleQuotedString [186..189]
@@ -347,12 +351,85 @@ sparkdown [0..207]
  │   │   │       ├─ LuauParenthetical_end_c1 [201..202]
  │   │   │       │   └─ PunctuationParenClose [201..202]: ")"
  │   │   │       └─ LuauParenthetical_end_c2 202
- │   │   └─ Newline [202..203]: "\n"
- │   └─ LuauDefine_end [203..206]
- │       ├─ LuauDefine_end_c1 203
- │       │   └─ LuauDefine_end_c1 203
- │       │       └─ OptionalWhitespace 203
- │       ├─ LuauDefine_end_c2 [203..206]
- │       │   └─ LuauEndKeyword [203..206]: "end"
- │       └─ LuauDefine_end_c3 206
- └─ Newline [206..207]: "\n"
+ │   │   ├─ Newline [202..203]: "\n"
+ │   │   ├─ LuauPropertyDefinition [203..211]
+ │   │   │   ├─ LuauPropertyDefinition_begin [203..207]
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [203..205]
+ │   │   │   │   │   └─ OptionalWhitespace [203..205]: "  "
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 205
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 205
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 205
+ │   │   │   │   │       └─ OptionalWhitespace 205
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 [205..207]
+ │   │   │   │       └─ LuauDefineKeywordKey [205..207]: "if"
+ │   │   │   ├─ LuauPropertyDefinition_content [207..211]
+ │   │   │   │   └─ LuauPropertyColonOperation [207..211]
+ │   │   │   │       ├─ LuauPropertyColonOperation_begin [207..210]
+ │   │   │   │       │   ├─ LuauPropertyColonOperation_begin_c1 [207..208]
+ │   │   │   │       │   │   └─ OptionalWhitespace [207..208]: " "
+ │   │   │   │       │   ├─ LuauPropertyColonOperation_begin_c2 [208..209]
+ │   │   │   │       │   │   └─ LuauStructInvalidColon [208..209]: ":"
+ │   │   │   │       │   └─ LuauPropertyColonOperation_begin_c3 [209..210]
+ │   │   │   │       │       └─ OptionalWhitespace [209..210]: " "
+ │   │   │   │       ├─ LuauPropertyColonOperation_content [210..211]
+ │   │   │   │       │   └─ LuauNumericDecimal [210..211]
+ │   │   │   │       │       ├─ LuauNumericDecimal_c1 [210..211]: "3"
+ │   │   │   │       │       └─ LuauNumericDecimal_c2 211
+ │   │   │   │       └─ LuauPropertyColonOperation_end 211
+ │   │   │   └─ LuauPropertyDefinition_end 211
+ │   │   ├─ Newline [211..212]: "\n"
+ │   │   ├─ LuauPropertyDefinition [212..227]
+ │   │   │   ├─ LuauPropertyDefinition_begin [212..214]
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [212..214]
+ │   │   │   │   │   └─ OptionalWhitespace [212..214]: "  "
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 214
+ │   │   │   │   ├─ LuauPropertyDefinition_begin_c3 214
+ │   │   │   │   │   └─ LuauPropertyDefinition_begin_c3 214
+ │   │   │   │   │       └─ OptionalWhitespace 214
+ │   │   │   │   └─ LuauPropertyDefinition_begin_c4 214
+ │   │   │   ├─ LuauPropertyDefinition_content [214..227]
+ │   │   │   │   ├─ LuauBracketKeyAssignment [214..223]
+ │   │   │   │   │   ├─ LuauBracketKeyAssignment_begin 214
+ │   │   │   │   │   ├─ LuauBracketKeyAssignment_content [214..223]
+ │   │   │   │   │   │   └─ LuauTableIndexDeclaration [214..223]
+ │   │   │   │   │   │       ├─ LuauTableIndexDeclaration_begin [214..215]
+ │   │   │   │   │   │       │   └─ LuauTableIndexDeclaration_begin_c1 [214..215]
+ │   │   │   │   │   │       │       └─ PunctuationBracketOpen [214..215]: "["
+ │   │   │   │   │   │       ├─ LuauTableIndexDeclaration_content [215..222]
+ │   │   │   │   │   │       │   └─ LuauDoubleQuotedString [215..222]
+ │   │   │   │   │   │       │       ├─ LuauDoubleQuotedString_begin [215..216]
+ │   │   │   │   │   │       │       │   └─ LuauDoubleQuotedString_begin_c1 [215..216]
+ │   │   │   │   │   │       │       │       └─ PunctuationStringDoubleQuoteOpen [215..216]: "\""
+ │   │   │   │   │   │       │       ├─ LuauDoubleQuotedString_content [216..221]
+ │   │   │   │   │   │       │       │   └─ Word [216..221]: "speed"
+ │   │   │   │   │   │       │       └─ LuauDoubleQuotedString_end [221..222]
+ │   │   │   │   │   │       │           ├─ LuauDoubleQuotedString_end_c1 [221..222]
+ │   │   │   │   │   │       │           │   └─ PunctuationStringDoubleQuoteClose [221..222]: "\""
+ │   │   │   │   │   │       │           └─ LuauDoubleQuotedString_end_c2 222
+ │   │   │   │   │   │       └─ LuauTableIndexDeclaration_end [222..223]
+ │   │   │   │   │   │           └─ LuauTableIndexDeclaration_end_c1 [222..223]
+ │   │   │   │   │   │               └─ PunctuationBracketClose [222..223]: "]"
+ │   │   │   │   │   └─ LuauBracketKeyAssignment_end 223
+ │   │   │   │   └─ LuauPropertyColonOperation [223..227]
+ │   │   │   │       ├─ LuauPropertyColonOperation_begin [223..226]
+ │   │   │   │       │   ├─ LuauPropertyColonOperation_begin_c1 [223..224]
+ │   │   │   │       │   │   └─ OptionalWhitespace [223..224]: " "
+ │   │   │   │       │   ├─ LuauPropertyColonOperation_begin_c2 [224..225]
+ │   │   │   │       │   │   └─ LuauStructInvalidColon [224..225]: ":"
+ │   │   │   │       │   └─ LuauPropertyColonOperation_begin_c3 [225..226]
+ │   │   │   │       │       └─ OptionalWhitespace [225..226]: " "
+ │   │   │   │       ├─ LuauPropertyColonOperation_content [226..227]
+ │   │   │   │       │   └─ LuauNumericDecimal [226..227]
+ │   │   │   │       │       ├─ LuauNumericDecimal_c1 [226..227]: "3"
+ │   │   │   │       │       └─ LuauNumericDecimal_c2 227
+ │   │   │   │       └─ LuauPropertyColonOperation_end 227
+ │   │   │   └─ LuauPropertyDefinition_end 227
+ │   │   └─ Newline [227..228]: "\n"
+ │   └─ LuauDefine_end [228..231]
+ │       ├─ LuauDefine_end_c1 228
+ │       │   └─ LuauDefine_end_c1 228
+ │       │       └─ OptionalWhitespace 228
+ │       ├─ LuauDefine_end_c2 [228..231]
+ │       │   └─ LuauEndKeyword [228..231]: "end"
+ │       └─ LuauDefine_end_c3 231
+ └─ Newline [231..232]: "\n"

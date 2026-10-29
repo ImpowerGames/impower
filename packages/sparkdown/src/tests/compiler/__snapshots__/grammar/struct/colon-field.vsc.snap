@@ -1,4 +1,4 @@
-text.source.sparkdown [0..207]
+text.source.sparkdown [0..232]
  ├─ meta.theme.luau [0..12]
  │   ├─ keyword.control.theme.luau [0..5]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -110,6 +110,27 @@ text.source.sparkdown [0..207]
  │   ├─ punctuation.definition.template-expression.begin.sd [200..201]: "("
  │   └─ punctuation.definition.template-expression.end.sd [201..202]: ")"
  ├─ Newline [202..203]: "\n"
- ├─ meta.function.luau [203..206]
- │   └─ keyword.control.end.luau [203..206]: "end"
- └─ Newline [206..207]: "\n"
+ ├─ meta.function.luau [203..211]
+ │   ├─ punctuation.whitespace.optional.sd [203..205]: "  "
+ │   ├─ variable.other.readwrite.luau [205..207]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [207..208]: " "
+ │   ├─ invalid.illegal.struct-colon.sd [208..209]: ":"
+ │   ├─ punctuation.whitespace.optional.sd [209..210]: " "
+ │   └─ constant.numeric.decimal.luau [210..211]: "3"
+ ├─ Newline [211..212]: "\n"
+ ├─ meta.function.luau [212..227]
+ │   ├─ punctuation.whitespace.optional.sd [212..214]: "  "
+ │   ├─ punctuation.definition.template-expression.begin.sd [214..215]: "["
+ │   ├─ string.quoted.double.luau [215..222]
+ │   │   ├─ punctuation.definition.string.double.begin.sd [215..216]: "\""
+ │   │   ├─ markup.raw.text.sd [216..221]: "speed"
+ │   │   └─ punctuation.definition.string.double.end.sd [221..222]: "\""
+ │   ├─ punctuation.definition.template-expression.end.sd [222..223]: "]"
+ │   ├─ punctuation.whitespace.optional.sd [223..224]: " "
+ │   ├─ invalid.illegal.struct-colon.sd [224..225]: ":"
+ │   ├─ punctuation.whitespace.optional.sd [225..226]: " "
+ │   └─ constant.numeric.decimal.luau [226..227]: "3"
+ ├─ Newline [227..228]: "\n"
+ ├─ meta.function.luau [228..231]
+ │   └─ keyword.control.end.luau [228..231]: "end"
+ └─ Newline [231..232]: "\n"

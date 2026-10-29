@@ -919,20 +919,25 @@ variables:
   # `a: b<<T>>()`, `a: b [[s]]`), so `a: t["k"]` is a field.
   # lookaround: `LuauFunctionAccessor` owns a method call (`a: b()`), a statement of the body rather than a property, and the shared variable is its own test for one; reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line. The trailing `(?=\S)` leaves a `:` with nothing after it on its line to the statement rules, which report the missing method name.
   LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}{{WS}}*:{{WS}}+(?=\S))
+  # The `:` a define's key written with one takes in place of its `=`
+  # (`if: 3`, `["speed"]: 3`), with a value after it on its line.
+  LUAU_DEFINE_KEY_COLON: (?:[:]{{WS}}+\S)
+  # A define key's lone `=`, or the `:` written in its place.
+  LUAU_DEFINE_KEY_OPERATOR: (?:{{LUAU_SINGLE_EQUALS}}|{{LUAU_DEFINE_KEY_COLON}})
   # A define's key spelled as a reserved word other than a closer, or as a
   # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
   # Sparkdown's own, as a table's bracketed keys are. Only
   # `LuauPropertyDefinition`'s begin reads one.
   # lookaround: LuauDefine ends at a closer, and LuauRepeatLoop and the
   # other blocks a reserved word begins read any word not before a lone `=`.
-  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_SINGLE_EQUALS}}))
+  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}))
   # lookaround: a modifier before a lone `=` is the key LUAU_DEFINE_KEYWORD_KEY
   # reads.
   LUAU_NOT_BEFORE_LONE_EQUALS: (?!{{WS}}*{{LUAU_SINGLE_EQUALS}})
   # Right after a define's reserved-word key, before its lone `=`.
   # lookaround: without a key read, LuauPropertyDefinition needs a name or a
   # bracketed key before the `=`.
-  LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_SINGLE_EQUALS}}
+  LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}
   # lookaround: LuauCompareOperator reads `==`.
   LUAU_SINGLE_EQUALS: =(?!=)
   # A name or a reserved word, as one token of Luau's lexer.
@@ -5590,7 +5595,7 @@ repository:
     # A key written `name: value` is the property it means, its `:` invalid
     # (`LuauPropertyColonAssignment`), unless the value starts a method call
     # (`a: b()`), which is a statement.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_LONE_EQUALS}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_LONE_EQUALS}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|\[[^\]\r\n]*\]{{WS}}*{{LUAU_DEFINE_KEY_COLON}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
     beginCaptures:
       1:
         patterns:
@@ -5612,6 +5617,8 @@ repository:
       - { include: "#LuauPropertyColonAssignment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauAssignmentOperation" }
+      # The `: value` after a reserved-word or bracketed key.
+      - { include: "#LuauPropertyColonOperation" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 
@@ -5640,12 +5647,15 @@ repository:
   # The `: value` of `LuauPropertyColonAssignment`: `LuauAssignmentOperation`
   # with the colon in the operator's place.
   LuauPropertyColonOperation:
-    begin: ([:])({{WS}}*)
+    begin: ({{WS}}*)([:])({{WS}}*)
     beginCaptures:
       1:
         patterns:
-          - { include: "#LuauStructInvalidColon" }
+          - { include: "#OptionalWhitespace" }
       2:
+        patterns:
+          - { include: "#LuauStructInvalidColon" }
+      3:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:

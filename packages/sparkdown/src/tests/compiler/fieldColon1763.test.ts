@@ -48,6 +48,7 @@ describe("a field written with `:`", () => {
     ["a `style`", "style panel with\n  width: 100%\nend\n", [1]],
     ["a `layout`", "layout main with\n  column {\n    image: black\n    text \"a\"\n  }\nend\n", [2]],
     ["a `define`", "define config with\n  speed: 2\n  name : \"x\"\nend\n", [1, 2]],
+    ["a `define` keyed by reserved words and brackets", "define config with\n  if : 3\n  repeat: 3\n  local : 3\n  [\"speed\"] : 3\nend\n", [1, 2, 3, 4]],
     ["a `define` whose value is indexed", "define items with\n  first = 2\nend\n\ndefine config with\n  typo: items[\"first\"]\nend\n", [5]],
   ])("in %s is reported on its colon alone", (_, text, lines) => {
     expect(diagnosticsOf(text)).toEqual(lines.map(colon));

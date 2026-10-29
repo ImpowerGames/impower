@@ -16,4 +16,6 @@ define config with
   speed: 2
   name : "x"
   call: go()
+  if : 3
+  ["speed"] : 3
 end
