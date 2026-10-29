@@ -363,7 +363,7 @@ end
 
 A `local` belongs to a scene, a branch, a choice's body or a function. At the top level of any script, `main.sd` included, or in an `if` or loop written at the top level, it is an error: _local declaration must be inside a scene, branch or function; use store or const at the top level_. Inside a function, a `const` or a `define` is the function's own and is allowed.
 
-**`run` calls a Luau file.** At a script's top level, `run` runs the file once each time the story starts, with the declarations and before the story's first line, after every `store` and `const` of the project has its value; the scripts' `run` lines run in the order the scripts are read, `main.sd` first and the others by path. The globals the file defines therefore exist in every scene, one a preview starts in included. Inside a scene or a branch, `run` runs the file where its line stands, as often as the line runs. It takes either form:
+**`run` calls a Luau file.** At a script's top level, `run` runs the file once each time the story starts, with the declarations and before the story's first line, after every `store` and `const` of the project has its value; the scripts' `run` lines run in the order the scripts are read, `main.sd` first and the others by path. The globals the file defines therefore exist in every scene, one a preview starts in included. An error the file raises there is an error on its `run` line, as an error a `store`'s value raises is on the `store`'s. Inside a scene or a branch, `run` runs the file where its line stands, as often as the line runs. It takes either form:
 
 ```sparkdown
 run helpers -- the one helpers.luau anywhere in the project

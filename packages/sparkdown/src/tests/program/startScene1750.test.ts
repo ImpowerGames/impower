@@ -132,6 +132,18 @@ describe("a top-level run", () => {
     expect(beatsOf(story, "forest")).toEqual(["Hi from the forest.\n"]);
   });
 
+  it("stops the compile at its line when its file raises an error, as a store's initializer does", () => {
+    const { program } = quiet(() =>
+      programCompiler({
+        [MAIN]: lines("store base = 1", "run helpers", "scene start", "  After.", "end"),
+        [HELPERS]: lines('error("the helper failed")'),
+      }).compile(MAIN),
+    );
+    const errors = errorsOf(program);
+    expect(errors.map(([line]) => line)).toEqual([1]);
+    expect(errors[0]![1]).toContain("the helper failed");
+  });
+
   it("runs a run inside a scene where its line stands", () => {
     const story = storyOf({
       [MAIN]: lines(

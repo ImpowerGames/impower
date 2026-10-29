@@ -5,7 +5,9 @@
 //
 // `checkLuau` compiles a Luau snippet exactly as written, as a `.luau` file
 // loaded with `run` (the compiler wraps its body in a function, the way
-// `runConformanceSource` wraps a runtime fixture by hand). The snippet is
+// `runConformanceSource` wraps a runtime fixture by hand). The `run` stands
+// in the story's start scene, so the compile, which runs a top-level `run`'s
+// file with the declarations, never runs the snippet. The snippet is
 // therefore a Luau file in its own right, and a `--!strict`, `--!nonstrict`
 // or `--!nocheck` line in it is Luau's own mode directive for that file. It
 // then type checks the file as the compiler hands it over, with the globals
@@ -328,7 +330,7 @@ function compileSource(source: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text: `run "${SNIPPET_NAME}"\n`,
+        text: `scene start\n  run "${SNIPPET_NAME}"\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },
