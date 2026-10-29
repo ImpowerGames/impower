@@ -48,8 +48,7 @@ describe("a field written with `:`", () => {
     ["a `style`", "style panel with\n  width: 100%\nend\n", [1]],
     ["a `layout`", "layout main with\n  column {\n    image: black\n    text \"a\"\n  }\nend\n", [2]],
     ["a `define`", "define config with\n  speed: 2\n  name : \"x\"\nend\n", [1, 2]],
-    ["a `define` keyed by reserved words and brackets", "define config with\n  if : 3\n  repeat: 3\n  local : 3\n  [\"speed\"] : 3\nend\n", [1, 2, 3, 4]],
-    ["a `define` whose value is indexed", "define items with\n  first = 2\nend\n\ndefine config with\n  typo: items[\"first\"]\nend\n", [5]],
+    ["a `define` keyed by reserved words, modifiers and brackets", "define config with\n  if : 3\n  repeat: 3\n  local : 3\n  store: \"s\"\n  [\"speed\"] : { 1 }\nend\n", [1, 2, 3, 4, 5]],
   ])("in %s is reported on its colon alone", (_, text, lines) => {
     expect(diagnosticsOf(text)).toEqual(lines.map(colon));
   });
@@ -74,6 +73,15 @@ describe("a field written with `:`", () => {
     expect(errors).toEqual([]);
   });
 
+  test.each(["local", "store", "if"])("a `define` keeps a field keyed `%s`", (key) => {
+    const program = compile(`define box with\n  ${key} : 3\nend\n\n-> start\nscene start\n  S {box["${key}"]}\n  fin\n\nend\n`);
+    const story = new ProgramStory(program.chunks!);
+    const errors: string[] = [];
+    story.onError = (message: string) => errors.push(message);
+    expect(story.ContinueMaximally()).toBe("S 3\n");
+    expect(errors).toEqual([]);
+  });
+
   test("a `define` value's own errors are Luau's, as after an `=`", () => {
     const written = (op: string) => `define config with\n  speed ${op} 1 +\n  ok = 1\nend\n`;
     const withEquals = diagnosticsOf(written("="));
@@ -94,6 +102,11 @@ describe("a field written with `:`", () => {
     ["a method call with a comment before its arguments in a `define`", "define config with\n  speed: go --[[ note ]] ()\nend\n"],
     ["a method call with type arguments in a `define`", "define config with\n  speed: go<<number>>()\nend\n"],
     ["a method call with a long string argument in a `define`", "define config with\n  speed: go [[text]]\nend\n"],
+    ["a method call with a comment before its name in a `define`", "define config with\n  speed: --[[ note ]] go()\nend\n"],
+    ["a method call with its arguments on the next line in a `define`", "define config with\n  speed: go\n    ()\nend\n"],
+    ["a method call with a level-four comment before its arguments in a `define`", "define config with\n  speed: go --[====[ note ]====] ()\nend\n"],
+    ["a method call on a modifier-named receiver in a `define`", "define config with\n  store: go(1)\n  const: go \"s\"\n  read: go { 1 }\nend\n"],
+    ["a name after the colon in a `define`, left to Luau's reading", "define items with\n  first = 2\nend\n\ndefine config with\n  typo: items[\"first\"]\n  other: bend\nend\n"],
     ["a label with a colon in a `morph`", "morph m with\n  method = bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n  clips {\n    {\n      between { eyelash-left:eyes }\n      targets { pupil-left }\n    }\n  }\nend\n"],
     ["a URL value in a `theme`", "theme t with\n  link = http://example.com\nend\n"],
   ])("%s is no field colon", (_, text) => {

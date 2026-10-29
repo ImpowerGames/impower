@@ -913,15 +913,15 @@ variables:
   # it here, once, keeps every rule built on the class from reading it
   # (§10.1, "tighten what a variable matches").
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
-  # A define-body key written with `:` (`name: value`): whitespace after the
-  # colon, and no method call after it, as `LuauAccessPath` reads one
-  # (`LUAU_SHARED_PATH_NO_METHOD_CALL`: `a: b()`, `a: b --[[c]] ()`,
-  # `a: b<<T>>()`, `a: b [[s]]`), so `a: t["k"]` is a field.
-  # lookaround: `LuauFunctionAccessor` owns a method call (`a: b()`), a statement of the body rather than a property, and the shared variable is its own test for one; reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line. The trailing `(?=\S)` leaves a `:` with nothing after it on its line to the statement rules, which report the missing method name.
-  LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}{{WS}}*:{{WS}}+(?=\S))
+  # A define-body key written with `:` (`name: 2`).
+  LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_DEFINE_KEY_COLON}})
   # The `:` a define's key written with one takes in place of its `=`
-  # (`if: 3`, `["speed"]: 3`), with a value after it on its line.
-  LUAU_DEFINE_KEY_COLON: (?:[:]{{WS}}+\S)
+  # (`speed: 2`, `if: "x"`, `["speed"]: { 1 }`), before a value on its line
+  # that no name or comment begins. A name there may be a method's
+  # (`speed: go()`, `speed: --[[c]] go()`, `speed: go` and `()` on the next
+  # line), which Luau reads as a call on the key, so the line is left to it.
+  # lookaround: `LuauFunctionAccessor` and the statement rules own a `:` that a name or comment follows; deciding which of those is a call would take reading Luau's whole call syntax ahead of the rules that read it, and reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line.
+  LUAU_DEFINE_KEY_COLON: (?:[:]{{WS}}+(?!--|{{LUAU_IDENTIFIER}})\S)
   # A define key's lone `=`, or the `:` written in its place.
   LUAU_DEFINE_KEY_OPERATOR: (?:{{LUAU_SINGLE_EQUALS}}|{{LUAU_DEFINE_KEY_COLON}})
   # A define's key spelled as a reserved word other than a closer, or as a
@@ -931,9 +931,9 @@ variables:
   # lookaround: LuauDefine ends at a closer, and LuauRepeatLoop and the
   # other blocks a reserved word begins read any word not before a lone `=`.
   LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}))
-  # lookaround: a modifier before a lone `=` is the key LUAU_DEFINE_KEYWORD_KEY
-  # reads.
-  LUAU_NOT_BEFORE_LONE_EQUALS: (?!{{WS}}*{{LUAU_SINGLE_EQUALS}})
+  # lookaround: a modifier before a lone `=`, or the `:` written in its place,
+  # is the key LUAU_DEFINE_KEYWORD_KEY reads.
+  LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR: (?!{{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}})
   # Right after a define's reserved-word key, before its lone `=`.
   # lookaround: without a key read, LuauPropertyDefinition needs a name or a
   # bracketed key before the `=`.
@@ -5593,9 +5593,9 @@ repository:
     # word; its `=` and value are the `LuauAssignmentOperation` after it. A
     # modifier before a lone `=` is that key, not a modifier.
     # A key written `name: value` is the property it means, its `:` invalid
-    # (`LuauPropertyColonAssignment`), unless the value starts a method call
-    # (`a: b()`), which is a statement.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_LONE_EQUALS}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|\[[^\]\r\n]*\]{{WS}}*{{LUAU_DEFINE_KEY_COLON}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
+    # (`LuauPropertyColonAssignment`), when no name or comment begins the
+    # value (`LUAU_DEFINE_KEY_COLON`); `a: b` is left to Luau's reading.
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|\[[^\]\r\n]*\]{{WS}}*{{LUAU_DEFINE_KEY_COLON}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
     beginCaptures:
       1:
         patterns:
