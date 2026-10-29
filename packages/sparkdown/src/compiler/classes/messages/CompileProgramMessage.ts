@@ -10,13 +10,6 @@ export interface CompileProgramParams {
   textDocument: { uri: string };
   workspace?: string;
   startFrom?: { file: string; line: number };
-  simulationOptions?: Record<
-    string,
-    {
-      favoredConditions?: (boolean | undefined)[];
-      favoredChoices?: (number | undefined)[];
-    }
-  >;
 }
 
 export interface CompileProgramResult {

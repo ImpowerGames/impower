@@ -47,15 +47,10 @@ function previewedStore(
   src: string,
   line: number,
   name: string,
-  favoredConditions?: boolean[],
 ): unknown {
   const game: any = newGame(compileSrc(src));
   game.setStartFrom({ file: URI, line: line - 1 });
-  game.simulate(
-    favoredConditions && {
-      [game.routeStartOf(game.startAddress)]: { favoredConditions },
-    },
-  );
+  game.simulate();
   expect(game.simulation).toBe("success");
   return game.story.variablesState[name];
 }
@@ -74,7 +69,6 @@ function routeTo(lines: string[], label: string, options?: object) {
     program as any,
     game.routeStartOf(to),
     to,
-    undefined,
     options,
   );
   expect(route?.steps.at(-1)?.address).toBe(to);

@@ -512,25 +512,6 @@ export default class WorkspaceWindow {
     this.storeRoutePins(routePins, false);
   };
 
-  setSimulationOptions(
-    simulateFlow: string,
-    options: {
-      favoredChoices?: (number | undefined)[];
-      favoredConditions?: (boolean | undefined)[];
-    },
-  ) {
-    this.update({
-      ...this.store,
-      debug: {
-        ...this.store.debug,
-        simulationOptions: {
-          ...this.store.debug.simulationOptions,
-          [simulateFlow]: options,
-        },
-      },
-    });
-  }
-
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
     if (!paneState) {

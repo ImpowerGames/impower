@@ -112,7 +112,6 @@ afterEach(() => {
  *  drives them: each compile routes to its line in the program it produced. */
 class Session {
   readonly compiler = new SparkdownCompiler();
-  readonly config = {};
   game?: Game;
 
   constructor(
@@ -149,10 +148,7 @@ class Session {
     }
     this.game.setStartFrom(program.startFrom!);
     const to = this.game.startAddress!;
-    searchRouteTo(this.game, to, new RouteSearchLog(), {
-      config: this.config as never,
-      remember: false,
-    });
+    searchRouteTo(this.game, to, new RouteSearchLog(), {});
   }
 
   compile(line: number) {

@@ -14,13 +14,6 @@ export interface CreateGameParams extends GameConfiguration {
 
 export interface CreateGameResult {
   simulateFlow: string | null;
-  simulationOptions?: Record<
-    string,
-    {
-      favoredChoices?: (number | undefined)[];
-      favoredConditions?: (boolean | undefined)[];
-    }
-  >;
   /** The address the game starts at (`Game.startAddress`), which is opaque. */
   startAddress: ProgramAddress | null;
   saveData: SaveData;

@@ -28,7 +28,7 @@ import {
   routeChargeAt,
   stepsBeforeDeparture,
   stepsBeforePinMet,
-  sameFavoredReads,
+  stepsBeforeTargetDecision,
   type LevelZeroStore,
   type LevelZeroWork,
   type SearchOptions,
@@ -40,6 +40,7 @@ import {
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import {
+  pinnedNotOffered,
   pinnedOptionsOf,
   type PinnedOptions,
   type RoutePin,
@@ -70,6 +71,8 @@ import type {
   PreviewRoute,
   PreviewRouteDecision,
   PreviewRouteOption,
+  RunMeeting,
+  RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
 import { conditionText } from "../utils/conditionText";
@@ -457,6 +460,8 @@ export class Game<T extends M = {}> {
   set simulateFlow(value) {
     this._simulateFlow = value;
   }
+
+  protected _playedMenus: { sources: string[]; taken: string }[] = [];
 
   /** The address the story starts at, and a route to it ends at: the beat a
    *  line starts (`setStartFrom`), or a flow. */
@@ -1365,21 +1370,19 @@ export class Game<T extends M = {}> {
     story.onExecute = null;
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
+      if (this._simulation !== "simulating") {
+        this._playedMenus.push({
+          sources: story.currentChoices.map((c) => c.sourcePath),
+          taken: choice.sourcePath,
+        });
+      }
     };
     story.onEvaluateCondition = (value) => {
       this._runtimeState.recordCondition(value);
     };
   }
 
-  simulate(
-    simulationOptions?: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >,
-  ) {
+  simulate() {
     this._simulation = "simulating";
     this._simulationFailure = undefined;
     if (this._startAddress != null) {
@@ -1394,13 +1397,7 @@ export class Game<T extends M = {}> {
       const budget = { callerResetsStory: true, pins: this.pinnedOptions };
       let route;
       if (this.routesFromStartFirst(to)) {
-        route = Game.planRouteFromStart(
-          this._story,
-          this._program,
-          to,
-          simulationOptions,
-          budget,
-        );
+        route = Game.planRouteFromStart(this._story, this._program, to, budget);
         // Only a search that ran the story out shows that no run reaches
         // the address; one cut short by a ceiling, or stopped by an error,
         // is what the author is told.
@@ -1410,19 +1407,11 @@ export class Game<T extends M = {}> {
             this._program,
             from,
             to,
-            simulationOptions,
             budget,
           );
         }
       } else {
-        route = Game.planRoute(
-          this._story,
-          this._program,
-          from,
-          to,
-          simulationOptions,
-          budget,
-        );
+        route = Game.planRoute(this._story, this._program, from, to, budget);
       }
       if (route) {
         this.simulateRoute(route, 0);
@@ -2100,13 +2089,6 @@ export class Game<T extends M = {}> {
     program: SparkProgram,
     from: string,
     to: ProgramAddress,
-    simulationOptions?: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >,
     budget?: Pick<
       SearchOptions,
       | "maxSteps"
@@ -2118,14 +2100,7 @@ export class Game<T extends M = {}> {
       | "pins"
     >,
   ) {
-    const route = Game.planRouteInFlow(
-      story,
-      program,
-      from,
-      to,
-      simulationOptions,
-      budget,
-    );
+    const route = Game.planRouteInFlow(story, program, from, to, budget);
     if (
       route ||
       from === "0" ||
@@ -2140,7 +2115,7 @@ export class Game<T extends M = {}> {
     // that divert passes (#1606). Only a search that ran the flow out tries
     // this one: a search cut short by a ceiling would only be cut short
     // again, on more of the story.
-    return Game.planRouteFromStart(story, program, to, simulationOptions, budget);
+    return Game.planRouteFromStart(story, program, to, budget);
   }
 
   /** Plan a route from the top of the flow `from` to `to`, within that
@@ -2151,13 +2126,6 @@ export class Game<T extends M = {}> {
     program: SparkProgram,
     from: string,
     to: ProgramAddress,
-    simulationOptions?: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >,
     budget?: Pick<
       SearchOptions,
       | "maxSteps"
@@ -2173,8 +2141,6 @@ export class Game<T extends M = {}> {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
-      favoredConditions: simulationOptions?.[from]?.favoredConditions,
-      favoredChoices: simulationOptions?.[from]?.favoredChoices,
     });
   }
 
@@ -2185,13 +2151,6 @@ export class Game<T extends M = {}> {
     story: ProgramStory,
     program: SparkProgram,
     to: ProgramAddress,
-    simulationOptions?: Record<
-      string,
-      {
-        favoredConditions?: (boolean | undefined)[];
-        favoredChoices?: (number | undefined)[];
-      }
-    >,
     budget?: Pick<
       SearchOptions,
       | "maxSteps"
@@ -2207,8 +2166,6 @@ export class Game<T extends M = {}> {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,
-      favoredConditions: simulationOptions?.["0"]?.favoredConditions,
-      favoredChoices: simulationOptions?.["0"]?.favoredChoices,
     });
   }
 
@@ -2531,18 +2488,28 @@ export class Game<T extends M = {}> {
     // emitted again, whose decisions the route's forced ones no longer
     // name, so the rest is searched for.
     const replayOnly = route.to === to && validSteps === route.steps.length;
+    const pinned = this.pinnedOptions;
+    const chunks = this._program.changes.chunks;
+    const sameLine =
+      route.to === to ||
+      (chunks != null &&
+        this._program.changes.since === this._plannedRouteChangeId &&
+        chunks.dropped.length === 1 &&
+        chunks.emitted.length === 1 &&
+        chunks.dropped[0] === chunkOfAddress(route.to) &&
+        chunks.emitted[0] === chunkOfAddress(to));
+    const searchSteps = replayOnly
+      ? validSteps
+      : Math.min(
+          validSteps,
+          !sameLine
+            ? stepsBeforeTargetDecision(route, pinned)
+            : route.fallback
+              ? stepsBeforePinMet(route, pinned)
+              : stepsBeforeDeparture(route, pinned),
+        );
     if (route.fallback) {
-      // A route origin/main's search found (`planRoute`) is resumed and
-      // replayed as origin/main's preview resumes its own routes: from the
-      // deepest checkpoint the new program agrees with, by origin/main's
-      // search alone (a resume point without a charge), and no later than
-      // its first pinned meeting, whose decision another line may make
-      // otherwise.
-      const resume = this.findResumePoint(
-        replayOnly
-          ? validSteps
-          : Math.min(validSteps, stepsBeforePinMet(route, this.pinnedOptions)),
-      );
+      const resume = this.findResumePoint(searchSteps);
       if (!resume) {
         return { validSteps, replayOnly: false };
       }
@@ -2554,16 +2521,6 @@ export class Game<T extends M = {}> {
         replayOnly,
       };
     }
-    // A search resumed inside the route keeps every decision before the
-    // point it resumes from, and a search from the top forces a verdict
-    // against the program only where the target needs it (`planRoute`). So a
-    // search resumes no later than the route's first such verdict, or the
-    // preview would show a branch the route took for another line; nor later
-    // than its first pinned meeting, since only a search from the top knows
-    // which pins each route met and how much of a pin's tier it spent.
-    const searchSteps = replayOnly
-      ? validSteps
-      : Math.min(validSteps, stepsBeforeDeparture(route, this.pinnedOptions));
     // The replay after it is held only by what the new program still agrees
     // with: it forces whatever the new route decides, so a checkpoint past
     // the route's forced verdicts holds a state it can resume from wherever
@@ -2620,43 +2577,11 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** Whether a route to `to` is searched from the top of `from`, favoring
-   *  `favored`, without first resuming at `resumeFrom`: the program still
-   *  holds level-zero work of a search from that flow whose level zero never
-   *  stood in the chunk `to` stands in. When that level zero read the same
-   *  favored verdicts and choices, the search starts from it and finds the
-   *  route a search from the top finds, at the cost of the levels after
-   *  level zero. When it read others, which a search that remembers its
-   *  route writes, a search from the top runs level zero again and keeps
-   *  work for these; it is chosen only when the resumed search would run
-   *  more than half of that level zero again itself, so a scrub pays at most
-   *  about twice what resuming costs. */
-  searchesFromLevelZeroWork(
-    from: string,
-    to: ProgramAddress,
-    favored: {
-      favoredConditions?: (boolean | undefined)[];
-      favoredChoices?: (number | undefined)[];
-    } = {},
-    resumeFrom?: RouteResumePoint,
-  ): boolean {
+  searchesFromLevelZeroWork(from: string, to: ProgramAddress): boolean {
     const chunk = chunkOfAddress(to);
     const pins = this.pinnedOptions.key;
     for (const work of this.heldLevelZeroWorks().values()) {
-      if (work.from !== from || work.pins !== pins || work.chunks.has(chunk)) {
-        continue;
-      }
-      if (
-        sameFavoredReads(
-          work,
-          favored.favoredConditions ?? [],
-          favored.favoredChoices ?? [],
-        )
-      ) {
-        return true;
-      }
-      const charged = resumeFrom?.charge?.steps;
-      if (charged == null || work.spentSteps - charged > work.spentSteps / 2) {
+      if (work.from === from && work.pins === pins && !work.chunks.has(chunk)) {
         return true;
       }
     }
@@ -2805,10 +2730,6 @@ export class Game<T extends M = {}> {
     if (!route.fallback && !charge) {
       return null;
     }
-    // A step records the decisions made BEFORE it, so the step the story is
-    // standing on is the one that says how many have been taken. The plan
-    // reports those same decisions split in two, and a search reads its favored
-    // answers by counting each list, so both have to be cut to the same point.
     const taken = (route.steps[at - 1]?.decision ?? -1) + 1;
     const decisions = route.decisions.slice(0, taken);
     let conditions = 0;
@@ -4375,6 +4296,77 @@ export class Game<T extends M = {}> {
         end: { line, character: 0 },
       },
     };
+  }
+
+  static routeMenus(route: RoutePlan): RunMenu[] {
+    const menus: RunMenu[] = [];
+    for (const choice of route.choices) {
+      const taken = choice.sources?.[choice.selected];
+      if (choice.sources && taken !== undefined) {
+        menus.push({ sources: [...choice.sources], taken });
+      }
+    }
+    return menus;
+  }
+
+  runMenus(route: RunMenu[]): RunMenu[] {
+    return [
+      ...route,
+      ...this._playedMenus.map((menu) => ({
+        sources: [...menu.sources],
+        taken: menu.taken,
+      })),
+    ];
+  }
+
+  runMeetings(menus: RunMenu[]): RunMeeting[] | null {
+    const pinned = this.pinnedOptions;
+    const counts = new Map<string, number>();
+    const lines = new Map<string, Omit<RoutePin, "offer"> | null>();
+    const lineOf = (source: string) => {
+      let at = lines.get(source);
+      if (at === undefined) {
+        const location = this.documentLocationOf(Number(source));
+        at = location
+          ? { uri: location.uri, line: location.range.start.line }
+          : null;
+        lines.set(source, at);
+      }
+      return at;
+    };
+    const meetings: RunMeeting[] = [];
+    for (const menu of menus) {
+      let pin: RoutePin | undefined;
+      const others: RoutePin[] = [];
+      for (const source of menu.sources) {
+        const at = lineOf(source);
+        if (!at) {
+          return null;
+        }
+        const offer = (counts.get(source) ?? 0) + 1;
+        counts.set(source, offer);
+        if (source === menu.taken) {
+          pin = { ...at, offer };
+        } else {
+          others.push({ ...at, offer });
+        }
+      }
+      for (const { source, offer } of pinnedNotOffered(
+        pinned,
+        menu.sources,
+        counts,
+      )) {
+        const at = lineOf(source);
+        if (at) {
+          others.push({ ...at, offer });
+        }
+      }
+      if (!pin) {
+        return null;
+      }
+      meetings.push({ pin, others });
+    }
+    return meetings;
   }
 
   protected notifyExecuted(params: GameExecutedParams = this.executedParams()) {

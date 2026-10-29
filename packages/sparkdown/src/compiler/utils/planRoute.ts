@@ -398,6 +398,7 @@ export interface ConditionOverride {
   /** Set when the verdict is not the one the program reaches there: the
    *  route forced it to reach its target. */
   departs?: true;
+  open?: true;
 }
 
 /** The index among `route`'s decisions of its first pinned meeting of
@@ -441,23 +442,24 @@ export const firstPinMet = (
   return -1;
 };
 
-/** How many of `route`'s steps come before its first departure: the first
- *  verdict it forced against the program ({@link ConditionOverride.departs}),
- *  or its first pinned meeting of `pinned` ({@link firstPinMet}); all of
- *  them when it has none. */
-export const stepsBeforeDeparture = (
+const stepsBefore = (
   route: RoutePlan,
-  pinned: PinnedOptions = NO_PINS,
+  pinned: PinnedOptions,
+  decides: (decision: RouteOverride) => boolean,
 ): number => {
-  const forced = route.decisions.findIndex(
-    (d) => d.kind === "condition" && d.departs,
-  );
+  const decided = route.decisions.findIndex(decides);
   const met = firstPinMet(route, pinned);
   return stepsBeforeDecision(
     route,
-    forced < 0 ? met : met < 0 ? forced : Math.min(forced, met),
+    decided < 0 ? met : met < 0 ? decided : Math.min(decided, met),
   );
 };
+
+export const stepsBeforeDeparture = (
+  route: RoutePlan,
+  pinned: PinnedOptions = NO_PINS,
+): number =>
+  stepsBefore(route, pinned, (d) => d.kind === "condition" && d.departs === true);
 
 /** How many of `route`'s steps come before its first pinned meeting of
  *  `pinned` ({@link firstPinMet}): all of them when it met none. */
@@ -465,6 +467,18 @@ export const stepsBeforePinMet = (
   route: RoutePlan,
   pinned: PinnedOptions,
 ): number => stepsBeforeDecision(route, firstPinMet(route, pinned));
+
+export const stepsBeforeTargetDecision = (
+  route: RoutePlan,
+  pinned: PinnedOptions = NO_PINS,
+): number => {
+  let menus = 0;
+  return stepsBefore(route, pinned, (d) =>
+    d.kind === "choice"
+      ? (route.choices[menus++]?.options.length ?? 2) > 1
+      : d.departs === true || d.open === true,
+  );
+};
 
 /** How many of `route`'s steps come before its decision at `index`: all of
  *  them for -1. A step records the index of the latest decision taken before
@@ -550,27 +564,6 @@ export interface SearchOptions {
    */
   functions?: string[];
 
-  /**
-   * If provided, these choices will be given higher priority when searching for a route
-   */
-  favoredChoices?: (number | undefined)[];
-
-  /**
-   * If provided, these condition values are tried first at a condition the
-   * program leaves open (one whose condition is no value a decision can
-   * test), matched to the decisions in the order the route meets them (see
-   * {@link planRoute}); every other condition takes the program's own verdict
-   * unless the route forces the other.
-   */
-  favoredConditions?: (boolean | undefined)[];
-
-  /**
-   * The options the author pinned (`pinnedOptionsOf`). At a pinned offer the
-   * route takes the pinned option, and leaves it only when the target cannot
-   * be reached through it (see {@link planRoute}); a pinned gated option is
-   * offered by forcing its gate. A pin takes the place of
-   * {@link favoredChoices} at the menu it is offered at.
-   */
   pins?: PinnedOptions;
 
   /**
@@ -626,19 +619,6 @@ export interface SearchOptions {
    */
   stateImages?: boolean;
 
-  /**
-   * Where a search from the top keeps what its level zero built, and finds
-   * what an earlier search's level zero built (see {@link LevelZeroWork}).
-   * A search that finds work kept under its own search key
-   * ({@link LevelZeroWork.key}), whose level zero read the same favored
-   * verdicts and choices and never ran the chunk the target stands in,
-   * starts where that level zero stopped: its level zero would run as that
-   * one did, so it finds the route a search from the top finds. The caller
-   * answers for the program: it hands back only work whose chunks, and the
-   * moves between them, the program still holds as they were
-   * (`levelZeroHolds`). A resumed search ({@link resumeFrom}) neither keeps
-   * nor finds any.
-   */
   levelZeroStore?: LevelZeroStore;
 }
 
@@ -648,22 +628,6 @@ export interface LevelZeroStore {
   keep(work: LevelZeroWork): void;
 }
 
-/**
- * What a search from the top had built when its level zero stopped without
- * reaching its target: everything the next level starts from, and what
- * level zero ran to build it.
- *
- * Level zero runs the program's own way from the top of the flow, and what
- * it does depends on the chunks it runs, the moves the story makes between
- * them, the state the program starts in, the favored verdicts and choices it
- * reads, and the search's options; its target only ends it. So a later
- * search for another line, whose level zero would run the same chunks the
- * same way and never reach that line, would build exactly this, and starts
- * from it instead (#1636): a scrub of a line in a skipped branch after a long
- * loop does not run the loop again. Everything here is a copy the search
- * that starts from it does not change, so one work serves every later
- * search it holds for.
- */
 export interface LevelZeroWork {
   /** The flow and the options the search ran with ({@link levelZeroKey}). */
   readonly key: string;
@@ -679,13 +643,6 @@ export interface LevelZeroWork {
   /** The chunks a run stood in when the story could not go on: whether the
    *  next program goes on from there depends on what comes after them. */
   readonly ends: ReadonlySet<number>;
-  /** What each favored verdict and choice level zero read, by index, made
-   *  it do: the verdict it tried first at an open condition, and, by the
-   *  number of options of each menu met at that index, the choice it forked
-   *  first there. Different routes meet different menus at one index, and
-   *  one favored choice orders each by its own size. */
-  readonly favoredConditions: ReadonlyMap<number, boolean>;
-  readonly favoredChoices: ReadonlyMap<number, ReadonlyMap<number, number>>;
   /** The pinned offers level zero read ({@link PinnedOptions.key}). */
   readonly pins: string;
   /** The next level's queue ({@link nextLevelQueue}), empty when the
@@ -724,8 +681,6 @@ interface LevelZeroTrace {
   ends: Set<number>;
   /** The chunk the run going on last stood in; -1 at a run's start. */
   last: number;
-  favoredConditions: Map<number, boolean>;
-  favoredChoices: Map<number, Map<number, number>>;
 }
 
 /** The search key a work is kept and found by: the flow and every option
@@ -748,40 +703,6 @@ const levelZeroKey = (
     options?.pins?.key ?? "",
     PIN_SHARE,
   ]);
-
-/** The verdict level zero tries first at an open condition, favoring
- *  `favored`. */
-const firstVerdict = (favored: boolean | undefined): boolean => favored ?? true;
-
-/** The choice level zero forks first at a menu of `count` options,
- *  favoring `favored`: the favored one when the menu has it, else the
- *  first. */
-const firstChoice = (favored: number | undefined, count: number): number =>
-  favored != null && Number.isInteger(favored) && favored >= 0 && favored < count
-    ? favored
-    : 0;
-
-/** Whether level zero, favoring `conditions` and `choices`, would do at
- *  each favored verdict and choice it read what `work`'s did. */
-export const sameFavoredReads = (
-  work: Pick<LevelZeroWork, "favoredConditions" | "favoredChoices">,
-  conditions: (boolean | undefined)[],
-  choices: (number | undefined)[],
-): boolean => {
-  for (const [i, first] of work.favoredConditions) {
-    if (firstVerdict(conditions[i]) !== first) {
-      return false;
-    }
-  }
-  for (const [i, menus] of work.favoredChoices) {
-    for (const [count, first] of menus) {
-      if (firstChoice(choices[i], count) !== first) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
 
 /** Records that a level-zero run stood at `address`. */
 const traceStep = (trace: LevelZeroTrace, address: ProgramAddress) => {
@@ -1474,8 +1395,6 @@ const planRouteFaithful = (
   if (charge?.levelZero) {
     startFaithfulBudget(budget, charge.levelZero.startSteps);
   }
-  const favoredConditionalValues = options?.favoredConditions ?? [];
-  const favoredChoiceIndices = options?.favoredChoices ?? [];
   const pinned = options?.pins ?? NO_PINS;
   const fromKnotName = from.split(".")[0] || "0";
   const positions = storyPositions(story);
@@ -1487,11 +1406,7 @@ const planRouteFaithful = (
   const key = store ? levelZeroKey(from, options, maxSteps, maxNodes) : "";
   const kept = store?.find(key);
   const reuse =
-    kept &&
-    sameFavoredReads(kept, favoredConditionalValues, favoredChoiceIndices) &&
-    !kept.chunks.has(chunkOfAddress(to))
-      ? kept
-      : undefined;
+    kept && !kept.chunks.has(chunkOfAddress(to)) ? kept : undefined;
   if (store && !reuse) {
     budget.trace = {
       chunks: new Set(),
@@ -1499,8 +1414,6 @@ const planRouteFaithful = (
       first: null,
       ends: new Set(),
       last: -1,
-      favoredConditions: new Map(),
-      favoredChoices: new Map(),
     };
   }
 
@@ -1672,8 +1585,6 @@ const planRouteFaithful = (
             positions,
             fromKnotName,
             to,
-            favoredChoiceIndices,
-            favoredConditionalValues,
             options?.stayWithinKnot !== false,
             options?.functions || [],
             budget,
@@ -1756,8 +1667,6 @@ const planRouteFaithful = (
           moves: trace.moves,
           first: trace.first,
           ends: trace.ends,
-          favoredConditions: trace.favoredConditions,
-          favoredChoices: trace.favoredChoices,
           pins: pinned.key,
           queue: [...next],
           departures: copyTiers(tiers),
@@ -1940,8 +1849,6 @@ const runUntilDecisionOrBranch = (
   positions: StoryPositions,
   fromKnotName: string,
   target: ProgramAddress | null, // set null for "enumerate all"
-  favoredChoiceIndices: (number | undefined)[],
-  favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
   functions: string[],
   budget: SearchBudget,
@@ -1973,8 +1880,6 @@ const runUntilDecisionOrBranch = (
   const runDecisions: RouteOverride[] = [];
   const runConditions: { selected: boolean }[] = [];
   const decisionCount = () => trailLength(node.decisions) + runDecisions.length;
-  const conditionCount = () =>
-    trailLength(node.conditions) + runConditions.length;
 
   const branches: SearchNode[] = [];
   let hitTarget = false;
@@ -2179,10 +2084,6 @@ const runUntilDecisionOrBranch = (
               met,
             );
           };
-          // A pinned offer takes the place of the favored choice: the
-          // pinned option is forked in this tier, the first the menu lists
-          // when it offers several, and every other option waits for the
-          // tier that leaves one pin more.
           const counts =
             pinned.offers.size > 0
               ? pinnedOfferCounts(flattenTrail(node.choices), pinned)
@@ -2207,30 +2108,7 @@ const runUntilDecisionOrBranch = (
             terminal = true;
             break;
           }
-          const favoredChoiceIndex =
-            favoredChoiceIndices[trailLength(node.choices)];
-          if (budget.trace) {
-            const at = trailLength(node.choices);
-            const count = story.currentChoices.length;
-            let menus = budget.trace.favoredChoices.get(at);
-            if (!menus) {
-              menus = new Map();
-              budget.trace.favoredChoices.set(at, menus);
-            }
-            menus.set(count, firstChoice(favoredChoiceIndex, count));
-          }
-          if (
-            favoredChoiceIndex != null &&
-            story.currentChoices[favoredChoiceIndex]
-          ) {
-            branches.push(forkChoice(favoredChoiceIndex));
-          }
           for (let i = 0; i < story.currentChoices.length; i++) {
-            if (i === favoredChoiceIndex) {
-              // Skip forking favored choice since we already forked it earlier
-              terminal = true;
-              continue;
-            }
             branches.push(forkChoice(i));
           }
           break;
@@ -2451,14 +2329,9 @@ const runUntilDecisionOrBranch = (
           continue;
         }
 
-        // A condition with no value a decision can test, which the program
-        // leaves open: both verdicts, at this level, the favored one first,
-        // or else true.
-        const first = firstVerdict(favoredConditionalValues[conditionCount()]);
-        budget.trace?.favoredConditions.set(conditionCount(), first);
         const at = mark();
-        for (const value of [first, !first]) {
-          const ov: ConditionOverride = { kind: "condition", site, value };
+        for (const value of [true, false]) {
+          const ov: ConditionOverride = { kind: "condition", site, value, open: true };
           branches.push(nodeAt(fork.state, at, [ov], ov));
         }
         break;

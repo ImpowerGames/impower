@@ -994,6 +994,7 @@ spark-web-player .route-entry-toggle,
 spark-web-player .route-pin-button,
 spark-web-player .route-pin-unpin,
 spark-web-player .route-pin-remove,
+spark-web-player .route-pin-last-run,
 spark-web-player .route-clear-pins {
   cursor: pointer;
   border: none;
@@ -1011,6 +1012,7 @@ spark-web-player .route-entry-toggle {
 spark-web-player .route-pin-button,
 spark-web-player .route-pin-unpin,
 spark-web-player .route-pin-remove,
+spark-web-player .route-pin-last-run,
 spark-web-player .route-clear-pins {
   flex: none;
   display: flex;
@@ -1026,6 +1028,7 @@ spark-web-player .route-clear-pins {
   spark-web-player .route-pin-button:hover,
   spark-web-player .route-pin-unpin:hover,
   spark-web-player .route-pin-remove:hover,
+  spark-web-player .route-pin-last-run:hover,
   spark-web-player .route-clear-pins:hover {
     background-color: var(--swp-route-hover-color);
   }
