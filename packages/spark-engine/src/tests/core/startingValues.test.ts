@@ -584,4 +584,30 @@ describe("a store's type annotation", () => {
     expect(checkStartingValue(mood, "nil")).toEqual({ status: "ok" });
     expect(checkStartingValue(mood, "1")).toMatchObject({ status: "warning" });
   });
+
+  test("is the one the last compile read, after an edit that changes only the annotation", () => {
+    const lines = ["store hp: number = 0", "scene s", "  Hello.", "end"];
+    const { game, compiler } = routeTo(lines, 3);
+    const typeOf = () =>
+      game.startingValueListing("s").items.find((i: any) => i.name === "hp")
+        ?.type;
+    expect(typeOf()).toBe("number");
+    const doc = compiler.documents.get(URI)!;
+    compiler.configure({
+      files: [
+        {
+          uri: URI,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: lines.join("\n").replace("number", "string"),
+          version: (doc as any).version + 1,
+          languageId: "sparkdown",
+        },
+      ],
+    } as never);
+    const result = compiler.compile({ textDocument: { uri: URI } });
+    game.updateProgram(requireChunks(result.program));
+    expect(typeOf()).toBe("string");
+  });
 });
