@@ -186,8 +186,6 @@ const LINE_BREAK_BINARY_OPERATORS = new Set(
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
-const STRUCT_ENTRY_COMMA =
-  "Separate entries on one line with `;`, not `,`.";
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
   "LuauStructBlockItemMark",
