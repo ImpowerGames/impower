@@ -788,17 +788,31 @@ function jsdocParts(comment) {
     .map((line) => line.replace(/^\s*\*(?!\/)\s?/, "").replace(/\s+\*+$/, "").replace(/\s+$/, ""))
     .join("\n");
   const starts = [];
-  let depth = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === "{") depth++;
-    else if (text[i] === "}") depth = Math.max(0, depth - 1);
-    else if (text[i] === "@" && depth === 0 && (i === 0 || /\s/.test(text[i - 1])) && /[A-Za-z]/.test(text[i + 1] ?? "")) starts.push(i);
+  for (let i = 0; i < text.length; ) {
+    if (text[i] !== "@" || (i > 0 && !/\s/.test(text[i - 1])) || !/[A-Za-z]/.test(text[i + 1] ?? "")) {
+      i++;
+      continue;
+    }
+    starts.push(i);
+    let k = i + 1;
+    while (k < text.length && /[A-Za-z]/.test(text[k])) k++;
+    while (k < text.length && /[ \t]/.test(text[k])) k++;
+    if (text[k] === "{") {
+      for (let depth = 0; k < text.length; k++) {
+        if (text[k] === "{") depth++;
+        else if (text[k] === "}" && --depth === 0) {
+          k++;
+          break;
+        }
+      }
+    }
+    i = k;
   }
   const tags = starts.map((start, k) => {
     const raw = text.slice(start, starts[k + 1] ?? text.length).replace(/\s+$/, "");
     const name = /^@([A-Za-z]+)/.exec(raw)[1];
     const rest = raw.slice(name.length + 1);
-    const read = JSDOC_TYPE_TAGS.has(name) && (/^\s*\{/.test(rest) || JSDOC_UNTYPED_TAGS.has(name) || (name === "type" && /^\s+[A-Za-z_$][\w$.]*(?:<[^<>]*>)?(?:\[\])*$/.test(rest)));
+    const read = JSDOC_TYPE_TAGS.has(name) && (/^\s*\{/.test(rest) || JSDOC_UNTYPED_TAGS.has(name) || (name === "type" && /\S/.test(rest)));
     return { name, raw, read };
   });
   return { prose: text.slice(0, starts[0] ?? text.length).trim(), tags };

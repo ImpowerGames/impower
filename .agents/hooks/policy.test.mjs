@@ -400,7 +400,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(strip(mixedDoc, "src/a.js"), "/** @type {import('esbuild').Plugin} */\nconst p = {};\n", "a JavaScript doc comment keeps the type tags TypeScript reads and loses its prose");
     assert.equal(strip(mixedDoc, "src/a.ts"), "const p = {};\n", "TypeScript reads no JSDoc types in a TypeScript file");
     assert.equal(strip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
-    assert.equal(strip("/** Prose. @type is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
+    assert.equal(strip("/** Prose. @example is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
+    assert.equal(strip("/** The value.\n * @type string | number\n */\nlet value;\n", "src/a.js"), "/** @type string | number */\nlet value;\n", "an unbraced type is the whole type expression TypeScript parses after @type");
+    assert.equal(strip("/** Accepts a literal { character.\n * @type {number}\n */\nlet value;\n", "src/a.js"), "/** @type {number} */\nlet value;\n", "a brace in the prose does not hide the tags after it");
+    assert.equal(strip("/**\n * @param {{ a: { b: number } }} o the options @ the edge\n * @returns {number}\n */\nfunction g(o) { return 1; }\n", "src/a.js"), "/**\n * @param {{ a: { b: number } }} o the options @ the edge\n * @returns {number}\n */\nfunction g(o) { return 1; }\n", "nested braces close the type expression and a bare @ is description");
     assert.equal(strip("/**\n * The options.\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "src/a.js"), "/**\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "a typedef keeps its property tags");
     const asiDoc = "function f() { return /** Counter.\n * @type {number}\n */ 1; }";
     const asiDocStripped = strip(asiDoc, "src/a.js");
