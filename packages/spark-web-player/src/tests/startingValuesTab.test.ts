@@ -203,6 +203,20 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+const answer = (request: any, ok: boolean) =>
+  window.dispatchEvent(
+    new CustomEvent(MessageProtocol.event, {
+      detail: ok
+        ? { jsonrpc: "2.0", id: request.id, method: request.method, result: {} }
+        : {
+            jsonrpc: "2.0",
+            id: request.id,
+            method: request.method,
+            error: { code: -1, message: "not kept" },
+          },
+    }),
+  );
+
 describe("the route panel's tabs", () => {
   test("a host that sends no starting values gets no Starting values tab", () => {
     const p = player();
@@ -379,24 +393,26 @@ describe("the Starting values tab", () => {
     );
   });
 
+  test("a change the host did not keep, answered before an earlier change was kept, shows the earlier value in its badge", async () => {
+    const p = await onValuesTab();
+    p.type("store:trust", "2");
+    p.type("store:trust", "3");
+    const [first, second] = p.changes();
+    answer(second, false);
+    await settle();
+    answer(first, true);
+    await settle();
+    expect(p.input("store:trust").value).toBe("2");
+    expect(p.badge("store:trust")!.textContent).toBe(
+      "Your change was not saved, so this is back to 2.",
+    );
+  });
+
   test("a change the host did not keep, answered after a later change to the field was kept, leaves the later one", async () => {
     const p = await onValuesTab();
     p.type("store:trust", "2");
     p.type("store:trust", "3");
     const [first, second] = p.changes();
-    const answer = (request: any, ok: boolean) =>
-      window.dispatchEvent(
-        new CustomEvent(MessageProtocol.event, {
-          detail: ok
-            ? { jsonrpc: "2.0", id: request.id, method: request.method, result: {} }
-            : {
-                jsonrpc: "2.0",
-                id: request.id,
-                method: request.method,
-                error: { code: -1, message: "not kept" },
-              },
-        }),
-      );
     answer(second, true);
     await settle();
     await p.hostSends({ interrogation: { "store:trust": "3" } });

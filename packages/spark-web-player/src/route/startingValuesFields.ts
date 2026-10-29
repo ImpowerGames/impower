@@ -17,7 +17,7 @@ export interface SentChange {
 export interface FieldState {
   draft?: string;
   pending?: PendingChange;
-  refused?: string;
+  refused?: true;
 }
 
 export interface StartingValuesFields {
@@ -92,22 +92,20 @@ export const shownValues = (
 export const fieldsView = (
   state: StartingValuesFields,
   start: string,
+  firstOf: (key: string) => string | undefined,
 ): FieldsView => {
+  const values = { ...ownEntry(shownValues(state), start) };
   const drafts: Record<string, string> = {};
   const unsaved: Record<string, string> = {};
   for (const [key, field] of fieldsOf(state, start)) {
     if (field.draft !== undefined) {
       drafts[key] = field.draft;
     }
-    if (field.refused !== undefined) {
-      unsaved[key] = field.refused;
+    if (field.refused) {
+      unsaved[key] = values[key] ?? firstOf(key) ?? "nil";
     }
   }
-  return {
-    values: { ...ownEntry(shownValues(state), start) },
-    drafts,
-    unsaved,
-  };
+  return { values, drafts, unsaved };
 };
 
 export const drafted = (
@@ -143,7 +141,6 @@ export const answered = (
   start: string,
   sent: SentChange,
   kept: boolean,
-  firstOf: (key: string) => string | undefined,
 ): StartingValuesFields => {
   const settled = new Map(state.settled);
   const newer: Record<string, string | null> = {};
@@ -169,13 +166,7 @@ export const answered = (
       }
       fields.set(
         fieldId(start, key),
-        kept
-          ? { draft: field.draft }
-          : {
-              draft: field.draft,
-              refused:
-                ownEntry(state.kept, start)?.[key] ?? firstOf(key) ?? "nil",
-            },
+        kept ? { draft: field.draft } : { draft: field.draft, refused: true },
       );
     }
   });

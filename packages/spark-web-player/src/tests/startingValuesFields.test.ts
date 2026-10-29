@@ -19,7 +19,7 @@ const kept = (values: Record<string, Record<string, string>> = {}) =>
   hostSent(emptyFields(), values);
 
 const view = (state: StartingValuesFields, start = S) =>
-  fieldsView(state, start);
+  fieldsView(state, start, first);
 
 describe("the Starting values fields", () => {
   test("a field's text is its draft until it is cleared", () => {
@@ -40,7 +40,7 @@ describe("the Starting values fields", () => {
       drafts: {},
       unsaved: {},
     });
-    state = answered(state, S, change, true, first);
+    state = answered(state, S, change, true);
     expect(view(state).values).toEqual({ "store:trust": "2" });
     state = hostSent(state, { [S]: { "store:trust": "2" } });
     expect(view(state).values).toEqual({ "store:trust": "2" });
@@ -51,9 +51,9 @@ describe("the Starting values fields", () => {
     let state = kept();
     const earlier = changed(state, S, { "store:trust": "2" });
     const later = changed(earlier.state, S, { "store:trust": "3" });
-    state = answered(later.state, S, later, true, first);
+    state = answered(later.state, S, later, true);
     state = hostSent(state, { [S]: { "store:trust": "3" } });
-    state = answered(state, S, earlier, false, first);
+    state = answered(state, S, earlier, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "3" },
       drafts: {},
@@ -66,13 +66,13 @@ describe("the Starting values fields", () => {
       "store:trust": "2",
     });
     const later = changed(earlier.state, S, { "store:trust": "3" });
-    let state = answered(later.state, S, earlier, false, first);
+    let state = answered(later.state, S, earlier, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "3" },
       drafts: {},
       unsaved: {},
     });
-    state = answered(state, S, later, false, first);
+    state = answered(state, S, later, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "1" },
       drafts: {},
@@ -85,7 +85,7 @@ describe("the Starting values fields", () => {
     const change = changed(state, S, { "store:trust": "2" });
     state = hostSent(change.state, { [S]: { "store:trust": "5" } });
     expect(view(state).values).toEqual({ "store:trust": "2" });
-    state = answered(state, S, change, false, first);
+    state = answered(state, S, change, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "5" },
       drafts: {},
@@ -93,7 +93,7 @@ describe("the Starting values fields", () => {
     });
     const unset = changed(kept(), S, { "store:trust": "2" });
     expect(
-      view(answered(unset.state, S, unset, false, first)).unsaved,
+      view(answered(unset.state, S, unset, false)).unsaved,
     ).toEqual({ "store:trust": "0" });
   });
 
@@ -103,7 +103,7 @@ describe("the Starting values fields", () => {
     state = startChanged(change.state, OTHER);
     expect(view(state).values).toEqual({ "store:trust": "2" });
     expect(view(state, OTHER).drafts).toEqual({ "store:x": "{" });
-    state = answered(state, S, change, false, first);
+    state = answered(state, S, change, false);
     expect(view(state, OTHER)).toEqual({ values: {}, drafts: { "store:x": "{" }, unsaved: {} });
     expect(view(state)).toEqual({
       values: { "store:trust": "1" },
@@ -119,7 +119,7 @@ describe("the Starting values fields", () => {
     const change = changed(state, S, { "store:trust": null });
     state = change.state;
     expect(view(state)).toEqual({ values: {}, drafts: {}, unsaved: {} });
-    state = answered(state, S, change, true, first);
+    state = answered(state, S, change, true);
     state = hostSent(state, {});
     expect(view(state)).toEqual({ values: {}, drafts: {}, unsaved: {} });
     expect(state.fields.size).toBe(0);
@@ -143,7 +143,7 @@ describe("the Starting values fields", () => {
   test("the host's values clear a badge for a field it now keeps, and keep text and unanswered changes", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const refused = changed(state, S, { "store:trust": "2" });
-    state = answered(refused.state, S, refused, false, first);
+    state = answered(refused.state, S, refused, false);
     state = drafted(state, S, "store:suspect", "{");
     const open = changed(state, S, { "param:hour": '"ten"' });
     state = hostSent(open.state, { [S]: { "store:trust": "4" } });
@@ -163,11 +163,11 @@ describe("the Starting values fields", () => {
   test("a change the host kept is the host's value at once, with no values sent back, and a later refusal goes back to it", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const first2 = changed(state, S, { "store:trust": "2" });
-    state = answered(first2.state, S, first2, true, first);
+    state = answered(first2.state, S, first2, true);
     expect(state.kept).toEqual({ [S]: { "store:trust": "2" } });
     expect(state.fields.size).toBe(0);
     const then3 = changed(state, S, { "store:trust": "3" });
-    state = answered(then3.state, S, then3, false, first);
+    state = answered(then3.state, S, then3, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "2" },
       drafts: {},
@@ -176,11 +176,11 @@ describe("the Starting values fields", () => {
   });
 
   test.each([
-    ["a newer change kept first", (state: StartingValuesFields, older: any, newer: any) => answered(answered(state, S, newer, true, first), S, older, true, first)],
+    ["a newer change kept first", (state: StartingValuesFields, older: any, newer: any) => answered(answered(state, S, newer, true), S, older, true)],
     [
       "the host's values holding a newer change, then an older change kept",
       (state: StartingValuesFields, older: any) =>
-        answered(hostSent(state, { [S]: { "store:trust": "3" } }), S, older, true, first),
+        answered(hostSent(state, { [S]: { "store:trust": "3" } }), S, older, true),
     ],
   ])("an older change kept after %s leaves the newer value", (_, settle) => {
     const earlier = changed(kept({ [S]: { "store:trust": "1" } }), S, {
@@ -197,19 +197,37 @@ describe("the Starting values fields", () => {
       "store:trust": "2",
     });
     const clear = changed(set.state, S, { "store:trust": null });
-    let state = answered(clear.state, S, clear, true, first);
-    state = answered(state, S, set, true, first);
+    let state = answered(clear.state, S, clear, true);
+    state = answered(state, S, set, true);
     expect(view(state).values).toEqual({});
+  });
+
+  test.each([
+    ["2", "2"],
+    [null, "0"],
+  ])("a change the host refused before an earlier change of the field to %s was kept says the field is back to %s", (value, back) => {
+    const earlier = changed(kept({ [S]: { "store:trust": "1" } }), S, {
+      "store:trust": value,
+    });
+    const later = changed(earlier.state, S, { "store:trust": "3" });
+    let state = answered(later.state, S, later, false);
+    expect(view(state).unsaved).toEqual({ "store:trust": "1" });
+    state = answered(state, S, earlier, true);
+    expect(view(state)).toEqual({
+      values: value === null ? {} : { "store:trust": value },
+      drafts: {},
+      unsaved: { "store:trust": back },
+    });
   });
 
   test("a change the host kept while a later change to the field waits leaves the later one waiting over it", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const earlier = changed(state, S, { "store:trust": "2" });
     const later = changed(earlier.state, S, { "store:trust": "3" });
-    state = answered(later.state, S, earlier, true, first);
+    state = answered(later.state, S, earlier, true);
     expect(state.kept).toEqual({ [S]: { "store:trust": "2" } });
     expect(view(state).values).toEqual({ "store:trust": "3" });
-    state = answered(state, S, later, false, first);
+    state = answered(state, S, later, false);
     expect(view(state)).toEqual({
       values: { "store:trust": "2" },
       drafts: {},

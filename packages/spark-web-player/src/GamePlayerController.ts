@@ -896,7 +896,7 @@ export class GamePlayerController {
     const values =
       this._valueFields.kept && start !== undefined
         ? {
-            ...fieldsView(this._valueFields, start),
+            ...fieldsView(this._valueFields, start, this.firstValueOf),
             start,
             listing:
               this._listing?.listing?.start === start
@@ -984,6 +984,10 @@ export class GamePlayerController {
     },
   };
 
+  protected firstValueOf = (key: string) =>
+    listingItems(this._listing?.listing).find((item) => item.key === key)
+      ?.first;
+
   protected async changeValues(changes: Record<string, string | null>) {
     const start = this.valuesStart();
     if (start === undefined || !this._valueFields.kept) {
@@ -1001,14 +1005,7 @@ export class GamePlayerController {
     } catch {
       saved = false;
     }
-    const items = listingItems(this._listing?.listing);
-    this._valueFields = answered(
-      this._valueFields,
-      start,
-      change,
-      saved,
-      (key) => items.find((item) => item.key === key)?.first,
-    );
+    this._valueFields = answered(this._valueFields, start, change, saved);
     this.renderRoute();
     if (saved && this._valueFields.kept) {
       await this.applyStartingValues(this._valueFields.kept);
@@ -1048,7 +1045,8 @@ export class GamePlayerController {
       if (
         key != null &&
         start !== undefined &&
-        fieldsView(this._valueFields, start).drafts[key] !== undefined
+        fieldsView(this._valueFields, start, this.firstValueOf).drafts[key] !==
+          undefined
       ) {
         return;
       }
