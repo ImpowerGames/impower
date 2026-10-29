@@ -2497,9 +2497,20 @@ export class Game<T extends M = {}> {
     // meeting. The line's route then depends on nothing previewed before
     // it. For the same line the route's choices are the ones its own search
     // made; it resumes no later than its first forced verdict, which an edit
-    // can make needless, nor than its first pinned meeting.
+    // can make needless, nor than its first pinned meeting. An edit inside
+    // the line emits its statement again, at another address: the target is
+    // the same line when the compile emitted only its statement, in place of
+    // only the statement the route's target stood in.
     const pinned = this.pinnedOptions;
-    const sameLine = route.to === to;
+    const chunks = this._program.changes.chunks;
+    const sameLine =
+      route.to === to ||
+      (chunks != null &&
+        this._program.changes.since === this._plannedRouteChangeId &&
+        chunks.dropped.length === 1 &&
+        chunks.emitted.length === 1 &&
+        chunks.dropped[0] === chunkOfAddress(route.to) &&
+        chunks.emitted[0] === chunkOfAddress(to));
     const searchSteps = replayOnly
       ? validSteps
       : Math.min(

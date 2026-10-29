@@ -478,22 +478,25 @@ export const stepsBeforePinMet = (
 ): number => stepsBeforeDecision(route, firstPinMet(route, pinned));
 
 /** How many of `route`'s steps come before the first decision a route to
- *  another target may make otherwise: a choice at a menu, a verdict it
- *  forced against the program ({@link ConditionOverride.departs}), a
- *  verdict it chose where the program leaves the condition open
- *  ({@link ConditionOverride.open}), or its first pinned meeting of `pinned`
- *  ({@link firstPinMet}); all of them when it has none. Every route from
- *  the same start runs those steps as the program runs them, whatever its
- *  target, so a search for another line resumes no later than this. */
+ *  another target may make otherwise: a choice at a menu that offered more
+ *  than one option, a verdict it forced against the program
+ *  ({@link ConditionOverride.departs}), a verdict it chose where the program
+ *  leaves the condition open ({@link ConditionOverride.open}), or its first
+ *  pinned meeting of `pinned` ({@link firstPinMet}); all of them when it has
+ *  none. Every route from the same start runs those steps as the program
+ *  runs them, whatever its target, so a search for another line resumes no
+ *  later than this. */
 export const stepsBeforeTargetDecision = (
   route: RoutePlan,
   pinned: PinnedOptions = NO_PINS,
-): number =>
-  stepsBefore(
-    route,
-    pinned,
-    (d) => d.kind === "choice" || d.departs === true || d.open === true,
+): number => {
+  let menus = 0;
+  return stepsBefore(route, pinned, (d) =>
+    d.kind === "choice"
+      ? (route.choices[menus++]?.options.length ?? 2) > 1
+      : d.departs === true || d.open === true,
   );
+};
 
 /** How many of `route`'s steps come before its decision at `index`: all of
  *  them for -1. A step records the index of the latest decision taken before

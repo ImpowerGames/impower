@@ -30,6 +30,10 @@ scene interrogation
       HERO:
         Lie told.
       HERO:
+        Lie repeated.
+      HERO:
+        Lie insisted on.
+      HERO:
         Lie again.
   end
   HERO:
@@ -65,6 +69,11 @@ class Session {
   readonly compiler = new SparkdownCompiler();
   readonly log = new RouteSearchLog();
   game?: Game;
+  text = SOURCE;
+  version = 1;
+  /** How many of the planned route's steps the last compile's search was
+   *  offered to resume after. */
+  resumedAfter?: number;
 
   constructor(readonly pins: { uri: string; line: number; offer: number }[] = []) {
     this.compiler.configure({
@@ -95,7 +104,32 @@ class Session {
       this.game.updateProgram(program);
     }
     this.game.setStartFrom(program.startFrom!);
-    searchRouteTo(this.game, this.game.startAddress!, this.log, {});
+    const to = this.game.startAddress!;
+    this.resumedAfter = this.game.routeResumption(
+      this.game.routeStartOf(to),
+      to,
+    ).resumeFrom?.steps.length;
+    searchRouteTo(this.game, to, this.log, {});
+  }
+
+  /** Replace `find` with `replace` in the script, as typing does. */
+  edit(find: string, replace: string) {
+    const before = this.text.slice(0, this.text.indexOf(find)).split("\n");
+    const line = before.length - 1;
+    const character = before.at(-1)!.length;
+    this.compiler.updateDocument({
+      textDocument: { uri: URI, version: ++this.version },
+      contentChanges: [
+        {
+          range: {
+            start: { line, character },
+            end: { line, character: character + find.length },
+          },
+          text: replace,
+        },
+      ],
+    } as never);
+    this.text = this.text.replace(find, replace);
   }
 
   preview(line: number) {
@@ -147,6 +181,34 @@ describe("a line's route does not depend on the lines previewed before it", () =
     session.preview(lineOf("Photo shown."));
     session.preview(lineOf("Stayed."));
     expect(session.preview(lineOf("Trust is"))).toEqual(first);
+  }, 120_000);
+
+  test("an edit inside the previewed line resumes its route past the menu, as a fresh game routes it", () => {
+    const session = new Session();
+    session.preview(lineOf("Lie again."));
+    session.edit("Lie again.", "Lie once more.");
+    const edited = session.preview(lineOf("Lie again."));
+    // The search kept the route's choice of "Lie." and resumed after it: a
+    // step records the index of the last decision taken before it.
+    const steps = session.game!.plannedRoute!.steps;
+    const afterChoice = steps.findIndex((step) => step.decision >= 0);
+    expect(afterChoice).toBeGreaterThan(0);
+    expect(session.resumedAfter).toBeGreaterThan(afterChoice);
+    const fresh = new Session();
+    fresh.edit("Lie again.", "Lie once more.");
+    expect(edited).toEqual(fresh.preview(lineOf("Lie again.")));
+    expect(edited.choices).toEqual([["auto", "Lie."]]);
+  }, 120_000);
+
+  test("an edit to another line routes the previewed line afresh", () => {
+    const session = new Session();
+    session.preview(lineOf("Lie again."));
+    session.edit("Trust is", "Trust now is");
+    const edited = session.preview(lineOf("Trust is"));
+    const fresh = new Session();
+    fresh.edit("Trust is", "Trust now is");
+    expect(edited).toEqual(fresh.preview(lineOf("Trust is")));
+    expect(edited.choices).toEqual([["auto", "Tell the truth."]]);
   }, 120_000);
 
   test("a pinned option still holds after a line inside another option", () => {
