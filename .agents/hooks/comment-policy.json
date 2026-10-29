@@ -12,6 +12,7 @@
     { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
+    { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [

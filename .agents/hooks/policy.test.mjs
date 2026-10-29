@@ -209,6 +209,8 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("/**\n * @param {string} a the name\n * @returns {number}\n */", "src/a.js"), "directive");
     assert.equal(kind("/**\n * Describes the function.\n * @param {string} a\n */", "src/a.js"), "refused");
     assert.equal(kind("// value-level: the token carries the flag"), "directive");
+    assert.equal(kind("// not a node name"), "directive");
+    assert.equal(kind("// not a node name, since it is a global"), "refused");
     assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
     assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
     assert.equal(kind("<!-- prettier-ignore -->", "a.html"), "directive");
@@ -292,6 +294,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     };
     assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
     assert.equal(strip("a();\r\n// note\r\nb();\r\n", "src/a.ts"), "a();\r\nb();\r\n");
+    assert.equal(strip("if (receiver.name === \"_G\") return; // not a node name\n", "src/a.ts"), "if (receiver.name === \"_G\") return; // not a node name\n", "the opt-out scripts/check-node-names.mjs reads survives the strip");
     assert.equal(strip("describe(\"x\", () => {\n  // note\n\n  test();\n});\n", "src/a.ts"), "describe(\"x\", () => {\n  test();\n});\n", "a removed run directly after an opening bracket takes the blank line below it");
     assert.equal(strip("if (a) {\n  b();\n\n  // note\n}\n", "src/a.ts"), "if (a) {\n  b();\n}\n", "a removed run directly before a closing bracket takes the blank line above it");
     assert.equal(strip("f({\n  // one\n\n  // two\n});\n", "src/a.ts"), "f({\n});\n", "removals that meet across a blank line keep neither the blank nor any code between them");
