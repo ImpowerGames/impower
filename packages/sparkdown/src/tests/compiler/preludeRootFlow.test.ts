@@ -1,3 +1,4 @@
+/// <reference path="../../sd-raw.d.ts" />
 
 import { describe, expect, test } from "vitest";
 import BUILTINS_PRELUDE from "../../compiler/builtins/builtins.sd?raw";
