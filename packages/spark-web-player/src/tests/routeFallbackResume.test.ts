@@ -86,9 +86,7 @@ function target(game: Game, text: string, label: string) {
 /** Preview the line holding `label` and return the value of `total` it
  *  shows. */
 function scrub(game: Game, text: string, label: string) {
-  searchRouteTo(game, target(game, text, label), new RouteSearchLog(), {
-    config: {},
-  });
+  searchRouteTo(game, target(game, text, label), new RouteSearchLog(), {});
   expect(game.simulation).toBe("success");
   return game.story.variablesState["total"] as number;
 }

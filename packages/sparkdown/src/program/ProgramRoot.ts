@@ -844,6 +844,39 @@ export class ProgramRoot {
     return undefined;
   }
 
+  /**
+   * The address of the option written on a line of a script: its `Choice`
+   * instruction's, which is the option's identity (`Choice.sourcePath`). The
+   * options of a menu are instructions of the statement chunk the line's own
+   * address stands in (`addressAt`), so that chunk is read for a `Choice`
+   * whose location starts on the line. Nothing when the line holds no
+   * option.
+   */
+  optionAt(uri: string, line: number): number | undefined {
+    const address = this.addressAt(uri, line);
+    if (address === undefined) {
+      return undefined;
+    }
+    const id = chunkOfAddress(address);
+    const at = this.position(id);
+    const chunk = at?.sequence.arrays.chunks[at.entry];
+    if (!chunk) {
+      return undefined;
+    }
+    const words = codeWords(chunk);
+    for (let offset = 0; offset < words; offset += 2) {
+      if (opOf(chunk[HEADER_WORDS + offset]!) !== Op.Choice) {
+        continue;
+      }
+      const option = addressOf(id, offset);
+      const location = this.locationOf(option);
+      if (location?.uri === uri && location.startLine === line) {
+        return option;
+      }
+    }
+    return undefined;
+  }
+
   /** The line after the last line a sequence of the script spans. */
   protected scriptEnd(uri: string): number {
     let end = 0;

@@ -30,15 +30,7 @@ export interface StartableGame {
   /** What the game's own replay of a route raised. */
   readonly routeErrors: SimulationError[];
   load(checkpoint: string): boolean;
-  simulate(
-    simulationOptions?: Record<
-      string,
-      {
-        favoredChoices?: (number | undefined)[];
-        favoredConditions?: (boolean | undefined)[];
-      }
-    >,
-  ): unknown;
+  simulate(): unknown;
 }
 
 /**
@@ -66,15 +58,6 @@ export interface StartableGame {
  */
 export function putAtStartPoint(
   game: StartableGame,
-  simulationOptions:
-    | Record<
-        string,
-        {
-          favoredChoices?: (number | undefined)[];
-          favoredConditions?: (boolean | undefined)[];
-        }
-      >
-    | undefined,
   route: StartPointRoute | undefined,
   /** Names the thread that runs the rule in its profile marks. */
   profilerId?: string,
@@ -113,7 +96,7 @@ export function putAtStartPoint(
       if (game.load(checkpoint)) {
         raised = errors ?? [];
       } else {
-        game.simulate(simulationOptions);
+        game.simulate();
         raised = game.routeErrors;
       }
     } else {
@@ -132,7 +115,7 @@ export function putAtStartPoint(
     // No worker answer applies to this run: nothing was ever selected, the
     // worker resolved a different address, or it answered for a different
     // version of the script. This is the only search there is.
-    game.simulate(simulationOptions);
+    game.simulate();
     raised = game.routeErrors;
   }
   profile("end", mark);

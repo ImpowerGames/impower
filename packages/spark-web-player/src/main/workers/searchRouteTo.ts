@@ -10,21 +10,8 @@ import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import type { RouteSearchLog } from "./RouteSearchLog";
 
-type SimulationOptions = Record<
-  string,
-  {
-    favoredConditions?: (boolean | undefined)[];
-    favoredChoices?: (number | undefined)[];
-  }
->;
-
 export interface RouteSearchSettings {
-  /** The compiler's configuration. Every search reads the choices it favors,
-   *  and a search that remembers writes the ones its route took. */
-  config: { simulationOptions?: SimulationOptions };
   profilerId?: string;
-  /** False for a search the real program must not learn from. */
-  remember?: boolean;
   /** Search from the story's start (`Game.planRouteFromStart`) rather than
    *  from the top of the flow the address stands in. */
   fromStart?: boolean;
@@ -37,22 +24,6 @@ export interface RouteSearchSettings {
   source?: ScriptSource;
 }
 
-/** Plan a route to the address `to` and replay it, recording what the search
- *  established in `log`. Returns the full save of the checkpoint it
- *  produced, if any, which the log holds as a value (`searchRouteFor`). A
- *  route
- *  replayed for a preview compile passes its own log and `remember: false`,
- *  so nothing it finds is kept for the real program: not the search record a
- *  later PLAY reuses, and not the choices the next real route would favor.
- *
- *  Most compiles arrive with a route already planned through the program before
- *  them, and most edits cannot have changed anything the story does ahead of
- *  the line being edited. So the work is arranged cheapest first: replay the
- *  route already planned; failing that, search onward from where it stopped
- *  being valid; failing that, search the scene from the top. The first two are
- *  attempts rather than decisions — either can come back empty or replay to
- *  somewhere other than the target, and the next one down then runs — so what
- *  is reported is always what a search from the top would have reported. */
 export const searchRouteTo = (
   game: Game,
   to: ProgramAddress,
@@ -73,9 +44,7 @@ export const searchRouteFor = (
   settings: RouteSearchSettings,
 ): StoredCheckpoint | undefined => {
   const {
-    config,
     profilerId,
-    remember = true,
     fromStart = false,
     startSearched = false,
     source,
@@ -118,32 +87,13 @@ export const searchRouteFor = (
       callerResetsStory: true,
       resumeFrom,
       levelZeroStore: game.levelZeroStore,
+      pins: game.pinnedOptions,
     };
     const route = fromStart
-      ? Game.planRouteFromStart(
-          game.story,
-          game.program,
-          to,
-          config.simulationOptions,
-          budget,
-        )
+      ? Game.planRouteFromStart(game.story, game.program, to, budget)
       : startSearched
-        ? Game.planRouteInFlow(
-            game.story,
-            game.program,
-            from,
-            to,
-            config.simulationOptions,
-            budget,
-          )
-        : Game.planRoute(
-            game.story,
-            game.program,
-            from,
-            to,
-            config.simulationOptions,
-            budget,
-          );
+        ? Game.planRouteInFlow(game.story, game.program, from, to, budget)
+        : Game.planRoute(game.story, game.program, from, to, budget);
     profile("end", profilerId + " " + "game/planRoute");
     return route;
   };
@@ -161,6 +111,7 @@ export const searchRouteFor = (
     checkpoint: StoredCheckpoint | null | undefined,
   ) => {
     const reachedTarget = game.simulation === "success";
+    const report = reachedTarget ? game.previewRouteOf(route, source) : undefined;
     log.record({
       address: to,
       programId,
@@ -171,21 +122,10 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
-      route: reachedTarget ? game.previewRouteOf(route, source) : undefined,
+      route: report,
+      menus: reachedTarget ? Game.routeMenus(route) : undefined,
       fromStart: searchedFromStart,
     });
-    if (checkpoint && remember) {
-      // Cache favored conditions and choices
-      const conditions = game.runtimeState.conditionsEncountered;
-      const choices = game.runtimeState.choicesEncountered;
-      const favoredConditions = conditions.map((c) => c.selected);
-      const favoredChoices = choices.map((c) => c.selected);
-      config.simulationOptions ??= {};
-      config.simulationOptions[route.from] = {
-        favoredConditions,
-        favoredChoices,
-      };
-    }
     return checkpoint ?? undefined;
   };
 
@@ -208,22 +148,9 @@ export const searchRouteFor = (
 
   let route: RoutePlan | null = null;
   let resumedSearch = false;
-  // A search from the top that starts from kept level-zero work finds what
-  // a search from the top finds without running level zero again, so no
-  // search resumed along a route that follows the program is tried first;
-  // nor when the favored verdicts or choices changed since and the resumed
-  // search would run most of level zero again anyway (#1636). A fallback
-  // route is resumed by origin/main's search, as origin/main's preview
-  // resumes it (`planRoute`).
   if (
     resumption.resumeFrom &&
-    (plannedRoute?.fallback ||
-      !game.searchesFromLevelZeroWork(
-        from,
-        to,
-        config.simulationOptions?.[from],
-        resumption.resumeFrom,
-      ))
+    (plannedRoute?.fallback || !game.searchesFromLevelZeroWork(from, to))
   ) {
     route = planRouteTo(resumption.resumeFrom);
     resumedSearch = route != null;

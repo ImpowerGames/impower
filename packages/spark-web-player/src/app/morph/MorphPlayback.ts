@@ -19,6 +19,7 @@ import {
   morphPosesAt,
   namespaceMorphMarkup,
   poseAperture,
+  poseGradient,
   poseLeaf,
   type MorphFrameState,
 } from "../../../../sparkdown/src/morph/render";
@@ -62,6 +63,13 @@ interface LiveView {
     paths: { element: Element; d: string | null; style: string | null }[];
     /** The path of the clip path bounding the aperture's reach, once a frame has needed it. */
     reach?: Element;
+  }[];
+  /** The gradient copies moving leaves paint with, by id before occurrence namespacing. */
+  gradients: {
+    id: string;
+    element: Element;
+    attributes: Record<string, string>;
+    stops: { element: Element; attributes: Record<string, string> }[];
   }[];
   /** The pose last written, so an unchanged frame writes nothing. */
   last?: string;
@@ -744,7 +752,20 @@ export class MorphLayer {
         .map((element) => ({ element, d: element.getAttribute("d"), style: element.getAttribute("style") }));
       clips.push({ id: id.split(prefix).join(artifact.idPrefix), element: aperture, paths });
     }
-    return { box, artifact, prefix, parts, leaves, clips };
+    const markup = (element: Element) => Object.fromEntries(Array.from(element.attributes, (a) => [a.name, a.value]));
+    const gradients: LiveView["gradients"] = [];
+    const copies = new Set(
+      artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" ? [t.gradients?.fill?.id, t.gradients?.stroke?.id] : []))),
+    );
+    for (const element of [...Array.from(outer.getElementsByTagNameNS(SVG_NS, "linearGradient")), ...Array.from(outer.getElementsByTagNameNS(SVG_NS, "radialGradient"))]) {
+      const id = (element.getAttribute("id") ?? "").split(prefix).join(artifact.idPrefix);
+      if (!copies.has(id)) continue;
+      const stops = Array.from(element.children)
+        .filter((child) => child.localName === "stop")
+        .map((stop) => ({ element: stop, attributes: markup(stop) }));
+      gradients.push({ id, element, attributes: markup(element), stops });
+    }
+    return { box, artifact, prefix, parts, leaves, clips, gradients };
   }
 
   /**
@@ -818,7 +839,16 @@ export class MorphLayer {
       view.last = signature;
       const frame: MorphFrameState =
         at === "rest"
-          ? { shown: new Set(), hidden: new Set(), geometry: new Map(), paint: new Map(), opacity: new Map(), clips: new Map(), reaches: new Map() }
+          ? {
+              shown: new Set(),
+              hidden: new Set(),
+              geometry: new Map(),
+              paint: new Map(),
+              gradients: new Map(),
+              opacity: new Map(),
+              clips: new Map(),
+              reaches: new Map(),
+            }
           : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
       applyFrame(view, frame);
     }
@@ -915,8 +945,24 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
       children: [],
     };
     poseLeaf(element, leaf.node, frame);
-    write(leaf.element, "style", element.attributes["style"] ?? null);
+    // A gradient copy the leaf paints with is named in the artifact's ids.
+    const style = element.attributes["style"];
+    write(leaf.element, "style", style === undefined ? null : namespaceMorphMarkup(style, view.artifact.idPrefix, view.prefix));
     write(leaf.element, "d", element.attributes["d"] ?? null);
+  }
+  for (const gradient of view.gradients) {
+    // Each copy starts from its markup every frame.
+    const element = {
+      tagName: gradient.element.localName,
+      attributes: { ...gradient.attributes },
+      children: gradient.stops.map((stop) => ({ tagName: "stop", attributes: { ...stop.attributes }, children: [] })),
+    };
+    const posed = frame.gradients.get(gradient.id);
+    if (posed) poseGradient(element, posed);
+    for (const [name, value] of Object.entries(element.attributes)) write(gradient.element, name, value);
+    gradient.stops.forEach((stop, i) => {
+      for (const [name, value] of Object.entries(element.children[i]!.attributes)) write(stop.element, name, value);
+    });
   }
   for (const clip of view.clips) {
     // Each aperture's paths start from their markup every frame.

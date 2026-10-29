@@ -19,7 +19,6 @@ import { Story as ParsedStory } from "../inkjs/compiler/Parser/ParsedHierarchy/S
 import { Sequence } from "../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { Text } from "../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
-import { RootBinding } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import {
@@ -4374,10 +4373,9 @@ const entryFunctions = (statement: StatementSource): ParsedObject[] => [
 
 /** The locals each function whose entry a statement's code holds declares
  *  there, in order, which the lowering hoists from inside the function's
- *  body (a function it declares without `local`), and the top-level locals
- *  it binds there (`RootBinding`, `^` and the name), which the body's reads
- *  decide, function by function: the entry code is the statement's, while
- *  the lines that hoist or read them are the body's. */
+ *  body (a function it declares without `local`), function by function:
+ *  the entry code is the statement's, while the lines that hoist them are
+ *  the body's. */
 const hoistedOf = (statement: StatementSource): string =>
   entryFunctions(statement)
     .map((fn) =>
@@ -4385,9 +4383,7 @@ const hoistedOf = (statement: StatementSource): string =>
         .map((local) =>
           local instanceof VariableAssignment
             ? (local.variableName ?? "")
-            : local instanceof RootBinding
-              ? local.toString()
-              : local.typeName,
+            : local.typeName,
         )
         .join(","),
     )

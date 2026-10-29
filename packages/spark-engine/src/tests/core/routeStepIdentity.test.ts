@@ -268,6 +268,14 @@ end
           return 0;
         }) as any,
       } as any);
+      const option = favored ? "+ [Raise the flag]" : "+ [Leave it down]";
+      game.setRoutePins([
+        {
+          uri: URI,
+          line: BRANCHY.split("\n").findIndex((l) => l.includes(option)),
+          offer: 1,
+        },
+      ]);
       game.setStartFrom({ file: URI, line: ANOTHER_SHARED_BEAT });
       const toPath = game.startAddress!;
       const route = Game.planRoute(
@@ -275,9 +283,7 @@ end
         program as any,
         game.routeStartOf(toPath),
         toPath,
-        {
-          [game.routeStartOf(toPath)]: { favoredChoices: [favored ? 0 : 1] },
-        },
+        { pins: game.pinnedOptions },
       );
       expect(route?.conditions.map((c) => c.selected)).toEqual([favored]);
       return route?.steps ?? [];

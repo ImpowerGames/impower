@@ -1,15 +1,33 @@
 import type { ProgramAddress } from "../types/ProgramAddress";
 import type { ConditionOverride, RoutePlan, RouteStep } from "./planRoute";
+import {
+  NO_PINS,
+  pinnedAtMenu,
+  pinnedNotOffered,
+  type PinnedOptions,
+} from "./routePins";
 
 /**
  * What the route did at a decision, as the preview reports it:
- * - `auto`: an option the route took at a menu;
+ * - `pinned`: the option the author pinned at that offer, which the route
+ *   took;
+ * - `auto`: an option the route took at a menu with no pin it followed;
  * - `forced`: a verdict the program does not reach there, which the route
  *   forced to reach its target;
  * - `clipped`: a loop the route left before the program would, by whatever
  *   verdict it forced to leave it.
  */
-export type RouteDecisionKind = "auto" | "forced" | "clipped";
+export type RouteDecisionKind = "pinned" | "auto" | "forced" | "clipped";
+
+/** An option a menu offered: its address (`Choice.sourcePath`), its text,
+ *  which time the route was offered it there, from 1, and whether that
+ *  offer is pinned. */
+export interface RouteOption {
+  site: ProgramAddress;
+  text: string;
+  offer: number;
+  pinned?: true;
+}
 
 export interface RouteDecision {
   kind: RouteDecisionKind;
@@ -20,6 +38,20 @@ export interface RouteDecision {
   option?: string;
   /** Which time the route is offered the option it took, from 1. */
   meeting?: number;
+  /** For a choice, the site its menu is met at, which stays the menu's
+   *  whichever options it offers. */
+  menu?: ProgramAddress;
+  /** The options the menu offered, in the order it lists them. */
+  options?: RouteOption[];
+  /** Set on a choice where a pin was not followed: the route took another
+   *  option than a pinned one the menu offered, or the menu did not offer a
+   *  pinned option of its own (a once-only option the route already took,
+   *  or a gated one whose gate the route left false). */
+  notFollowed?: true;
+  /** For a choice, the pinned offers of the menu's own options it did not
+   *  offer, reported here as not followed (`notFollowed`): pins of this stop
+   *  that its options list does not show. */
+  unoffered?: { site: ProgramAddress; offer: number }[];
   /** The verdict the route forced. */
   verdict?: boolean;
   /** The passes a clipped loop ran: the times its body began, the pass it
@@ -82,27 +114,71 @@ const DECISIONS_READ = 100_000;
  * loop's test was met true since the route last met it false, and one more
  * for a `repeat` loop, whose body ran before its first test. Without
  * `structureOf`, every forced verdict is forced.
+ *
+ * A choice is pinned when the option taken is pinned at that offer
+ * (`pinned`), and not followed when the menu offered another pinned option,
+ * or did not offer a pinned option of its own, which is reported at the
+ * first meeting it was not offered.
  */
 export const routeDecisions = (
   route: RoutePlan,
   lineOf: LineOf,
   structureOf?: StructureOf,
+  pinned: PinnedOptions = NO_PINS,
 ): RouteDecision[] => {
   const decisions: RouteDecision[] = [];
   const offers = new Map<string, number>();
+  // The pinned offers already reported not offered.
+  const missed = new Set<string>();
+  // The options each menu, by the site it is met at, has offered so far.
+  const offeredAt = new Map<ProgramAddress, Set<string>>();
   let menus = 0;
   route.decisions.forEach((decision, index) => {
     if (decision.kind === "choice") {
       const menu = route.choices[menus];
       menus += 1;
-      for (const source of menu?.sources ?? [decision.value]) {
+      const sources = menu?.sources ?? [decision.value];
+      const pinnedHere = new Set(
+        pinnedAtMenu(pinned, sources, offers).map((i) => sources[i]!),
+      );
+      let notFollowed = [...pinnedHere].some((s) => s !== decision.value);
+      const unoffered: { site: ProgramAddress; offer: number }[] = [];
+      let offeredBefore = offeredAt.get(decision.site);
+      if (!offeredBefore) {
+        offeredBefore = new Set();
+        offeredAt.set(decision.site, offeredBefore);
+      }
+      for (const { source, offer } of pinnedNotOffered(
+        pinned,
+        sources,
+        offers,
+        offeredBefore,
+      )) {
+        const key = `${source}:${offer}`;
+        if (!missed.has(key)) {
+          missed.add(key);
+          notFollowed = true;
+          unoffered.push({ site: Number(source), offer });
+        }
+      }
+      for (const source of sources) {
         offers.set(source, (offers.get(source) ?? 0) + 1);
+        offeredBefore.add(source);
       }
       decisions.push({
-        kind: "auto",
+        kind: pinnedHere.has(decision.value) ? "pinned" : "auto",
         site: Number(decision.value),
         option: menu?.options[menu.selected] ?? "",
         meeting: offers.get(decision.value) ?? 1,
+        menu: decision.site,
+        options: sources.map((source, i) => ({
+          site: Number(source),
+          text: menu?.options[i] ?? "",
+          offer: offers.get(source) ?? 1,
+          ...(pinnedHere.has(source) ? { pinned: true as const } : {}),
+        })),
+        ...(notFollowed ? { notFollowed: true as const } : {}),
+        ...(unoffered.length > 0 ? { unoffered } : {}),
       });
       return;
     }

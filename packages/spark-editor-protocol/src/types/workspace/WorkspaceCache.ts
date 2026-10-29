@@ -129,14 +129,11 @@ export interface ScreenState {
 }
 
 export interface DebugState {
-  simulationOptions?: Record<
-    string,
-    {
-      favoredChoices?: (number | undefined)[];
-      favoredConditions?: (boolean | undefined)[];
-    }
-  >;
   breakpoints?: Record<string, number[]>;
+  /** By script, the pins on the options the Game Preview takes, each its
+   *  line, counting from 0, and which time the route is offered the option,
+   *  from 1. Kept for the author in this project and never in its files. */
+  routePins?: Record<string, { line: number; offer: number }[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
   /**

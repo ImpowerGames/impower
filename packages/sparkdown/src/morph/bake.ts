@@ -29,9 +29,12 @@ import {
   applySubpaths,
   invert,
   isIdentity,
+  multiply,
+  parseTransform,
   type Affine,
 } from "./affine";
 import { readEntryColor } from "./color";
+import { gradientCopy, gradientNumbers, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
@@ -54,7 +57,9 @@ import {
   readArtDocument,
   serialize,
   setStyleProperty,
+  subtree,
   unreadableGeometry,
+  unreadableStyle,
   type ArtDocument,
   type Element,
 } from "./svgDocument";
@@ -69,6 +74,8 @@ import {
   type MorphFallback,
   type MorphFrames,
   type MorphGeometryRef,
+  type MorphGradient,
+  type MorphGradientBlend,
   type MorphMethodName,
   type MorphPaintBase,
   type MorphPaintPose,
@@ -420,6 +427,36 @@ export function* bakeSteps(
       "unsupported-element",
       "error",
       `This artwork carries a style sheet (\`${doc.styleSheet}\`), whose rules the bake does not read, so this variant shows without the morph. Inline \`style\` attributes and presentation attributes are read.`,
+    );
+    return disable();
+  }
+  // The same holds for styling the bake cannot read safely.
+  for (const element of subtree(doc.root)) {
+    const unreadable = unreadableStyle(element);
+    if (unreadable === undefined) continue;
+    const id = element.attributes["id"];
+    const key = doc.info.get(element)?.key;
+    const label = effectiveLabel(doc, element);
+    report(
+      "unsupported-element",
+      "error",
+      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a style the bake cannot read safely (\`${unreadable}\`), so this variant shows without the morph. The bake reads inline styles in plain ASCII, without \`all\`, \`var()\`, comments, escapes, character references or strings, and opacity as a number or a percentage.`,
+      { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
+    );
+    return disable();
+  }
+  // A transform outside the grammar is one a browser drops or reads differently.
+  for (const element of subtree(doc.root)) {
+    const transform = element.attributes["transform"];
+    if (transform === undefined || parseTransform(transform)) continue;
+    const id = element.attributes["id"];
+    const key = doc.info.get(element)?.key;
+    const label = effectiveLabel(doc, element);
+    report(
+      "unsupported-transform",
+      "error",
+      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a \`transform\` attribute the bake cannot read safely (\`${transform}\`), so this variant shows without the morph. The bake reads the six transform functions with plain numbers, separated by space, tab, line breaks or a comma.`,
+      { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
     );
     return disable();
   }
@@ -789,6 +826,69 @@ export function* bakeSteps(
     const m = doc!.info.get(leaf.element)?.rootFromElement;
     return m ? invert(m) : null;
   };
+  const prefix = idPrefixFor(input.key);
+  const gradientsRead = new Map<string, MorphGradient | undefined>();
+  const gradientOf = (id: string): MorphGradient | undefined => {
+    if (!gradientsRead.has(id)) gradientsRead.set(id, readGradient(doc!, id));
+    return gradientsRead.get(id);
+  };
+  /**
+   * `leaf`'s gradient for `name`, in the user space `space` maps root space
+   * into: a user-space gradient is placed where `leaf`'s own drawing shows
+   * it, and a bounding-box one keeps its unit coordinates. Undefined when it
+   * paints with no gradient the bake reads.
+   */
+  const gradientIn = (leaf: Leaf, name: "fill" | "stroke", space: Affine): MorphGradient | undefined => {
+    const id = paintOf(leaf).server[name];
+    const gradient = id === undefined ? undefined : gradientOf(id);
+    const from = doc!.info.get(leaf.element)?.rootFromElement;
+    if (!gradient || !from) return undefined;
+    if (gradient.units === "objectBoundingBox") return gradient;
+    // Twelve significant digits: the same placement reached through
+    // different spaces compares equal, and a small coefficient keeps its value.
+    const fine = (n: number) => Number(n.toPrecision(12)) || 0;
+    const transform = multiply(multiply(space, from), gradient.transform as Affine).map(fine);
+    // A placement that leaves the gradient's range is one the bake cannot draw with certainty.
+    return gradientNumbers(transform) ? { ...gradient, transform } : undefined;
+  };
+  /**
+   * The gradient copies live parts carry, by the node that paints with each,
+   * the property it fills and how the gradient is built (kind, units, spread
+   * and stop count, which a frame does not rewrite): each node gets its own,
+   * so the authored drawing and other carriers keep theirs, and a carrier
+   * that carries differently built gradients in different segments gets one
+   * for each.
+   */
+  const gradientCopies = new Map<string, { id: string; home: Leaf; gradient: MorphGradient }>();
+  let gradientSerial = 0;
+  /**
+   * Which of a track's fill and stroke paint with gradients that match at
+   * both ends (`matched`, whose opacities blend as a colour's do), and of
+   * those, what blends on a copy: each the node the shape draws on would not
+   * already show the same at both ends.
+   */
+  const gradientBlends = (from: Leaf, to: Leaf, home: Leaf, draw: string, space: Affine) => {
+    const out: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend } = {};
+    const matched = { fill: false, stroke: false };
+    for (const name of ["fill", "stroke"] as const) {
+      const a = gradientIn(from, name, space);
+      const b = gradientIn(to, name, space);
+      if (!a || !b || !gradientsMatch(a, b)) continue;
+      matched[name] = true;
+      const same = (x: MorphGradient | undefined) => JSON.stringify(x) === JSON.stringify(a);
+      if (same(b) && same(gradientIn(home, name, space))) continue;
+      const key = `${draw}:${name}:${a.kind}:${a.units}:${a.spread}:${a.stops.length}`;
+      let copy = gradientCopies.get(key);
+      if (!copy) {
+        let id = `morph-gradient-${gradientSerial++}`;
+        while (doc!.byId.has(id)) id = `morph-gradient-${gradientSerial++}`;
+        copy = { id, home, gradient: a };
+        gradientCopies.set(key, copy);
+      }
+      out[name] = { id: `${prefix}${copy.id}`, ends: [a, b] };
+    }
+    return { gradients: out, matched };
+  };
 
   const geometryCache: MorphGeometryCache = options.geometry ?? new Map();
   const frames: MorphFrames[] = [];
@@ -991,8 +1091,19 @@ export function* bakeSteps(
         // The moving shape's paint blends between its two drawings' on
         // whichever node draws it, a carrier copied from a third drawing
         // included.
-        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home));
-        transitions.push({ kind: "morph", from: nodeOf(from), to: nodeOf(to), draw, shared: pair.shared, frames: ref, ...(paint ? { paint } : {}) });
+        // A gradient pair blends on a copy of its own (`gradientBlends`).
+        const { gradients, matched } = gradientBlends(from, to, home, draw, space);
+        const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), matched);
+        transitions.push({
+          kind: "morph",
+          from: nodeOf(from),
+          to: nodeOf(to),
+          draw,
+          shared: pair.shared,
+          frames: ref,
+          ...(paint ? { paint } : {}),
+          ...(gradients.fill || gradients.stroke ? { gradients } : {}),
+        });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
           if (!clip.between.includes(from.label)) continue;
           if (morph.tracks.length !== 1) {
@@ -1168,7 +1279,6 @@ export function* bakeSteps(
   // aperture, in root space (or clipped by it, in the parent's space; see
   // below). The target's own clips and masks stay on it, so the two
   // intersect.
-  const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
   const targetOf = new Map<string, Element>();
   const wrappers = new Map<Element, Wrapper[]>();
@@ -1472,10 +1582,17 @@ export function* bakeSteps(
       }
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
-    if (used.length) {
-      const defs: Element = { tagName: "defs", attributes: {}, children: used.map((w) => apertureElement(w)) };
+    // The gradient copies of the nodes this part draws, unreferenced at rest.
+    const copies = run.live ? [...gradientCopies.values()].filter((copy) => keep.has(copy.home.element)) : [];
+    if (used.length || copies.length) {
+      const defs: Element = {
+        tagName: "defs",
+        attributes: {},
+        children: [...used.map((w) => apertureElement(w)), ...copies.map((copy) => gradientCopy(copy.id, copy.gradient))],
+      };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
+      for (const copy of copies) ids.add(copy.id);
     }
     namespaceTree(root, prefix, ids);
     return { kind: run.live ? "live" : "static", svg: serialize(root) };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { blendColor, formatColor, readColor } from "../../morph/color";
+import { blendColor, formatColor, readAlpha, readColor } from "../../morph/color";
 
 const rgba = (value: string) => {
   const read = readColor(value);
@@ -61,6 +61,13 @@ describe("the morph colour reader", () => {
     for (const value of ["rgb(100%, 0, 0)", "rgba(255, 0%, 0, 1)", "rgb(5., 0, 0)", "hsl(0, 100%, 50.%)", "rgb(none, 0, 0)", "hsl(0, 100, 50)", "rgb(100% 0 0)", " red", "#fff ", "rgb(255, 0, 0)", "__proto__", "constructor", "toString", "hasOwnProperty"]) {
       expect(readColor(value), value).toBeUndefined();
     }
+  });
+
+  test("a number too large for a double is unknown, not a colour that blends to NaN", () => {
+    for (const value of ["hsl(1e999, 50%, 50%)", "hsl(1e999turn 50% 50%)", "rgb(1e999 0 0)", "rgba(0, 0, 0, 1e999)"]) {
+      expect(readColor(value), value).toBeUndefined();
+    }
+    expect(readAlpha("1e999")).toBeUndefined();
   });
 
   test("anything else is unknown", () => {

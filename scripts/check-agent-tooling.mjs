@@ -5,8 +5,10 @@ import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 import { toolDirectories } from "./link-agent-skills.mjs";
+import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+useWorktreeTemp(root);
 // Several checks read the skills through the discovery links, which the root
 // postinstall creates. A checkout that skipped the install has none, and those
 // checks would fail late for a reason unrelated to the change under test.
@@ -20,7 +22,7 @@ if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: 
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
 // deleting or renaming a check must not silently reduce the expected coverage.
-const EXPECTED_CHECKS = 77;
+const EXPECTED_CHECKS = 78;
 // The grammar and lowerer scanners need the full tree and run in typecheck.yml.
 const FULL_TREE_CHECKS = ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f));

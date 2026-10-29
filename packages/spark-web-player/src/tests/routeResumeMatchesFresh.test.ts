@@ -60,10 +60,7 @@ function target(game: Game, text: string, label: string) {
 function resumedAndFresh(text: string, first: string, second: string) {
   const { compiler, program } = compile(text);
   const kept = gameOf(program);
-  const config: any = {};
-  searchRouteTo(kept, target(kept, text, first), new RouteSearchLog(), {
-    config,
-  });
+  searchRouteTo(kept, target(kept, text, first), new RouteSearchLog(), {});
   expect(kept.simulation).toBe("success");
 
   const updated = compiler.compile({ textDocument: { uri: URI } }).program;
@@ -72,13 +69,11 @@ function resumedAndFresh(text: string, first: string, second: string) {
   expect(
     kept.routeResumption(kept.routeStartOf(resumedTo), resumedTo).resumeFrom,
   ).toBeDefined();
-  searchRouteTo(kept, resumedTo, new RouteSearchLog(), { config });
+  searchRouteTo(kept, resumedTo, new RouteSearchLog(), {});
   expect(kept.simulation).toBe("success");
 
   const fresh = gameOf(updated);
-  searchRouteTo(fresh, target(fresh, text, second), new RouteSearchLog(), {
-    config: {},
-  });
+  searchRouteTo(fresh, target(fresh, text, second), new RouteSearchLog(), {});
   expect(fresh.simulation).toBe("success");
   return {
     resumed: kept.story.variablesState["total"] as number,

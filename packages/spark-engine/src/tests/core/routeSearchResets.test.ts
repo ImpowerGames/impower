@@ -87,7 +87,7 @@ function planTo(game: Game, program: any, line: number) {
   const fromPath = game.routeStartOf(toPath);
   // As the player's worker asks for it: the replay that follows installs a
   // state of its own.
-  return Game.planRoute(game.story, program, fromPath, toPath, undefined, {
+  return Game.planRoute(game.story, program, fromPath, toPath, {
     callerResetsStory: true,
   });
 }

@@ -1,6 +1,9 @@
 import type {
   PreviewRoute,
   PreviewRouteDecision,
+  PreviewRouteOption,
+  RoutePin,
+  RunMeeting,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 
@@ -51,24 +54,144 @@ export interface RouteFailure {
   target?: DocumentLocation;
 }
 
-/**
- * Everything the route button and the route list show, which they render
- * from and nothing else: the route the preview took, or why it found none,
- * whether the list is open, and which kinds it shows.
- */
 export interface RouteViewState {
   route?: PreviewRoute;
   failure?: RouteFailure;
   open: boolean;
   toggles: RouteToggles;
+  pins: RoutePin[];
+  pinNote?: string;
+  lastRun?: number;
 }
+
+/** What the list says when the host does not save a change to the pins. */
+export const PIN_NOT_SAVED = "The pin was not saved.";
+
+export const LAST_RUN_CHANGED =
+  "The script has changed where the last run chose, so its choices were not pinned.";
+
+/** The change to the pins the author asked for (`preview/changeRoutePins`). */
+export interface RoutePinChange {
+  add?: RoutePin[];
+  remove?: RoutePin[];
+  removeAll?: boolean;
+}
+
+const samePin = (a: RoutePin, b: RoutePin) =>
+  a.uri === b.uri && a.line === b.line && a.offer === b.offer;
+
+/** The pin on `option` at its offer at the stop it was offered at. */
+export const pinOf = (option: PreviewRouteOption): RoutePin => ({
+  uri: option.location.uri,
+  line: option.location.range.start.line,
+  offer: option.offer,
+});
+
+/** Whether a pin the host keeps is on `option` at its offer there. */
+export const isPinned = (pins: RoutePin[], option: PreviewRouteOption) =>
+  pins.some((pin) => samePin(pin, pinOf(option)));
+
+/** The pins at a choice's stop the host keeps: one per option offered there
+ *  that has one, and the pins of its menu's options it did not offer. */
+const pinsAtStop = (pins: RoutePin[], decision: PreviewRouteDecision) =>
+  [
+    ...(decision.options ?? []).map(pinOf),
+    ...(decision.unofferedPins ?? []),
+  ].filter((at) => pins.some((pin) => samePin(pin, at)));
+
+/** Pinning `option` at its stop: its pin, and every other pin at that stop
+ *  removed. Pressing a pinned option unpins it. */
+export const pinChange = (
+  pins: RoutePin[],
+  decision: PreviewRouteDecision,
+  option: PreviewRouteOption,
+): RoutePinChange => {
+  const pin = pinOf(option);
+  if (isPinned(pins, option)) {
+    return { remove: [pin] };
+  }
+  return {
+    add: [pin],
+    remove: pinsAtStop(pins, decision).filter((at) => !samePin(at, pin)),
+  };
+};
+
+/** Unpinning a stop: every pin at it removed. */
+export const unpinChange = (
+  pins: RoutePin[],
+  decision: PreviewRouteDecision,
+): RoutePinChange => ({ remove: pinsAtStop(pins, decision) });
+
+/** Whether a stop has a pin the host keeps. */
+export const stopIsPinned = (
+  pins: RoutePin[],
+  decision: PreviewRouteDecision,
+): boolean => pinsAtStop(pins, decision).length > 0;
+
+export const lastRunChange = (
+  pins: RoutePin[],
+  run: RunMeeting[],
+): RoutePinChange | null => {
+  const add = run
+    .map((meeting) => meeting.pin)
+    .filter((pin) => !pins.some((at) => samePin(at, pin)));
+  const remove = run
+    .flatMap((meeting) => meeting.others)
+    .filter(
+      (other) =>
+        pins.some((at) => samePin(at, other)) &&
+        !run.some((meeting) => samePin(meeting.pin, other)),
+    );
+  return add.length > 0 || remove.length > 0 ? { add, remove } : null;
+};
+
+export const lastRunText = (count: number): string =>
+  `Pin the ${count} ${count === 1 ? "choice" : "choices"} from the last run`;
+
+/** The pins `change` leaves of `pins`, in the order the host would keep
+ *  them, which the list shows until the host answers. */
+export const changedPins = (
+  pins: RoutePin[],
+  change: RoutePinChange,
+): RoutePin[] => {
+  const kept = change.removeAll
+    ? []
+    : pins.filter(
+        (pin) => !(change.remove ?? []).some((gone) => samePin(gone, pin)),
+      );
+  for (const pin of change.add ?? []) {
+    if (!kept.some((at) => samePin(at, pin))) {
+      kept.push(pin);
+    }
+  }
+  return kept;
+};
+
+/** The sentence a choice's pin control says about its stop. */
+export const choiceSentence = (
+  decision: PreviewRouteDecision,
+  target: DocumentLocation,
+): string => {
+  const line = lineOf(target);
+  if (decision.notFollowed) {
+    return `Previewing line ${line}, which can't be reached through your pin, so the preview took another option here. The pin still holds for other lines.`;
+  }
+  if (decision.kind === "pinned") {
+    return "The preview takes your pinned option here.";
+  }
+  return `No pin. The preview chose this option to reach line ${line}.`;
+};
+
+/** An unresolved pin as the list names it. */
+export const unresolvedPinText = (pin: RoutePin, nameOf: ScriptName) =>
+  `Pin at line ${pin.line + 1} of ${nameOf(pin.uri)}: no option on this line`;
 
 /** How a host names a script in the route's text: its path, relative to the
  *  project and without its extension. */
 export type ScriptName = (uri: string) => string;
 
 /** The status icon the route button shows: the first that applies. */
-export type RouteIcon = "failure" | "forced" | "clipped" | null;
+export type RouteIcon = "failure" | "forced" | "clipped" | "pinned" | null;
 
 export const routeIcon = (state: RouteViewState): RouteIcon => {
   if (state.failure) {
@@ -80,6 +203,9 @@ export const routeIcon = (state: RouteViewState): RouteIcon => {
   }
   if (decisions.some((d) => d.kind === "clipped")) {
     return "clipped";
+  }
+  if (decisions.some((d) => d.kind === "pinned")) {
+    return "pinned";
   }
   return null;
 };
@@ -184,7 +310,9 @@ export const routeTitle = (
       ? " The preview forced a branch the game would not take."
       : icon === "clipped"
         ? " The preview left a loop before the game would."
-        : " The preview runs this line as the game does.";
+        : icon === "pinned"
+          ? " Your pins steered the route."
+          : " The preview runs this line as the game does.";
   return `Route from ${from} to ${to}.${how} Show the route.`;
 };
 
@@ -207,6 +335,7 @@ export const ordinal = (n: number): string => {
 /** An entry's text: what happened there, and nothing else. */
 export const decisionText = (decision: PreviewRouteDecision): string => {
   switch (decision.kind) {
+    case "pinned":
     case "auto": {
       const meeting =
         decision.meeting && decision.meeting > 1

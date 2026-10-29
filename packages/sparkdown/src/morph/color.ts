@@ -175,12 +175,17 @@ const OUTSIDE = /[^ \t\n\r\fA-Za-z0-9#%().,+\-/]/;
 /** A CSS number: digits after a decimal point, if it has one. */
 const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?$/i;
 
-/** A CSS number or percentage, as a fraction of `scale` for a percentage; undefined otherwise. */
+/**
+ * A CSS number or percentage, as a fraction of `scale` for a percentage;
+ * undefined otherwise, and for a number too large for a double, whose blend
+ * would not be a number.
+ */
 const component = (text: string, scale: number): number | undefined => {
   const percent = text.endsWith("%");
   const body = percent ? text.slice(0, -1) : text;
   if (!NUMBER.test(body)) return undefined;
   const n = Number(body);
+  if (!Number.isFinite(n)) return undefined;
   return percent ? (n / 100) * scale : n;
 };
 
@@ -196,7 +201,8 @@ const ANGLE_UNITS: Record<string, number> = { deg: 1, grad: 0.9, rad: 180 / Math
 const hue = (text: string): number | undefined => {
   const match = /^(.*?)(deg|grad|rad|turn)?$/i.exec(text);
   if (!match || !NUMBER.test(match[1]!)) return undefined;
-  return Number(match[1]) * ANGLE_UNITS[(match[2] ?? "deg").toLowerCase()]!;
+  const degrees = Number(match[1]) * ANGLE_UNITS[(match[2] ?? "deg").toLowerCase()]!;
+  return Number.isFinite(degrees) ? degrees : undefined;
 };
 
 /**

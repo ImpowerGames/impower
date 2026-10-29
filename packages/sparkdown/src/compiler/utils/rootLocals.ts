@@ -44,6 +44,19 @@ const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
 const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition", "LuauFunctionAttributes"]);
+// A function's body and a define's method, whose locals are the function's
+// and no block's.
+const FUNCTION_BODIES = nodeNameSet(["LuauFunctionBody", "LuauMethodDefinition"]);
+// What a `for` loop's variables are written as in its header, and what
+// ends them.
+const ACCESS_PATHS = nodeNameSet(["LuauAccessPath", "LuauSparkdownExplicitAccessPath"]);
+const FOR_HEADER_ENDS = nodeNameSet([
+  "LuauInKeyword",
+  "LuauAssignmentOperation",
+  "LuauSparkdownExplicitAssignmentOperation",
+]);
+// A loop's header, which a `for` loop's variables are written in.
+const LOOP_CONDITIONS = nodeNameSet(["LuauForCondition", "LuauSparkdownExplicitLoopCondition"]);
 
 // The blocks a top-level statement opens a scope of its own with, inside
 // which every name answers `ROOT_IN_BLOCK`. An `&` line's `for` or `while`
@@ -107,7 +120,7 @@ interface Flow {
  * document's declarations of its name: a name declared once is `ROOT_ONLY`,
  * and the binding of each declaration of a name declared more than once is
  * kept under a slot of its own (`rootSlotName`), which the declarations
- * after it leave in place, as a function written at the top level reads a
+ * after it leave in place, as a closure built in the root frame captures a
  * top-level `local` through it. A top-level `local` is a compile error, so
  * only a save of a program an earlier engine ran holds such a binding.
  */
@@ -117,6 +130,9 @@ export class RootLocals {
   // The blocks top-level statements open, in document order, none inside
   // another.
   protected readonly blocks: { from: number; to: number }[] = [];
+  // The locals each such block declares, a loop's variables among them, by
+  // name, each with the range code reads it in.
+  protected readonly blockDeclarations = new Map<string, { from: number; to: number }[]>();
 
   constructor(top: SyntaxNode, read: (from: number, to: number) => string) {
     const open: number[] = [];
@@ -201,6 +217,17 @@ export class RootLocals {
     return ordinal(list, i);
   }
 
+  /** Whether a local a block a top-level statement opens declares (a
+   *  `local`, a `local function` or a `for` loop's variable) is in scope
+   *  where code at `at` reads `name`. The converter reads a block's later
+   *  statements apart from its earlier ones (I-1468), so a closure there
+   *  learns from this that a local, and no global or stdlib entry, takes a
+   *  name it reads. An `if` block's local counts through the whole block,
+   *  its other arms included. */
+  blockLocal(name: string, at: number): boolean {
+    return this.blockDeclarations.get(name)?.some(({ from, to }) => from <= at && at <= to) ?? false;
+  }
+
   /** Whether `at` is inside a block a top-level statement opens. */
   protected inBlock(at: number): boolean {
     let lo = 0;
@@ -268,6 +295,7 @@ export class RootLocals {
     }
     if (BLOCKS.has(node.name)) {
       this.blocks.push({ from: node.from, to: node.to });
+      this.collectBlock(node, read);
       return;
     }
     if (LOCAL_FUNCTIONS.has(node.name)) {
@@ -291,6 +319,59 @@ export class RootLocals {
         visibleTo,
         flow,
       });
+    }
+  }
+
+  /** The locals `block` declares, read up to its end: a `for` loop's
+   *  variables, and those of the statements inside it (`collectBlockPart`). */
+  protected collectBlock(block: SyntaxNode, read: (from: number, to: number) => string): void {
+    const condition = forCondition(block);
+    if (condition) {
+      for (const name of forVariables(condition, read)) {
+        this.declareInBlock(name, condition.to, block.to);
+      }
+    }
+    this.collectBlockPart(block, block, read);
+  }
+
+  protected declareInBlock(name: string, from: number, to: number): void {
+    const list = this.blockDeclarations.get(name);
+    if (list) list.push({ from, to });
+    else this.blockDeclarations.set(name, [{ from, to }]);
+  }
+
+  /** The locals the statements inside `node` declare, a part of `block`,
+   *  the innermost block that holds them, read up to its end: a `local`'s
+   *  names, a `local function`'s name, and a nested block's own. A
+   *  function's body declares none of them. */
+  protected collectBlockPart(
+    node: SyntaxNode,
+    block: SyntaxNode,
+    read: (from: number, to: number) => string,
+  ): void {
+    const declare = (name: string, from: number, to: number) => this.declareInBlock(name, from, to);
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (FUNCTION_BODIES.has(child.name)) continue;
+      if (BLOCKS.has(child.name)) {
+        this.collectBlock(child, read);
+        continue;
+      }
+      if (LOCAL_FUNCTIONS.has(child.name)) {
+        const nameNode = getDescendent("LuauFunctionName", child);
+        if (nameNode && scopeOf(child, read) === "local") {
+          declare(read(nameNode.from, nameNode.to).trim(), nameNode.to, block.to);
+        }
+        continue;
+      }
+      if (VARIABLE_DEFINITION_NAMES.has(child.name)) {
+        if (scopeOf(child, read) === "local") {
+          for (const nameNode of declaredNameNodes(child)) {
+            declare(read(nameNode.from, nameNode.to).trim(), child.to, block.to);
+          }
+        }
+        continue;
+      }
+      this.collectBlockPart(child, block, read);
     }
   }
 
@@ -328,6 +409,37 @@ function ordinal(list: readonly RootDeclaration[], i: number): string {
   return list.length === 1 || (list[i]!.flow >= 0 && list.every(({ flow }) => flow >= 0))
     ? ROOT_ONLY
     : String(i + 1);
+}
+
+/** The header of `node` when it is a `for` loop: the condition its content
+ *  opens with, after a `for` keyword in its begin. */
+function forCondition(node: SyntaxNode): SyntaxNode | null {
+  const begin = childEndingWith(node, "_begin");
+  if (!begin || !getDescendent("LuauForKeyword", begin)) return null;
+  const condition = childEndingWith(node, "_content")?.firstChild;
+  return condition && LOOP_CONDITIONS.has(condition.name) ? condition : null;
+}
+
+/** The variables a `for` loop's header declares: the access paths of one
+ *  variable each it holds before its `in` keyword or its `=` (`i = 1, 3`,
+ *  `k, v in t`), their type annotations aside. */
+function forVariables(
+  condition: SyntaxNode,
+  read: (from: number, to: number) => string,
+): string[] {
+  const names: string[] = [];
+  const content = childEndingWith(condition, "_content");
+  for (let part = content?.firstChild; part; part = part.nextSibling) {
+    if (FOR_HEADER_ENDS.has(part.name)) break;
+    if (!ACCESS_PATHS.has(part.name)) continue;
+    const variable = getDescendent("LuauVariable", part);
+    const path = childEndingWith(part, "_content");
+    if (!variable || !path) continue;
+    const name = read(variable.from, variable.to);
+    // A path of more than its one variable (`a.b`) declares nothing.
+    if (read(path.from, path.to).trim() === name) names.push(name);
+  }
+  return names;
 }
 
 /** The name nodes a `local` declaration declares, in order: a value in its

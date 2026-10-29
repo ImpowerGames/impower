@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { scanTree, linkReason, parseWorktreeList } from "../.agents/skills/clean-worktrees/clean-worktrees.mjs";
+import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const guard = fileURLToPath(new URL("../.agents/skills/clean-worktrees/clean-worktrees.mjs", import.meta.url));
 export const markerName = "filer-owner.json";
@@ -161,5 +162,6 @@ export async function main(argv) {
   throw new Error("Use create, install, check or remove");
 }
 if (process.argv[1] && pathToFileURL(process.argv[1]).href.toLowerCase() === import.meta.url.toLowerCase()) {
+  useWorktreeTemp();
   main(process.argv.slice(2)).then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.message); process.exitCode = 1; });
 }

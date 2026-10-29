@@ -7,9 +7,9 @@ import { untangle } from "@impower/spark-morph/src/apertures";
 import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
-import { blendColor, formatColor } from "./color";
+import { blendColor, formatColor, readAlpha } from "./color";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
-import type { MorphArtifact, MorphClipFrames, MorphColor, MorphFrames, MorphGeometryRef, MorphPaint, MorphPaintBase, MorphPaintPose } from "./types";
+import type { MorphArtifact, MorphClipFrames, MorphColor, MorphFrames, MorphGeometryRef, MorphGradient, MorphGradientBlend, MorphPaint, MorphPaintBase, MorphPaintPose } from "./types";
 
 type Element = Exclude<Node, string | null>;
 
@@ -210,8 +210,8 @@ function* walk(element: Element): Generator<Element> {
  */
 const multiplyOpacity = (element: Element, factor: number) => {
   const inline = styleDeclaration(element, "opacity");
-  const own = Number.parseFloat(inline?.value ?? element.attributes["opacity"] ?? "1");
-  const value = fmt((Number.isFinite(own) ? own : 1) * factor);
+  const own = readAlpha(inline?.value ?? element.attributes["opacity"] ?? "1");
+  const value = fmt((own ?? 1) * factor);
   setStyleProperty(element, "opacity", inline?.important ? `${value} !important` : value);
 };
 
@@ -228,6 +228,66 @@ export function paintAt(paint: MorphPaint, progress: number): Record<string, str
     if (ends) out[name] = fmt(ends[0] + (ends[1] - ends[0]) * t);
   }
   return out;
+}
+
+/**
+ * Gradient numbers to ten significant digits, so a small transform
+ * coefficient that places a gradient keeps its value rather than rounding to
+ * a singular matrix.
+ */
+const fine = (n: number) => String(Number(n.toPrecision(10)) || 0);
+
+const GEOMETRY_NAMES: Record<MorphGradient["kind"], string[]> = {
+  linear: ["x1", "y1", "x2", "y2"],
+  radial: ["cx", "cy", "r", "fx", "fy", "fr"],
+};
+
+/**
+ * What a frame writes on a gradient copy: its coordinates and
+ * `gradientTransform` as attributes, and each stop's `offset` and
+ * `stop-color`, in order.
+ */
+export interface MorphGradientState {
+  attributes: Record<string, string>;
+  stops: { offset: string; "stop-color": string }[];
+}
+
+/** A gradient's coordinates, transform and stops, written as a copy carries them. */
+export function gradientAttributes(gradient: MorphGradient): MorphGradientState {
+  const attributes: Record<string, string> = table();
+  GEOMETRY_NAMES[gradient.kind].forEach((name, i) => (attributes[name] = fine(gradient.geometry[i]!)));
+  attributes["gradientTransform"] = `matrix(${gradient.transform.map(fine).join(" ")})`;
+  return { attributes, stops: gradient.stops.map(([offset, color]) => ({ offset: fine(offset), "stop-color": formatColor(color) })) };
+}
+
+/**
+ * A blended gradient at `progress`: coordinates, `gradientTransform` entry
+ * by entry and stop offsets linearly, and stop colours as paint blends.
+ */
+export function gradientAt(blend: MorphGradientBlend, progress: number): MorphGradientState {
+  const t = clamp01(progress);
+  const [a, b] = blend.ends;
+  // Weighted, rather than stepped from one end, so the difference of two
+  // large ends of opposite sign never overflows.
+  const lerp = (v: number, w: number) => v * (1 - t) + w * t;
+  const mix = (x: number[], y: number[]) => x.map((v, i) => lerp(v, y[i]!));
+  return gradientAttributes({
+    ...a,
+    geometry: mix(a.geometry, b.geometry),
+    transform: mix(a.transform, b.transform),
+    stops: a.stops.map(([offset, color], i) => [lerp(offset, b.stops[i]![0]), blendColor(color, b.stops[i]![1], t)]),
+  });
+}
+
+/** Poses a gradient copy, given as it is written in its part, with a frame's values. */
+export function poseGradient(element: Element, state: MorphGradientState) {
+  Object.assign(element.attributes, state.attributes);
+  elementsOf(element.children)
+    .filter((child) => child.tagName === "stop")
+    .forEach((stop, i) => {
+      const values = state.stops[i];
+      if (values) Object.assign(stop.attributes, values);
+    });
 }
 
 /**
@@ -275,17 +335,23 @@ export function morphPosesAt(artifact: MorphArtifact, offset: number): Record<st
  * What a frame changes in the live parts as written: which leaves show and
  * hide through their inline `display`, the path data that replaces a moving
  * leaf's `d`, the paint a moving leaf is drawn with, the factor a fading
- * leaf's own opacity is multiplied by, and the path data of each aperture
+ * leaf's own opacity is multiplied by, the path data of each aperture
  * and of where it may reach (`apertureReachPathData`), both by the
- * aperture's id before occurrence namespacing. Anything a frame does not
- * mention keeps its markup.
+ * aperture's id before occurrence namespacing, and the values of each
+ * gradient copy a moving leaf paints with, by the copy's id before
+ * occurrence namespacing. Anything a frame does not mention keeps its markup.
  */
 export interface MorphFrameState {
   shown: Set<string>;
   hidden: Set<string>;
   geometry: Map<string, string>;
-  /** CSS values by property, written inline over the leaf's own. */
+  /**
+   * CSS values by property, written inline over the leaf's own. A leaf
+   * painting with a gradient copy takes `url(#id)`, the id before occurrence
+   * namespacing.
+   */
   paint: Map<string, Record<string, string>>;
+  gradients: Map<string, MorphGradientState>;
   opacity: Map<string, number>;
   clips: Map<string, string>;
   reaches: Map<string, string>;
@@ -298,6 +364,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     hidden: new Set(),
     geometry: new Map(),
     paint: new Map(),
+    gradients: new Map(),
     opacity: new Map(),
     clips: new Map(),
     reaches: new Map(),
@@ -370,7 +437,14 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
           show(t.draw);
           const frames = artifact.frames[t.frames.index]!;
           geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
-          if (t.paint) state.paint.set(t.draw, paintAt(t.paint, p));
+          const values = t.paint ? paintAt(t.paint, p) : table<string>();
+          for (const name of ["fill", "stroke"] as const) {
+            const gradient = t.gradients?.[name];
+            if (!gradient) continue;
+            values[name] = `url(#${gradient.id})`;
+            state.gradients.set(gradient.id, gradientAt(gradient, p));
+          }
+          if (Object.keys(values).length) state.paint.set(t.draw, values);
           break;
         }
         case "fade":
@@ -605,6 +679,8 @@ function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): stri
       for (const element of walk(svg)) {
         const node = element.attributes["data-morph"];
         if (node !== undefined) poseLeaf(element, node, state);
+        const gradient = element.tagName.endsWith("Gradient") ? state.gradients.get(element.attributes["id"] ?? "") : undefined;
+        if (gradient) poseGradient(element, gradient);
         if (element.tagName === "mask" || element.tagName === "clipPath") {
           const id = element.attributes["id"] ?? "";
           const d = clipData.get(id);

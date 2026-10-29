@@ -8,6 +8,7 @@ import { acquireWaiting, waitForUnit, runPool, releaseKeeping, atomic, read, pro
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 import { prepareOwnedRuntime, prepareOwnedChild, runOwnedChild, readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
 import { openReceipt } from "./test-suite-receipt.mjs";
+import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), "suite-engine.mjs");
 const now = () => new Date().toISOString();
@@ -793,6 +794,7 @@ export async function main(argv, dependencies = {}) {
 }
 
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
+  useWorktreeTemp();
   try { process.exitCode = await main(process.argv.slice(2)); }
   catch (error) { process.exitCode = notRunExit(error); }
 }

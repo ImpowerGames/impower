@@ -42,6 +42,8 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { SetEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRoutePinsMessage";
+import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import {
   ShowEditorStatusBarMessage,
   ShowEditorStatusBarMethod,
@@ -94,6 +96,7 @@ import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues"
 import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../cm-highlight-lines/highlightLines";
 import { setPinpoints } from "../../cm-pinpoints/pinpoints";
+import { setRoutePinsEffect } from "../../cm-route-pins/routePins";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../utils/getScrollTop";
@@ -343,6 +346,11 @@ export class ScriptEditorController {
       (m) => this.handleSetEditorPinpoints(m),
       this.host,
     );
+    p.onRequest(
+      SetEditorRoutePinsMessage.type,
+      (m) => this.handleSetEditorRoutePins(m),
+      this.host,
+    );
   }
 
   protected bindView(view: EditorView) {
@@ -525,6 +533,22 @@ export class ScriptEditorController {
     return SetEditorPinpointsMessage.type.response(message.id, {});
   };
 
+  protected handleSetEditorRoutePins = (
+    message: SetEditorRoutePinsMessage.Request,
+  ) => {
+    const uri = this._textDocument?.uri;
+    if (this._view && uri) {
+      this._view.dispatch({
+        effects: setRoutePinsEffect.of(
+          message.params.pins
+            .filter((pin) => pin.uri === uri)
+            .map(({ line, offer }) => ({ line, offer })),
+        ),
+      });
+    }
+    return SetEditorRoutePinsMessage.type.response(message.id, {});
+  };
+
   protected handleFocusFindInput = () => {
     this._searchInputFocused = true;
   };
@@ -558,6 +582,7 @@ export class ScriptEditorController {
       breakpointLines,
       pinpointLines,
       highlightLines,
+      routePins,
       languageServerInitializeParams,
       languageServerInitializeResult,
       preserveEditor,
@@ -693,6 +718,7 @@ export class ScriptEditorController {
           breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
           pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
+          routePins,
           scrollToLineNumber:
             visibleRange && typeof visibleRange !== "string"
               ? (visibleRange?.start.line ?? 0) + 1
@@ -828,6 +854,18 @@ export class ScriptEditorController {
                   pinpointLines: pinpointLineNumbers.map(
                     (lineNumber) => lineNumber - 1,
                   ),
+                }),
+                this.host,
+              );
+            }
+          },
+          onRoutePinsChanged: (_update, pins) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              sendProtocolMessage(
+                ChangedEditorRoutePinsMessage.type.notification({
+                  textDocument: { uri },
+                  pins,
                 }),
                 this.host,
               );

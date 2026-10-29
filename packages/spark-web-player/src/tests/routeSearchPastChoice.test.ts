@@ -46,10 +46,9 @@ describe("a line past a choice nothing favors", () => {
       ],
     } as never);
     const game = newGame(compiler.compile({ textDocument: { uri: URI } } as never).program);
-    const config = {};
     const scrub = (line: number) => {
       game.setStartFrom({ file: URI, line });
-      searchRouteFor(game, game.startAddress!, new RouteSearchLog(), { config });
+      searchRouteFor(game, game.startAddress!, new RouteSearchLog(), {});
       expect(game.simulation).toBe("success");
       return {
         conditions: game.plannedRoute?.conditions,

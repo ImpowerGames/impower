@@ -351,6 +351,13 @@ export function traverse(
 }
 
 /**
+ * Trims XML whitespace only. Other whitespace, a no-break space among it, is
+ * part of an attribute's value: CSS does not skip it, so a presentation
+ * attribute or inline style padded with it reads differently once trimmed.
+ */
+const trimXML = (value: string) => value.replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, "");
+
+/**
  * stringify a previously parsed string object.
  * this is useful,
  *  1. to remove whitespace
@@ -391,11 +398,11 @@ export function stringify(
         if (n.attributes[i] === null) {
           out += " " + i;
         } else if (n.attributes[i]!.indexOf('"') >= 0) {
-          out += " " + i + "='" + n.attributes[i]!.trim() + "'";
+          out += " " + i + "='" + trimXML(n.attributes[i]!) + "'";
         } else if (quote === "'" && n.attributes[i]!.indexOf("'") >= 0) {
-          out += " " + i + '="' + n.attributes[i]!.trim() + '"';
+          out += " " + i + '="' + trimXML(n.attributes[i]!) + '"';
         } else {
-          out += " " + i + `=${quote}` + n.attributes[i]!.trim() + `${quote}`;
+          out += " " + i + `=${quote}` + trimXML(n.attributes[i]!) + `${quote}`;
         }
       }
       if (n.tagName[0] === "?") {

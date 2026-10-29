@@ -1,0 +1,101 @@
+name: Comment Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: comment-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relevant: ${{ steps.detect.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            /.github/scripts/check-comments.mjs
+            /.agents/hooks/comment-policy.mjs
+            /.agents/hooks/comment-policy.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: List the pull request's files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
+            | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+      - name: Decide whether any changed file is one the comment rule judges
+        id: detect
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --detect
+
+  comments:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install typescript at the root package's range so the classifier uses TypeScript's scanner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/typescript" --no-audit --no-fund --ignore-scripts "typescript@$(node -p "require('./package.json').devDependencies.typescript")"
+          mkdir -p node_modules
+          cp -R "$RUNNER_TEMP/typescript/node_modules/typescript" node_modules/
+      - name: List the pull request's files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
+            | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+      - name: Find the merge base the pull request's patches are taken from
+        id: merge-base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq '.merge_base_commit.sha')
+          test -n "$sha" || { echo "The compare endpoint returned no merge base for $BASE_SHA...$HEAD_SHA"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Check the comments the pull request adds
+        env:
+          COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1"
+          MERGE_BASE: ${{ steps.merge-base.outputs.sha }}
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --merge-base "$MERGE_BASE"
+
+  comment-check:
+    needs: [changes, comments]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Gate on detection and the comment check
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          COMMENTS: ${{ needs.comments.result }}
+        run: |
+          test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
+          case "$COMMENTS" in
+            success) echo "Comment check passed";;
+            skipped) echo "Comment check skipped: the pull request changes no code file";;
+            *) echo "Comment check did not pass: $COMMENTS"; exit 1;;
+          esac

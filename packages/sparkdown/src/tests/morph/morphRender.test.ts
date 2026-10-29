@@ -256,7 +256,7 @@ ${TORSO}
     test("a named-pose drawing whose geometry the bake cannot read is not used, and the label warns", () => {
       const unreadable = arm
         .replace(`${TORSO}`, `<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>\n${TORSO}`)
-        .replace(`d="${RAISED}"`, `d="${RAISED}" style="d:path('M10,10h10v10h-10Z')"`);
+        .replace(`d="${RAISED}"`, `d="${RAISED}" style="d:none"`);
       const states = ["down", "half", "raised"];
       const plain = bake(raise({}, states), unreadable);
       const named = bake(raise({ depth: "arm.raised" }, states), unreadable);
@@ -402,10 +402,19 @@ ${TORSO}
     const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipe, key: "fade2" });
     const marked = elements(renderMorphFrame(important, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(marked.attributes["style"]).toBe("opacity:0.2 !important");
-    // A comment after `!important` does not hide it.
-    const commented = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important /* note */;opacity:0.9"), selection: {}, recipe, key: "fade3" });
-    const kept = elements(renderMorphFrame(commented, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+    // Whitespace inside and after `!important` does not hide it.
+    const spaced = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4\t!\nimportant ;opacity:0.9"), selection: {}, recipe, key: "fade3" });
+    const kept = elements(renderMorphFrame(spaced, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(kept.attributes["style"]).toBe("opacity:0.2 !important");
+    // A percentage is the number it stands for, inline or as the attribute.
+    for (const [from, to] of [
+      ["opacity:0.4", "opacity:40%"],
+      ['style="opacity:0.4"', 'opacity="40%"'],
+    ] as const) {
+      const percent = bakeMorphArtifact({ source: faded.replace(from, to), selection: {}, recipe, key: "fade4" });
+      const halved = elements(renderMorphFrame(percent, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+      expect(halved.attributes["style"], to).toBe("opacity:0.2");
+    }
   });
 
   test("the aperture blends onto its closed line as the eye closes", () => {

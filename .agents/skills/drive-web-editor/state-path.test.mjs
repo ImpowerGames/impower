@@ -435,7 +435,7 @@ console.log(`scratch repository: ${path.join(scratch, "repo")}`);
 const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-editor");
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
-for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 fs.mkdirSync(path.join(scratch, "repo", "scripts"));
 fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const copy = path.join(copyDir, "driver.mjs");

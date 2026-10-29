@@ -11,7 +11,10 @@ import { decide } from "../.agents/hooks/policy.mjs";
 import { relevantFiles } from "../.github/scripts/changed-paths.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "filer-1766-"));
+// The machine's temp directory: the outside-target cases need a directory
+// outside every checkout, and a run under check-agent-tooling redirects
+// os.tmpdir() into this one.
+const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "filer-1766-"));
 console.log(`Scratch repository: ${scratch}`);
 const main = path.join(scratch, "repo");
 fs.mkdirSync(main);

@@ -136,16 +136,6 @@ export const Op = {
    *  instruction, and opens with the `Visit` of the choice's count symbol,
    *  which a once-only choice reads. */
   Choice: 49,
-  /** Declares the variable `arg` names, as a local of the frame, holding a
-   *  pointer at the binding of that name in the own scope of the thread's
-   *  root frame, when that frame binds it there and is not this one;
-   *  otherwise does nothing. With `ROOT_SLOT`, `arg` names the slot that
-   *  keeps the binding of one declaration of the name (its text up to the
-   *  first `$`), and the local points at the cell the slot holds. A
-   *  function, a define's method or a closure starts with one for each name
-   *  it reads from a `local` of that scope in scope where it is written
-   *  (I-1374), so it reaches that local as Luau's upvalue does. */
-  BindRoot: 50,
   /** Leaves the stack as it is. In a declaration chunk, where a `store` with
    *  several names evaluates every value before it declares any of them
    *  (I-1409), it marks where the value of the global `arg` (its index in
@@ -196,7 +186,7 @@ export const JUMP_LUAU = 1;
  *  conditional divert is today. */
 export const JUMP_DECISION = 2;
 
-/** `BindRoot`'s and `VarPtr`'s flag: `arg` names the root frame's slot that
+/** `VarPtr`'s flag: `arg` names the root frame's slot that
  *  keeps the binding of one declaration of a name the document declares more
  *  than once in its own scope (a `local`, or a scene's or a branch's
  *  parameter), `<name>$<ordinal>$<document tag>`, and the instruction
@@ -212,14 +202,6 @@ export const ROOT_SLOT = 1;
  *  it pushes a pointer at the global of the name, whatever `local` of the
  *  name the scope binds as it is built (a scene's, I-1374). */
 export const ROOT_GLOBAL = 2;
-
-/** `BindRoot`'s flag for a name a function written inside a block a
- *  top-level statement opens reads and does not capture (any name of a
- *  function statement or a top-level define's method, a stdlib name of a
- *  closure): the binding of the name in the outermost
- *  scope of the root frame that binds it, a block's local of the name
- *  included, as `BindRoot` reached every name before `ROOT_SLOT` (I-1468). */
-export const ROOT_ANY_SCOPE = 4;
 
 /** `SetVar`'s flags. */
 export const SET_DECLARE = 1;

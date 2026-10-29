@@ -125,8 +125,6 @@ function quiet<T>(fn: () => T): T {
   }
 }
 
-type SimulationOptions = Record<string, unknown>;
-
 interface RouteOutcome {
   to: ProgramAddress | null | undefined;
   checkpoint: string | undefined;
@@ -151,9 +149,6 @@ interface CompiledRound extends RouteOutcome {
    *  work it saved. */
   changes: SparkProgram["changes"];
   resumption: ReturnType<Game["routeResumption"]>;
-  /** The favored conditions and choices the search that produced this outcome
-   *  started from, so the same search can be run again against it. */
-  options: SimulationOptions;
 }
 
 /**
@@ -164,7 +159,6 @@ interface CompiledRound extends RouteOutcome {
 class Session {
   readonly compiler = new SparkdownCompiler();
   readonly log = new RouteSearchLog();
-  readonly config: { simulationOptions?: SimulationOptions } = {};
   game?: Game;
   text: string;
   /** Every program compiled so far, oldest first. The player's worker keeps
@@ -213,7 +207,7 @@ class Session {
     });
   }
 
-  protected route(program: SparkProgram, remember: boolean) {
+  protected route(program: SparkProgram, real: boolean) {
     if (this.withoutChangeSummary) {
       delete program.changes;
     }
@@ -240,20 +234,15 @@ class Session {
       this.game.routeStartOf(to),
       to,
     );
-    const options = structuredClone(this.config.simulationOptions ?? {});
     // -1 means nothing overwrote it, so no search ran.
     lastSearchStats.stepsUsed = -1;
-    const log = remember ? this.log : new RouteSearchLog();
-    const checkpoint = searchRouteTo(this.game, to, log, {
-      config: this.config as never,
-      remember,
-    });
+    const log = real ? this.log : new RouteSearchLog();
+    const checkpoint = searchRouteTo(this.game, to, log, {});
     this.last = {
       program,
       startFrom,
       changes: program.changes,
       resumption,
-      options,
       to,
       checkpoint,
       simulation: this.game.simulation,
@@ -320,10 +309,6 @@ class Session {
 /**
  * The same program, routed by a game that has never run: no route to resume, so
  * the scene is searched from the top.
- *
- * The favored conditions and choices are the ones the round being checked
- * started with, so the two searches are given the same question as well as the
- * same program.
  */
 function fromTheTop(round: CompiledRound): RouteOutcome {
   const game = new Game({
@@ -335,9 +320,7 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
   const log = new RouteSearchLog();
   const checkpoint =
     to != null
-      ? searchRouteTo(game, to, log, {
-          config: { simulationOptions: structuredClone(round.options) as never },
-        })
+      ? searchRouteTo(game, to, log, {})
       : undefined;
   return {
     to,
@@ -356,31 +339,6 @@ function walked(game: Game) {
   };
 }
 
-/**
- * A whole checkpoint, as far as anything downstream can tell it apart from
- * another: the story it restores, the state of every module, and the game's
- * runtime record. This is what the worker's game displays and PLAY's game
- * starts from, and what the worker reads its next route's favored decisions
- * out of, so it is what a reused route has to reproduce.
- *
- * Exactly two things are normalized, each because reproducing it is impossible
- * rather than because it is inconvenient:
- *
- *   - `storySeed`. Every story state picks one from the clock when it is
- *     created, and creating one is what a fresh game and a story reset both do.
- *     Two runs of the identical route through the identical program differ here
- *     and nowhere else.
- *   - `pathsExecutedThisFrame`. A replay resumed from a checkpoint continues
- *     from the state that checkpoint holds and never re-executes what came
- *     before it, so it never re-records those paths. That is how the replay has
- *     always worked — driving the same session with the compiler's change
- *     summary withheld, so only the older step-identity reuse runs, leaves the
- *     same gap — and no route resumed from the same checkpoint could put them
- *     back.
- *
- * Everything else is compared, including the module states and the encountered
- * choices and conditions.
- */
 const comparableCheckpoint = (checkpoint: string | undefined) => {
   if (!checkpoint) {
     return "";
@@ -482,7 +440,7 @@ function watchSearches() {
   const calls: { resumed: boolean }[] = [];
   const planRoute = Game.planRoute.bind(Game);
   vi.spyOn(Game, "planRoute").mockImplementation(((...args: unknown[]) => {
-    const budget = args[5] as { resumeFrom?: unknown } | undefined;
+    const budget = args[4] as { resumeFrom?: unknown } | undefined;
     calls.push({ resumed: budget?.resumeFrom != null });
     return planRoute(...(args as Parameters<typeof Game.planRoute>));
   }) as never);

@@ -106,7 +106,7 @@ export interface BlockInput {
   /** The lines the body spans. */
   span: number;
   /** For a function's body, the function: the chunk exports its symbol at
-   *  entry code that binds its parameters, makes its root bindings and
+   *  entry code that binds its parameters,
    *  declares the locals the lowering hoisted to the top of its body
    *  (`FunctionInput.hoisted`), and enters the body. */
   fn?: FunctionInput;
@@ -120,8 +120,7 @@ export interface FunctionInput {
   /** Its parameters, first to last, the captured variables a closure's
    *  lowering prepends to them included. */
   params: readonly { name: string; vararg: boolean; rootSlot?: string | null }[];
-  /** What its entry runs after binding its parameters: the root bindings of
-   *  a function written at the top level (`RootBinding`), then the
+  /** What its entry runs after binding its parameters: the
    *  `local NAME = nil` declarations the lowering hoisted to the top of its
    *  body. */
   hoisted: readonly ParsedObject[];
@@ -717,7 +716,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
 
   /** Binds a function's parameters from the evaluation stack, last first as
    *  the arguments were pushed, then runs what the lowering hoisted to its
-   *  entry: its root bindings and the locals hoisted to the top of its body
+   *  entry: the locals hoisted to the top of its body
    *  (`FunctionInput.hoisted`). */
   protected emitParameters(
     params: FunctionInput["params"],
@@ -732,7 +731,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   /** The entry code of each function the statement writes, after the
    *  statement's own code, which jumps past it: the chunk exports the
    *  function's symbol where its entry binds the parameters, last first as
-   *  the arguments were pushed, makes its root bindings and declares the
+   *  the arguments were pushed, declares the
    *  locals the lowering hoisted to the top of the body, and enters the body. The body's end resumes the
    *  entry at a return of nothing, as a function that runs off its end
    *  returns. A top-level function's definition has no code before its
@@ -1623,7 +1622,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.GetVar:
       case Op.SetVar:
       case Op.VarPtr:
-      case Op.BindRoot:
       case Op.CallVar:
       case Op.JumpVar:
       case Op.Tag:
@@ -1870,7 +1868,6 @@ export const describeInstruction = (
     case Op.GetVar:
     case Op.SetVar:
     case Op.VarPtr:
-    case Op.BindRoot:
       return `${name} ${table.strings[arg]}${flagText}`;
     case Op.CallVar:
       return `${name} ${table.strings[arg]}/${aux}${flagText}`;
