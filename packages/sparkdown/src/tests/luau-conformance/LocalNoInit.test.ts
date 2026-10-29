@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("`local x` bare declaration (no init)", () => {
   test("declares variable initialized to nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x
@@ -54,8 +57,11 @@ end
 
   test("subsequent re-assignment writes to the local, not a new global", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -76,8 +82,11 @@ end
     // fallback), but the key thing is y is NOT a global with the
     // assigned value 42 — host_record sees `false`.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()

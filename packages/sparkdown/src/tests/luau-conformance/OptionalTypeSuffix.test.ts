@@ -120,21 +120,21 @@ describe("a type ending in `?` ends at the `?`", () => {
 
 describe("the code after a type ending in `?` still runs", () => {
   test.each([
-    ["a local", `Value {f()}.\nfunction f()\n  local v: number?\n  return 5\nend\n`],
-    ["a local and a blank line", `Value {f()}.\nfunction f()\n  local v: number?\n\n  return 5\nend\n`],
-    ["a local with a statement on the same line", `Value {f()}.\nfunction f()\n  local v: number? return 5\nend\n`],
-    ["a type alias with a statement on the same line", `Value {f()}.\nfunction f()\n  type T = number? return 5\nend\n`],
-    ["a return type", `Value {f()}.\nfunction f(): number?\n  return 5\nend\n`],
-    ["a return type and a blank line", `Value {f()}.\nfunction f(): number?\n\n  return 5\nend\n`],
-    ["a return type with its body on the same line", `Value {f()}.\nfunction f(): number? return 5 end\n`],
-    ["an optional table return type", `Value {f()}.\nfunction f(): {number}?\n  return 5\nend\n`],
-    ["an optional return type in a union", `Value {f()}.\nfunction f(): number? | string\n  return 5\nend\n`],
-    ["a table return type", `Value {f()}.\nfunction f(): {number}\n  return 5\nend\n`],
-    ["a generic return type", `Value {f()}.\nfunction f(): Array<number>\n  return 5\nend\n`],
-    ["a string literal return type", `Value {f()}.\nfunction f(): "x"\n  return 5\nend\n`],
-    ["a single-quoted string literal return type", `Value {f()}.\nfunction f(): 'x'\n  return 5\nend\n`],
-    ["a parenthesized return type", `Value {f()}.\nfunction f(): (number)\n  return 5\nend\n`],
-    ["a type alias", `Value {f()}.\nfunction f()\n  type T = number?\n  return 5\nend\n`],
+    ["a local", `function f()\n  local v: number?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a local and a blank line", `function f()\n  local v: number?\n\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a local with a statement on the same line", `function f()\n  local v: number? return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a type alias with a statement on the same line", `function f()\n  type T = number? return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a return type", `function f(): number?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a return type and a blank line", `function f(): number?\n\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a return type with its body on the same line", `function f(): number? return 5 end\nscene start\n  Value {f()}.\nend\n`],
+    ["an optional table return type", `function f(): {number}?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["an optional return type in a union", `function f(): number? | string\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a table return type", `function f(): {number}\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a generic return type", `function f(): Array<number>\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a string literal return type", `function f(): "x"\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a single-quoted string literal return type", `function f(): 'x'\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a parenthesized return type", `function f(): (number)\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a type alias", `function f()\n  type T = number?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
   ])("after %s", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
@@ -144,7 +144,7 @@ describe("the code after a type ending in `?` still runs", () => {
   test.each([["type Bar = |?"], ["type Baz = ?"], ["local _v: ?number"]])(
     "after `%s`, which is reported, the rest of the function still runs",
     (line) => {
-      const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  ${line}\n  return 5\nend\n`);
+      const ctx = makeRuntimeStoryFromSource(`function f()\n  ${line}\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`);
       expect(ctx.errorMessages).toContain("Expected type, got '?'");
       expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
     },
@@ -152,15 +152,15 @@ describe("the code after a type ending in `?` still runs", () => {
 
   test("a local declared after one with an optional type stays local", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `Value {f()} {s}.\nfunction f()\n  local _v: number?\n  local s = 7\n  return s\nend\n`,
+      `function f()\n  local _v: number?\n  local s = 7\n  return s\nend\nscene start\n  Value {f()} {s}.\nend\n`,
     );
     expect(ctx.story.ContinueMaximally()).toBe("Value 7 nil.\n");
   });
 
   test.each([
-    ["a local", `Before.\nfunction f()\n  local _v: number?\nend\nAfter.\n`],
-    ["a return type", `Before.\nfunction f(): number?\nend\nAfter.\n`],
-    ["a type alias", `Before.\nfunction f()\n  type T = number?\nend\nAfter.\n`],
+    ["a local", `scene start\n  Before.\n  -> after\nend\nfunction f()\n  local _v: number?\nend\nscene after\n  After.\nend\n`],
+    ["a return type", `scene start\n  Before.\n  -> after\nend\nfunction f(): number?\nend\nscene after\n  After.\nend\n`],
+    ["a type alias", `scene start\n  Before.\n  -> after\nend\nfunction f()\n  type T = number?\nend\nscene after\n  After.\nend\n`],
   ])("the text after a function ending in %s stays prose", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
@@ -190,14 +190,14 @@ describe("a space before the `?` suffix still reads as Luau", () => {
   });
 
   test.each([
-    ["a local", `Value {f()}.\nfunction f()\n  local v: number ? = 5\n  return v\nend\n`],
-    ["a local whose value follows the `?` directly", `Value {f()}.\nfunction f()\n  local v: number ?= 5\n  return v\nend\n`],
-    ["a named type", `Value {f()}.\nfunction f()\n  local v: Foo ? = 5\n  return v\nend\n`],
-    ["a qualified type", `Value {f()}.\nfunction f()\n  local v: Foo.Bar ? = 5\n  return v\nend\n`],
-    ["a block comment before the `?`", `Value {f()}.\nfunction f()\n  local v: number --[[c]] ? = 5\n  return v\nend\n`],
-    ["a type alias", `Value {f()}.\nfunction f()\n  type T = number ?\n  return 5\nend\n`],
-    ["a return type", `Value {f()}.\nfunction f(): number ?\n  return 5\nend\n`],
-    ["a union", `Value {f()}.\nfunction f()\n  local v: number ? | string = 5\n  return v\nend\n`],
+    ["a local", `function f()\n  local v: number ? = 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a local whose value follows the `?` directly", `function f()\n  local v: number ?= 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a named type", `function f()\n  local v: Foo ? = 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a qualified type", `function f()\n  local v: Foo.Bar ? = 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a block comment before the `?`", `function f()\n  local v: number --[[c]] ? = 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a type alias", `function f()\n  type T = number ?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a return type", `function f(): number ?\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`],
+    ["a union", `function f()\n  local v: number ? | string = 5\n  return v\nend\nscene start\n  Value {f()}.\nend\n`],
   ])("the code after %s still runs", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
@@ -206,7 +206,7 @@ describe("a space before the `?` suffix still reads as Luau", () => {
 
   test("the text after a spaced optional type in a scene stays prose", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> s\nscene s\n  Before.\n  local w: number ?\n  After.\nend\n`,
+      `scene start\n  Before.\n  local w: number ?\n  After.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Before.\nAfter.\n");

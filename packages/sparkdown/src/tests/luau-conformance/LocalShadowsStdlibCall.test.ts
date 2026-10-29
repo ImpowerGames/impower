@@ -40,9 +40,9 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines as the body of a scene the story diverts to, where a local
+// The lines as the body of the scene the story starts in, where a local
 // belongs.
-const inScene = (...body: string[]) => ["-> start", "scene start", ...body.map((line) => `  ${line}`), "end"];
+const inScene = (...body: string[]) => ["scene start", ...body.map((line) => `  ${line}`), "end"];
 
 describe("a scene's local of a stdlib name", () => {
   test.each([
@@ -169,7 +169,7 @@ describe("a function's local of a stdlib name", () => {
         "  local math = { abs = function(v) return 77 end }",
         "  return before .. ' ' .. type(7) .. ' ' .. math.abs(-3)",
         "end",
-        "Got {g()}.",
+        ...inScene("Got {g()}."),
       ]),
     ).toEqual(got("Got number custom 77."));
   });
@@ -185,7 +185,7 @@ describe("a function's local of a stdlib name out of scope at the call", () => {
     ...g.map((line) => `  ${line}`),
     "  return g()",
     "end",
-    "Got {outer()}.",
+    ...inScene("Got {outer()}."),
   ];
 
   test("leaves the outer local to a call written before it", () => {
@@ -244,7 +244,7 @@ describe("a function's local of a stdlib name out of scope at the call", () => {
         "  local type = 1",
         "  return before",
         "end",
-        "Got {g()}.",
+        ...inScene("Got {g()}."),
       ]),
     ).toEqual(got("Got 3 number."));
   });
@@ -327,12 +327,14 @@ describe("the arity of a stdlib namespace member's call", () => {
   test("is not the builtin's when the script replaces the namespace", () => {
     expect(
       arityWarnings([
-        'math = { abs = function(a, b) return tostring(a) .. "/" .. tostring(b) end }',
         "function none()",
         "end",
-        "Two literals give {math.abs(1, 2)}.",
-        "Nothing then two gives {math.abs(none(), 2)}.",
-        "One gives {math.abs(1)}.",
+        ...inScene(
+          'math = { abs = function(a, b) return tostring(a) .. "/" .. tostring(b) end }',
+          "Two literals give {math.abs(1, 2)}.",
+          "Nothing then two gives {math.abs(none(), 2)}.",
+          "One gives {math.abs(1)}.",
+        ),
       ]),
     ).toEqual([]);
   });
@@ -343,22 +345,21 @@ describe("the arity of a stdlib namespace member's call", () => {
         "function setup()",
         "  math = { abs = function(a, b) return a end }",
         "end",
-        "& setup()",
-        "Got {math.abs(1, 2)}.",
+        ...inScene("& setup()", "Got {math.abs(1, 2)}."),
       ]),
     ).toEqual([]);
   });
 
   test("follows an edit that adds, then removes, the replacement", () => {
-    const replacement = "math = { abs = function(a, b) return a end }\n";
-    const session = programSession("store n = 0\nGot {math.abs(1, 2)}.\n");
+    const replacement = "  math = { abs = function(a, b) return a end }\n";
+    const session = programSession("store n = 0\nscene start\n  Got {math.abs(1, 2)}.\nend\n");
     const warnings = () =>
       Object.values(session.program.diagnostics ?? {})
         .flat()
         .map((d) => (typeof d.message === "string" ? d.message : d.message.value))
         .filter((m) => m.includes("should take"));
     expect(warnings()).toEqual(["math.abs should take 1 parameter, got 2"]);
-    session.edit("store n = 0\n", `store n = 0\n${replacement}`);
+    session.edit("scene start\n", `scene start\n${replacement}`);
     expect(warnings()).toEqual([]);
     session.edit(replacement, "");
     expect(warnings()).toEqual(["math.abs should take 1 parameter, got 2"]);
@@ -376,15 +377,14 @@ describe("the arity of a stdlib namespace member's call", () => {
   // builtin's type describing the call.
   test("is the builtin's when the script writes only the member", () => {
     expect(
-      arityWarnings([
-        "math.abs = function(a, b) return a end",
-        "Got {math.abs(1, 2)}.",
-      ]),
+      arityWarnings(
+        inScene("math.abs = function(a, b) return a end", "Got {math.abs(1, 2)}."),
+      ),
     ).toEqual(["math.abs should take 1 parameter, got 2"]);
   });
 
   test("is the builtin's when nothing replaces it", () => {
-    expect(arityWarnings(["Got {math.abs(1, 2)}."])).toEqual([
+    expect(arityWarnings(inScene("Got {math.abs(1, 2)}."))).toEqual([
       "math.abs should take 1 parameter, got 2",
     ]);
   });
@@ -405,7 +405,7 @@ describe("a deprecated stdlib call", () => {
     );
 
   test("keeps its hint with no local of the name", () => {
-    expect(deprecations(["Got {math.pow(2, 3)} {table.getn({1})}."])).toHaveLength(2);
+    expect(deprecations(inScene("Got {math.pow(2, 3)} {table.getn({1})}."))).toHaveLength(2);
   });
 
   test("keeps its hint when written before a local of the namespace", () => {

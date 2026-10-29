@@ -58,8 +58,11 @@ describe("run statement", () => {
     const luau = `harness_record(42)
 `;
     const main = `external harness_record(v)
-${runLine}
-done
+
+scene start
+  ${runLine}
+  done
+end
 `;
     const { result, errs } = compileWithFiles([
       { uri: "inmemory:///main.sd", text: main },
@@ -80,7 +83,7 @@ done
 
   test("errors on missing .luau file", () => {
     const { errs } = compileWithFiles([
-      { uri: "inmemory:///main.sd", text: `run "doesnotexist"\ndone\n` },
+      { uri: "inmemory:///main.sd", text: `run "doesnotexist"\nscene start\n  done\nend\n` },
     ]);
     expect(errs.some((m) => m.includes("doesnotexist"))).toBe(true);
   });
@@ -91,7 +94,7 @@ done
     "errors on a run with no path: %s",
     (runLine) => {
       const { errs } = compileWithFiles([
-        { uri: "inmemory:///main.sd", text: `${runLine}\ndone\n` },
+        { uri: "inmemory:///main.sd", text: `${runLine}\nscene start\n  done\nend\n` },
       ]);
       expect(errs).toEqual(["Expected a file path after 'run'."]);
     },
@@ -119,7 +122,7 @@ done
       files: [
         {
           uri: "inmemory:///main.sd",
-          text: `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\n`,
+          text: `external harness_record(v)\nscene start\n  run "helper"\n  run "helper"\n  done\nend\n`,
         },
       ],
     },
@@ -129,7 +132,7 @@ done
       files: [
         {
           uri: "inmemory:///main.sd",
-          text: `external harness_record(v)\nrun "helper"\nrun "./helper"\ndone\n`,
+          text: `external harness_record(v)\nscene start\n  run "helper"\n  run "./helper"\n  done\nend\n`,
         },
       ],
     },
@@ -139,7 +142,7 @@ done
       files: [
         {
           uri: "inmemory:///main.sd",
-          text: `external harness_record(v)\nrun "lib/helper"\nrun "./lib/helper"\ndone\n`,
+          text: `external harness_record(v)\nscene start\n  run "lib/helper"\n  run "./lib/helper"\n  done\nend\n`,
         },
       ],
     },
@@ -154,19 +157,22 @@ done
 
   // I-1439: a run line calls the wrapper where it stands, between the
   // statements around it, and one in a scene each time the scene plays.
-  test("runs where its line stands, at the top level and each time a scene that holds it plays", () => {
+  test("runs where its line stands, in the start scene and each time a scene that holds it plays", () => {
     const { result, errs } = compileWithFiles([
       {
         uri: "inmemory:///main.sd",
         text: [
           "external harness_record(v)",
-          '& harness_record("before")',
-          'run "helper"',
-          '& harness_record("after")',
-          "-> s ->",
-          "-> s ->",
-          '& harness_record("done")',
-          "done",
+          "",
+          "scene start",
+          '  & harness_record("before")',
+          '  run "helper"',
+          '  & harness_record("after")',
+          "  -> s ->",
+          "  -> s ->",
+          '  & harness_record("done")',
+          "  done",
+          "end",
           "",
           "scene s",
           '  & harness_record("in s")',
@@ -195,7 +201,7 @@ done
   // of the scene, and runs when the scene plays.
   test("runs a run line in a scene of a script other than main", () => {
     const { result, errs } = compileWithFiles([
-      { uri: "inmemory:///main.sd", text: "external harness_record(v)\n-> s\n" },
+      { uri: "inmemory:///main.sd", text: "external harness_record(v)\nscene start\n  -> s\nend\n" },
       {
         uri: "inmemory:///chapters/chapter.sd",
         text: 'scene s\n  run "../helpers"\n  done\nend\n',
@@ -206,22 +212,32 @@ done
     expect(recordedRun(result.program.chunks)).toEqual([7]);
   });
 
-  // A script other than main holds declarations only (#1387): a run line
-  // there is reported and dropped, and main's run line runs the file once.
-  test("reports a run line in a script other than main, and runs main's alone", () => {
+  // A run line at the top level of a script runs its file with the
+  // declarations, before the story starts.
+  test("runs a run line at the top level of a script with the declarations", () => {
     const { result, errs } = compileWithFiles([
       {
         uri: "inmemory:///main.sd",
-        text: `external harness_record(v)\nrun "helper"\ndone\n`,
+        text: `store count = 0\nrun "helper"\n\nscene start\n  Count {count}.\nend\n`,
+      },
+      { uri: "inmemory:///helper.luau", text: `count = count + 1\n` },
+    ]);
+    expect(errs).toEqual([]);
+    expect(testStory(result.program.chunks).ContinueMaximally()).toBe("Count 1.\n");
+  });
+
+  test("runs a run line at the top level of a script other than main with the declarations", () => {
+    const { result, errs } = compileWithFiles([
+      {
+        uri: "inmemory:///main.sd",
+        text: `store count = 0\nrun "helper"\n\nscene start\n  Count {count}.\nend\n`,
       },
       { uri: "inmemory:///lib/chapter.sd", text: `run "helper"\n` },
-      { uri: "inmemory:///helper.luau", text: `harness_record(1)\n` },
-      { uri: "inmemory:///lib/helper.luau", text: `harness_record(2)\n` },
+      { uri: "inmemory:///helper.luau", text: `count = count + 1\n` },
+      { uri: "inmemory:///lib/helper.luau", text: `count = count + 10\n` },
     ]);
-    expect(errs).toEqual([
-      "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.",
-    ]);
-    expect(recordedRun(result.program.chunks)).toEqual([1]);
+    expect(errs).toEqual([]);
+    expect(testStory(result.program.chunks).ContinueMaximally()).toBe("Count 11.\n");
   });
 
   // Two files whose URIs a 32-bit hash would give one value (round 3 of PR
@@ -230,7 +246,7 @@ done
     const { result, errs } = compileWithFiles([
       {
         uri: "inmemory:///main.sd",
-        text: `external harness_record(v)\nrun "d68kpfa1p5a91s/helper"\nrun "dux1d8u1w62cf0/helper"\ndone\n`,
+        text: `external harness_record(v)\nscene start\n  run "d68kpfa1p5a91s/helper"\n  run "dux1d8u1w62cf0/helper"\n  done\nend\n`,
       },
       {
         uri: "inmemory:///d68kpfa1p5a91s/helper.luau",
@@ -249,13 +265,11 @@ done
   // directories, by several paths each, compiles incrementally to what a
   // cold compile of the same text gives (round 2 of PR #1928's review).
   test("runs files from several directories alike, cold and after each reordering", () => {
-    // Only main runs a file (#1387), so every path is written from main's
-    // folder.
     const sections = [
-      `run "helper"\nrun "./helper"\n`,
-      `run "a/helper"\nrun "./a/helper"\n`,
-      `run "b/helper"\nrun "./b/helper"\nrun "a/helper"\n`,
-      `run "a/helper"\n`,
+      `  run "helper"\n  run "./helper"\n`,
+      `  run "a/helper"\n  run "./a/helper"\n`,
+      `  run "b/helper"\n  run "./b/helper"\n  run "a/helper"\n`,
+      `  run "a/helper"\n`,
     ];
     const files = [
       ...["helper", "a/helper", "b/helper"].map((name, i) => ({
@@ -264,7 +278,7 @@ done
       })),
     ];
     const mainWith = (order: number[]) =>
-      `external harness_record(v)\n${order.map((i) => sections[i]).join("")}done\n`;
+      `external harness_record(v)\nscene start\n${order.map((i) => sections[i]).join("")}  done\nend\n`;
     const orders = (rest: number[]): number[][] =>
       rest.length === 0
         ? [[]]
@@ -304,7 +318,7 @@ done
   // changes what `debug.info` reports for it nor makes it collide with an
   // author's function (round 3 of PR #1928's review).
   test("names the wrapper alike cold and after an edit above a run line", () => {
-    const text = `external harness_record(v)\nrun "helper"\nrun "helper"\ndone\nfunction __run_helper_2()\n  return 9\nend\nfunction __run_helper_3()\n  return 9\nend\n`;
+    const text = `external harness_record(v)\nscene start\n  run "helper"\n  run "helper"\n  done\nend\nfunction __run_helper_2()\n  return 9\nend\nfunction __run_helper_3()\n  return 9\nend\n`;
     const helper = {
       uri: "inmemory:///helper.luau",
       text: `harness_record(debug.info(1, "n"))\n`,
@@ -323,10 +337,10 @@ done
       contentChanges: [
         {
           range: {
-            start: { line: 1, character: 0 },
-            end: { line: 1, character: 0 },
+            start: { line: 2, character: 0 },
+            end: { line: 2, character: 0 },
           },
-          text: "; insert above\n",
+          text: "  // insert above\n",
         },
       ],
     });
@@ -334,7 +348,7 @@ done
       textDocument: { uri: "inmemory:///main.sd" },
     });
     const cold = compileWithFiles([
-      { uri: "inmemory:///main.sd", text: text.replace("run", "; insert above\nrun") },
+      { uri: "inmemory:///main.sd", text: text.replace("  run", "  // insert above\n  run") },
       helper,
     ]);
     expect(messagesOf(warm).errs).toEqual([]);
@@ -345,7 +359,7 @@ done
 
   test("runs one file once per run line across incremental compiles", () => {
     const mainWith = (runLines: number) =>
-      `external harness_record(v)\n${'run "helper"\n'.repeat(runLines)}done\n`;
+      `external harness_record(v)\nscene start\n${'  run "helper"\n'.repeat(runLines)}  done\nend\n`;
     const { compiler, result: first } = compileWithFiles([
       { uri: "inmemory:///main.sd", text: mainWith(2) },
       { uri: "inmemory:///helper.luau", text: `harness_record(42)\n` },
@@ -389,7 +403,7 @@ done
     const { compiler, result: first } = compileWithFiles([
       {
         uri: "inmemory:///main.sd",
-        text: `external harness_record(v)\nrun "helper"\ndone\n`,
+        text: `external harness_record(v)\nscene start\n  run "helper"\n  done\nend\n`,
       },
       { uri: "inmemory:///helper.luau", text: `harness_record(1)\n` },
     ]);
