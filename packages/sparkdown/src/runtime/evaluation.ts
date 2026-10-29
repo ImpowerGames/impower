@@ -346,7 +346,7 @@ export function rootSlotCell(
  * replace, when the scope holds it with no slot of the name at all: one an
  * engine before the slots made, which a save it wrote holds. Its cell goes in
  * the slot `<name>$0`, which the declaration's replacement closes on the
- * binding's value, so a function or a closure that reads a declaration whose
+ * binding's value, so a closure that reads a declaration whose
  * slot that engine never wrote still reaches the binding it left (I-1374).
  */
 export function keepLegacyRootBinding(callStack: CallStack, name: string): void {

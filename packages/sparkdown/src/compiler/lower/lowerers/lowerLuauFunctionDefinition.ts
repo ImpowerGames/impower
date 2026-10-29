@@ -97,8 +97,7 @@ export function lowerLuauFunctionDefinition(
     // (Luau), while bare `function NAME` is sugar for `NAME = function()
     // end` (I-1422): it assigns the local named NAME in scope where it is
     // written (a parameter, a `local`, a local function, an enclosing
-    // function's local, a top-level `local` the function's entry binds),
-    // and the global NAME when none is.
+    // function's local), and the global NAME when none is.
     const isLocal = stat instanceof AstStatLocalFunction;
     // A variadic function (`function f(a, ...) ... end`) is a closure
     // too, which packs its `...` when a call runs it, as every call

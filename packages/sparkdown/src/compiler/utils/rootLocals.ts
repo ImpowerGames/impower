@@ -120,7 +120,7 @@ interface Flow {
  * document's declarations of its name: a name declared once is `ROOT_ONLY`,
  * and the binding of each declaration of a name declared more than once is
  * kept under a slot of its own (`rootSlotName`), which the declarations
- * after it leave in place, as a function written at the top level reads a
+ * after it leave in place, as a closure built in the root frame captures a
  * top-level `local` through it. A top-level `local` is a compile error, so
  * only a save of a program an earlier engine ran holds such a binding.
  */
