@@ -160,15 +160,16 @@ export const pinnedNotOffered = (
   offeredBefore: ReadonlySet<string> = new Set(),
 ): { source: string; offer: number }[] => {
   const missing: { source: string; offer: number }[] = [];
-  const first = sources[0];
-  if (pinned.offers.size === 0 || first === undefined) {
+  if (pinned.offers.size === 0 || sources.length === 0) {
     return missing;
   }
-  const chunk = chunkOfAddress(Number(first));
+  // A thread can add the options the menu lists first, so every offered
+  // option's statement counts.
+  const chunks = new Set(sources.map((source) => chunkOfAddress(Number(source))));
   for (const [source, offers] of pinned.offers) {
     if (
       sources.includes(source) ||
-      (chunkOfAddress(Number(source)) !== chunk && !offeredBefore.has(source))
+      (!chunks.has(chunkOfAddress(Number(source))) && !offeredBefore.has(source))
     ) {
       continue;
     }

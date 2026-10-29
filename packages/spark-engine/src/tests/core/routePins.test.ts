@@ -282,6 +282,39 @@ describe("the preview's route keeps the author's pins", () => {
     expect(choice!.unofferedPins).toEqual([pin(5)]);
   }, 120_000);
 
+  test("a choice entry names its stop's pin on an option the menu did not offer when a thread adds the option the menu lists first", () => {
+    const lines = [
+      "store key = false",
+      "-> start",
+      "scene start",
+      "  <- side",
+      "  choose",
+      "    * if key [Show the key.]",
+      "      Shown.",
+      "    * [Wait.]",
+      "      Waited.",
+      "  end",
+      "  After.",
+      "end",
+      "scene side",
+      "  choose",
+      "    + [Thread option.]",
+      "      Threaded.",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 9, [pin(6)]);
+    const [choice] = route.decisions;
+    expect(choice!.options!.map((o) => o.text)).toEqual([
+      "Thread option.",
+      "Wait.",
+    ]);
+    expect([choice!.text, choice!.notFollowed]).toEqual(["Wait.", true]);
+    expect(choice!.unofferedPins).toEqual([pin(6)]);
+  }, 120_000);
+
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",
