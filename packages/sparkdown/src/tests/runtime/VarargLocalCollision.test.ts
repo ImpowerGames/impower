@@ -9,8 +9,7 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(body: string, callArgs: string): { errors: string[]; recorded: unknown[] } {
   const { story, errorMessages } = makeRuntimeStoryFromSource(`external host_record(v)
--> main
-scene main
+scene start
   & f(${callArgs})
   done
 end

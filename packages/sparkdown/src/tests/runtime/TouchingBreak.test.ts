@@ -52,8 +52,18 @@ function steps(story: TestStory): Step[] {
 // compiler warns about; nothing else may be reported.
 const UNDECLARED = /^Cannot find character named/;
 
+// The lines before the first `scene` header are the body of `scene start`.
+function inStart(source: string): string {
+  const header = source.search(/^scene /m);
+  const body = header < 0 ? source : source.slice(0, header);
+  const rest = header < 0 ? "" : source.slice(header);
+  const eol = body.includes("\r\n") ? "\r\n" : "\n";
+  const indented = body.replace(/^(?=[^\r\n])/gm, "  ");
+  return `scene start${eol}${indented}end${eol}${rest}`;
+}
+
 function run(source: string): { steps: Step[]; warnings: string[] } {
-  const ctx = makeRuntimeStoryFromSource(source);
+  const ctx = makeRuntimeStoryFromSource(inStart(source));
   expect(ctx.errorMessages).toEqual([]);
   expect(
     ctx.warningMessages.filter((message) => !UNDECLARED.test(message)),
@@ -197,7 +207,7 @@ describe("a `>` break that touches the words around it", () => {
 
   test("a line's tags stay with the beat a touching line-end break ends", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `HERO:\n  Hi.># first\n  Bye. # second\n`,
+      inStart(`HERO:\n  Hi.># first\n  Bye. # second\n`),
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Hi.\n");
@@ -258,9 +268,11 @@ describe("a `>` break that touches the words around it", () => {
     }
     // The word after `-->` is a divert target, so one that names no scene
     // is a compile error, as it is after `->`.
-    const dashed = collectDiagnostics(`A-->nowhere\n`).errorMessages;
+    const dashed = collectDiagnostics(inStart(`A-->nowhere\n`)).errorMessages;
     expect(dashed).not.toEqual([]);
-    expect(dashed).toEqual(collectDiagnostics(`A->nowhere\n`).errorMessages);
+    expect(dashed).toEqual(
+      collectDiagnostics(inStart(`A->nowhere\n`)).errorMessages,
+    );
   });
 
   // A divert that begins the text after a break, a cue's colon or a block's

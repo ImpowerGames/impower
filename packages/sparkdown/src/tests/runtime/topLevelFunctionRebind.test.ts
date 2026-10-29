@@ -27,50 +27,63 @@ const outcome = ({ program }: { program: SparkProgram }) => {
 
 const run = (text: string) => outcome(compileScript(text));
 
+// The scene the story starts in, holding the lines it runs.
+const start = (...lines: string[]) =>
+  `scene start\n${lines.map((line) => `  ${line}\n`).join("")}end\n`;
+
 const cases: [string, string, string][] = [
   [
     "an `&` assignment rebinds a top-level function",
-    "function f(...) return 7 end\n& f = function(...) return 2 end\nf is {f()}.\n",
+    "function f(...) return 7 end\n" +
+      start("& f = function(...) return 2 end", "f is {f()}."),
     "f is 2.\n",
   ],
   [
     "a call before the rebind runs the original",
-    "function f() return 7 end\nbefore {f()}.\n& f = function() return 2 end\nafter {f()}.\n",
+    "function f() return 7 end\n" +
+      start("before {f()}.", "& f = function() return 2 end", "after {f()}."),
     "before 7.\nafter 2.\n",
   ],
   [
     "an assignment inside a function rebinds the global",
-    "function f() return 7 end\nfunction swap() f = function() return 3 end end\n& swap()\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap() f = function() return 3 end end\n" +
+      start("& swap()", "f is {f()}."),
     "f is 3.\n",
   ],
   [
     "a local of the name in a block that has closed does not hide the global",
-    "function f() return 7 end\nfunction swap()\n  do\n    local f = function() return 3 end\n  end\n  f = function() return 2 end\nend\n& swap()\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap()\n  do\n    local f = function() return 3 end\n  end\n  f = function() return 2 end\nend\n" +
+      start("& swap()", "f is {f()}."),
     "f is 2.\n",
   ],
   [
     "a local of the name declared after the assignment does not hide the global",
-    "function f() return 7 end\nfunction swap()\n  f = function() return 2 end\n  local f = function() return 3 end\nend\n& swap()\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap()\n  f = function() return 2 end\n  local f = function() return 3 end\nend\n" +
+      start("& swap()", "f is {f()}."),
     "f is 2.\n",
   ],
   [
     "a nested function written after a closed block's local assigns the global",
-    "function f() return 7 end\nfunction swap()\n  if true then\n    local f = function() return 3 end\n  end\n  if true then\n    function h(...)\n      f = function() return 2 end\n    end\n    h()\n  end\nend\n& swap()\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap()\n  if true then\n    local f = function() return 3 end\n  end\n  if true then\n    function h(...)\n      f = function() return 2 end\n    end\n    h()\n  end\nend\n" +
+      start("& swap()", "f is {f()}."),
     "f is 2.\n",
   ],
   [
     "an assignment to a local of the name in scope leaves the function alone",
-    "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  f = function() return 2 end\nend\n& swap()\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  f = function() return 2 end\nend\n" +
+      start("& swap()", "f is {f()}."),
     "f is 7.\n",
   ],
   [
     "an assignment to a parameter of the name leaves the function alone",
-    "function f() return 7 end\nfunction swap(f)\n  f = function() return 2 end\nend\n& swap(1)\nf is {f()}.\n",
+    "function f() return 7 end\nfunction swap(f)\n  f = function() return 2 end\nend\n" +
+      start("& swap(1)", "f is {f()}."),
     "f is 7.\n",
   ],
   [
     "a function that calls f sees the rebind when it runs",
-    "function f() return 7 end\nfunction g() return f() end\n& f = function() return 4 end\ng is {g()}.\n",
+    "function f() return 7 end\nfunction g() return f() end\n" +
+      start("& f = function() return 4 end", "g is {g()}."),
     "g is 4.\n",
   ],
   // Each level of the original body calls the global, which is the wrapper:
@@ -78,27 +91,43 @@ const cases: [string, string, string][] = [
   // the original would give 100 + 6.
   [
     "the function's own recursive call reaches the rebound value",
-    "function f(n)\n  if n <= 0 then\n    return 0\n  end\n  return n + f(n - 1)\nend\n-> start\nscene start\n  & local old = f\n  & f = function(n) return 100 + old(n) end\n  f is {f(3)}.\nend\n",
+    "function f(n)\n  if n <= 0 then\n    return 0\n  end\n  return n + f(n - 1)\nend\n" +
+      start(
+        "& local old = f",
+        "& f = function(n) return 100 + old(n) end",
+        "f is {f(3)}.",
+      ),
     "f is 406.\n",
   ],
   [
     "a value read before the rebind keeps the original",
-    "function f() return 7 end\n-> start\nscene start\n  & local g = f\n  & f = function() return 2 end\n  g is {g()}, f is {f()}.\nend\n",
+    "function f() return 7 end\n" +
+      start(
+        "& local g = f",
+        "& f = function() return 2 end",
+        "g is {g()}, f is {f()}.",
+      ),
     "g is 7, f is 2.\n",
   ],
   [
     "a call passes the rebound function the parameters it takes",
-    "function f() return 7 end\n& f = function(x) return x end\nf is {f(2)}.\n",
+    "function f() return 7 end\n" +
+      start("& f = function(x) return x end", "f is {f(2)}."),
     "f is 2.\n",
   ],
   [
     "a call need not pass the original's parameters",
-    "function f(x) return x end\n& f = function() return 2 end\nf is {f()}.\n",
+    "function f(x) return x end\n" +
+      start("& f = function() return 2 end", "f is {f()}."),
     "f is 2.\n",
   ],
   [
     "a local function value rebinds (control)",
-    "-> start\nscene start\n  local f = function(...) return 7 end\n  & f = function(...) return 2 end\n  f is {f()}.\nend\n",
+    start(
+      "local f = function(...) return 7 end",
+      "& f = function(...) return 2 end",
+      "f is {f()}.",
+    ),
     "f is 2.\n",
   ],
 ];
@@ -137,9 +166,11 @@ describe("rebinding a top-level named function (#1591)", () => {
     expect(result.text).toBe(expected);
   });
 
-  const fixed = "function f() return 7 end\n& x = 1\nf is {f()}.\n";
+  const fixed =
+    "function f() return 7 end\n" + start("& x = 1", "f is {f()}.");
   const rebound =
-    "function f() return 7 end\n& f = function() return 2 end\nf is {f()}.\n";
+    "function f() return 7 end\n" +
+    start("& f = function() return 2 end", "f is {f()}.");
   it("an edit that adds the assignment rebinds the call", () => {
     expect(
       runAfterEdit(fixed, "& x = 1", "& f = function() return 2 end"),
@@ -152,25 +183,29 @@ describe("rebinding a top-level named function (#1591)", () => {
   });
   it("a nested function's write to a captured local keeps the call held to the function's parameters", () => {
     const text =
-      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n" +
+      start("& swap()", "f is {f()}.");
     const { errors } = run(text);
     expect(errors).toHaveLength(1);
     expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
   });
   it("a same-named function nested elsewhere is no site of the function that writes the local", () => {
     const text =
-      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\n  function g(...)\n    function h(...) return 0 end\n    h()\n  end\n  g()\nend\n& swap()\nf is {f()}.\n";
+      "function f(x) return x end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\n  function g(...)\n    function h(...) return 0 end\n    h()\n  end\n  g()\nend\n" +
+      start("& swap()", "f is {f()}.");
     const { errors } = run(text);
     expect(errors).toHaveLength(1);
     expect(JSON.stringify(errors[0])).toContain("requires 1 argument");
   });
   it("a nested function's write to a captured local leaves the function alone", () => {
     const text =
-      "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n& swap()\nf is {f()}.\n";
+      "function f() return 7 end\nfunction swap()\n  local f = function() return 3 end\n  function h(...)\n    f = function() return 2 end\n  end\n  h()\nend\n" +
+      start("& swap()", "f is {f()}.");
     expect(run(text)).toEqual({ text: "f is 7.\n", errors: [] });
   });
   it("an edit that adds the assignment releases the call from the original's parameters", () => {
-    const before = "function f() return 7 end\n& x = 1\nf is {f(2)}.\n";
+    const before =
+      "function f() return 7 end\n" + start("& x = 1", "f is {f(2)}.");
     expect(run(before).errors).toHaveLength(1);
     expect(
       runAfterEdit(before, "& x = 1", "& f = function(x) return x end"),

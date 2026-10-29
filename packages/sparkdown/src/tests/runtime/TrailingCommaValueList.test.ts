@@ -20,7 +20,7 @@ function run(source: string) {
 }
 
 const local = (declaration: string, body: string) =>
-  `Value {f()}.\nfunction f()\n${declaration}\n  ${body}\nend\n`;
+  `function f()\n${declaration}\n  ${body}\nend\nscene start\n  Value {f()}.\nend\n`;
 
 describe("Luau code: a declaration list continues after a trailing comma", () => {
   test.each([
@@ -134,7 +134,9 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     ["on the same line", "function f(...)\n  local a, b = 0, ...\n  return b\nend\n"],
     ["on the next line", "function f(...)\n  local a, b = 0,\n    ...\n  return b\nend\n"],
   ])("a vararg value %s", (_name, fn) => {
-    const { errors, text } = run(`Value {f(7, 8)}.\n${fn}`);
+    const { errors, text } = run(
+      `${fn}scene start\n  Value {f(7, 8)}.\nend\n`,
+    );
     expect(errors).toEqual([]);
     expect(text).toBe("Value 7.\n");
   });
@@ -145,7 +147,7 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     ["unindented", ""],
   ])("an if expression on the lines after the comma, %s", (_name, indent) => {
     const { errors, text } = run(
-      `Value {f(true)}{f(false)}.\nfunction f(c)\n  local a, g = 1,\n${indent}if c\n${indent}then 2\n${indent}else 3\n  return g\nend\n`,
+      `function f(c)\n  local a, g = 1,\n${indent}if c\n${indent}then 2\n${indent}else 3\n  return g\nend\nscene start\n  Value {f(true)}{f(false)}.\nend\n`,
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Value 23.\n");
@@ -172,7 +174,7 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     ],
   ])("an unindented if expression after the comma: %s", (_name, declaration, body, expected) => {
     const { errors, text } = run(
-      `Value {f(true)}.\nfunction f(c)\n${declaration}\n  ${body}\nend\n`,
+      `function f(c)\n${declaration}\n  ${body}\nend\nscene start\n  Value {f(true)}.\nend\n`,
     );
     expect(errors).toEqual([]);
     expect(text).toBe(expected);
@@ -180,7 +182,7 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
 
   test("an unindented if after a type annotation stays an if statement", () => {
     const { errors, text } = run(
-      "Value {f(true)}.\nfunction f(c)\n  local v: number\nif c then\n  v = 1\nend\n  return v\nend\n",
+      "function f(c)\n  local v: number\nif c then\n  v = 1\nend\n  return v\nend\nscene start\n  Value {f(true)}.\nend\n",
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Value 1.\n");
@@ -199,24 +201,24 @@ const missingValue = (got: string) =>
 
 describe("Luau code: a comma with nothing after it", () => {
   test.each([
-    ["end", "function f()\n  local a, g = 1,\nend\nfunction h()\n  return 7\nend\nAlso {h()}.\n", "end"],
+    ["end", "function f()\n  local a, g = 1,\nend\nfunction h()\n  return 7\nend\nscene start\n  Also {h()}.\nend\n", "end"],
     [
       "else",
-      "function f(ok)\n  if ok then\n    local a, g = 1,\n  else\n    return 2\n  end\nend\nValue {f(false)}.\n",
+      "function f(ok)\n  if ok then\n    local a, g = 1,\n  else\n    return 2\n  end\nend\nscene start\n  Value {f(false)}.\nend\n",
       "else",
     ],
     [
       "elseif",
-      "function f(ok)\n  if ok then\n    local a, g = 1,\n  elseif not ok then\n    return 2\n  end\nend\nValue {f(false)}.\n",
+      "function f(ok)\n  if ok then\n    local a, g = 1,\n  elseif not ok then\n    return 2\n  end\nend\nscene start\n  Value {f(false)}.\nend\n",
       "elseif",
     ],
     [
       "until",
-      "function f()\n  local n = 0\n  repeat\n    n = n + 1\n    local a, g = 1,\n  until n > 2\n  return n\nend\nValue {f()}.\n",
+      "function f()\n  local n = 0\n  repeat\n    n = n + 1\n    local a, g = 1,\n  until n > 2\n  return n\nend\nscene start\n  Value {f()}.\nend\n",
       "until",
     ],
-    ["return", "function f()\n  local a, g = 1,\n  return 4\nend\nValue {f()}.\n", "return"],
-    ["local", "function f()\n  local a, g = 1,\n  local b = 4\n  return b\nend\nValue {f()}.\n", "local"],
+    ["return", "function f()\n  local a, g = 1,\n  return 4\nend\nscene start\n  Value {f()}.\nend\n", "return"],
+    ["local", "function f()\n  local a, g = 1,\n  local b = 4\n  return b\nend\nscene start\n  Value {f()}.\nend\n", "local"],
   ])("before %s: the error, and the keyword stays with its block", (_name, source, got) => {
     const { errorMessages, warningMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([missingValue(got)]);
@@ -225,7 +227,7 @@ describe("Luau code: a comma with nothing after it", () => {
 
   test("before an assignment, the second `=` is the error", () => {
     const { errorMessages } = collectDiagnostics(
-      "store x = 5\nfunction f()\n  local a = 1,\n  x = 99\n  return a\nend\nValue {f()} and {x}.\n",
+      "store x = 5\nfunction f()\n  local a = 1,\n  x = 99\n  return a\nend\nscene start\n  Value {f()} and {x}.\nend\n",
     );
     expect(errorMessages).toEqual([
       "Expected identifier when parsing expression, got '='",
@@ -238,7 +240,7 @@ describe("Luau code: a comma with nothing after it", () => {
     ["a type function", "  type function T()\n    return types.number\n  end\n  return g"],
   ])("after an operator line that ends with a comma, before %s", (_name, after) => {
     const { errorMessages } = collectDiagnostics(
-      `function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n${after}\nend\nValue {f()}.\n`,
+      `function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n${after}\nend\nscene start\n  Value {f()}.\nend\n`,
     );
     const got = after.trim().split(/\s/)[0]!;
     expect(errorMessages).toEqual([missingValue(got)]);
@@ -251,21 +253,21 @@ describe("Luau code: a comma with nothing after it", () => {
     ["a define after an operator line", "  return 1\nend\ndefine cfg with\n  k = 1", "return"],
   ])("directly before %s: the error, and the statement stays", (_name, after, got) => {
     const { errorMessages } = collectDiagnostics(
-      `function f()\n  local a, g = 1,\n${after}\nend\nValue {f()}.\n`,
+      `function f()\n  local a, g = 1,\n${after}\nend\nscene start\n  Value {f()}.\nend\n`,
     );
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
   test("a define after an operator line that ends with a comma", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  define cfg with\n    k = 1\n  end\n  return g\nend\nValue {f()}.\n",
+      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  define cfg with\n    k = 1\n  end\n  return g\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual([missingValue("define")]);
   });
 
   test("a `;` after an operator line that ends with a comma", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  ;\n  return g\nend\nValue {f()}.\n",
+      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  ;\n  return g\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual([missingValue(";")]);
   });
@@ -273,14 +275,14 @@ describe("Luau code: a comma with nothing after it", () => {
   // `continue` is a name where a value can stand, as Luau reads it (#1906).
   test("before `continue` in a loop: `continue` is the list's value", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
+      "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual([]);
   });
 
   test("before the `=`, an unindented if expression after the targets' comma is a missing variable name", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nValue {f(true)}.\n",
+      "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nscene start\n  Value {f(true)}.\nend\n",
     );
     // Luau then reads `if c then 2 else 3` as an if statement, whose arms are
     // values and which takes the function's `end` (I-1322).
@@ -293,7 +295,9 @@ describe("Luau code: a comma with nothing after it", () => {
   });
 
   test("before a name, the targets' comma is a missing variable name", () => {
-    const { errorMessages } = collectDiagnostics("function f()\n  local a,\nend\n");
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local a,\nend\nscene start\nend\n",
+    );
     expect(errorMessages).toEqual([
       "Expected identifier when parsing variable name, got 'end'",
     ]);
@@ -304,30 +308,49 @@ describe("Luau code: a comma with nothing after it", () => {
 // value missing after the comma is `<eof>`, never the next line's word.
 const missingAtLineEnd = "Expected identifier when parsing expression, got <eof>";
 
+// A story line at the top level is left out of the program with this error, so
+// each one the declaration does not swallow is reported once.
+const placed =
+  "statement must be inside a scene or branch; the top level holds declarations only";
+
 describe("narrative body: the declaration ends at its line", () => {
   test.each([
     ["next line", "store a, b = 1,\n  2\n"],
     ["after a comment", "store a, b = 1, -- note\n  2\n"],
   ])("store: a value on the next line is story, and the comma is the error (%s)", (_name, declaration) => {
-    const { errorMessages } = collectDiagnostics(`${declaration}Value {a}.\n`);
-    expect(errorMessages).toEqual([missingAtLineEnd]);
+    const { errorMessages } = collectDiagnostics(
+      `${declaration}Value {a}.\nscene start\nend\n`,
+    );
+    expect(errorMessages).toEqual([missingAtLineEnd, placed, placed]);
   });
 
   test.each([
-    ["prose", "store hp = 100,\n\nThe hero has {hp} health.\n"],
-    ["an em-dash action line", "store hp = 100,\n\n-- The hero staggers to his feet.\n\nHe has {hp} health.\n"],
-    ["dialogue", "store hp = 100,\n\nALICE:\n  The hero has {hp} health.\n"],
-    ["a scene", "store hp = 100,\nscene one\n  Hi.\nend\n"],
-  ])("before %s: the error, and the story line is untouched", (_name, source) => {
-    const { errorMessages, warningMessages } = collectDiagnostics(source);
+    ["prose", "store hp = 100,\n\nThe hero has {hp} health.\n", 1],
+    ["an em-dash action line", "store hp = 100,\n\n-- The hero staggers to his feet.\n\nHe has {hp} health.\n", 2],
+    ["dialogue", "store hp = 100,\n\nALICE:\n  The hero has {hp} health.\n", 1],
+  ])("before %s: the error, and the story line is untouched", (_name, source, lines) => {
+    const { errorMessages, warningMessages } = collectDiagnostics(
+      `${source}scene start\nend\n`,
+    );
+    expect(errorMessages).toEqual([
+      missingAtLineEnd,
+      ...Array(lines).fill(placed),
+    ]);
+    expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
+  });
+
+  test("before a scene: the error, and the scene is untouched", () => {
+    const { errorMessages, warningMessages } = collectDiagnostics(
+      "store hp = 100,\nscene start\n  Hi.\nend\n",
+    );
     expect(errorMessages).toEqual([missingAtLineEnd]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 
   test.each([
-    ["store", "store function f()\n  return 7\nend\nValue {f()}.\n"],
-    ["const", "const function f()\n  return 7\nend\nValue {f()}.\n"],
-    ["local in a scene", "-> one\nscene one\n  local function f()\n    return 7\n  end\n  Value {f()}.\nend\n"],
+    ["store", "store function f()\n  return 7\nend\nscene start\n  Value {f()}.\nend\n"],
+    ["const", "const function f()\n  return 7\nend\nscene start\n  Value {f()}.\nend\n"],
+    ["local in a scene", "scene start\n  local function f()\n    return 7\n  end\n  Value {f()}.\nend\n"],
   ])("a %s function is a function, not a declaration", (_name, source) => {
     const { errors, text } = run(source);
     expect(errors).toEqual([]);
@@ -335,29 +358,31 @@ describe("narrative body: the declaration ends at its line", () => {
   });
 
   test("a keyword can name a define property", () => {
-    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n");
+    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nscene start\n  Value {cfg.repeat}.\nend\n");
     expect(errors).toEqual([]);
     expect(text).toBe("Value 3.\n");
   });
 
   test.each([
-    ["store", "store first = 1 store a, b = 2,\n  3\nValue {first}.\n"],
-    ["local", "-> one\nscene one\n  local first = 1 local a, b = 2,\n    3\n  Value {first}.\nend\n"],
-  ])("a second %s declaration on the line ends at the line too", (_name, source) => {
+    ["store", "store first = 1 store a, b = 2,\n  3\nValue {first}.\nscene start\nend\n", [missingAtLineEnd, placed, placed]],
+    ["local", "scene start\n  local first = 1 local a, b = 2,\n    3\n  Value {first}.\nend\n", [missingAtLineEnd]],
+  ])("a second %s declaration on the line ends at the line too", (_name, source, expected) => {
     const { errorMessages } = collectDiagnostics(source);
-    expect(errorMessages).toEqual([missingAtLineEnd]);
+    expect(errorMessages).toEqual(expected);
   });
 
   test("a statement after the comma on the same line is the error", () => {
     const { errorMessages } = collectDiagnostics(
-      "-> one\nscene one\n  & local a, b = 1, local c = 2\n  Value {c}.\nend\n",
+      "scene start\n  & local a, b = 1, local c = 2\n  Value {c}.\nend\n",
     );
     expect(errorMessages).toEqual([missingValue("local")]);
   });
 
   test("a declaration in an `&` statement ends at its line too", () => {
-    const { errorMessages } = collectDiagnostics("& store hp = 100,\nThe hero has {hp} health.\n");
-    expect(errorMessages).toEqual([missingAtLineEnd]);
+    const { errorMessages } = collectDiagnostics(
+      "& store hp = 100,\nThe hero has {hp} health.\nscene start\nend\n",
+    );
+    expect(errorMessages).toEqual([missingAtLineEnd, placed]);
   });
 });
 
