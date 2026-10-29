@@ -728,12 +728,22 @@ export function* bakeSteps(
     const list = leaf.label ? own(recipe.layers, leaf.label)?.partner : undefined;
     return list?.length && !edgeLabels.has(leaf.label) && rootGeometry(leaf) && elementSpace(leaf) ? list : undefined;
   };
-  const partnerChoice = (leaf: Leaf, list: readonly string[], pose: Record<string, boolean>, group: string, origin: Point | undefined): "name" | Leaf | undefined => {
+  const partnerChoice = (
+    leaf: Leaf,
+    list: readonly string[],
+    pose: Record<string, boolean>,
+    group: string,
+    origin: Point | undefined,
+    carriedThere: Iterable<Leaf> = [],
+  ): "name" | Leaf | undefined => {
     for (const label of list) {
       if (label !== leaf.label) {
         const found = nearestDrawing(pose, label, group, origin);
         if (found) return found;
-      } else if (leaves.some((c) => c !== leaf && c.live && c.group === group && c.label === label && visibleAt(c.element, pose))) {
+      } else if (
+        [...carriedThere].some((c) => c !== leaf && c.label === label) ||
+        leaves.some((c) => c !== leaf && c.live && c.group === group && c.label === label && visibleAt(c.element, pose))
+      ) {
         return "name";
       }
     }
@@ -1055,7 +1065,7 @@ export function* bakeSteps(
       }
       for (const leaf of toOnly) {
         const list = carried.has(leaf) ? undefined : partnersOf(leaf);
-        const choice = list && partnerChoice(leaf, list, va, group, centre(leaf));
+        const choice = list && partnerChoice(leaf, list, va, group, centre(leaf), carried.keys());
         if (!list || choice === "name") continue;
         moved.add(leaf);
         if (choice) moves.push({ leaf, from: { shape: choice, held: false }, to: { own: leaf } });

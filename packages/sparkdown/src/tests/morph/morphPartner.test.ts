@@ -206,6 +206,22 @@ describe("a label's `partner` lends it another label's drawing where its own pos
     expect(artifact.diagnostics).toEqual([expect.objectContaining({ code: "partner-missing", severity: "warning", layer: "eyeball-shadow-left", variant: "partner" })]);
   });
 
+  test("a shadow carried at the closed pose pairs by name with a shadow the next pose draws, from the shape it carries", () => {
+    const half = `<path data-name="eyelash-left" d="M0,50 C30,25 70,25 100,50 C70,40 30,40 0,50Z" fill="#111"/><path data-name="eyeball-shadow-left" d="M0,50 C30,25 70,25 100,50 C70,40 30,40 0,50Z" fill="#999"/>`;
+    const artifact = bake(partnerBlink(["eyeball-shadow-left", "eyelash-left"], { clips: [], states: ["open", "closed", "half", "open"] }), { more: { half } });
+    expect(artifact.diagnostics).toEqual([]);
+    const shadow = leafOf(artifact, "open", "eyeball-shadow-left");
+    const closedLash = leafOf(artifact, "closed", "eyelash-left");
+    const halfShadow = leafOf(artifact, "half", "eyeball-shadow-left");
+    const [toClosed, toHalf] = artifact.segments as [MorphSegment, MorphSegment];
+    expect(Object.keys(toClosed.carry?.to ?? {})).toEqual([shadow]);
+    const track = toHalf.transitions.find((t) => t.kind === "morph" && t.to === halfShadow);
+    expect(track).toMatchObject({ kind: "morph", from: closedLash, to: halfShadow, draw: shadow, partner: true });
+    expect(track).toHaveProperty("paint.fill", [[204, 204, 204, 1], [153, 153, 153, 1]]);
+    expect(toHalf.carry?.from?.[shadow]).toBe(toClosed.carry?.to?.[shadow]);
+    expect(toHalf.carry?.to).toBeUndefined();
+  });
+
   test("a morph resting at the partner's pose carries nothing at rest", () => {
     const artifact = bake(partnerBlink(["eyelash-left"], { states: ["closed", "open", "closed"] }), {}, { eyes: "closed" });
     expect(artifact.status).toBe("live");
