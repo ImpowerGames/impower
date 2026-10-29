@@ -627,14 +627,14 @@ describe("flows on the program engine", () => {
       "After the loop 3.",
       "After the if.",
     ]);
-    // Where the jump lands, the frame holds its own scope and one for each
-    // block it stands in: the outer `if`'s branch, the `while`'s pass and
-    // the inner `if`'s branch.
+    // Where the jump lands, the frame holds its own scope, the scene's, and
+    // one for each block it stands in: the outer `if`'s branch, the
+    // `while`'s pass and the inner `if`'s branch.
     const story = new ProgramStory(root);
     expect(story.Continue()).toBe("Outer.\n");
     expect(story.Continue()).toBe("Target 0 1.\n");
     expect(story.state.blockStack).toHaveLength(3);
-    expect(story.state.frame!.temporaryScopes).toHaveLength(4);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(5);
     // The label stands three blocks deep: an `if`, a `while` and an `if`.
     const target = symbolOf(root, "inner.target");
     const at = root.place(target)!;

@@ -594,6 +594,55 @@ describe("a save's header", () => {
       expect(play(loaded).beats).toEqual(["Bumped 12.", "The end."]);
     }
   });
+
+  // The shipped saves were written of this script, where `cell` is a local
+  // function of the scene. A scene's local function is a closure of the
+  // scene's scope (#1674), named apart from the story function the saves'
+  // closures were built in, so their function values name nothing here:
+  // the load warns of each, and calling one fails.
+  it("loads a shipped save whose closures a scene's local function built, with each closure naming nothing", () => {
+    const script = [
+      "store picks = 0",
+      "store shared = { 1 }",
+      "store alias = nil",
+      "store bump = nil",
+      "store peek = nil",
+      "",
+      "-> start",
+      "",
+      "scene start",
+      "  & alias = shared",
+      "  local function cell()",
+      "    local n = 10",
+      "    bump = function() n = n + 1 end",
+      "    peek = function() return n end",
+      "  end",
+      "  & cell()",
+      "  choose",
+      "    * [one]",
+      "      & picks = picks + 1",
+      "      & table.insert(alias, 2)",
+      "      & bump()",
+      "    * [two]",
+      "  end",
+      "  Picked {picks} {shared[1]} {#alias} {peek()}.",
+      "  & bump()",
+      "  Bumped {peek()}.",
+      "  The end.",
+      "end",
+      "",
+    ].join("\n");
+    const dir = join(HERE, "fixtures");
+    for (const version of [1, 2]) {
+      const save = readFileSync(join(dir, `program-save-v${version}.json`), "utf-8");
+      const loaded = engine(rootOf(script)!);
+      loaded.loadSave(save);
+      expect(loaded.loadedSaveReport!.warnings).toContain(
+        "A function value of the save (an anonymous function) names nothing in this program.",
+      );
+      expect(play(loaded).beats).toEqual([]);
+    }
+  });
 });
 
 const session = programSession;

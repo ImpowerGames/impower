@@ -4503,6 +4503,7 @@ define morph with
   layers = {}
   keyframes = {}
   clips = {}
+  paints = {}
   timing = { delay = 0, duration = 0.25, easing = "ease-out", iterations = 1, direction = "normal" }
 end
 

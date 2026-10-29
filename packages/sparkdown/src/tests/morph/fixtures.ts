@@ -238,6 +238,55 @@ ${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0
 </svg>`;
 }
 
+/**
+ * A masked portrait: two open lashes converge on one closed lash over the
+ * eyeball, and a masked face draws a black `darkness` underlay that needs
+ * `mask.on` through its `underlay` group. `face.masked` with `mask.on` draws
+ * the underlay; `face.plain` with `mask.on` selects the mask but draws
+ * nothing that needs it; `face.masked` with `mask.off` is unmasked.
+ */
+export function maskedPortrait(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="skin" d="M0,0H140V100H0Z" fill="#b76"/>
+<g data-name="face.masked">
+<g data-name="underlay:mask.on"><path data-name="darkness" d="M0,20H140V80H0Z" fill="#000"/></g>
+</g>
+<g data-name="face.plain:default"><path data-name="cheek" d="M0,80H140V90H0Z" fill="#d98"/></g>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
+<path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
+<path data-name="eyelash-left" d="${UPPER_OPEN}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER_OPEN}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+</g>
+</svg>`;
+}
+
+/** The three variants of `maskedPortrait`. */
+export const MASKED_VARIANTS = {
+  masked: { face: "masked", mask: "on" },
+  maskOnly: { face: "plain", mask: "on" },
+  unmasked: { face: "masked", mask: "off" },
+} as const;
+
+/** The masked portrait's blink: open, closed at a third, open again, with `paints` entries. */
+export function maskedBlink(paints: Record<string, unknown>[] = []): MorphRecipe {
+  return buildMorphRecipe("blink", {
+    blend: "morph",
+    method: "bend",
+    fallback: "fade",
+    keyframes: [
+      { offset: 0, eyes: { state: "open" } },
+      { offset: 1 / 3, eyes: { state: "closed" } },
+      { offset: 1, eyes: { state: "open" } },
+    ],
+    clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"] }],
+    paints,
+  });
+}
+
 /** Open to closed at the middle and back, every label moving with `match`. */
 export function paintBlink(overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
   return buildMorphRecipe("blink", {

@@ -18,9 +18,10 @@ import {
 } from "./variableDefinitionNames";
 
 /** The answer for a name the document declares once in the root frame's own
- *  scope: a function binds its binding there by name (`RootBinding`), with no
- *  slot. A scene of another script that declares the name too shares that
- *  scope, and replaces the binding while it runs (I-1455). */
+ *  scope, and for a local of a scene's or a branch's scope in scope where code
+ *  is written: the code binds it by name, with no slot. A flow's scope holds
+ *  only the flow's own bindings, so a closure built in it captures the one in
+ *  scope as Luau's upvalue. */
 export const ROOT_ONLY = "only";
 
 /** The answer for any name read inside a block a top-level statement opens
@@ -42,6 +43,7 @@ export const ROOT_NONE = "none";
 const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
+const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition", "LuauFunctionAttributes"]);
 
 // The blocks a top-level statement opens a scope of its own with, inside
 // which every name answers `ROOT_IN_BLOCK`. An `&` line's `for` or `while`
@@ -67,9 +69,10 @@ const BLOCKS = nodeNameSet([
  *  where code reads it (the end of its statement, or a parameter's name) and
  *  up to where (the end of the choice whose body declares it), and the flow
  *  whose body declares it, -1 for the top level. A scene's or a branch's
- *  parameter is one of its flow. */
+ *  parameter is one of its flow, marked `parameter`. */
 interface RootDeclaration {
   at: number;
+  parameter?: boolean;
   visibleFrom: number;
   visibleTo: number;
   flow: number;
@@ -84,23 +87,29 @@ interface Flow {
 }
 
 /**
- * The bindings a document makes in the root frame's own scope, which a
- * function or a closure reads as Luau reads an upvalue (I-1374, I-1365). The
- * top level and the bodies of its scenes and branches share that scope: a
- * scene opens no scope of its own, so its `local` declares in the same scope
- * as the top level's, and replaces a binding of its name there while it runs.
- * A scene's or a branch's parameters are bound there as it is entered, and a
- * `choose` block's choices declare there too. A block's local (an `if`, a
- * loop, a `do`) is in a scope of its own and is not one of them; nor is a
- * local of a function.
+ * The bindings a document makes at its top level and in the scopes of its
+ * scenes and branches, which a closure written there reads as Luau reads an
+ * upvalue (I-1374, I-1365). A scene opens a scope of its own, and a branch
+ * one nested in its scene's (`flowScopesOf`): a flow's `local`, its
+ * `local function` and its parameters are bound in its scope, and a
+ * `choose` block's choices declare in the scope around the block. A
+ * function written at the top level or a define's method reads none of a
+ * flow's, as a Luau function cannot read another function's locals. A
+ * block's local (an `if`, a loop, a `do`) is in a scope of its own and is
+ * not one of them; nor is a local of a function.
  *
  * A scene's body is written at the top level up to its `end`, so the flows
  * are followed as `topLevelStatements` follows them.
  *
- * Each declaration is known by its ordinal among the document's declarations
- * of its name: a name declared once is `ROOT_ONLY`, and the binding of each
- * declaration of a name declared more than once is kept under a slot of its
- * own (`rootSlotName`), which the declarations after it leave in place.
+ * A flow's declaration of a name the top level does not declare is
+ * `ROOT_ONLY`: the frame holds its binding in the flow's scope, apart from
+ * every other flow's. Any other declaration is known by its ordinal among the
+ * document's declarations of its name: a name declared once is `ROOT_ONLY`,
+ * and the binding of each declaration of a name declared more than once is
+ * kept under a slot of its own (`rootSlotName`), which the declarations
+ * after it leave in place, as a function written at the top level reads a
+ * top-level `local` through it. A top-level `local` is a compile error, so
+ * only a save of a program an earlier engine ran holds such a binding.
  */
 export class RootLocals {
   protected readonly declarations = new Map<string, RootDeclaration[]>();
@@ -126,6 +135,7 @@ export class RootLocals {
             visibleFrom: param.to,
             visibleTo: Number.POSITIVE_INFINITY,
             flow: this.flows.length - 1,
+            parameter: true,
           });
         }
       } else if (node.name === "LuauEndKeyword") {
@@ -159,15 +169,22 @@ export class RootLocals {
   answerIgnoringBlocks(name: string, at: number): string {
     const list = this.declarations.get(name);
     if (!list) return "";
+    // Code reads the locals and parameters of the flow whose body holds it,
+    // and in a branch, its scene's parameters, which the scene's entry binds
+    // as it falls into the branch; a scene's locals are never in a branch's
+    // scope (`flowScopesOf`).
     const around = this.flowsAround(at);
+    const [own] = around;
     for (let i = list.length - 1; i >= 0; i--) {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
         at <= declaration.visibleTo &&
-        (declaration.flow < 0 || around.has(declaration.flow))
+        (declaration.flow < 0 ||
+          declaration.flow === own ||
+          (declaration.parameter === true && around.has(declaration.flow)))
       ) {
-        return list.length === 1 ? ROOT_ONLY : String(i + 1);
+        return ordinal(list, i);
       }
     }
     return ROOT_NONE;
@@ -181,7 +198,7 @@ export class RootLocals {
     if (!list) return "";
     const i = list.findIndex((declaration) => declaration.at === at);
     if (i < 0) return "";
-    return list.length === 1 ? ROOT_ONLY : String(i + 1);
+    return ordinal(list, i);
   }
 
   /** Whether `at` is inside a block a top-level statement opens. */
@@ -230,9 +247,8 @@ export class RootLocals {
 
   /** The bindings a statement of the top level, of a flow's body or of a
    *  choice's body declares, read up to `visibleTo`: a `local` declaration's
-   *  names, those of the statements a `&` line marks, and those of the
-   *  choices of a `choose` block. A `local function` there is a function of
-   *  the story, as a `function` is, and binds no local. */
+   *  names, a `local function`'s name, those of the statements a `&` line
+   *  marks, and those of the choices of a `choose` block. */
   protected collect(
     node: SyntaxNode,
     flow: number,
@@ -252,6 +268,18 @@ export class RootLocals {
     }
     if (BLOCKS.has(node.name)) {
       this.blocks.push({ from: node.from, to: node.to });
+      return;
+    }
+    if (LOCAL_FUNCTIONS.has(node.name)) {
+      const nameNode = getDescendent("LuauFunctionName", node);
+      if (nameNode && scopeOf(node, read) === "local") {
+        this.add(read(nameNode.from, nameNode.to).trim(), {
+          at: nameNode.from,
+          visibleFrom: node.to,
+          visibleTo,
+          flow,
+        });
+      }
       return;
     }
     if (!VARIABLE_DEFINITION_NAMES.has(node.name)) return;
@@ -293,6 +321,13 @@ export class RootLocals {
       this.collect(child, flow, visibleTo, read);
     }
   }
+}
+
+/** What the declaration `list[i]` of a name is known by (`RootLocals`). */
+function ordinal(list: readonly RootDeclaration[], i: number): string {
+  return list.length === 1 || (list[i]!.flow >= 0 && list.every(({ flow }) => flow >= 0))
+    ? ROOT_ONLY
+    : String(i + 1);
 }
 
 /** The name nodes a `local` declaration declares, in order: a value in its

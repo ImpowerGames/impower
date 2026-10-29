@@ -112,6 +112,16 @@ export function lowerLuauFunctionDefinition(
     return lowerNestedNamedFunction(func, node, identifier, ctx, enclosingScope, isLocal);
   }
 
+  // A `local function` in a scene's or a branch's body is a local of the
+  // flow's scope bound to a closure, as one inside a function is: it reads
+  // and writes the flow's locals as upvalues and is bound from the line
+  // after its own, as Luau's `local function` is. A top-level function and
+  // a define's method are functions of the story, which read no flow's
+  // locals.
+  if (stat instanceof AstStatLocalFunction && ctx.hoistedKnots) {
+    return lowerNestedNamedFunction(func, node, identifier, ctx, ctx.hoistedKnots, true);
+  }
+
   const args = functionArguments(func);
   // The body opens a per-function buffer for any nested callables
   // (function values, nested named functions), so they live as subFlows of

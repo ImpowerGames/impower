@@ -536,6 +536,28 @@ export function selectCandidate(
   return { candidate: best, score: bestS, travel: bestTravel };
 }
 
+/** An open polyline resampled to `count` points evenly spaced along it, both ends kept. */
+function resampleOpen(pts: Point[], count: number): Point[] {
+  const lengths = [0];
+  for (let i = 1; i < pts.length; i++) lengths.push(lengths[i - 1]! + dist(pts[i - 1]!, pts[i]!));
+  const total = lengths[lengths.length - 1]!;
+  if (!(total > 0)) return Array.from({ length: count }, () => pts[0]!);
+  const out: Point[] = [];
+  let k = 0;
+  for (let n = 0; n < count; n++) {
+    const at = (total * n) / (count - 1);
+    while (k < pts.length - 2 && lengths[k + 1]! < at) k++;
+    const span = lengths[k + 1]! - lengths[k]!;
+    const f = span > 0 ? Math.min(1, Math.max(0, (at - lengths[k]!) / span)) : 0;
+    const a = pts[k]!,
+      b = pts[k + 1]!;
+    out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+  }
+  out[0] = pts[0]!;
+  out[count - 1] = pts[pts.length - 1]!;
+  return out;
+}
+
 export interface BendTrack extends SubpathTrack {
   /**
    * The canonical endpoint loops (two tip cubics plus the body anchors).
@@ -553,8 +575,9 @@ export interface BendTrack extends SubpathTrack {
   /**
    * The two edges of the frame drawn at `progress` as polylines of `points`
    * samples each, from tip one to tip two. Edge 0 runs along the first
-   * canonical edge. With the handoff on, they blend toward the authored
-   * outline by the frame's weight, so at a rest pose they lie on the art.
+   * canonical edge. With the handoff on, at a rest pose they lie on the
+   * authored outline, and between the rest poses they are the drawn frame's
+   * own two halves, so they meet the drawing a player draws.
    */
   edges(progress: number, points: number): [Point[], Point[]];
   /** The thickness ratio the chosen correspondence achieved. */
@@ -728,10 +751,10 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const e1 = [T1, ...chainToPolyline(fr.slice(1, 2 + n1), inner), T2];
     const e2 = [T2, ...chainToPolyline(fr.slice(3 + n1), inner), T1].reverse();
     if (!o.handoff) return [e1, e2];
-    // The edges of the frame that is drawn: the canonical edges blended
-    // toward the art's by the weight `frame` uses, so at a rest pose they
-    // are the authored outline. Halves pair by winding as `frame` pairs its
-    // polylines, and the result keeps the canonical edge order.
+    // The canonical edges blended toward the art's by the weight `frame`
+    // uses, so at a rest pose they are the authored outline. Halves pair by
+    // winding as `frame` pairs its polylines, and the result keeps the
+    // canonical edge order.
     const w = handoffWeight(t);
     const forward = Math.sign(signedArea(fr) || 1) > 0;
     const open = halvesOf(fromArt, tips(0), e1.length, "from"),
@@ -742,7 +765,30 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
           b = shut[k][i]!;
         return [p[0] * (1 - w) + (a[0] + (b[0] - a[0]) * t) * w, p[1] * (1 - w) + (a[1] + (b[1] - a[1]) * t) * w];
       });
-    return forward ? [blend(e1, 0), blend(e2, 1)] : [blend(e1, 1), blend(e2, 0)];
+    const blended: [Point[], Point[]] = forward ? [blend(e1, 0), blend(e2, 1)] : [blend(e1, 1), blend(e2, 0)];
+    if (t <= 0 || t >= 1) return blended;
+    // Between the rest poses the drawn frame and the blend above part: each
+    // blends its own polylines point by point, and they space their points
+    // differently. The edges are the drawn frame's own two halves, split at
+    // its points nearest the blend's tips, so an aperture built on them meets
+    // the drawing the player draws.
+    const drawn = frame(t).map((segment) => segment.p0);
+    const nearest = (q: Point) => drawn.reduce((best, p, i) => (dist(p, q) < dist(drawn[best]!, q) ? i : best), 0);
+    const i1 = nearest(blended[0][0]!),
+      i2 = nearest(blended[0][blended[0].length - 1]!);
+    if (i1 === i2) return blended;
+    const run = (step: number): Point[] => {
+      const out: Point[] = [drawn[i1]!];
+      for (let i = i1; i !== i2; ) {
+        i = (i + step + drawn.length) % drawn.length;
+        out.push(drawn[i]!);
+      }
+      return resampleOpen(out, points);
+    };
+    const ahead = run(1),
+      behind = run(-1);
+    const meanDist = (a: Point[], b: Point[]) => a.reduce((sum, p, i) => sum + dist(p, b[i]!), 0) / a.length;
+    return meanDist(ahead, blended[0]) <= meanDist(behind, blended[0]) ? [ahead, behind] : [behind, ahead];
   };
   // `from` and `to` share the frames' topology: with the handoff on they
   // are the rest-pose polylines, otherwise the canonical loops themselves.

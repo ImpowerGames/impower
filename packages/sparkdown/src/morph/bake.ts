@@ -24,17 +24,19 @@ import {
   type AttributeSelection,
 } from "../attributes";
 import { bindVariant, morphRequirements } from "../compiler/morph/bindMorph";
-import { MORPH_DEPTH_REST, parseMorphDepth } from "../compiler/morph/morphSchema";
+import { MORPH_DEPTH_REST, parseMorphDepth, parseMorphQualifiedState } from "../compiler/morph/morphSchema";
 import {
   applySubpaths,
   invert,
   isIdentity,
   type Affine,
 } from "./affine";
+import { readEntryColor } from "./color";
 import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
+import { APERTURE_REACH_ID_SUFFIX, APERTURE_REACH_STROKE } from "./render";
 import {
   ancestry,
   cloneElement,
@@ -61,11 +63,15 @@ import {
   type MorphArtifact,
   type MorphBakeDiagnostic,
   type MorphBlend,
+  type MorphClipFrames,
   type MorphClipTarget,
+  type MorphColor,
   type MorphFallback,
   type MorphFrames,
   type MorphGeometryRef,
   type MorphMethodName,
+  type MorphPaintBase,
+  type MorphPaintPose,
   type MorphPart,
   type MorphRecipe,
   type MorphSegment,
@@ -74,12 +80,6 @@ import {
 
 /** Frames per segment: the tuning point the geometry package was tested at. */
 export const MORPH_BAKE_SAMPLES = 8;
-/**
- * How far, in screen pixels, an aperture at rest reaches past its outline:
- * far enough that the outline's antialiased edge lies under the drawings
- * around the opening.
- */
-export const APERTURE_REACH = 1;
 const PRECISION = 1000;
 const round = (n: number) => Math.round(n * PRECISION) / PRECISION || 0;
 
@@ -100,11 +100,12 @@ export interface MorphBakeInput {
 /**
  * Geometry that depends only on the source: each drawing pair's root-space
  * morph result (failures included), its sampled frames in a given element
- * space, and the aperture samples of a set of edges. One cache per source is
- * shared by every variant and recipe baked from it, and a bake served from it
- * reports exactly what a fresh one would.
+ * space, and the aperture samples of a set of edges with the edges' own
+ * drawings at each and the edges (by pair) around each loop. One cache per source is shared by every variant and
+ * recipe baked from it, and a bake served from it reports exactly what a
+ * fresh one would.
  */
-export type MorphGeometryEntry = MorphResult | MorphFrames | number[][][];
+export type MorphGeometryEntry = MorphResult | MorphFrames | { samples: number[][][]; edges: number[][][][]; loopKeys: string[][] };
 
 export interface MorphGeometryCache {
   get(key: string): MorphGeometryEntry | undefined;
@@ -167,6 +168,7 @@ function staticArtifact(
     segments: [],
     frames: [],
     apertures: [],
+    apertureEdges: [],
     clipTargets: [],
     diagnostics,
   };
@@ -523,12 +525,44 @@ export function* bakeSteps(
   const allLeaves = drawnLeaves(doc).filter(unionVisible);
   const inTarget = (element: Element) =>
     targetsByClip.some((targets) => targets.some((t) => isAncestorOrSelf(doc!, t, element)));
+  /** Whether any of `element`'s layers, its own or an ancestor's, has a label in `labels`. */
+  const labelledAny = (element: Element, labels: readonly string[]) =>
+    [...ancestry(doc!, element)].some((entry) => {
+      const label = entry.layer?.parsed.label;
+      return !!label && labels.includes(label);
+    });
+  // Each `paints` entry that applies to this variant, with the pose it names
+  // and what that pose shows. `when` holds where the rest pose draws a layer
+  // that needs that state, through its own name or an ancestor's: one whose
+  // condition on the group accepts only that state or its refinements. The
+  // state the morph starts from is the rest pose, which no entry colours.
+  const needs = (element: Element, group: string, state: string) =>
+    [...ancestry(doc!, element)].some((entry) =>
+      entry.layer?.parsed.conditions.some(
+        (c) => c.group === group && c.options.length > 0 && c.options.every((o) => o === state || o.startsWith(`${state}-`)),
+      ),
+    );
+  const restDrawn = allLeaves.filter((element) => visibleAt(element, restVisible));
+  const appliedPaints = (recipe.paints ?? []).flatMap((entry, index) => {
+    const pose = parseMorphQualifiedState(entry.state);
+    const visible = pose && pose.state !== requirements.rest.get(pose.group) ? visibleIn.get(pose.group)?.get(pose.state) : undefined;
+    if (!pose || !visible) return [];
+    if (entry.when !== undefined) {
+      const when = parseMorphQualifiedState(entry.when);
+      if (!when || !restDrawn.some((element) => needs(element, when.group, when.state))) return [];
+    }
+    return [{ entry, index, pose, visible }];
+  });
   const live = new Set<Element>();
   for (const element of allLeaves) {
     const key = keyOf(element);
     if ((key !== undefined && groupOf.has(key)) || inTarget(element)) live.add(element);
+    // A target drawing that no driven group switches shows in the entry's
+    // pose too; it is live so a frame can recolour it.
+    else if (appliedPaints.some(({ entry, visible }) => visibleAt(element, visible) && labelledAny(element, entry.targets))) live.add(element);
   }
-  // The drawings that change: state layers and clip targets. Live parts also
+  // The drawings that change: state layers, clip targets and `paints`
+  // targets. Live parts also
   // hold unchanging art a compositing group keeps with them.
   const moving = new Set(live);
   // A group that composites as a whole (opacity, filters, masks, blending)
@@ -649,6 +683,79 @@ export function* bakeSteps(
     }
     return best?.leaf;
   };
+  /**
+   * Each `paints` entry where it applies to this variant. The entry recolours
+   * the drawings of its labels that the pose shows, among those that change
+   * with the pose's group and those no driven group switches, and every
+   * `morph` track of a segment arriving at or leaving the pose whose end
+   * there is one of them.
+   */
+  const paintPosesOf = (): MorphPaintPose[] => {
+    const out: MorphPaintPose[] = [];
+    const leafByNode = new Map(leaves.filter((l) => l.live).map((l) => [l.node, l]));
+    for (const { entry, index, pose, visible } of appliedPaints) {
+      const drawn = leaves.filter(
+        (l) => l.live && (l.group === pose.group || l.group === undefined) && visibleAt(l.element, visible) && labelledAny(l.element, entry.targets),
+      );
+      for (const label of entry.targets) {
+        if (drawn.some((l) => labelledAny(l.element, [label]))) continue;
+        report(
+          "paint-target-missing",
+          "warning",
+          `\`paints\` entry ${index + 1} recolours "${label}" at \`${entry.state}\`, but that pose draws no "${label}", so nothing of it takes the colour.`,
+          { layer: label },
+        );
+      }
+      if (!drawn.length) continue;
+      const colors: ["fill" | "stroke", MorphColor][] = [];
+      for (const name of ["fill", "stroke"] as const) {
+        const color = entry[name] === undefined ? undefined : readEntryColor(entry[name]);
+        if (color) colors.push([name, color]);
+      }
+      // A drawing's own colour, with `none` as the entry's colour at zero alpha.
+      const ownColor = (paint: EffectivePaint, name: "fill" | "stroke", color: MorphColor): MorphColor | undefined => {
+        const value = paint[name];
+        return value === "none" ? [color[0], color[1], color[2], 0] : value;
+      };
+      const nodes: Record<string, MorphPaintBase> = table();
+      for (const leaf of drawn) {
+        const base: MorphPaintBase = {};
+        for (const [name, color] of colors) {
+          const value = ownColor(paintOf(leaf), name, color);
+          if (value) base[name] = value;
+        }
+        nodes[leaf.node] = base;
+      }
+      const tracks: MorphPaintPose["tracks"] = [];
+      segments.forEach((segment, s) => {
+        if (segment.group !== pose.group) return;
+        const arriving = segment.to.state === pose.state;
+        const leaving = segment.from.state === pose.state;
+        for (const t of segment.transitions) {
+          if (t.kind !== "morph" || !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
+          // The paint the track shows without the entry: the blend its ends
+          // record, else the paint its ends and the node it draws on share.
+          const ends: MorphPaintPose["tracks"][number]["ends"] = {};
+          for (const [name, color] of colors) {
+            const recorded = t.paint?.[name];
+            const a = recorded?.[0] ?? ownColor(paintOf(leafByNode.get(t.from)!), name, color);
+            const b = recorded?.[1] ?? ownColor(paintOf(leafByNode.get(t.to)!), name, color);
+            if (a && b) ends[name] = [a, b];
+          }
+          tracks.push({ segment: s, draw: t.draw, ends });
+        }
+      });
+      out.push({
+        group: pose.group,
+        state: pose.state,
+        span: entry.span,
+        ...Object.fromEntries(colors),
+        nodes,
+        tracks,
+      });
+    }
+    return out;
+  };
   /** Per label and named pose, whether any moving shape drew at that pose's place. */
   const depthUse = new Map<string, { label: string; depth: string; groups: Set<string>; used: boolean }>();
 
@@ -733,6 +840,11 @@ export function* bakeSteps(
 
   const segments: MorphSegment[] = [];
   const apertures: number[][][][] = [];
+  const apertureEdges: number[][][][][] = [];
+  /** Per aperture table entry, the pairs (cache keys) of the two edges around each loop. */
+  const apertureLoopKeys: string[][][] = [];
+  /** The drawing each of a segment's moving edges of a clip entry paints on, by pair. */
+  const edgeHomes = new Map<MorphClipFrames, Map<string, Leaf>>();
   const apertureIndex = new Map<string, number>();
   /** Per clip, the loops of its first segment's start pose: its rest aperture. */
   const restLoops: (number[][] | undefined)[] = recipe.clips.map(() => undefined);
@@ -784,7 +896,7 @@ export function* bakeSteps(
       const fromOnly = groupLeaves.filter((l) => visibleAt(l.element, va) && !visibleAt(l.element, vb));
       const toOnly = groupLeaves.filter((l) => !visibleAt(l.element, va) && visibleAt(l.element, vb));
       const transitions: MorphTransition[] = [];
-      const edgeTracks = new Map<number, { edges: EdgeTrack[]; keys: string[]; reversedAll: boolean; forwardAll: boolean }>();
+      const edgeTracks = new Map<number, { edges: EdgeTrack[]; keys: string[]; homes: Leaf[]; reversedAll: boolean; forwardAll: boolean }>();
       const unpairedFrom: Leaf[] = [];
       const unpairedTo: Leaf[] = [];
       const edgeNodes = new Set<string>();
@@ -892,9 +1004,10 @@ export function* bakeSteps(
             report("edge-not-bend", "error", `Clip ${clipIndex + 1}'s edge "${from.label}" does not morph with \`bend\`; aperture edges need two tapered tips to meet.`, { layer: from.label, path: from.key });
             return disable();
           }
-          const entry = edgeTracks.get(clipIndex) ?? { edges: [], keys: [], reversedAll: true, forwardAll: true };
+          const entry = edgeTracks.get(clipIndex) ?? { edges: [], keys: [], homes: [], reversedAll: true, forwardAll: true };
           entry.edges.push({ id: pair.trackId, label: from.label, track: reversed ? reversedBend(track) : track });
           entry.keys.push(cacheKey);
+          entry.homes.push(home);
           if (reversed) entry.forwardAll = false;
           else entry.reversedAll = false;
           edgeTracks.set(clipIndex, entry);
@@ -951,11 +1064,15 @@ export function* bakeSteps(
         const reuse = apertureIndex.get(signature);
         let ref: MorphGeometryRef;
         const canonical = entry.forwardAll || entry.reversedAll;
-        const known = canonical ? (geometryCache.get(`aperture:${signature}`) as number[][][] | undefined) : undefined;
+        const known = canonical
+          ? (geometryCache.get(`aperture:${signature}`) as { samples: number[][][]; edges: number[][][][]; loopKeys: string[][] } | undefined)
+          : undefined;
         if (reuse !== undefined && canonical) {
           ref = { index: reuse, reversed: entry.reversedAll && !entry.forwardAll };
         } else if (known) {
-          apertures.push(known);
+          apertures.push(known.samples);
+          apertureEdges.push(known.edges);
+          apertureLoopKeys.push(known.loopKeys);
           ref = { index: apertures.length - 1, reversed: entry.reversedAll && !entry.forwardAll };
           apertureIndex.set(signature, apertures.length - 1);
         } else {
@@ -971,8 +1088,11 @@ export function* bakeSteps(
             return disable();
           }
           const raw: Point[][][] = [];
+          const edges: number[][][][] = [];
           for (let s = 0; s < MORPH_BAKE_SAMPLES; s++) {
-            raw.push(built.apertures.map((ap) => ap.loop(s / (MORPH_BAKE_SAMPLES - 1))));
+            const t = s / (MORPH_BAKE_SAMPLES - 1);
+            raw.push(built.apertures.map((ap) => ap.loop(t)));
+            edges.push(built.apertures.map((ap) => ap.bands(t).map((band) => band.flatMap(([x, y]) => [round(x), round(y)]))));
           }
           // Corner caps and untangled crossings vary an aperture's point
           // count from sample to sample; a player blends neighbouring samples
@@ -988,15 +1108,23 @@ export function* bakeSteps(
           // moves the same edges back reuses it reversed. Edges that disagree
           // about direction have no canonical order and are not reused.
           const reversed = entry.reversedAll && !entry.forwardAll;
-          if (reversed) samples.reverse();
+          if (reversed) {
+            samples.reverse();
+            edges.reverse();
+          }
+          const loopKeys = built.apertures.map((ap) => ap.edgeIds.map((id) => entry.keys[entry.edges.findIndex((edge) => edge.id === id)]!));
           apertures.push(samples);
+          apertureEdges.push(edges);
+          apertureLoopKeys.push(loopKeys);
           ref = { index: apertures.length - 1, reversed };
           if (canonical) {
             apertureIndex.set(signature, apertures.length - 1);
-            geometryCache.set(`aperture:${signature}`, samples);
+            geometryCache.set(`aperture:${signature}`, { samples, edges, loopKeys });
           }
         }
-        clips.push({ clip: clipIndex, loops: ref });
+        const frames: MorphClipFrames = { clip: clipIndex, loops: ref };
+        clips.push(frames);
+        edgeHomes.set(frames, new Map(entry.keys.map((key, k) => [key, entry.homes[k]!])));
         clipHasFrames[clipIndex] = true;
         if (!restLoops[clipIndex]) {
           const table = apertures[ref.index]!;
@@ -1042,11 +1170,15 @@ export function* bakeSteps(
   // intersect.
   const prefix = idPrefixFor(input.key);
   const clipTargets: MorphClipTarget[] = [];
+  const targetOf = new Map<string, Element>();
   const wrappers = new Map<Element, Wrapper[]>();
   let clipSerial = 0;
+  // An aperture's id and its reach clip path's (`poseAperture`) must both
+  // be free of the artwork's own ids, or an authored reference would find
+  // the generated resource.
   const freshId = (base: string) => {
     let id = base;
-    while (doc!.byId.has(id)) id = `${base}-${++clipSerial}`;
+    while (doc!.byId.has(id) || doc!.byId.has(`${id}${APERTURE_REACH_ID_SUFFIX}`)) id = `${base}-${++clipSerial}`;
     return id;
   };
   for (const [clipIndex, targets] of targetsByClip.entries()) {
@@ -1063,6 +1195,38 @@ export function* bakeSteps(
       list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
       clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix] });
+      targetOf.set(`${prefix}${id}`, target);
+    }
+  }
+  // A reach past a loop between a segment's ends is hidden only under the
+  // loop's own moving edges, and only where they paint above the target.
+  // Each moving drawing paints on its home, or on a carrier written right
+  // after it, so a target lies beneath it when every drawing of the target
+  // comes before that home in paint order. A loop is judged by its own two
+  // edges, so another eye's lashes in the same clip entry, painted before
+  // this eye's targets, take nothing from it. A moving edge placed at a pose
+  // that paints it beneath the targets (a named `depth`, or a variant
+  // resting closed on art whose closed lashes paint beneath the whites)
+  // gives its loop no reach.
+  const paintIndex = new Map(leaves.map((leaf, index) => [leaf.element, index]));
+  const lastPainted = (target: Element) =>
+    Math.max(-1, ...leaves.filter((leaf) => isAncestorOrSelf(doc!, target, leaf.element)).map((leaf) => paintIndex.get(leaf.element)!));
+  for (const segment of segments) {
+    for (const frames of segment.clips) {
+      const homes = edgeHomes.get(frames) ?? new Map<string, Leaf>();
+      const loopKeys = apertureLoopKeys[frames.loops.index] ?? [];
+      const reach: { aperture: string; loops: number[] }[] = [];
+      for (const { clip, aperture } of clipTargets) {
+        if (clip !== frames.clip) continue;
+        const last = lastPainted(targetOf.get(aperture)!);
+        const above = (key: string) => {
+          const home = homes.get(key);
+          return !!home && paintIndex.get(home.element)! > last;
+        };
+        const loops = loopKeys.flatMap((keys, j) => (keys.length > 0 && keys.every(above) ? [j] : []));
+        if (loops.length) reach.push({ aperture, loops });
+      }
+      if (reach.length) frames.reach = reach;
     }
   }
   // Every point a clip entry's apertures reach, in root space, and the
@@ -1091,10 +1255,10 @@ export function* bakeSteps(
   // layer under the clip targets. A stroke `APERTURE_REACH` screen pixels
   // wide on each side, whatever size the picture is drawn at, moves the
   // mask's edge under the drawn edges, which paint over the targets at rest
-  // as the still image draws them. A player drops the stroke whenever the
-  // aperture leaves its rest outline: moving edges taper past the opening's
-  // corners, and a closed state's drawings may paint beneath the targets, so
-  // a reach there would show. A rest outline closed against its entry's
+  // as the still image draws them. Away from the rest outline a player
+  // clips the stroke to the moving edges' drawings (`poseAperture`), since
+  // those taper toward the opening's corners and a closed state's drawings
+  // may paint beneath the targets. A rest outline closed against its entry's
   // widest (a morph that rests closed) has no stroke at all, for the same
   // reason.
   //
@@ -1142,7 +1306,7 @@ export function* bakeSteps(
     const path = (d: string, reach: boolean): Element => ({
       tagName: "path",
       attributes: {
-        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? `stroke:#fff;stroke-opacity:1;stroke-width:${APERTURE_REACH * 2}px;stroke-dasharray:none;stroke-linejoin:round` : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? APERTURE_REACH_STROKE.map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
         d,
       },
       children: [],
@@ -1334,6 +1498,7 @@ export function* bakeSteps(
     scheduleOut[group] = entries.map((e) => ({ offset: e.offset, state: e.state === REST ? restName(group) : e.state }));
   }
 
+  const paintPoses = paintPosesOf();
   const root = doc.root.attributes;
   return {
     format: MORPH_BAKE_FORMAT,
@@ -1352,7 +1517,9 @@ export function* bakeSteps(
     segments,
     frames,
     apertures,
+    apertureEdges,
     clipTargets,
+    ...(paintPoses.length ? { paints: paintPoses } : {}),
     diagnostics,
   };
 }

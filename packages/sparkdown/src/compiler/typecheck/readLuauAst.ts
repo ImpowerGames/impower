@@ -260,7 +260,9 @@ export interface LuauAstUnit {
    * (`LuauSyntaxError.unread`), which the validator leaves to it.
    */
   unreadStatements?: readonly { from: number; to: number }[];
-  /** A flow's header: its scene, or its branch outside any scene. */
+  /** A flow's header: its scene's, or its branch's. A branch in a scene is
+   *  a unit of its own, whose function begins at the scene's header, where
+   *  the scene's parameters it takes are written. */
   header?: TreeNodeRef;
   /**
    * Read with `unitLines` (see `ReadOptions`): the document line of each of
@@ -299,7 +301,7 @@ export interface ReadOptions {
 /** The Luau of a `.sd` file. */
 export interface LuauAstUnits {
   prelude: LuauAstUnit;
-  /** One unit per scene, and per branch outside any scene, that holds Luau statements. */
+  /** One unit per scene and per branch, in a scene or outside any, that holds Luau statements. */
   flows: LuauAstUnit[];
 }
 
@@ -5080,6 +5082,12 @@ type FlowPart = { node: SyntaxNode } | { branch: SyntaxNode; parameters: Paramet
 
 interface Flow {
   header: SyntaxNode;
+  /** For a branch in a scene, the scene's header, whose parameters are the
+   *  branch's function's and where its function begins. */
+  sceneHeader?: SyntaxNode;
+  /** For a branch in a variadic scene that takes a `...` of its own, the
+   *  scene's `...`, which the branch's replaces in its function. */
+  sceneVararg?: Vararg;
   parameters: ParameterReading | undefined;
   body: FlowPart[];
   /** The `...` parameters of the flow and of the branches in it, in document order. */
@@ -5094,8 +5102,7 @@ const COMMENT_NODE = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)
 /**
  * Reads a `.sd` file's Luau as units: its prelude, with the Luau statements
  * outside any flow and every function definition but a `local function`
- * written in a flow, and a unit per scene (its
- * branches included) or branch outside any scene that holds Luau
+ * written in a flow, and a unit per scene and per branch that holds Luau
  * statements, the units the type checker checks (`LuauDocumentChecker.ts`).
  */
 export function readLuauUnits(tree: Tree, documentText: string, options: ReadOptions = {}): LuauAstUnits {
@@ -5138,12 +5145,28 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
+        // A branch in a scene is a unit of its own: it runs in a scope of its
+        // own beside its scene's lines, in which the scene's parameters are
+        // bound, as the scene's entry falls into the branch, and none of the
+        // scene's locals or another branch's (`flowScopesOf`). Its function
+        // takes the scene's parameters, as typed, and its `...` is the
+        // branch's own, as the branch's entry binds it, or where it takes
+        // none, the scene's.
+        const scene = enclosing;
         const parameters = readParameters(node);
-        if (parameters) {
-          if (parameters.vararg) enclosing.varargs.push(parameters.vararg);
-          enclosing.body.push({ branch: node, parameters });
-        }
-        open.push(enclosing);
+        const own = scene.variadic ? scene.varargs[0] : undefined;
+        const branchVararg = parameters?.vararg;
+        const flow: Flow = {
+          header: node,
+          sceneHeader: scene.sceneHeader ?? scene.header,
+          parameters: scene.parameters,
+          body: parameters ? [{ branch: node, parameters }] : [],
+          varargs: branchVararg ? [branchVararg] : own ? [own] : [],
+          variadic: own !== undefined && branchVararg === undefined,
+          ...(own && branchVararg ? { sceneVararg: own } : {}),
+        };
+        flows.push(flow);
+        open.push(flow);
       } else {
         const parameters = readParameters(node);
         const own = parameters?.vararg;
@@ -5277,15 +5300,20 @@ function writeAnyParameters(tokenizer: Tokenizer, names: SyntaxNode[]): void {
 
 /**
  * A flow's unit: a local function `__flow` whose parameters are the flow's
- * and whose body is the flow's Luau, with each branch's parameters declared
- * as locals where the branch begins, holding the values its caller passes.
+ * and whose body is the flow's Luau. A branch in a scene is a flow of its
+ * own, whose function takes the scene's parameters and declares the branch's
+ * parameters as locals where the branch begins, holding the values its
+ * caller passes.
  * A flow whose statements are all Sparkdown's own has no unit.
  */
 function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex, options: ReadOptions): LuauAstUnit | undefined {
   const tokenizer = new Tokenizer(documentText, index);
   const nodes: TreeNodeRef[] = [];
-  const headerText = documentText.slice(flow.header.from, flow.header.to);
-  const headerAt = flow.header.from + headerText.length - headerText.trimStart().length;
+  // A branch's function begins at its scene's header, where the scene's
+  // parameters it takes are written.
+  const opening = flow.sceneHeader ?? flow.header;
+  const headerText = documentText.slice(opening.from, opening.to);
+  const headerAt = opening.from + headerText.length - headerText.trimStart().length;
 
   tokenizer.synthetic("keyword", "local", headerAt);
   tokenizer.synthetic("keyword", "function", headerAt);
@@ -5298,12 +5326,28 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   const parameters = flow.parameters;
   const own = flow.variadic ? flow.varargs[0] : undefined;
   const branchVararg = flow.variadic ? undefined : flow.varargs[0];
-  const named = parameters && (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true).length > 0 : parameters.names.length > 0);
+  // Where the scene's `...` a branch's own replaces begins: at the comma
+  // before it, or at it.
+  let cut = Number.POSITIVE_INFINITY;
+  if (flow.sceneVararg) {
+    let separator = flow.sceneVararg.dots.prevSibling;
+    while (separator && separator.name !== "LuauCommaSeparator") separator = separator.prevSibling;
+    cut = separator ? separator.from : flow.sceneVararg.dots.from;
+  }
+  const named =
+    parameters &&
+    (parameters.whole
+      ? findAll(parameters.node, "LuauFunctionParameter", true).some((name) => name.from < cut)
+      : parameters.names.length > 0);
 
   if (parameters?.whole) {
     const list = new Tokenizer(documentText, index);
     list.read(parameters.node);
     let tokens = list.tokens;
+    if (flow.sceneVararg) {
+      const close = parameters.node.to - 1;
+      tokens = tokens.filter((t) => t.from < cut || t.from >= close);
+    }
     if (own?.annotation && !agreed) {
       const annotation = own.annotation;
       tokens = tokens.filter((t) => t.from < annotation.from || t.from >= annotation.to);
@@ -5368,7 +5412,7 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     tokenizer.synthetic("keyword", "end", at);
   }
   insertStoryBreaks(tokenizer, tree);
-  const start = new Position(index.lineAt(flow.header.from), 0);
+  const start = new Position(index.lineAt(opening.from), 0);
   const unit = readUnit("flow", tokenizer, nodes, 2, start, options);
   unit.header = ref(flow.header);
   return unit;

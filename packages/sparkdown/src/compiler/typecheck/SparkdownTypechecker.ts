@@ -270,6 +270,12 @@ export class SparkdownTypechecker {
           code: error.data.kind,
           message: inDocumentLines(unit, errorToString(error)),
         };
+        // Each error once: a scene's parameters are read in the scene's unit
+        // and in each of its branches' (\`readLuauUnits\`), and an error in
+        // their annotations is the same error each time.
+        const key = `${diagnostic.start.line}:${diagnostic.start.character}-${diagnostic.end.line}:${diagnostic.end.character} ${diagnostic.message}`;
+        if (reported.has(key)) continue;
+        reported.add(key);
         if (error.data.kind === "UnknownSymbol" && error.data.context === UnknownSymbolContext.Binding) {
           diagnostic.unknownGlobal = error.data.name;
         }

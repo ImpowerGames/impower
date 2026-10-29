@@ -437,6 +437,9 @@ interface Flow {
   variadic: boolean;
   /** The `end` that closes the flow, if one does. */
   end?: SyntaxNode;
+  /** For a branch in a variadic scene that takes a `...` of its own, the
+   *  scene's `...`, which the branch's replaces in its function. */
+  sceneVararg?: Vararg;
 }
 
 /** Removes `[from, to)` from sorted, disjoint spans. */
@@ -686,11 +689,25 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
-        // A branch runs in its scene's call-stack element, where the scene's
-        // locals and those its other branches set are visible, so it is
-        // checked as part of the flow it sits in.
-        declareParameters(enclosing, node);
-        open.push(enclosing);
+        // A branch in a scene is checked as a unit of its own, whose function
+        // takes the scene's parameters: it runs in a scope of its own beside
+        // the scene's lines, where the scene's parameters are bound and none
+        // of the scene's locals or another branch's.
+        // Its `...` is its own, or where it takes none, the scene's.
+        const scene = enclosing;
+        const own = scene.variadic ? scene.varargs[0] : undefined;
+        const branchVararg = readParameters(node)?.vararg;
+        const flow: Flow = {
+          header: scene.header,
+          parameters: scene.parameters,
+          body: new UnitLines(index),
+          varargs: own && !branchVararg ? [own] : [],
+          variadic: own !== undefined && branchVararg === undefined,
+          ...(own && branchVararg ? { sceneVararg: own } : {}),
+        };
+        declareParameters(flow, node);
+        flows.push(flow);
+        open.push(flow);
       } else {
         const parameters = readParameters(node);
         const own = parameters?.vararg;
@@ -730,9 +747,18 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     // The flow's parameters: a whole list at its columns in the header line,
     // one the grammar ends early as the runtime reads it.
     const parameters = flow.parameters;
+    // Where the scene's `...` a branch's own replaces begins: at the comma
+    // before it, or at it.
+    let cut = Number.POSITIVE_INFINITY;
+    if (flow.sceneVararg) {
+      let separator = flow.sceneVararg.dots.prevSibling;
+      while (separator && separator.name !== "LuauCommaSeparator") separator = separator.prevSibling;
+      cut = separator ? separator.from : flow.sceneVararg.dots.from;
+    }
     if (parameters?.whole) {
       const line = new UnitLines(index);
       line.mark(parameters.node.from, parameters.node.to, true);
+      if (flow.sceneVararg) line.mark(cut, parameters.node.to - 1, false);
       const own = flow.variadic ? flow.varargs[0] : undefined;
       if (own?.annotation && !agreed) line.mark(own.annotation.from, own.annotation.to, false);
       const built = line.build();
@@ -747,7 +773,11 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     // branch's header line, as the function's last parameter.
     const branchVararg = flow.variadic ? undefined : flow.varargs[0];
     if (branchVararg) {
-      const named = parameters && (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true).length > 0 : parameters.names.length > 0);
+      const named =
+        parameters &&
+        (parameters.whole
+          ? findAll(parameters.node, "LuauFunctionParameter", true).some((name) => name.from < cut)
+          : parameters.names.length > 0);
       text[text.length - 1] = text[text.length - 1]!.replace(/\)$/, named ? "," : "");
       const line = new UnitLines(index);
       line.mark(branchVararg.dots.from, branchVararg.dots.to, true);

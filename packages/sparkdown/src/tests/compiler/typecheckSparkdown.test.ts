@@ -49,7 +49,7 @@ end
     expect(typeWarnings(program)).toEqual(["8:31-8:32 Expected this to be 'string', but got 'number'"]);
   });
 
-  test("a branch is checked in its scene, seeing the scene's locals and an earlier branch's, with its parameters' types", () => {
+  test("a branch is checked in its scene, seeing the scene's parameters as typed and none of the scene's locals or an earlier branch's", () => {
     const program = compile(`scene start(n: number)
   local value: number = n
   branch inner(k: number)
@@ -58,12 +58,53 @@ end
   end
   branch other
     local seen: number = copy
+    local typed: string = n
   end
 end
 `);
-    // A branch runs in its scene's call-stack element, so `value` and `copy`
-    // are in scope, as at runtime.
-    expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
+    // A branch runs in a scope of its own beside its scene's lines (I-1674):
+    // the scene's parameters are bound there, and `value` and `copy` are not.
+    expect(typeWarnings(program)).toEqual([
+      "8:26-8:27 Expected this to be 'string', but got 'number'",
+      "12:26-12:27 Expected this to be 'string', but got 'number'",
+    ]);
+    expect(describeDiagnostics(program, false)).toEqual([
+      "7:25-7:30 Cannot find variable named `value`",
+      "11:25-11:29 Cannot find variable named `copy`",
+    ]);
+  });
+
+  test("a function in a branch reads its scene's parameter as typed (I-1674)", () => {
+    const program = compile(`-> main(5)
+
+scene main(amount: number)
+  branch b
+    local wrong: string = amount
+    local function wrongResult(): string
+      return amount
+    end
+    Branch {amount}.
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "8:26-8:32 Expected this to be 'string', but got 'number'",
+      "10:13-10:19 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("an unknown type in a scene's parameter is reported once, though each branch reads the parameters (I-1674)", () => {
+    const program = compile(`scene start(n: Missing)
+  & local a = n
+  branch one
+    & local b = n
+  end
+  branch two
+    & local c = n
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["4:15-4:22 Unknown type 'Missing'"]);
   });
 
   test("a string that spans lines is checked as written, blank lines and trailing spaces included", () => {
@@ -206,13 +247,15 @@ end
     ]);
   });
 
-  test("where branches in a scene give `...` different types, as written, `...` has neither, and the scene is still checked", () => {
+  test("where branches in a scene give `...` different types, each branch's `...` has its own, and the scene is still checked (I-1674)", () => {
     const program = compile(`scene start
   branch first(...: string)
     local mine: string = ...
+    local wrongFirst: number = ...
   end
   branch second(...: number)
     local theirs: number = ...
+    local wrongSecond: string = ...
   end
   local bad: string = 1
 end
@@ -227,9 +270,29 @@ scene singletons
   local bad: string = 1
 end
 `);
+    // Each unit reports in turn: the scene's, then each branch's.
     expect(typeWarnings(program)).toEqual([
-      "11:22-11:23 Expected this to be 'string', but got 'number'",
-      "21:22-21:23 Expected this to be 'string', but got 'number'",
+      "13:22-13:23 Expected this to be 'string', but got 'number'",
+      "7:31-7:34 Expected this to be 'number', but got 'string'",
+      "11:32-11:35 Expected this to be 'string', but got 'number'",
+      "23:22-23:23 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("a branch's own `...` replaces its variadic scene's, with the branch's type (I-1674)", () => {
+    const program = compile(`scene s(...: string)
+  local fine: string = ...
+  branch b(...: number)
+    local wrong: string = ...
+  end
+  branch c
+    local inherited: number = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:26-7:29 Expected this to be 'string', but got 'number'",
+      "10:30-10:33 Expected this to be 'number', but got 'string'",
     ]);
   });
 
@@ -269,10 +332,11 @@ end
   local bad: string = 1
 end
 `);
+    // The scene's unit reports before its branch's (I-1674).
     expect(typeWarnings(program)).toEqual([
       "6:24-6:25 Expected this to be 'string', but got 'number'",
-      "8:30-8:31 Expected this to be 'string', but got 'number'",
       "10:22-10:23 Expected this to be 'string', but got 'number'",
+      "8:30-8:31 Expected this to be 'string', but got 'number'",
     ]);
   });
 
