@@ -33,8 +33,8 @@
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { worktreeTempDir, worktreeTempEnv } from "./worktree-temp.mjs";
 
 export function sha256(buf) {
   return crypto.createHash("sha256").update(buf).digest("hex");
@@ -185,7 +185,7 @@ export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 *
     windowsHide: true,
     encoding: "utf8",
     maxBuffer,
-    env: process.env,
+    env: worktreeTempEnv(cwd),
   });
   // The streams have no shared ordering. Keep their boundary a line boundary
   // even when the last stdout write did not include a newline.
@@ -452,10 +452,11 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   }
   const { commit: baseCommit, label: baseLabel } = resolveBase(repoRoot, base);
 
-  // A directory made here names this process in owner.json, so the
-  // clean-worktrees prune keeps it while the run that holds the snapshot is
-  // alive, however long its test takes.
-  const dir = snapshotDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-"));
+  // The snapshot goes under the checkout's ignored .tmp/, which the
+  // worktree's removal takes. A directory made here names this process in
+  // owner.json, so clean-worktrees keeps one in the main checkout while the
+  // run that holds the snapshot is alive, however long its test takes.
+  const dir = snapshotDir ?? fs.mkdtempSync(path.join(worktreeTempDir(repoRoot), "redgreen-"));
   if (!snapshotDir) fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid }) + "\n");
   const report = {
     ok: false,

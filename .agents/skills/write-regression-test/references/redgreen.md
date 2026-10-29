@@ -24,7 +24,7 @@ It snapshots the files, reverts them to the base revision, runs the test and req
   "base": "HEAD",
   "baseCommit": "4538f1319…",
   "test": "node scripts/test-suite.mjs run packages/sparkdown …",
-  "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
+  "snapshotDir": "C:\\...\\impower.worktrees\\fix\\302-filterimage-layers\\.tmp\\redgreen-abc123",
   "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotPath": "C:\\...\\redgreen-abc123\\01-filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true, "restoreError": null }],
   "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"], "summary": "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)" },
   "green": { "exit": 0, "outcome": "passed", "tail": ["…"], "summary": "Test Files  1 passed (1) / Tests  5 passed (5)" },
@@ -76,6 +76,6 @@ console.log(JSON.stringify(report, null, 2));
 process.exitCode = report.ok ? 0 : 1;
 ```
 
-Invoke that file with the absolute `.agents/skills/drive-web-editor/redgreen.mjs` path and the scratch repository path as separate quoted arguments. Initialize and commit the scratch baseline, then apply its fix before invoking it; print the scratch repository path in the same command as any destructive experiment. A bare Windows drive path is not an ESM URL. Keep the report, snapshot and logs outside the worktree.
+Invoke that file with the absolute `.agents/skills/drive-web-editor/redgreen.mjs` path and the scratch repository path as separate quoted arguments. Initialize and commit the scratch baseline, then apply its fix before invoking it; print the scratch repository path in the same command as any destructive experiment. A bare Windows drive path is not an ESM URL. Keep the report outside the worktree; the snapshot and logs go under the scratch repository's `.tmp/`, which ignores itself.
 
 ---

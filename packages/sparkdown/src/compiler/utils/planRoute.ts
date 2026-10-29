@@ -2483,6 +2483,7 @@ const exitedKnot = (
 export interface RouteSimulator extends Simulator {
   /** Force `override` too, after every decision already queued at its site. */
   add(override: RouteOverride): void;
+  decisionsTaken(): number;
 }
 
 export const buildRouteSimulator = (
@@ -2496,6 +2497,7 @@ export const buildRouteSimulator = (
 
   // Only enqueue overrides starting at `fromDecision`
   const pending = fromDecision > 0 ? decisions.slice(fromDecision) : decisions;
+  let decisionsTaken = Math.max(fromDecision, 0);
 
   const add = (s: RouteOverride) => {
     if (s.kind === "condition") {
@@ -2529,6 +2531,7 @@ export const buildRouteSimulator = (
     }
     const v = q[i];
     pointers.set(key, i + 1);
+    decisionsTaken += 1;
     return v ?? null;
   };
 
@@ -2564,6 +2567,7 @@ export const buildRouteSimulator = (
     willForceChoice,
     saveSnapshot,
     add,
+    decisionsTaken: () => decisionsTaken,
   };
 };
 

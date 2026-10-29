@@ -578,7 +578,9 @@ await test('tickets and the inbox follow the repos file in both positions while 
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
-  const scratch = mkdtempSync(resolve(tmpdir(), 'triage-path-check-'));
+  // Outside every checkout: a run under check-agent-tooling redirects tmpdir() into this one.
+  const outside = process.env.IMPOWER_SYSTEM_TMPDIR || tmpdir();
+  const scratch = mkdtempSync(resolve(outside, 'triage-path-check-'));
   try {
     const checkout = resolve(scratch, 'repo');
     const script = resolve(checkout, '.agents/skills/triage-skill-feedback/triage-skill-feedback.mjs');
@@ -611,7 +613,7 @@ await test('CLI rejects inside ..prefix paths and accepts outside siblings', () 
       assert.deepEqual(readdirSync(resolve(path, '..')), before, 'preview leaves no artifact directory');
     }
   } finally {
-    assert.ok(scratch.startsWith(resolve(tmpdir(), 'triage-path-check-')));
+    assert.ok(scratch.startsWith(resolve(outside, 'triage-path-check-')));
     rmSync(scratch, { recursive: true, force: true });
   }
 });

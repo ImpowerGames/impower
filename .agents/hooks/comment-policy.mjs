@@ -35,6 +35,10 @@ function familyOf(file) {
   return FAMILIES[path.posix.extname(posix(file)).toLowerCase()];
 }
 
+export function codeFile(file) {
+  return Boolean(familyOf(file));
+}
+
 function lineEnd(text, i) {
   const n = text.indexOf("\n", i);
   if (n < 0) return text.length;
@@ -711,7 +715,7 @@ export function scanComments(text, file, options = {}) {
     });
 }
 
-function bodyLines(comment) {
+export function bodyLines(comment) {
   const delimited = [["/*", "*/"], ["<!--", "-->"], ["<#", "#>"], ["//", ""], ["#", ""]].find(([open]) => comment.startsWith(open));
   let body = comment.slice(delimited[0].length);
   if (delimited[1] && body.endsWith(delimited[1])) body = body.slice(0, -delimited[1].length);

@@ -38,6 +38,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { systemTemp, useWorktreeTemp } from "../drive-web-editor/worktree-temp.mjs";
 import { desktop } from "./desktop.mjs";
 import { debugWorkbench } from "./web-debug.mjs";
 import {
@@ -80,7 +81,7 @@ const SERVER_ENTRY = (() => {
 // the served project folders and the server logs live outside every
 // worktree, so the download is shared and none of it sits in a tree
 // `git add -A` could reach.
-const DEFAULT_DATA_DIR = path.join(os.tmpdir(), "impower-vscode-test-web");
+const DEFAULT_DATA_DIR = path.join(systemTemp(), "impower-vscode-test-web");
 // The first `up` downloads and unpacks the build before the port answers.
 const READY_WAIT_MS = 10 * 60_000;
 
@@ -1526,6 +1527,7 @@ async function hoverOn(page, opts, report, fail, deps) {
 
 const runAsCli = process.argv[1] != null && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
+if (runAsCli) useWorktreeTemp();
 switch (cmd) {
   case "__imported__":
     break;
