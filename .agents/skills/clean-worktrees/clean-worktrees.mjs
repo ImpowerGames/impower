@@ -1704,11 +1704,17 @@ export async function cleanFilerJobs(ctx, deps, apply, record) {
       else {
         record({ decision: "removing", path: dir, why });
         try {
-          deps.removeScratch(dir);
+          // Judged again before each step of the removal: a repository, a
+          // registered worktree or an ownership lock that appeared while the
+          // directory was sized keeps it.
+          removeJobDir(dir, () => {
+            const again = classifyFilerJob(dir, deps, { ...jobCtx, worktrees: registeredWorktrees(ctx, deps) });
+            if (!again.remove) throw new Refusal(again.reason);
+          });
           decision = "removed";
         } catch (err) {
-          failed++;
-          decision = "failed";
+          if (err instanceof Refusal) decision = "kept";
+          else { failed++; decision = "failed"; }
           why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
         }
       }

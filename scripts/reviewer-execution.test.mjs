@@ -38,7 +38,11 @@ const { validateEditorRequest } = await import("./reviewer-editor.mjs");
 const oversizedSteps = Array.from({ length: 8 }, () => ({ action: "type", field: "search", text: "x".repeat(4096) }));
 assert.throws(() => validateEditorRequest({ requestId: "too-long", command: "ui", steps: oversizedSteps }), /step payload/, "combined text must fit the Windows command line");
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-review-execution-"));
+// The machine's temp directory: the delegated editor case opens a browser
+// profile under it, and the driver refuses a profile path past the Windows
+// limit, which the checkout's .tmp/ a run under check-agent-tooling is given
+// can reach.
+const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "impower-review-execution-"));
 console.log(`Scratch repository: ${scratch}`);
 const root = path.join(scratch, "repo"), evidence = path.join(scratch, "evidence");
 fs.mkdirSync(root); fs.mkdirSync(evidence);

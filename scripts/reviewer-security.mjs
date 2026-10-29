@@ -4,6 +4,7 @@ import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
+import {systemTemp} from '../.agents/skills/drive-web-editor/worktree-temp.mjs';
 
 // The native Codex route's sandbox guarantees were first observed on this
 // build. Later releases are accepted; the doctor check below still requires
@@ -78,7 +79,7 @@ export function removeSecretCodexHome(home) {
   // 8.3 short name, which only matches its long name after realpath.
   let parent='';
   try {parent=resolved?fs.realpathSync.native(path.dirname(resolved)):'';} catch {parent='';}
-  if(!resolved||!parent||parent!==fs.realpathSync.native(os.tmpdir())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
+  if(!resolved||!parent||parent!==fs.realpathSync.native(systemTemp())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
   fs.rmSync(resolved,{recursive:true,force:true});
 }
 export function discardCodexAuthCopy(step,env) {
@@ -139,7 +140,7 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
     const auth=secret?readCodexAuthSecret(step.permissions,source):fs.readFileSync(path.join(validateCodexAuthHome(step.permissions,worktree),'auth.json'));
     // The secret's home lies outside the job directory, which is retained as
     // review evidence after the reviewer exits.
-    const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(os.tmpdir(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
+    const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(systemTemp(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
     protectPrivatePath(home);
     if(secret)secrets.push(home);
     const fd=fs.openSync(path.join(home,'auth.json'),'wx',0o600);

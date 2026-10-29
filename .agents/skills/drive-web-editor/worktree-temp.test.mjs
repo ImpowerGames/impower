@@ -76,7 +76,7 @@ try {
     `const { useWorktreeTemp } = await import(${JSON.stringify(pathToFileURL(path.join(here, "worktree-temp.mjs")).href)});`,
     `const { driverHome } = await import(${JSON.stringify(pathToFileURL(path.join(here, "session-dir.mjs")).href)});`,
     "useWorktreeTemp(process.argv[2]);",
-    'const grandchild = spawnSync(process.execPath, ["-e", "const fs = require(\'node:fs\'), os = require(\'node:os\'), path = require(\'node:path\'); const d = fs.mkdtempSync(path.join(os.tmpdir(), \'x-\')); const g = require(\'node:child_process\').spawnSync(\'git\', [\'rev-parse\', \'--show-toplevel\'], { cwd: d, encoding: \'utf8\' }); console.log(JSON.stringify({ tmp: os.tmpdir(), made: d, git: g.status }));"], { encoding: "utf8" });',
+    'const grandchild = spawnSync(process.execPath, ["-e", "const fs = require(\'node:fs\'), os = require(\'node:os\'), path = require(\'node:path\'); const d = fs.mkdtempSync(path.join(os.tmpdir(), \'x-\')); const g = require(\'node:child_process\').spawnSync(\'git\', [\'rev-parse\', \'--show-toplevel\'], { cwd: d, encoding: \'utf8\', windowsHide: true }); console.log(JSON.stringify({ tmp: os.tmpdir(), made: d, git: g.status }));"], { encoding: "utf8", windowsHide: true });',
     "const env = { ...process.env }; delete env.LOCALAPPDATA; delete env.IMPOWER_DRIVER_HOME;",
     "console.log(JSON.stringify({ ...JSON.parse(grandchild.stdout), driverHome: driverHome(env) }));",
     "",

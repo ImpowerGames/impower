@@ -253,6 +253,9 @@ function copyOwnedRunner(directory) {
     hashes.push({name,sha256:createHash('sha256').update(bytes).digest('hex')});
     assert.deepEqual(fs.readFileSync(target),bytes,'Scratch runner bytes match the source under test');
   }
+  const helper=path.join(directory,'.agents','skills','drive-web-editor');
+  fs.mkdirSync(helper,{recursive:true});
+  fs.copyFileSync(path.join(path.dirname(runner),'..','.agents','skills','drive-web-editor','worktree-temp.mjs'),path.join(helper,'worktree-temp.mjs'));
   return hashes;
 }
 async function publicRunner(directory,argv,{observe=false,priorAttempts=[]}={}) {

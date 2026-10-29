@@ -56,7 +56,7 @@ import { CHECKOUT_OWNER_FILE, PROFILE_CLAIM_FILE, checkoutDir, recordCheckoutOwn
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses, cleanFilerJobs } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -2424,6 +2424,56 @@ await check("a merged review job whose recorded pid was recycled is removed; one
       assert.match(verdict.reason, /the processes on this machine could not be listed/);
       const run = classifyTestRun(path.join(suites, "live-child"), { ...deps, pidAlive: () => false }, { mainRoot, processes: { ok: false, err: "fixture" } });
       assert.equal(run.remove, false);
+    });
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+// ------------------------------------------------------- filer job removal ---
+
+{
+  // A finished job judged removable is judged again while it is removed, so a
+  // repository or an ownership lock that appears after classification (here,
+  // while the directory is sized) keeps it.
+  const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-clean-filer-")));
+  console.log(`Scratch filer job root parent: ${scratch}`);
+  const mainRoot = path.join(scratch, "repo");
+  spawnSync("git", ["init", "-q", mainRoot], { windowsHide: true });
+  const jobs = `${mainRoot}.filer-jobs`;
+  const job = (name) => {
+    const dir = path.join(jobs, name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ version: 2, state: "removed", tree: path.join(scratch, "gone") }));
+    return dir;
+  };
+  const cloned = job("cloned-while-sized");
+  const locked = job("locked-while-sized");
+  const plain = job("finished");
+  const recorded = [];
+  const deps = {
+    ...liveDeps,
+    pid: () => 1,
+    pidAlive: (pid) => pid === process.pid,
+    log: () => {},
+    scan: async (dir) => {
+      if (dir === cloned) fs.mkdirSync(path.join(cloned, "checkout", ".git", "objects"), { recursive: true });
+      if (dir === locked) fs.writeFileSync(path.join(locked, "owner.json.lock"), JSON.stringify({ pid: process.pid, owner: "o" }));
+      return liveDeps.scan(dir);
+    },
+  };
+  try {
+    await check("--apply on filer jobs keeps one that gained a repository or an ownership lock after it was judged removable, and removes the rest", async () => {
+      const result = await cleanFilerJobs({ mainRoot, processes: { ok: true, list: [] } }, deps, true, (r) => recorded.push(r));
+      assert.equal(result.failed, 0);
+      const row = (name) => result.rows.find((r) => r.name === name);
+      assert.equal(row("cloned-while-sized").decision, "kept", row("cloned-while-sized").why);
+      assert.match(row("cloned-while-sized").why, /protected embedded Git repository/);
+      assert.equal(row("locked-while-sized").decision, "kept", row("locked-while-sized").why);
+      assert.match(row("locked-while-sized").why, new RegExp(`its ownership lock names pid ${process.pid}, still running`));
+      assert.equal(row("finished").decision, "removed", row("finished").why);
+      assert.ok(fs.existsSync(path.join(cloned, "checkout", ".git")) && fs.existsSync(locked), "a job that changed during sizing was removed");
+      assert.equal(fs.existsSync(plain), false, "the finished job is still there");
     });
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
