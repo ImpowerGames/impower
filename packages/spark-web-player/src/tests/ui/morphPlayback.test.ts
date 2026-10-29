@@ -347,6 +347,61 @@ end
     expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
   });
 
+  test("a moving lash paints with its own gradient copy, posed every frame and returned to its markup at the poses", async () => {
+    // The lashes fill with linear gradients whose first stop is dark open
+    // and light closed.
+    const stops = (first: string) => `<stop offset="0" stop-color="${first}"/><stop offset="1" stop-color="#111"/>`;
+    const art = ART.replace(
+      "</linearGradient></defs>",
+      `</linearGradient><linearGradient id="lash-open">${stops("#222")}</linearGradient><linearGradient id="lash-closed">${stops("#ccc")}</linearGradient></defs>`,
+    )
+      .replace(/(data-name="eyelash-left" d="[^"]*") fill="#111"/g, (whole, start: string) =>
+        `${start} fill="url(#${whole.includes(CLOSED) ? "lash-closed" : "lash-open"})"`,
+      );
+    expect(art).toContain('fill="url(#lash-closed)"');
+    expect(art.match(/url\(#lash-open\)/g)).toHaveLength(2);
+    const { h, frames, playback } = await previewed(SOURCE, [{ ...FILES[0]!, data: art }]);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const view = (playback as any).layers.values().next().value.plays[0].view;
+    const artifact = view.artifact as MorphArtifact;
+    const copies = [
+      ...new Set(
+        artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" && t.gradients?.fill ? [t.gradients.fill.id] : []))),
+      ),
+    ];
+    // Each open lash draws on itself and has its own copy.
+    expect(copies).toHaveLength(2);
+    const own = (id: string) => id.split(artifact.idPrefix).join(view.prefix);
+    /** A gradient's attributes and its stops', with ids in the artifact's prefix. */
+    const state = (root: ParentNode, id: string) => {
+      const element = Array.from(root.querySelectorAll("*")).find((e) => e.localName === "linearGradient" && e.id === id)!;
+      const attributes = (e: Element) => Object.fromEntries(Array.from(e.attributes, (a) => [a.name, a.value.split(view.prefix).join(artifact.idPrefix)]));
+      return { ...attributes(element), stops: Array.from(element.children).map(attributes) };
+    };
+    const reference = (offset: number, id: string) => state(new DOMParser().parseFromString(renderMorphAt(artifact, offset), "image/svg+xml"), id);
+    const markup = copies.map((id) => state(shadow, own(id)));
+    frames.run(1000);
+    expect(copies.map((id) => state(shadow, own(id)))).toEqual(copies.map((id) => reference(0, id)));
+    expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
+    // Partway through the closing both lashes paint with their copies, posed as the reference renderer poses them.
+    frames.run(1000 + 0.15 * 250);
+    expect(paintStates(shadow)).toEqual(
+      Object.fromEntries(Object.entries(referencePaint(artifact, 0.15)).map(([node, styles]) => [node, styles.map((s) => s.split(artifact.idPrefix).join(view.prefix))])),
+    );
+    const fills = Object.values(paintStates(shadow)).flat().map((style) => /fill:([^;]+)/.exec(style)?.[1]).filter(Boolean);
+    expect(fills.sort()).toEqual(copies.map((id) => `url(#${own(id)})`).sort());
+    for (const id of copies) {
+      const posed = state(shadow, own(id));
+      expect(posed).toEqual(reference(0.15, id));
+      expect(posed).not.toEqual(markup[copies.indexOf(id)]);
+    }
+    // Back at the end of the play every copy is its markup again.
+    frames.run(1000 + 250);
+    expect(copies.map((id) => state(shadow, own(id)))).toEqual(markup);
+    expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
+  });
+
   test("an aperture with a closed loop strokes its open loops alone at rest, and every path follows the frames away from it", async () => {
     expect(WINK_SOURCE).toContain("eyelash-right");
     expect(WINK_SOURCE).toContain("eyeball-white-right");

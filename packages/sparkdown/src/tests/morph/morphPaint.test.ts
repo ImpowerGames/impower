@@ -130,6 +130,8 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
       ["revert-layer", 'fill="#f00" style="fill:revert-layer"'],
       ["a no-break space", 'fill=" #000"'],
       ["a non-ASCII name", 'fill="röd"'],
+      // A browser decodes the reference and reads `fill:#f00` over the attribute.
+      ["a character reference in a style", 'fill="#000" style="fil&#108;:#f00"'],
       ["color: none", 'color="none" fill="currentColor"'],
     ];
     test.each(cases)("%s", (_, open) => {
