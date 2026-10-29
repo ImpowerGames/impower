@@ -88,6 +88,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(patch("*** Add File: src/d.ts\n+// @ts-nocheck\n+export {};"), null);
 
     const typescript = loadTypescript(root);
+    assert.ok(typescript || process.env.COMMENT_POLICY_REQUIRE_TYPESCRIPT !== "1", "COMMENT_POLICY_REQUIRE_TYPESCRIPT is set, so typescript must resolve from this checkout or its main checkout");
     if (!typescript) console.log("SKIP: typescript does not resolve from this checkout or its main checkout, so the JavaScript and TypeScript cases ran through the fallback scanner only");
     const labelBlock = "outer: {} /[/*]/.test(\"/\"); // yes";
     const heuristicLimits = new Map([[labelBlock, "a brace after a statement label is read as an object literal, so the regex after it reads as division"]]);
