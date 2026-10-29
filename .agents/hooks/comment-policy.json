@@ -14,6 +14,14 @@
     { "form": "^value-level:", "extensions": [".ts"] },
     { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
   ],
+  "licences": [
+    { "form": "\\bSPDX-License-Identifier:\\s*\\S" },
+    { "form": "(?:\\bCopyright\\b|©)(?:\\s*\\([cC]\\)|\\s*©)?\\s+(?:\\d{4}|[A-Za-z])" },
+    { "form": "\\bThis Source Code Form is subject to the terms of the Mozilla Public License\\b" },
+    { "form": "\\b(?:MIT|MPL|Apache|BSD|L?GPL|ISC|CC)\\b[^;\\n]{0,24}?\\b[Ll]icen[cs](?:e|ed)\\b" },
+    { "form": "\\b[Ll]icen[cs]ed under (?:the )?(?:MIT|MPL|Apache|BSD|L?GPL|ISC|CC)\\b" },
+    { "form": "(?<![\\w-])LICEN[CS]E(?:[-.][\\w.-]*\\w)?(?![\\w-])" }
+  ],
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [
     "packages/sparkdown/src/inkjs/",
