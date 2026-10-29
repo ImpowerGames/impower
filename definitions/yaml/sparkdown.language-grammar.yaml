@@ -159,10 +159,11 @@ variables:
   # (`LuauExpressionKeywordMethodAccessor`).
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`; read only inside the `end:` lookaheads of the path and of a type, which hand the `:` to those rules (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_LONG_COMMENT: (?:[:](?![:]){{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
-  # A method's `:` with no name after it on its line (`{ speed: 2 }`): not a
-  # word, a comment or the line's end, where a method name may yet come.
-  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, and `LuauMethodNameAccessor`, `LuauFunctionAccessor` and `LuauNextLineMethodAccessor` own a `:` a name follows; read only inside `LuauAccessPath`'s `end:` lookahead, which hands the rest to `LuauTableMethodColon` (GRAMMAR.md §10.1, the end carrying the load).
-  LUAU_COLON_BEFORE_NO_NAME: (?:[:](?![:])(?!{{WS}}*(?:{{LUAU_WORD}}|$|--)))
+  # A method's `:` that a number or a string follows in place of its name
+  # (`{ speed: 2 }`, `{ name: "x" }`), the value a table field written with
+  # `:` holds.
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, and `LuauTypeAnnotationOperation` keeps every other `:` no name follows (`t: = 2`, `{x:}`), whose missing method name the validator reports there; read only inside `LuauAccessPath`'s `end:` lookahead, which hands this `:` to `LuauTableMethodColon` (GRAMMAR.md §10.1, the end carrying the load).
+  LUAU_COLON_BEFORE_NO_NAME: (?:[:](?![:])(?={{WS}}*[0-9"']))
   # A type operator whose right operand is missing before a `:`
   # (`t :: T | :do`, `t :: :do`), where the `:` is a type's stray colon
   # and a header's bracket may hold the word after it, which Luau's

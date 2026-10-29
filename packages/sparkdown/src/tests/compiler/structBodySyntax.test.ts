@@ -21,11 +21,11 @@ function errors(text: string) {
 
 describe("struct bodies use blocks and ignore indentation", () => {
   test.each(["layout", "style"])("%s rejects colon headers and dash items", (type) => {
-    for (const [line, token] of [["title:", ":"], ["- title", "-"]]) {
+    for (const [line, token, message] of [["title:", ":", "Expected '=' when parsing field, got ':'"], ["- title", "-", "Invalid syntax"]]) {
       const text = `${type} example with\n  ${line}\nend`;
       const found = errors(text);
       expect(found).toHaveLength(1);
-      expect(typeof found[0]!.message === "string" ? found[0]!.message : found[0]!.message.value).toBe("Invalid syntax");
+      expect(typeof found[0]!.message === "string" ? found[0]!.message : found[0]!.message.value).toBe(message);
       expect(found[0]!.range.start.line).toBe(1);
       const { start, end } = found[0]!.range;
       expect(text.split("\n")[1]!.slice(start.character, end.character)).toBe(token);
