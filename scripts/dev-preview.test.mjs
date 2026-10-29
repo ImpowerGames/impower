@@ -45,7 +45,7 @@ const launcher = path.join(repo, "scripts", "dev-preview.mjs");
 copy(path.join(here, "dev-preview.mjs"), launcher);
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
-for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
+for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
 // As in the repository, so a driver that still runs npm reaches the launcher.
 fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ private: true, scripts: { "web:dev": "node scripts/dev-preview.mjs --mode same-origin" } }));
 fs.writeFileSync(path.join(repo, "server.mjs"), [

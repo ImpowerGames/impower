@@ -51,7 +51,7 @@ export function fingerprinter(progress = () => {}) {
     const ignoredInputs = [], ignoredDirectories = new Set();
     function collectIgnored(relative) {
       const file = path.join(root, relative), name = path.basename(file);
-      if (["node_modules", ".git", ".vite", ".cache"].includes(name.toLowerCase())) return;
+      if (["node_modules", ".git", ".vite", ".cache", ".tmp"].includes(name.toLowerCase())) return;
       const stat = fs.statSync(file);
       if (stat.isDirectory()) {
         const real = fs.realpathSync.native(file);

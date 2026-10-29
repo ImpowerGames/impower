@@ -28,3 +28,6 @@
 # Vite writes a transient timestamped copy of a config next to it whenever the
 # config is a TS module; these accumulate and are never source.
 **/*.timestamp-*.mjs
+
+# Scratch output of the entry points agents run (.agents/skills/drive-web-editor/worktree-temp.mjs).
+/.tmp/

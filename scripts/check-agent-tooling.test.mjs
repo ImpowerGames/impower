@@ -11,7 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-check-discovery-"));
 console.log(`Scratch repository: ${scratch}`);
 spawnSync("git", ["init", scratch], { windowsHide: true });
-for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skills.mjs", ".agents/skills/drive-web-editor/redgreen.mjs"]) {
+for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skills.mjs", ".agents/skills/drive-web-editor/redgreen.mjs", ".agents/skills/drive-web-editor/worktree-temp.mjs"]) {
   fs.mkdirSync(path.dirname(path.join(scratch, file)), { recursive: true });
   fs.copyFileSync(path.join(root, file), path.join(scratch, file));
 }

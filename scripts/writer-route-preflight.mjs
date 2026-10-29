@@ -1,9 +1,9 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
+import { systemTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 // Decides, before an orchestrator dispatches a batch of writers, whether the
 // chosen writer route can run exactly the requested model at each ticket's
@@ -30,7 +30,7 @@ function claudeCliCheck(model, request) {
   const probes = new Map();
   return (effort) => {
     if (!probes.has(effort)) {
-      const result = spawnSync(program, [...prefix, "-p", "--model", model, "--effort", effort, "--output-format", "json", "--allowedTools", "Read"], { cwd: os.tmpdir(), env, input: "Reply with the single word ready.", encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+      const result = spawnSync(program, [...prefix, "-p", "--model", model, "--effort", effort, "--output-format", "json", "--allowedTools", "Read"], { cwd: systemTemp(), env, input: "Reply with the single word ready.", encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
       let reason = null;
       if (result.error) reason = `the Claude CLI probe could not run: ${result.error.message}`;
       else {
@@ -55,7 +55,7 @@ function claudeCliCheck(model, request) {
 function codexCliCheck(model, request, repo, { probe = true } = {}) {
   const command = request.evidence?.codex ?? "codex";
   const [program, ...prefix] = Array.isArray(command) ? command : [command];
-  const run = (args) => spawnSync(program, [...prefix, ...args], { cwd: os.tmpdir(), encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  const run = (args) => spawnSync(program, [...prefix, ...args], { cwd: systemTemp(), encoding: "utf8", timeout: 180000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
   const failure = (what, result) => {
     if (result.error) return `${what} could not run: ${result.error.message}`;
     const detail = (result.stderr || result.stdout || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).find((line) => /error|not supported|unsupported|invalid/i.test(line)) ?? "";

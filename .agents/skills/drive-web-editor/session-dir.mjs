@@ -4,8 +4,8 @@
 
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { systemTemp } from "./worktree-temp.mjs";
 
 // Which agent session is running a command. Every command is its own
 // process, so the identity comes from the environment: IMPOWER_DRIVER_SESSION
@@ -20,10 +20,21 @@ export function driverSession(env = process.env) {
 const shortHash = (text) => crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
 
 // The short root outside every checkout (IMPOWER_DRIVER_HOME overrides it).
-export const driverHome = (env = process.env) => env.IMPOWER_DRIVER_HOME || path.join(env.LOCALAPPDATA || os.tmpdir(), "impower-driver");
+export const driverHome = (env = process.env) => env.IMPOWER_DRIVER_HOME || path.join(env.LOCALAPPDATA || systemTemp(env), "impower-driver");
 
 // Every session of one checkout lives under the checkout's own directory.
 export const checkoutDir = (root, env = process.env) => path.join(driverHome(env), shortHash(path.resolve(root)));
+
+// A hash cannot be read back into a path, so each checkout directory names the
+// checkout it hashed; clean-worktrees removes the directory once that
+// checkout is gone.
+export const CHECKOUT_OWNER_FILE = "checkout.json";
+export function recordCheckoutOwner(root, env = process.env) {
+  const dir = checkoutDir(root, env);
+  fs.mkdirSync(dir, { recursive: true });
+  try { fs.writeFileSync(path.join(dir, CHECKOUT_OWNER_FILE), JSON.stringify({ checkout: path.resolve(root) }) + "\n", { flag: "wx" }); }
+  catch (error) { if (error.code !== "EEXIST") throw error; }
+}
 
 // Every session directory holds `state.json` while its servers run and
 // `profile/`, whose claim file names the session that last opened it and when.

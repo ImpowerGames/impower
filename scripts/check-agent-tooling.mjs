@@ -5,8 +5,10 @@ import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
 import { toolDirectories } from "./link-agent-skills.mjs";
+import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+useWorktreeTemp(root);
 // Several checks read the skills through the discovery links, which the root
 // postinstall creates. A checkout that skipped the install has none, and those
 // checks would fail late for a reason unrelated to the change under test.

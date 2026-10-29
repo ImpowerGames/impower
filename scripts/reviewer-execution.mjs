@@ -87,7 +87,7 @@ export function executionCommands(operations, root) {
 // A delegated run is made for the reviewer, so it queues in the reviewer pool
 // of the test reservation.
 export function executionEnvironment(source = process.env) {
-  const allowed = /^(?:path|pathext|systemroot|windir|comspec|programdata|programfiles|programfiles\(x86\)|temp|tmp|home|userprofile|appdata|localappdata|psmodulepath|lang|lc_all)$/i;
+  const allowed = /^(?:path|pathext|systemroot|windir|comspec|programdata|programfiles|programfiles\(x86\)|temp|tmp|tmpdir|impower_system_tmpdir|git_ceiling_directories|home|userprofile|appdata|localappdata|psmodulepath|lang|lc_all)$/i;
   return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024", IMPOWER_TEST_POOL: "reviewer" };
 }
 
