@@ -11,8 +11,10 @@ import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/ga
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type {
   PreviewRoute,
+  RoutePin,
   ScriptSource,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
+import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import {
   installGameWorker,
   NoGameError,
@@ -177,6 +179,10 @@ export function installPlayerWorker(connection: MessageConnection) {
   // the game starts a new one.
   let routeSearches = new RouteSearchLog();
 
+  /** The author's pins (`preview/setRoutePins`), which every game here
+   *  plans its routes with. */
+  let routePins: RoutePin[] = [];
+
   /** Plan a route to the address `to` and replay it for the real program.
    *  Every search here records its checkpoint as the value the game holds,
    *  which a display loads in place, and whose full save is written only for
@@ -280,6 +286,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       // Built with what the editor has asked of the preview's debugger so
       // far.
       gameState.game = gameState.createGame({ program });
+      gameState.game.setRoutePins(routePins);
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
@@ -925,6 +932,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
       play: true,
     });
+    running.setRoutePins(routePins);
     profile("end", compiler.profilerId + " " + "play/create");
     if (route.shownFrom) {
       // A line no route reaches whose jumped run shows nothing starts at the
@@ -1166,6 +1174,28 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (StopPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => stopPlay(message.params));
+      return;
+    }
+    if (SetRoutePinsMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        routePins = message.params.pins;
+        gameState.game?.setRoutePins(routePins);
+        // What every log established was established with the pins before,
+        // so each program's searches start again.
+        for (const entry of displayable.values()) {
+          entry.log = new RouteSearchLog();
+        }
+        routeSearches =
+          (canonicalId && displayable.get(canonicalId)?.log) ||
+          new RouteSearchLog();
+        // The point on screen can now be reached another way, or by the
+        // same way with other decisions pinned, so the next display of it is
+        // a first one, which reports its route, not a repeat of the one
+        // shown.
+        displayedId = undefined;
+        standing = undefined;
+        return {};
+      });
       return;
     }
     if (ProgramHeldMessage.type.isRequest(message)) {

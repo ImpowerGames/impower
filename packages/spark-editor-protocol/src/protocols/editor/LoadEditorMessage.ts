@@ -3,6 +3,7 @@ import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { InitializeParams, InitializeResult } from "../InitializeMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
+import type { EditorRoutePin } from "./ChangedEditorRoutePinsMessage";
 
 export type LoadEditorMethod = typeof LoadEditorMessage.method;
 
@@ -17,6 +18,9 @@ export interface LoadEditorParams {
   /** The lines a once-only option's or an alternator's starting value is
    *  kept on (`editor/setStartingValueLines`). */
   startingValueLines?: number[];
+  /** The document's pins on the options the Game Preview takes, which the
+   *  editor keeps on their lines through edits. */
+  routePins?: EditorRoutePin[];
   languageServerInitializeParams: InitializeParams;
   languageServerInitializeResult: InitializeResult;
   preserveEditor?: boolean;

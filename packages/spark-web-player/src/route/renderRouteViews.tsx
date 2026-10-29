@@ -1,7 +1,12 @@
 import { render } from "preact";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { RouteButton, RouteList } from "./RouteViews";
-import type { RouteKind, RouteViewState, ScriptName } from "./routeView";
+import type {
+  RouteKind,
+  RoutePinChange,
+  RouteViewState,
+  ScriptName,
+} from "./routeView";
 import type { RouteTab } from "./startingValuesView";
 import type { StartingValuesEvents } from "./StartingValuesViews";
 
@@ -14,6 +19,7 @@ export interface RouteViewProps {
   onShowLine: (location: DocumentLocation) => void;
   onTab?: (tab: RouteTab) => void;
   values?: StartingValuesEvents;
+  onChangePins: (change: RoutePinChange) => void;
 }
 
 /** Render the route button and the route panel into the places a host gave

@@ -126,6 +126,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
@@ -150,6 +151,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { ExecuteCommandMessage },
         { ChangeStartingValuesMessage },
         { RuntimeDiagnosticsMessage },
+        { ChangeRoutePinsMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
@@ -179,8 +181,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
-        const preferences = createPlayerPreferenceSync((message) =>
-          iframeChannelRef.current?.postMessage(message),
+        const preferences = createPlayerPreferenceSync(
+          (message) => iframeChannelRef.current?.postMessage(message),
+          () => Workspace.window.getRoutePins(),
         );
 
         const onChannelMessage = async (e: MessageEvent) => {
@@ -193,6 +196,15 @@ export default function PreviewGame(_props: PreviewGameProps) {
             const { start, changes } = message.params;
             Workspace.window.changeStartingValues(start, changes);
             iframeChannelRef.current?.sendResponse(message, {});
+            return;
+          }
+          if (ChangeRoutePinsMessage.type.isRequest(message)) {
+            // The pins are the workspace's, which saves the change and sends
+            // every pin back to the player and the script editors.
+            iframeChannelRef.current?.sendResponse(message, () => ({
+              pins: Workspace.window.changeRoutePins(message.params),
+            }));
+            return;
           }
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
@@ -339,8 +351,15 @@ export default function PreviewGame(_props: PreviewGameProps) {
               simulateFlow,
               conditions,
               choices,
+              route,
             } = message.params;
-            if (simulateFlow != null) {
+            // A route the author's pins steered is not a choice to favor
+            // next time, so clearing the pins leaves nothing of them.
+            const pinned =
+              route?.decisions.some(
+                (d: { kind: string }) => d.kind === "pinned",
+              ) ?? false;
+            if (simulateFlow != null && !pinned) {
               const favoredConditions = conditions.map(
                 (c: { selected?: boolean }) => c.selected,
               );

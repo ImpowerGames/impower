@@ -56,6 +56,12 @@ import {
   pinpointsChanged,
   pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
+import {
+  getRoutePins,
+  routePins,
+  setsRoutePins,
+  type DocumentRoutePin,
+} from "../../../cm-route-pins/routePins";
 import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import {
   lineAnchorMoves,
@@ -113,6 +119,8 @@ interface EditorConfig {
   /** The lines, counting from 0, that a starting value of the Game Preview
    *  is kept on, which follow their text through edits. */
   startingValueLines?: number[];
+  /** The document's pins on the options the Game Preview takes. */
+  routePins?: DocumentRoutePin[];
   mobileTopContainer?: HTMLElement;
   mobileBottomContainer?: HTMLElement;
   scrollToLineNumber?: number;
@@ -145,6 +153,8 @@ interface EditorConfig {
     moves: [from: number, to: number | null][],
   ) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
+  /** An edit moved the document's pins or deleted the line of one. */
+  onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
   onHeightChanged?: () => void;
   /** An autocomplete option was highlighted, or the list closed. */
   onCompletionPreview?: (
@@ -192,6 +202,7 @@ const createEditorView = (
   const onPinpointsChanged = config?.onPinpointsChanged;
   const onStartingValueLinesChanged = config?.onStartingValueLinesChanged;
   const onHighlightsChanged = config?.onHighlightsChanged;
+  const onRoutePinsChanged = config?.onRoutePinsChanged;
   const onHeightChanged = config?.onHeightChanged;
   const onCompletionPreview = config?.onCompletionPreview;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
@@ -237,6 +248,7 @@ const createEditorView = (
   let prevBreakpointLineNumbers = breakpointLineNumbers;
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
+  let prevRoutePins = config?.routePins ?? [];
   let notifiedViewportParsed = false;
 
   // Using state.doc.line() errors on Mac
@@ -344,6 +356,9 @@ const createEditorView = (
           }
           return decorations;
         }),
+        // Using state.doc.line() errors on Mac, so the pins start on the
+        // lines of initialText.
+        routePins(config?.routePins ?? [], initialText),
         sparkdownLanguageExtension({
           textDocument,
           serverWorker,
@@ -446,6 +461,18 @@ const createEditorView = (
             ) {
               prevHighlightLineNumbers = currentHighlightLineNumbers;
               onHighlightsChanged?.(u, currentHighlightLineNumbers);
+            }
+          }
+          if (u.transactions.some(setsRoutePins)) {
+            // The host's own pins, which it already holds.
+            prevRoutePins = getRoutePins(u.state);
+          } else if (u.docChanged) {
+            const currentRoutePins = getRoutePins(u.state);
+            if (
+              JSON.stringify(currentRoutePins) !== JSON.stringify(prevRoutePins)
+            ) {
+              prevRoutePins = currentRoutePins;
+              onRoutePinsChanged?.(u, currentRoutePins);
             }
           }
           onViewUpdate?.(u);

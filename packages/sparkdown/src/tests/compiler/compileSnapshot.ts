@@ -22,7 +22,6 @@ import { StructDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/St
 import { StructPropertyDefinition } from "../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Tag } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { RootBinding } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/RootBinding";
 import { StorePropertyAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
@@ -229,9 +228,6 @@ function parsedObjectToJson(obj: ParsedObject): unknown {
       type: "ReturnType",
       expression: expressionToJson(obj.returnedExpression),
     };
-  }
-  if (obj instanceof RootBinding) {
-    return { type: "RootBinding", name: obj.variableName };
   }
   if (obj instanceof Expression) {
     return expressionToJson(obj);

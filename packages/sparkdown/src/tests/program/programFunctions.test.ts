@@ -1070,11 +1070,9 @@ describe("a function's symbol", () => {
       "  return g()\nend\n",
       "  return g()\nend\n\nfunction helper()\n  return 7\nend\n",
     );
-    // The new function's definition and body, the closure's statement and
-    // the statement of its body that calls the function, and the definition
-    // of `bottom`, whose entry no longer binds `helper` to a top-level local
-    // (`RootBinding`).
-    expect(s.store.emittedLastBuild).toBe(5);
+    // The new function's definition and body, and the closure's statement and
+    // the statement of its body that calls the function.
+    expect(s.store.emittedLastBuild).toBe(4);
     const withHelper = closureOf(added);
     expect(withHelper).not.toBe(before);
     expect(describeRoot(added)).toEqual(describeRoot(cold(s.text)));
@@ -1083,9 +1081,9 @@ describe("a function's symbol", () => {
     ]);
 
     const removed = s.edit("\nfunction helper()\n  return 7\nend\n", "");
-    // The closure's statement, the statement of its body that calls the
-    // name, and the definition of `bottom`, whose entry binds `helper` again.
-    expect(s.store.emittedLastBuild).toBe(3);
+    // The closure's statement and the statement of its body that calls the
+    // name.
+    expect(s.store.emittedLastBuild).toBe(2);
     expect(closureOf(removed)).not.toBe(withHelper);
     expect(describeRoot(removed)).toEqual(describeRoot(cold(s.text)));
     const coldRun = storyBeats(new ProgramStory(cold(s.text)));

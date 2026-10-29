@@ -1,8 +1,21 @@
+import { useState } from "preact/hooks";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type {
+  PreviewRouteDecision,
+  PreviewRouteOption,
+  RoutePin,
+} from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { RouteIconSvg } from "./RouteIcons";
 import {
+  choiceSentence,
   decisionText,
+  isPinned,
   kindCounts,
+  pinChange,
+  stopIsPinned,
+  unpinChange,
+  unresolvedPinText,
+  type RoutePinChange,
   ROUTE_KIND_LABELS,
   ROUTE_KIND_MEANINGS,
   ROUTE_KINDS,
@@ -87,12 +100,76 @@ export interface RouteListProps {
   onTab?: (tab: RouteTab) => void;
   /** What the author did in the Starting values tab. */
   values?: StartingValuesEvents;
+  /** The author pinned, unpinned or removed pins. */
+  onChangePins: (change: RoutePinChange) => void;
 }
 
-/** The route panel: the route tab, with the route's decisions in route order
- *  up to the line it ends at, filtered by the toggles, or why there is no
- *  route; and the Starting values tab, when the host keeps starting
- *  values. */
+/** A choice entry's pin control: what the preview did at the stop, the
+ *  options offered there in script order with the one taken marked, each
+ *  with Pin or Pinned, and Unpin when the stop has a pin. */
+function PinControl({
+  decision,
+  target,
+  pins,
+  onChangePins,
+}: {
+  decision: PreviewRouteDecision;
+  target: DocumentLocation;
+  pins: RoutePin[];
+  onChangePins: (change: RoutePinChange) => void;
+}) {
+  const taken = (option: PreviewRouteOption) =>
+    option.location.uri === decision.location.uri &&
+    option.location.range.start.line === decision.location.range.start.line;
+  return (
+    <div class="route-pin-control">
+      <p class="route-pin-sentence">{choiceSentence(decision, target)}</p>
+      <ul class="route-pin-options">
+        {(decision.options ?? []).map((option) => {
+          const pinned = isPinned(pins, option);
+          return (
+            <li
+              key={`${option.location.range.start.line}:${option.offer}`}
+              class={taken(option) ? "route-pin-option taken" : "route-pin-option"}
+            >
+              <span class="route-pin-option-text">{option.text}</span>
+              {taken(option) ? (
+                <span class="route-pin-taken">Taken</span>
+              ) : null}
+              <button
+                type="button"
+                class="route-pin-button"
+                aria-pressed={pinned}
+                title={pinned ? "Unpin this option" : "Pin this option here"}
+                onClick={() =>
+                  onChangePins(pinChange(pins, decision, option))
+                }
+              >
+                <RouteIconSvg icon="pinned" />
+                <span>{pinned ? "Pinned" : "Pin"}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {stopIsPinned(pins, decision) ? (
+        <button
+          type="button"
+          class="route-pin-unpin"
+          onClick={() => onChangePins(unpinChange(pins, decision))}
+        >
+          Unpin
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The route panel: the route tab, with the route's decisions in route
+ *  order up to the line it ends at, filtered by the toggles, or why there
+ *  is no route, a choice entry expanding to its pin control and one whose
+ *  pin was not followed starting expanded; and the Starting values tab,
+ *  when the host keeps starting values. */
 export function RouteList({
   state,
   nameOf,
@@ -101,7 +178,10 @@ export function RouteList({
   onShowLine,
   onTab,
   values,
+  onChangePins,
 }: RouteListProps) {
+  // Which entries the author expanded or collapsed, by stop.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (!state.open) {
     return null;
   }
@@ -116,6 +196,24 @@ export function RouteList({
   const decisions = route?.decisions ?? [];
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
+  const unresolved = route?.unresolvedPins ?? [];
+  // An entry is known by its stop: the menu it met, by where it is met, and
+  // which meeting of that menu it is. A pin that changes the option taken
+  // there, or the options a gate lets it offer, leaves it as it was, so the
+  // control the author pressed stays open.
+  const keys = new Map<PreviewRouteDecision, string>();
+  const meetings = new Map<string, number>();
+  for (const decision of decisions) {
+    const at =
+      decision.menu ?? decision.options?.[0]?.location ?? decision.location;
+    const stop = `${decision.options ? "menu" : decision.kind}:${at.uri}:${at.range.start.line}`;
+    const meeting = (meetings.get(stop) ?? 0) + 1;
+    meetings.set(stop, meeting);
+    keys.set(decision, `${stop}:${meeting}`);
+  }
+  const entryKey = (decision: PreviewRouteDecision) => keys.get(decision)!;
+  const isExpanded = (decision: PreviewRouteDecision) =>
+    expanded[entryKey(decision)] ?? Boolean(decision.notFollowed);
   const lineLink = (location: DocumentLocation) => (
     <button
       type="button"
@@ -189,31 +287,98 @@ export function RouteList({
           ) : (
             <>
               <ol class="route-list-entries">
-                {shown.map((decision, index) => (
-                  <li key={index} class="route-entry" data-kind={decision.kind}>
-                    {lineLink(decision.location)}
-                    <RouteIconSvg icon={decision.kind} />
-                    <span class="route-text">{decisionText(decision)}</span>
-                    <span class="route-badge">
-                      {ROUTE_KIND_LABELS[decision.kind]}
-                    </span>
-                  </li>
-                ))}
+                {shown.map((decision) => {
+                  const key = entryKey(decision);
+                  const choice = decision.options != null;
+                  const open = choice && isExpanded(decision);
+                  return (
+                    <li
+                      key={key}
+                      class={open ? "route-entry expanded" : "route-entry"}
+                      data-kind={decision.kind}
+                    >
+                      <div class="route-entry-row">
+                        {lineLink(decision.location)}
+                        <RouteIconSvg icon={decision.kind} />
+                        {choice ? (
+                          <button
+                            type="button"
+                            class="route-text route-entry-toggle"
+                            aria-expanded={open}
+                            title={open ? "Hide the pin control" : "Pin the option taken here"}
+                            onClick={() =>
+                              setExpanded({ ...expanded, [key]: !open })
+                            }
+                          >
+                            {decisionText(decision)}
+                          </button>
+                        ) : (
+                          <span class="route-text">{decisionText(decision)}</span>
+                        )}
+                        <span class="route-badge">{ROUTE_KIND_LABELS[decision.kind]}</span>
+                      </div>
+                      {open ? (
+                        <PinControl
+                          decision={decision}
+                          target={route.target}
+                          pins={state.pins}
+                          onChangePins={onChangePins}
+                        />
+                      ) : null}
+                    </li>
+                  );
+                })}
                 <li class="route-entry route-target">
-                  {lineLink(route.target)}
-                  <span class="route-text">Target line</span>
+                  <div class="route-entry-row">
+                    {lineLink(route.target)}
+                    <span class="route-text">Target line</span>
+                  </div>
                 </li>
               </ol>
-              {decisions.length === 0 ? (
-                <p class="route-list-note">
-                  The preview runs this line as the game does
-                </p>
+              {unresolved.length > 0 ? (
+                <ul class="route-unresolved-pins" aria-label="Pins with no option">
+                  {unresolved.map((pin) => (
+                    <li
+                      key={`${pin.uri}:${pin.line}:${pin.offer}`}
+                      class="route-unresolved-pin"
+                    >
+                      <RouteIconSvg icon="pinned" />
+                      <span class="route-text">{unresolvedPinText(pin, nameOf)}</span>
+                      <button
+                        type="button"
+                        class="route-pin-remove"
+                        onClick={() => onChangePins({ remove: [pin] })}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
-              {hidden > 0 ? (
-                <p class="route-list-foot">{`${hidden} hidden by the toggles`}</p>
+              {decisions.length === 0 ? (
+                <p class="route-list-note">The preview runs this line as the game does</p>
               ) : null}
             </>
           )}
+          {state.pinNote ? (
+            <p class="route-list-note route-pin-note" role="status">
+              {state.pinNote}
+            </p>
+          ) : null}
+          {hidden > 0 || state.pins.length > 0 ? (
+            <footer class="route-list-foot">
+              {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+              {state.pins.length > 0 ? (
+                <button
+                  type="button"
+                  class="route-clear-pins"
+                  onClick={() => onChangePins({ removeAll: true })}
+                >
+                  Clear pins
+                </button>
+              ) : null}
+            </footer>
+          ) : null}
         </div>
       )}
     </section>

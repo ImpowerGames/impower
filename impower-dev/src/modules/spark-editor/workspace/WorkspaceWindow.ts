@@ -35,6 +35,13 @@ import {
   startingValuesFrom,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
+import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
+import { SetEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRoutePinsMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import type { ChangeRoutePinsParams } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
@@ -162,6 +169,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
         this.handleChangedEditorPinpoints(m),
+      ),
+      onProtocolMessage(ChangedEditorRoutePinsMessage.type, (m) =>
+        this.handleChangedEditorRoutePins(m),
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
@@ -538,6 +548,79 @@ export default class WorkspaceWindow {
     }
   }
 
+  /** Every pin in the project, as the Game Preview plans its routes with
+   *  them. */
+  getRoutePins(): RoutePin[] {
+    return Object.entries(this.store.debug.routePins ?? {}).flatMap(
+      ([uri, pins]) => pins.map(({ line, offer }) => ({ uri, line, offer })),
+    );
+  }
+
+  /** Keep `pins` as the project's pins, and tell the Game Preview, and the
+   *  script editors when `fromPreview` (an editor that moved its own pins
+   *  through an edit already holds them). */
+  protected storeRoutePins(
+    routePins: Record<string, { line: number; offer: number }[]>,
+    fromPreview: boolean,
+  ) {
+    this.update({
+      ...this.store,
+      debug: { ...this.store.debug, routePins },
+    });
+    const pins = this.getRoutePins();
+    if (fromPreview) {
+      sendProtocolMessage(SetEditorRoutePinsMessage.type.request({ pins }));
+    }
+    sendProtocolMessage(SetRoutePinsMessage.type.request({ pins }));
+  }
+
+  /** Apply a change the author made to the pins from the Game Preview's
+   *  route list (`preview/changeRoutePins`), answering every pin kept. */
+  changeRoutePins(change: ChangeRoutePinsParams): RoutePin[] {
+    const same = (
+      a: { line: number; offer: number },
+      uri: string,
+      b: RoutePin,
+    ) => uri === b.uri && a.line === b.line && a.offer === b.offer;
+    // Each script keeps its place while the change empties and refills it.
+    const byScript: Record<string, { line: number; offer: number }[]> = {};
+    if (!change.removeAll) {
+      for (const [uri, pins] of Object.entries(
+        this.store.debug.routePins ?? {},
+      )) {
+        byScript[uri] = pins.filter(
+          (pin) => !(change.remove ?? []).some((gone) => same(pin, uri, gone)),
+        );
+      }
+    }
+    for (const pin of change.add ?? []) {
+      const pins = (byScript[pin.uri] ??= []);
+      if (!pins.some((at) => same(at, pin.uri, pin))) {
+        pins.push({ line: pin.line, offer: pin.offer });
+      }
+    }
+    for (const [uri, pins] of Object.entries(byScript)) {
+      if (pins.length === 0) {
+        delete byScript[uri];
+      }
+    }
+    this.storeRoutePins(byScript, true);
+    return this.getRoutePins();
+  }
+
+  protected handleChangedEditorRoutePins = (
+    message: ChangedEditorRoutePinsMessage.Notification,
+  ) => {
+    const { textDocument, pins } = message.params;
+    const routePins = { ...this.store.debug.routePins };
+    if (pins.length > 0) {
+      routePins[textDocument.uri] = pins;
+    } else {
+      delete routePins[textDocument.uri];
+    }
+    this.storeRoutePins(routePins, false);
+  };
+
   setSimulationOptions(
     simulateFlow: string,
     options: {
@@ -628,6 +711,7 @@ export default class WorkspaceWindow {
         pinpointLines: number[] | undefined;
         highlightLines: number[] | undefined;
         startingValueLines: number[];
+        routePins: { line: number; offer: number }[] | undefined;
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -648,6 +732,7 @@ export default class WorkspaceWindow {
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
             startingValueLines: placeLinesOf(this.startingValues, uri),
+            routePins: this.store.debug?.routePins?.[uri],
           };
         }
       }

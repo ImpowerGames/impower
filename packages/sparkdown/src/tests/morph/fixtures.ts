@@ -224,7 +224,7 @@ ${open.lash}${open.brow}<g fill="#00f">${open.cheek}</g>${open.crease}
 ${open.lid.replace('fill="#fff"', 'fill="#fff" style="fill:#000 !important"')}${open.shine.replace("#fff", "url(#gleam)")}
 ${open.shadow}${open.glint}${open.veil}${open.freckle.replace('fill="#fff"', 'color="none" fill="currentColor"')}
 ${open.spot.replace('fill="#fff"', 'color="#f00" style="color:none" fill="currentColor"')}${open.dot.replace('fill="#fff"', 'style="color:#00f;color:none !important" fill="currentColor"')}
-<g fill="#f00" style="all:initial">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
+<g fill="#f00" style="fill:unset">${open.mark.replace(' fill="#fff"', "")}</g>${open.blot.replace('fill="#fff"', 'fill="rgb(100% 0 0)"')}
 </g>
 <g data-name="eyes.half">
 ${half.shadow.replace("#000", "#00f")}${half.glint}
@@ -235,6 +235,56 @@ ${closed.crease.replace('fill="#c96"', 'fill="#c96" stroke="#f00"')}${closed.lid
 ${closed.shadow.replace("#000", "#f00")}${closed.glint.replace("#000", "#f00")}
 ${closed.veil.replace("/>", ' fill-opacity="0.5" stroke-opacity="0.2" opacity="0.4"/>')}${closed.freckle}${closed.spot}${closed.dot}${closed.mark}${closed.blot}
 </g>
+</svg>`;
+}
+
+/**
+ * A portrait whose paired drawings paint with gradients, one case per label,
+ * each closed drawing 10 units below its open one:
+ *
+ * - `highlight`: a user-space radial highlight with the same stops in both
+ *   drawings, the closed gradient taking everything from the open one through
+ *   `href` and moved down by its `gradientTransform`.
+ * - `liner`: a bounding-box linear gradient whose first stop is red open and
+ *   lime closed.
+ * - `glow`: one user-space gradient both drawings name, the closed drawing
+ *   placed by its own transform, so its gradient sits 10 units lower too.
+ * - `sheen`: a bounding-box gradient whose first stop moves from 0 to 0.5,
+ *   the closed drawing placed by its own transform.
+ * - `stripe`: two stops open, three closed.
+ * - `patch`: a gradient open, a solid colour closed.
+ * - `plain`: one bounding-box gradient both drawings name.
+ */
+export function gradientPortrait(): string {
+  const two = (a: string, b: string) => `<stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/>`;
+  const pose = (dy: number, closed: boolean) => {
+    // Drawings placed by their own transform keep the open geometry.
+    const placed = closed ? ` transform="translate(0 ${dy})"` : "";
+    return [
+      `<path data-name="highlight" d="${box(10, 10 + dy, 20, 20)}" fill="url(#hl-${closed ? "closed" : "open"})"/>`,
+      `<path data-name="liner" d="${box(40, 10 + dy, 20, 10)}" fill="url(#liner-${closed ? "closed" : "open"})"/>`,
+      `<path data-name="glow" d="${box(70, 10, 20, 10)}"${placed} fill="url(#glow)"/>`,
+      `<path data-name="sheen" d="${box(100, 10, 20, 10)}"${placed} fill="url(#sheen-${closed ? "closed" : "open"})"/>`,
+      `<path data-name="stripe" d="${box(10, 50 + dy, 20, 10)}" fill="url(#stripe-${closed ? "closed" : "open"})"/>`,
+      `<path data-name="patch" d="${box(40, 50 + dy, 20, 10)}" fill="${closed ? "#0f0" : "url(#liner-open)"}"/>`,
+      `<path data-name="plain" d="${box(70, 50 + dy, 20, 10)}" fill="url(#liner-open)"/>`,
+    ].join("");
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" width="160" height="100">
+<defs>
+<radialGradient id="hl-open" gradientUnits="userSpaceOnUse" cx="20" cy="20" r="10">${two("#fff", "rgba(255,255,255,0)")}</radialGradient>
+<radialGradient id="hl-closed" href="#hl-open" gradientTransform="translate(0 10)"/>
+<linearGradient id="liner-open">${two("#f00", "#00f")}</linearGradient>
+<linearGradient id="liner-closed">${two("#0f0", "#00f")}</linearGradient>
+<linearGradient id="glow" gradientUnits="userSpaceOnUse" x1="70" y1="10" x2="90" y2="20">${two("#ff0", "#f0f")}</linearGradient>
+<linearGradient id="sheen-open" x2="0%" y2="100%">${two("#fff", "#000")}</linearGradient>
+<linearGradient id="sheen-closed" x2="0%" y2="100%"><stop offset="50%" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
+<linearGradient id="stripe-open">${two("#fff", "#000")}</linearGradient>
+<linearGradient id="stripe-closed">${two("#fff", "#000")}<stop offset="1" stop-color="#f00"/></linearGradient>
+</defs>
+<path data-name="face" d="M0,0H160V100H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">${pose(0, false)}</g>
+<g data-name="eyes.closed">${pose(10, true)}</g>
 </svg>`;
 }
 

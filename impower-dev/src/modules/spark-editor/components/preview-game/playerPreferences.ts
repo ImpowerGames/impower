@@ -4,6 +4,10 @@ import {
   SetRouteTogglesMessage,
   type RouteTogglesParams,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValueLiterals";
@@ -33,13 +37,18 @@ const storedRouteTab = (): "route" | "values" | undefined => {
 /**
  * Keeps a game player in step with the editor's player preferences: whether
  * portraits animate, which kinds the route list shows and the route panel's
- * tab, which the player reports when the author changes them, and the
- * project's starting values. A new player starts with portraits animating,
- * every kind shown and no starting values, and its controller handles
- * nothing until it announces itself with `preview/connected`, which can
- * come before or after Initialize completes; it hears them at both.
+ * tab, which the player reports when the author changes them; and with the
+ * project's pins (`routePins`) and starting values, which the workspace
+ * sends again whenever they change. A new player starts with portraits
+ * animating, every kind shown, no pins and no starting values, and its
+ * controller handles nothing until it announces itself with
+ * `preview/connected`, which can come before or after Initialize completes;
+ * it hears the preferences, the pins and the starting values at both.
  */
-export const createPlayerPreferenceSync = (post: (message: unknown) => void) => {
+export const createPlayerPreferenceSync = (
+  post: (message: unknown) => void,
+  routePins: () => RoutePin[] = () => [],
+) => {
   const send = () => {
     post(
       SetAnimatePortraitsMessage.type.request({
@@ -57,6 +66,7 @@ export const createPlayerPreferenceSync = (post: (message: unknown) => void) => 
         values: startingValuesFrom(workspace.current.debug?.startingValues),
       }),
     );
+    post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
   return {
     /** The player finished Initialize. */

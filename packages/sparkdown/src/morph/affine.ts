@@ -57,27 +57,51 @@ export function applySubpaths(m: Affine, subpaths: Subpath[]): Subpath[] {
   }));
 }
 
-const NUMBER = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g;
+const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/;
+const WSP = /^[ \t\n\r]+|[ \t\n\r]+$/g;
+const ARGUMENT_SEPARATOR = /[ \t\n\r]*,[ \t\n\r]*|[ \t\n\r]+/;
 const deg = (n: number) => (n * Math.PI) / 180;
 
+/** Plain numbers separated by XML whitespace or one comma, or null. */
+const readArguments = (text: string): number[] | null => {
+  const source = text.replace(WSP, "");
+  if (!source) return null;
+  const args: number[] = [];
+  for (const arg of source.split(ARGUMENT_SEPARATOR)) {
+    const value = Number(arg);
+    if (!NUMBER.test(arg) || !Number.isFinite(value)) return null;
+    args.push(value);
+  }
+  return args;
+};
+
 /**
- * Parses an SVG `transform` attribute, or returns null for text that is not a
- * transform list SVG would apply. Functions compose left to right, as written.
+ * Parses an SVG `transform` attribute, or returns null for text outside the
+ * transform-list grammar: the six transform functions with plain numbers,
+ * separated by XML whitespace (space, tab, line breaks) or a comma. Functions
+ * compose left to right, as written.
  */
 export function parseTransform(text: string | undefined): Affine | null {
   if (text === undefined) return IDENTITY;
-  const source = text.trim();
+  const source = text.replace(WSP, "");
   if (!source) return IDENTITY;
-  const call = /([a-zA-Z]+)\s*\(([^)]*)\)\s*,?\s*/y;
+  const call = /([a-zA-Z]+)[ \t\n\r]*\(([^()]*)\)/y;
+  const separator = /[ \t\n\r]*,[ \t\n\r]*|[ \t\n\r]+/y;
   let m: Affine = IDENTITY;
   let at = 0;
   while (at < source.length) {
+    if (at > 0) {
+      separator.lastIndex = at;
+      if (!separator.exec(source)) return null;
+      at = separator.lastIndex;
+    }
     call.lastIndex = at;
     const found = call.exec(source);
     if (!found) return null;
     at = call.lastIndex;
     const name = found[1]!;
-    const args = (found[2]!.match(NUMBER) ?? []).map(Number);
+    const args = readArguments(found[2]!);
+    if (!args) return null;
     let next: Affine;
     switch (name) {
       case "matrix":
@@ -117,7 +141,7 @@ export function parseTransform(text: string | undefined): Affine | null {
     }
     m = multiply(m, next);
   }
-  return m;
+  return m.every(Number.isFinite) ? m : null;
 }
 
 const fmt = (n: number) => {

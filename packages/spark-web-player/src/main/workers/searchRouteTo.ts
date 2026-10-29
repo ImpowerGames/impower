@@ -121,6 +121,7 @@ export const searchRouteFor = (
       resumeFrom,
       levelZeroStore: game.levelZeroStore,
       startPlans: game.startPlans,
+      pins: game.pinnedOptions,
     };
     const route = fromStart
       ? Game.planRouteFromStart(
@@ -164,6 +165,7 @@ export const searchRouteFor = (
     checkpoint: StoredCheckpoint | null | undefined,
   ) => {
     const reachedTarget = game.simulation === "success";
+    const report = reachedTarget ? game.previewRouteOf(route, source) : undefined;
     log.record({
       address: to,
       programId,
@@ -174,10 +176,14 @@ export const searchRouteFor = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
-      route: reachedTarget ? game.previewRouteOf(route, source) : undefined,
+      route: report,
       fromStart: searchedFromStart,
     });
-    if (checkpoint && remember) {
+    // A route the author's pins steered is theirs, not a choice the next
+    // route should favor: it is not remembered, so clearing the pins leaves
+    // nothing of them behind.
+    const pinned = report?.decisions.some((d) => d.kind === "pinned") ?? false;
+    if (checkpoint && remember && !pinned) {
       // Cache favored conditions and choices
       const conditions = game.runtimeState.conditionsEncountered;
       const choices = game.runtimeState.choicesEncountered;

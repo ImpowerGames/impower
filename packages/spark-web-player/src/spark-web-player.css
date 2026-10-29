@@ -835,6 +835,7 @@ spark-web-player .route-toggle[data-kind="clipped"] .route-icon {
   color: var(--swp-route-warning-color);
 }
 
+spark-web-player .route-button .route-icon[data-icon="pinned"],
 spark-web-player .route-entry[data-kind="pinned"] .route-icon,
 spark-web-player .route-toggle[data-kind="pinned"] .route-icon {
   color: var(--swp-route-accent-color);
@@ -937,7 +938,8 @@ spark-web-player .route-list-entries {
   padding: 0 var(--swp-toolbar-button-gap) 4px;
 }
 
-spark-web-player .route-entry {
+spark-web-player .route-entry-row,
+spark-web-player .route-unresolved-pin {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -977,7 +979,8 @@ spark-web-player .route-list-failure {
   color: var(--swp-route-muted-color);
 }
 
-spark-web-player .route-list-failure {
+spark-web-player .route-list-failure,
+spark-web-player .route-pin-note {
   color: var(--swp-route-error-color);
 }
 
@@ -1311,4 +1314,119 @@ spark-web-player .sv-reset {
 spark-web-player .sv-reset:disabled {
   cursor: default;
   color: var(--swp-route-muted-color);
+}
+spark-web-player .route-list-foot {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--swp-toolbar-button-gap);
+}
+
+spark-web-player .route-list-foot > span {
+  flex: 1;
+}
+
+/* A choice entry's text opens its pin control. */
+spark-web-player .route-entry-toggle,
+spark-web-player .route-pin-button,
+spark-web-player .route-pin-unpin,
+spark-web-player .route-pin-remove,
+spark-web-player .route-clear-pins {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  border-radius: 3px;
+}
+
+spark-web-player .route-entry-toggle {
+  text-align: left;
+  padding: 2px 4px;
+}
+
+spark-web-player .route-pin-button,
+spark-web-player .route-pin-unpin,
+spark-web-player .route-pin-remove,
+spark-web-player .route-clear-pins {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  color: var(--swp-route-accent-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  spark-web-player .route-entry-toggle:hover,
+  spark-web-player .route-pin-button:hover,
+  spark-web-player .route-pin-unpin:hover,
+  spark-web-player .route-pin-remove:hover,
+  spark-web-player .route-clear-pins:hover {
+    background-color: var(--swp-route-hover-color);
+  }
+}
+
+spark-web-player .route-pin-button[aria-pressed="true"] {
+  background-color: var(--swp-route-active-color);
+}
+
+spark-web-player .route-pin-button[aria-pressed="false"] .route-icon {
+  opacity: 0.5;
+}
+
+/* The pin control sits under its entry's text, past the line link and the
+   icon. */
+spark-web-player .route-pin-control {
+  margin: 0 0 4px calc(3em + 16px + 3 * var(--swp-toolbar-button-gap));
+  padding: 4px 0 4px var(--swp-toolbar-button-gap);
+  border-left: 1px solid var(--swp-route-panel-border-color);
+}
+
+spark-web-player .route-pin-sentence {
+  margin: 0 0 4px;
+  color: var(--swp-route-muted-color);
+  white-space: normal;
+}
+
+spark-web-player .route-pin-options,
+spark-web-player .route-unresolved-pins {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+spark-web-player .route-unresolved-pins {
+  padding: 0 var(--swp-toolbar-button-gap) 4px;
+}
+
+spark-web-player .route-unresolved-pin .route-icon {
+  margin-left: calc(3em + var(--swp-toolbar-button-gap));
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-pin-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--swp-toolbar-button-gap);
+  min-height: 22px;
+}
+
+spark-web-player .route-pin-option-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(to left, transparent 0, #000 16px);
+}
+
+spark-web-player .route-pin-taken {
+  flex: none;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .route-pin-unpin {
+  margin-top: 2px;
 }

@@ -85,6 +85,7 @@ function recordingGame(startAddress: ProgramAddress | null) {
       calls.push("start");
     },
     // What the worker asks of the game it builds besides the rule under test.
+    setRoutePins: () => {},
     connection: { receive: () => {} },
     connect: async () => {},
     destroy: () => {},

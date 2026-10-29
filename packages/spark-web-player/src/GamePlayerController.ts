@@ -93,12 +93,20 @@ import { workerHangMessage } from "./utils/workerHangMessage";
 import { profile } from "./utils/profile";
 import { renderRouteViews } from "./route/renderRouteViews";
 import {
+  changedPins,
   DEFAULT_ROUTE_TOGGLES,
+  PIN_NOT_SAVED,
   routeTogglesFrom,
   type RouteKind,
+  type RoutePinChange,
   type RouteViewState,
 } from "./route/routeView";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
 import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
@@ -308,6 +316,7 @@ export class GamePlayerController {
     open: false,
     toggles: { ...DEFAULT_ROUTE_TOGGLES },
     tab: "route",
+    pins: [],
   };
   protected _valueFields: StartingValuesFields = emptyFields();
 
@@ -450,6 +459,9 @@ export class GamePlayerController {
       }
     >;
     breakpoints?: { file: string; line: number }[];
+    /** The author's pins, as the host last sent them, which the worker's
+     *  games plan their routes with. */
+    routePins?: RoutePin[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
     /** What the editor last asked of the preview's debug toggle, which the
@@ -913,6 +925,7 @@ export class GamePlayerController {
       onShowLine: this.handleRouteShowLine,
       onTab: this.handleRouteTab,
       values: values ? this.valuesEvents : undefined,
+      onChangePins: this.handleRouteChangePins,
     });
   }
 
@@ -997,9 +1010,15 @@ export class GamePlayerController {
     const change = changed(this._valueFields, start, changes);
     this._valueFields = change.state;
     this.renderRoute();
-    const saved = await this.requestHost(
-      ChangeStartingValuesMessage.type.request({ start, changes }),
-    );
+    let saved = true;
+    try {
+      await this.requestHost(ChangeStartingValuesMessage.type, {
+        start,
+        changes,
+      });
+    } catch {
+      saved = false;
+    }
     const items = listingItems(this._listing?.listing);
     this._valueFields = answered(
       this._valueFields,
@@ -1009,31 +1028,6 @@ export class GamePlayerController {
       (key) => items.find((item) => item.key === key)?.first,
     );
     this.renderRoute();
-  }
-
-  /** Send the host a request and answer whether it answered without an
-   *  error; a host that does not answer within 5 seconds kept nothing. */
-  protected requestHost(request: { id: number | string }): Promise<boolean> {
-    return new Promise((resolve) => {
-      const listener = (e: Event) => {
-        const message = (e as CustomEvent).detail;
-        if (
-          message &&
-          message.id === request.id &&
-          ("result" in message || "error" in message)
-        ) {
-          done(message.error == null);
-        }
-      };
-      const timer = setTimeout(() => done(false), 5000);
-      const done = (ok: boolean) => {
-        clearTimeout(timer);
-        window.removeEventListener(MessageProtocol.event, listener);
-        resolve(ok);
-      };
-      window.addEventListener(MessageProtocol.event, listener);
-      sendProtocolMessage(request as never, this.host);
-    });
   }
 
   protected handleRouteTab = (tab: RouteTab) => {
@@ -1357,6 +1351,7 @@ export class GamePlayerController {
       this.handleSetStartingValues,
       this.host,
     );
+    p.onRequest(SetRoutePinsMessage.type, this.handleSetRoutePins, this.host);
     p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
     p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
     p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
@@ -2118,6 +2113,138 @@ export class GamePlayerController {
     }
     return SetStartingValuesMessage.type.response(message.id, {});
   };
+
+  protected handleSetRoutePins = async (message: SetRoutePinsMessage.Request) => {
+    await this.applyRoutePins(message.params.pins);
+    return SetRoutePinsMessage.type.response(message.id, {});
+  };
+
+  /**
+   * Plan routes with `pins` from now on: the route list shows them, the
+   * worker's games take them, and the line the preview shows is shown again
+   * with them. Pins the worker already has change nothing more than the
+   * list.
+   */
+  protected async applyRoutePins(pins: RoutePin[]) {
+    this._savedRoutePins = pins;
+    this.showRoutePins();
+    this.renderRoute();
+    const held = this._options?.routePins ?? [];
+    if (JSON.stringify(pins) === JSON.stringify(held)) {
+      return;
+    }
+    this._options ??= {};
+    this._options.routePins = pins;
+    const link = workspace?.gameLink;
+    if (!link) {
+      return;
+    }
+    try {
+      await link.request(SetRoutePinsMessage.type, { pins });
+    } catch (e) {
+      reportUnlessRestarted(e);
+      return;
+    }
+    if (this.playing) {
+      return;
+    }
+    const shown = this._completionShown;
+    if (this.completionPreviewHoldsScreen()) {
+      // A suggestion holds the screen: it is drawn again, by the route the
+      // pins make for its program.
+      if (shown) {
+        const { evaluation, ...result } = shown;
+        await this.drawCompletion(evaluation, result);
+      }
+      return;
+    }
+    const startFrom = this._options.startFrom;
+    if (this._program && startFrom && startFrom.file in this._program.scripts) {
+      await this.updatePreview(this._program, startFrom.file, startFrom.line);
+    }
+  }
+
+  /** How long the host has to answer a change to the pins before the list
+   *  says it was not saved: a host that does not keep pins never answers. */
+  static readonly PIN_SAVE_TIMEOUT_MS = 5_000;
+
+  /** The pins the host last said it keeps. */
+  protected _savedRoutePins: RoutePin[] = [];
+
+  /** The changes the author made that the host has not answered yet, in the
+   *  order they were made. */
+  protected _pendingPinChanges: RoutePinChange[] = [];
+
+  /** The list shows the host's pins with every change it has not answered
+   *  yet, so a change the host does not save takes only itself back. */
+  protected showRoutePins() {
+    this._routeState = {
+      ...this._routeState,
+      pins: this._pendingPinChanges.reduce(changedPins, this._savedRoutePins),
+    };
+  }
+
+  /** The author changed pins from the route list: the list shows the change
+   *  at once, and the host saves it, answering with every pin it keeps. A
+   *  change the host does not save goes from the list, with a note. */
+  protected handleRouteChangePins = async (change: RoutePinChange) => {
+    this._pendingPinChanges = [...this._pendingPinChanges, change];
+    this._routeState = { ...this._routeState, pinNote: undefined };
+    this.showRoutePins();
+    this.renderRoute();
+    let saved: RoutePin[] | undefined;
+    try {
+      saved = (await this.requestHost(ChangeRoutePinsMessage.type, change))
+        .pins;
+    } catch {
+      saved = undefined;
+    }
+    this._pendingPinChanges = this._pendingPinChanges.filter(
+      (pending) => pending !== change,
+    );
+    if (saved) {
+      await this.applyRoutePins(saved);
+      return;
+    }
+    this._routeState = { ...this._routeState, pinNote: PIN_NOT_SAVED };
+    this.showRoutePins();
+    this.renderRoute();
+  };
+
+  /** Ask the host, which answers on the window the player's messages reach
+   *  it from; rejects with the host's error, or when it does not answer in
+   *  time. */
+  protected requestHost<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    timeoutMs = GamePlayerController.PIN_SAVE_TIMEOUT_MS,
+  ): Promise<R> {
+    const request = type.request(params);
+    return new Promise<R>((resolve, reject) => {
+      const done = () => {
+        clearTimeout(timer);
+        window.removeEventListener(MessageProtocol.event, onProtocol);
+      };
+      const onProtocol = (e: Event) => {
+        const message = e instanceof CustomEvent ? e.detail : undefined;
+        if (!type.isResponse(message, request.id)) {
+          return;
+        }
+        done();
+        if ("error" in message && message.error !== undefined) {
+          reject(message.error);
+        } else {
+          resolve(message.result as R);
+        }
+      };
+      const timer = setTimeout(() => {
+        done();
+        reject(new Error(`The host did not answer ${type.method}.`));
+      }, timeoutMs);
+      window.addEventListener(MessageProtocol.event, onProtocol);
+      sendProtocolMessage(request, this.host);
+    });
+  }
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     const app = this.controlledApp;
@@ -3393,6 +3520,11 @@ export class GamePlayerController {
         link.request(SetGameBreakpointsMessage.type, {
           breakpoints: options.breakpoints,
         }),
+      );
+    }
+    if (options?.routePins?.length) {
+      sent.push(
+        link.request(SetRoutePinsMessage.type, { pins: options.routePins }),
       );
     }
     if (options?.functionBreakpoints) {
