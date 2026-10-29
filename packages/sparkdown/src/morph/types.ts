@@ -49,6 +49,26 @@ export interface MorphRecipe {
    */
   keyframes: { offset: number; states: Record<string, string> }[];
   clips: { between: string[]; targets: string[] }[];
+  /** The `paints` entries in authored order; absent when there are none. */
+  paints?: MorphPaintEntry[];
+}
+
+/**
+ * One `paints` entry: the colour the drawings of `targets` take at the pose
+ * `state` names, in variants whose rest pose draws a layer that needs `when`.
+ * Colours are written as `formatColor` writes them, so equal colours give one
+ * recipe text.
+ */
+export interface MorphPaintEntry {
+  targets: string[];
+  /** A group-qualified state of a group the morph drives, such as `eyes.closed`. */
+  state: string;
+  /** A group-qualified state of a group the morph does not drive, such as `mask.on`. */
+  when?: string;
+  fill?: string;
+  stroke?: string;
+  /** How much of each segment next to the pose the change takes, from 0 to 1. */
+  span: number;
 }
 
 /**
@@ -127,7 +147,8 @@ export type MorphDiagnosticCode =
   | "resource-missing"
   | "source-unreadable"
   | "inactive-variant"
-  | "depth-ignored";
+  | "depth-ignored"
+  | "paint-target-missing";
 
 export interface MorphBakeDiagnostic {
   code: MorphDiagnosticCode;
@@ -290,6 +311,32 @@ export interface MorphGradientBlend {
   ends: [MorphGradient, MorphGradient];
 }
 
+/** A drawing's own fill and stroke colours, where the bake reads them; `none` is the entry's colour at zero alpha. */
+export interface MorphPaintBase {
+  fill?: MorphColor;
+  stroke?: MorphColor;
+}
+
+/**
+ * A `paints` entry where it applies to the variant: the colour the drawings
+ * of its labels take at one pose of `group`. `nodes` are the pose's own
+ * target drawings; `tracks` are the `morph` tracks of the segments arriving
+ * at or leaving the pose whose end there is one of them, by the node each
+ * draws on, with the paint the track shows at its two ends without the entry.
+ * A property the bake cannot read for a drawing or track (a paint server) is
+ * left out of its record.
+ */
+export interface MorphPaintPose {
+  group: string;
+  state: string;
+  /** How much of each segment next to the pose the change takes, from 0 to 1. */
+  span: number;
+  fill?: MorphColor;
+  stroke?: MorphColor;
+  nodes: Record<string, MorphPaintBase>;
+  tracks: { segment: number; draw: string; ends: { fill?: [MorphColor, MorphColor]; stroke?: [MorphColor, MorphColor] } }[];
+}
+
 /** One clip entry's aperture through a segment: an `apertures` table entry. */
 export interface MorphClipFrames {
   clip: number;
@@ -377,5 +424,7 @@ export interface MorphArtifact {
    */
   apertureEdges: number[][][][][];
   clipTargets: MorphClipTarget[];
+  /** The `paints` entries that apply to the variant, in authored order; absent when none does. */
+  paints?: MorphPaintPose[];
   diagnostics: MorphBakeDiagnostic[];
 }

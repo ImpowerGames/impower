@@ -325,7 +325,8 @@ export function openVariablePointer(
 /**
  * The pointer at the top-level local `name` a function reaches at its entry
  * (`Op.BindRoot`): the binding of the name in the own scope of the current
- * thread's root frame, which the top level and its scenes share, registered
+ * thread's root frame, which the top level binds (a scene's and a branch's
+ * bindings are in scopes of their own above it, `flowScopesOf`), registered
  * there as an open upvalue, and shared with a closure that captured the
  * same binding (`openVariablePointer`). A block's local of the name, in a
  * scope of its own, is never it. Null when that scope binds no such name, as

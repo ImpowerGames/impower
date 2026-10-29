@@ -116,6 +116,8 @@ import {
   ProgramChoice,
   ProgramStoryState,
   blockStackOf,
+  flowScopesOf,
+  flowSequenceOf,
   scopeDepthAt,
   type BlockEntry,
   type ProgramFrame,
@@ -1530,7 +1532,11 @@ export class ProgramStory implements StoryEngine {
     }
     this._stateIsPristine = false;
     this._state.currentTurnIndex += 1;
-    this.land(target.position, this._state.blockStack);
+    this.land(
+      target.position,
+      this._state.blockStack,
+      this.keptFlowScopes(target.position, target.symbol),
+    );
     this.countEntered(target.position.sequence, left);
     this.countLabelsAbove(target.position);
     if (target.symbol !== undefined) {
@@ -3345,6 +3351,15 @@ export class ProgramStory implements StoryEngine {
       offset: target.entry.offset,
     };
     state.blockStack = [];
+    // A scene or a branch a host evaluates runs in the scopes of its flows,
+    // as a jump into it opens them. A function's frame holds none, though a
+    // closure's entry stands in the sequence of the flow it is written in.
+    const kind = this.root.kindOf(target.symbol);
+    if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
+      for (let open = flowScopesOf(this.root, target.entry.sequence); open > 0; open -= 1) {
+        state.frame?.PushScope();
+      }
+    }
   }
 
   /** `Return`: leaves the value on top as the function's result, pops the
@@ -3555,13 +3570,18 @@ export class ProgramStory implements StoryEngine {
   /** Moves to `target` in the current frame (docs/engine/binary-program.md,
    *  section 5): the frame's block stack is rebuilt from the root's sequence
    *  and chunk tables, and its scope depth becomes the target's. The scopes
-   *  of the blocks the target shares with `from`, the blocks the frame stood
-   *  in before (nothing for a new frame or a reset one), keep their
-   *  bindings; the scopes past them are closed, and the scopes of the blocks
-   *  the target enters are opened, as many as each owner has open where it
-   *  enters its block, and as many as the target's chunk has opened before
-   *  the target. */
-  protected land(target: ProgramPosition, from: readonly BlockEntry[]): void {
+   *  of the first `keep` flows the target is in (`keptFlowScopes`) and,
+   *  when it keeps them all, of the blocks the target shares with `from`,
+   *  the blocks the frame stood in before (nothing for a new frame or a
+   *  reset one), keep their bindings; the scopes past them are closed, and
+   *  the scopes of the flows and blocks the target enters are opened, as
+   *  many as each owner has open where it enters its block, and as many as
+   *  the target's chunk has opened before the target. */
+  protected land(
+    target: ProgramPosition,
+    from: readonly BlockEntry[],
+    keep: number,
+  ): void {
     const state = this._state;
     const blocks = blockStackOf(this.root, target.sequence);
     if (!blocks) {
@@ -3577,9 +3597,12 @@ export class ProgramStory implements StoryEngine {
     if (frame) {
       const scopesOf = (block: BlockEntry) =>
         blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
+      // A block's scopes are kept only above every flow scope kept.
+      const keepsBlocks = keep === flowScopesOf(this.root, target.sequence);
       let shared = 0;
-      let kept = 1;
+      let kept = 1 + keep;
       while (
+        keepsBlocks &&
         shared < blocks.length &&
         shared < from.length &&
         sameBlock(blocks[shared]!, from[shared]!)
@@ -3591,7 +3614,8 @@ export class ProgramStory implements StoryEngine {
         frame.PopScope(state.callStack.cellBarrier);
       }
       const scopes = scopeDepthAt(this.root, target, blocks);
-      // The scopes past the shared blocks are opened. Every count is exact,
+      // The scopes past the kept flows and the shared blocks are opened.
+      // Every count is exact,
       // inside a `choose` block's entries and bodies too (section 4), so the
       // frame holds the shared blocks' scopes and keeps their bindings.
       for (let open = kept; open < scopes; open += 1) {
@@ -3611,10 +3635,45 @@ export class ProgramStory implements StoryEngine {
     if (!place) {
       this.Error("Divert target not found.");
     }
-    this.land(place, this._state.blockStack);
+    this.land(place, this._state.blockStack, this.keptFlowScopes(place, symbol));
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
+  }
+
+  /** The scopes of the flows `target` is in that a jump there from the
+   *  current position keeps: all of them when the jump stays in the flow it
+   *  stands in and lands past the flow's start (at a label), and none when
+   *  it enters a scene or a branch, at its start by the flow's name or
+   *  anywhere in another flow, so the locals that flow declared earlier are
+   *  nil there, as Lua refuses a `goto` into a local's scope. A scene that
+   *  takes parameters and starts with a branch enters it from its entry,
+   *  once the entry has bound them: that jump falls through into the
+   *  branch, and keeps the scene's scope with its parameters. */
+  protected keptFlowScopes(target: ProgramPosition, symbol?: number): number {
+    const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
+    const at = this._state.position;
+    if (kind === SymbolKind.Branch && at) {
+      const from = at.sequence;
+      const entry = from.arrays.chunks[0];
+      if (
+        from.owner < 0 &&
+        from.kind === SymbolKind.Scene &&
+        from.flow === this.root.parentOf(symbol!) &&
+        at.entry === 0 &&
+        entry &&
+        entryBindings(entry, 0).bindings > 0
+      ) {
+        return 1;
+      }
+    }
+    if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
+      return 0;
+    }
+    const flow = flowSequenceOf(this.root, target.sequence);
+    return at && flow && flowSequenceOf(this.root, at.sequence) === flow
+      ? flowScopesOf(this.root, target.sequence)
+      : 0;
   }
 
   /** A divert that passes no arguments to a scene or a branch whose last
@@ -3702,7 +3761,8 @@ export class ProgramStory implements StoryEngine {
 
   /** A scene with no content of its own before its first branch enters that
    *  branch when it is entered, as the object engine's knot diverted to its
-   *  first stitch; the branch is entered from the scene. */
+   *  first stitch; the branch is entered from the scene, falling through, so
+   *  the scene's scope stays open beneath the branch's. */
   protected enterStart(symbol: number, at: SequenceRow): void {
     const start = this.root.startOf(symbol);
     if (start < 0 || at.arrays.chunks.length > 0) {
@@ -3710,7 +3770,7 @@ export class ProgramStory implements StoryEngine {
     }
     const branch = this.root.place(start);
     if (branch) {
-      this.land(branch, this._state.blockStack);
+      this.land(branch, this._state.blockStack, flowScopesOf(this.root, at));
       this.countEntered(branch.sequence, at.flow);
     }
   }
@@ -3771,7 +3831,7 @@ export class ProgramStory implements StoryEngine {
       },
       Math.max(0, state.evaluationStack.length - bound),
     );
-    this.land(place, []);
+    this.land(place, [], 0);
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);

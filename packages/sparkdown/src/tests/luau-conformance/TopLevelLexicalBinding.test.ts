@@ -1,8 +1,8 @@
 // A local function, a define's method or a closure reads and writes the
 // local in scope where it is written, as Luau's upvalue does (I-1374): the
-// newest `local` of the name declared above it in the root frame's own
-// scope, which the bodies of a story's scenes share. Never a later `local`
-// of the name in that scope (another scene's among them), a running block's
+// newest `local` of the name declared above it in the scope of the scene or
+// branch it is written in, each of which holds its own. Never a later
+// `local` of the name in that scope, another scene's local, a running block's
 // local or a local declared below it, where it reads the global, or the
 // builtin of a stdlib name. A function or a define written at the top level
 // has no local in scope, as a `local` at the top level is a compile error,
@@ -263,9 +263,9 @@ describe("a local function written in a scene", () => {
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Go", "Got 1 3."));
   });
 
-  // A name a script declares once is bound by name in the scope every
-  // script's scenes share (I-1455).
-  test.fails("keeps its scene's local where a scene of another script declares the name", () => {
+  // Each scene binds its locals in a scope of its own, so a scene of another
+  // script that declares the name binds its own (I-1455).
+  test("keeps its scene's local where a scene of another script declares the name", () => {
     const { program } = quiet(() =>
       programCompiler({
         "inmemory:///main.sd": ["-> R", "scene R", "  local x = 1", "  local function g()", "    return x", "  end", "  -> S(g)", "end", ""].join("\n"),
@@ -330,7 +330,7 @@ describe("a define's method written at the top level", () => {
 });
 
 describe("a closure written in the root frame", () => {
-  test("keeps the store where a scene declared a local of the name before it was built", () => {
+  test("reads the store where another scene declared a local of the name before it was built", () => {
     expect(
       run([
         "store a = 1",
@@ -344,7 +344,7 @@ describe("a closure written in the root frame", () => {
         "  Got {f()} {a}.",
         "end",
       ]),
-    ).toEqual(got("Got 1 5."));
+    ).toEqual(got("Got 1 1."));
   });
 
   test("reads the global, not a local another scene left in the scope", () => {
@@ -554,16 +554,11 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got nil."));
   });
 
-  // What binds no name inside a block would leave the closure reading the
-  // global, though scene T holds a binding of the name as S runs: a `while`
-  // loop's condition, a `for` loop variable's type annotation, and a local
-  // of another arm of an `if` or of another choice. Inside a block the
-  // closure binds by name and reads scene T's local, until the converter
-  // reads a block's statements in the scope of the ones before them
-  // (I-1468).
-  test.fails.each([
-    ["a narrative `while` loop's condition", ["while a == 9 do", "  & f = function() return a end", "  break", "end"]],
-    ["an `&` line's `while` loop's condition", ["& while a == 9 do f = function() return a end break end"]],
+  // What binds no name inside a block leaves the closure reading the global,
+  // since scene T's local is bound in T's scope, which S's frame does not
+  // hold: a `for` loop variable's type annotation, and a local of another
+  // arm of an `if` or of another choice (I-1468).
+  test.each([
     ["a numeric loop variable's type annotation", ["for i: typeof(a) = 2, 2 do", "  & f = function() return a end", "end"]],
     ["a generic loop variable's type annotation", ["for _, i: typeof(a) in {2} do", "  & f = function() return a end", "end"]],
     ["a local of the `if` arm before the `else`", ["if false then", "  local a = 2", "else", "  & f = function() return a end", "end"]],
@@ -586,7 +581,29 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got nil."));
   });
 
-  test.fails("reads the global past a local of another choice of a `choose` in an `if` (Luau: Got nil., I-1468)", () => {
+  // A loop's condition reads the global too, so the loop never runs and
+  // builds no closure.
+  test.each([
+    ["a narrative `while` loop's condition", ["while a == 9 do", "  & f = function() return a end", "  break", "end"]],
+    ["an `&` line's `while` loop's condition", ["& while a == 9 do f = function() return a end break end"]],
+  ])("reads the global in %s", (_, body) => {
+    expect(
+      run([
+        "store f = nil",
+        "-> T",
+        "scene T",
+        "  local a = 9",
+        "  -> S",
+        "end",
+        "scene S",
+        ...body.map((line) => `  ${line}`),
+        "  Got {tostring(f)}.",
+        "end",
+      ]),
+    ).toEqual(got("Got nil."));
+  });
+
+  test("reads the global past a local of another choice of a `choose` in an `if` (Luau: Got nil., I-1468)", () => {
     const story = new ProgramStory(
       rootOf([
         "store f = nil",

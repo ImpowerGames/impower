@@ -586,6 +586,21 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
         return result;
       }
+
+      // A branch's scene's parameters, which the scene's entry binds in the
+      // scene's scope beneath the branch's as it falls into the branch. The
+      // scene's locals are never in a branch's scope (`flowScopesOf`).
+      const scene = ownerFlow.isFunction ? null : ClosestFlowBase(ownerFlow);
+      if (scene && scene !== this.story && !scene.isFunction) {
+        for (const arg of scene.args ?? []) {
+          if (arg.identifier?.name === varName) {
+            result.found = true;
+            result.isArgument = true;
+            result.ownerFlow = scene;
+            return result;
+          }
+        }
+      }
     }
 
     // Global

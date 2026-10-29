@@ -341,17 +341,56 @@ const scopesBefore = (chunk: ProgramChunk, offset: number): number => {
   return Math.max(0, scopes);
 };
 
-/** The scopes a frame has open at `position`: its own, those each owner on
- *  the position's block stack (`blocks`, when the caller has it) has open
- *  where it enters its block, and those the position's chunk has opened
- *  before the offset (section 1). A jump lands at this depth
- *  (`ProgramStory.land`), and a load's cut leaves a frame at it. */
+/** The flow's own sequence a position in `sequence` is written in, past the
+ *  bodies of the blocks around it, or null inside a function's body, whose
+ *  frame holds no scope of a flow, and where an owner is not in `root`. */
+export const flowSequenceOf = (
+  root: ProgramRoot,
+  sequence: SequenceRow,
+): SequenceRow | null => {
+  let at = sequence;
+  while (at.owner >= 0) {
+    const owner = root.position(at.owner);
+    if (!owner) {
+      return null;
+    }
+    if (blockFlags(owner.sequence.arrays.chunks[owner.entry]!, at.block) & BLOCK_FUNCTION) {
+      return null;
+    }
+    at = owner.sequence;
+  }
+  return at;
+};
+
+/** The scopes the flows a position in `sequence` is in hold open in its
+ *  frame beneath its blocks' scopes: a scene's one, and for a branch its
+ *  scene's and its own nested in it. The top level, a function's body and a
+ *  declaration sequence hold none. A flow's parameters and the `local`s of
+ *  its body are bound in the flow's scope, so they belong to the flow as a
+ *  function's belong to the function. */
+export const flowScopesOf = (root: ProgramRoot, sequence: SequenceRow): number => {
+  const flow = flowSequenceOf(root, sequence);
+  if (flow?.kind === SymbolKind.Scene) {
+    return 1;
+  }
+  if (flow?.kind === SymbolKind.Branch) {
+    return root.parentOf(flow.flow) >= 0 ? 2 : 1;
+  }
+  return 0;
+};
+
+/** The scopes a frame has open at `position`: its own, those of the flows
+ *  the position is in (`flowScopesOf`), those each owner on the position's
+ *  block stack (`blocks`, when the caller has it) has open where it enters
+ *  its block, and those the position's chunk has opened before the offset
+ *  (section 1). A jump lands at this depth (`ProgramStory.land`), and a
+ *  load's cut leaves a frame at it. */
 export const scopeDepthAt = (
   root: ProgramRoot,
   position: ProgramPosition,
   blocks: readonly BlockEntry[] | undefined = blockStackOf(root, position.sequence),
 ): number => {
-  let depth = 1;
+  let depth = 1 + flowScopesOf(root, position.sequence);
   for (const block of blocks ?? []) {
     depth += blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
   }
@@ -1871,6 +1910,10 @@ export class ProgramStoryState {
       after[cuts.dropFrom - 1] = true;
     }
     const t = elements.length - 1;
+    // The scopes the restarting element keeps: its own and those of the
+    // flows down to the one it restarts, whose scope holds the parameters.
+    const restartFlow = cuts.restart ? this._root.flowNamed(cuts.restart.flow) : undefined;
+    const restartKeeps = restartFlow ? 1 + flowScopesOf(this._root, restartFlow) : undefined;
     if (cuts.restart) {
       // The element restarts its flow: its scopes are cut to the flow's
       // start, and its eval stack at the top of the current thread.
@@ -1885,8 +1928,17 @@ export class ProgramStoryState {
       const at = i < t ? this._frames.get(elements[i + 1]!)?.returnTo : position;
       if (at) {
         const depth = scopeDepthAt(this._root, at);
-        while (element.temporaryScopes.length > depth) {
+        // A restarted flow keeps its own scope and opens the scopes above
+        // it fresh, as entering it again does, a branch it starts with
+        // among them; a frame saved at fewer scopes than its flows hold
+        // now opens them too.
+        const restarts = i === t && restartKeeps !== undefined;
+        const keeps = restarts ? Math.min(depth, restartKeeps) : depth;
+        while (element.temporaryScopes.length > keeps) {
           element.PopScope(this.callStack.cellBarrier);
+        }
+        while (restarts && element.temporaryScopes.length < depth) {
+          element.PushScope();
         }
       }
       if (i < t) {
@@ -1902,7 +1954,12 @@ export class ProgramStoryState {
       }
     }
     if (cuts.restart && t >= 0) {
-      this.rebindParameters(elements[t]!, cuts.restart.saved, cuts.restart.params);
+      this.rebindParameters(
+        elements[t]!,
+        cuts.restart.saved,
+        cuts.restart.params,
+        (restartKeeps ?? elements[t]!.temporaryScopes.length) - 1,
+      );
     }
     return position;
   }
@@ -1918,20 +1975,28 @@ export class ProgramStoryState {
    * new parameter's name, is replaced as a declaration in the same scope
    * replaces it (`CallStack.Element.RetireBindings`, which
    * `CallStack.SetTemporaryVariable` shares): a captured cell closes on
-   * its value, and a parameter the flow no longer has is unbound.
+   * its value, and a parameter the flow no longer has is unbound. The
+   * parameters are bound in the restarted flow's own scope, the element's
+   * scope `index`, and a saved value is read from the innermost scope up to
+   * it that binds its name.
    */
   protected rebindParameters(
     element: CallStack.Element,
     saved: readonly string[],
     params: readonly { name: string; vararg: boolean }[],
+    index: number,
   ): void {
-    const scope = element.temporaryScopes[0];
+    const scopes = element.temporaryScopes;
+    const scope = scopes[index];
     if (!scope) {
       return;
     }
     const values = new Map<string, InkObject>();
     for (const name of saved) {
-      const value = scope.get(name);
+      const value = scopes
+        .slice(0, index + 1)
+        .findLast((held) => held.has(name))
+        ?.get(name);
       if (value !== undefined) {
         values.set(name, value);
       }
@@ -1943,7 +2008,7 @@ export class ProgramStoryState {
       [...saved, ...params.map((param) => param.name)].filter((name) => scope.has(name)),
     );
     if (unbound.size > 0) {
-      element.RetireBindings(0, (name) => unbound.has(name), this.callStack.cellBarrier);
+      element.RetireBindings(index, (name) => unbound.has(name), this.callStack.cellBarrier);
       for (const name of unbound) {
         scope.delete(name);
       }

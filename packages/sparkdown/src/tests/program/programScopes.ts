@@ -9,6 +9,7 @@ import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
 import { blockScopes } from "../../program/ProgramChunk";
+import { SymbolKind } from "../../program/ProgramSymbols";
 import { compileScript } from "./programHarness";
 
 /** Runs `run` with the console's warnings and errors left out. */
@@ -32,17 +33,19 @@ export const programStory = (text: string) =>
     return new ProgramStory(program.chunks!);
   });
 
-/** The depth of scopes the position's frame has by the block stack and the
- *  chunk's code: one for the frame, each owner's count where it enters the
- *  block the frame is inside, and the `BeginScope`s less the `EndScope`s the
- *  chunk at the position has before its offset (section 1). */
+/** The depth of scopes the position's frame has by the flows it is in, the
+ *  block stack and the chunk's code: one for the frame, one for a scene and
+ *  two for a branch, each owner's count where it enters the block the frame
+ *  is inside, and the `BeginScope`s less the `EndScope`s the chunk at the
+ *  position has before its offset (section 1). */
 export const derivedDepth = (story: ProgramStory): number | null => {
   const state = story.state;
   const position = state.position;
   if (!position) {
     return null;
   }
-  let depth = 1;
+  const flow = state.blockStack[0]?.sequence ?? position.sequence;
+  let depth = 1 + (flow.kind === SymbolKind.Scene ? 1 : flow.kind === SymbolKind.Branch ? 2 : 0);
   for (const block of state.blockStack) {
     depth += blockScopes(block.sequence.arrays.chunks[block.entry]!, block.block);
   }

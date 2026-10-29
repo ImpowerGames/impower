@@ -622,10 +622,10 @@ describe("a save inside a scene entered by a divert", () => {
     return story.toSave();
   };
 
-  // The temporaries of the frame the scene's entry bound, by name: a value's
-  // own value, or null for nil.
+  // The temporaries the scene's entry bound in the scene's scope, by name: a
+  // value's own value, or null for nil.
   const bindings = (story: ProgramStory): Record<string, unknown> => {
-    const scope = story.state.callStack.currentThread.callstack[0]!.temporaryScopes[0]!;
+    const scope = story.state.callStack.currentThread.callstack[0]!.temporaryScopes[1]!;
     return Object.fromEntries(
       [...scope].map(([name, value]) => [name, (value as { value?: unknown } | null)?.value ?? null]),
     );
@@ -829,28 +829,27 @@ describe("a save inside a scene entered by a divert", () => {
       }
       return { seen, errors };
     };
-    // Both paths retire through the one method: each call's scope and
+    // A restart retires the bindings it replaces: each call's scope and
     // whether its predicate names `a` and `b`.
     const retire = vi.spyOn(CallStack.Element.prototype, "RetireBindings");
     const retired = () =>
       retire.mock.calls.map(([scope, names]) => [scope, names("a"), names("b")]);
     try {
-      // Entering again: the new `a` replaces the one the cell captured,
-      // which closes on 15.
+      // Entering again: the divert closes the scene's scope, and the cell
+      // that captured `a` closes on 15 with it.
       expect(beats(engine(rootOf(REENTER("a", ""))), 4)).toEqual({
         seen: ["First 15 15.", "Second 15 15.", "First 25 15.", "Second 25 15."],
         errors: [],
       });
-      expect(retired().filter(([, a]) => a).length).toBeGreaterThan(0);
       // A restart from the save at the second line, with the cell still
-      // open: the rebound `a` replaces the one the cell captured, which
-      // closes on 15.
+      // open: the rebound `a` replaces the one the cell captured in the
+      // scene's scope, which closes on 15.
       const save = saveAt(REENTER("a", ""), "Second 15 15.");
       const loaded = engine(rootOf(REENTER("a, b", ", 0")));
       retire.mockClear();
       loaded.loadSave(save);
       expect(loaded.loadedSaveReport!.exact).toBe(false);
-      expect(retired()).toContainEqual([0, true, false]);
+      expect(retired()).toContainEqual([1, true, false]);
       expect(beats(loaded, 4)).toEqual({
         seen: ["First 20 15.", "Second 20 15.", "First 25 15.", "Second 25 15."],
         errors: [],
@@ -920,12 +919,67 @@ describe("a save inside a scene entered by a divert", () => {
     const BRANCHES = (first: string, second: string) =>
       ["-> outer(10)", "", "scene outer(a)", first, second, "end", ""].join("\n");
     const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
+    // The divert to `two` enters it with fresh scopes, so `a` reads the
+    // global there.
     const TWO = ["  branch two", "    First {a}.", "    Second {a}.", "  end"].join("\n");
-    const save = saveAt(BRANCHES(ONE, TWO), "First 10.");
+    const save = saveAt(BRANCHES(ONE, TWO), "First nil.");
     const loaded = engine(rootOf(BRANCHES(TWO, ONE)));
     loaded.loadSave(save);
     expect(loaded.loadedSaveReport!.exact).toBe(true);
-    expect(play(loaded)).toEqual(["Second 10."]);
+    expect(play(loaded)).toEqual(["Second nil."]);
+  });
+
+  // Round 1 of the review of #1674 (report 6464271392, finding 1): a block's
+  // local of a parameter's name is no binding of the scene's entry, so a
+  // frame that jumped past the entry loads in place when a parameter is
+  // added.
+  it("at a label a frame jumped to past the entry loads in place, though a block's local takes a parameter's name", () => {
+    const BLOCK = (header: string) =>
+      [
+        "-> s.middle",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  label middle",
+        "  if true then",
+        "    local a = 7",
+        "    First {a}.",
+        "    Second {a}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(BLOCK("s(a)"), "First 7.");
+    const loaded = engine(rootOf(BLOCK("s(a, b)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 7."]);
+  });
+
+  // Round 1 of the review of #1674 (report 6464670920, finding 1): a
+  // branch's local of its scene's parameter's name is the branch's, so a
+  // frame a divert sent straight to the branch loads in place when the
+  // scene gains a parameter.
+  it("inside a branch a divert entered loads in place, though the branch's local takes its scene's parameter's name", () => {
+    const BRANCH = (header: string) =>
+      [
+        "-> s.b",
+        "",
+        `scene ${header}`,
+        "  Skipped.",
+        "  branch b",
+        "    local a = 7",
+        "    First {a}.",
+        "    Second {a}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n");
+    const save = saveAt(BRANCH("s(a)"), "First 7.");
+    const loaded = engine(rootOf(BRANCH("s(a, b)")));
+    loaded.loadSave(save);
+    expect(loaded.loadedSaveReport!.exact).toBe(true);
+    expect(play(loaded)).toEqual(["Second 7."]);
   });
 
   // Round 1 of the review of #1730 (report 6084052356, finding 4): a jump

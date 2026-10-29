@@ -36,6 +36,7 @@ import {
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
 import { RootLocals } from "../../utils/rootLocals";
+import { scopeOf } from "../../utils/declarationOnly";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import {
   SparkdownAnnotator,
@@ -454,6 +455,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       return;
     }
     if (node.name === "LuauFunctionDefinition") {
+      // A `local function` in a flow is a local a closure captures, as a
+      // plain `local` is.
+      if (scopeOf(node, (from, to) => this.read(from, to)) === "local") return;
       const found = this.findDescendant(node, "LuauFunctionName");
       if (found) set.add(this.read(found.from, found.to).trim());
       return;
