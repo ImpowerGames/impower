@@ -11,6 +11,12 @@ export const NO_START_SCENE_MESSAGE =
 export const START_SCENE_PARAMETERS_MESSAGE =
   "scene start cannot take parameters; the story starts there with none";
 
+/** Whether `message` is one of the start scene's errors, which say nothing
+ *  of how the line they stand on reads: the reporters of syntax errors do
+ *  not take them for a report of that line's errors. */
+export const isStartSceneMessage = (message: string): boolean =>
+  message === NO_START_SCENE_MESSAGE || message === START_SCENE_PARAMETERS_MESSAGE;
+
 /** A script of the project, as its parse reads it. */
 export interface StartSceneScript {
   uri: string;

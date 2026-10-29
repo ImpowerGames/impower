@@ -103,6 +103,30 @@ describe("a runnable line at the top level", () => {
   });
 });
 
+describe("the syntax errors beside the top-level and start errors", () => {
+  it("keeps a refused statement's syntax errors beside the top-level error", () => {
+    const found = diagnose({
+      [MAIN]: lines("if (1 2) then", "  X.", "end", ...START),
+    });
+    expect(found.map((d) => [d.line, d.text, d.message])).toEqual([
+      [0, "if (1 2) then", TOP_LEVEL],
+      [0, "2", "Expected ')' (to close '(' at column 4), got '2'"],
+      [0, ")", "Expected identifier when parsing expression, got ')'"],
+      [0, "then", "Expected identifier when parsing expression, got 'then'"],
+    ]);
+  });
+
+  it("keeps a store's bracket error on the first line of a project with no start scene", () => {
+    const found = diagnose({ [MAIN]: lines("store s = (1", "`a {} b`)") });
+    expect(found.map((d) => [d.line, d.message])).toEqual([
+      [0, NO_START],
+      [1, "Expected ')' (to close '(' at line 1), got `a {"],
+      [1, "Expected identifier when parsing expression, got } b`"],
+      [1, "Expected identifier when parsing expression, got ')'"],
+    ]);
+  });
+});
+
 describe("a declaration at the top level", () => {
   it("compiles a title page, each declaration, a marked declaration, a comment and a run without the error", () => {
     const found = diagnose({

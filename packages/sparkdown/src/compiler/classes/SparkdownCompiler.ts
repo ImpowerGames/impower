@@ -197,7 +197,11 @@ import {
   TOP_LEVEL_STATEMENT_MESSAGE,
   topLevelStatements,
 } from "../utils/declarationOnly";
-import { startSceneProblems, type StartSceneScript } from "../utils/startScene";
+import {
+  isStartSceneMessage,
+  startSceneProblems,
+  type StartSceneScript,
+} from "../utils/startScene";
 import {
   isPlacementMessage,
   misplacedDeclarations,
@@ -6349,9 +6353,13 @@ export class SparkdownCompiler {
       if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
-      // A placement error (`misplacedDeclarations`) reports no syntax error.
+      // A placement error (`misplacedDeclarations`, `topLevelStatements`) and
+      // a start scene's error report no syntax error.
       const existing = diagnostics.filter(
-        (d) => d.severity === DiagnosticSeverity.Error && !isPlacementMessage(wordsOf(d)),
+        (d) =>
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(wordsOf(d)) &&
+          !isStartSceneMessage(wordsOf(d)),
       );
       const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
@@ -6504,7 +6512,13 @@ export class SparkdownCompiler {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error && !isPlacementMessage(message)) errors.push(d);
+        if (
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(message) &&
+          !isStartSceneMessage(message)
+        ) {
+          errors.push(d);
+        }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.
