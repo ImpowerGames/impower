@@ -1088,12 +1088,6 @@ class FormPlacer {
     return this._renames;
   }
 
-  // The flow or declaration sequence a first level names. A save names a
-  // member function's write of a script other than main among that script's
-  // writes alone (`writesName`), as a save taken before I-1438 named it by
-  // the flow that held them then; the writes are statements of the script's
-  // declaration sequence, beside its globals, and the level is placed among
-  // the writes alone (`roleOf`).
   protected topOf(level: SavedLevel): SequenceRow | undefined {
     if (level.flow !== undefined) {
       const flow = this.root.flowNamed(this.renamed(level.flow));

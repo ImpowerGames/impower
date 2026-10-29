@@ -353,10 +353,6 @@ const isHoistedDeclaration = (obj: ParsedObject): boolean =>
   obj instanceof ConstantDeclaration ||
   obj instanceof ExternalDeclaration;
 
-/** Whether the objects a top-level statement of a script other than main
- *  lowered to only declare: flows, globals, constants and externals, and the
- *  write that defines a member or method function, held directly or in the
- *  statement's weave. Anything else runs where the statement is placed. */
 function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
   return (content ?? []).every(
     (obj) =>

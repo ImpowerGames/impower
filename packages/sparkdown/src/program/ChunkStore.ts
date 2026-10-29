@@ -178,9 +178,6 @@ export interface DeclaredGlobal {
   assignment: VariableAssignment;
 }
 
-/** A statement that declares globals, as the compile hands it to the store,
- *  or a member function's write of a script other than main, which declares
- *  none and runs with the declarations (`programFlows`). */
 export interface DeclarationSource extends StatementSource {
   /** The script it is written in. */
   uri: string;

@@ -124,8 +124,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   // The flows of the functions declared at the top level, which span their
   // own definitions.
   const functionFlows: FlowSource[] = [];
-  // The writes of the member functions of the scripts other than main, in
-  // the order the story places them (`memberWrites`).
   const writes: DeclarationSource[] = [];
 
   const statementsOf = (
@@ -201,13 +199,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     return statements;
   };
 
-  /** The statements of an included story's top level, `weave`, each as a
-   *  declaration of its script that declares no global, which runs with the
-   *  declarations after the globals (I-1438). Only a member function's write
-   *  of a script other than main is such a statement: the rest of an
-   *  included story's top level declares, and its globals initialize with
-   *  the declarations below. The newline the story places after it shows
-   *  nothing and is left out (`isIncludeNewline`). */
   const memberWrites = (weave: Weave) => {
     const uri = scriptOf(weave.content, input);
     if (uri !== undefined) {
