@@ -13,8 +13,7 @@ import {
 
 const SCRIPT = [
   "store k = 1",
-  "-> main",
-  "scene main",
+  "scene start",
   "  Before.",
   "  match (k)",
   "  | 1 = One.",
@@ -36,13 +35,13 @@ describe("a compile whose statement throws", () => {
     const { program } = compileScript(SCRIPT);
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program)).toEqual([
-      [4, "The compile stopped at this statement, so no program was made: emit failed"],
+      [3, "The compile stopped at this statement, so no program was made: emit failed"],
     ]);
   });
 
   it("reports a store whose value raises an error when the declarations run at its line", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { program } = compileScript("store b = nil\nstore a = 1 // b\n");
+    const { program } = compileScript("store b = nil\nstore a = 1 // b\n\nscene start\nend\n");
     expect(program.chunks).toBeUndefined();
     const errors = errorsOf(program);
     expect(errors.map(([line]) => line)).toEqual([1]);
@@ -54,16 +53,16 @@ describe("a compile whose statement throws", () => {
   it("reports that store beside an error on another statement", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      "store b = nil\nstore a = 1 // b\n\nmatch 1\n  case 1\n    One.\nend\n",
+      "store b = nil\nstore a = 1 // b\n\nscene start\n  match 1\n    case 1\n      One.\n  end\nend\n",
     );
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program).map(([line]) => line).sort()).toEqual([1, 4, 5]);
+    expect(errorsOf(program).map(([line]) => line).sort()).toEqual([1, 5, 6]);
   });
 
   it("reports a store whose value raises inside a function it calls at the store", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function fail()\n  error("bad")\n  return 0\nend\n\nstore a = fail()\n',
+      'function fail()\n  error("bad")\n  return 0\nend\n\nstore a = fail()\n\nscene start\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     const errors = errorsOf(program);
@@ -76,7 +75,7 @@ describe("a compile whose statement throws", () => {
     const MAIN = "file://proj/main.sd";
     const VALUES = "file://proj/includes/values.sd";
     const program = programCompiler({
-      [MAIN]: 'function fail()\n  error("bad")\n  return 0\nend\nHello.\n',
+      [MAIN]: 'function fail()\n  error("bad")\n  return 0\nend\nscene start\n  Hello.\nend\n',
       [VALUES]: "store b = 1\nstore a = fail()\n",
     }).compile(MAIN).program;
     expect(program.chunks).toBeUndefined();
@@ -87,7 +86,7 @@ describe("a compile whose statement throws", () => {
   });
 
   it("reports the store again when the next compile, after an edit elsewhere, still cannot run it", () => {
-    const session = programSession("store b = nil\nstore a = 1 // b\nHello.\n");
+    const session = programSession("store b = nil\nstore a = 1 // b\nscene start\n  Hello.\nend\n");
     expect(errorsOf(session.program).map(([line]) => line)).toEqual([1]);
     session.edit("Hello.", "Hello there.");
     expect(session.program.chunks).toBeUndefined();
@@ -96,7 +95,7 @@ describe("a compile whose statement throws", () => {
 
   it("reports a store whose value throws a host error at the store", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { program } = compileScript('store b = 1\nstore a = string.rep("", math.huge)\n');
+    const { program } = compileScript('store b = 1\nstore a = string.rep("", math.huge)\n\nscene start\nend\n');
     expect(program.chunks).toBeUndefined();
     const errors = errorsOf(program);
     expect(errors.map(([line]) => line)).toEqual([1]);
@@ -105,7 +104,7 @@ describe("a compile whose statement throws", () => {
 
   it("reports that store below a line of spacing", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { program } = compileScript('   \nstore a = string.rep("", math.huge)\n');
+    const { program } = compileScript('   \nstore a = string.rep("", math.huge)\n\nscene start\nend\n');
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line)).toEqual([1]);
   });
@@ -114,7 +113,7 @@ describe("a compile whose statement throws", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     for (const value of ['string.rep("", math.huge)', "1 // nil"]) {
       const { program } = compileScript(
-        `function holder()\n  store b = 1\n  store a = ${value}\n  return 0\nend\nHello.\n`,
+        `function holder()\n  store b = 1\n  store a = ${value}\n  return 0\nend\nscene start\n  Hello.\nend\n`,
       );
       expect(program.chunks, value).toBeUndefined();
       expect(errorsOf(program).map(([line]) => line), value).toEqual([2]);
@@ -124,7 +123,7 @@ describe("a compile whose statement throws", () => {
   it("reports that store beside an error elsewhere in the same function", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function holder()\n  store a = string.rep("", math.huge)\n  match 1\n    case 1\n      One.\n  end\n  return 0\nend\nHello.\n',
+      'function holder()\n  store a = string.rep("", math.huge)\n  match 1\n    case 1\n      One.\n  end\n  return 0\nend\nscene start\n  Hello.\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line)).toContain(1);
@@ -133,7 +132,7 @@ describe("a compile whose statement throws", () => {
   it("reports a store whose value raises a warning inside a function it calls at the store", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function trigger()\n  display({text = "A", continues = true})\n  return 0\nend\n\nstore a = trigger()\n',
+      'function trigger()\n  display({text = "A", continues = true})\n  return 0\nend\n\nstore a = trigger()\n\nscene start\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line)).toEqual([5]);
@@ -142,7 +141,7 @@ describe("a compile whose statement throws", () => {
   it("reports a store whose called function assigns its global at that store", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function fail()\n  a = 1\n  error("bad")\n  return 0\nend\nfunction holder()\n  store a = fail()\n  store b = 2\n  return 0\nend\nHello.\n',
+      'function fail()\n  a = 1\n  error("bad")\n  return 0\nend\nfunction holder()\n  store a = fail()\n  store b = 2\n  return 0\nend\nscene start\n  Hello.\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line)).toEqual([6]);
@@ -151,7 +150,7 @@ describe("a compile whose statement throws", () => {
   it("reports a store whose call gives the names after it values at that store", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function fail()\n  error("bad")\n  return 1, 2\nend\nfunction holder()\n  store c = 1\n  store a, b = fail()\n  store d = 2\n  return 0\nend\nHello.\n',
+      'function fail()\n  error("bad")\n  return 1, 2\nend\nfunction holder()\n  store c = 1\n  store a, b = fail()\n  store d = 2\n  return 0\nend\nscene start\n  Hello.\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     const errors = errorsOf(program);
@@ -162,7 +161,7 @@ describe("a compile whose statement throws", () => {
   it("reports a store after such a store at its own line", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      "function pair()\n  return 3, 4\nend\nfunction holder()\n  store a, b = pair()\n  store c = 1 // nil\n  return 0\nend\nHello.\n",
+      "function pair()\n  return 3, 4\nend\nfunction holder()\n  store a, b = pair()\n  store c = 1 // nil\n  return 0\nend\nscene start\n  Hello.\nend\n",
     );
     expect(program.chunks).toBeUndefined();
     const errors = errorsOf(program);
@@ -175,7 +174,7 @@ describe("a compile whose statement throws", () => {
   it("reports a store whose error reads like a diagnostic the compile leaves out", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { program } = compileScript(
-      'function fail()\n  error("A temp named `x` already exists on null")\n  return 0\nend\nstore a = fail()\n',
+      'function fail()\n  error("A temp named `x` already exists on null")\n  return 0\nend\nstore a = fail()\n\nscene start\nend\n',
     );
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program).map(([line]) => line)).toEqual([4]);
@@ -185,7 +184,7 @@ describe("a compile whose statement throws", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     // The first line holds only spacing, where the error still has a range.
-    const c = programCompiler({ [MAIN_URI]: "   \nHello.\n" });
+    const c = programCompiler({ [MAIN_URI]: "   \nscene start\n  Hello.\nend\n" });
     const compiler = c.compiler as any;
     vi.spyOn(compiler, "compileStoryOnce").mockImplementation(() => ({
       textDocument: { uri: MAIN_URI, version: 1 },

@@ -1178,8 +1178,7 @@ describe("a construct the program cannot compile, written and removed by edits",
     // a list builtin makes the compile report it, at its line, and make no
     // program.
     const text = [
-      "-> MAIN",
-      "scene MAIN",
+      "scene start",
       "  label knock",
       "  Count {knock}.",
       "  & knock = 5",
@@ -1199,7 +1198,7 @@ describe("a construct the program cannot compile, written and removed by edits",
       programCompiler({ [MAIN_URI]: `${text}\n${unused}` }, { seedBuiltinsIntoStory: true }).compile(),
     ).program;
     expect(listed.chunks).toBeUndefined();
-    expect(errorsOf(listed)).toContainEqual([9, unsupportedConstructMessage("list")]);
+    expect(errorsOf(listed)).toContainEqual([8, unsupportedConstructMessage("list")]);
   });
 });
 

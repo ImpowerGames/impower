@@ -2,9 +2,8 @@
 // folder of the script a compile starts from is part of its story, with no
 // include line. A subfolder holding its own main script is a project of its
 // own, and a folder named `node_modules` or whose name begins with `.` is in
-// no project. The script the compile starts from runs its top-level lines;
-// every other script holds declarations only, which register main first and
-// then by path.
+// no project. Every script holds declarations only, which register main
+// first and then by path, and the story starts in the scene named `start`.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
@@ -16,7 +15,7 @@ const ACT1 = `${ROOT}scripts/chapters/act1.sd`;
 const DEFS = `${ROOT}scripts/defs.sd`;
 
 const OUTSIDE_SCENE =
-  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+  "statement must be inside a scene or branch; the top level holds declarations only";
 const LOCAL_AT_TOP =
   "local declaration must be inside a scene, branch or function; use store or const at the top level";
 const INCLUDE_LINE =
@@ -67,11 +66,11 @@ const reported = (
 
 describe("a project folder", () => {
   const project = {
-    [MAIN]: lines("-> act1"),
+    [MAIN]: lines("scene start", "  -> act1", "end"),
     [ACT1]: lines("scene act1", "  The forest is {visited_forest}.", "  done", "end"),
     [DEFS]: lines("store visited_forest = false"),
     // A sub-project: its main script and everything under it are its own.
-    [`${ROOT}minigame/main.sd`]: lines("Minigame.", "scene act1", "  Other.", "end"),
+    [`${ROOT}minigame/main.sd`]: lines("scene start", "  Minigame.", "end", "scene act1", "  Other.", "end"),
     [`${ROOT}minigame/levels/one.sd`]: lines("Level one."),
     // Skipped names.
     [`${ROOT}.hidden/draft.sd`]: lines("Draft.", "scene act1", "  Draft.", "end"),
@@ -103,7 +102,7 @@ describe("a project folder", () => {
     const HASH = `${ROOT}scripts/act#1.sd`;
     const PERCENT = `${ROOT}scripts/%2eact2.sd`;
     const project = {
-      [MAIN]: lines("-> act1"),
+      [MAIN]: lines("scene start", "  -> act1", "end"),
       [HASH]: lines("scene act1", "  First.", "  -> act2", "end"),
       [PERCENT]: lines("scene act2", "  Second.", "  done", "end"),
     };
@@ -115,10 +114,10 @@ describe("a project folder", () => {
   });
 
   it("reads only .sd files as its scripts, whatever else a host registers as one", () => {
-    // The Luau file a `run` reads, registered as a script, is run where the
-    // line stands and is not also read as a script of the project.
+    // The Luau file a `run` reads, registered as a script, is run with the
+    // declarations and is not also read as a script of the project.
     const program = compileProject({
-      [MAIN]: lines('run "helper"', "Main {x}."),
+      [MAIN]: lines('run "helper"', "scene start", "  Main {x}.", "end"),
       [`${ROOT}helper.luau`]: lines("x = 1"),
     });
     expect(errorsOf(program)).toEqual([]);
@@ -141,27 +140,22 @@ describe("a project folder", () => {
 describe("a script other than main", () => {
   const LIB = `${ROOT}lib.sd`;
 
-  it("reports a display line and a run at their lines, and a top-level local as a misplaced local, and drops them", () => {
+  it("reports a display line at its line, and a top-level local as a misplaced local, and drops them", () => {
     const program = compileProject({
-      [MAIN]: lines("Main.", "-> intro"),
+      [MAIN]: lines("scene start", "  Main.", "  -> intro", "end"),
       [LIB]: lines(
         "The hero waits.",
         "local count = 1",
-        "run helpers",
         "",
         "scene intro",
         "  The intro.",
         "end",
       ),
     });
-    expect(reported(program, OUTSIDE_SCENE)).toEqual([
-      [LIB, 0],
-      [LIB, 2],
-    ]);
+    expect(reported(program, OUTSIDE_SCENE)).toEqual([[LIB, 0]]);
     expect(reported(program, LOCAL_AT_TOP)).toEqual([[LIB, 1]]);
     expect(errorsOf(program).map(([, message]) => message)).toEqual([
       LOCAL_AT_TOP,
-      OUTSIDE_SCENE,
       OUTSIDE_SCENE,
     ]);
     const shown = quiet(() => storyRun(new ProgramStory(program.chunks!)));
@@ -170,7 +164,7 @@ describe("a script other than main", () => {
 
   it("declares scenes, branches, functions, defines, constants, stores, externals and types without a report", () => {
     const program = compileProject({
-      [MAIN]: lines("-> intro"),
+      [MAIN]: lines("scene start", "  -> intro", "end"),
       [LIB]: lines(
         "scene intro",
         "  The intro {twice(LIMIT)} {gold}.",
@@ -201,7 +195,7 @@ describe("a script other than main", () => {
 
   it("declares with a store, const or function marked with &, and reports a & statement that runs or declares a local", () => {
     const program = compileProject({
-      [MAIN]: lines("Gold {gold} {twice(LIMIT)}."),
+      [MAIN]: lines("scene start", "  Gold {gold} {twice(LIMIT)}.", "end"),
       [LIB]: lines(
         "& store gold = 4",
         "& const LIMIT = 3",
@@ -222,7 +216,7 @@ describe("a script other than main", () => {
 
   it("reports a & line that declares and then runs something after the declaration", () => {
     const program = compileProject({
-      [MAIN]: lines("Silver {silver}."),
+      [MAIN]: lines("scene start", "  Silver {silver}.", "end"),
       [LIB]: lines(
         "& store gold = 4; gold = 5",
         "& function f() end; gold = 6",
@@ -241,7 +235,7 @@ describe("a script other than main", () => {
     // Luau reads `bump()` as the next statement, which the declaration's own
     // node holds.
     const program = compileProject({
-      [MAIN]: lines("store gold = 0", "Gold {gold}."),
+      [MAIN]: lines("store gold = 0", "scene start", "  Gold {gold}.", "end"),
       [LIB]: lines("function bump() gold = 9 end", "store silver = 4 --[[x]] bump()", "& store copper = 4 --[[x]]bump()"),
     });
     expect(reported(program, OUTSIDE_SCENE)).toEqual([
@@ -254,7 +248,7 @@ describe("a script other than main", () => {
 
   it("declares with a & line that ends in a comment", () => {
     const program = compileProject({
-      [MAIN]: lines("Gold {gold} {f()}."),
+      [MAIN]: lines("scene start", "  Gold {gold} {f()}.", "end"),
       [LIB]: lines("& store gold = 4; -- the gold", "& function f() return 4 end; --[[ four ]]"),
     });
     expect(errorsOf(program)).toEqual([]);
@@ -264,7 +258,7 @@ describe("a script other than main", () => {
 
   it("declares a member or method function, marked or not, for main to call", () => {
     const program = compileProject({
-      [MAIN]: lines("store api = {}", "-> s", "scene s", "  Answer {api.f()} {api.g()} {api:h()} {api.k()}.", "end"),
+      [MAIN]: lines("store api = {}", "scene start", "  Answer {api.f()} {api.g()} {api:h()} {api.k()}.", "end"),
       [LIB]: lines(
         "function api.f() return 3 end",
         "& function api.g() return 4 end",
@@ -283,7 +277,7 @@ describe("a script other than main", () => {
 
   it("reports a top-level local function, and not a function whose body declares a local", () => {
     const program = compileProject({
-      [MAIN]: lines("Main {twice(2)}."),
+      [MAIN]: lines("scene start", "  Main {twice(2)}.", "end"),
       [LIB]: lines(
         "local function helper() return 1 end",
         "@native local function fast() return 2 end",
@@ -310,16 +304,16 @@ describe("a script other than main", () => {
     // The program engine does not run an external wherever it is declared,
     // which its own error says; it is a declaration all the same.
     const external = (uri: string) =>
-      errorsOf(compileProject({ [MAIN]: lines("Main."), [uri]: lines("external host_record(v)") }));
+      errorsOf(compileProject({ [MAIN]: lines("scene start", "  Main.", "end"), [uri]: lines("external host_record(v)") }));
     expect(external(LIB).map(([, message]) => message)).not.toContain(OUTSIDE_SCENE);
-    expect(external(LIB)).toEqual(errorsOf(compileProject({ [MAIN]: lines("external host_record(v)", "Main.") })));
+    expect(external(LIB)).toEqual(errorsOf(compileProject({ [MAIN]: lines("external host_record(v)", "scene start", "  Main.", "end") })));
   });
 });
 
 describe("an include line", () => {
   it("reports that the project's scripts are already part of the story, and includes nothing", () => {
     const program = compileProject({
-      [MAIN]: lines("include scripts/defs.sd", "-> act1"),
+      [MAIN]: lines("include scripts/defs.sd", "scene start", "  -> act1", "end"),
       [ACT1]: lines("scene act1", "  The forest is {visited_forest}.", "end"),
       [DEFS]: lines("store visited_forest = true"),
     });
@@ -330,7 +324,7 @@ describe("an include line", () => {
 
   it("reports in a script other than main once, as an include line", () => {
     const program = compileProject({
-      [MAIN]: lines("Main."),
+      [MAIN]: lines("scene start", "  Main.", "end"),
       [DEFS]: lines("include chapters/act1.sd"),
     });
     expect(errorsOf(program)).toEqual([[0, INCLUDE_LINE]]);
@@ -341,7 +335,7 @@ describe("declaration order", () => {
   it("reports a layout declared in two scripts, naming both", () => {
     const UI = `${ROOT}scripts/ui.sd`;
     const program = compileProject({
-      [MAIN]: lines("layout hud with", '  text "Main"', "end", "Main."),
+      [MAIN]: lines("layout hud with", '  text "Main"', "end", "scene start", "  Main.", "end"),
       [UI]: lines("layout hud with", '  text "UI"', "end"),
     });
     const errors = Object.entries(program.diagnostics ?? {}).flatMap(
@@ -374,7 +368,7 @@ describe("declaration order", () => {
   it("reports a component declared in two scripts, and keeps the first in both its definitions", () => {
     const UI = `${ROOT}scripts/ui.sd`;
     const program = compileProject({
-      [MAIN]: lines("component badge with", '  text "Main"', "end", "Main."),
+      [MAIN]: lines("component badge with", '  text "Main"', "end", "scene start", "  Main.", "end"),
       [UI]: lines("component badge with", '  text "UI"', "end"),
     });
     expect(reported(program, `Component \`badge\` is declared in main.sd and in scripts/ui.sd. Declare it in one script.`)).toEqual([
@@ -396,7 +390,9 @@ describe("declaration order", () => {
         "layout hud with",
         '  text "Second"',
         "end",
-        "Main.",
+        "scene start",
+        "  Main.",
+        "end",
       ),
     });
     expect(errorsOf(program)).toEqual([]);
@@ -404,7 +400,7 @@ describe("declaration order", () => {
 
   it("initializes main's globals before another script's, so a store there can read one of main's", () => {
     const program = compileProject({
-      [MAIN]: lines("store a = 1", "Main {a} {b} {c}.", "choose", "  * Pick", "    Picked {b}.", "end"),
+      [MAIN]: lines("store a = 1", "scene start", "  Main {a} {b} {c}.", "  choose", "    * Pick", "      Picked {b}.", "  end", "end"),
       [`${ROOT}scripts/b.sd`]: lines("store c = b + 1"),
       [`${ROOT}scripts/a.sd`]: lines("store b = a + 1"),
     });
@@ -438,7 +434,7 @@ describe("declaration order", () => {
     const A = `${ROOT}scripts/a.sd`;
     const program = compileProject(
       {
-        [MAIN]: lines("Main {first} {second}."),
+        [MAIN]: lines("scene start", "  Main {first} {second}.", "end"),
         [before ? other : A]: lines("store first = 1"),
         [before ? A : other]: lines("store second = first + 1"),
       },
@@ -460,7 +456,7 @@ describe("declaration order", () => {
     const other = `${ROOT}scripts/${spelled}`;
     const program = compileProject(
       {
-        [MAIN]: lines("layout hud with", '  text "Main"', "end", "Main."),
+        [MAIN]: lines("layout hud with", '  text "Main"', "end", "scene start", "  Main.", "end"),
         [other]: lines("layout hud with", '  text "Other"', "end"),
       },
       MAIN,
@@ -475,7 +471,7 @@ describe("declaration order", () => {
 
   it("registers main's declarations first and then each script's by path", () => {
     const program = compileProject({
-      [MAIN]: lines("layout zeta with", '  text "Z"', "end", "Main."),
+      [MAIN]: lines("layout zeta with", '  text "Z"', "end", "scene start", "  Main.", "end"),
       [`${ROOT}scripts/b.sd`]: lines("layout beta with", '  text "B"', "end"),
       [`${ROOT}scripts/a.sd`]: lines("layout alpha with", '  text "A"', "end"),
     });

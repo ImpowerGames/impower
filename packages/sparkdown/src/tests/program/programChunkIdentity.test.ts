@@ -150,14 +150,16 @@ describe("an edit inside one beat of the beats fixture", () => {
 // Changing that line's cue changes the continuation's recorded input, and
 // the store emits the continuation again although its own text is the same.
 describe("a recorded lowering input", () => {
-  const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
+  const filler = Array.from({ length: 8 }, (_, i) => `  Filler line ${i}.`);
   const text = [
+    "scene start",
     ...filler,
-    "HERO: Wait ..",
-    "// a comment between",
-    ".. right there. > And then more.",
-    "After.",
+    "  HERO: Wait ..",
+    "  // a comment between",
+    "  .. right there. > And then more.",
+    "  After.",
     ...filler,
+    "end",
     "",
   ].join("\n");
 
@@ -166,8 +168,8 @@ describe("a recorded lowering input", () => {
     s.edit("Filler line 0.", "Filler line 0!");
     const before = s.root;
     const after = s.edit("HERO: Wait", "RIVAL: Wait");
-    const flow = after.flowNamed("")!.arrays.chunks;
-    const beforeFlow = before.flowNamed("")!.arrays.chunks;
+    const flow = after.flowNamed("start")!.arrays.chunks;
+    const beforeFlow = before.flowNamed("start")!.arrays.chunks;
     const reemitted = flow
       .map((chunk, entry) => (chunk === beforeFlow[entry] ? null : entry))
       .filter((entry) => entry !== null);
@@ -189,9 +191,11 @@ describe("a recorded lowering input", () => {
 // lowers it again although its own text is the same. The hint is not its
 // code, so the store keeps its chunk and emits only the statement added.
 describe("the statements a `done` leaves unreachable", () => {
-  const filler = Array.from({ length: 6 }, (_, i) => `Filler line ${i}.`);
+  const filler = Array.from({ length: 6 }, (_, i) => `  Filler line ${i}.`);
   const text = [
+    "scene start",
     ...filler,
+    "end",
     "scene intro",
     "  Hello.",
     "  done",
@@ -200,7 +204,9 @@ describe("the statements a `done` leaves unreachable", () => {
     "  Line 3.",
     "  Also never.",
     "end",
+    "scene tail",
     ...filler,
+    "end",
     "",
   ].join("\n");
   const hints = (program: { diagnostics?: Record<string, unknown[]> }) =>
@@ -219,7 +225,7 @@ describe("the statements a `done` leaves unreachable", () => {
     it(`are hinted as a cold compile hints them after an edit below the \`done\`: ${edit}`, () => {
       const s = session({ [MAIN]: text });
       s.edit("Filler line 0.", "Filler line 0!");
-      expect(hints(s.program)).toEqual(["9:0-12:13"]);
+      expect(hints(s.program)).toEqual(["11:0-14:13"]);
       const after = s.edit(find, replace);
       expect(s.store.emittedLastBuild).toBe(1);
       const edited = text.replace("Filler line 0.", "Filler line 0!").replace(find, replace);
@@ -238,13 +244,15 @@ describe("the statements a `done` leaves unreachable", () => {
 // the label's name moves them along the line, and their chunk's line rows hold
 // columns, so it is emitted again with the new ones.
 describe("a statement that shares its first line with another", () => {
-  const filler = Array.from({ length: 6 }, (_, i) => `Filler line ${i}.`);
+  const filler = Array.from({ length: 6 }, (_, i) => `  Filler line ${i}.`);
   const text = [
+    "scene start",
     ...filler,
-    "You see a door.",
-    "label door_in_the_hall # t",
-    "After.",
+    "  You see a door.",
+    "  label door_in_the_hall # t",
+    "  After.",
     ...filler,
+    "end",
     "",
   ].join("\n");
 
@@ -297,18 +305,20 @@ const blockAt = (compiler: SparkdownCompiler, find: string) => {
 // block leaves the block as it was lowered, with statement chunks on or off;
 // the reads are kept only when they are on.
 describe("a continuation inside a block", () => {
-  const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
+  const filler = Array.from({ length: 8 }, (_, i) => `  Filler line ${i}.`);
   const text = [
     "store x = 1",
-    "if x then",
-    "  You see a ..",
-    "  .. door. > It opens.",
-    "end",
+    "scene start",
+    "  if x then",
+    "    You see a ..",
+    "    .. door. > It opens.",
+    "  end",
     ...filler,
+    "end",
     "",
   ].join("\n");
-  const BLOCK_LINE = 1;
-  const EDITED_LINE = 12;
+  const BLOCK_LINE = 2;
+  const EDITED_LINE = 13;
 
   it("is not lowered again by an edit below it", () => {
     const c = programCompiler({ [MAIN]: text });
@@ -405,10 +415,15 @@ describe("a reference table", () => {
 });
 
 describe("a flow's kind", () => {
-  const text = "Intro.\nscene SAME\n  One.\nend\n";
-  // Whether a root's description gives the flow SAME the kind.
+  const text = "scene start\n  Intro.\nend\nscene SAME\n  One.\nend\n";
+  // Whether a root's description gives the flow SAME the kind. A branch
+  // written below the scene `start` belongs to it, so it is named after it.
   const describesSameAs = (root: ProgramRoot, kind: SymbolKindValue) =>
-    describeRoot(root).some((line) => line.startsWith(`flow "SAME" kind ${kind} `));
+    describeRoot(root).some(
+      (line) =>
+        line.startsWith(`flow "SAME" kind ${kind} `) ||
+        line.startsWith(`flow "start.SAME" kind ${kind} `),
+    );
 
   it("is the kind a cold compile gives after an edit turns a scene into a branch", () => {
     const s = session({ [MAIN]: text });
@@ -637,8 +652,8 @@ describe("a block statement written on one line", () => {
 
 describe("a name a chunk reads", () => {
   it("emits the chunk again when the name resolves to something else", () => {
-    const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
-    const text = [...filler, "Seen {extra}.", ...filler, ""].join("\n");
+    const filler = Array.from({ length: 8 }, (_, i) => `  Filler line ${i}.`);
+    const text = ["scene start", ...filler, "  Seen {extra}.", ...filler, "end", ""].join("\n");
     const c = programCompiler({ [MAIN]: text });
     expect(c.compile().program.chunks).toBeDefined();
     const added = "scene extra\n  Inside.\nend\n";
@@ -686,7 +701,9 @@ describe("a statement that writes a function", () => {
       ...fn.map((l) => `  ${l}`),
       "  return f()",
       "end",
-      "Got {tostring(demo())}.",
+      "scene start",
+      "  Got {tostring(demo())}.",
+      "end",
       "",
     ].join("\n");
   it.each([
@@ -717,7 +734,9 @@ describe("a statement that writes a function", () => {
     "  end",
     "  return t:m()",
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
   const methodChunk = (s: ReturnType<typeof session>) =>
@@ -770,7 +789,9 @@ describe("a statement that writes a function", () => {
       "  end",
       "  return f()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
       "",
     ].join("\n");
     const s = session({ [MAIN]: text });
@@ -792,32 +813,33 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got 21."]);
   });
 
-  // A function defined in an `if` block runs in place, where it stands: its
-  // statement's code binds the parameters and declares the hoisted locals,
-  // and the functions its body declares, with the closures they create, are
-  // other chunks' code. Its chunk refers to none of those closures, so it
-  // holds while they keep their symbols (the cumulative fuzz of the function
-  // screenplay, seed 2029, after an edit broke a scene's `end`).
-  it("keeps its chunk across an edit elsewhere when it runs in place and a function in its body creates a closure", () => {
+  // A function's statement binds the parameters and declares the hoisted
+  // locals, and the functions its body declares, with the closures they
+  // create, are other chunks' code. Its chunk refers to none of those
+  // closures, so it holds while they keep their symbols (the cumulative fuzz
+  // of the function screenplay, seed 2029, after an edit broke a scene's
+  // `end`).
+  it("keeps its chunk across an edit elsewhere when a function in its body creates a closure", () => {
     const text = [
-      "if true then",
-      "  function outer()",
-      "    function inner()",
-      "      local by = function(a, b) return a > b end",
-      "      return by(2, 1)",
-      "    end",
-      "    result = inner()",
+      "function outer()",
+      "  function inner()",
+      "    local by = function(a, b) return a > b end",
+      "    return by(2, 1)",
       "  end",
+      "  result = inner()",
       "end",
-      "Got {result}.",
-      "More text.",
+      "scene start",
+      "  & outer()",
+      "  Got {result}.",
+      "  More text.",
+      "end",
       "",
     ].join("\n");
     const s = session({ [MAIN]: text });
     expect(shows(s.root)).toEqual(["Got true.", "More text."]);
     const outer = () =>
       programStatements(s.compiler).find(
-        (statement) => statement.from === text.indexOf("  function outer()"),
+        (statement) => statement.from === text.indexOf("function outer()"),
       )!.chunk;
     const before = s.root;
     const owner = outer();
@@ -831,60 +853,58 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got true.", "More words."]);
   });
 
-  // The same function's entry declares the locals its body's functions,
-  // declared without `local`, hoist there, in their order, so an edit that
-  // swaps two of them emits it again, though its own syntax is unchanged.
-  it("is emitted again when it runs in place and an edit swaps two functions its body declares", () => {
+  // The function's entry declares the locals its body's functions, declared
+  // without `local`, hoist there, in their order, so an edit that swaps two
+  // of them emits it again, though its own syntax is unchanged.
+  it("is emitted again when an edit swaps two functions its body declares", () => {
     const text = [
-      "if true then",
-      "  function outer()",
-      "    function a() return 1 end",
-      "    function b() return 2 end",
-      "    result = a() + b() * 10",
-      "  end",
+      "function outer()",
+      "  function a() return 1 end",
+      "  function b() return 2 end",
+      "  result = a() + b() * 10",
       "end",
-      "Got {result}.",
+      "scene start",
+      "  & outer()",
+      "  Got {result}.",
+      "end",
       "",
     ].join("\n");
     const swapped = text.replace(
-      "    function a() return 1 end\n    function b() return 2 end",
-      "    function b() return 2 end\n    function a() return 1 end",
+      "  function a() return 1 end\n  function b() return 2 end",
+      "  function b() return 2 end\n  function a() return 1 end",
     );
     const s = session({ [MAIN]: text });
     expect(shows(s.root)).toEqual(["Got 21."]);
     const edited = s.edit(
-      "    function a() return 1 end\n    function b() return 2 end",
-      "    function b() return 2 end\n    function a() return 1 end",
+      "  function a() return 1 end\n  function b() return 2 end",
+      "  function b() return 2 end\n  function a() return 1 end",
     );
     expect(describeRoot(edited)).toEqual(describeRoot(coldRoot(swapped)));
     expect(shows(edited)).toEqual(["Got 21."]);
   });
 
-  // A `define` written in a `do` block is a global declaration placed with
-  // the block: the declaration's chunk builds the table and writes its
-  // methods, and the `define`'s own statement emits nothing where it is
-  // written. Its chunk refers to none of the methods' symbols, which the
-  // declaration gives them (the cumulative fuzz of the function screenplay,
-  // seed 2027, after an edit broke a `do` block's `end` above a `define`).
-  it("keeps the chunk of a `define` written in a `do` block across an edit elsewhere", () => {
+  // A `define`'s chunk builds the table and writes its methods. Its chunk
+  // refers to none of the methods' symbols, which the declaration gives them
+  // (the cumulative fuzz of the function screenplay, seed 2027).
+  it("keeps the chunk of a `define` across an edit elsewhere", () => {
     const text = [
-      "do",
-      "  define Point with",
-      "    x = 2",
-      "    function get()",
-      "      return self.x",
-      "    end",
+      "define Point with",
+      "  x = 2",
+      "  function get()",
+      "    return self.x",
       "  end",
       "end",
-      "Got {new Point():get()}.",
-      "More text.",
+      "scene start",
+      "  Got {new Point():get()}.",
+      "  More text.",
+      "end",
       "",
     ].join("\n");
     const s = session({ [MAIN]: text });
     expect(shows(s.root)).toEqual(["Got 2.", "More text."]);
     const define = () =>
       programStatements(s.compiler).find(
-        (statement) => statement.from === text.indexOf("  define Point with"),
+        (statement) => statement.from === text.indexOf("define Point with"),
       )!.chunk;
     const before = s.root;
     const owner = define();
@@ -913,7 +933,9 @@ describe("a statement that writes a function", () => {
       "  end",
       "  return 2",
       "end",
-      "Got it.",
+      "scene start",
+      "  Got it.",
+      "end",
       "",
     ].join("\n");
     const s = session({ [MAIN]: text });
@@ -943,7 +965,9 @@ describe("a statement whose meaning a block's local changes", () => {
     "    return bar()",
     "  end",
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
   const cold = coldRoot;
