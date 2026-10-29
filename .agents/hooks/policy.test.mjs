@@ -65,7 +65,16 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(judge("Write", { file_path: path.join(outside, "a.ts"), content: "// prose\n" }), null, "a file outside a checkout carrying the policy is not judged");
 
     const patch = (body) => judge("apply_patch", { command: `*** Begin Patch\n${body}\n*** End Patch` }, "codex");
-    assert.match(patch("*** Update File: src/a.ts\n@@\n export const a = 1;\n+// a patch note\n+export const z = 0;") ?? "", /src\/a\.ts: `\/\/ a patch note`/);
+    assert.match(patch("*** Update File: src/a.ts\n@@\n export const a = 1;\n+// a patch note\n+export const z = 0;") ?? "", /src\/a\.ts:3: `\/\/ a patch note`/);
+    write("src/template.ts", "export const t = `\nalpha\nmiddle\nomega\n`;\nexport const after = 1;\n");
+    assert.equal(patch("*** Update File: src/template.ts\n@@\n alpha\n+// literal text\n middle"), null, "a hunk inside a template literal adds text, not a comment");
+    assert.match(patch("*** Update File: src/template.ts\n@@\n-alpha\n+alpha changed\n@@\n export const after = 1;\n+// forbidden note") ?? "", /src\/template\.ts:7: `\/\/ forbidden note`/, "a hunk is judged in the patched file, not beside the other hunks");
+
+    write("src/trailing.ts", "export const a = 1; // legacy note\n");
+    assert.equal(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "a = 1", new_string: "a = 2" }), null, "editing code beside a legacy comment introduces no comment");
+    assert.equal(judge("Write", { file_path: at("src/trailing.ts"), content: "export const a = 2; // legacy note\n" }), null);
+    assert.match(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "// legacy note", new_string: "// legacy note, reworded" }) ?? "", /src\/trailing\.ts:1/, "a reworded comment is a new comment");
+    assert.match(judge("Edit", { file_path: at("src/trailing.ts"), old_string: "export const a = 1; // legacy note", new_string: "export const a = 1; // legacy note\nexport const b = 1; // legacy note" }) ?? "", /src\/trailing\.ts:2/, "a copy of an existing comment is introduced");
     assert.equal(patch("*** Update File: src/a.ts\n@@\n-// legacy rationale the file already holds\n-export const a = 1;\n+export const a = 1;\n+// legacy rationale the file already holds"), null, "a moved comment line is not introduced");
     assert.match(patch("*** Add File: src/c.ts\n+export {};\n+// added prose") ?? "", /src\/c\.ts:2/);
     assert.equal(patch("*** Add File: src/d.ts\n+// @ts-nocheck\n+export {};"), null);
@@ -74,6 +83,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments(String.raw`const s = "// no", t = '/* no */', u = /\/\/no[/]/g; // yes`, "a.ts"), ["// yes"]);
     assert.deepEqual(comments("const t = `a // no ${f(/* yes */ 1, `b // no ${2}`)} c // no`; const r = x / 2 / y; // yes", "a.ts"), ["/* yes */", "// yes"]);
     assert.deepEqual(comments("const v = <a href=\"http://x\">see</a>; // yes", "a.tsx"), ["// yes"]);
+    assert.deepEqual(comments("if (true) /[/*]/.test(\"/\"); while (x) /a\\/b/.test(y); f(a) / 2 / g; // yes", "a.ts"), ["// yes"]);
+    assert.deepEqual(comments("const el = <p>https://example.com {/* yes */} <br/> it's <b>x</b></p>; // yes", "a.tsx"), ["/* yes */", "// yes"]);
+    assert.deepEqual(comments("const id = <T,>(x: T) => x; // yes\nconst f = <>a // no</>; // yes", "a.tsx"), ["// yes", "// yes"]);
+    assert.deepEqual(comments("const i = (\n  <input\n    // yes\n    size={1} /* yes */\n    title=\"// no\"\n  />\n);", "a.tsx"), ["// yes", "/* yes */"]);
+    assert.deepEqual(comments("<div title=\"<!-- no -->\">ok</div><script>if (a<!--b) x</script><style>p{}</style><!-- yes -->", "a.html"), ["<!-- yes -->"]);
     assert.deepEqual(comments("#!/usr/bin/env node\nreturn /re/.test(s) // yes", "a.mjs"), ["// yes"]);
     assert.deepEqual(comments(".a { content: '/* no */'; } /* yes */ // no", "a.css"), ["/* yes */"]);
     assert.deepEqual(comments("<p>// no</p><!-- yes -->", "a.html"), ["<!-- yes -->"]);
@@ -142,6 +156,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     };
     assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
     assert.equal(stripComments("a();\r\n// note\r\nb();\r\n", "src/a.ts", { root: checkout }), "a();\r\nb();\r\n");
+    const asi = "function f() { return /* why\n*/ 1; }";
+    const asiStripped = stripComments(asi, "src/a.ts", { root: checkout });
+    assert.equal(asiStripped, "function f() { return\n1; }", "a removed block comment holding a line break leaves one, so automatic semicolon insertion is unchanged");
+    assert.equal(new Function(`${asiStripped}; return f();`)(), new Function(`${asi}; return f();`)());
+    assert.equal(stripComments("<div title=\"<!-- kept -->\">ok</div><!-- note -->\n", "a.html", { root: checkout }), "<div title=\"<!-- kept -->\">ok</div>\n");
     assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });

@@ -8,22 +8,28 @@ function eventCwd(payload) {
 
 function patchFiles(command) {
   const files = [];
-  let file = null;
+  let file = null, hunk = null;
   for (const line of command.split(/\r?\n/)) {
     const header = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$/.exec(line);
     if (header) {
+      const target = header[2].trimEnd();
       if (header[1] === "Move to") {
-        if (file) file.path = header[2].trimEnd();
+        if (file) file.path = target;
         continue;
       }
-      file = header[1] === "Delete File" ? null : { path: header[2].trimEnd(), lines: [], removed: [], whole: header[1] === "Add File" };
+      hunk = null;
+      file = header[1] === "Delete File" ? null : header[1] === "Add File" ? { path: target, added: [] } : { path: target, source: target, hunks: [] };
       if (file) files.push(file);
-    } else if (!file || line.startsWith("*** ") || line.startsWith("@@")) continue;
-    else if (line.startsWith("+")) file.lines.push({ text: line.slice(1), added: true });
-    else if (line.startsWith("-")) file.removed.push(line.slice(1));
-    else if (line.startsWith(" ")) file.lines.push({ text: line.slice(1), added: false });
+    } else if (!file || line.startsWith("*** ")) continue;
+    else if (file.added) {
+      if (line.startsWith("+")) file.added.push(line.slice(1));
+    } else if (line.startsWith("@@")) file.hunks.push((hunk = []));
+    else if (/^[ +-]/.test(line)) {
+      if (!hunk) file.hunks.push((hunk = []));
+      hunk.push({ op: line[0], text: line.slice(1) });
+    }
   }
-  return files;
+  return files.map(({ added, ...rest }) => (added ? { ...rest, content: added.length ? added.join("\n") + "\n" : "" } : rest));
 }
 
 export function normalize(payload, harness) {

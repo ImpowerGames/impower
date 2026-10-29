@@ -48,25 +48,82 @@ function skipQuoted(text, i, quote, escape = "\\") {
 
 const REGEX_AFTER_WORD = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
 
-function scanJs(text) {
+const CONDITION_WORDS = new Set(["if", "while", "for", "with"]);
+
+function scanJs(text, jsx = false) {
   const comments = [];
-  const templates = [];
-  let depth = 0, regexAllowed = true, previous = "";
+  const frames = [{ mode: "code", braces: 0 }];
+  const parens = [];
+  let regexAllowed = true, lastWord = "";
   let i = text.startsWith("#!") ? lineEnd(text, 0) : 0;
-  const template = (j) => {
-    while (j < text.length) {
-      if (text[j] === "\\") j += 2;
-      else if (text[j] === "`") return j + 1;
-      else if (text[j] === "$" && text[j + 1] === "{") {
-        templates.push(depth++);
-        regexAllowed = true;
-        return j + 2;
-      } else j++;
+  const enterCode = () => {
+    frames.push({ mode: "code", braces: 0 });
+    regexAllowed = true;
+    lastWord = "";
+  };
+  const endTag = (frame) => {
+    if (frame.open > 0) frame.mode = "jsxText";
+    else {
+      frames.pop();
+      regexAllowed = false;
     }
-    return text.length;
   };
   while (i < text.length) {
+    const frame = frames[frames.length - 1];
     const c = text[i], n = text[i + 1];
+    if (frame.mode === "template") {
+      if (c === "\\") i += 2;
+      else if (c === "`") {
+        frames.pop();
+        regexAllowed = false;
+        i++;
+      } else if (c === "$" && n === "{") {
+        enterCode();
+        i += 2;
+      } else i++;
+      continue;
+    }
+    if (frame.mode === "jsxText") {
+      if (c === "{") {
+        enterCode();
+        i++;
+      } else if (c === "<") {
+        frame.mode = "jsxTag";
+        frame.closing = n === "/";
+        if (!frame.closing) frame.open++;
+        i += frame.closing ? 2 : 1;
+      } else i++;
+      continue;
+    }
+    if (frame.mode === "jsxTag") {
+      if (c === "/" && (n === "/" || n === "*")) {
+        const close = n === "/" ? lineEnd(text, i) : text.indexOf("*/", i + 2);
+        const end = close < 0 ? text.length : n === "/" ? close : close + 2;
+        comments.push({ start: i, end });
+        i = end;
+      } else if (c === "'" || c === '"') {
+        const close = text.indexOf(c, i + 1);
+        i = close < 0 ? text.length : close + 1;
+      } else if (c === "{") {
+        enterCode();
+        i++;
+      } else if (c === "/" && n === ">") {
+        frame.open--;
+        i += 2;
+        endTag(frame);
+      } else if (c === ">") {
+        if (frame.closing) frame.open--;
+        i++;
+        endTag(frame);
+      } else i++;
+      continue;
+    }
+    if (c === "<" && jsx && regexAllowed && /[A-Za-z>]/.test(n ?? "") && !/^<[A-Za-z_$][\w$]*\s*(?:,|extends\b)/.test(text.slice(i, i + 80))) {
+      frames.push({ mode: "jsxTag", open: 1, closing: false });
+      i++;
+      continue;
+    }
+    const word = /[A-Za-z0-9_$]/.test(c);
     if (c === "/" && n === "/") {
       const end = lineEnd(text, i);
       comments.push({ start: i, end });
@@ -80,9 +137,9 @@ function scanJs(text) {
       i = skipQuoted(text, i, c);
       regexAllowed = false;
     } else if (c === "`") {
-      i = template(i + 1);
-      regexAllowed = false;
-    } else if (c === "/" && regexAllowed && previous !== "<") {
+      frames.push({ mode: "template" });
+      i++;
+    } else if (c === "/" && regexAllowed) {
       let j = i + 1, inClass = false;
       while (j < text.length && text[j] !== "\n" && (inClass || text[j] !== "/")) {
         if (text[j] === "\\") j++;
@@ -99,26 +156,27 @@ function scanJs(text) {
         i++;
         regexAllowed = true;
       }
-    } else if (/[A-Za-z0-9_$]/.test(c)) {
+    } else if (word) {
       let j = i;
       while (j < text.length && /[A-Za-z0-9_$]/.test(text[j])) j++;
-      regexAllowed = REGEX_AFTER_WORD.has(text.slice(i, j)) && text[i - 1] !== ".";
+      lastWord = text.slice(i, j);
+      regexAllowed = REGEX_AFTER_WORD.has(lastWord) && text[i - 1] !== ".";
       i = j;
+      continue;
     } else if (/\s/.test(c)) {
       i++;
       continue;
-    } else if (c === "}" && templates.length && templates[templates.length - 1] === depth - 1) {
-      templates.pop();
-      depth--;
-      i = template(i + 1);
-      regexAllowed = false;
+    } else if (c === "}" && frame.braces === 0 && frames.length > 1) {
+      frames.pop();
+      i++;
     } else {
-      if (c === "{") depth++;
-      else if (c === "}") depth--;
-      regexAllowed = c !== ")" && c !== "]";
+      if (c === "{") frame.braces++;
+      else if (c === "}") frame.braces--;
+      if (c === "(") parens.push(CONDITION_WORDS.has(lastWord));
+      regexAllowed = c === ")" ? parens.pop() ?? false : c !== "]";
       i++;
     }
-    previous = c;
+    lastWord = "";
   }
   return comments;
 }
@@ -138,13 +196,33 @@ function scanCss(text) {
   return comments;
 }
 
+const RAW_TEXT_ELEMENTS = new Set(["script", "style", "textarea", "title"]);
+
 function scanHtml(text) {
   const comments = [];
-  for (let i = text.indexOf("<!--"); i >= 0; i = text.indexOf("<!--", i)) {
-    const close = text.indexOf("-->", i + 4);
-    const end = close < 0 ? text.length : close + 3;
-    comments.push({ start: i, end });
-    i = end;
+  const lower = text.toLowerCase();
+  for (let i = 0; i < text.length; ) {
+    if (text.startsWith("<!--", i)) {
+      const close = text.indexOf("-->", i + 4);
+      const end = close < 0 ? text.length : close + 3;
+      comments.push({ start: i, end });
+      i = end;
+    } else if (text[i] === "<" && /[A-Za-z/]/.test(text[i + 1] ?? "")) {
+      const name = /^\/?([A-Za-z][\w-]*)/.exec(text.slice(i + 1, i + 64))?.[1]?.toLowerCase() ?? "";
+      const closing = text[i + 1] === "/";
+      let j = i + 1;
+      while (j < text.length && text[j] !== ">") {
+        if (text[j] === '"' || text[j] === "'") {
+          const close = text.indexOf(text[j], j + 1);
+          j = close < 0 ? text.length : close + 1;
+        } else j++;
+      }
+      i = j + 1;
+      if (!closing && RAW_TEXT_ELEMENTS.has(name)) {
+        const close = lower.indexOf(`</${name}`, i);
+        i = close < 0 ? text.length : close;
+      }
+    } else i++;
   }
   return comments;
 }
@@ -295,7 +373,7 @@ export function scanComments(text, file) {
     }
     return lo;
   };
-  return SCANNERS[family](text)
+  return (family === "js" ? scanJs(text, /\.tsx$/i.test(posix(file))) : SCANNERS[family](text))
     .sort((a, b) => a.start - b.start)
     .map(({ start, end }) => {
       const line = lineOf(start), endLine = lineOf(Math.max(start, end - 1));
@@ -413,7 +491,8 @@ export function stripComments(text, file, options = {}) {
       while (to < text.length && /[ \t]/.test(text[to])) to++;
       if (leading) while (from > c.lineStart && /[ \t]/.test(text[from - 1])) from--;
       const joins = leading && !/[([{]/.test(text[from - 1]) && !/[)\]},;]/.test(text[to]);
-      cuts.push({ from, to, replacement: joins ? " " : "" });
+      const breaks = leading && (/[\n\r]/.test(c.text) || [0x2028, 0x2029].some((code) => c.text.includes(String.fromCharCode(code))));
+      cuts.push({ from, to, replacement: breaks ? "\n" : joins ? " " : "" });
     }
   }
   cuts.sort((a, b) => a.from - b.from);
@@ -471,21 +550,61 @@ function applyEdits(before, edits) {
   return after;
 }
 
-function counts(lines) {
-  const map = new Map();
-  for (const line of lines) map.set(line.trim(), (map.get(line.trim()) ?? 0) + 1);
-  return map;
+function findLines(lines, wanted, from) {
+  const fits = (at, same) => wanted.every((line, k) => same(lines[at + k] ?? "", line));
+  for (const same of [(a, b) => a === b, (a, b) => a.trimEnd() === b.trimEnd(), (a, b) => a.trim() === b.trim()]) {
+    for (const start of [from, 0]) {
+      for (let at = start; at + wanted.length <= lines.length; at++) if (fits(at, same)) return at;
+    }
+  }
+  return -1;
 }
 
-function introducedLines(lines, existing) {
+function applyHunks(before, hunks) {
+  const lines = before.split("\n");
+  let cursor = 0;
+  for (const hunk of hunks) {
+    const old = hunk.filter((l) => l.op !== "+").map((l) => l.text);
+    const replacement = hunk.filter((l) => l.op !== "-").map((l) => l.text);
+    const at = old.length ? findLines(lines, old, cursor) : lines.length - (lines[lines.length - 1] === "" ? 1 : 0);
+    if (at < 0) return null;
+    lines.splice(at, old.length, ...replacement);
+    cursor = at + replacement.length;
+  }
+  return lines.join("\n");
+}
+
+const commentKey = (comment) => comment.text.replace(/\s+/g, " ").trim();
+
+function introducedRefusal(before, after, rel, root) {
+  const existing = new Map();
+  for (const c of scanComments(before, rel)) existing.set(commentKey(c), (existing.get(commentKey(c)) ?? 0) + 1);
+  return judgeComments(after, rel, { root }).find((c) => {
+    const key = commentKey(c);
+    if (existing.get(key) > 0) {
+      existing.set(key, existing.get(key) - 1);
+      return false;
+    }
+    return c.kind === "refused";
+  });
+}
+
+function fragmentRefusal(lines, rel, root) {
+  const removed = new Map();
+  for (const l of lines) if (l.op === "-") removed.set(l.text.trim(), (removed.get(l.text.trim()) ?? 0) + 1);
+  const shown = lines.filter((l) => l.op !== "-");
   const introduced = new Set();
-  lines.forEach((line, index) => {
-    const key = line.trim();
-    if (!key) return;
-    if (existing.get(key) > 0) existing.set(key, existing.get(key) - 1);
+  shown.forEach((l, index) => {
+    const key = l.text.trim();
+    if (l.op !== "+" || !key) return;
+    if (removed.get(key) > 0) removed.set(key, removed.get(key) - 1);
     else introduced.add(index + 1);
   });
-  return introduced;
+  return judgeComments(shown.map((l) => l.text).join("\n"), rel, { root }).find((c) => {
+    if (c.kind !== "refused") return false;
+    for (let line = c.line; line <= c.endLine; line++) if (introduced.has(line)) return true;
+    return false;
+  });
 }
 
 export function introducedCommentReason(files, cwd = process.cwd()) {
@@ -498,35 +617,23 @@ export function introducedCommentReason(files, cwd = process.cwd()) {
     if (!familyOf(rel) || exemptPath(rel)) continue;
     let before = "";
     try {
-      before = fs.readFileSync(absolute, "utf8").replace(/\r\n/g, "\n");
+      before = fs.readFileSync(path.resolve(cwd, file.source ?? file.path), "utf8").replace(/\r\n/g, "\n");
     } catch {}
-    let text, introduced, numbered = true;
-    const after = typeof file.content === "string" ? file.content.replace(/\r\n/g, "\n") : Array.isArray(file.edits) ? applyEdits(before, file.edits) : null;
+    const after =
+      typeof file.content === "string" ? file.content.replace(/\r\n/g, "\n")
+      : Array.isArray(file.edits) ? applyEdits(before, file.edits)
+      : Array.isArray(file.hunks) ? applyHunks(before, file.hunks)
+      : null;
+    let offending = null, where = rel;
     if (after !== null) {
-      text = after;
-      introduced = introducedLines(after.split("\n"), counts(before.split("\n")));
+      offending = introducedRefusal(before, after, rel, root);
+      if (offending) where = `${rel}:${offending.line}`;
     } else {
-      const lines = Array.isArray(file.lines) ? file.lines : (file.edits ?? []).flatMap((e) => String(e?.new_string ?? "").split(/\r?\n/).map((t) => ({ text: t, added: true })));
-      text = lines.map((l) => l.text).join("\n");
-      const removed = counts(file.removed ?? []);
-      introduced = new Set();
-      lines.forEach((l, index) => {
-        if (!l.added || !l.text.trim()) return;
-        const key = l.text.trim();
-        if (removed.get(key) > 0) removed.set(key, removed.get(key) - 1);
-        else introduced.add(index + 1);
-      });
-      numbered = Boolean(file.whole);
+      const fragments = Array.isArray(file.hunks) ? file.hunks : (file.edits ?? []).map((e) => String(e?.new_string ?? "").split(/\r?\n/).map((text) => ({ op: "+", text })));
+      for (const fragment of fragments) if ((offending = fragmentRefusal(fragment, rel, root))) break;
     }
-    if (!introduced.size) continue;
-    const offending = judgeComments(text, rel, { root }).find((c) => {
-      if (c.kind !== "refused") return false;
-      for (let line = c.line; line <= c.endLine; line++) if (introduced.has(line)) return true;
-      return false;
-    });
     if (!offending) continue;
     const excerpt = offending.text.split(/\r?\n/)[0].trim();
-    const where = numbered ? `${rel}:${offending.line}` : rel;
     return `${rule} This edit adds a comment the rule refuses at ${where}: \`${excerpt.length > 120 ? excerpt.slice(0, 117) + "..." : excerpt}\` (${offending.reason}).`;
   }
   return null;
