@@ -93,11 +93,13 @@ export const pinOf = (option: PreviewRouteOption): RoutePin => ({
 export const isPinned = (pins: RoutePin[], option: PreviewRouteOption) =>
   pins.some((pin) => samePin(pin, pinOf(option)));
 
-/** The pins at a choice's stop, one per option offered there that has one. */
+/** The pins at a choice's stop the host keeps: one per option offered there
+ *  that has one, and the pins of its menu's options it did not offer. */
 const pinsAtStop = (pins: RoutePin[], decision: PreviewRouteDecision) =>
-  (decision.options ?? []).map(pinOf).filter((at) =>
-    pins.some((pin) => samePin(pin, at)),
-  );
+  [
+    ...(decision.options ?? []).map(pinOf),
+    ...(decision.unofferedPins ?? []),
+  ].filter((at) => pins.some((pin) => samePin(pin, at)));
 
 /** Pinning `option` at its stop: its pin, and every other pin at that stop
  *  removed. Pressing a pinned option unpins it. */

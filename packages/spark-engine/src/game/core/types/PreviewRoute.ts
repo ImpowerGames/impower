@@ -43,6 +43,9 @@ export interface PreviewRouteDecision {
   options?: PreviewRouteOption[];
   /** Set on a choice where a pin was not followed (`routeDecisions`). */
   notFollowed?: true;
+  /** The pins of a choice's stop on options its menu did not offer there,
+   *  which `options` does not list. */
+  unofferedPins?: RoutePin[];
   /** The verdict the route forced. */
   verdict?: boolean;
   /** The passes a clipped loop ran before the route left it. */

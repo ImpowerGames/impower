@@ -4322,6 +4322,17 @@ export class Game<T extends M = {}> {
         decision.menu !== undefined
           ? this.documentLocationOf(decision.menu)
           : null;
+      const unofferedPins: RoutePin[] = [];
+      for (const { site, offer } of decision.unoffered ?? []) {
+        const at = this.documentLocationOf(site);
+        if (at) {
+          unofferedPins.push({
+            uri: at.uri,
+            line: at.range.start.line,
+            offer,
+          });
+        }
+      }
       decisions.push({
         kind: decision.kind,
         location,
@@ -4338,6 +4349,7 @@ export class Game<T extends M = {}> {
         ...(decision.options ? { options } : {}),
         ...(menu ? { menu } : {}),
         ...(decision.notFollowed ? { notFollowed: true as const } : {}),
+        ...(unofferedPins.length > 0 ? { unofferedPins } : {}),
         ...(decision.verdict !== undefined
           ? { verdict: decision.verdict }
           : {}),

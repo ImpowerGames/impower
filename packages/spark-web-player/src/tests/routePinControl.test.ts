@@ -319,6 +319,40 @@ describe("the pin control", () => {
     expect(p.button("Pinned", p.option("Wait."))).toBeDefined();
   });
 
+  test("a pin on an option the menu did not offer is replaced by pinning another option there, and Unpin removes it", async () => {
+    // `* if key [Show the key.]` on line 5 is pinned, but the route to a line
+    // inside Wait. leaves its gate false, so the menu offers Wait. alone.
+    const p = player();
+    await p.hostPins([pin(5)]);
+    p.report({
+      start: { scene: "s", location: at(3) },
+      target: at(8),
+      decisions: [
+        {
+          kind: "auto",
+          location: at(7),
+          text: "Wait.",
+          meeting: 1,
+          menu: at(4),
+          options: [{ location: at(7), text: "Wait.", offer: 1 }],
+          notFollowed: true,
+          unofferedPins: [pin(5)],
+        },
+      ],
+    });
+    p.open();
+    // A stop whose pin was not followed opens expanded.
+    p.button("Unpin")!.click();
+    expect(p.requests().at(-1)!.params).toEqual({ remove: [pin(5)] });
+    p.answer({ pins: [pin(5)] });
+    await settle();
+    p.button("Pin", p.option("Wait."))!.click();
+    expect(p.requests().at(-1)!.params).toEqual({
+      add: [pin(7)],
+      remove: [pin(5)],
+    });
+  });
+
   test("Unpin and pressing Pinned remove the stop's pin", async () => {
     const p = player();
     await p.hostPins([pin(8)]);

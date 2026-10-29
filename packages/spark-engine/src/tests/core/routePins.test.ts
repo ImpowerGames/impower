@@ -256,6 +256,32 @@ describe("the preview's route keeps the author's pins", () => {
     expect(plain.menu).toEqual(gated.menu);
   }, 120_000);
 
+  test("a choice entry names the pins of its stop on options its menu did not offer", () => {
+    const lines = [
+      "store key = false",
+      "",
+      "scene s",
+      "  choose",
+      "    * if key [Show the key.]",
+      "      Shown.",
+      "    * [Wait.]",
+      "      Waited.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 8, [pin(5)]);
+    const [choice] = route.decisions;
+    expect([choice!.kind, choice!.text, choice!.notFollowed]).toEqual([
+      "auto",
+      "Wait.",
+      true,
+    ]);
+    expect(choice!.options!.map((o) => o.text)).toEqual(["Wait."]);
+    expect(choice!.unofferedPins).toEqual([pin(5)]);
+  }, 120_000);
+
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",

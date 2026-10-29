@@ -48,6 +48,10 @@ export interface RouteDecision {
    *  pinned option of its own (a once-only option the route already took,
    *  or a gated one whose gate the route left false). */
   notFollowed?: true;
+  /** For a choice, the pinned offers of the menu's own options it did not
+   *  offer, reported here as not followed (`notFollowed`): pins of this stop
+   *  that its options list does not show. */
+  unoffered?: { site: ProgramAddress; offer: number }[];
   /** The verdict the route forced. */
   verdict?: boolean;
   /** The passes a clipped loop ran: the times its body began, the pass it
@@ -138,6 +142,7 @@ export const routeDecisions = (
         pinnedAtMenu(pinned, sources, offers).map((i) => sources[i]!),
       );
       let notFollowed = [...pinnedHere].some((s) => s !== decision.value);
+      const unoffered: { site: ProgramAddress; offer: number }[] = [];
       let offeredBefore = offeredAt.get(decision.site);
       if (!offeredBefore) {
         offeredBefore = new Set();
@@ -153,6 +158,7 @@ export const routeDecisions = (
         if (!missed.has(key)) {
           missed.add(key);
           notFollowed = true;
+          unoffered.push({ site: Number(source), offer });
         }
       }
       for (const source of sources) {
@@ -172,6 +178,7 @@ export const routeDecisions = (
           ...(pinnedHere.has(source) ? { pinned: true as const } : {}),
         })),
         ...(notFollowed ? { notFollowed: true as const } : {}),
+        ...(unoffered.length > 0 ? { unoffered } : {}),
       });
       return;
     }
