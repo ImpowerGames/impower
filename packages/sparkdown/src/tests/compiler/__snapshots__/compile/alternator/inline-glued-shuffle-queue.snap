@@ -68,7 +68,7 @@
                     "content": [
                       "Got ",
                       {
-                        "type": "_Weave"
+                        "type": "Weave"
                       }
                     ]
                   }
