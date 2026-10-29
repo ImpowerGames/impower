@@ -47,9 +47,7 @@ const textDocument = (uri: string, text: string) => {
   };
 };
 
-/** Workspace state as VS Code keeps it: an update is readable at once and
- *  saved later, when `save` is called. */
-const workspaceState = () => {
+const workspaceStateSavedOnDemand = () => {
   const values = new Map<string, unknown>();
   const pendingSaves: (() => void)[] = [];
   return {
@@ -72,7 +70,7 @@ const activate = async (text: string) => {
     await import("../src/managers/SparkdownRoutePinsManager");
   const document = textDocument(MAIN, text);
   state.vscode.workspace.textDocuments = [document as any];
-  const memento = workspaceState();
+  const memento = workspaceStateSavedOnDemand();
   const manager = new SparkdownRoutePinsManager();
   manager.activate({ workspaceState: memento, subscriptions: [] } as any);
   return { manager, memento };
