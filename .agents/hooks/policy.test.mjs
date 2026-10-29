@@ -112,7 +112,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
         fs.copyFileSync(path.join(root, ".agents/hooks/comment-policy.json"), path.join(tsCheckout, ".agents/hooks/comment-policy.json"));
         fs.mkdirSync(path.join(tsCheckout, "node_modules/typescript"), { recursive: true });
         fs.writeFileSync(path.join(tsCheckout, "node_modules/typescript/package.json"), JSON.stringify({ name: "typescript", version: typescript.version, main: "index.js" }));
-        const common = spawnSync("git", ["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).stdout.trim();
+        const common = spawnSync("git", ["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", windowsHide: true }).stdout.trim();
         const resolveFrom = (base) => {
           try {
             return createRequire(path.join(base, "package.json")).resolve("typescript");
