@@ -232,8 +232,14 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// This software is released under the MIT License."), "licence");
     assert.equal(kind("// Luau is MIT-licensed"), "licence");
     assert.equal(kind("// code licensed under the BSD terms"), "licence");
+    write("src/LICENSE-luau.txt", "MIT\n");
+    write("LICENSE.md", "MIT\n");
     assert.equal(kind("// see `LICENSE-luau.txt`"), "licence");
-    assert.equal(kind("# terms in LICENSE.md", "scripts/a.py"), "licence");
+    assert.equal(kind("# terms: see LICENSE.md", "scripts/a.py"), "licence", "a reference reaches a licence file in an ancestor directory");
+    assert.equal(kind("// see LICENSE-missing.txt"), "refused", "a reference to a file that does not exist is prose");
+    assert.equal(kind("// Copyright Microsoft Corporation"), "licence", "a copyright line may name its holder alone");
+    assert.equal(kind("// Neither the name of the cache nor its key may change during this loop."), "refused");
+    assert.equal(kind("// The generator reads its defaults in LICENSE.md because the cache needs it."), "refused");
     assert.equal(kind("// the license check runs before the build"), "refused", "the word license without a named licence is prose");
     assert.equal(kind("// MIT"), "refused");
     assert.equal(kind("// LICENSED_FEATURES gates the menu"), "refused");
@@ -364,7 +370,28 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       "// limitations under the License.",
       "",
     ].join("\n");
-    for (const notice of [mpl, mit, ported, fullMit, symbols, apache]) {
+    const bsd = [
+      "// Copyright (c) 2024 Example Holder",
+      "//",
+      "// Redistribution and use in source and binary forms, with or without",
+      "// modification, are permitted provided that the following conditions are met:",
+      "//",
+      "// 1. Redistributions of source code must retain the above copyright notice,",
+      "//    this list of conditions and the following disclaimer.",
+      "//",
+      "// 2. Redistributions in binary form must reproduce the above copyright notice,",
+      "//    this list of conditions and the following disclaimer in the documentation",
+      "//    and/or other materials provided with the distribution.",
+      "//",
+      "// 3. Neither the name of the copyright holder nor the names of its",
+      "//    contributors may be used to endorse or promote products derived from",
+      "//    this software without specific prior written permission.",
+      "//",
+      "// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"",
+      "// AND ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED.",
+      "",
+    ].join("\n");
+    for (const notice of [mpl, mit, ported, fullMit, symbols, apache, bsd]) {
       assert.equal(strip(`${notice}\n// prose\nexport const n = 1;\n`, "src/a.ts"), `${notice}\nexport const n = 1;\n`, "a licence notice is kept verbatim while the prose beside it goes");
     }
     assert.equal(strip(`${fullMit.trimEnd()}\n//\n// The parser reads the header first.\nexport const n = 1;\n`, "src/a.ts"), `${fullMit}export const n = 1;\n`, "an empty comment line joins two notice paragraphs, not a notice and the prose after it");
@@ -375,6 +402,16 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(strip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
     assert.equal(strip("/** Prose. @type is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
     assert.equal(strip("/**\n * The options.\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "src/a.js"), "/**\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "a typedef keeps its property tags");
+    const asiDoc = "function f() { return /** Counter.\n * @type {number}\n */ 1; }";
+    const asiDocStripped = strip(asiDoc, "src/a.js");
+    assert.equal(asiDocStripped, "function f() { return /**\n * @type {number}\n */ 1; }", "a rewritten doc comment after code keeps the line break automatic semicolon insertion reads");
+    assert.equal(new Function(`${asiDocStripped}; return f();`)(), undefined);
+    assert.equal(strip("/** Counter. @type {number} */\nlet value;\n", "src/a.js"), "/** @type {number} */\nlet value;\n", "a tag after prose on the same line is kept");
+    const objectType = "/** Counter.\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n";
+    const objectTypeStripped = strip(objectType, "src/a.js");
+    assert.equal(objectTypeStripped, "/**\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n", "a type expression spanning lines is kept whole");
+    assert.deepEqual(refusedComments(objectTypeStripped, "src/a.js", { root: checkout }), [], "the rewritten comment is a directive");
+    assert.equal(strip("/** See {@link Other} and @example usage. */\nlet value;\n", "src/a.js"), "let value;\n", "tags TypeScript does not read for types are prose");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
