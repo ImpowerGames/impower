@@ -124,7 +124,7 @@ describe("DuplicateFunction at a script's top level", () => {
 });
 
 describe("DuplicateFunction across scripts", () => {
-  const sources = (chapter: string) => ({ "main.sd": "store T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": chapter });
+  const sources = (chapter: string) => ({ "main.sd": "store T = {}\nfunction T.x() end\nscene start\n  & T.x()\nend\n", "chapter.sd": chapter });
 
   test("a member of a global table defined at two scripts' top levels warns in the later script by URI, naming the other", () => {
     expect(programDuplicates(sources("\nfunction T.x() end\n"))).toEqual([`main.sd:1: ${message("T.x", 2)} in 'chapter.sd'`]);
@@ -135,7 +135,7 @@ describe("DuplicateFunction across scripts", () => {
   });
 
   test("a story constant's table is a global table", () => {
-    expect(programDuplicates({ "main.sd": "const T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
+    expect(programDuplicates({ "main.sd": "const T = {}\nfunction T.x() end\nscene start\n  & T.x()\nend\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
   });
 
   test.each([

@@ -15,7 +15,9 @@ const script = `define thing with
   ["key"] = 2 -- bracket key
 end
 
-{type(thing.count)} {thing.count + 1} {type(thing.hidden)} {thing.hidden} {thing.label} {thing.key}
+scene start
+  {type(thing.count)} {thing.count + 1} {type(thing.hidden)} {thing.hidden} {thing.label} {thing.key}
+end
 `;
 
 describe("a define property with a trailing comment", () => {

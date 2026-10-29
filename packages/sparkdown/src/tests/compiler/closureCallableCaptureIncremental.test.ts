@@ -87,9 +87,7 @@ const scenes = (numbers: number[]) =>
 const SCENES = scenes([1, 2, 3, 4, 5, 6]);
 
 const BODY = [
-  "-> s0",
-  "",
-  "scene s0",
+  "scene start",
   "  & r = bottom()",
   "  Result {r}.",
   "end",

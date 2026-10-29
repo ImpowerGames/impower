@@ -51,19 +51,23 @@ function diagnostics(program: any): Found[] {
   return all;
 }
 
-// The ticket's script. Line 5 holds the dangling access.
-const SCRIPT = `$:
-  A QUIET ROOM
-
-function f()
+// The ticket's script. Line 2 holds the dangling access.
+const SCRIPT = `function f()
   local t = { a = { b = 7 } }
   local y = t.a.
   return y
 end
 
-BOB:
-  Value {f()}.
+scene start
+  $:
+    A QUIET ROOM
+
+  BOB:
+    Value {f()}.
+end
 `;
+
+const START = "scene start\nend\n";
 
 // Sparkdown's own error where Luau would read a name on a later line.
 const NAME_ON_LATER_LINE =
@@ -83,8 +87,8 @@ describe("a dangling member access (#1079)", () => {
       {
         message: "Expected identifier, got 'return'",
         severity: 1,
-        line: 6,
-        character: SCRIPT.split("\n")[6]!.indexOf("return"),
+        line: 3,
+        character: SCRIPT.split("\n")[3]!.indexOf("return"),
       },
     ]);
   });
@@ -92,7 +96,7 @@ describe("a dangling member access (#1079)", () => {
   it("leaves the function ending at its own `end`", () => {
     const program = compile(SCRIPT);
     expect(functionSpans(program)).toEqual([
-      { path: "f", lines: [0, 3, 7] },
+      { path: "f", lines: [0, 0, 4] },
     ]);
   });
 
@@ -189,7 +193,7 @@ describe("a dangling member access (#1079)", () => {
       5,
     ],
   ])("with %s is reported where Luau reports it", (_name, source, message, endLine) => {
-    const program = compile(source);
+    const program = compile(`${source}${START}`);
     const errors = diagnostics(program).filter((d) => d.severity === 1);
     // Luau reports the token it meets instead of the name, at that token
     // (#1175). Where the name is on a later line, Luau reads it as the
@@ -212,7 +216,7 @@ describe("a dangling member access (#1079)", () => {
   it("reports both of Luau's errors for a method name with a `.` after it", () => {
     // `t:a` is missing its call's arguments, and the `.` its name.
     const source = "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n";
-    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    const errors = diagnostics(compile(`${source}${START}`)).filter((d) => d.severity === 1);
     expect(errors).toEqual([
       { message: "Expected '(', '{' or <string> when parsing function call, got '.'", severity: 1, line: 2, character: 12 },
       { message: "Expected identifier, got 'return'", severity: 1, line: 3, character: 2 },
@@ -235,7 +239,7 @@ describe("a dangling member access (#1079)", () => {
     ["unspaced", 'return t.a.."y"'],
   ])("leaves %s concatenation alone", (_name, line) => {
     const source = `function _f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
-    expect(diagnostics(compile(source))).toEqual([]);
+    expect(diagnostics(compile(`${source}${START}`))).toEqual([]);
   });
 
   // Luau skips a comment between the `.` and the name, so these read `t.a.b`.
@@ -253,7 +257,7 @@ describe("a dangling member access (#1079)", () => {
   // reads it as that name.
   it("reports a keyword right after the `.` as Luau does", () => {
     const source = "function f()\n  local t = { a = { b = 1 } }\n  return t.a.repeat\nend\n";
-    const program = compile(source);
+    const program = compile(`${source}${START}`);
     expect(diagnostics(program).filter((d) => d.severity === 1)).toEqual([
       { message: "Expected identifier, got 'repeat'", severity: 1, ...luauErrorAt(source, "Expected identifier, got 'repeat'") },
     ]);
@@ -264,18 +268,18 @@ describe("a dangling member access (#1079)", () => {
   // Luau cannot read, reported as Luau reports it, and the function still
   // ends at its own `end`, so the story after it plays from the top.
   it.each([
-    ["words at the start of a line in a function body", "function greet\n  Hello there.\n  Goodbye now.\nend\nAfter it.\n", 3],
+    ["words at the start of a line in a function body", "function greet\n  Hello there.\n  Goodbye now.\nend\nscene start\n  After it.\nend\n", 3],
     [
       "dotted words at the start of a line in a function body",
-      "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\nend\nAfter it.\n",
+      "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\nend\nscene start\n  After it.\nend\n",
       4,
     ],
-    ["a line that is one dotted word in a function body", "function greet\n  U.S.\n  Next line.\nend\nAfter it.\n", 3],
+    ["a line that is one dotted word in a function body", "function greet\n  U.S.\n  Next line.\nend\nscene start\n  After it.\nend\n", 3],
   ])("reports %s where Luau does", (_name, source, endLine) => {
     const program = compile(source);
     const errors = diagnostics(program).filter((d) => d.severity === 1);
     // Luau's first error, which Luau reads as `function greet()`.
-    const luau = source.replace("function greet\n", "function greet()\n").replace("After it.\n", "");
+    const luau = source.replace("function greet\n", "function greet()\n").replace("scene start\n  After it.\nend\n", "");
     const first = officialSyntaxErrors(luau)[0]!;
     expect(errors).toContainEqual({
       message: first.message,
@@ -290,11 +294,11 @@ describe("a dangling member access (#1079)", () => {
   it.each([
     [
       "a story line in a story `if` body",
-      "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side, and Tom.\n  end\nend\n",
+      "store flag = false\n\nscene start\n  if flag then\n    Went down the true side, and Tom.\n  end\nend\n",
     ],
     [
       "a story line in a scene",
-      "-> start\n\nscene start\n  Hello there, friend. Made in China.\nend\n",
+      "scene start\n  Hello there, friend. Made in China.\nend\n",
     ],
   ])("leaves the `.` of %s alone", (_name, source) => {
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
@@ -303,14 +307,14 @@ describe("a dangling member access (#1079)", () => {
     ).toEqual([]);
   });
 
-  it("leaves the story after the function in the root flow", () => {
-    // The line at line 10 has an address, and it stands in the top-level
-    // flow, not in `f` (the current engine's paths at that line, none under
+  it("leaves the story after the function in its scene", () => {
+    // The line at line 11 has an address, and it stands in the `start`
+    // scene, not in `f` (the current engine's paths at that line, none under
     // `f.`).
     const root = compile(SCRIPT).chunks!;
-    const address = root.addressAt(URI, 10);
+    const address = root.addressAt(URI, 11);
     expect(address).toBeDefined();
-    expect(root.locationOf(address!)?.startLine).toBe(10);
-    expect(root.sceneAt(address!)).toBe("0");
+    expect(root.locationOf(address!)?.startLine).toBe(11);
+    expect(root.sceneAt(address!)).toBe("start");
   });
 });

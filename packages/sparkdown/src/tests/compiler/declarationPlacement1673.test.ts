@@ -18,7 +18,7 @@ const LOCAL =
 const STORE =
   "store declaration must be at the top level; assign it here with & name = value instead";
 const OUTSIDE_SCENE =
-  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+  "statement must be inside a scene or branch; the top level holds declarations only";
 
 const file = (uri: string, text: string): File => ({
   uri,
@@ -116,7 +116,7 @@ describe("a local outside a flow", () => {
   });
 
   it("keeps the misplaced line's own syntax errors beside it", () => {
-    expect(diagnose(lines("local a = {1 ? 2}", "Hello."))).toEqual([
+    expect(diagnose(lines("local a = {1 ? 2}", "scene start", "end"))).toEqual([
       { message: LOCAL, text: "local a = {1 ? 2}" },
       { message: "Expected '}' (to close '{' at column 11), got '?'", text: "?" },
       { message: "Expected identifier when parsing expression, got '2'", text: "2" },
@@ -124,7 +124,7 @@ describe("a local outside a flow", () => {
     ]);
   });
 
-  it("keeps the outside-scene message for another script's other top-level lines", () => {
+  it("reports the outside-scene message for another script's other top-level lines", () => {
     expect(
       diagnose(lines("Hello."), lines("Hello there."), OTHER).map((d) => d.message),
     ).toEqual([OUTSIDE_SCENE]);
