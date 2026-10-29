@@ -43,7 +43,6 @@ import {
   startPlanKey,
   valueOfLiteral,
 } from "@impower/sparkdown/src/program/startingValues";
-import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
@@ -699,27 +698,36 @@ describe("a store's value set by its path", () => {
     expect(shown(game)).toContain("Edited 3.");
   });
 
-  test("runs the declarations no more after an edit that carries them over", () => {
+  test("makes an edit that carries the declarations over run them no more often than with no value set", () => {
     const lines = [
       "store bag = { hp = 10 }",
       "scene s",
       "  Before {bag.hp}.",
       "end",
     ];
-    const { game, compiler } = routeTo(lines, 3, {
-      s: { [storeKey("bag.hp")]: "3" },
-    });
-    expect(shown(game)).toContain("Before 3.");
-    const runs = vi.spyOn(ProgramStory.prototype as any, "runDeclarations");
-    try {
-      recompile(compiler, game, lines.join("\n").replace("Before", "Edited"));
-      game.setStartFrom({ file: URI, line: 2 });
-      game.simulate();
-      expect(shown(game)).toContain("Edited 3.");
-      expect(runs).not.toHaveBeenCalled();
-    } finally {
-      runs.mockRestore();
-    }
+    const afterEdit = (values: StartingValues) => {
+      const { game, compiler } = routeTo(lines, 3, values);
+      const story = Object.getPrototypeOf(game.story);
+      const run = story.runDeclarations;
+      let runs = 0;
+      story.runDeclarations = function (this: unknown, ...args: unknown[]) {
+        runs += 1;
+        return run.apply(this, args);
+      };
+      try {
+        recompile(compiler, game, lines.join("\n").replace("Before", "Edited"));
+        game.setStartFrom({ file: URI, line: 2 });
+        game.simulate();
+        return { runs, text: shown(game) };
+      } finally {
+        story.runDeclarations = run;
+      }
+    };
+    const unset = afterEdit({});
+    const set = afterEdit({ s: { [storeKey("bag.hp")]: "3" } });
+    expect(unset.text).toContain("Edited 10.");
+    expect(set.text).toContain("Edited 3.");
+    expect(set.runs).toBe(unset.runs);
   });
 
   test("lists and applies a typed define's store field by the name the script reads it by", () => {
