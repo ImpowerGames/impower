@@ -237,7 +237,7 @@ try {
     };
     const listed = await listPullRequestFiles({ repository: "owner/repo", number: 5, token: "t", api: "https://api.example.invalid", fetch });
     assert.equal(listed.length, 101, "every page is read until one comes back short");
-    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than a control character in its place");
+    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than the caret notation gh api rewrites it to");
     assert.deepEqual(asked.map(({ url }) => url), [1, 2].map((p) => `https://api.example.invalid/repos/owner/repo/pulls/5/files?per_page=100&page=${p}`));
     assert.equal(asked[0].init.headers.authorization, "Bearer t");
 
