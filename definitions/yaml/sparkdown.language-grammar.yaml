@@ -7298,10 +7298,9 @@ repository:
     name: punctuation.separator.comma.sd
     match: (?={{STRUCT_BLOCK_TRAILING_COMMA}})([,])
 
-  # A comma between two entries on one line. Entries are separated by `;`.
   LuauStructBlockEntryComma:
-    tag: invalid
-    name: invalid.illegal.struct-entry-comma.sd
+    tag: punctuation
+    name: punctuation.separator.comma.sd
     match: ([,])
 
   # A `//` comment inside a block: after whitespace (or at the start of an
