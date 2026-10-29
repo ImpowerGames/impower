@@ -330,6 +330,7 @@ my-game/
 
 ```sparkdown
 // main.sd
+
 scene start
   -> act1
 end
