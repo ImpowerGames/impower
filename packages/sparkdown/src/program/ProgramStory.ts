@@ -105,6 +105,7 @@ import {
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import {
   ROOT_FLOW_NAME,
+  START_FLOW_NAME,
   SymbolKind,
   UNDEFINED_KIND,
   countIdOf,
@@ -1333,8 +1334,9 @@ export class ProgramStory implements StoryEngine {
    *  (`CallStack.ForProgram`, `ProgramRoot.tables`), with no global
    *  initialized, then the program's declaration chunks run in the order the
    *  object engine's `global decl` container initialized the globals in. */
-  /** Resets the story to its initial state, a fresh playthrough, whose
-   *  history of beats starts empty. */
+  /** Resets the story to its initial state, a fresh playthrough at the top of
+   *  the scene named start (`startName`), whose history of beats starts
+   *  empty. */
   ResetState(): void {
     this.resetState();
     this.history.replace([], false);
@@ -1392,7 +1394,7 @@ export class ProgramStory implements StoryEngine {
     variablesState.ObserveVariableChange(() => {
       this._stateIsPristine = false;
     });
-    const start = this.root.flowNamed(ROOT_FLOW_NAME);
+    const start = this.root.flowNamed(this.startName());
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
     if (this._imagesOn) {
       this.attachImages();
@@ -4046,13 +4048,24 @@ export class ProgramStory implements StoryEngine {
    *  with it forgot `previousAddress`; null after any other step. */
   endedAt: number | null = null;
 
-  /** The start of the flow or label a qualified name names, the top-level
-   *  content's flow as `""` or `"0"`; a position in the source is chosen
-   *  by its address (`ChooseAddress`). */
+  /** The name of the flow the story starts in: the scene named start, or the
+   *  top-level content's flow in a program that has none, which the compile
+   *  reports. */
+  protected startName(): string {
+    const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
+    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
+      ? START_FLOW_NAME
+      : ROOT_FLOW_NAME;
+  }
+
+  /** The start of the flow or label a qualified name names, the flow the
+   *  story starts in as `"0"` (`startName`) and the top-level content's as
+   *  `""`; a position in the source is chosen by its address
+   *  (`ChooseAddress`). */
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
-    const name = path === "0" ? ROOT_FLOW_NAME : path;
+    const name = path === "0" ? this.startName() : path;
     const symbol = this.root.table.symbolIds.get(name);
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     // A flow, or a label, by its qualified name.

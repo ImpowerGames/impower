@@ -194,9 +194,10 @@ import {
 } from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
 import {
-  CONTENT_OUTSIDE_SCENE_MESSAGE,
+  TOP_LEVEL_STATEMENT_MESSAGE,
   topLevelStatements,
 } from "../utils/declarationOnly";
+import { startSceneProblems, type StartSceneScript } from "../utils/startScene";
 import {
   isPlacementMessage,
   misplacedDeclarations,
@@ -1895,6 +1896,7 @@ export class SparkdownCompiler {
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
+      const story = uri !== BUILTINS_PRELUDE_URI && !hasLuauExtension(uri);
       const parsedStory = this.parseIncrementally(
         uri,
         fileHandler,
@@ -1902,7 +1904,11 @@ export class SparkdownCompiler {
         state,
         program,
         onDiagnostic,
+        story,
       );
+      if (story) {
+        this.validateStartScene(uri, state.projectScripts ?? [], onDiagnostic);
+      }
       profile("end", this._profilerId, "ink/parse", uri);
       // Whole-program namespace scoping (P1). Scope leaf-instance defines to a
       // synthetic `$<type>_<name>` global here — after assembly, before
@@ -2437,9 +2443,9 @@ export class SparkdownCompiler {
    * Parses the script `uri` into the story's objects. The script a compile
    * starts from is parsed with `isInclude` false, and reads the other scripts
    * of its project (`SparkdownCompilerState.projectScripts`) after its own
-   * statements, each with `declarationOnly`: a statement of such a script's
-   * top level that declares nothing reports that only main runs it and is
-   * left out of the program.
+   * statements. Each script of the project is parsed with `declarationOnly`:
+   * a statement of its top level that declares nothing is reported and left
+   * out of the program.
    */
   parseIncrementally(
     uri: string,
@@ -2938,10 +2944,10 @@ export class SparkdownCompiler {
       return prevRun.flow;
     };
 
-    // A script other than main holds declarations only: the statements of its
-    // top level that run are reported and left out (`topLevelStatements`):
-    // those whose syntax runs, and those whose syntax declares but that also
-    // lowered to something that runs (`onlyDeclares`).
+    // A script holds declarations only: the statements of its top level that
+    // run are reported and left out (`topLevelStatements`): those whose
+    // syntax runs, and those whose syntax declares but that also lowered to
+    // something that runs (`onlyDeclares`).
     const tree = declarationOnly ? this.documents.tree(uri) : undefined;
     const topLevel =
       tree && document
@@ -2951,8 +2957,8 @@ export class SparkdownCompiler {
         : undefined;
     // A `local` outside a flow and a hoisted declaration inside one are
     // reported where they are written (`misplacedDeclarations`). A top-level
-    // `local` of a script other than main reports that alone, and is left
-    // out as the other lines only main runs are. A `.luau` file is Luau,
+    // `local` reports that alone, and is left out as the other lines that run
+    // are. A `.luau` file is Luau,
     // whose top-level `local` is its chunk's.
     const misplacedLocals = new Set<number>();
     const placementTree =
@@ -3049,12 +3055,12 @@ export class SparkdownCompiler {
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
       if (declares === false || (declares === true && !onlyDeclares(content))) {
-        // Only main runs a line outside a scene. The statement is reported
-        // and left out of the program, as if it were not written; what its
-        // lowering itself reported still stands.
+        // A line that runs belongs in a scene or a branch. The statement is
+        // reported and left out of the program, as if it were not written;
+        // what its lowering itself reported still stands.
         if (!misplacedLocals.has(rec.from)) {
           onDiagnostic(
-            CONTENT_OUTSIDE_SCENE_MESSAGE,
+            TOP_LEVEL_STATEMENT_MESSAGE,
             ErrorType.Error,
             firstLineSource(rec.from),
           );
@@ -3062,6 +3068,10 @@ export class SparkdownCompiler {
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
+      // A `run` at the top level runs its file with the declarations
+      // (`programFlows`), so its call stands in the script's own top level,
+      // never in the flow written above it.
+      const hoisted = !!run && declares === true;
       // A layout or component is declared in one script: one a script
       // other than the first to declare it declares again is reported in
       // both and left out, and the first declaration stands. Within one
@@ -3157,8 +3167,8 @@ export class SparkdownCompiler {
         // `run helpers` or `run "path"` — load the `.luau` file the
         // operand names (`resolveRunOperand`), wrap its body in a
         // function, place a call of the function where the statement
-        // stands, at the top level or in a scene's body, and hoist the
-        // function declaration to the end of the parent program.
+        // stands, in the script's top level or in a scene's body, and hoist
+        // the function declaration to the end of the parent program.
         const previousParentUri =
           state.fileResolutionState?.currentParentUri ?? uri;
         if (state.fileResolutionState) {
@@ -3433,7 +3443,9 @@ export class SparkdownCompiler {
               for (const placed of flowContent) {
                 this._placedBy.set(placed, compiledBlock);
               }
-              const closestWeave = getClosestWeave(topLevelContent);
+              const closestWeave = hoisted
+                ? undefined
+                : getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
                 if (
@@ -3448,7 +3460,9 @@ export class SparkdownCompiler {
               } else {
                 const weave = new Weave(flowContent);
                 topLevelWeaveObjs.push(weave);
-                topLevelContent.push(weave);
+                if (!hoisted) {
+                  topLevelContent.push(weave);
+                }
               }
             }
           }
@@ -4083,6 +4097,48 @@ export class SparkdownCompiler {
       cur = cur.nextSibling;
     }
     emit(validateOpenBlocks(tree.topNode, ctx));
+  }
+
+  /** Reports where the story's start is wrong (`startSceneProblems`) across
+   *  the script `uri` a compile starts from and the other scripts of its
+   *  project, each on the first line of the statement it stands at. */
+  protected validateStartScene(
+    uri: string,
+    scripts: readonly string[],
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ) {
+    const read: StartSceneScript[] = [];
+    for (const scriptUri of [uri, ...scripts]) {
+      const tree = this.documents.tree(scriptUri);
+      const doc = this.documents.get(scriptUri);
+      if (tree && doc) {
+        read.push({
+          uri: scriptUri,
+          top: tree.topNode,
+          read: (from, to) => doc.read(from, to),
+        });
+      }
+    }
+    for (const problem of startSceneProblems(read)) {
+      const doc = this.documents.get(problem.uri)!;
+      const text = doc.getText();
+      const lineEnd = text.indexOf("\n", problem.from);
+      const line = text.slice(problem.from, lineEnd < 0 ? text.length : lineEnd);
+      const indent = line.length - line.trimStart().length;
+      const start = doc.positionAt(problem.from + indent);
+      onDiagnostic(problem.message, ErrorType.Error, {
+        fileName: debugFileName(problem.uri),
+        filePath: problem.uri,
+        startLineNumber: start.line + 1,
+        endLineNumber: start.line + 1,
+        startCharacterNumber: start.character + 1,
+        endCharacterNumber: start.character + line.trim().length + 1,
+      });
+    }
   }
 
   /**

@@ -2,15 +2,17 @@ import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
 import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
 
-/** What a script other than main reports at each line of its top level that
- *  is not a declaration. */
-export const CONTENT_OUTSIDE_SCENE_MESSAGE =
-  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+/** What a script reports at each line of its top level that is not a
+ *  declaration. */
+export const TOP_LEVEL_STATEMENT_MESSAGE =
+  "statement must be inside a scene or branch; the top level holds declarations only";
 
 // The top-level statements that declare: a `define` and the definitions
 // written like one (a style, a layout, a screen, a component, an animation,
-// a theme, a morph), an `external` and a `type`.
+// a theme, a morph), an `external`, a `type`, and a `run`, which runs its
+// file with the declarations when the story starts.
 const DECLARATIONS = nodeNameSet([
+  "Run",
   "LuauDefine",
   "LuauStyle",
   "LuauLayout",
@@ -46,10 +48,10 @@ const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
 
 /**
  * The statements of a script's top level outside every flow, by where each
- * starts, each with whether its syntax declares: false for the lines only
- * main runs (a display line, a choice, a divert, a top-level `local`, an
- * assignment, a call, a control block, a `run`, and a marked line that holds
- * one of those beside a declaration). A scene's or a branch's body is written
+ * starts, each with whether its syntax declares: false for the lines that run
+ * (a display line, a choice, a divert, a top-level `local`, an assignment, a
+ * call, a control block, and a marked line that holds one of those beside a
+ * declaration). A scene's or a branch's body is written
  * at the top level up to its `end`, so the flows are followed as
  * `validateSceneStructure` follows them, and everything up to the matching
  * `end` is inside one. A statement whose syntax declares can still hold a
