@@ -12,7 +12,6 @@ import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
 import { GrammarState } from "../GrammarState";
-import { RegExpMatcher } from "../RegExpMatcher";
 
 export class SwitchRule implements Rule {
   repo: GrammarRepository;

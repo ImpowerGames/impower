@@ -15,7 +15,6 @@ import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
 import { GrammarState } from "../GrammarState";
 import { Matched } from "../Matched";
-import { RegExpMatcher } from "../RegExpMatcher";
 import type { MatchRule } from "./MatchRule";
 import { SwitchRule } from "./SwitchRule";
 

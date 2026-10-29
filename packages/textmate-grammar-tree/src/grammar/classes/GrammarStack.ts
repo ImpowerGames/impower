@@ -1,5 +1,4 @@
 import type { GrammarStackElement } from "../types/GrammarStackElement";
-import type { Rule } from "../types/Rule";
 import type { GrammarNode } from "./GrammarNode";
 
 export class GrammarStack {
