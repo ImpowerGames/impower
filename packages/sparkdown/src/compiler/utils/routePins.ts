@@ -150,9 +150,10 @@ export const pinnedAtMenu = (
  *  offer at a pinned offer: a once-only option the route already took, or a
  *  gated option whose gate the route left false. An option is the menu's own
  *  when it stands in the statement chunk of an option the menu offers, or
- *  is one of `offeredBefore`, the options the route met this menu offering
+ *  is one of `offeredBefore`: the options the route met this menu offering
  *  before, among them those a thread (`<- name`) adds from another
- *  statement. */
+ *  statement, and the gated options whose gate the route met on its way to
+ *  this meeting, whichever options the menu then offers. */
 export const pinnedNotOffered = (
   pinned: PinnedOptions,
   sources: readonly string[],

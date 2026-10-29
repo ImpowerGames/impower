@@ -315,6 +315,36 @@ describe("the preview's route keeps the author's pins", () => {
     expect(choice!.unofferedPins).toEqual([pin(6)]);
   }, 120_000);
 
+  test("a line inside a thread's scene starts its route there, so a pin on the menu the thread joins is not at its stop", () => {
+    const lines = [
+      "store key = false",
+      "-> start",
+      "scene start",
+      "  <- side",
+      "  choose",
+      "    * if key [Show the key.]",
+      "      Shown.",
+      "    * if key [Wait.]",
+      "      Waited.",
+      "  end",
+      "  After.",
+      "end",
+      "scene side",
+      "  choose",
+      "    + [Thread option.]",
+      "      Threaded.",
+      "  end",
+      "  done",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 16, [pin(6)]);
+    expect(route.start.scene).toBe("side");
+    expect(
+      route.decisions.map((d) => [d.kind, d.text, d.notFollowed, d.unofferedPins]),
+    ).toEqual([["auto", "Thread option.", undefined, undefined]]);
+  }, 120_000);
+
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",
