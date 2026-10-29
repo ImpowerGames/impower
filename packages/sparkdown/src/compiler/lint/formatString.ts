@@ -185,9 +185,9 @@ export function lintFormatStringCall(
     return;
   }
   if (!(func.expr instanceof AstExprGlobal)) return;
-  if (func.expr.name === "string") {
+  if (func.expr.name === "string") { // not a node name
     if (node.args.length > 0) matchStringCall(func.index, node.args[0]!, node.args.slice(1), runtimeValue, report, check);
-  } else if (func.expr.name === "os" && func.index === "date" && node.args.length > 0) {
+  } else if (func.expr.name === "os" && func.index === "date" && node.args.length > 0) { // not a node name
     check("date format", node.args[0], checkDateFormat);
   }
 }

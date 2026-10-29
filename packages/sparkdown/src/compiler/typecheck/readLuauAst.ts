@@ -1489,7 +1489,7 @@ class Parser {
 
   fatalError(caught: unknown): LuauSyntaxError {
     if (caught instanceof FatalReadError) return { location: caught.location, message: caught.message };
-    const stackExhausted = caught instanceof RangeError || (caught instanceof Error && caught.name === "InternalError");
+    const stackExhausted = caught instanceof RangeError || (caught instanceof Error && caught.name === "InternalError"); // not a node name
     if (!stackExhausted) throw caught;
     return { location: this.current().location, message: `Exceeded allowed recursion depth; simplify your ${this.recursionContext} to make the code compile` };
   }
@@ -2919,7 +2919,7 @@ class Parser {
       } else if (this.is("...")) {
         this.report(this.current().location, "Unexpected '...' after type name; type pack is not allowed in this context");
         this.next();
-      } else if (name.name === "typeof") {
+      } else if (name.name === "typeof") { // not a node name
         const reportsBefore = this.reports;
         const typeofBegin = this.current();
         this.expectAndConsume("(", "typeof type");

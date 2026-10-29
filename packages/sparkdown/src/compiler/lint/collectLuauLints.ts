@@ -259,7 +259,7 @@ function fieldNames(roots: NameRoot[]): Set<number> {
         if (node instanceof AstExprIndexName) {
           let receiver = node.expr;
           while (receiver instanceof AstExprGroup || receiver instanceof AstExprTypeAssertion) receiver = receiver.expr;
-          if (!(receiver instanceof AstExprGlobal && receiver.name === "_G")) found.add(offsets.range(node.indexLocation).from);
+          if (!(receiver instanceof AstExprGlobal && receiver.name === "_G")) found.add(offsets.range(node.indexLocation).from); // not a node name
         } else if (node instanceof AstExprTable) {
           for (const item of node.items) if (item.kind === TableItemKind.Record && item.key) found.add(offsets.range(item.key.location).from);
         } else if (node instanceof AstTypeTable) for (const prop of node.props) found.add(offsets.range(prop.location).from);
@@ -500,7 +500,7 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
         } else if (node instanceof AstExprLocal) {
           used.add(node.local);
         } else if (node instanceof AstExprGlobal) {
-          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) });
+          if (!own && node.name !== "self") methodReads.push({ name: node.name, at: offsets.of(node.location.begin) }); // not a node name
         }
         else if (node instanceof AstTypeReference) {
           if (own) typeNames.push({ name: node.prefix ?? node.name, at: offsets.of(node.location.begin) });
@@ -911,7 +911,7 @@ export function duplicateGlobalMemberMessage(name: string, line: number, path: s
 }
 
 function lintPlaceholderReads(fn: AstExprFunction, offsets: Offsets, out: LuauLint[]): void {
-  const isPlaceholder = (expr: AstExpr) => (expr instanceof AstExprLocal && expr.local.name === "_") || (expr instanceof AstExprGlobal && expr.name === "_");
+  const isPlaceholder = (expr: AstExpr) => (expr instanceof AstExprLocal && expr.local.name === "_") || (expr instanceof AstExprGlobal && expr.name === "_"); // not a node name
   visitAst(fn, {
     visit(node) {
       if (node instanceof AstStatAssign) {
@@ -1015,7 +1015,7 @@ function lintDuplicateLocals(root: AstNode, offsets: Offsets, out: LuauLint[], e
     const own = new Set(declared);
     for (const local of checked) {
       const shadow = local.shadow;
-      if (!shadow || !own.has(shadow) || local.name === "_" || !isAuthoredLuauName(local.name) || published(local) || flowParameter(offsets, local)) continue;
+      if (!shadow || !own.has(shadow) || local.name === "_" || !isAuthoredLuauName(local.name) || published(local) || flowParameter(offsets, local)) continue; // not a node name
       if (errors.some(({ location }) => location.end.ge(owner.location.begin) && inList(location))) return;
       const line = offsets.line(shadow.location.begin);
       const message =
@@ -1344,10 +1344,10 @@ function lintStdlibCalls(root: AstNode, text: string, offsets: Offsets, out: Lua
       lintFormatStringCall(node, runtimeValue, formatString);
       if (node.self) return true;
       const { func, args } = node;
-      if (func instanceof AstExprGlobal && (func.name === "getfenv" || func.name === "setfenv") && args[0] instanceof AstExprConstantNumber) {
-        report("DeprecatedApi", node, `Function '${func.name}' is deprecated${func.name === "getfenv" ? "; consider using 'debug.info' instead" : ""}`);
+      if (func instanceof AstExprGlobal && (func.name === "getfenv" || func.name === "setfenv") && args[0] instanceof AstExprConstantNumber) { // not a node name
+        report("DeprecatedApi", node, `Function '${func.name}' is deprecated${func.name === "getfenv" ? "; consider using 'debug.info' instead" : ""}`); // not a node name
       }
-      if (!(func instanceof AstExprIndexName && func.expr instanceof AstExprGlobal && func.expr.name === "table")) return true;
+      if (!(func instanceof AstExprIndexName && func.expr instanceof AstExprGlobal && func.expr.name === "table")) return true; // not a node name
       if (func.index === "insert" && args.length === 2) {
         const tail = args[1];
         if (tail instanceof AstExprCall && !tail.self && tail.func instanceof AstExprIndexName && tail.func.expr instanceof AstExprGlobal && MULTIPLE_RESULTS.has(`${tail.func.expr.name}.${tail.func.index}`)) {
