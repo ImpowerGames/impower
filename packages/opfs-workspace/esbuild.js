@@ -4,6 +4,7 @@ import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
+/** @type {import('esbuild').Plugin} */
 const rawPlugin = {
   name: "raw",
   setup(build) {
@@ -52,6 +53,7 @@ const esbuildProblemMatcher = () => ({
   },
 });
 
+/** @type BuildOptions */
 const config = {
   entryPoints: ["./src/opfs-workspace.ts"],
   outdir: OUTDIR,
