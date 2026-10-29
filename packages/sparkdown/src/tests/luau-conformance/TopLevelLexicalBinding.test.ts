@@ -488,6 +488,16 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 2."));
   });
 
+  // Each arm of an `if` is a scope of its own, so another arm's local of a
+  // stdlib name leaves the builtin.
+  test.each([
+    ["an elseif", ["if false then", "  local print = 2", "elseif true then", "  local f = function() return type(print) end", "  Got {f()}.", "end"]],
+    ["an else", ["if false then", "  local print = 2", "else", "  local f = function() return type(print) end", "  Got {f()}.", "end"]],
+    ["the first arm", ["if true then", "  local f = function() return type(print) end", "  Got {f()}.", "else", "  local print = 2", "end"]],
+  ])("reads the builtin for a stdlib name another arm declares, in %s", (_, lines) => {
+    expect(run(inScene(lines))).toEqual(got("Got function."));
+  });
+
   // An `&` line's loop is a block too, and the closure after its `end` on
   // the same line reads the scene's local in scope again.
   test.each([
