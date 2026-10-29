@@ -115,8 +115,9 @@ export function lowerLuauFunctionDefinition(
   // and writes the flow's locals as upvalues and is bound from the line
   // after its own, as Luau's `local function` is. A top-level function and
   // a define's method are functions of the story, which read no flow's
-  // locals.
-  if (stat instanceof AstStatLocalFunction && ctx.hoistedKnots) {
+  // locals; so is a `const function`, which outside a function belongs at
+  // the top level, where every scene calls it.
+  if (stat instanceof AstStatLocalFunction && !stat.isConst && ctx.hoistedKnots) {
     return lowerNestedNamedFunction(func, node, identifier, ctx, ctx.hoistedKnots, true);
   }
 
