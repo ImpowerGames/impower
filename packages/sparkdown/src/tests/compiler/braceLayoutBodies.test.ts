@@ -441,7 +441,7 @@ end
     expect(errorsOf(text)).toEqual([]);
   });
 
-  test("a comma after an unquoted prop value separates two entries, and is reported", () => {
+  test("a comma after an unquoted prop value separates two entries", () => {
     const text = `layout hud with\n  row { text "x" #y=1, text "z"; text #font=a,b }\nend\n`;
     const row = lowered(text, "layout", "hud").tree.children[0];
     expect(row.children.map((c: any) => c.content?.[0]?.text)).toEqual([
@@ -450,11 +450,8 @@ end
       undefined,
     ]);
     expect(row.children[0].props.y).toEqual({ kind: "literal", value: 1 });
-    // A comma inside a value stays part of it.
     expect(row.children[2].props.font).toEqual({ kind: "literal", value: "a,b" });
-    expect(errorsOf(text).map((e) => [e.message, e.text])).toEqual([
-      ["Separate entries on one line with `;`, not `,`.", ","],
-    ]);
+    expect(errorsOf(text)).toEqual([]);
   });
 
   test("attribute values nest calls three deep and bindings four deep", () => {

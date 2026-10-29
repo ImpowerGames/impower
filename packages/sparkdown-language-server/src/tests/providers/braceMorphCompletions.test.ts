@@ -125,6 +125,12 @@ end
     ).toEqual(fields);
     expect(
       labelsAt(`morph blink with
+  timing { duration = 1, | }
+end
+`),
+    ).toEqual(fields);
+    expect(
+      labelsAt(`morph blink with
   timing {
     easing = |
   }
