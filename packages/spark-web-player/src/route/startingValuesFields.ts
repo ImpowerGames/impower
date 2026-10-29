@@ -7,7 +7,11 @@ import {
 export interface PendingChange {
   edit: number;
   value: string | null;
-  kept: boolean;
+}
+
+export interface SentChange {
+  edit: number;
+  changes: Record<string, string | null>;
 }
 
 export interface FieldState {
@@ -122,34 +126,38 @@ export const changed = (
   state: StartingValuesFields,
   start: string,
   changes: Record<string, string | null>,
-): { state: StartingValuesFields; edit: number } => {
+): { state: StartingValuesFields } & SentChange => {
   const edit = state.edits + 1;
   const next = withFields({ ...state, edits: edit }, (fields) => {
     for (const [key, value] of Object.entries(changes)) {
-      fields.set(fieldId(start, key), {
-        pending: { edit, value, kept: false },
-      });
+      fields.set(fieldId(start, key), { pending: { edit, value } });
     }
   });
-  return { state: next, edit };
+  return { state: next, edit, changes };
 };
 
 export const answered = (
   state: StartingValuesFields,
   start: string,
-  edit: number,
+  sent: SentChange,
   kept: boolean,
   firstOf: (key: string) => string | undefined,
-): StartingValuesFields =>
-  withFields(state, (fields) => {
+): StartingValuesFields => {
+  const settled = kept
+    ? {
+        ...state,
+        kept: changeStartingValues(state.kept ?? {}, start, sent.changes),
+      }
+    : state;
+  return withFields(settled, (fields) => {
     for (const [key, field] of fieldsOf(state, start)) {
-      if (field.pending?.edit !== edit) {
+      if (field.pending?.edit !== sent.edit) {
         continue;
       }
       fields.set(
         fieldId(start, key),
         kept
-          ? { ...field, pending: { ...field.pending, kept: true } }
+          ? { draft: field.draft }
           : {
               draft: field.draft,
               refused:
@@ -158,6 +166,7 @@ export const answered = (
       );
     }
   });
+};
 
 export const hostSent = (
   state: StartingValuesFields,
@@ -168,9 +177,7 @@ export const hostSent = (
       const [start, key] = splitId(id);
       const now = ownEntry(values, start)?.[key];
       const pending =
-        field.pending &&
-        !field.pending.kept &&
-        now !== (field.pending.value ?? undefined)
+        field.pending && now !== (field.pending.value ?? undefined)
           ? field.pending
           : undefined;
       fields.set(id, {

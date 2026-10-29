@@ -342,6 +342,21 @@ describe("the Starting values tab", () => {
     ).toBe("error");
   });
 
+  test("a change the host keeps without sending the values back reaches the worker and the preview", async () => {
+    const p = await onValuesTab();
+    p.type("store:trust", "2");
+    p.hostAnswers("preview/changeStartingValues");
+    await settle();
+    await settle();
+    expect(p.asked).toContainEqual([
+      "game/setStartingValues",
+      { values: { interrogation: { "store:trust": "2" } } },
+    ]);
+    expect(p.previewed.at(-1).slice(1, 3)).toEqual([URI, 19]);
+    expect(p.input("store:trust").value).toBe("2");
+    expect(p.badge("store:trust")).toBeNull();
+  });
+
   test("a change the host does not keep is put back, with its error badge", async () => {
     const p = await onValuesTab();
     p.type("store:trust", "2");

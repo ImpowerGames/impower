@@ -189,3 +189,49 @@ describe("pins on a line whose scene's start takes values", () => {
     }
   }, 120_000);
 });
+
+describe("starting values that change while a suggestion holds the screen", () => {
+  it("draw the suggestion again with the new values", async () => {
+    const source = ["store hp = 1", "scene s", "  Original {hp}.", "end", ""].join(
+      "\n",
+    );
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line: 2 },
+    });
+    const setValues = (hp: string) =>
+      (h.controller as any).handleSetStartingValues(
+        SetStartingValuesMessage.type.request({
+          values: { s: { "store:hp": hp } },
+        }),
+      );
+    try {
+      await setValues("2");
+      await h.compile();
+      await h.select(2);
+      await settle(40);
+      const at = source.split("\n")[2]!.indexOf("Original");
+      await h.suggest(
+        [
+          {
+            range: {
+              start: { line: 2, character: at },
+              end: { line: 2, character: at + "Original".length },
+            },
+            text: "Suggestion",
+          },
+        ],
+        2,
+      );
+      expect(h.controller.displayingSpeculative).toBe(true);
+      expect(writtenText(h.toRouter)).toContain("Suggestion 2.");
+      const sentBefore = h.toRouter.length;
+      await setValues("3");
+      await settle(40);
+      expect(h.controller.displayingSpeculative).toBe(true);
+      expect(writtenText(h.toRouter.slice(sentBefore))).toContain("Suggestion 3.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});

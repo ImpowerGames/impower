@@ -1007,11 +1007,14 @@ export class GamePlayerController {
     this._valueFields = answered(
       this._valueFields,
       start,
-      change.edit,
+      change,
       saved,
       (key) => items.find((item) => item.key === key)?.first,
     );
     this.renderRoute();
+    if (saved && this._valueFields.kept) {
+      await this.applyStartingValues(this._valueFields.kept);
+    }
   }
 
   protected handleRouteTab = (tab: RouteTab) => {
@@ -2065,31 +2068,45 @@ export class GamePlayerController {
     message: SetStartingValuesMessage.Request,
   ) => {
     const values = startingValuesFrom(message.params.values);
-    const changed =
-      JSON.stringify(values) !==
-      JSON.stringify(this._options?.startingValues ?? null);
     this._valueFields = hostSent(this._valueFields, values);
+    this.renderRoute();
+    await this.applyStartingValues(values);
+    return SetStartingValuesMessage.type.response(message.id, {});
+  };
+
+  protected async applyStartingValues(values: StartingValues) {
+    if (
+      JSON.stringify(values) ===
+      JSON.stringify(this._options?.startingValues ?? null)
+    ) {
+      return;
+    }
     if (this._options) {
       this._options.startingValues = values;
     } else {
       this._options = { startingValues: values };
     }
-    this.renderRoute();
-    if (changed) {
-      try {
-        await this.askWorkerGame(SetGameStartingValuesMessage.type, {
-          values,
-        });
-      } catch (e) {
-        reportUnlessRestarted(e);
-      }
-      const startFrom = this._options?.startFrom;
-      if (!this.playing && this._program && startFrom) {
-        void this.updatePreview(this._program, startFrom.file, startFrom.line);
-      }
+    try {
+      await this.askWorkerGame(SetGameStartingValuesMessage.type, { values });
+    } catch (e) {
+      reportUnlessRestarted(e);
     }
-    return SetStartingValuesMessage.type.response(message.id, {});
-  };
+    if (this.playing) {
+      return;
+    }
+    if (this.completionPreviewHoldsScreen()) {
+      const shown = this._completionShown;
+      if (shown) {
+        const { evaluation, ...result } = shown;
+        await this.drawCompletion(evaluation, result);
+      }
+      return;
+    }
+    const startFrom = this._options.startFrom;
+    if (this._program && startFrom) {
+      void this.updatePreview(this._program, startFrom.file, startFrom.line);
+    }
+  }
 
   protected handleSetRoutePins = async (message: SetRoutePinsMessage.Request) => {
     await this.applyRoutePins(message.params.pins);
