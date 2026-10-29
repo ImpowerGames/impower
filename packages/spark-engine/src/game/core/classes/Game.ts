@@ -40,6 +40,7 @@ import {
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import {
+  pinnedNotOffered,
   pinnedOptionsOf,
   type PinnedOptions,
   type RoutePin,
@@ -459,9 +460,6 @@ export class Game<T extends M = {}> {
     this._simulateFlow = value;
   }
 
-  /** Each menu the game met while it ran rather than replayed a route, in
-   *  order: the options it offered and the one taken, by option address
-   *  (`Choice.sourcePath`). */
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
 
   /** The address the story starts at, and a route to it ends at: the beat a
@@ -2489,18 +2487,6 @@ export class Game<T extends M = {}> {
     // emitted again, whose decisions the route's forced ones no longer
     // name, so the rest is searched for.
     const replayOnly = route.to === to && validSteps === route.steps.length;
-    // A search resumed inside the route keeps every decision before the
-    // point it resumes from. For another line it resumes no later than the
-    // route's first decision a route to that line may make otherwise
-    // (`stepsBeforeTargetDecision`): a choice, a verdict forced against the
-    // program or chosen where the program leaves it open, or a pinned
-    // meeting. The line's route then depends on nothing previewed before
-    // it. For the same line the route's choices are the ones its own search
-    // made; it resumes no later than its first forced verdict, which an edit
-    // can make needless, nor than its first pinned meeting. An edit inside
-    // the line emits its statement again, at another address: the target is
-    // the same line when the compile emitted only its statement, in place of
-    // only the statement the route's target stood in.
     const pinned = this.pinnedOptions;
     const chunks = this._program.changes.chunks;
     const sameLine =
@@ -2522,10 +2508,6 @@ export class Game<T extends M = {}> {
               : stepsBeforeDeparture(route, pinned),
         );
     if (route.fallback) {
-      // A route origin/main's search found (`planRoute`) is resumed and
-      // replayed as origin/main's preview resumes its own routes: from the
-      // deepest checkpoint the new program agrees with, by origin/main's
-      // search alone (a resume point without a charge).
       const resume = this.findResumePoint(searchSteps);
       if (!resume) {
         return { validSteps, replayOnly: false };
@@ -2594,12 +2576,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** Whether a route to `to` is searched from the top of `from` without
-   *  first resuming inside the route planned before: the program still
-   *  holds level-zero work of a search from that flow whose level zero never
-   *  stood in the chunk `to` stands in, so the search starts from it and
-   *  finds the route a search from the top finds, at the cost of the levels
-   *  after level zero. */
   searchesFromLevelZeroWork(from: string, to: ProgramAddress): boolean {
     const chunk = chunkOfAddress(to);
     const pins = this.pinnedOptions.key;
@@ -2753,11 +2729,6 @@ export class Game<T extends M = {}> {
     if (!route.fallback && !charge) {
       return null;
     }
-    // A step records the decisions made BEFORE it, so the step the story is
-    // standing on is the one that says how many have been taken. The plan
-    // reports those same decisions split in two, and a search counts each list
-    // (a menu's pinned offers by its choices), so both have to be cut to the
-    // same point.
     const taken = (route.steps[at - 1]?.decision ?? -1) + 1;
     const decisions = route.decisions.slice(0, taken);
     let conditions = 0;
@@ -4326,13 +4297,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /**
-   * Each menu of the run as played, in order: the choices of `route`, the
-   * route the run started from, then each menu the game met since. A pin
-   * names which time the route is offered its option, so the offers are
-   * counted from the route's start, through the route's menus and on
-   * through the run's.
-   */
   runMeetings(route?: PreviewRoute): RunMeeting[] {
     const offers = new Map<string, number>();
     const keyOf = (pin: Omit<RoutePin, "offer">) => `${pin.line}:${pin.uri}`;
@@ -4363,20 +4327,43 @@ export class Game<T extends M = {}> {
         meetings.push({ pin, others: [...others, ...(decision.unofferedPins ?? [])] });
       }
     }
+    const lineOfOption = (source: string) => {
+      const location = this.documentLocationOf(Number(source));
+      return location
+        ? { uri: location.uri, line: location.range.start.line }
+        : undefined;
+    };
+    const pinned = this.pinnedOptions;
     for (const menu of this._playedMenus) {
       const others: RoutePin[] = [];
       let pin: RoutePin | undefined;
       for (const source of menu.sources) {
-        const location = this.documentLocationOf(Number(source));
-        if (!location) {
+        const at = lineOfOption(source);
+        if (!at) {
           continue;
         }
-        const at = { uri: location.uri, line: location.range.start.line };
         const offer = (offers.get(keyOf(at)) ?? 0) + 1;
         offers.set(keyOf(at), offer);
         if (source === menu.taken) {
           pin = { ...at, offer };
         } else {
+          others.push({ ...at, offer });
+        }
+      }
+      const counts = new Map<string, number>();
+      for (const source of pinned.offers.keys()) {
+        const at = lineOfOption(source);
+        if (at) {
+          counts.set(source, offers.get(keyOf(at)) ?? 0);
+        }
+      }
+      for (const { source, offer } of pinnedNotOffered(
+        pinned,
+        menu.sources,
+        counts,
+      )) {
+        const at = lineOfOption(source);
+        if (at) {
           others.push({ ...at, offer });
         }
       }

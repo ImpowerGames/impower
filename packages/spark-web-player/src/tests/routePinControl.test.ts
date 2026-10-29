@@ -461,8 +461,6 @@ describe("the pin control", () => {
 });
 
 describe("pinning the last run", () => {
-  /** A run that took "Tell the truth." at line 8 and then "Lie." at line 8's
-   *  menu met again, its second offer there. */
   const run = [
     { pin: pin(8), others: [pin(10), pin(12)] },
     { pin: pin(12, 2), others: [pin(8, 2), pin(10, 2)] },

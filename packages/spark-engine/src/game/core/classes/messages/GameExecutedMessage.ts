@@ -11,8 +11,6 @@ export type { ExecutedLines, PreviewRoute, SimulationFailure };
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
-  /** The flow the route to the start point starts at the top of: a scene's
-   *  name, or `"0"` for the top-level content. */
   simulateFlow?: string | null;
   /** The lines the executed positions cover, by script uri. Absent from the
    *  report of a displayed suggestion. */

@@ -1,11 +1,3 @@
-// The second half of the #489 fix, which the player's own guard does not
-// cover: the workspace worker plans and replays a story route to the selected
-// line, against the game holding the last compiled program. Run against a
-// program the document has outrun, that replay reaches whatever used to stand
-// at the line, which is work for a route the author never asked for.
-//
-// Deleting the guard leaves the player's own tests passing, because the player
-// suppresses the preview either way. These are the tests that notice.
 
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { describe, expect, test } from "vitest";

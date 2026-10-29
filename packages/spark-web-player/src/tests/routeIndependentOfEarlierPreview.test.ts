@@ -1,7 +1,3 @@
-// #1658 — the route to a line depends only on the script, the line and the
-// pins: the line after a menu shows the option a game that never previewed
-// anything takes there, whether or not a line inside another option was
-// previewed first.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -62,17 +58,12 @@ const GAME_OPTIONS = {
   }) as never,
 };
 
-/** One compiler and one game, driven as the player's worker drives them:
- *  each compile routes to its line in the program it produced, recording in
- *  the one log a real program's searches share. */
 class Session {
   readonly compiler = new SparkdownCompiler();
   readonly log = new RouteSearchLog();
   game?: Game;
   text = SOURCE;
   version = 1;
-  /** How many of the planned route's steps the last compile's search was
-   *  offered to resume after. */
   resumedAfter?: number;
 
   constructor(readonly pins: { uri: string; line: number; offer: number }[] = []) {
@@ -112,7 +103,6 @@ class Session {
     searchRouteTo(this.game, to, this.log, {});
   }
 
-  /** Replace `find` with `replace` in the script, as typing does. */
   edit(find: string, replace: string) {
     const before = this.text.slice(0, this.text.indexOf(find)).split("\n");
     const line = before.length - 1;
@@ -188,8 +178,6 @@ describe("a line's route does not depend on the lines previewed before it", () =
     session.preview(lineOf("Lie again."));
     session.edit("Lie again.", "Lie once more.");
     const edited = session.preview(lineOf("Lie again."));
-    // The search kept the route's choice of "Lie." and resumed after it: a
-    // step records the index of the last decision taken before it.
     const steps = session.game!.plannedRoute!.steps;
     const afterChoice = steps.findIndex((step) => step.decision >= 0);
     expect(afterChoice).toBeGreaterThan(0);

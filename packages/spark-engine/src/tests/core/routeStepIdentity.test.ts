@@ -268,7 +268,6 @@ end
           return 0;
         }) as any,
       } as any);
-      // The pinned option sends the route down one side of the condition.
       const option = favored ? "+ [Raise the flag]" : "+ [Leave it down]";
       game.setRoutePins([
         {

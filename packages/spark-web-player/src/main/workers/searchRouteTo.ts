@@ -24,23 +24,6 @@ export interface RouteSearchSettings {
   source?: ScriptSource;
 }
 
-/** Plan a route to the address `to` and replay it, recording what the search
- *  established in `log`. Returns the full save of the checkpoint it
- *  produced, if any, which the log holds as a value (`searchRouteFor`). A
- *  route replayed for a preview compile passes its own log, so nothing it
- *  finds is kept in the search record a later PLAY reuses.
- *
- *  What a search finds depends only on the program, the address and the
- *  pins (`Game.routeResumption`).
- *
- *  Most compiles arrive with a route already planned through the program before
- *  them, and most edits cannot have changed anything the story does ahead of
- *  the line being edited. So the work is arranged cheapest first: replay the
- *  route already planned; failing that, search onward from where it stopped
- *  being valid; failing that, search the scene from the top. The first two are
- *  attempts rather than decisions — either can come back empty or replay to
- *  somewhere other than the target, and the next one down then runs — so what
- *  is reported is always what a search from the top would have reported. */
 export const searchRouteTo = (
   game: Game,
   to: ProgramAddress,
@@ -164,11 +147,6 @@ export const searchRouteFor = (
 
   let route: RoutePlan | null = null;
   let resumedSearch = false;
-  // A search from the top that starts from kept level-zero work finds what
-  // a search from the top finds without running level zero again, so no
-  // search resumed along a route that follows the program is tried first
-  // (#1636). A fallback route is resumed by origin/main's search, as
-  // origin/main's preview resumes it (`planRoute`).
   if (
     resumption.resumeFrom &&
     (plannedRoute?.fallback || !game.searchesFromLevelZeroWork(from, to))

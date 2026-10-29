@@ -339,30 +339,6 @@ function walked(game: Game) {
   };
 }
 
-/**
- * A whole checkpoint, as far as anything downstream can tell it apart from
- * another: the story it restores, the state of every module, and the game's
- * runtime record. This is what the worker's game displays and PLAY's game
- * starts from, so it is what a reused route has to reproduce.
- *
- * Exactly two things are normalized, each because reproducing it is impossible
- * rather than because it is inconvenient:
- *
- *   - `storySeed`. Every story state picks one from the clock when it is
- *     created, and creating one is what a fresh game and a story reset both do.
- *     Two runs of the identical route through the identical program differ here
- *     and nowhere else.
- *   - `pathsExecutedThisFrame`. A replay resumed from a checkpoint continues
- *     from the state that checkpoint holds and never re-executes what came
- *     before it, so it never re-records those paths. That is how the replay has
- *     always worked — driving the same session with the compiler's change
- *     summary withheld, so only the older step-identity reuse runs, leaves the
- *     same gap — and no route resumed from the same checkpoint could put them
- *     back.
- *
- * Everything else is compared, including the module states and the encountered
- * choices and conditions.
- */
 const comparableCheckpoint = (checkpoint: string | undefined) => {
   if (!checkpoint) {
     return "";

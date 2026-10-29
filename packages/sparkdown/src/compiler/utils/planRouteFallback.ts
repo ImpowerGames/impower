@@ -1,17 +1,3 @@
-// The route search origin/main runs, copied unchanged from its planRoute.ts
-// (as of 80cf78475): breadth first, forking at every condition, the verdict
-// the program reaches tried first. planRoute.ts runs it
-// when the search that follows the program finds no route within its budget
-// (see `planRoute` there), so a preview reaches every line origin/main's
-// preview reaches, showing the values origin/main's route gives. Only names
-// differ, the story's reading of a paused condition among them: origin/main's
-// reading is `pausedJumpValue` here, since this branch's
-// `pausedConditionValue` also reads a choice's condition. Beyond that it
-// records what the route's report reads: a verdict the program does not reach
-// (`departs`), one it leaves open (`open`), and each menu's options'
-// addresses (`RouteChoice.sources`). It tries the author's pins first
-// (`SearchOptions.pins`): a pinned option before the others, and a pinned
-// option's gate true, which is the whole of what a pin does here.
 import type { SimulatorSnapshot } from "../../runtime/Simulator";
 import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
@@ -621,7 +607,6 @@ const runUntilDecisionOrBranch = (
           }
           const options = story.currentChoices.map((c) => c.text);
           const sources = story.currentChoices.map((c) => c.sourcePath);
-          // A pinned offer is forked first.
           const pinnedHere =
             pinned.offers.size > 0
               ? pinnedAtMenu(

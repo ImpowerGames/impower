@@ -2559,8 +2559,6 @@ export class GamePlayerController {
         run: play.run,
       });
       if (stopped?.run && !this._workerPlay) {
-        // The route list offers to pin the run as played until the next
-        // PLAY.
         this._routeState = { ...this._routeState, lastRun: stopped.run };
         this.renderRoute();
       }

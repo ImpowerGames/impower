@@ -14,8 +14,6 @@ export interface StopPlayParams {
 export interface StopPlayResult {
   /** Where PLAY's game last executed, read before it went. */
   location: DocumentLocation | null;
-  /** The menus of the run as played (`Game.runMeetings`), when it stopped
-   *  the run. */
   run?: RunMeeting[];
 }
 

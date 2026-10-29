@@ -127,7 +127,6 @@ function watchSearches() {
   return searches;
 }
 
-/** Scrub `game` to the line holding `label`; what it previews. */
 function scrub(game: Game, lines: string[], label: string) {
   const line = lines.findIndex((l) => l.includes(label));
   game.setStartFrom({ file: URI, line });

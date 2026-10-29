@@ -1,11 +1,3 @@
-// The route a preview replays to reach the author's line records what it
-// established in the log it is given and nowhere else. A route replayed for an
-// autocomplete suggestion (#634) is replayed in a program the author has not
-// written, so it records in a log of its own: the real program's log, which
-// PLAY reuses, holds nothing of it.
-//
-// The game is built from the compiled program, as the player's worker builds
-// both its preview game and PLAY's.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";

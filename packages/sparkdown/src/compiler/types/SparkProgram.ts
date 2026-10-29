@@ -123,9 +123,6 @@ export interface SparkProgram {
    *  same scripts into a different program. Part of a program's identity
    *  across the worker boundary (`programIdentity`). */
   filesEpoch?: number;
-  /** Set on a program's summary (`programSummary`), which is all a compile
-   *  sends a host that leaves the program where it was compiled: `uri`,
-   *  `scripts`, `version`, `workspace` and `startFrom`. */
   summary?: true;
   /** On a summary, whether the compile produced a story that runs, which
    *  `compiled` answers on a whole program (`isRunnableProgram`). */

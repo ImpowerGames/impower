@@ -54,13 +54,6 @@ export interface RouteFailure {
   target?: DocumentLocation;
 }
 
-/**
- * Everything the route button and the route list show, which they render
- * from and nothing else: the route the preview took, or why it found none,
- * whether the list is open, which kinds it shows, every pin in the project
- * as the host keeps it, a note when the host did not save a change to
- * them, and the menus of the last PLAY's run until the next PLAY.
- */
 export interface RouteViewState {
   route?: PreviewRoute;
   failure?: RouteFailure;
@@ -132,9 +125,6 @@ export const stopIsPinned = (
   decision: PreviewRouteDecision,
 ): boolean => pinsAtStop(pins, decision).length > 0;
 
-/** Pinning each menu of a run as played: the pin on the option taken at
- *  each, and every other pin at those menus removed. Nothing when the pins
- *  already say so. */
 export const lastRunChange = (
   pins: RoutePin[],
   run: RunMeeting[],
@@ -152,7 +142,6 @@ export const lastRunChange = (
   return add.length > 0 || remove.length > 0 ? { add, remove } : null;
 };
 
-/** The foot's action that pins a run of `count` choices. */
 export const lastRunText = (count: number): string =>
   `Pin the ${count} ${count === 1 ? "choice" : "choices"} from the last run`;
 

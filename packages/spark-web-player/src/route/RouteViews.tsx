@@ -177,7 +177,6 @@ export function RouteList({
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
-  // Offered after a PLAY until the next, while pressing it changes a pin.
   const lastRun = state.lastRun?.length
     ? lastRunChange(state.pins, state.lastRun)
     : null;

@@ -398,8 +398,6 @@ export interface ConditionOverride {
   /** Set when the verdict is not the one the program reaches there: the
    *  route forced it to reach its target. */
   departs?: true;
-  /** Set at a condition the program leaves open (one whose condition is no
-   *  value a decision can test), where the search chose the verdict. */
   open?: true;
 }
 
@@ -444,9 +442,6 @@ export const firstPinMet = (
   return -1;
 };
 
-/** How many of `route`'s steps come before the first of its decisions that
- *  `decides` holds, or its first pinned meeting of `pinned`
- *  ({@link firstPinMet}); all of them when it has neither. */
 const stepsBefore = (
   route: RoutePlan,
   pinned: PinnedOptions,
@@ -460,10 +455,6 @@ const stepsBefore = (
   );
 };
 
-/** How many of `route`'s steps come before its first departure: the first
- *  verdict it forced against the program ({@link ConditionOverride.departs}),
- *  or its first pinned meeting of `pinned` ({@link firstPinMet}); all of
- *  them when it has none. */
 export const stepsBeforeDeparture = (
   route: RoutePlan,
   pinned: PinnedOptions = NO_PINS,
@@ -477,15 +468,6 @@ export const stepsBeforePinMet = (
   pinned: PinnedOptions,
 ): number => stepsBeforeDecision(route, firstPinMet(route, pinned));
 
-/** How many of `route`'s steps come before the first decision a route to
- *  another target may make otherwise: a choice at a menu that offered more
- *  than one option, a verdict it forced against the program
- *  ({@link ConditionOverride.departs}), a verdict it chose where the program
- *  leaves the condition open ({@link ConditionOverride.open}), or its first
- *  pinned meeting of `pinned` ({@link firstPinMet}); all of them when it has
- *  none. Every route from the same start runs those steps as the program
- *  runs them, whatever its target, so a search for another line resumes no
- *  later than this. */
 export const stepsBeforeTargetDecision = (
   route: RoutePlan,
   pinned: PinnedOptions = NO_PINS,
@@ -582,12 +564,6 @@ export interface SearchOptions {
    */
   functions?: string[];
 
-  /**
-   * The options the author pinned (`pinnedOptionsOf`). At a pinned offer the
-   * route takes the pinned option, and leaves it only when the target cannot
-   * be reached through it (see {@link planRoute}); a pinned gated option is
-   * offered by forcing its gate.
-   */
   pins?: PinnedOptions;
 
   /**
@@ -643,18 +619,6 @@ export interface SearchOptions {
    */
   stateImages?: boolean;
 
-  /**
-   * Where a search from the top keeps what its level zero built, and finds
-   * what an earlier search's level zero built (see {@link LevelZeroWork}).
-   * A search that finds work kept under its own search key
-   * ({@link LevelZeroWork.key}), whose level zero never ran the chunk the
-   * target stands in, starts where that level zero stopped: its level zero would run as that
-   * one did, so it finds the route a search from the top finds. The caller
-   * answers for the program: it hands back only work whose chunks, and the
-   * moves between them, the program still holds as they were
-   * (`levelZeroHolds`). A resumed search ({@link resumeFrom}) neither keeps
-   * nor finds any.
-   */
   levelZeroStore?: LevelZeroStore;
 }
 
@@ -664,22 +628,6 @@ export interface LevelZeroStore {
   keep(work: LevelZeroWork): void;
 }
 
-/**
- * What a search from the top had built when its level zero stopped without
- * reaching its target: everything the next level starts from, and what
- * level zero ran to build it.
- *
- * Level zero runs the program's own way from the top of the flow, and what
- * it does depends on the chunks it runs, the moves the story makes between
- * them, the state the program starts in and the search's options; its
- * target only ends it. So a later
- * search for another line, whose level zero would run the same chunks the
- * same way and never reach that line, would build exactly this, and starts
- * from it instead (#1636): a scrub of a line in a skipped branch after a long
- * loop does not run the loop again. Everything here is a copy the search
- * that starts from it does not change, so one work serves every later
- * search it holds for.
- */
 export interface LevelZeroWork {
   /** The flow and the options the search ran with ({@link levelZeroKey}). */
   readonly key: string;
@@ -2136,9 +2084,6 @@ const runUntilDecisionOrBranch = (
               met,
             );
           };
-          // At a pinned offer the pinned option is forked in this tier, the
-          // first the menu lists when it offers several, and every other
-          // option waits for the tier that leaves one pin more.
           const counts =
             pinned.offers.size > 0
               ? pinnedOfferCounts(flattenTrail(node.choices), pinned)
@@ -2384,8 +2329,6 @@ const runUntilDecisionOrBranch = (
           continue;
         }
 
-        // A condition with no value a decision can test, which the program
-        // leaves open: both verdicts, at this level, true first.
         const at = mark();
         for (const value of [true, false]) {
           const ov: ConditionOverride = { kind: "condition", site, value, open: true };

@@ -100,11 +100,6 @@ export function planRouteForSelection<G extends RoutableGame>(
     return;
   }
   if (params.programOutdated) {
-    // This game holds the program compiled from the document as it was before
-    // the edit, so a route planned to this line would replay to whatever used
-    // to sit there. The selection is recorded
-    // above as the point the next compile starts from, and that compile plans
-    // its route against the program it produces.
     return;
   }
   // The route ends at the beat the preview shows: a line's last beat.

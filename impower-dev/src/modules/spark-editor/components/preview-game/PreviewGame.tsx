@@ -52,32 +52,6 @@ const STYLE = `
 // server (`sparkdown/offsetSourceLocation`) — it owns the program, and its
 // locations are far too large to mirror on the main thread.
 
-/**
- * Right-pane Game preview. Hosts an `<iframe>` pointed at the sparkdown
- * player and brokers messages between the editor and the player via a
- * MessagePort channel. Mirrors the legacy <se-preview-game>:
- *
- *   - On iframe `load`: open a Port1MessageConnection over a new
- *     MessageChannel and Initialize the player with project files, LSP
- *     settings, builtin/optional/schema/description definitions, and the
- *     game configuration (workspace + startFrom).
- *   - Forward messages from the editor (game/preview/workspace/text-
- *     Document/*) into the iframe channel.
- *   - Forward incoming iframe messages back into the editor's global
- *     MessageProtocol event stream, plus special-case Game lifecycle
- *     events (Started/Executed/Exited/ToggledFullscreenMode), file-read
- *     proxies, and ExecuteCommand RPC.
- *   - PageUp/PageDown traverse program source positions.
- *
- * (The legacy "resizing"/"resized" window listeners that pinned iframe
- * pointer-events during a split-pane drag are gone: the port's SplitPane
- * captures the pointer on its divider (`setPointerCapture`), so a drag over
- * the iframe is no longer swallowed and no pinning is needed.)
- *
- * Renders the (Preact) PreviewGameToolbar above the iframe via the
- * <se-preview-game-toolbar> custom-element tag — that's now backed by
- * the Preact PreviewGameToolbar.
- */
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);

@@ -75,8 +75,6 @@ import { watchExecution } from "./watchExecution";
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
-  /** Its own: a search run in one program says nothing about another. The
-   *  newest real program's is `routeSearches`. */
   log: RouteSearchLog;
 }
 
@@ -832,10 +830,6 @@ export function installPlayerWorker(connection: MessageConnection) {
   // sends the page nothing (`sendToPage`) and replays no route for a
   // selection.
 
-  /** PLAY's game while it runs, with the run the page knows it by, a
-   *  settlement that STOP answers everything still waiting on it with, the
-   *  route it started from, and the channel it sends the page its stream on
-   *  once connected. */
   let current:
     | {
         run: number;
@@ -1017,9 +1011,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
-  /** End PLAY's game, answering where it last executed and the menus of
-   *  its run as played: the run the page names, or whichever runs when it
-   *  names none. A run already replaced is left alone. */
   const stopPlay = (params: StopPlayParams): StopPlayResult => {
     const ending = current;
     if (!ending || (params.run != null && params.run !== ending.run)) {
