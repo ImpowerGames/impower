@@ -7,6 +7,7 @@
 
 import { describe, expect, test } from "vitest";
 import { indexProgramNames, lintBuiltinGlobalWrites } from "../../compiler/lint/collectLuauLints";
+import { TOP_LEVEL_STATEMENT_MESSAGE } from "../../compiler/utils/declarationOnly";
 import { testCompiler } from "../engineUnderTest";
 import {
   diagnoseWithLints,
@@ -325,9 +326,9 @@ return foo() + baz()
     ],
   ])("%s", (_name, body) => {
     expect(diagnoseWithLintsInFunction(body)).toEqual([]);
-    const chunk = body.replace(/^return (.*)$/m, "scene start\n  {$1}\nend");
+    const chunk = body.replace(/^return (.*)$/m, "{$1}");
     expect(chunk).not.toBe(body);
-    expect(diagnoseWithLints(chunk)).toEqual([]);
+    expect(diagnoseWithLints(chunk).filter((m) => m !== TOP_LEVEL_STATEMENT_MESSAGE)).toEqual([]);
   });
 });
 
