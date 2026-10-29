@@ -1190,13 +1190,6 @@ variables:
   STRUCT_BLOCK_BRACKET_BODY: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\]\s"'{}])*
   STRUCT_BLOCK_BRACKET: (?:[\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\]])
   STRUCT_BLOCK_LONE_BRACKET: (?:[\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\]]))
-  # A block header: a key, a selector or a keyframe position. It holds no
-  # unquoted brace or `;` and no comment, and does not start with `=` or `,`,
-  # so a brace in a comment never opens a block. A quoted run and an
-  # attribute selector are read whole (`"quoted key"`, `&[data-label="x"]`,
-  # `&[data-label='a;b']`). It does not end in a comma, so in
-  # `{ "a", { v = 1 } }` the comma separates two entries (and is reported)
-  # rather than ending a header; a selector list (`&.a, &.b {`) ends in a name.
   STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*{{STRUCT_BLOCK_EQUAL}}?)
@@ -7339,10 +7332,9 @@ repository:
     name: punctuation.separator.comma.sd
     match: (?={{STRUCT_BLOCK_TRAILING_COMMA}})([,])
 
-  # A comma between two entries on one line. Entries are separated by `;`.
   LuauStructBlockEntryComma:
-    tag: invalid
-    name: invalid.illegal.struct-entry-comma.sd
+    tag: punctuation
+    name: punctuation.separator.comma.sd
     match: ([,])
 
   # A `//` comment inside a block: after whitespace (or at the start of an

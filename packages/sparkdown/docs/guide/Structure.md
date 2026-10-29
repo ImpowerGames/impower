@@ -135,7 +135,7 @@ column #child-gap=8 {
 
 The braces alone decide what belongs to what. Indentation is only layout: it makes the tree easy to read, and the formatter sets it for you, but moving a line left or right never moves it into or out of a block. In the editor, a block folds from its first line to its `}`.
 
-Inside a block, entries are separated by a new line or a `;`. A comma at the end of an entry is accepted and ignored, so a line `text "Line one",` reads as `text "Line one"`. A comma between two entries on one line is an error: `row { text "A", text "B" }` is reported, and `row { text "A"; text "B" }` is what you meant.
+Inside a block, entries are separated by a new line, a `;` or a `,`, as in a Lua table: `row { text "A", text "B" }` and `row { text "A"; text "B" }` mean the same thing. A comma at the end of an entry is accepted and ignored, so a line `text "Line one",` reads as `text "Line one"`. A comma inside a value stays part of it, as in `#font=a,b` or `rgb(1, 2, 3)`.
 
 Leave a space before a block's `{`. Glued to a prop's value, as in `#child-gap=8{`, it is read as part of the value. You may also write `=` before the `{` (`row = { … }`); it means the same thing, and this guide leaves it out.
 

@@ -1,0 +1,11 @@
+morph blink with
+  method = bend
+  keyframes {
+    { offset = 0, eyes { state = eyes.open } }
+    { offset = 0.4, eyes { state = eyes.closed } }
+  }
+  clips {
+    { between { eyelash-right, eyelash-top-right }, targets { eyeball-white-left, pupil-left } }
+  }
+  paints = { { targets { a }, state = eyes.closed, fill = red }, { targets { b }, state = eyes.closed, fill = blue } }
+end

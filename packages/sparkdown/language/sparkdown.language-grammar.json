@@ -8889,8 +8889,8 @@
       "match": "(?=(?:[,](?:[^\\S\\n\\r])*(?:$|[;}]|(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$)))))([,])"
     },
     "LuauStructBlockEntryComma": {
-      "tag": "invalid",
-      "name": "invalid.illegal.struct-entry-comma.sd",
+      "tag": "punctuation",
+      "name": "punctuation.separator.comma.sd",
       "match": "([,])"
     },
     "LuauStructBlockSlashComment": {

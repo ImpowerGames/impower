@@ -846,10 +846,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
       return true;
     }
-    if (nodeRef.name === "LuauStructBlockEntryComma") {
-      this.error(annotations, STRUCT_ENTRY_COMMA, nodeRef.from, nodeRef.to);
-      return true;
-    }
     return false;
   }
 
