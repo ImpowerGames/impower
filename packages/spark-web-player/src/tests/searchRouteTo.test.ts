@@ -16,14 +16,16 @@ import { searchRouteTo } from "../main/workers/searchRouteTo";
 const URI = "inmemory:///main.sd";
 
 const SOURCE = [
-  "Pick a path.",
-  "choose",
-  "  * Left path",
-  "    You went left.",
-  "  * Right path",
-  "    You went right.",
+  "scene start",
+  "  Pick a path.",
+  "  choose",
+  "    * Left path",
+  "      You went left.",
+  "    * Right path",
+  "      You went right.",
+  "  end",
+  "  Done here.",
   "end",
-  "Done here.",
   "",
 ].join("\n");
 
@@ -43,7 +45,7 @@ function routeToLeft() {
       return 0;
     }) as never,
   } as never);
-  game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("    You went left.") });
+  game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("      You went left.") });
   expect(game.startAddress).toBeTruthy();
   return { game, to: game.startAddress! };
 }
