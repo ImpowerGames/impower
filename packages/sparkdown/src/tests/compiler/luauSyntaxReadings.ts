@@ -23,6 +23,10 @@ export const NOT_SYNTAX: RegExp[] = [
   /cannot be used for the name of a function because it's a built in function$/,
   /^A variable must be initialized to /,
   /^(?:Scene|Branch) is missing its closing `end` keyword\./,
+  // What a script's top level holds, and the scene the story starts in.
+  /^statement must be inside a scene or branch; /,
+  /^no scene named start; /,
+  /^scene start cannot take parameters; /,
   // A construct the program cannot compile (`unsupportedConstructMessage`).
   /^`external` functions are not supported: /,
   /^A function can't be diverted to: /,
