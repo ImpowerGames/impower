@@ -258,7 +258,7 @@ describe("a compile with statement chunks on", () => {
     expect(s.program.chunks).toBeDefined();
     // An external function is reported at its line, and the compile makes no
     // program.
-    const external = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
+    const external = cold({ [MAIN_URI]: "external ext(a)\nscene start\n  ~ ext(1)\n  Line.\nend\n" });
     expect(external.chunks).toBeUndefined();
     expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
   });
@@ -324,31 +324,34 @@ describe("a statement the resolver kept resolved", () => {
   });
 
   it("keeps back a diagnostic of a source an earlier statement reported, as a cold compile does", () => {
-    // Each local named like the global collides with it, and the story
-    // reports one error per source, the global's name: the first local's
-    // (with the top-level local's own, as a duplicate declaration).
+    // A function and a second store named like the global each collide with
+    // it, and the story reports each against the global's name.
     const text = [
       "store tally = 1",
-      "local tally = 0",
+      "",
+      "function tally()",
+      "  return 1",
+      "end",
+      "",
+      "scene start",
+      "  Line.",
+      "end",
       "",
       ...Array.from({ length: 10 }, (_, i) => [`scene S${i}`, `  Line of S${i}.`, "end", ""]).flat(),
       "function later()",
-      "  local tally = 2",
-      "  return tally",
+      "  return tally() + 1",
       "end",
       "",
-      "scene MAIN",
-      "  Line.",
-      "end",
+      "store tally = 2",
       "",
     ].join("\n");
     const s = session({ [MAIN_URI]: text });
     const collisions = (program: SparkProgram) =>
       diagnostics(program).filter((d) => d.includes("Duplicate identifier `tally`"));
     expect(collisions(s.program)).toHaveLength(2);
-    // The function is resolved anew, after the first local's statement is
-    // replayed.
-    s.edit("  return tally", "  return tally + 1");
+    // The function is resolved anew, after the colliding function's statement
+    // is replayed.
+    s.edit("  return tally() + 1", "  return tally() + 2");
     expect(s.resolver.passesLastResolve.cold).toBe(false);
     expect(s.resolver.passesLastResolve.replayed).toBeGreaterThan(0);
     expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
@@ -364,7 +367,7 @@ describe("a statement the resolver kept resolved", () => {
       "  Line two of TOP.",
       "end",
       "",
-      "scene MAIN",
+      "scene start",
       "  -> MISSING",
       "end",
       "",
@@ -395,7 +398,7 @@ describe("a constant", () => {
     ]).flat(),
     "const B = A + 1",
     "",
-    "scene MAIN",
+    "scene start",
     "  Line {B}.",
     "end",
     "",
@@ -462,7 +465,7 @@ describe("a statement resolved anew", () => {
     const text = [
       "local table = { value = 1 }",
       "",
-      "scene MAIN",
+      "scene start",
       "  local table = { value = 2 }",
       ...filler,
       "  Value {table.value}.",
@@ -499,7 +502,7 @@ describe("a statement resolved anew", () => {
     const beats = (from: number) =>
       Array.from({ length: 30 }, (_, i) => [`  Beat ${from + i}.`, ""]).flat();
     const text = [
-      "scene MAIN",
+      "scene start",
       ...beats(0),
       "  local table = { value = 1 }",
       "",
@@ -528,7 +531,7 @@ describe("a statement resolved anew", () => {
     // report (`Divert.hasAuthoredBinding`), from every assignment of the
     // story (`Story.globalAssignmentNames`).
     const text = [
-      "scene MAIN",
+      "scene start",
       "  Line.",
       ...filler,
       "  -> game",
@@ -570,7 +573,7 @@ describe("a statement resolved anew", () => {
   // it writes the global, decided when its statement is shaped
   // (`ProgramResolver.decideWrites`), so the call reads only the name.
   const rebound = [
-    "scene MAIN",
+    "scene start",
     "  Line.",
     ...filler,
     "  f is {f()}.",
@@ -617,7 +620,7 @@ describe("a statement resolved anew", () => {
     // statements, and `x` is not, so the edited assignment writes a local
     // where it names `y` and the global where it names `x`.
     const text = [
-      "scene MAIN",
+      "scene start",
       "  local y = 0",
       ...filler,
       "  & x = 1",
@@ -668,7 +671,7 @@ describe("a statement resolved anew", () => {
 
 describe("a naming collision", () => {
   const text = [
-    "scene MAIN",
+    "scene start",
     "  -> TARGET",
     "end",
     "",
@@ -684,7 +687,7 @@ describe("a naming collision", () => {
   it("is found through the symbol table, keeps both places, and clears when the declaration goes", () => {
     const s = session({ [MAIN_URI]: text });
     expect(collisions(s.program)).toEqual([]);
-    s.edit("scene MAIN", "store TARGET = 1\nscene MAIN");
+    s.edit("scene start", "store TARGET = 1\nscene start");
     const reported = collisions(s.program);
     expect(reported).toHaveLength(1);
     // The diagnostic stands at the scene's name and names the declaration's
