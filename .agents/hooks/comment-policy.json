@@ -19,8 +19,8 @@
     { "form": "\\bSPDX-(?:License-Identifier|FileCopyrightText):\\s*\\S" },
     { "form": "\\bCopyright\\s*(?:\\([cC]\\)|©)" },
     { "form": "\\bCopyright\\s+\\d{4}" },
-    { "form": "^(?:Copyright|©)\\s+[A-Z]" },
-    { "form": "©\\s*(?:\\d{4}|[A-Z])" },
+    { "form": "^(?:Copyright|©)(?:\\s*\\([cC]\\))?\\s+(?:(?:[A-Z][\\w.&'-]*|[\\w-]+(?:\\.[\\w-]+)+|<[^<>\\s]+>|\\([^()]*\\)|and|the|of|its|contributors|authors|,)\\s*)+(?:\\.\\s*All\\s+rights\\s+reserved\\.?|\\.)?$" },
+    { "form": "©\\s*\\d{4}" },
     { "form": "\\bThis\\s+Source\\s+Code\\s+Form\\s+is\\s+subject\\s+to\\s+the\\s+terms\\s+of\\s+the\\s+Mozilla\\s+Public\\s+License\\b" },
     { "form": "\\b(?:[Rr]eleased|[Ll]icen[cs]ed|[Dd]istributed|[Cc]overed|[Aa]vailable|[Pp]rovided)\\s+(?:under|by)\\s+(?:the\\s+)?(?:terms\\s+of\\s+(?:the\\s+)?)?(?:MIT|MPL|Mozilla\\s+Public|Apache|BSD|L?GPL|GNU|ISC|CC|Creative\\s+Commons)\\b" },
     { "form": "\\bunder\\s+the\\s+terms\\s+of\\s+the\\s+(?:MIT|Mozilla\\s+Public|Apache|BSD|GNU|ISC|Creative\\s+Commons)\\b" },
@@ -42,7 +42,8 @@
     { "form": "\\bThis\\s+program\\s+is\\s+distributed\\s+in\\s+the\\s+hope\\s+that\\s+it\\s+will\\s+be\\s+useful" },
     { "form": "\\bYou\\s+should\\s+have\\s+received\\s+a\\s+copy\\s+of\\s+the\\s+GNU" },
     { "form": "^<?https?://\\S*/licen[cs]es?/\\S*?>?$" },
-    { "form": "\\b[Ss]ee\\s+(?:the\\s+)?`?(LICEN[CS]E(?:[-.][\\w.-]*\\w)?)`?", "file": 1 }
+    { "form": "\\(see\\s+(?:the\\s+)?`?(LICEN[CS]E(?:[-.][\\w.-]*\\w)?)`?(?:\\s+file)?\\)", "file": 1 },
+    { "form": "(?:^|[.;:]\\s+)[Ss]ee\\s+(?:the\\s+)?`?(LICEN[CS]E(?:[-.][\\w.-]*\\w)?)`?(?:\\s+(?:file|for\\s+(?:details|the\\s+(?:full\\s+)?licen[cs]e(?:\\s+text)?|licen[cs]e\\s+terms)))?\\.?$", "file": 1 }
   ],
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [
