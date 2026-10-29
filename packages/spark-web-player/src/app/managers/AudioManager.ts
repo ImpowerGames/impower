@@ -17,11 +17,6 @@ import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils
 import { Manager } from "../Manager";
 
 export default class AudioManager extends Manager {
-  /**
-   * This audio context may not be allowed to run,
-   * but it can still be used for things like decoding and creating buffers
-   * or checking output latency
-   */
   protected _unsafeAudioContext?: AudioContext;
   protected get unsafeAudioContext() {
     if (!this._unsafeAudioContext) {
@@ -30,22 +25,12 @@ export default class AudioManager extends Manager {
     return this._unsafeAudioContext!;
   }
 
-  /** Keys of players built from synth data. A synth buffer is generated per
-   *  line with a tone suffix in its key, so nothing ever asks for it again:
-   *  its player is dropped as soon as its sound has ended, or every line
-   *  leaks one buffer. File-backed buffers live in the shared asset cache. */
   protected _synthKeys = new Set<string>();
 
   protected _audioMixers = new Map<string, AudioMixer>();
 
   protected _audioChannels = new Map<string, Map<string, AudioPlayer>>();
 
-  /**
-   * Measures what each mixer is actually outputting (#273). Audio is the one
-   * part of the engine that otherwise can only be checked by listening to it,
-   * which is how #268 -- every authored character voice silent -- went
-   * unnoticed. Started on demand; it costs nothing until someone asks.
-   */
   protected _audioProbe = new AudioProbe(() => this._audioMixers.entries());
   get audioProbe() {
     return this._audioProbe;
@@ -55,16 +40,6 @@ export default class AudioManager extends Manager {
     this.exposeAudioProbe();
   }
 
-  /**
-   * Publishes the probe as `window.__audioProbe()` (#273).
-   *
-   * Deliberately a plain global rather than something behind the debugging
-   * toggle: the whole point is that anyone -- a developer at a console, or an
-   * agent that cannot hear -- can ask "is this making a sound?" in one call,
-   * without first having to find and enable a setting. It starts the sampler
-   * on first use, so it costs nothing until asked.
-   */
-  /** The exact function this manager published, so it can tell its own apart. */
   protected _exposedProbe?: () => unknown;
 
   protected exposeAudioProbe(): void {
@@ -76,8 +51,6 @@ export default class AudioManager extends Manager {
         this._audioProbe.start();
       }
       return {
-        // Null means the game has no audio graph yet, which is a different
-        // problem from "the graph is silent" and worth telling apart.
         audioContext: this.app.audioContext ? this.app.audioContext.state : null,
         mixers: this._audioProbe.sample(),
       };
@@ -87,11 +60,6 @@ export default class AudioManager extends Manager {
 
   override onDispose() {
     this._audioProbe.stop();
-    // Only retract our own. The controller replaces the Application after a
-    // detach and for each PLAY, and an application a detach overtook while it
-    // was built is disposed of after its replacement has published its probe:
-    // deleting unconditionally would then wipe a live probe and leave
-    // `window.__audioProbe` undefined for the rest of the session.
     if (
       typeof window !== "undefined" &&
       (window as any).__audioProbe === this._exposedProbe
@@ -113,8 +81,6 @@ export default class AudioManager extends Manager {
   protected async loadAudioBuffer(
     params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
-    // An audio context can be used to decode and create buffers,
-    // even if it is not allowed to start running yet
     const audioContext = this.app.audioContext || this.unsafeAudioContext;
     if (params.src) {
       const response = await fetch(params.src);
@@ -133,9 +99,6 @@ export default class AudioManager extends Manager {
         synthBuffer.soundBuffer.length,
         audioContext.sampleRate,
       );
-      // `soundBuffer` is a bare `Float32Array` (TS 5.7+ widens this to
-      // `Float32Array<ArrayBufferLike>`), but `copyToChannel` wants the
-      // `<ArrayBuffer>` form; the runtime buffer is always a plain ArrayBuffer.
       audioBuffer.copyToChannel(
         synthBuffer.soundBuffer as Float32Array<ArrayBuffer>,
         0,
@@ -145,14 +108,10 @@ export default class AudioManager extends Manager {
     return audioContext.createBuffer(1, 1, audioContext.sampleRate);
   }
 
-  /** Decode (or synthesize) the buffer for these parameters. The asset cache
-   *  calls this to make audio resident ahead of need. */
   decodeAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
     return this.loadAudioBuffer(params);
   }
 
-  /** Keys of every player currently making sound: what the cache must keep
-   *  whatever else it evicts. */
   playingKeys(): string[] {
     const keys: string[] = [];
     for (const channel of this._audioChannels.values()) {
@@ -169,7 +128,6 @@ export default class AudioManager extends Manager {
     params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
     if (params.synth && params.tones) {
-      // Never cached; see `_synthKeys`.
       return this.loadAudioBuffer(params);
     }
     const cache = this.app.assets?.cache;
@@ -180,24 +138,14 @@ export default class AudioManager extends Manager {
     if (resident) {
       return resident;
     }
-    // Through the cache, so a buffer decoded for playback is the one a later
-    // preload finds resident, and the reverse. The player's own pin lasts
-    // only until the buffer is in hand; from then on "playing" keeps it.
     const pin = `play:${params.key}`;
     await cache.request([{ kind: "audio", params }], 0, pin);
     cache.release([pin], false);
     return cache.getAudio(params.key) ?? this.loadAudioBuffer(params);
   }
 
-  /** Each mixer's gain as the game last configured it, kept even when there
-   *  is no audio graph to apply it to yet, so a mixer created later starts
-   *  where the game put it. */
   protected _mixerGains = new Map<string, number>();
 
-  /** The mixer named `mixer`, created on first need: at the gain the game
-   *  configured for it, or else at `gain`, the gain its first sound brought
-   *  for it. Every mixer but `main` plays into `main`, which starts at its
-   *  own configured gain, never at the gain of the mixer that needed it. */
   protected getAudioMixer(
     mixer: string,
     gain?: number,
@@ -217,11 +165,6 @@ export default class AudioManager extends Manager {
         audioMixer.gain = initialGain;
       }
       this._audioMixers.set(mixer, audioMixer);
-      // Begin sampling as soon as there is an audio graph at all. Starting it
-      // lazily on the first `__audioProbe()` call would be too late to be
-      // useful: by the time anyone thinks to ask whether a line beeped, the
-      // beep is over, and `lastNonSilentAt` -- the field that exists to answer
-      // exactly that -- would still read null.
       this._audioProbe.start();
       return audioMixer;
     }
@@ -238,8 +181,6 @@ export default class AudioManager extends Manager {
     return audioChannel;
   }
 
-  /** Drop a synth player once its sound has ended: its buffer was generated
-   *  for this one line and nothing will ask for it again. */
   protected pruneWhenDone(channel: string, key: string, player: AudioPlayer) {
     if (!this._synthKeys.has(key)) {
       return;
@@ -272,8 +213,6 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
-    // The engine resolves which mixer the channel plays through and the gain
-    // it starts at, and sends both with the load.
     const mixerName = params.mixer || params.channel || "sound";
     const audioMixer = this.getAudioMixer(mixerName, params.mixerGain ?? 1);
     if (audioBuffer && this.app.audioContext) {
@@ -294,11 +233,6 @@ export default class AudioManager extends Manager {
     return undefined;
   }
 
-  /**
-   * Applies `update` `after` seconds past `startTime`. An update whose moment
-   * has already passed by `currentTime` happens at once, and a sound it starts
-   * starts that far in, so it stays in step with the rest of its beat.
-   */
   protected async updateAudioPlayer(
     audioPlayer: AudioPlayer,
     update: AudioPlayerUpdate,
@@ -313,10 +247,6 @@ export default class AudioManager extends Manager {
     const when = update.now ? due : audioPlayer.getNextCueTime(due);
     const over = update.over;
     const gain = update.to;
-    // A start that plays when it is due, rather than at a later cue, is that
-    // far into its sound. A looping player's cue rebuilds the due time from
-    // its own arithmetic, so "when it is due" allows a microsecond, far less
-    // than one sample.
     const playsWhenDue = when - due < 1e-6;
     const at =
       lateness > 0 && playsWhenDue ? (update.at ?? 0) + lateness : update.at;
@@ -337,26 +267,11 @@ export default class AudioManager extends Manager {
     }
   }
 
-  /** Movies asked to play through a mixer while there was no running audio
-   *  context, each with the mixer it plays through: routed when the context
-   *  starts running (`onAudioContextRunning`). */
   protected _waitingMovies = new Map<
     HTMLMediaElement,
     { mixer: string; mixerGain: number }
   >();
 
-  /**
-   * Sends a movie element's sound through `mixer`, creating the mixer at
-   * `mixerGain` when it is the first to need it, so the mixer's volume is the
-   * movie's. `muted` on the element still silences it. Without a running
-   * audio context the element plays its sound directly until the context
-   * starts running, which routes it.
-   *
-   * An element can have one media source for its whole life, and it can
-   * outlive this manager (a new run adopts the overlay it was on), so the
-   * source is kept on the element and the next manager reconnects it to its
-   * own mixer.
-   */
   connectMovie(video: HTMLMediaElement, mixer: string, mixerGain: number) {
     const audioContext = this.app.audioContext;
     if (!audioContext) {
@@ -372,8 +287,6 @@ export default class AudioManager extends Manager {
       | MediaElementAudioSourceNode
       | undefined;
     if (source && source.context !== audioContext) {
-      // Bound to a context this page no longer plays through; the element
-      // cannot get another source, so it keeps the one it has.
       return;
     }
     if (!source) {
@@ -388,15 +301,12 @@ export default class AudioManager extends Manager {
     (video as any).__sdAudioTarget = audioMixer.volumeNode;
   }
 
-  /** Takes a movie element's sound out of its mixer, as its layer leaves. */
   disconnectMovie(video: HTMLMediaElement) {
     this._waitingMovies.delete(video);
     ((video as any).__sdAudioSource as AudioNode | undefined)?.disconnect();
     delete (video as any).__sdAudioTarget;
   }
 
-  /** The application's audio context is running: the movies that began
-   *  playing before it was go through their mixers from now on. */
   onAudioContextRunning() {
     for (const [video, { mixer, mixerGain }] of this._waitingMovies) {
       if (video.isConnected) {
@@ -422,8 +332,6 @@ export default class AudioManager extends Manager {
   protected async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
     if (this.app.audioContext) {
       let currentTime = this.app.audioContext.currentTime;
-      // A beat's updates count from the beat's start time, which may already
-      // have passed; updates that follow a queue count from when it ends.
       let startTime =
         (params.time != null
           ? this.app.audioClock.toContextTime(params.time)
@@ -473,9 +381,6 @@ export default class AudioManager extends Manager {
                     instance.queueCreatedAt !== queueCreatedAt,
                 )
               ) {
-                // An instance was forcedly stopped, disposed, or interrupted by a new queue
-                // (instead of naturally finishing).
-                // So, skip the remaining queued updates
                 break;
               }
               currentTime = this.app.audioContext.currentTime;

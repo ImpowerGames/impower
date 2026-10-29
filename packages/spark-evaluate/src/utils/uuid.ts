@@ -1,10 +1,3 @@
-/*
- * uuid <https://github.com/lukeed/uuid>
- *
- * Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
- * Released under the MIT License.
- */
-
 let IDX = 256;
 const HEX: string[] = [];
 let BUFFER: number[];

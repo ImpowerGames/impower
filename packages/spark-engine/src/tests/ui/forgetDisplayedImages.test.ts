@@ -1,11 +1,3 @@
-// The interface module remembers which images are displayed so that restoring a
-// position can put the screen back. Nothing resets that record between preview
-// points — during a real run a backdrop is meant to outlive the beat that set
-// it — so a preview whose replay sets no backdrop inherited the previous one's.
-//
-// `forgetDisplayedImages` is what the editor calls before it connects a fresh
-// preview, so restore only re-applies what the new point genuinely has.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -34,13 +26,12 @@ scene start
 end
 `;
 
-/** Play the beat that puts the backdrop up. */
 async function withBackdropShowing() {
   const h = createHarness(SOURCE);
   await h.ready;
   h.jumpToFlow("start");
   const beat = h.nextBeat();
-  await h.display(beat!, /* instant */ true);
+  await h.display(beat!, true);
   await flushMicrotasks();
   return h;
 }
@@ -56,8 +47,6 @@ describe("forgetting displayed images", () => {
   });
 
   test("restore re-applies the recorded image", async () => {
-    // The control. Restore putting the screen back is the whole reason the
-    // record exists, and it must keep working for a checkpoint that has one.
     const h = await withBackdropShowing();
     const ui: any = h.game.module.ui;
     h.reset();

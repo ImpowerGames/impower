@@ -1,14 +1,3 @@
-// I-1595: the builtin style named after a story target (`style title`, which
-// sets `position = absolute` and centers its text) reaches the element the
-// story writes that target to, and not an author's element that only shares
-// the class. An author's `text.title "Inventory"` inside a column stays in the
-// column's flow. A container carrying the target's name as a class in a layout
-// that replaces `main` is the target's slot (#863, #1813) and keeps the style.
-//
-// jsdom has no cascade for nested rules, so these tests match the rendered
-// elements against the selector the stylesheet states each style under; the
-// rendered layout is checked in the browser.
-
 import { describe, expect, test } from "vitest";
 import {
   createDOMHarness,
@@ -28,7 +17,6 @@ const TARGETS = [
   "action",
 ];
 
-/** A top-level rule's body, up to its closing brace at column 0. */
 function ruleBody(css: string, selector: string): string | undefined {
   const start = css.indexOf(`spark-web-player #game ${selector} {\n`);
   if (start < 0) return undefined;
@@ -36,9 +24,6 @@ function ruleBody(css: string, selector: string): string | undefined {
   return css.slice(css.indexOf("{", start) + 1, end);
 }
 
-/** The selector the style of class `name` states its declarations under:
- *  the rule's one nested block, which holds every declaration, so nothing
- *  applies to an element by the class alone. */
 function styleSelector(css: string, name: string): string {
   const body = ruleBody(css, `.${name}`);
   expect(body, `no rule for .${name}`).toBeDefined();
@@ -101,7 +86,6 @@ end
       expect(authored, h.overlay.innerHTML).not.toBeNull();
       expect(authored!.matches(selector), authored!.outerHTML).toBe(false);
     }
-    // A container that only shares the class beside the builtin `title`.
     const row = h.overlay.querySelector<HTMLElement>(".panel > .row.title");
     expect(row, h.overlay.innerHTML).not.toBeNull();
     expect(row!.matches(styleSelector(css, "title"))).toBe(false);

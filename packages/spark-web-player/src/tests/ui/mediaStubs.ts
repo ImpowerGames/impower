@@ -1,8 +1,3 @@
-// Stand-ins for what jsdom lacks for the page's movies: media playback and
-// Web Audio.
-
-/** jsdom loads and plays no media: a stand-in that records what the page
- *  asked of each element, and keeps the state a browser would report. */
 export function stubMedia(overlay: HTMLElement) {
   const win = overlay.ownerDocument.defaultView as any;
   const proto = win.HTMLMediaElement.prototype;
@@ -22,8 +17,6 @@ export function stubMedia(overlay: HTMLElement) {
   define("paused", (el) => el.__paused ?? true);
   define("ended", (el) => el.__ended ?? false);
   define("duration", (el) => el.__duration ?? NaN);
-  // A browser keeps a position within the movie it knows: no earlier than
-  // its start, and no later than its duration once it has one.
   define(
     "currentTime",
     (el) => el.__time ?? 0,
@@ -52,8 +45,6 @@ export function stubMedia(overlay: HTMLElement) {
   };
 }
 
-/** An audio graph that records what is built and connected: jsdom has no
- *  Web Audio. */
 export function fakeAudioContext() {
   const node = (kind: string, extra: Record<string, unknown> = {}) => {
     const n: any = {
@@ -79,7 +70,6 @@ export function fakeAudioContext() {
     createAnalyser: () => node("analyser", { fftSize: 0 }),
     createMediaElementSource: (mediaElement: HTMLMediaElement) => {
       if (sources.some((s) => s.mediaElement === mediaElement)) {
-        // As a browser does: an element has one source for its whole life.
         throw new Error("InvalidStateError: already connected");
       }
       const source = node("media", { mediaElement, context });

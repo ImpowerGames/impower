@@ -1,15 +1,3 @@
-// #654: the define tables a Game reads (character, config, animation, …) are
-// converted out of the story's runtime `__def` tables every time a program
-// arrives, which cost 14 to 20 ms in the worker's game and 12 to 16 ms again on
-// the page for a project the size of Raffles and Bunny — on every keystroke,
-// for an edit that changed no definition.
-//
-// A program carries the revision of the context it was compiled with, and the
-// revision is keyed by every declaration a define's value can be computed from.
-// A Game handed a program whose revision it already holds therefore keeps the
-// tables it has. An edit that does change a definition moves the revision, and
-// the new value has to reach the game's context.
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -138,7 +126,6 @@ describe("a game receiving a program with an unchanged context (#654)", () => {
 
     quiet(() => game.updateProgram(second));
     expect(builds(game)).toBe(buildsAfterConstruction);
-    // The same tables, not merely equal ones.
     expect((game.context as Record<string, unknown>)["character"]).toBe(
       tablesBefore,
     );
@@ -164,17 +151,6 @@ describe("a game receiving a program with an unchanged context (#654)", () => {
   });
 
   it("rebuilds them when a global a define reads is edited, not the define", () => {
-    // A define's property can be a reference to a global, and the compile-time
-    // context stores the reference rather than the value while the runtime
-    // table carries what it resolved to. Editing only the global leaves the
-    // define's own chunk untouched, so the context revision is keyed by the
-    // chunks that DECLARE globals, constants, structs, externals and lists as
-    // well as the ones that contribute context. Without that half of the key
-    // the game would keep serving the old value.
-    //
-    // A property computed by CALLING a function cannot reach the runtime this
-    // way: the compiler refuses a define value that is not a number, string,
-    // boolean or reference, so there is no third route into the table.
     const source = `store base_speed = 5
 
 define pace as config with
@@ -203,10 +179,6 @@ end
   });
 
   it("never mistakes another compiler's first program for the one it holds", () => {
-    // Each compiler stamps its revisions with an ordinal of its own, so a game
-    // handed a program built by a second compiler rebuilds. Without that, two
-    // producers would both call their first context revision the same thing,
-    // and a define removed between them would keep rendering its old value.
     const first = compile(makeCompiler(SOURCE));
     const game = quiet(() => makeGame(first));
     const buildsAfterConstruction = builds(game);
@@ -218,9 +190,6 @@ end
 
     quiet(() => game.updateProgram(second));
     expect(builds(game)).toBe(buildsAfterConstruction + 1);
-    // A character defined without a `name` inherits the type default's empty
-    // string, which is what the interpreter reads as "no name" and replaces
-    // with the cue. Keeping the first program's tables would leave "Hero".
     expect((game.context as any)["character"]?.["hero"]?.["name"]).toBe("");
   });
 });

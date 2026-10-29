@@ -1,6 +1,3 @@
-// A route to a `fin`, which lowers to an `End` that forgets where the story
-// stood as it ends it (I-1606). The route's last step is the `End` itself,
-// and no route reaches an address the story never runs.
 import { describe, expect, it } from "vitest";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { Game } from "../../game/core/classes/Game";

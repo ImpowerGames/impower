@@ -1,7 +1,3 @@
-// A program compiled to statement chunks runs to its end through a game built
-// as the player's worker builds one (#694): the compiler configured as the
-// worker configures it, and a game given the compile's program with the
-// worker's checkpoint settings, which runs it on the program engine.
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -25,8 +21,6 @@ const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** The program of a compile configured as the player's worker configures its
- *  compiler. */
 function compile(texts: Record<string, string>) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -37,7 +31,6 @@ function compile(texts: Record<string, string>) {
   return { program };
 }
 
-/** A game given a compile's program with the worker's checkpoint settings. */
 function createGame(
   program: SparkProgram,
   startFrom: { file: string; line: number },
@@ -56,10 +49,6 @@ function createGame(
   } as never);
 }
 
-/** Runs a game from `startFrom` until it reports that it finished, taking the
- *  first choice wherever one is offered, and returns every beat it flushed and
- *  every runtime error and warning it reported, with its type. `each` runs
- *  after every turn. */
 function play(
   program: SparkProgram,
   startFrom: { file: string; line: number },
@@ -68,7 +57,6 @@ function play(
   return playGame(createGame(program, startFrom), each);
 }
 
-/** Runs `game` as `play` runs the game it builds. */
 function playGame(game: Game, each?: (game: Game) => void) {
   let finished = false;
   const errors: string[] = [];
@@ -107,8 +95,6 @@ function playGame(game: Game, each?: (game: Game) => void) {
   return { flushed, errors, finished, engine: game.story, game };
 }
 
-/** What each flushed beat shows: per target, the text it shows, which the
- *  game shows one character at a time. */
 const shown = (flushed: any[]) =>
   flushed.map((beat) =>
     Object.fromEntries(
@@ -119,8 +105,6 @@ const shown = (flushed: any[]) =>
     ),
   );
 
-/** The warning a line that begins with `..` raises when the line shown
- *  before it does not end with `..`. */
 const UNJOINED =
   "2: This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
@@ -162,7 +146,6 @@ describe("a game that runs statement chunks", () => {
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     expect(chunks.finished).toBe(true);
     expect(chunks.flushed.length).toBeGreaterThan(3);
-    // A break after `..` waits on the beat so far and then extends it.
     expect(shown(chunks.flushed)).toEqual([
       { action: "You see a red door." },
       { character_name: "HERO", dialogue: "Wait right there." },
@@ -173,8 +156,6 @@ describe("a game that runs statement chunks", () => {
     ]);
   });
 
-  // The worker hands its game each preview compile's program with
-  // `updateProgram`, as it hands it a real compile's.
   it("runs a preview compile's program", () => {
     const text = [
       "scene MAIN",
@@ -223,15 +204,12 @@ describe("a game that runs statement chunks", () => {
       game.clickedToContinue();
     }
     expect(game.story).toBeInstanceOf(ProgramStory);
-    // The game shows a line one character at a time.
     const dialogue = flushed.map((beat) =>
       (beat.text?.dialogue ?? []).map((show: { text: string }) => show.text).join(""),
     );
     expect(dialogue).toContain("Two, and a half.");
   });
 
-  // The game runs the block on the program engine (#697), taking the first
-  // choice, and presents the caption with the choices.
   it("shows a `choose` block's caption", () => {
     const texts = {
       [MAIN]: [
@@ -256,8 +234,6 @@ describe("a game that runs statement chunks", () => {
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     expect(chunks.finished).toBe(true);
     expect(chunks.flushed.some((f) => f.choices?.length)).toBe(true);
-    // The caption shows with the choices; the first choice runs on to the
-    // line after the block.
     expect(shown(chunks.flushed)).toEqual([
       { action: "Before the choice." },
       { action: "What now?", "choice 0": "Go", "choice 1": "Stay" },
@@ -266,9 +242,6 @@ describe("a game that runs statement chunks", () => {
     ]);
   });
 
-  // A block with no caption: the continue after the beat before the block
-  // returns only the choices (binary-program.md sections 4 and 7), and the
-  // game still presents the menu instead of finishing (#1624).
   it("shows a `choose` block with no caption", () => {
     const texts = {
       [MAIN]: [
@@ -291,7 +264,6 @@ describe("a game that runs statement chunks", () => {
     expect(chunks.engine).toBeInstanceOf(ProgramStory);
     expect(chunks.finished).toBe(true);
     expect(chunks.flushed.some((f) => f.choices?.length === 2)).toBe(true);
-    // The menu shows alone, and the choice taken shows its text.
     expect(shown(chunks.flushed)).toEqual([
       { action: "Start." },
       { action: "Second." },
@@ -302,16 +274,7 @@ describe("a game that runs statement chunks", () => {
   });
 });
 
-// A line can hold several beats (a `>` break). Tags written after a line's
-// text are part of its display statement, so they start no beat of their own
-// (#1710). PLAY from a line starts at its first beat and a preview of it at
-// its last (`Game.setStartFrom`).
 describe("a game started at a line", () => {
-  // Each case's script, the line it starts at, the beats PLAY from the line
-  // shows with the errors it reports, and the text of the beats from the
-  // line's first beat and from its last. PLAY from a continuation's line
-  // shows the continuation alone, which the line before it does not join
-  // since it was never shown.
   const LINES: [
     name: string,
     text: string,
@@ -367,7 +330,6 @@ describe("a game started at a line", () => {
       it(`starts at the ${beat} beat of ${name}`, () => {
         const { program } = compile({ [MAIN]: text });
         const game = createGame(program, { file: MAIN, line });
-        // The beat's address on the program engine: a number.
         const address = game.locator.addressAt(MAIN, line, { beat });
         expect(typeof address).toBe("number");
         const engine = game.story as unknown as ProgramStory;
@@ -380,9 +342,6 @@ describe("a game started at a line", () => {
   }
 });
 
-// A construct the program cannot compile (an `external` declaration, which
-// the writer has no emit path for) is an error at its statement, and the
-// compile makes no chunks, which a game refuses to run.
 describe("a compile that holds a construct the program cannot compile", () => {
   it("reports it at its statement's line and makes no chunks", () => {
     const text = "scene MAIN\n  One.\n  Two.\nend\nexternal message(x)\n";
@@ -407,8 +366,6 @@ describe("a compile that holds a construct the program cannot compile", () => {
 });
 
 describe("a game's save", () => {
-  // After its last beat a flow rests past its last statement, which a save
-  // names by the flow's sequence.
   it("loads at every beat, the last included", () => {
     const texts = { [MAIN]: "scene MAIN\n  One.\n  Two. > Three.\n  Four.\nend\n" };
     const startFrom = { file: MAIN, line: 1 };
@@ -424,10 +381,6 @@ describe("a game's save", () => {
   });
 });
 
-// Round 3 of the review of #1618 (report 6028696744): an error ends the
-// story, which forgets where it stood before the error is reported, so a
-// search stopped by an error on the program engine placed it at the top of
-// the main script.
 describe("an error that stops a route search on the program engine", () => {
   it("is placed at the statement that raised it, in the script that holds it", () => {
     const CHAPTER = "file:///local/chapter.sd";
@@ -452,7 +405,6 @@ describe("an error that stops a route search on the program engine", () => {
     });
     game.setStartFrom({ file: CHAPTER, line: lines.indexOf("  Target.") });
     game.simulate();
-    // No route: the error ends the story before the target.
     expect(game.simulationFailure).toBeDefined();
     const errors = game.routeErrors;
     expect(errors.map((e) => e.message.includes("boom"))).toContain(true);

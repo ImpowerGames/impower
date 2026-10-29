@@ -1,8 +1,3 @@
-// PLAY and the preview at the `end` that closes a scene or branch with more
-// script below it (I-1618). The `end` belongs to the flow it closes, so the
-// game starts on the beat on screen when that flow finishes, not on the first
-// beat of the flow below it. An empty scene's or branch's header and `end`
-// show the story as it stands when a run enters that flow.
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
@@ -16,8 +11,6 @@ scene other
 end
 `;
 
-// The scene runs to its own `done`; nothing enters the branch written
-// inside it.
 const SCENE_WITH_BRANCH = `scene start
   Main.
   done
@@ -31,8 +24,6 @@ scene other
 end
 `;
 
-// Entering the scene enters its first branch, which ends on "First."; nothing
-// enters the second.
 const BRANCHES_ONLY = `scene start
   branch first
     First.
@@ -48,8 +39,6 @@ scene other
 end
 `;
 
-// The scene binds its parameter and enters its first branch, which ends on
-// "First."; nothing enters the second.
 const PARAMETER_SCENE_BRANCHES = `-> start(7)
 scene start(a)
   branch first
@@ -66,8 +55,6 @@ scene other
 end
 `;
 
-// An empty parameter list takes no parameters, so the scene enters its first
-// branch.
 const EMPTY_PARAMETER_LIST = `-> start
 scene start
   branch first()
@@ -85,20 +72,13 @@ end
 `;
 
 const CASES = [
-  // The flow below shows "Other.".
   ["a scene's end", SCENES, 3, "First.", ["Other."]],
-  // The branch inside the scene shows "Unused.".
   ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."]],
-  // The scene runs nothing of its own before the branch it enters.
   ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
   ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 10, "First.", ["Unused.", "Other."]],
   ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 10, "First.", ["Unused.", "Other."]],
   ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 10, "First.", ["Unused.", "Other."]],
-  // The line above is the divert the branch leaves by, which shows the beat
-  // it leads to; the branch below shows "Visit 2 t.".
   ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],
-  // No run reaches the `done` above, whose jumped run shows "Never shown.";
-  // the branch below shows "Leave 4.".
   ["the end of a branch below a done no run reaches", BRANCHES, 22, "Never shown.", ["Leave"]],
 ] as const;
 
@@ -149,7 +129,6 @@ const EMPTY_BRANCH = `scene start
 end
 `;
 
-// The story's run shows "First." and then enters the empty scene.
 const EMPTY_AFTER_BEAT = `-> start
 scene start
   First.
@@ -171,8 +150,6 @@ const EMPTY_CASES = [
 ] as const;
 
 describe("PLAY and the preview at an empty scene or branch", () => {
-  // No run displays a beat before these flows, so PLAY starts and ends
-  // without showing one.
   it.each(EMPTY_CASES)(
     "PLAY from %s starts and ends without the flow below",
     async (_name, source, line) => {
@@ -212,8 +189,6 @@ describe("PLAY and the preview at an empty scene or branch", () => {
   );
 });
 
-// The scene's only branch takes a parameter, so entering the scene enters no
-// branch: the scene ends at once.
 const UNENTERED_BRANCH = `-> start
 scene start
   branch needs(a)
@@ -226,7 +201,6 @@ scene other
 end
 `;
 
-// The same scene, entered after the story displayed "Before.".
 const UNENTERED_AFTER_BEAT = `-> pre
 scene pre
   Before.
@@ -243,8 +217,6 @@ scene other
 end
 `;
 
-// A scene at the end of the script whose branches a divert runs; no run
-// reaches the scene's own end.
 const BRANCHES_DIVERTED_AT_END = `-> outer.inner(1)
 scene outer
   branch inner(a)
@@ -314,12 +286,10 @@ describe("the preview after the end of a scene whose branches it does not enter"
       await h.select(10);
       await settle(40);
       expect(writtenText(h.toRouter)).toContain("Before.");
-      // A line no address stands for keeps the point previewed.
       const before = h.toRouter.length;
       await h.select(0, empty);
       await settle(40);
       expect(writtenText(h.toRouter.slice(before))).not.toContain("Other.");
-      // The next beat selected is previewed, not taken for the point kept.
       const kept = h.toRouter.length;
       await h.select(12);
       await settle(40);
@@ -330,7 +300,6 @@ describe("the preview after the end of a scene whose branches it does not enter"
   }, 120_000);
 });
 
-// The flow runs off its end past a conditional that shows nothing.
 const AFTER_CONDITIONAL = `-> start
 scene start
   First.
@@ -343,7 +312,6 @@ scene other
 end
 `;
 
-// The same in a branch, which a divert enters.
 const BRANCH_AFTER_CONDITIONAL = `-> start.inner
 scene start
   branch inner
@@ -358,7 +326,6 @@ scene start
 end
 `;
 
-// The conditional's beat shows, so it is the beat on screen at the end.
 const AFTER_TRUE_CONDITIONAL = `-> start
 scene start
   First.
@@ -371,7 +338,6 @@ scene other
 end
 `;
 
-// The same flow at the end of the script.
 const AFTER_CONDITIONAL_AT_END = `-> start
 scene start
   First.
@@ -381,8 +347,6 @@ scene start
 end
 `;
 
-// The flow's last statement is a thread, whose original runs off the end
-// once the fork is done.
 const AFTER_THREAD = `-> start
 scene start
   First.

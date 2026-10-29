@@ -1,9 +1,3 @@
-// A route search from the top keeps what its level zero built, and the next
-// search starts there while the edit since left every chunk that level zero
-// ran as it was (#1636). A scrub of a line in a skipped branch after a long
-// loop then does not run the loop again, and finds the route a search from
-// the top finds; an edit to a statement level zero ran makes the next search
-// run level zero again.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
@@ -17,8 +11,6 @@ import { searchRouteTo } from "../main/workers/searchRouteTo";
 
 const URI = "inmemory:///main.sd";
 
-// Level zero runs both loops and skips the branch; the lines in the branch
-// need its verdict forced, after the first loop has run every pass.
 const SOURCE = [
   "store flag = false",
   "store total = 0",
@@ -87,12 +79,10 @@ function gameOf(program: unknown) {
   } as never);
 }
 
-/** `lines` with the line holding `label` replaced by `text`. */
 function edited(lines: string[], label: string, text: string) {
   return lines.map((l) => (l.includes(label) ? text : l));
 }
 
-/** Replace the line holding `label` in the compiler's document. */
 function editLine(compiler: SparkdownCompiler, label: string, text: string) {
   const line = SOURCE.findIndex((l) => l.includes(label));
   compiler.updateDocument({
@@ -109,7 +99,6 @@ function editLine(compiler: SparkdownCompiler, label: string, text: string) {
   } as never);
 }
 
-/** The story steps each route search ran, and whether each resumed. */
 function watchSearches() {
   const searches: { steps: number; resumed: boolean }[] = [];
   const planRoute = Game.planRoute.bind(Game);
@@ -141,7 +130,6 @@ function scrub(game: Game, lines: string[], label: string) {
   };
 }
 
-/** A search from the top of a game of its own on `program`. */
 function fresh(program: unknown, lines: string[], label: string) {
   return scrub(gameOf(program), lines, label);
 }
@@ -163,18 +151,12 @@ describe("a route search after an earlier one's level zero", () => {
 
     expect(reused).toEqual(fresh(program, after, "Inside second, edited"));
     expect(reused.total).toBe(500);
-    // Started where level zero stopped: neither loop ran again, where level
-    // zero runs both, every pass.
     expect(searches).toHaveLength(1);
     expect(searches[0]!.resumed).toBe(false);
     expect(searches[0]!.steps).toBeLessThan(3000);
   }, 120_000);
 
   test("runs level zero again after a statement is added after the last one a run ran", () => {
-    // Level zero ran the loop, skipped the branch and ended with the scene.
-    // A divert added before the scene's end runs it again, forever: a search
-    // from the top spends the budget and falls back, and so must a search
-    // after the edit (round 1 review of PR 2267).
     const lines = [
       "store flag = false",
       "store total = 0",
@@ -216,10 +198,6 @@ describe("a route search after an earlier one's level zero", () => {
   }, 120_000);
 
   test("runs level zero again after a statement is added to an empty body it entered", () => {
-    // Level zero entered the empty body of `if true` and ran nothing in it.
-    // A divert added there runs the scene again, forever; the compile emits
-    // the `if` statement, which level zero ran, again, so its work no longer
-    // holds (round 2 review of PR 2267).
     const lines = [
       "store flag = false",
       "store total = 0",
@@ -277,7 +255,6 @@ describe("a route search after an earlier one's level zero", () => {
     vi.restoreAllMocks();
 
     expect(searched).toEqual(fresh(program, after, "Inside second"));
-    // Each search ran at least the second loop's 1,500 passes again.
     expect(searches.length).toBeGreaterThan(0);
     for (const search of searches) {
       expect(search.steps).toBeGreaterThan(3000);
@@ -285,9 +262,6 @@ describe("a route search after an earlier one's level zero", () => {
   }, 120_000);
 
   test("falls back as a search from the top does when the budget ended level zero", () => {
-    // The budget ends level zero inside the first loop, so every search
-    // falls back to origin/main's: the work kept says so, and a search that
-    // starts from it falls back at once.
     faithfulBudget.steps = 5_000;
     const program = compile(configure(SOURCE));
     const store = keepingStore();
@@ -320,13 +294,10 @@ describe("a route search after an earlier one's level zero", () => {
     const alone = plan(other, to("Inside second"));
     expect(second.route).toEqual(alone.route);
     expect(second.route?.fallback).toBe(true);
-    // The search that started from the work ran none of the 5,000 steps the
-    // search that follows the program spends before it falls back.
     expect(second.steps).toBeLessThan(alone.steps - 4_000);
   }, 120_000);
 });
 
-/** A store that keeps every work by key, as a game keeps its own. */
 function keepingStore() {
   const works = new Map<string, LevelZeroWork>();
   return {

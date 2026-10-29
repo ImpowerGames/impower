@@ -1,5 +1,3 @@
-// The preview point both preview paths resolve through, so the page's own
-// preview and the worker's display land on the same beat (#680, #758).
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -9,9 +7,6 @@ import { resolvePreviewPoint } from "./resolvePreviewPoint";
 
 const MAIN = "file:///local/main.sd";
 
-/** A program compiled from a script with a line of story on each of `lines`
- *  and nothing on any other line, so that each of those lines owns an
- *  address of its own and no other line does. */
 const programOf = (lines: number[]): SparkProgram => {
   const last = Math.max(0, ...lines);
   const text = Array.from({ length: last + 2 }, (_, line) =>
@@ -26,7 +21,6 @@ const programOf = (lines: number[]): SparkProgram => {
   return compiler.compile({ textDocument: { uri: MAIN } }).program;
 };
 
-/** The address line `line` of `program` owns, as the root resolves it. */
 const addressOf = (program: SparkProgram, line: number): ProgramAddress => {
   const address = programLocator(program).addressAt(MAIN, line, { beat: "last" });
   if (address == null) {
@@ -42,8 +36,6 @@ const gameAt = (
   state = "previewing",
 ) => ({ state, previewFrom, previewAddress, previewedAddress });
 
-// The root is read through the program's accessor, so a program it cannot
-// read would make every case below resolve to nothing.
 const PROGRAM = programOf([10, 20]);
 const AT_10 = addressOf(PROGRAM, 10);
 const AT_20 = addressOf(PROGRAM, 20);
@@ -82,13 +74,10 @@ describe("resolving the point a preview shows", () => {
     );
     expect(point.from).toEqual({ file: MAIN, line: 4 });
     expect(point.address).toBeUndefined();
-    // Nothing was ever previewed, so this is a first preview, not a repeat:
-    // the connect it runs is what reveals a UI-only project's layouts.
     expect(point.repeat).toBe(false);
   });
 
   it("resolves the remembered point again when the program changed", () => {
-    // The remembered line 10 now sits at a different address.
     const recompiled = programOf([5, 10, 20]);
     const moved = addressOf(recompiled, 10);
     expect(moved).not.toBe(AT_10);
@@ -104,18 +93,13 @@ describe("resolving the point a preview shows", () => {
   });
 
   it("keeps the old address when the recompiled program resolves the point to none", () => {
-    // Both the cursor and the remembered point sit past every address the
-    // new program has, so nothing resolves for either.
     const point = resolvePreviewPoint(
       PROGRAM,
       { file: MAIN, line: 950 },
       true,
       gameAt({ file: MAIN, line: 900 }, AT_20),
     );
-    // Nothing to mark, so the preview marks nothing…
     expect(point.address ?? null).toBeNull();
-    // …but the old address stays, for the simulate-from point and for
-    // telling a repeat from a first preview.
     expect(point.validAddress).toBe(AT_20);
   });
 

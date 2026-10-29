@@ -1,9 +1,3 @@
-// The worker displays the real document, and a suggestion it kept, from the
-// story compiled for each (#680), after later compiles have carried that
-// story's unchanged flows into their own. A display the worker has to route
-// afresh runs the kept story, so it has to run as that story: a call from an
-// unchanged scene reaches the function of the program being displayed, not
-// the one of the compile that came after it.
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
@@ -43,8 +37,6 @@ describe("a program the worker kept", () => {
       await h.select(FIRST);
       expect(shown(h.overlay).join(" ")).toContain("The bridge says the real greeting.");
 
-      // A suggestion changes the function; the scene that calls it is carried
-      // over into the suggestion's story unchanged.
       const at = TEXT.split("\n")[GREETING]!.indexOf("the real greeting");
       await h.suggest(
         [
@@ -60,8 +52,6 @@ describe("a program the worker kept", () => {
       );
       expect(shown(h.overlay).join(" ")).toContain("The bridge says the suggested greeting.");
 
-      // The real program at a line its route has not reached yet: the worker
-      // routes it afresh, in the story it kept for it.
       const { displayed } = await h.link.request(DisplayPreviewMessage.type, {
         program: programIdentity(real)!,
         file: MAIN_URI,

@@ -1,33 +1,3 @@
-// #386 — what the engine does with a line the story is part-way through when
-// it needs to rewind, reload, jump, or plan a route.
-//
-// The runtime refuses to replace story state while a line is still open, so
-// every one of those paths had to deal with the open line first, and each did
-// it by running the line to its end. That was always wasted work — they all
-// replace the story state immediately afterwards — and it could not be
-// declined: a story sitting in a loop that never completes a line never
-// finishes, so the call ran forever with no error raised and nothing to stop
-// it.
-//
-// That shape is reachable, not hypothetical, and by more than one door. The
-// route planner reaches it as a matter of course: it drives the story one step
-// at a time and stops on its own step budget, so it is mid-line whenever it
-// tidies up. The preview's recovery path reaches it too, running precisely
-// when execution was stopped part-way through a loop for running out of
-// budget.
-//
-// What must hold now:
-//   - letting go of an open line advances the story ZERO times, on every path
-//     that does it, so no story can make it take long, let alone forever;
-//   - the story is genuinely left replaceable, so the rewind the discard
-//     exists to enable actually happens;
-//   - ordinary content still resets and replays exactly as before.
-//
-// Every assertion counts story advances rather than elapsed time. A test for a
-// hang that waits on a clock reaches a different verdict on a busy machine;
-// counting advances makes "this used to run forever" fail in under a second,
-// the same way every time.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -56,10 +26,6 @@ function compileSrc(src: string) {
   return requireChunks(result.program);
 }
 
-/** A story that can always continue and never completes a line: two scenes
- *  that divert to each other and emit nothing. Every other guard in the engine
- *  counts completed lines or bounded stretches of execution, so this is the
- *  one shape that slips past them all. */
 const UNFINISHABLE_LINE = [
   "-> a",
   "",
@@ -73,7 +39,6 @@ const UNFINISHABLE_LINE = [
   "",
 ].join("\n");
 
-/** Ordinary content, for the cases that must be unaffected. */
 const ORDINARY = [
   "-> start",
   "",
@@ -98,19 +63,10 @@ const newGame = (program: unknown, executionStepLimit?: number) =>
 
 interface Probe {
   game: Game;
-  /** Runtime errors the engine reported to its host. */
   errors: string[];
-  /** Story advances taken so far — the thing that used to be unbounded. */
   advances(): number;
-  /** Throw instead of running forever, so an unbounded path FAILS this test
-   *  rather than hanging the suite. */
   capAdvances(extra: number): void;
-  /** True while a line is open: the state that forces the discard to happen. */
   midLine(): boolean;
-  /** How many times the engine let go of an open line, and how many story
-   *  advances it spent doing so. Recorded at the engine's own seam so that a
-   *  path which stopped calling it — by going back to a bare `Continue()`, say
-   *  — reads as zero discards rather than as zero cost. */
   discards(): { count: number; advancesSpent: number };
 }
 
@@ -163,25 +119,17 @@ const probe = (game: Game): Probe => {
   };
 };
 
-/** Reproduce the ticket's starting position: run the unfinishable story until
- *  the execution budget stops it, which leaves a line open part-way through. */
 const stoppedMidUnfinishableLine = () => {
   const program = compileSrc(UNFINISHABLE_LINE);
-  // Small only so the setup is quick; the shipped ceiling reaches the same
-  // state, several seconds later.
   const p = probe(newGame(program, 5_000));
   p.game.start();
 
-  // The precondition the rest of the file depends on.
   expect(p.errors.join("\n")).toContain("possible infinite loop");
   expect(p.midLine()).toBe(true);
   p.errors.length = 0;
   return p;
 };
 
-/** What a reset costs when there is no open line to deal with: re-declaring the
- *  story's globals, and nothing else. Any advance beyond this is the discard
- *  running the story, which is the thing that must not happen. */
 const resetCostWithNothingOpen = () => {
   const p = probe(newGame(compileSrc(UNFINISHABLE_LINE), 5_000));
   const before = p.advances();
@@ -190,18 +138,12 @@ const resetCostWithNothingOpen = () => {
   return p.advances() - before;
 };
 
-/** The assertion every path shares: the engine really did let go of the open
- *  line, and doing so ran the story not at all. A bounded-but-nonzero flush
- *  fails this just as an unbounded one does. */
 const expectDiscardedForFree = (p: Probe) => {
   const { count, advancesSpent } = p.discards();
   expect(count).toBeGreaterThan(0);
   expect(advancesSpent).toBe(0);
 };
 
-/** Drive an ordinary story one advance at a time — the same unit the engine's
- *  own step loop uses — and stop on the first step that leaves a line open,
- *  so the line has the steps it ran to lose. */
 const driveToOpenLine = () => {
   const p = probe(newGame(compileSrc(ORDINARY)));
   const story: any = p.game.story;
@@ -221,13 +163,9 @@ describe("letting go of a line the story cannot finish", () => {
 
     const p = stoppedMidUnfinishableLine();
     const before = p.advances();
-    // Generous next to the baseline, nowhere near forever. The version that
-    // finished the line blows straight through this.
     p.capAdvances(baseline + 100_000);
     p.game.reset();
 
-    // The point of the change, stated exactly: an open line costs the same as
-    // no open line, because it is discarded rather than run.
     expect(p.advances() - before).toBe(baseline);
     expectDiscardedForFree(p);
   }, 300_000);
@@ -236,9 +174,6 @@ describe("letting go of a line the story cannot finish", () => {
     const p = stoppedMidUnfinishableLine();
     p.capAdvances(200_000);
 
-    // `Story.ResetState` throws outright if a line is still open, so a discard
-    // that failed to close the continue would surface here rather than as a
-    // quietly skipped rewind.
     expect(() => p.game.reset()).not.toThrow();
     expect(p.midLine()).toBe(false);
   }, 300_000);
@@ -251,15 +186,11 @@ describe("letting go of a line the story cannot finish", () => {
 
     expect(() => p.game.jumpToFlow("a")).not.toThrow();
     expect(p.midLine()).toBe(false);
-    // A jump re-declares globals like a reset does, and does nothing else.
     expect(p.advances() - before).toBe(baseline);
     expectDiscardedForFree(p);
   }, 300_000);
 
   test("loading a save lets go of the line the same way", () => {
-    // `load` carries the same discard and is reached by the editor's own
-    // checkpoint restore, so it needs its own coverage: with only `rewindStory`
-    // and `jumpTo` converted, everything else in this file still passes.
     const save = newGame(compileSrc(UNFINISHABLE_LINE), 5_000).save();
     const p = stoppedMidUnfinishableLine();
     p.capAdvances(200_000);
@@ -270,11 +201,6 @@ describe("letting go of a line the story cannot finish", () => {
   }, 300_000);
 
   test("a save that cannot be read leaves the open line alone", () => {
-    // Letting go of a line cannot be undone, so it must not happen until the
-    // save is known to carry a story to put in its place. Discarding first and
-    // then failing to load leaves the line torn in half with no replacement:
-    // the next continue resumes from the middle of it, dropping the text and
-    // the `display()` table that decide how the beat is displayed.
     const p = driveToOpenLine();
     expect(p.midLine()).toBe(true);
 
@@ -285,9 +211,6 @@ describe("letting go of a line the story cannot finish", () => {
   }, 300_000);
 
   test("the STOP-to-PLAY restart lets go of the line the same way", () => {
-    // The path the ticket names first. Pressing play after stop re-enters
-    // `start`, and when the preceding simulation failed that takes the arm
-    // which rewinds the story instead of resetting the modules.
     const p = stoppedMidUnfinishableLine();
     (p.game as any)._simulation = "fail";
     p.capAdvances(200_000);
@@ -297,15 +220,6 @@ describe("letting go of a line the story cannot finish", () => {
   }, 300_000);
 
   test("the preview's own recovery path no longer re-enters the loop", async () => {
-    // The combination the ticket calls out, driven end to end through the real
-    // entry point rather than by calling the rewind directly.
-    //
-    // Previewing a line whose route simulation failed recovers by rewinding
-    // the story and replaying from the preview point. Preview one line and
-    // that replay runs out of execution budget, which leaves the story
-    // part-way through a line. Preview a second line and the recovery rewinds
-    // THAT story — re-entering the very loop that had just been declared a
-    // runaway, with nothing counting it.
     const p = probe(newGame(compileSrc(UNFINISHABLE_LINE), 5_000));
 
     (p.game as any)._simulation = "fail";
@@ -317,21 +231,12 @@ describe("letting go of a line the story cannot finish", () => {
     p.capAdvances(200_000);
     expect(await p.game.preview(URI, 2)).toBeTruthy();
 
-    // The replay this preview performs still costs what it costs. What must
-    // not happen is any advance inside the discard in front of it — which is
-    // exactly what a re-bounded flush, rather than a removed one, would spend.
     expectDiscardedForFree(p);
   }, 300_000);
 });
 
 describe("the route planner lets go of an open line too", () => {
   test("planning a route returns instead of running forever", () => {
-    // The planner tidies the story up at the end of every search and before
-    // every start node, and it is mid-line as a matter of course: it drives
-    // the story one step at a time and stops on its own step budget. So it
-    // carried the same unbounded flush, and reached it FIRST — the editor
-    // plans a route on every cursor move, well before any of the engine's
-    // recovery paths could run.
     const program = compileSrc(UNFINISHABLE_LINE);
     const game = newGame(program);
     const anyGame = game as any;
@@ -368,10 +273,6 @@ describe("the route planner lets go of an open line too", () => {
 
 describe("letting go of an ordinary open line", () => {
   test("loading a save lets go of it", () => {
-    // Load replaces the state outright and runs no continue of its own, so
-    // it is the path where a discard that left the continue open would show.
-    // The program engine's save load ends the line itself
-    // (`ProgramStory.loadSave`), and runs none of it.
     const save = newGame(compileSrc(ORDINARY)).save();
     const p = driveToOpenLine();
     p.capAdvances(200_000);
@@ -412,11 +313,6 @@ describe("letting go of an ordinary open line", () => {
 
 describe("a cancel is refused from inside a continue", () => {
   test("it throws rather than turning the running slice unbounded", () => {
-    // Clearing the flag while a continue's own loop is still on the stack
-    // disables the break that ends its slice, so the loop would run the line
-    // to its end — and the line that cannot end is exactly what this whole
-    // change exists to survive. Nothing in the engine does this today; the
-    // guard is what keeps it that way.
     const game = newGame(compileSrc(ORDINARY));
     const story: any = game.story;
     story.ChoosePathString("start");
@@ -424,7 +320,6 @@ describe("a cancel is refused from inside a continue", () => {
     let thrown: Error | null = null;
     const realStep = story.ContinueSingleStep.bind(story);
     story.ContinueSingleStep = () => {
-      // Inside the continue's own loop: _recursiveContinueCount is non-zero.
       if (!thrown) {
         try {
           story.CancelAsyncContinue();
@@ -451,9 +346,6 @@ describe("ordinary content is unaffected", () => {
   }, 300_000);
 
   test("a normal story replays its lines in order after a rewind", () => {
-    // Discarding an open line must not cost content on the paths that are not
-    // broken: after the rewind the story has to replay from the top, in order,
-    // exactly as it did the first time.
     const program = compileSrc(ORDINARY);
     const game = newGame(program);
     const story: any = game.story;

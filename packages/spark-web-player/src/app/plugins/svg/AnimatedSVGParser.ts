@@ -1,11 +1,3 @@
-/*
- * Based on pixijs SVGParser
- * <https://github.com/pixijs/pixijs/blob/dev/src/scene/graphics/shared/svg/SVGParser.ts>
- *
- * Copyright (c) 2013-2023 Mathew Groves, Chad Engler
- * Released under the MIT license.
- */
-
 import {
   FillGradient,
   type FillStyle,
@@ -27,38 +19,23 @@ import { parseSVGKeyTimesAttribute } from "./utils/parseSVGKeyTimesAttribute";
 import { parseSVGRepeatCountAttribute } from "./utils/parseSVGRepeatCountAttribute";
 import { parseSVGValuesAttribute } from "./utils/parseSVGValuesAttribute";
 
-/** Represents a session for SVG parsing. Contains the current state and resources needed during parsing. */
 export interface Session {
-  /** The graphics context to render to */
   context: GraphicsContext;
-  /** The current path being constructed */
   path: GraphicsPath;
-  /** Map of definitions by id */
   defs: Record<string, FillGradient>;
 }
 
 export interface AnimatedSVGParserOptions {
-  /** The time that animations should be displayed at */
   time?: number;
-  /** A fillStyle to apply to all shapes */
   fillStyle?: FillStyle;
-  /** A strokeStyle to apply to all shapes */
   strokeStyle?: StrokeStyle & { scale?: number };
 }
 
-/**
- * Parses an SVG element or string and renders it to a graphics context.
- * Handles both SVG strings and SVG DOM elements as input.
- * @param svg - The SVG content to parse, either as a string or element
- * @param graphicsContext - Optional graphics context to render to
- * @returns The graphics context with the SVG rendered into it
- */
 export function AnimatedSVGParser(
   svg: string | SVGElement | SVGSVGElement,
   graphicsContext: GraphicsContext,
   options?: AnimatedSVGParserOptions,
 ): GraphicsContext {
-  // Convert string input to SVG element
   if (typeof svg === "string") {
     const div = document.createElement("div");
 
@@ -66,17 +43,14 @@ export function AnimatedSVGParser(
     svg = div.querySelector("svg") as SVGElement;
   }
 
-  // Initialize parsing session
   const session: Session = {
     context: graphicsContext,
     defs: {},
     path: new GraphicsPath(),
   };
 
-  // Parse definitions (gradients, etc) first
   parseSVGDefinitions(svg, session);
 
-  // Process all child elements except defs
   const children = svg.children;
 
   const { fillStyle, strokeStyle } = parseSVGStyle(svg, session);
@@ -91,14 +65,6 @@ export function AnimatedSVGParser(
   return graphicsContext;
 }
 
-/**
- * Recursively renders SVG elements and their children.
- * Handles styling inheritance and different SVG shape types.
- * @param svg - The SVG element to render
- * @param session - The current parsing session
- * @param fillStyle - The inherited fill style
- * @param strokeStyle - The inherited stroke style
- */
 function renderChildren(
   svg: SVGElement,
   session: Session,
@@ -108,7 +74,6 @@ function renderChildren(
 ): void {
   const children = svg.children;
 
-  // Parse element's style and merge with inherited styles
   const { fillStyle: f1, strokeStyle: s1 } = parseSVGStyle(svg, session);
 
   if (f1 && fillStyle) {
@@ -139,12 +104,10 @@ function renderChildren(
     width: (strokeStyle.width ?? 0) * (options?.strokeStyle?.scale ?? 1),
   };
 
-  // Default to black fill if no filStyle specified
   if (!fillStyle) {
     fillStyle = { color: 0 };
   }
 
-  // Variables for shape attributes
   let x;
   let y;
   let x1;
@@ -163,7 +126,6 @@ function renderChildren(
   let width;
   let height;
 
-  // Handle different SVG element types
   switch (svg.nodeName.toLowerCase()) {
     case "animate":
       const attributeName = svg.getAttribute("attributeName");
@@ -195,11 +157,9 @@ function renderChildren(
         if (fillStyle) session.context.fill(fillStyle);
         if (strokeStyle) session.context.stroke(scaledStrokeStyle);
       } else {
-        // #if _DEBUG
         warn(
           `Animating ${attributeName} is not supported, your svg may render incorrectly`,
         );
-        // #endif
       }
       break;
 
@@ -207,11 +167,9 @@ function renderChildren(
       d = svg.getAttribute("d") as string;
       if (d != null) {
         if ((svg.getAttribute("fill-rule") as string) === "evenodd") {
-          // #if _DEBUG
           warn(
             "SVG Evenodd fill rule not supported, your svg may render incorrectly",
           );
-          // #endif
         }
 
         graphicsPath = new GraphicsPath(d, true);
@@ -289,19 +247,16 @@ function renderChildren(
       if (strokeStyle) session.context.stroke(scaledStrokeStyle);
       break;
 
-    // Group elements - just process children
     case "g":
     case "svg":
       break;
 
     default: {
-      // Log unsupported elements
       warn(`[SVG parser] <${svg.nodeName}> elements unsupported`);
       break;
     }
   }
 
-  // Recursively process child elements
   for (let i = 0; i < children.length; i++) {
     renderChildren(
       children[i] as SVGElement,

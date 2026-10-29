@@ -7,7 +7,6 @@ import type {
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 
-/** The kinds the route list's toggles show and hide. */
 export type RouteKind = "pinned" | "auto" | "forced" | "clipped";
 
 export const ROUTE_KINDS: readonly RouteKind[] = [
@@ -17,7 +16,6 @@ export const ROUTE_KINDS: readonly RouteKind[] = [
   "clipped",
 ];
 
-/** Which kinds the route list shows. */
 export type RouteToggles = Record<RouteKind, boolean>;
 
 export const DEFAULT_ROUTE_TOGGLES: RouteToggles = {
@@ -34,7 +32,6 @@ export const ROUTE_KIND_LABELS: Record<RouteKind, string> = {
   clipped: "Clipped",
 };
 
-/** Each toggle's hover: what its kind means, said once. */
 export const ROUTE_KIND_MEANINGS: Record<RouteKind, string> = {
   pinned: "Choices you pinned",
   auto: "Choices the preview made where you have no pin",
@@ -44,11 +41,8 @@ export const ROUTE_KIND_MEANINGS: Record<RouteKind, string> = {
     "Loops the preview left before the game would; the game runs them to the end",
 };
 
-/** The preview's route failing: why, and where it was to start and end. */
 export interface RouteFailure {
   message: string;
-  /** The scene the route was to start at the top of, or nothing for the
-   *  top-level content. */
   scene?: string;
   start?: DocumentLocation;
   target?: DocumentLocation;
@@ -64,13 +58,11 @@ export interface RouteViewState {
   lastRun?: number;
 }
 
-/** What the list says when the host does not save a change to the pins. */
 export const PIN_NOT_SAVED = "The pin was not saved.";
 
 export const LAST_RUN_CHANGED =
   "The script has changed where the last run chose, so its choices were not pinned.";
 
-/** The change to the pins the author asked for (`preview/changeRoutePins`). */
 export interface RoutePinChange {
   add?: RoutePin[];
   remove?: RoutePin[];
@@ -80,27 +72,21 @@ export interface RoutePinChange {
 const samePin = (a: RoutePin, b: RoutePin) =>
   a.uri === b.uri && a.line === b.line && a.offer === b.offer;
 
-/** The pin on `option` at its offer at the stop it was offered at. */
 export const pinOf = (option: PreviewRouteOption): RoutePin => ({
   uri: option.location.uri,
   line: option.location.range.start.line,
   offer: option.offer,
 });
 
-/** Whether a pin the host keeps is on `option` at its offer there. */
 export const isPinned = (pins: RoutePin[], option: PreviewRouteOption) =>
   pins.some((pin) => samePin(pin, pinOf(option)));
 
-/** The pins at a choice's stop the host keeps: one per option offered there
- *  that has one, and the pins of its menu's options it did not offer. */
 const pinsAtStop = (pins: RoutePin[], decision: PreviewRouteDecision) =>
   [
     ...(decision.options ?? []).map(pinOf),
     ...(decision.unofferedPins ?? []),
   ].filter((at) => pins.some((pin) => samePin(pin, at)));
 
-/** Pinning `option` at its stop: its pin, and every other pin at that stop
- *  removed. Pressing a pinned option unpins it. */
 export const pinChange = (
   pins: RoutePin[],
   decision: PreviewRouteDecision,
@@ -116,13 +102,11 @@ export const pinChange = (
   };
 };
 
-/** Unpinning a stop: every pin at it removed. */
 export const unpinChange = (
   pins: RoutePin[],
   decision: PreviewRouteDecision,
 ): RoutePinChange => ({ remove: pinsAtStop(pins, decision) });
 
-/** Whether a stop has a pin the host keeps. */
 export const stopIsPinned = (
   pins: RoutePin[],
   decision: PreviewRouteDecision,
@@ -148,8 +132,6 @@ export const lastRunChange = (
 export const lastRunText = (count: number): string =>
   `Pin the ${count} ${count === 1 ? "choice" : "choices"} from the last run`;
 
-/** The pins `change` leaves of `pins`, in the order the host would keep
- *  them, which the list shows until the host answers. */
 export const changedPins = (
   pins: RoutePin[],
   change: RoutePinChange,
@@ -167,7 +149,6 @@ export const changedPins = (
   return kept;
 };
 
-/** The sentence a choice's pin control says about its stop. */
 export const choiceSentence = (
   decision: PreviewRouteDecision,
   target: DocumentLocation,
@@ -182,15 +163,11 @@ export const choiceSentence = (
   return `No pin. The preview chose this option to reach line ${line}.`;
 };
 
-/** An unresolved pin as the list names it. */
 export const unresolvedPinText = (pin: RoutePin, nameOf: ScriptName) =>
   `Pin at line ${pin.line + 1} of ${nameOf(pin.uri)}: no option on this line`;
 
-/** How a host names a script in the route's text: its path, relative to the
- *  project and without its extension. */
 export type ScriptName = (uri: string) => string;
 
-/** The status icon the route button shows: the first that applies. */
 export type RouteIcon = "failure" | "forced" | "clipped" | "pinned" | null;
 
 export const routeIcon = (state: RouteViewState): RouteIcon => {
@@ -212,9 +189,6 @@ export const routeIcon = (state: RouteViewState): RouteIcon => {
 
 const lineOf = (location: DocumentLocation) => location.range.start.line + 1;
 
-/** Where a route starts and ends, as the button reads it: the scene, or the
- *  script for the top-level content, then the start's line and the
- *  target's, which names its script when that is not the start's. */
 const startAndEnd = (
   scene: string | undefined,
   start: DocumentLocation,
@@ -231,15 +205,11 @@ const startAndEnd = (
   };
 };
 
-/** The route button's label in its two parts: the name, which gives way
- *  when the button is narrow, and the bracket of lines, which stays. */
 export interface RouteLabel {
   name: string;
   lines: string;
 }
 
-/** The route button's label, `interrogation` and `(4 → 21)`, or nothing
- *  when there is no route to show. */
 export const routeLabelParts = (
   state: RouteViewState,
   nameOf: ScriptName,
@@ -266,7 +236,6 @@ export const routeLabelParts = (
   );
 };
 
-/** The route button's label as one line, `interrogation (4 → 21)`. */
 export const routeLabel = (
   state: RouteViewState,
   nameOf: ScriptName,
@@ -275,7 +244,6 @@ export const routeLabel = (
   return parts && `${parts.name} ${parts.lines}`;
 };
 
-/** The row naming where the run starts. */
 export const routeStartText = (route: PreviewRoute, nameOf: ScriptName) => {
   const line = lineOf(route.start.location);
   return route.start.scene
@@ -283,8 +251,6 @@ export const routeStartText = (route: PreviewRoute, nameOf: ScriptName) => {
     : `From the top of ${nameOf(route.start.location.uri)}, line ${line}, with every store at its first value`;
 };
 
-/** The route button's hover: the route in words, and why there is none
- *  when there is none. */
 export const routeTitle = (
   state: RouteViewState,
   nameOf: ScriptName,
@@ -316,7 +282,6 @@ export const routeTitle = (
   return `Route from ${from} to ${to}.${how} Show the route.`;
 };
 
-/** `1st`, `2nd`, `3rd`, `4th`, `11th`, `21st`... */
 export const ordinal = (n: number): string => {
   const tens = n % 100;
   const suffix =
@@ -332,7 +297,6 @@ export const ordinal = (n: number): string => {
   return `${n}${suffix}`;
 };
 
-/** An entry's text: what happened there, and nothing else. */
 export const decisionText = (decision: PreviewRouteDecision): string => {
   switch (decision.kind) {
     case "pinned":
@@ -352,7 +316,6 @@ export const decisionText = (decision: PreviewRouteDecision): string => {
   }
 };
 
-/** How many of the route's decisions are of each kind. */
 export const kindCounts = (
   route: PreviewRoute | undefined,
 ): Record<RouteKind, number> => {
@@ -368,8 +331,6 @@ export const kindCounts = (
   return counts;
 };
 
-/** Toggles read from what a host stored, each kind the stored value names
- *  as a boolean, and on otherwise. */
 export const routeTogglesFrom = (stored: unknown): RouteToggles => {
   const toggles = { ...DEFAULT_ROUTE_TOGGLES };
   if (stored && typeof stored === "object") {

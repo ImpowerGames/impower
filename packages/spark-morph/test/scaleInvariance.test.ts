@@ -24,16 +24,9 @@ import {
   upperOpen,
 } from "./fixtures";
 
-// Every tolerance is a fraction of the drawing's own size, so the same art
-// at a hundredth or a hundred times the scale (and far beyond) must produce
-// the same outcome: the same success or failure code, the same
-// correspondence, the same frames once scaled back, the same aperture
-// pairing. A tolerance that were still an absolute number of user units
-// would break one end of this range.
 const SCALES = [1e-9, 1e-6, 0.01, 1, 100, 1e6, 1e9];
 const UNIT = 3;
 
-/** A frame scaled back to unit scale and serialised at a fixed precision. */
 const normalized = (frame: Subpath[], k: number): string =>
   serializePathData(
     frame.map((s) => ({
@@ -70,7 +63,6 @@ describe("scale invariance", () => {
       });
       const outcomes = results.map((r) => r.outcome);
       expect(new Set(outcomes).size, outcomes.join(" | ")).toBe(1);
-      // The mid frame, scaled back to unit scale, is the same drawing.
       const mids = results.map((r) => r.mid);
       for (const mid of mids) expect(mid).toBe(mids[UNIT]);
     });
@@ -114,14 +106,9 @@ describe("scale invariance", () => {
   });
 
   test("a curve stays a curve and smoothing keeps its effect at a tiny scale", () => {
-    // Straightness is judged against the segment's own chord, so a curved
-    // lash segment at 1e-12 scale is still a curve and serialises as one.
     const tiny = loop(scaled(upperOpen, 1e-12));
     expect(tiny.every((s) => !isLine(s))).toBe(true);
     expect(serializePathData(parsePathData(scaled(upperOpen, 1e-12)))).toContain("C");
-    // Smoothing nearly smooth nodes moves handles identically at any scale.
-    // The top node of this ring has its outgoing handle nudged 5.7 degrees
-    // off collinear.
     const noisy = "M0,50 C0,20 30,0 50,0 C70,2 100,20 100,50 C100,80 70,100 50,100 C30,100 0,80 0,50Z";
     const unit = smoothAnchors(loop(noisy));
     for (const k of [1e-9, 1e9]) {
@@ -132,8 +119,6 @@ describe("scale invariance", () => {
   });
 
   test("an open aperture keeps its area at a tiny scale", () => {
-    // Synthetic edges 100k units apart at scale k: the closure test is
-    // relative to the edges' own extent, so no unit floor closes it.
     for (const k of [1e-12, 1, 1e12]) {
       const edge = (offset: number): BendTrack => ({
         from: [],
@@ -159,8 +144,6 @@ describe("scale invariance", () => {
       ]);
       expect(r.diagnostics).toEqual([]);
       expect(r.apertures).toHaveLength(1);
-      // Facing lines at 34 and 70 units (scaled), 100 wide: area 3600, and
-      // their ends 36 apart close through a 36-unit square at each end.
       expect(r.apertures[0]!.area(0.5) / (k * k)).toBeCloseTo(3600 + 2 * 36 * 36, 3);
     }
   });

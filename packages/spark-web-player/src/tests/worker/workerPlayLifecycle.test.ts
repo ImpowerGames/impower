@@ -1,7 +1,3 @@
-// PLAY in the worker takes several round trips to start and one to stop, and
-// the author can press STOP, or an edit can restart the game, at any of them
-// (#682). Whatever the order, STOP ends PLAY: the page is not left waiting,
-// no game is left running in the worker, and the preview shows again.
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
@@ -37,13 +33,11 @@ const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(
 const PICTURED = lineOf("The beat with a picture.");
 const AFTER = lineOf("The beat after it.");
 
-/** STOP waits a frame between its steps, which this page does not draw. */
 const framesForStop = (h: { overlay: HTMLElement }) => {
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
 };
 
-/** Whether `work` settles within `ms`. */
 const settlesWithin = async (work: Promise<unknown>, ms: number) =>
   Promise.race([
     work.then(
@@ -53,13 +47,9 @@ const settlesWithin = async (work: Promise<unknown>, ms: number) =>
     new Promise((resolve) => setTimeout(() => resolve("waiting"), ms)),
   ]);
 
-/** Whether the editor has been told the game restarted after an edit. */
 const reloaded = (h: { toEditor: any[] }) =>
   h.toEditor.some((m) => m.method === GameReloadedMessage.method);
 
-/** Hold the worker's answers to the first request of `method` the page
- *  sends from now on, until the returned gate opens; `asked` says whether
- *  it has been sent. */
 const holdAnswer = (h: any, method: string) => {
   const answered = gate();
   const request = h.link.request.bind(h.link);
@@ -76,7 +66,6 @@ const holdAnswer = (h: any, method: string) => {
   return { ...answered, state };
 };
 
-/** A gate a test opens when it is ready. */
 const gate = () => {
   let open!: () => void;
   const opened = new Promise<void>((resolve) => (open = resolve));
@@ -95,9 +84,6 @@ describe("STOP while PLAY in the worker is starting", () => {
       await h.select(PICTURED);
       expect(h.overlay.textContent).toContain("The beat with a picture.");
 
-      // From the moment PLAY's game connects, the page answers nothing it
-      // asks until the test lets it, so the connect is still restoring when
-      // STOP comes.
       const heldAnswers: any[] = [];
       let holdAnswers = false;
       const receive = h.link.receive.bind(h.link);
@@ -126,22 +112,17 @@ describe("STOP while PLAY in the worker is starting", () => {
       expect(heldAnswers.length).toBeGreaterThan(0);
       expect(connected).toBe(false);
 
-      // STOP, and only then the page's answers.
       const stopped = h.controller.stopGame("quit");
       await settle(5);
       holdAnswers = false;
       for (const message of heldAnswers.splice(0)) receive(message);
       expect(await settlesWithin(Promise.all([started, stopped]), 5000)).toBe("settled");
-      // A boolean: a failure prints what it compares, and a game is a large
-      // object to print.
       expect(h.workerState.gameState.running == null).toBe(true);
 
-      // The preview shows again.
       await h.select(AFTER);
       await settle(40);
       expect(h.overlay.textContent).toContain("The beat after it.");
     } finally {
-      // A game a failure left running would tick on after the test.
       h.workerState.gameState.running?.destroy();
       h.dispose();
     }
@@ -157,8 +138,6 @@ describe("STOP while PLAY in the worker is starting", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // PLAY waits for the preview's application to go, as it does while a
-      // selection's preview is still being built, and STOP comes then.
       const detached = gate();
       const detach = h.controller.detachWorkerPreview.bind(h.controller);
       let held = false;
@@ -177,15 +156,11 @@ describe("STOP while PLAY in the worker is starting", () => {
       await Promise.all([started, stopped]);
       await settle(40);
 
-      // A boolean: a failure prints what it compares, and a game is a large
-      // object to print.
       expect(h.workerState.gameState.running == null).toBe(true);
-      // The game that previews still reaches the page.
       await h.select(PICTURED);
       await settle(40);
       expect(h.overlay.textContent).toContain("The beat with a picture.");
     } finally {
-      // A game a failure left running would tick on after the test.
       h.workerState.gameState.running?.destroy();
       h.dispose();
     }
@@ -201,10 +176,6 @@ describe("PLAY while a preview is still being displayed", () => {
     framesForStop(h);
     try {
       await h.compile();
-      // The display a selection asks for is still waiting in the worker when
-      // PLAY takes the page, and the worker never answers it: the page's
-      // preview application, which would have told the display that its
-      // fonts and pictures arrived, goes with PLAY.
       const request = h.link.request.bind(h.link);
       (h.link as any).request = (type: any, params: any) =>
         type.method === DisplayPreviewMessage.method
@@ -215,9 +186,6 @@ describe("PLAY while a preview is still being displayed", () => {
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
 
-      // The author edits the line PLAY restarts from, the one selected last:
-      // the program compiled from the edit reaches the controller, which
-      // restarts the game.
       await h.edit([
         {
           range: {
@@ -229,7 +197,6 @@ describe("PLAY while a preview is still being displayed", () => {
       ]);
       expect(await settlesWithin(h.compile(), 5000)).toBe("settled");
       expect(await settlesWithin(waiting.previewed, 5000)).toBe("settled");
-      // The restart runs, and the game plays the edited program.
       for (let i = 0; i < 200 && !reloaded(h); i++) {
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
@@ -259,7 +226,6 @@ describe("an edit's restart under way when the author presses STOP", () => {
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
 
-      // The restart's teardown waits for the worker to stop the old game.
       const answered = gate();
       const request = h.link.request.bind(h.link);
       let holdStop = true;
@@ -278,12 +244,9 @@ describe("an edit's restart under way when the author presses STOP", () => {
       expect(await restarting).toBe(false);
       await settle(40);
 
-      // A boolean: a failure prints what it compares, and a game is a large
-      // object to print.
       expect(h.workerState.gameState.running == null).toBe(true);
       expect(h.controller.playing).toBe(false);
     } finally {
-      // A game a failure left running would tick on after the test.
       h.workerState.gameState.running?.destroy();
       h.dispose();
     }
@@ -300,9 +263,6 @@ describe("pause while PLAY in the worker is starting", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // The editor pauses while the worker is still asked to build PLAY's
-      // game: the page has no application to pause yet, and the worker has
-      // only the game that previews.
       const built = gate();
       const request = h.link.request.bind(h.link);
       let asked = false;
@@ -316,8 +276,6 @@ describe("pause while PLAY in the worker is starting", () => {
       const started = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !asked; i++) await settle(2);
       const paused = await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
-      // As with a game on this page, a pause before there is an application
-      // is answered as one with no game.
       expect("error" in paused).toBe(true);
       await settle(10);
       expect(h.workerState.gameState.game!.paused).toBe(false);
@@ -325,7 +283,6 @@ describe("pause while PLAY in the worker is starting", () => {
       expect(await started).toBe(true);
       await settle(20);
 
-      // PLAY's game and its application agree: neither is paused.
       expect(h.workerState.gameState.running!.paused).toBe(false);
       expect(h.controller._app.paused).toBe(false);
       expect(h.workerState.gameState.game!.paused).toBe(false);
@@ -347,8 +304,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // The editor pauses once the application exists, and unpauses while
-      // the worker's answer that it started is on its way.
       const connecting = holdAnswer(h, ConnectPlayMessage.method);
       const started = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
@@ -380,8 +335,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // The editor pauses the first start, then STOP and a new PLAY come
-      // while the worker's answer that the first one started is on its way.
       const connecting = holdAnswer(h, ConnectPlayMessage.method);
       const first = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
@@ -418,8 +371,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
       await h.compile();
       await h.select(AFTER);
 
-      // Paused once the application exists; the worker then starts the game,
-      // and its frames run while its answer is on its way.
       const connecting = holdAnswer(h, ConnectPlayMessage.method);
       const started = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
@@ -458,7 +409,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
       connecting.open();
       expect(await started).toBe(true);
       await settle(10);
-      // How far each clock has been moved from the time it reads.
       const offset = (clock: any) => clock._timeOffset;
       expect(offset(h.controller._app.clock)).toBeCloseTo(2.5, 9);
       expect(offset(h.workerState.gameState.running!.clock)).toBeCloseTo(2.5, 9);
@@ -482,8 +432,6 @@ describe("a runtime error as PLAY's game in the worker starts", () => {
     try {
       await h.compile();
       await h.select(AFTER);
-      // The game's first execution fails, before the worker answers that it
-      // started.
       const createGame = h.workerState.gameState.createGame;
       h.workerState.gameState.createGame = (options: any) => {
         const game = createGame(options);
@@ -587,8 +535,6 @@ describe("STOP during the new start of an edit's restart", () => {
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(10);
 
-      // The restart has torn the old run down and asked the worker for the
-      // new one; the author presses STOP before the worker's answer lands.
       const building = holdAnswer(h, PlayMessage.method);
       const restarting = h.controller.restartGame();
       for (let i = 0; i < 100 && !building.state.asked; i++) await settle(2);
@@ -613,7 +559,6 @@ describe("PLAY pressed again while STOP waits for its frames", () => {
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
-    // STOP's frames, held until the test lets them run.
     const win = h.overlay.ownerDocument.defaultView as any;
     const frames: (() => void)[] = [];
     win.requestAnimationFrame = (callback: () => void) => frames.push(callback);
@@ -629,7 +574,6 @@ describe("PLAY pressed again while STOP waits for its frames", () => {
       h.toEditor.length = 0;
       h.workspace.selections.length = 0;
       expect(await h.controller.startGameAndApp()).toBe(true);
-      // Let STOP's frames run, however many it still asks for.
       let done = false;
       void stopped.then(() => (done = true));
       for (let i = 0; i < 20 && !done; i++) {
@@ -659,7 +603,6 @@ describe("STOP while PLAY waits for the first program", () => {
     });
     framesForStop(h);
     try {
-      // Nothing has compiled yet, so PLAY waits for the first program.
       const starting = h.controller.startGameAndApp();
       await settle(10);
       await h.controller.stopGame("quit");
@@ -834,7 +777,6 @@ describe("the controller going while PLAY's application is built", () => {
     try {
       await h.compile();
       await h.select(AFTER);
-      // PLAY's application connects its game last in its build; hold that.
       const connecting = holdAnswer(h, ConnectPlayMessage.method);
       const starting = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
@@ -855,7 +797,6 @@ describe("the controller going while PLAY's application is built", () => {
   }, 120_000);
 });
 
-/** How many listeners the page holds on the worker's games. */
 const listeners = (h: any) => {
   let count = 0;
   for (const set of h.link._listeners.values()) count += set.size;
@@ -909,14 +850,12 @@ describe("a newer PLAY while the last one builds its application", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // PLAY A has built its run and listens; its application's connect waits.
       const connectingA = holdAnswer(h, ConnectPlayMessage.method);
       const startingA = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connectingA.state.asked; i++) await settle(2);
       expect(connectingA.state.asked).toBe(true);
       const appA = h.controller._app;
 
-      // PLAY B has been answered but waits before building its application.
       const buildingB = holdAnswer(h, PlayMessage.method);
       const startingB = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !buildingB.state.asked; i++) await settle(2);
@@ -928,15 +867,12 @@ describe("a newer PLAY while the last one builds its application", () => {
 
       expect(appA.destroys).toBe(1);
       expect(h.controller._app === appA).toBe(false);
-      // What listens now is PLAY B alone: as many listeners as a PLAY that
-      // raced nothing holds.
       const raced = listeners(h);
       await h.controller.stopGame("quit");
       await settle(20);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
       expect(raced).toBe(listeners(h));
-      // And the controller going leaves none.
       h.controller.dispose();
       await settle(20);
       expect(listeners(h)).toBe(0);
@@ -976,8 +912,6 @@ describe("game/start from the editor while the controller goes", () => {
   }, 120_000);
 });
 
-/** Where the old run's application is on its way out, what each is held
- *  on, how to begin it, and whether a run follows. */
 const outgoing = {
   "an edit's restart stops the old run": {
     hold: StopPlayMessage.method,
@@ -996,7 +930,6 @@ const outgoing = {
   },
 } as const;
 
-/** Each control the editor sends, sent the way the editor sends it. */
 const controls = {
   pause: (h: any) => h.controller.handlePauseGame(PauseGameMessage.type.request({})),
   unpause: (h: any) => h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({})),
@@ -1019,7 +952,6 @@ describe("the editor's controls while the old run's application is on its way ou
           await h.select(AFTER);
           expect(await h.controller.startGameAndApp()).toBe(true);
           await settle(10);
-          // An unpause needs a paused run to act on.
           if (control === "unpause") {
             expect("error" in (await controls.pause(h))).toBe(false);
             await settle(10);
@@ -1034,9 +966,6 @@ describe("the editor's controls while the old run's application is on its way ou
           await begun;
           await settle(20);
 
-          // What the old run's application is told goes with it, so the
-          // editor hears that no game took it, and does not show a pause, a
-          // resume or a step the run that follows never had.
           expect(answer.error?.message).toBe("no game loaded");
           if (follows) {
             const offset = (clock: any) => clock._timeOffset;
@@ -1069,20 +998,16 @@ describe("three PLAYs pressed while the first builds its application", () => {
       await h.compile();
       await h.select(AFTER);
 
-      // PLAY A's application waits to connect, so it has not initialized.
       const connectingA = holdAnswer(h, ConnectPlayMessage.method);
       const startingA = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !connectingA.state.asked; i++) await settle(2);
       expect(connectingA.state.asked).toBe(true);
       const appA = h.controller._app;
 
-      // PLAY B waits for A's application to finish its teardown.
       const startingB = h.controller.startGameAndApp();
       for (let i = 0; i < 100 && !appA.destroyed; i++) await settle(2);
       expect(appA.destroyed).toBe(true);
 
-      // PLAY C comes while B still waits, and A's application initializes
-      // after it.
       const startingC = h.controller.startGameAndApp();
       await settle(20);
       connectingA.open();
@@ -1116,7 +1041,6 @@ describe("a PLAY that ends while it waits for audio, whose application then fail
       await h.compile();
       await h.select(AFTER);
 
-      // The build waits for the audio context; STOP comes meanwhile.
       const audio = gate();
       let asked = false;
       h.controller.ensureAudioContext = async () => {

@@ -1,7 +1,3 @@
-/**
- * Status Byte
- * (first 8 bits of message)
- */
 export const MIDI_STATUSES = {
   0x80: "voice_00_note_off",
   0x81: "voice_01_note_off",

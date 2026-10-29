@@ -1,8 +1,3 @@
-// The page holds only each program's summary, so what it shows about a
-// program comes from the worker's game: the toolbar's execution labels,
-// including those of a route that failed; the executed lines the editor
-// highlights; the possible breakpoint lines; and the scene warm-up, which the
-// worker sends as a `player/previewHint`.
 import { describe, expect, it } from "vitest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -43,7 +38,6 @@ const FIRST = lineOf("The first line.");
 const UNREACHED = lineOf("A line no route reaches.");
 const AFTER = lineOf("The line after.");
 
-/** Run the reads. */
 async function reads() {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -86,8 +80,6 @@ async function reads() {
       }),
     );
 
-    // Turning debugging on and off from the preview toolbar, and what the
-    // game that displays the preview made of it.
     const debugging = () => h.workerState.gameState.game?.context?.system?.debugging;
     const enabled = await h.controller.handleEnableGameDebug(
       EnableGameDebugMessage.type.request({}),
@@ -98,7 +90,6 @@ async function reads() {
     );
     const undebug = { answer: "error" in disabled, on: debugging() };
 
-    // The warm-up the worker sent for the selections.
     const prefetches = h.toPage
       .filter((m) => PreviewHintMessage.type.isNotification(m))
       .map((m) => m.params);
@@ -110,7 +101,6 @@ async function reads() {
       breakpoints: breakpoints.result,
       prefetches,
       summary: compiled.program,
-      // The whole program, which only the worker holds.
       program: h.workerState.gameState.game!.program,
     };
   } finally {
@@ -123,7 +113,6 @@ describe("the preview's reads", () => {
     const on = await reads();
 
     expect(on.summary.summary).toBe(true);
-    // The route's two beats are highlighted, and the unreached line alone.
     const beatA = lineOf("[[SPRITE_A]]");
     const beatB = lineOf("[[SPRITE_B]]");
     expect(on.reached.executed.at(-1)?.executedLines).toEqual({
@@ -135,28 +124,21 @@ describe("the preview's reads", () => {
     expect(on.unreached.labels.failed).toBe(true);
     expect(on.unreached.labels.connection).toContain("🞪");
     expect(on.unreached.labels.executed).toMatch(/main : \d+/);
-    // The reached line's route runs from the first beat to the beat with
-    // the line, and the toolbar names both; an unreached line names the
-    // scene it could not be reached in, and says why.
     expect(on.reached.executed.at(-1)?.firstLocation?.range.start.line).toBe(lineOf("[[SPRITE_A]]"));
     expect(on.reached.executed.at(-1)?.lastLocation?.range.start.line).toBe(lineOf("[[SPRITE_B]]"));
     expect(on.reached.labels.launch).toBe(`main : ${lineOf("[[SPRITE_A]]") + 1}`);
     expect(on.unreached.labels.launch).toBe(`main : ${lineOf("scene start") + 1}`);
     expect(on.unreached.labels.title).toMatch(/No path through this scene reaches this line/);
-    // A breakpoint can go on each beat's first line.
     for (const line of [lineOf("[[SPRITE_A]]"), lineOf("[[SPRITE_B]]"), UNREACHED]) {
       expect(on.breakpoints.lines).toContain(line);
     }
     expect(on.breakpoints.lines.length).toBeGreaterThan(0);
-    // The toolbar's toggle answered, and the game that displays the preview
-    // entered the mode and left it again.
     expect(on.debug).toEqual({ answer: false, on: true });
     expect(on.undebug).toEqual({ answer: false, on: false });
   }, 120_000);
 
   it("send the scene warm-up planned from the whole program", async () => {
     const on = await reads();
-    // The hint planned from the whole program for the same selections.
     const first = planPreviewHint(on.program, MAIN_URI, AFTER, undefined)!;
     const second = planPreviewHint(on.program, MAIN_URI, UNREACHED, first.state);
     const planned = [first, second]

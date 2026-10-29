@@ -1,15 +1,6 @@
-// A logic line (`& …`) is a place the editor can point at: PLAY from it runs
-// it, a preview of it shows the beat it leads to, and an error it raises is
-// reported on it (#824).
-//
-// A host resolves a source line through the program's accessor
-// (`ProgramLocator.addressAt`), which gives a logic line an address of its
-// own.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -44,8 +35,6 @@ describe("logic line resolution (#824)", () => {
   });
 
   test("a preview of a logic line shows the beat it leads to, with its effect", async () => {
-    // Positive control: the logic line's own path must not stop the preview
-    // short of the display beat after it.
     const simulator = createHarness(ASSIGN, 0, { connect: false });
     const simulated: any = simulator.game;
     simulated.setStartFrom({ file: MAIN_URI, line: 2 });

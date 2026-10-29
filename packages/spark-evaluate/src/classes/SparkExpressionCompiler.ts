@@ -16,7 +16,6 @@ export default class SparkExpressionCompiler extends ESNextStaticEval {
   ): unknown {
     const [result, diagnostics] =
       this.config.formatter?.(`{${node.raw}}`, context) || [];
-    // diagnostics should all be offset by -1 since we are surrounding the expression with {} before feeding into formatter
     const offset = -1;
     if (diagnostics) {
       const from = node.from ?? 0;

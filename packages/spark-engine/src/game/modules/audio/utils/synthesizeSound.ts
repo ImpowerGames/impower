@@ -1,10 +1,3 @@
-/*
- * Based on bfxr2 <https://github.com/increpare/bfxr2>
- *
- * Copyright (c) 2021 Stephen Lavelle
- * Released under the MIT license.
- */
-
 export type OscillatorType =
   | "sine"
   | "triangle"
@@ -133,7 +126,6 @@ export class OscillatorState {
     this.angle = 0;
     this.prevPhase = 0;
     this.prevRandom = 0;
-    // Don't reallocate the pink-noise filter array; zero it in place.
     const b = this.b;
     if (b) {
       b[0] = 0;
@@ -144,8 +136,6 @@ export class OscillatorState {
       b[5] = 0;
       b[6] = 0;
     }
-    // rng is intentionally not reset — matches the existing fallback behavior
-    // where the module-level RNG persists across allocations.
   }
 }
 
@@ -178,11 +168,9 @@ export class ModulatorState extends OscillatorState {
 
     this.angle ??= 0;
 
-    // Calculate how much the angle should move this sample
     const clampedHertz = Math.max(0, hertz);
     const phaseDelta = clampedHertz / sampleRate;
 
-    // Accumulate the angle
     this.angle += phaseDelta;
 
     const oscillator = this.oscillators[shape] || this.oscillators["sine"];
@@ -194,7 +182,6 @@ export class ModulatorState extends OscillatorState {
 export const PI2 = 2 * Math.PI;
 
 const fix = (x: number, fractionDigits = 10): number => {
-  // Fix float precision errors
   const result = Number(x.toFixed(fractionDigits));
   return result === 0 ? 0 : result;
 };
@@ -395,7 +382,6 @@ class CombFilter {
     this.buffer.fill(0);
     this.bufIdx = 0;
     this.filterStore = 0;
-    // damp1/damp2/feedback are overwritten in ReverbState.process; no need to reset.
   }
 
   process(input: number): number {
@@ -419,7 +405,6 @@ class AllpassFilter {
   reset(): void {
     this.buffer.fill(0);
     this.bufIdx = 0;
-    // feedback is fixed at 0.5; don't reset.
   }
 
   process(input: number): number {
@@ -434,7 +419,7 @@ class AllpassFilter {
 class DelayState {
   buffer: Float32Array;
   position: number = 0;
-  time: number = 0; // seconds since last wrap
+  time: number = 0;
   sampleRate: number;
 
   constructor(sampleRate: number) {
@@ -446,7 +431,6 @@ class DelayState {
 
   reset(sampleRate: number): void {
     if (sampleRate !== this.sampleRate) {
-      // Sample rate changed — buffer size is rate-dependent, so rebuild.
       this.buffer = new Float32Array(
         Math.ceil(DELAY_LENGTH_MAX * sampleRate) + 1,
       );
@@ -467,19 +451,15 @@ class DelayState {
   ) {
     const delayed = this.buffer[this.position]!;
 
-    // Mix dry and delayed
     const out = dry * dryMix + delayed * delayStrength;
 
-    // Write input + feedback × previous content back into the same position
     this.buffer[this.position] = dry + delayed * feedback;
 
-    // Advance position, safety-wrap at buffer boundary
     this.position++;
     if (this.position >= this.buffer.length) {
       this.position = 0;
     }
 
-    // Wrap the tape loop when accumulated time exceeds delay length
     this.time += 1 / this.sampleRate;
     if (this.time > delayLength) {
       this.position = 0;
@@ -512,7 +492,6 @@ class ReverbState {
 
   reset(sampleRate: number): void {
     if (sampleRate !== this.sampleRate) {
-      // Sample rate changed — comb/allpass buffer sizes are rate-dependent.
       this.sampleRate = sampleRate;
       const scale = sampleRate / 44100;
       for (let i = 0; i < REVERB_COMB_SIZES.length; i++) {
@@ -684,15 +663,13 @@ class BitCrushState {
     skip: number,
     sampleRate: number,
   ) {
-    // Crush
-    const crushValue = Math.pow(crush, BITCRUSH_CRUSH_EXPONENT); // getExp(0.2): pow(slider, 0.2)
+    const crushValue = Math.pow(crush, BITCRUSH_CRUSH_EXPONENT);
     const numOptions = Math.pow(
       2,
       BITCRUSH_BIT_DEPTH - BITCRUSH_BIT_DEPTH * crushValue,
     );
     sampleValue = Math.trunc(sampleValue * numOptions) / numOptions;
 
-    // Skip
     this.skipPhase +=
       (BITSKIP_MIN_PHASE_DELTA + Math.pow(1.0 - skip, BITSKIP_PHASE_EXPONENT)) *
       (44100 / sampleRate);
@@ -710,7 +687,6 @@ class EffectChainState {
   effectChainLength: number = 0;
 
   reset(): void {
-    // Slot values are overwritten by addEffect; only the length needs resetting.
     this.effectChainLength = 0;
   }
 
@@ -727,8 +703,6 @@ class EffectChainState {
     const effectChainOrders = this.effectChainOrders;
     const effectChainLength = this.effectChainLength;
 
-    // Insertion sort by order, with canonical effect index as the tie-break.
-    // At most 5 elements — branchy but allocation-free.
     for (let i = 1; i < effectChainLength; i++) {
       const eVal = effectChain[i]!;
       const oVal = effectChainOrders[i]!;
@@ -889,7 +863,6 @@ const getEnvelopeVolume = (
   const minDuration =
     delayDuration + attackDuration + decayDuration + releaseDuration;
   if (soundDuration > duration && limitSound) {
-    // Limit sound to duration
     if (minDuration <= duration) {
       sustainDuration = duration - minDuration;
     } else {
@@ -905,10 +878,8 @@ const getEnvelopeVolume = (
     }
   }
   if (soundDuration < duration && sustainSound) {
-    // Sustain sound up until duration
     sustainDuration += duration - soundDuration;
   }
-  // Calculate start and end indices
   const delayEndTime = delayDuration;
   const attackEndTime = delayDuration + attackDuration;
   const decayEndTime = delayDuration + attackDuration + decayDuration;
@@ -930,7 +901,6 @@ const getEnvelopeVolume = (
   const sustainEndIndex = sustainEndTime * sampleRate;
   const releaseStartIndex = sustainEndIndex;
   const releaseEndIndex = releaseEndTime * sampleRate;
-  // Calculate start and end volumes
   const delayStartVolume = 0;
   const delayEndVolume = 0;
   const attackStartVolume = 0;
@@ -942,40 +912,33 @@ const getEnvelopeVolume = (
   const releaseStartVolume = sustainLevel;
   const releaseEndVolume = 0;
   if (localIndex < delayStartIndex) {
-    // before delay
     return 0;
   }
   if (localIndex < delayEndIndex) {
-    // delay
     const delayP =
       (localIndex - delayStartIndex) / (delayEndIndex - delayStartIndex);
     return lerp(delayP, delayStartVolume, delayEndVolume, true);
   }
   if (localIndex < attackEndIndex) {
-    // attack
     const attackP =
       (localIndex - attackStartIndex) / (attackEndIndex - attackStartIndex);
     return lerp(attackP, attackStartVolume, attackEndVolume, true);
   }
   if (localIndex < decayEndIndex) {
-    // decay
     const decayP =
       (localIndex - decayStartIndex) / (decayEndIndex - decayStartIndex);
     return lerp(decayP, decayStartVolume, decayEndVolume, true);
   }
   if (localIndex < sustainEndIndex) {
-    // sustain
     const sustainP =
       (localIndex - sustainStartIndex) / (sustainEndIndex - sustainStartIndex);
     return lerp(sustainP, sustainStartVolume, sustainEndVolume, true);
   }
   if (localIndex < releaseEndIndex) {
-    // release
     const releaseP =
       (localIndex - releaseStartIndex) / (releaseEndIndex - releaseStartIndex);
     return lerp(releaseP, releaseStartVolume, releaseEndVolume, true);
   }
-  // after release
   return 0;
 };
 
@@ -1073,10 +1036,10 @@ export const DISTORTION_EDGE_MULTIPLIER = 10;
 export const DELAY_DRY_MIX = 0.5;
 export const DELAY_LENGTH_MAX = 0.5;
 
-export const BITCRUSH_CRUSH_EXPONENT = 0.2; // getExp(0.2) on bitCrushStrength
-export const BITCRUSH_BIT_DEPTH = 16; // 2^(16 - 16×crushValue) discrete levels
-export const BITSKIP_MIN_PHASE_DELTA = 0.001; // minimum phase advance per sample
-export const BITSKIP_PHASE_EXPONENT = 4; // (1 - skip)^4 in phase delta formula
+export const BITCRUSH_CRUSH_EXPONENT = 0.2;
+export const BITCRUSH_BIT_DEPTH = 16;
+export const BITSKIP_MIN_PHASE_DELTA = 0.001;
+export const BITSKIP_PHASE_EXPONENT = 4;
 
 export const NUM_REORDERABLE_EFFECTS = 5;
 export const EFFECT = {
@@ -1179,7 +1142,6 @@ export const fillSoundBuffer = (
 
   const arpeggioGlideLength = arpeggio_glide * sampleRate;
 
-  // Speed (Hz / s) -> (Hz / sample)
   const freqRamp = synth.pitch.frequency_ramp;
   let pitchSpeed = freqRamp / sampleRate;
   const freqTorque = synth.pitch.frequency_torque;
@@ -1294,7 +1256,6 @@ export const fillSoundBuffer = (
   const MIN_FREQ = 0;
   const MAX_FREQ = sampleRate / 4;
 
-  // Repopulate the effect chain. Reset first so reused state doesn't double-add.
   currentState.effectChainState.reset();
   if (tremolo_on) {
     currentState.effectChainState.addEffect(
@@ -1319,7 +1280,6 @@ export const fillSoundBuffer = (
   }
   currentState.effectChainState.orderEffects();
 
-  // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
     const masterVolume =
       typeof nodeGain === "number" ? nodeGain : (nodeGain?.[i] ?? 1);
@@ -1343,7 +1303,6 @@ export const fillSoundBuffer = (
     let samplePitch = baseSampleFrequency * arpFrequencyFactor;
     let periodLength = samplePitch > 0 ? sampleRate / samplePitch : 0;
 
-    // Arpeggio Effect
     if (
       arpeggio_on &&
       arpeggio_tones?.length > 0 &&
@@ -1356,7 +1315,6 @@ export const fillSoundBuffer = (
         arpWaitingForZeroCrossing = true;
       }
 
-      // Advance glide toward target each sample
       if (arpGlideSpeed > 0) {
         arpFrequencyFactor = Math.min(
           arpTargetFrequencyFactor,
@@ -1417,24 +1375,19 @@ export const fillSoundBuffer = (
           convertSemitonesToFrequencyFactor(arpSemitones);
 
         if (arpNumNotesPlayed === 0 || arpeggioGlideLength === 0) {
-          // First note: snap immediately
           arpFrequencyFactor = arpTargetFrequencyFactor;
           arpGlideSpeed = 0;
           samplePitch = baseSampleFrequency * arpFrequencyFactor;
         } else {
-          // Subsequent notes: glide to smooth out transition between notes
           arpGlideSpeed =
             (arpTargetFrequencyFactor - arpFrequencyFactor) /
             arpeggioGlideLength;
-          // samplePitch stays at current value for this zero-crossing sample;
-          // glide begins from the next sample
         }
 
         arpLengthLeft = Math.round(sampleRate * secondsPerNote);
         currentAngle = Math.floor(currentAngle) + arpNotePhase;
       }
 
-      // Evaluate current arpeggio shape
       const activeNoteIndex = Math.max(0, arpNumNotesPlayed);
       const activeCycleIndex = getCycleIndex(
         activeNoteIndex,
@@ -1457,9 +1410,7 @@ export const fillSoundBuffer = (
       }
     }
 
-    // Distortion Grit Effect (Square Width)
     if (distortion_on && distortionGrit > 0 && periodLength > 0) {
-      // Check where we are precisely in a 2-cycle loop
       const doubleCyclePhase = currentAngle % 2.0;
 
       const shortDistortionMod = lerp(
@@ -1470,15 +1421,13 @@ export const fillSoundBuffer = (
       );
       const longDistortionMod = 2 - 1 / shortDistortionMod;
 
-      // Because currentAngle equals exact cycles, < 1.0 is exactly the first wave!
       if (doubleCyclePhase < 1.0) {
-        samplePitch *= shortDistortionMod; // Fast cycle
+        samplePitch *= shortDistortionMod;
       } else {
-        samplePitch /= longDistortionMod; // Slow cycle
+        samplePitch /= longDistortionMod;
       }
     }
 
-    // Vibrato Effect
     if (vibrato_on) {
       const vibratoMod = currentState.vibratoState.process(
         sampleRate,
@@ -1494,7 +1443,6 @@ export const fillSoundBuffer = (
       samplePitch *= vibratoMultiplier;
     }
 
-    // FM Effect
     if (fm_on) {
       const fmOffset = currentState.fmState.process(
         samplePitch,
@@ -1515,7 +1463,6 @@ export const fillSoundBuffer = (
       pitchBuffer[i] = samplePitch;
     }
 
-    // Base Waveform
     previousAngle = currentAngle;
     currentAngle += samplePitch / sampleRate;
 
@@ -1527,19 +1474,17 @@ export const fillSoundBuffer = (
 
     let sampleValue = 0;
     let harmonicStrength = 1.0;
-    let harmonicAngleMult = 1.0; // 1× for fundamental, 2× first harmonic, 4× second, etc...
+    let harmonicAngleMult = 1.0;
 
     for (let h = 0; h < totalHarmonics; h++) {
-      // Pass waveState only for the fundamental — higher harmonics use their own
-      // angle and don't need shared stateful noise tracking
       sampleValue +=
         oscillator(
           currentAngle * harmonicAngleMult,
           h === 0 ? currentState.waveState : undefined,
         ) * harmonicStrength;
 
-      harmonicStrength *= harmonicsFalloff; // reduce amplitude each harmonic
-      harmonicAngleMult *= 2; // double frequency each harmonic
+      harmonicStrength *= harmonicsFalloff;
+      harmonicAngleMult *= 2;
     }
 
     sampleValue *= Math.max(0, arpAmplitudeFactor);
@@ -1567,7 +1512,6 @@ export const fillSoundBuffer = (
       volumeBuffer[i] = envelopeVolume;
     }
 
-    // Reorderable post-envelope effects
     for (let e = 0; e < currentState.effectChainState.effectChainLength; e++) {
       const effect = currentState.effectChainState.effectChain[e];
       if (effect === EFFECT.TREMOLO) {
@@ -1644,7 +1588,6 @@ export const fillSoundBuffer = (
 
     const activeCutoff = lowpassCutoff;
 
-    // Lowpass Filter (3-band EQ slot)
     if (lowpass_on) {
       sampleValue = currentState.lowpassState.process(
         sampleRate,
@@ -1654,7 +1597,6 @@ export const fillSoundBuffer = (
       );
     }
 
-    // Highpass Filter (3-band EQ slot)
     if (highpass_on) {
       sampleValue = currentState.highpassState.process(
         sampleRate,
@@ -1664,7 +1606,6 @@ export const fillSoundBuffer = (
       );
     }
 
-    // Distortion Edge
     if (distortion_on && distortionEdge > 0) {
       const compressionFactor =
         1 / (1 + distortionEdge * DISTORTION_EDGE_MULTIPLIER);
@@ -1680,10 +1621,8 @@ export const fillSoundBuffer = (
       volumeBuffer[i]! *= masterVolume;
     }
 
-    // Set Buffer
     soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;
 
-    // Ramp values
     pitchAccel += pitchJerk;
     pitchSpeed += pitchAccel;
     pitchOffset += pitchSpeed;
@@ -1749,9 +1688,6 @@ export const fillSoundBuffer = (
   }
 };
 
-// Module-level pooled state, used as the fallback when the caller doesn't
-// supply their own SynthesisState. Reused across calls — `reset()` clears
-// per-call state in place. Lazily created on first use.
 let _pooledState: SynthesisState | undefined;
 
 export const synthesizeSound = (
@@ -1771,10 +1707,8 @@ export const synthesizeSound = (
 ): void => {
   let state: SynthesisState;
   if (currentState) {
-    // Caller manages state lifecycle; don't reset.
     state = currentState;
   } else {
-    // Reuse the module-level singleton — reset in place to avoid allocation.
     if (!_pooledState) {
       _pooledState = new SynthesisState(sampleRate, rng, OSCILLATORS);
     } else {
@@ -1783,7 +1717,6 @@ export const synthesizeSound = (
     state = _pooledState;
   }
 
-  // Fundamental Wave
   fillSoundBuffer(
     synth,
     sustainSound,
@@ -1800,7 +1733,6 @@ export const synthesizeSound = (
     frequency,
   );
 
-  // Reverb Filter
   const reverb_on = synth.reverb.on;
   if (reverb_on) {
     const reverb_room_size = synth.reverb.room_size;

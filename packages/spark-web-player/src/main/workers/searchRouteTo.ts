@@ -12,15 +12,8 @@ import type { RouteSearchLog } from "./RouteSearchLog";
 
 export interface RouteSearchSettings {
   profilerId?: string;
-  /** Search from the story's start (`Game.planRouteFromStart`) rather than
-   *  from the top of the flow the address stands in. */
   fromStart?: boolean;
-  /** A search from the story's start ran the story out without reaching the
-   *  address, so this one searches the flow the address stands in alone
-   *  (`Game.planRouteInFlow`), and its record says the start was searched. */
   startSearched?: boolean;
-  /** What the route's report reads of the scripts: a line's text and the
-   *  loops (`Game.previewRouteOf`). */
   source?: ScriptSource;
 }
 
@@ -33,10 +26,6 @@ export const searchRouteTo = (
   game.checkpointJson(searchRouteFor(game, to, log, settings) ?? null) ??
   undefined;
 
-/** `searchRouteTo`, returning the checkpoint as the value the log holds,
- *  which the worker's display loads in place (`Game.loadCheckpoint`): the
- *  route hands it to the display with no save written or read back
- *  (#1758). */
 export const searchRouteFor = (
   game: Game,
   to: ProgramAddress,
@@ -50,12 +39,6 @@ export const searchRouteFor = (
     source,
   } = settings;
   if (!fromStart && !startSearched && game.routesFromStartFirst(to)) {
-    // Inside a scene that takes parameters, the route runs from the story's
-    // start, through the divert that enters the scene with its arguments, and
-    // is planned, resumed and recorded as a route from there. The scene's own
-    // route, which binds nil for each parameter, stands only when that search
-    // ran the story out; one cut short by a ceiling, or stopped by an error,
-    // is the verdict (#1608).
     const checkpoint = searchRouteFor(game, to, log, {
       ...settings,
       fromStart: true,
@@ -67,10 +50,6 @@ export const searchRouteFor = (
   }
   const searchedFromStart = fromStart || startSearched;
   const from = fromStart ? "0" : game.routeStartOf(to);
-  // Asked before anything replaces the planned route, because every question it
-  // answers is about that route. Measured under its own name: it walks the
-  // route's steps and reads a checkpoint back, so it is work in its own right
-  // and a reader comparing a before and an after needs to see it.
   profile("start", profilerId + " " + "game/routeResumption");
   const resumption = game.routeResumption(from, to);
   profile("end", profilerId + " " + "game/routeResumption");
@@ -78,11 +57,6 @@ export const searchRouteFor = (
 
   const planRouteTo = (resumeFrom?: RouteResumePoint) => {
     profile("start", profilerId + " " + "game/planRoute");
-    // `replayPatchedRoute` below loads a checkpoint or jumps to the route's
-    // start, so a route found here can be left where the search stopped rather
-    // than resetting the story into a state nothing reads.
-    // A search from the top starts where an earlier one's level zero
-    // stopped, while the program still holds what it ran, and keeps its own.
     const budget = {
       callerResetsStory: true,
       resumeFrom,
@@ -117,8 +91,6 @@ export const searchRouteFor = (
       programId,
       reachedTarget,
       checkpoint: checkpoint ?? undefined,
-      // A route existed, so any failure here happened during the replay rather
-      // than the search; the game recorded which (`"diverged"`).
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
@@ -142,8 +114,6 @@ export const searchRouteFor = (
     if (game.simulation === "success") {
       return finish(plannedRoute, checkpoint);
     }
-    // The route no longer ends where it ended. Everything below searches for
-    // one that does.
   }
 
   let route: RoutePlan | null = null;
@@ -156,39 +126,20 @@ export const searchRouteFor = (
     resumedSearch = route != null;
   }
   if (!route) {
-    // Either there was nothing to resume from, or resuming found no way to the
-    // target — which it cannot rule out, having only ever looked at the branches
-    // reachable from one position, or its level zero's bound ran out there
-    // (`SearchOptions.resumeFrom`). The scene as a whole still has to be
-    // searched before anything is reported about it.
     route = planRouteTo();
   }
   if (!route) {
-    // No route to this start point exists at all — a definite answer, and the
-    // one most worth passing on: a client that repeats this search pays the
-    // same (unbounded until the work ceiling) cost to reach the same verdict.
-    //
-    // Asked immediately after the search that failed, because the planner's
-    // account of how it ended is what separates "there is no way there" from
-    // "I gave up looking" — and only the first is the script's fault (#379).
     log.record({
       address: to,
       programId,
       reachedTarget: false,
       simulationFailure: game.describeFailedRouteSearch(to),
-      // Nothing was replayed; an error that stopped the search is why.
       errors: game.searchErrors(),
       fromStart: searchedFromStart,
     });
     return undefined;
   }
 
-  // What the resumption established is a bound on the replay too: a
-  // checkpoint whose story stands past what the new program agrees with is
-  // too deep for a replay to start from (`replayCheckpointIndex`, which can
-  // lie past where the search resumed). A program that says nothing about
-  // what it changed supplies no bound, and the replay decides as it always
-  // has.
   const limits =
     resumption.validSteps == null
       ? undefined
@@ -202,9 +153,6 @@ export const searchRouteFor = (
   const found = route;
   let checkpoint = simulate(() => game.replayPatchedRoute(found, limits));
   if (game.simulation !== "success" && resumedSearch) {
-    // A resumed route replayed to somewhere other than the target. A search of
-    // the whole scene may still find one that does not, and the verdict has to
-    // be the one that search reaches rather than the one a shortcut stopped at.
     const fromTop = planRouteTo();
     if (fromTop) {
       route = fromTop;

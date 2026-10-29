@@ -1,19 +1,9 @@
-// A connect that rebuilds the Game Preview's screen restores the text each
-// target has saved in place of what the page shows (#1813): a target with
-// text of its own, which the connect does not clear, reads as the restored
-// text alone, as a player opened fresh on the same source does, and not as
-// the text it showed with the restored text after it. Two targets that name
-// one element both restore onto it. The layout's own text in a written
-// target (`Says:`) is a placeholder, the maintainer's rule: shown until the
-// first write reaches the target, and gone after it.
 import { describe, expect, it } from "vitest";
 import { StartPlayMessage } from "../../main/workers/messages/StartPlayMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 type Node = { class?: string; text?: string; children?: Node[] };
 
-/** The text of every letter span under the elements whose class list holds
- *  `cls`, in document order. */
 const lettersIn = (root: Node, cls: string): string => {
   let out = "";
   const walk = (n: Node, inside: boolean) => {
@@ -30,8 +20,6 @@ const lettersIn = (root: Node, cls: string): string => {
   return out;
 };
 
-/** Whether the layout's own `Says:` is still in the element whose class list
- *  holds `cls`. */
 const saysIn = (root: Node, cls: string): boolean => {
   let found = false;
   const walk = (n: Node, inside: boolean) => {
@@ -72,11 +60,8 @@ const script = (box: string) =>
     "end",
   ].join("\n");
 
-/** The ticket's fixture: a dialogue box with text of its own, so it is not
- *  cleared on continue. */
 const TEXT = script("dialogue");
 
-/** The same box named by both the action and the dialogue targets. */
 const SHARED = script("dialogue.action");
 
 const lineOf = (text: string, needle: string) =>
@@ -84,7 +69,6 @@ const lineOf = (text: string, needle: string) =>
 
 type Harness = Awaited<ReturnType<typeof createPlayerHarness>>;
 
-/** A harness on `text`, previewing `line` once compiled. */
 const open = async (text: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text }],
@@ -95,9 +79,6 @@ const open = async (text: string, line: number) => {
   return h;
 };
 
-/** Edits `First.` in the selected line's `set_word("First.")` to `Premier.`
- *  and compiles, as an incremental edit that connects the worker's game in
- *  full. */
 const editWord = async (h: Harness, text: string, line: number) => {
   const start = text.split("\n")[line]!.indexOf(`"First."`) + 1;
   await h.edit([
@@ -115,7 +96,6 @@ const editWord = async (h: Harness, text: string, line: number) => {
 const edited = (text: string) =>
   text.replace(`set_word("First.")`, `set_word("Premier.")`);
 
-/** What a player opened fresh on `text` at `line` shows in `cls`. */
 const freshLetters = async (text: string, line: number, cls: string) => {
   const h = await open(text, line);
   try {
@@ -131,7 +111,6 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const h = await open(TEXT, line);
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
-      // The first write replaced the layout's placeholder.
       expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(false);
       await editWord(h, TEXT, line);
       const dom = h.snapshotDOM() as Node;
@@ -139,7 +118,6 @@ describe("a connect restores each target's text in place of what it shows (#1813
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(TEXT), line, "dialogue"),
       );
-      // The connect's creates put the placeholder back; the restore replaced it.
       expect(saysIn(dom, "dialogue")).toBe(false);
     } finally {
       h.dispose();
@@ -167,7 +145,6 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const h = await open(TEXT, lineOf(TEXT, "HERO:"));
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
-      // The line before has written nothing to the dialogue box.
       await h.select(lineOf(TEXT, "Before."));
       const dom = h.snapshotDOM() as Node;
       expect(lettersIn(dom, "dialogue")).toBe("");
@@ -190,8 +167,6 @@ describe("a connect restores each target's text in place of what it shows (#1813
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
       expect(await h.controller.startGameAndApp()).toBe(true);
-      // PLAY's connect is not composed and sweeps the preview's text; its
-      // first beat is the line's first.
       const shown = () => lettersIn(h.snapshotDOM() as Node, "dialogue");
       for (let i = 0; i < 150 && shown() !== "First."; i++) {
         await new Promise((r) => setTimeout(r, 20));
@@ -210,7 +185,6 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const h = await open(TEXT, line);
     try {
       expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
-      // PLAY connects and is held before it runs a beat.
       let release!: () => void;
       const held = new Promise<void>((resolve) => (release = resolve));
       const request = h.link.request.bind(h.link);

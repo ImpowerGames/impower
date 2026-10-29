@@ -36,7 +36,6 @@ export const stressPhrases = (
 ): void => {
   const stressLevelMultiplier = 0.5;
   const lineIncrement = 1;
-  // Speaker starts at max pitch and ends at their natural speaking pitch once arriving at the point of their speech.
   let lineLevel = (phrases.length - 1) * lineIncrement;
   phrases.forEach((phrase) => {
     if (phrase.text?.trim()) {
@@ -64,7 +63,6 @@ export const stressPhrases = (
         for (let i = chunks.length - 1; i >= 0; i -= 1) {
           const chunk = chunks[i]!;
           if (chunk.pitch == null) {
-            // Automatically infer appropriate pitch from inflection type and stress formatting
             const inflectionLevel = inflection[inflectionIndex]!;
             chunk.pitch = lineLevel + phraseLevel + inflectionLevel;
             const underlineStressLevel = getFormattingStress(
@@ -99,19 +97,12 @@ export const stressPhrases = (
         }
 
         if (phrase.text.endsWith("\n")) {
-          // Subsequent lines should either increase or decrease in pitch according to inflection slope.
           lineLevel =
             inflectionSlope > 0
               ? lineLevel + lineIncrement
               : lineLevel - lineIncrement;
         }
 
-        // console.log(
-        //   phrase.text,
-        //   phrase.chunks
-        //     .filter((c) => c.voicedSyllable || c.punctuated)
-        //     .map((c) => c.pitch)
-        // );
       }
     }
   });

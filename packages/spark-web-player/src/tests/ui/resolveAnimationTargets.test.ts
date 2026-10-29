@@ -1,17 +1,7 @@
-// Unit test for the D15 animation-target redirection (code-review finding).
-//
-// Animation targeting is invisible to the DOM-render golden (jsdom stubs WAAPI,
-// and which element an animation binds to leaves no DOM trace), so this locks
-// the redirection logic directly: a non-"self" `target` must animate the
-// matching DESCENDANTS (e.g. the builtin align_* → "instance" layer), not the
-// element itself — the behavior the engine's `enqueueAnimation` used to provide.
-
 import { beforeAll, describe, expect, test } from "vitest";
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 
 beforeAll(() => {
-  // resolveAnimationTargets uses CSS.escape; jsdom may not expose it on the
-  // global. Test selectors are plain identifiers, so identity escaping suffices.
   const g = globalThis as unknown as { CSS?: { escape?: (s: string) => string } };
   if (typeof g.CSS?.escape !== "function") {
     g.CSS = { ...(g.CSS ?? {}), escape: (s: string) => s };

@@ -1,7 +1,3 @@
-// #815 — a runtime warning marks something the runtime recovered from, so it
-// leaves PLAY running; a runtime error ends it and leaves the editor on the
-// line the error names. PLAY's game runs in the worker, whose reports the
-// controller relays through `listenToWorker`.
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,7 +17,6 @@ const report = (type: ErrorType) =>
     state: "running",
   } as any);
 
-/** A controller whose `stopGame` only records how it was asked to stop. */
 const controller = () => {
   const stops: unknown[][] = [];
   const c = Object.create(GamePlayerController.prototype);
@@ -31,8 +26,6 @@ const controller = () => {
   return { c: c as GamePlayerController, stops };
 };
 
-/** Listeners by method, as a game's outgoing connection or a worker link
- *  holds them. */
 const listeners = () => {
   const byMethod = new Map<string, ((msg: any) => void)[]>();
   const add = (method: string, listener: (msg: any) => void) => {
@@ -45,8 +38,6 @@ const listeners = () => {
   return { add, emit };
 };
 
-/** Wire a running game in the worker to a fresh controller, and deliver one
- *  report of `type`. */
 const deliver = async (type: ErrorType) => {
   const { c, stops } = controller();
   const { add, emit } = listeners();
@@ -87,8 +78,6 @@ describe("PLAY in the worker stopped by a runtime error", () => {
     win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
     const error = console.error;
     console.error = () => {};
-    // The line a handler's function raised its error on, which is not a line
-    // the story has executed.
     const raisedAt = {
       uri: MAIN_URI,
       range: { start: { line: 2, character: 0 }, end: { line: 2, character: 15 } },

@@ -1,18 +1,3 @@
-// Resuming the preview's route instead of searching the scene again (#653).
-//
-// After a compile the player replays the story from the top of the scene down
-// to the line the author is on, so the Game Preview can show that line. Finding
-// the way there costs one story advance per step, and at the bottom of a long
-// scene there are tens of thousands of them — for an edit that usually cannot
-// have changed anything the story does before it.
-//
-// So a compile that cannot have changed anything the story does before the
-// author's line reuses the route it already has. What these tests hold down is
-// that this is a shortcut and not a different answer: whatever is reused, the
-// route, the verdict and the story the checkpoint restores must be the ones a
-// search of the whole scene in a game that has never run would have produced
-// from the same program. `expectSameAnswer` says exactly how each of the three
-// is compared, and why the checkpoint is compared as the story it restores.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
@@ -35,21 +20,10 @@ const GAME_OPTIONS = {
     fn();
     return 0;
   }) as never,
-  // What the player's own worker builds. Delta checkpoints are the mode a route
-  // replay runs in, so they are the mode a route resume has to work in.
 };
 
 type Marks = Record<string, number>;
 
-/**
- * A scene long enough to be worth not searching twice, with a
- * variable-driven condition on the way down so its route carries a decision.
- *
- * Deliberately built without a `choose` block: an incremental compile of a
- * scene holding one serves the pre-edit bytecode for every line after it, so a
- * fixture shaped that way would compare two programs that are the same program
- * and prove nothing about reuse.
- */
 function screenplay(beats = 8): { text: string; at: Marks } {
   const lines: string[] = [];
   const at: Marks = {};
@@ -94,7 +68,6 @@ const posAt = (text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** A minimal-range change turning the first `find` in `text` into `replace`. */
 function change(text: string, find: string, replace: string) {
   const offset = text.indexOf(find);
   expect(offset, `"${find}" is in the text`).toBeGreaterThanOrEqual(0);
@@ -129,48 +102,27 @@ interface RouteOutcome {
   to: ProgramAddress | null | undefined;
   checkpoint: string | undefined;
   simulation: string | undefined;
-  /** Story advances the search that produced this outcome spent, or -1 when no
-   *  search ran at all. */
   searchSteps: number;
-  /** The addresses the resulting route runs through, in order. */
   stepAddresses: ProgramAddress[];
-  /** How many steps of the plan it already had this compile was offered to
-   *  resume from, or undefined when it was offered nothing. Where a resumed
-   *  route was taken, this is the one position in it where steps copied from
-   *  the earlier plan meet steps this search found. */
   resumedAfter?: number;
 }
 
 interface CompiledRound extends RouteOutcome {
   program: SparkProgram;
   startFrom: { file: string; line: number };
-  /** What the compile said it changed, and what the route already planned
-   *  offered it. Kept so a test can assert on the decision rather than on the
-   *  work it saved. */
   changes: SparkProgram["changes"];
   resumption: ReturnType<Game["routeResumption"]>;
 }
 
-/**
- * One compiler and one game, driven the way the player's workspace worker
- * drives them: a compile, then a route to the author's line replayed in the
- * program it produced.
- */
 class Session {
   readonly compiler = new SparkdownCompiler();
   readonly log = new RouteSearchLog();
   game?: Game;
   text: string;
-  /** Every program compiled so far, oldest first. The player's worker keeps
-   *  the programs it displays across later compiles, and between compiles
-   *  its game displays one of them. */
   readonly kept: SparkProgram[] = [];
   version = 1;
   last?: CompiledRound;
 
-  /** Withhold the compiler's account of what it changed, which is what every
-   *  reuse here rests on. A session driven this way behaves as the player did
-   *  before there was one: it searches the scene on every compile. */
   readonly withoutChangeSummary: boolean;
 
   constructor(
@@ -234,7 +186,6 @@ class Session {
       this.game.routeStartOf(to),
       to,
     );
-    // -1 means nothing overwrote it, so no search ran.
     lastSearchStats.stepsUsed = -1;
     const log = real ? this.log : new RouteSearchLog();
     const checkpoint = searchRouteTo(this.game, to, log, {});
@@ -252,9 +203,6 @@ class Session {
     };
   }
 
-  /** Show the program before the newest on the game, as a display of the
-   *  real document after a suggestion, or of a kept suggestion, does between
-   *  compiles. */
   protected displayEarlierProgram() {
     const shown = this.kept.at(-2);
     if (!shown || !this.game) {
@@ -263,7 +211,6 @@ class Session {
     this.game.updateProgram(shown);
   }
 
-  /** Compile the real documents and route to `line`, as a saved edit does. */
   compile(line: number): CompiledRound {
     this.displayEarlierProgram();
     quiet(() =>
@@ -275,7 +222,6 @@ class Session {
     return this.last!;
   }
 
-  /** Apply an edit to the real document, as typing does. */
   edit(find: string, replace: string) {
     const applied = change(this.text, find, replace);
     this.version += 1;
@@ -289,8 +235,6 @@ class Session {
     return applied.after;
   }
 
-  /** Compile the text an autocomplete suggestion would produce, without
-   *  applying it, and route to `line` in that program. */
   preview(find: string, replace: string, line: number): CompiledRound {
     const applied = change(this.text, find, replace);
     this.displayEarlierProgram();
@@ -306,10 +250,6 @@ class Session {
   }
 }
 
-/**
- * The same program, routed by a game that has never run: no route to resume, so
- * the scene is searched from the top.
- */
 function fromTheTop(round: CompiledRound): RouteOutcome {
   const game = new Game({
     program: round.program,
@@ -331,8 +271,6 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
   };
 }
 
-/** The route a game is holding, as the comparison reads it: the address of
- *  every step, in order. */
 function walked(game: Game) {
   return {
     stepAddresses: (game.plannedRoute?.steps ?? []).map((s) => s.address),
@@ -349,8 +287,6 @@ const comparableCheckpoint = (checkpoint: string | undefined) => {
   const story = reparse(save.story);
   if (story && typeof story === "object") {
     delete (story as Record<string, unknown>)["storySeed"];
-    // A save of the program engine holds its beats apart (#1429), each
-    // with the seed.
     const beats = (story as Record<string, unknown>)["beats"];
     for (const beat of Array.isArray(beats) ? beats : []) {
       if (beat && typeof beat === "object") delete beat["storySeed"];
@@ -363,17 +299,6 @@ const comparableCheckpoint = (checkpoint: string | undefined) => {
   return JSON.stringify({ ...save, story, runtime });
 };
 
-/**
- * Assert two routes are the same answer, reporting the first place they are
- * not.
- *
- * A route holds thousands of steps and a checkpoint is a whole serialized
- * story, so comparing them as values gives a failure nobody can read. What is
- * compared instead is the first bytes of the restored story that differ, then
- * the first step, then the verdict, each with its neighbours. Every statement
- * runs once, so a resumed route and a route searched from the top hold the same
- * steps in the same order.
- */
 function expectSameAnswer(
   actual: RouteOutcome,
   expected: RouteOutcome,
@@ -406,8 +331,6 @@ function expectSameAnswer(
     step += 1;
     against += 1;
   }
-  // Both lists, to the end. Stopping when either one runs out would leave
-  // whatever the other still holds unexamined.
   expect(
     step === actual.stepAddresses.length && against === expected.stepAddresses.length
       ? null
@@ -433,9 +356,6 @@ function expectSameAnswer(
   expect(shape(actual), note).toEqual(shape(expected));
 }
 
-/** Count calls to the planner without holding on to their arguments: one of
- *  them is the whole runtime story, and a failed assertion that tries to print
- *  it runs out of string. */
 function watchSearches() {
   const calls: { resumed: boolean }[] = [];
   const planRoute = Game.planRoute.bind(Game);
@@ -447,8 +367,6 @@ function watchSearches() {
   return calls;
 }
 
-/** The same, for the replay: what is kept is where it resumed and which
- *  checkpoint that step carried. */
 function watchReplays() {
   const calls: { fromStep: number; checkpoint: number }[] = [];
   const proto = Game.prototype as unknown as Record<string, any>;
@@ -468,17 +386,12 @@ function watchReplays() {
   return calls;
 }
 
-/** The deepest checkpoint a route captured. */
 const deepestCheckpoint = (route: RoutePlan) =>
   Math.max(-1, ...route.steps.map((s) => s.checkpoint ?? -1));
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-// Everything below rests on `expectSameAnswer`, so it is worth knowing that it
-// can fail. A comparison that quietly accepts a difference turns every test
-// that uses it into a test of nothing.
 
 describe("the comparison the rest of these tests rest on", () => {
   const save = (over: Record<string, unknown> = {}) =>
@@ -601,8 +514,6 @@ describe("a compile that adds a line at the bottom of the scene", () => {
     expect(after.resumption).toMatchObject({ replayOnly: false });
     expect(after.resumption.stepIndex).toBeGreaterThan(0);
     expect(searches).toEqual([{ resumed: true }]);
-    // The one search that ran covered the added beat, not the scene: the whole
-    // scene costs what the first compile above spent.
     expect(after.searchSteps).toBeGreaterThan(0);
     expect(after.searchSteps).toBeLessThan(first.searchSteps / 4);
     expect(replays[0]!.checkpoint).toBe(deepest);
@@ -630,9 +541,6 @@ describe("a compile that changes a statement the route already ran", () => {
     session.compile(target);
     const route = session.game!.plannedRoute!;
     const changedLine = at["one_2"]!;
-    // The deepest checkpoint the route captured before the statement about to
-    // change. Anything past it was captured with that statement as it reads
-    // now, so resuming from it would carry the old reading forward.
     const allowed = Math.max(
       -1,
       ...route.steps
@@ -659,11 +567,6 @@ describe("a compile that changes a statement the route already ran", () => {
   });
 });
 
-// Each of these changes what the story does along a route without editing a
-// line the route runs through: a declaration whose value every checkpoint's
-// variables embed, or a declaration added below the route. The compile must
-// refuse to call itself confined, the route must be searched again, and the
-// answer must be the one a search from the top gives.
 const HAZARDS: { name: string; find: string; replace: string }[] = [
   {
     name: "a store's value changes",
@@ -709,7 +612,6 @@ describe("a change the route's own lines cannot account for", () => {
   }
 });
 
-/** A small deterministic generator, so a failing sequence is reproducible. */
 function rng(seed: number) {
   let state = seed >>> 0;
   return () => {
@@ -736,41 +638,34 @@ describe("randomized edit sequences", () => {
       const suffix = ` (${i})`;
       let round: CompiledRound;
       if (roll < 0.2) {
-        // Move the cursor without editing anything.
         target = targets[Math.floor(next() * targets.length)]!;
         round = session.compile(target);
         rounds.push(`move to ${target}`);
       } else if (roll < 0.4) {
-        // A suggestion highlighted in the list: compiled, never applied.
         const find = `Beat ${beat} of the long tail.`;
         round = session.preview(find, `${find}${suffix}`, target);
         rounds.push(`preview ${find}`);
       } else if (roll < 0.6) {
-        // An edit to the beat the cursor is on.
         const find = `Beat ${beat} of the long tail.`;
         session.edit(find, `${find}${suffix}`);
         round = session.compile(target);
         rounds.push(`edit tail ${beat}`);
       } else if (roll < 0.75) {
-        // An edit above everything the route runs through.
         const find = `Beat ${beat} of the first act.`;
         session.edit(find, `${find}${suffix}`);
         round = session.compile(target);
         rounds.push(`edit first act ${beat}`);
       } else if (roll < 0.85) {
-        // An edit in a scene the route never enters.
         const find = `Beat ${beat} of the second act.`;
         session.edit(find, `${find}${suffix}`);
         round = session.compile(target);
         rounds.push(`edit second act ${beat}`);
       } else if (roll < 0.95) {
-        // A line added at the bottom of the scene.
         const find = "  Beat 7 of the long tail.";
         session.edit(find, `${find}\n  Added beat${suffix}.`);
         round = session.compile(target);
         rounds.push(`insert after the tail`);
       } else {
-        // A global's value, which every checkpoint's variables embed.
         session.edit("store trust = ", `store trust =  `);
         round = session.compile(target);
         rounds.push(`touch a global`);
@@ -780,21 +675,7 @@ describe("randomized edit sequences", () => {
   });
 });
 
-// The same oracle on the program engine (#700). A route step is known by its
-// address, which names its statement's chunk, and a step is reused when the
-// new root still holds its chunk and still moves from the step before it the
-// way the route did (`validAddressPrefixLength`): the first statement the
-// compile emitted again or inserted along the route ends the reuse. What is
-// reused must still be a shortcut and not a different answer: the route, the
-// verdict and the checkpoint equal a search and replay from the top of the
-// scene in a fresh game.
-/** The story steps the program engine ran during `run`, past any story's
- *  declarations: the search's and the replay's. */
 const stepsRun = (_session: Session, run: () => CompiledRound) => {
-  // Every step any program story runs, counted where its own counter moves:
-  // a compile may hand the game a new story, whose counter starts again, and
-  // each new story first runs the program's declarations (the builtins
-  // prelude's among them), which are the same for every compile.
   const proto = ProgramStory.prototype as unknown as {
     Step(this: ProgramStory): void;
     runDeclarations(this: ProgramStory): void;
@@ -853,11 +734,6 @@ describe("on the program engine", () => {
     const route = session.game!.plannedRoute!;
     const deepest = deepestCheckpoint(route);
     expect(deepest).toBeGreaterThanOrEqual(0);
-    // The last checkpoint standing before the edited beat: the deepest one
-    // that a step before the beat's own carries. The beat's statement is
-    // emitted again, so the route's steps from it on name an address the new
-    // program does not hold, and the story searches on from that checkpoint
-    // instead of replaying (#700).
     const edited = Math.floor(
       session.game!.programStory!.root.addressAt(URI, target)! / 2 ** 21,
     );
@@ -884,17 +760,11 @@ describe("on the program engine", () => {
     });
     expect(searches).toEqual([{ resumed: true }]);
     expect(replays.every((r) => r.checkpoint === standing)).toBe(true);
-    // The counter of steps the engine ran: the beats after the last
-    // checkpoint, against the search and the replay of the whole scene.
     expect(after.steps).toBeGreaterThan(0);
     expect(after.steps).toBeLessThan(first.steps / 4);
     expectSameAnswer(after.round, fromTheTop(after.round));
   });
 
-  // Round 1 of the review of #1618 (report 6026971997): a search that keeps
-  // to its scene asks whether the story has left it by the addresses it will
-  // come back to, which left out a suspended thread's frames, so a fork's
-  // tunnel onward out of the scene looked like leaving it for good.
   test("a route through a fork's tunnel onward comes back to its scene", () => {
     const lines = [
       "-> A",
@@ -930,11 +800,6 @@ describe("on the program engine", () => {
     expectSameAnswer(round, fromTheTop(round));
   });
 
-  // A scene with nothing of its own before its first branch enters that
-  // branch, by the scene's start binding, not by any statement's code. A
-  // branch inserted above the first one changes where the scene starts while
-  // every chunk the route ran stays, so a route that entered the old first
-  // branch keeps none of its steps (round 1 of the review of #1618).
   for (const where of ["the scene's start", "a tunnel into the scene"]) {
     test(`a branch inserted above a scene's first branch keeps none of a route that entered it (${where})`, () => {
       const tunnel = where === "a tunnel into the scene";
@@ -970,8 +835,6 @@ describe("on the program engine", () => {
       expect(first.simulation).toBe("success");
       const route = session.game!.plannedRoute!;
       expect(deepestCheckpoint(route)).toBeGreaterThan(0);
-      // The route's first step in the branch: the steps before it ran in
-      // flows the edit leaves alone.
       const branchLine = lines.indexOf("  branch first");
       const entered = route.steps.findIndex(
         (s) => (session.game!.locator.locationOf(s.address)?.startLine ?? -1) > branchLine,
@@ -985,12 +848,10 @@ describe("on the program engine", () => {
         "  branch first",
         "  branch prologue\n    & score = score + 1\n    -> MAIN.first\n  end\n  branch first",
       );
-      // The tunnel's target stands above the edit, and the branch's below it.
       const after = session.compile(tunnel ? target : target + 4);
 
       expect(after.simulation).toBe("success");
       expect(after.changes?.chunks?.initializers).toBe(false);
-      // The prologue ran, as it does in a fresh game.
       expect(session.game!.story.variablesState.$("score")).toBe(1);
       expectSameAnswer(after, fromTheTop(after));
       expect(after.resumption.validSteps).toBeLessThanOrEqual(entered);
@@ -1024,11 +885,6 @@ describe("on the program engine", () => {
     session.compile(target);
     const route = session.game!.plannedRoute!;
     const before = session.game!.programStory!.root;
-    // The steps that ran before the inserted line's place: those of the
-    // statements up to `Beat 2 of the first act`, whose chunk stays. The
-    // checkpoint taken at that beat's newline, which the first step after it
-    // carries, holds the state the inserted line runs on; any later one
-    // holds a state that ran past where the line now stands.
     const beat = Math.floor(before.addressAt(URI, at["one_2"]!)! / 2 ** 21);
     const lastOfBeat = route.steps.findLastIndex(
       (s) => Math.floor((s.address as number) / 2 ** 21) === beat,
@@ -1061,10 +917,6 @@ describe("on the program engine", () => {
     const target = at["tail_7"]!;
     session.compile(target);
 
-    // A suggestion on a beat above the target: the target's statement is
-    // kept, and the route searches on from the last checkpoint before the
-    // suggested beat. (The searches are read before the comparison, whose
-    // own search from the top the spy counts too.)
     const searches = watchSearches();
     const preview = session.preview(
       "Beat 6 of the long tail.",
@@ -1075,8 +927,6 @@ describe("on the program engine", () => {
     expect(searches).toEqual([{ resumed: true }]);
     expectSameAnswer(preview, fromTheTop(preview));
 
-    // A suggestion on the target's own beat emits its statement again, and
-    // its address with it: the search goes on from the last checkpoint.
     searches.length = 0;
     const onTarget = session.preview(
       "Beat 7 of the long tail.",
@@ -1087,8 +937,6 @@ describe("on the program engine", () => {
     expect(searches).toEqual([{ resumed: true }]);
     expectSameAnswer(onTarget, fromTheTop(onTarget));
 
-    // The real program after the suggestions resumes the route the last
-    // suggestion left, whose kept steps are the real program's too.
     searches.length = 0;
     const after = session.compile(target);
     expect(after.resumption.stepIndex).toBeGreaterThan(0);
@@ -1112,8 +960,6 @@ describe("on the program engine", () => {
     let fromTop = 0;
     let touched = false;
     for (let i = 0; i < 32; i += 1) {
-      // One round in the sequence always touches a global, which no checkpoint
-      // survives, so the sequence searches from the top at least once.
       const rolled = next();
       const roll = i === 9 ? 0.95 : rolled;
       const beat = Math.floor(next() * 8);
@@ -1144,8 +990,6 @@ describe("on the program engine", () => {
         session.edit(find, `${find}${suffix}`);
         round = session.compile(target);
       } else if (roll < 0.8) {
-        // A line inserted between two statements the route runs through,
-        // whose chunks both stay.
         const find = `  Beat ${beat} of the first act.`;
         label = "insert in the first act";
         session.edit(find, `${find}\n  An aside${suffix}.`);
@@ -1156,8 +1000,6 @@ describe("on the program engine", () => {
         session.edit(find, `${find}\n  Added beat${suffix}.`);
         round = session.compile(target);
       } else {
-        // An initializer written another way, to the same value, which every
-        // checkpoint's globals embed: it emits the declarations again.
         label = "touch a global";
         const [from, to] = touched
           ? ["store trust = 0 + 0", "store trust = 0"]
@@ -1175,8 +1017,6 @@ describe("on the program engine", () => {
       }
       expectSameAnswer(round, fromTheTop(round), rounds.join(" | "));
     }
-    // A sequence that never reused a route, or never had to search from the
-    // top, or never made the edits it exists for, would prove nothing.
     expect(resumed).toBeGreaterThan(0);
     expect(fromTop).toBeGreaterThan(0);
     expect(seen).toContain("preview");
@@ -1186,11 +1026,6 @@ describe("on the program engine", () => {
 });
 
 describe("on the program engine, a compile that edits an initializer", () => {
-  // The globals and a function one of their initializers calls, written
-  // above the scene, so that every checkpoint stands below them, or below
-  // the scene, so that every checkpoint stands above them. The scene reads
-  // both globals, so a checkpoint taken before the edit holds the values the
-  // old initializers computed.
   const DECLARATIONS = [
     "store trust = 0",
     "store bonus = boost(2)",
@@ -1233,7 +1068,6 @@ describe("on the program engine, a compile that edits an initializer", () => {
         const checkpointLines = route.steps
           .filter((s) => s.checkpoint != null)
           .map((s) => session.game!.locator.locationOf(s.address)?.startLine ?? -1);
-        // Where the checkpoints stand against the edited declaration.
         if (layout.startsWith("declarations above")) {
           expect(checkpointLines.every((l) => l > declarationLine)).toBe(true);
         } else {
@@ -1245,8 +1079,6 @@ describe("on the program engine, a compile that edits an initializer", () => {
         session.edit(edit.find, edit.replace);
         const after = session.compile(target);
 
-        // No chunk of a flow was emitted again: only the declaration's or
-        // the function's.
         const chunks = after.changes?.chunks;
         expect(chunks?.initializers).toBe(true);
         const root = after.program.chunks!;
@@ -1265,8 +1097,6 @@ describe("on the program engine, a compile that edits an initializer", () => {
           expect(replay).toEqual({ fromStep: 0, checkpoint: -1 });
         }
         expect(after.simulation).toBe("success");
-        // The final variable values are a fresh game's: the checkpoint the
-        // route ends at holds the new initializers' values.
         const expected = edit.name.startsWith("a global's")
           ? { trust: 13, bonus: 3 }
           : { trust: 7, bonus: 7 };

@@ -1,24 +1,16 @@
 import { dist } from "./geometry/cubic";
 import type { Point, Subpath } from "./types";
 
-/** A drawing with its resolved effective label and a stable identity. */
 export interface LabelledShape {
   id: string;
-  /** The effective label; an empty string never pairs. */
   label: string;
   subpaths: Subpath[];
 }
 
 export interface ShapePair {
-  /**
-   * Stable across direction: the same two shapes give the same id whether
-   * the morph runs forward or in reverse, and a shape shared by several
-   * pairs appears in each with its own id.
-   */
   trackId: string;
   from: LabelledShape;
   to: LabelledShape;
-  /** True when the pair's `from` or `to` is shared with another pair. */
   shared: boolean;
 }
 
@@ -43,7 +35,6 @@ export interface PairingResult {
   diagnostics: PairingDiagnostic[];
 }
 
-/** The mean of segment start points across the drawing: its pairing position. */
 export function shapePosition(shape: LabelledShape): Point {
   let x = 0,
     y = 0,
@@ -60,13 +51,6 @@ export function shapePosition(shape: LabelledShape): Point {
 
 export const trackIdFor = (a: LabelledShape, b: LabelledShape): string => [a.id, b.id].sort().join("<>");
 
-/**
- * Pairs shapes by identical nonempty label. One-to-many pairs when one side
- * has a single shape; equal counts pair by nearest position, greedily in
- * ascending distance with index order breaking ties; unequal counts with
- * neither side single leave every shape of that label unpaired with a
- * diagnostic.
- */
 export function pairShapes(from: LabelledShape[], to: LabelledShape[]): PairingResult {
   const pairs: ShapePair[] = [];
   const unpaired: UnpairedShape[] = [];

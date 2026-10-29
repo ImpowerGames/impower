@@ -1,9 +1,3 @@
-// #1657 — a search resumed along the route on screen keeps every decision
-// before the point it resumes from, so it resumes no later than the route's
-// first pinned meeting: a pin met earlier, or the share of the search a pin
-// is bound to, then counts in the resumed search as in a fresh one, and a
-// line the pin reaches, previewed after a line inside another option, takes
-// the pinned option again, as a game that never ran answers.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -34,8 +28,6 @@ scene interrogation
 end
 `;
 
-// Two pinned menus, two beats between them. Forcing `go` false reaches the
-// target forcing one verdict; through both pins it takes two.
 const TWO_MENUS = `store trust = 0
 store go = true
 
@@ -64,7 +56,6 @@ scene s
 end
 `;
 
-// A pinned option whose loop outruns the pin's share of a small search.
 const LONG_LOOP = `store counter = 0
 
 scene s
@@ -108,8 +99,6 @@ afterEach(() => {
   Object.assign(faithfulBudget, budget);
 });
 
-/** One compiler and one game holding the pins, driven as the player's worker
- *  drives them: each compile routes to its line in the program it produced. */
 class Session {
   readonly compiler = new SparkdownCompiler();
   game?: Game;
@@ -186,7 +175,6 @@ describe("a resumed search and the pins", () => {
   }, 120_000);
 
   test("resumes no later than a choice that left the pin an edit put first on its menu", () => {
-    // An edit left pins on both options; the first the menu lists wins.
     const session = new Session([TRUTH, PHOTO]);
     expect(session.compile(lineOf("Photo again.")).choices).toEqual([
       ["pinned", "Show the photograph."],
@@ -220,7 +208,6 @@ describe("a resumed search and the pins", () => {
       choices: [
         ["pinned", "Start."],
         ["pinned", "Tell the truth."],
-        // Reported without the script's text, as the session reads none.
         ["forced", ""],
         ["forced", ""],
       ],
@@ -229,8 +216,6 @@ describe("a resumed search and the pins", () => {
   }, 120_000);
 
   test("a search resumed after a followed pin keeps to the pin's share of the search", () => {
-    // The pinned option's 200 passes outrun its share of this search, so a
-    // fresh search leaves the pin; one resumed past the menu would not.
     faithfulBudget.steps = 10_000;
     const pins = [{ uri: URI, line: lineIn(LONG_LOOP, "[Long.]"), offer: 1 }];
     const session = new Session(pins, LONG_LOOP, "counter");

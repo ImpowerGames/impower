@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 
-/**
- * The expression context the editor's Debug Console evaluates against holds
- * each story value it can receive: it is sent to the editor, so every value
- * in it has to survive a structured clone (#682).
- */
 describe("a game's evaluation context", () => {
   const program = compileProgram(
     [

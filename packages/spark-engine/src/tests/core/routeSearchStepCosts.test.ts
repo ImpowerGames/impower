@@ -1,26 +1,3 @@
-// #667 - two per-step costs the route search pays for nothing.
-//
-// The search walks the story looking for a way to reach the line the author
-// clicked, and it advances the story once per step. Two things happened on
-// every one of those advances that no part of the search ever reads:
-//
-//   - The engine calls the story owner's execution hook with the text of the
-//     pointer's path. The search does not want that hook to fire, and the
-//     engine skips building the path string only when the hook is null, so the
-//     search suppresses it with null rather than a do-nothing function.
-//
-//   - The engine built and started a stopwatch on every advance, to stop an
-//     asynchronous continue that had run out of a millisecond budget. No
-//     caller asks for such a budget: every one passes an unbounded limit,
-//     which stops after a single step whatever the clock says, or a
-//     non-positive one, which runs to the end of the line. So the engine
-//     measures no elapsed time at all, and takes no limit: an asynchronous
-//     continue advances one step, an ordinary one runs to the end of the line.
-//
-// What must hold: a search reads no clock per step, the story owner's own
-// execution hook is put back exactly as it was, and the two ways to advance
-// still differ in the way they always did.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
@@ -64,8 +41,6 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** A single scene of `beats` display lines, so a route to its end takes many
- *  story advances. Its last beat is on line `beats + 2`, counting from zero. */
 function longScene(beats: number): string {
   const lines = ["-> start", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
@@ -75,7 +50,6 @@ function longScene(beats: number): string {
   return lines.join("\n");
 }
 
-/** Resolve a source line to the runtime path the preview would target. */
 function targetPathForLine(program: unknown, line: number): ProgramAddress {
   const game = newGame(program);
   game.setStartFrom({ file: URI, line });
@@ -94,13 +68,9 @@ describe("a route search pays neither per-step cost", () => {
     const game = newGame(program);
     const story = game.story as any;
 
-    // The hook the story owner had installed before the search began.
     const ownersHook = (arg1: string | undefined) => void arg1;
     story.onExecute = ownersHook;
 
-    // Watch every value the search writes to the hook. The engine only skips
-    // building the pointer's path string when the hook is null, so a search
-    // that installs a function pays for a string on every advance.
     const assigned: unknown[] = [];
     let current: unknown = story.onExecute;
     Object.defineProperty(story, "onExecute", {
@@ -119,20 +89,9 @@ describe("a route search pays neither per-step cost", () => {
     expect(duringSearch.length).toBeGreaterThan(0);
     expect(duringSearch.every((value) => value === null)).toBe(true);
 
-    // And the owner gets their own hook back, unchanged.
     expect(story.onExecute).toBe(ownersHook);
   }, 120_000);
 
-  // The engine reads a clock through `new Date().getTime()`; `planRoute`'s own
-  // search deadline uses `performance.now()` or `Date.now()`, neither of which
-  // goes through an instance. So counting instance clock reads over a search
-  // isolates the engine's own.
-  //
-  // One such read remains, and it is not per step: building a story state
-  // seeds its randomness from the clock, which happens once per state the
-  // search constructs. What must not happen is a read on every story advance,
-  // so the property here is that a search reads the clock fewer times than it
-  // takes steps.
   const clockReadsForScene = (beats: number) => {
     const program = compileSrc(longScene(beats));
     const toPath = targetPathForLine(program, beats + 2);
@@ -161,14 +120,11 @@ describe("a route search pays neither per-step cost", () => {
     const short = clockReadsForScene(BEATS);
     const long = clockReadsForScene(BEATS * 4);
 
-    // The longer scene really does take far more advances to reach.
     expect(long.steps).toBeGreaterThan(short.steps * 3);
 
     expect(short.reads).toBeLessThan(short.steps);
     expect(long.reads).toBeLessThan(long.steps);
 
-    // And what is left is one read per story state the search builds. A
-    // search from one start builds one, however long the scene.
     expect(short.reads).toBe(1);
     expect(long.reads).toBe(1);
   }, 240_000);
@@ -177,9 +133,6 @@ describe("a route search pays neither per-step cost", () => {
     const program = compileSrc(SCENE);
     const story = newGame(program).story as any;
 
-    // The engine takes no limit of any kind, so which of these a caller uses
-    // is the whole of the difference between one step and a whole line. The
-    // removed clock used to sit between them.
     story.ContinueAsync();
     expect(story.asyncContinueComplete).toBe(false);
     story.CancelAsyncContinue();

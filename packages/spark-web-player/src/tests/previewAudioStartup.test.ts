@@ -12,8 +12,6 @@ describe("preview startup before a webview audio gesture (#1762)", () => {
     const pending = new Promise<void>(resolve => { resume = resolve; });
     const context = { state: "suspended", resume: vi.fn(() => pending) };
     h.controller._audioContext = context;
-    // ensureAudioContext is a per-instance arrow function, so take the real
-    // implementation from a fresh controller instead of the harness override.
     const real = new GamePlayerController(h.overlay, {} as never);
     (real as any)._audioContext = context;
     h.controller.ensureAudioContext = real.ensureAudioContext;

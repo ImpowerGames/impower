@@ -1,12 +1,3 @@
-// What the preview's route search costs before it has advanced the story at
-// all, and what it leaves behind when it is done (#650).
-//
-// Every reset re-runs the `global decl` container, which evaluates every
-// global definition in the project — the builtins seeded into the story
-// included. A search that resets a story nobody has touched, and again on its
-// way out to a caller that is about to load a state of its own, pays that
-// whole cost twice for nothing.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { planRoute } from "@impower/sparkdown/src/compiler/utils/planRoute";
@@ -16,8 +7,6 @@ import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/Progr
 
 const URI = "inmemory:///main.sd";
 
-/** An address no program here holds: chunk 2^19, far past any chunk id a
- *  test program is given. */
 const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 const SRC = `store score = 0
@@ -32,7 +21,7 @@ scene start
   Third line here.
 end
 `;
-const TARGET_LINE = 9; // "Third line here.", counting from zero
+const TARGET_LINE = 9;
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -66,9 +55,6 @@ function newGame(program: unknown) {
   } as any);
 }
 
-/** Count the runs of the declarations on this one story (the program
- *  engine's `runDeclarations`, which every reset runs), and report the count
- *  so far. */
 function countGlobalEvaluations(game: Game): () => number {
   const story = game.story as any;
   const method = "runDeclarations";
@@ -85,8 +71,6 @@ function planTo(game: Game, program: any, line: number) {
   game.setStartFrom({ file: URI, line });
   const toPath = game.startAddress!;
   const fromPath = game.routeStartOf(toPath);
-  // As the player's worker asks for it: the replay that follows installs a
-  // state of its own.
   return Game.planRoute(game.story, program, fromPath, toPath, {
     callerResetsStory: true,
   });
@@ -96,10 +80,6 @@ describe("route search resets (#650)", () => {
   test("a search and its replay evaluate the globals once", () => {
     const program = compileSrc(SRC);
     const game = newGame(program);
-    // Counted from the story the compile handed over, which was constructed
-    // and reset moments earlier: the search inherits a story whose globals are
-    // already evaluated, and the replay that follows a found route installs a
-    // state of its own.
     const evaluations = countGlobalEvaluations(game);
 
     const route = planTo(game, program, TARGET_LINE);
@@ -113,8 +93,6 @@ describe("route search resets (#650)", () => {
   test("a search on a story that has been advanced evaluates the globals", () => {
     const program = compileSrc(SRC);
     const game = newGame(program);
-    // Advance the story, so its variables no longer hold what a fresh
-    // evaluation would give them.
     game.story.ChoosePathString("start");
     game.story.Continue();
 
@@ -128,10 +106,6 @@ describe("route search resets (#650)", () => {
   test("a search after a global is written from outside evaluates the globals", () => {
     const program = compileSrc(SRC);
     const game = newGame(program);
-    // Nothing has run this story, so a search would otherwise take it as it
-    // stands. Writing a global through the variables proxy is exactly the case
-    // where that would be wrong: the value below is not one the story's own
-    // declarations produce, and the search must not plan against it.
     (game.story.variablesState as any)["score"] = 999;
     expect((game.story.variablesState as any).$("score")).toBe(999);
 
@@ -159,9 +133,6 @@ describe("route search resets (#650)", () => {
     const route = planTo(game, program, TARGET_LINE);
     expect(route).not.toBeNull();
 
-    // The caller took the reset on itself, so it must be able to take it: a
-    // search that stopped part-way through a line leaves an async continue
-    // open, and the runtime refuses to reset while one is.
     expect(() => game.story.ResetState()).not.toThrow();
   });
 
@@ -176,8 +147,6 @@ describe("route search resets (#650)", () => {
     });
 
     expect(route).toBeNull();
-    // A reset story is back at the very beginning: nothing has been visited
-    // and the first line is still ahead of it.
     expect(
       (game.story.state as any)
         .GetVisitCountEntries()
@@ -206,8 +175,6 @@ describe("route search resets (#650)", () => {
     ).toThrow("planted failure inside the search");
     expect(thrown).toBe(true);
 
-    // The story still runs, and the hooks the search replaced are its own
-    // again.
     expect(story.onExecute).toBe(hookBefore);
     game.story.ChoosePathString("start");
     expect(game.story.Continue()?.trim()).toBe("First line here.");

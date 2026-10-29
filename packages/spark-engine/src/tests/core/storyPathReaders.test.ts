@@ -1,11 +1,3 @@
-// No story path leaves the engine (#700). Outside the engine and the compiler a
-// position is a source location, and an execution position an opaque address
-// that the program's accessor gives for a line (`ProgramLocator.addressAt`)
-// and places in the source (`locationOf`) (docs/engine/binary-program.md,
-// section 8). This holds the boundary two ways: a search of every source file
-// outside the engine and the compiler for the names a reader of story paths
-// uses, with each reader the issue lists going through the accessor; and the
-// game's execution report, which carries no path on the program engine.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +9,6 @@ import { GameExecutedMessage } from "../../game/core/classes/messages/GameExecut
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..");
 
-/** Where story paths may be read: the compiler, the engine and its runtime
- *  layer. */
 const ENGINE_AND_COMPILER = [
   "packages/sparkdown/src/compiler/",
   "packages/sparkdown/src/program/",
@@ -28,7 +18,6 @@ const ENGINE_AND_COMPILER = [
   "packages/spark-engine/src/game/",
 ];
 
-/** The source trees of everything that runs outside them. */
 const SOURCE_ROOTS = [
   "packages",
   "vscode-sparkdown/src",
@@ -37,9 +26,6 @@ const SOURCE_ROOTS = [
   "sparkdown-player-app/src",
 ];
 
-/** The names a reader of story paths uses: the path-location table and its
- *  lookups, the game's path fields and helpers before they became addresses,
- *  the messages' path fields, and the runtime pointers paths are read from. */
 const PATH_READS = [
   /\bpathLocations\b/,
   /\bpathLocationTable\b/,
@@ -143,8 +129,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
         ".addressAt(",
         ".locationOf(",
       ),
-      // The language server asks the accessor of the compiler's worker,
-      // which holds the root its program is located by (#704).
       previousAndNextBeat: uses(
         "packages/sparkdown-language-server/src/utils/providers/getOffsetSourceLocation.ts",
         ".beatAt(",
@@ -164,9 +148,6 @@ describe("a search of the sources outside the engine and the compiler", () => {
         '"sparkdown/addressAt"',
         '"sparkdown/locationOf"',
       ),
-      // The extension's compilation view, which showed the object engine's
-      // compiled JSON, was deleted with that engine (#705).
-      // The page holds no program: it shows the locations the game sends.
       playerPage: uses(
         "packages/spark-web-player/src/GamePlayerController.ts",
         "simulateLocation",

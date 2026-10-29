@@ -1,9 +1,3 @@
-// #816 — the runtime errors and warnings a route replay raises travel with
-// the route's answer, so the game that shows the start point can report
-// them. After an edit below the author's line, the replay resumes from a
-// checkpoint partway along the route rather than running it from the top, so
-// what the steps before that checkpoint raised has to be kept rather than
-// raised again.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, test } from "vitest";
@@ -107,7 +101,6 @@ describe("route errors", () => {
     ];
     expect(rounds).toHaveLength(2);
     expect(rounds[0]).toEqual({ errors: warned, resumed: false });
-    // The edit is below the line, so the second replay resumed partway along.
     expect(rounds[1]).toEqual({ errors: warned, resumed: true });
   });
 });

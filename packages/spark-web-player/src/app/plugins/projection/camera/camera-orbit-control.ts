@@ -1,17 +1,9 @@
-/*
- * Based on pixi3d <https://github.com/jnsmalm/pixi3d>
- *
- * Copyright (c) 2023 Jens Malmborg
- * Released under the MIT license.
- */
-
 import { ObservablePoint } from "pixi.js";
 import { Quat } from "../math/quat";
 import { Vec3 } from "../math/vec3";
 import { Point3D } from "../transform/point";
 import { Camera } from "./camera";
 
-// Allocate these once and then reuse
 const rotVec4 = new Float32Array(4);
 const dirVec3 = new Float32Array(3);
 const posVec3 = new Float32Array(3);
@@ -19,15 +11,8 @@ const transformAVec3 = new Float32Array(3);
 const subtractAVec3 = new Float32Array(3);
 const subtractBVec3 = new Float32Array(3);
 
-/**
- * Allows the user to control the camera by orbiting the target.
- */
 export class CameraOrbitControl {
   protected _autoUpdate = true;
-  /**
-   * Whether to auto update the camera on prerender.
-   * Default is true.
-   */
   get autoUpdate(): boolean {
     return this._autoUpdate;
   }
@@ -37,11 +22,7 @@ export class CameraOrbitControl {
 
   protected _allowControl = true;
 
-  /** Whether {@link bindInput} listeners are currently attached. */
   protected _inputBound = false;
-  /**
-   * Allows the camera to be controlled by user.
-   */
   get allowControl(): boolean {
     return this._allowControl;
   }
@@ -50,15 +31,6 @@ export class CameraOrbitControl {
       return;
     }
     this._allowControl = value;
-    // Attach the input listeners ONLY while control is actually allowed. Every
-    // handler below already no-ops on `!allowControl`, so leaving them attached
-    // looked free -- but a non-passive `wheel` listener is scroll-BLOCKING:
-    // Chrome must dispatch each wheel event to the main thread and wait for it
-    // before the compositor may scroll anything in the frame. The player's main
-    // thread runs the render loop, so during preview (`allowControl === false`,
-    // the normal state) that turned every wheel gesture over the game into a
-    // main-thread round trip and made scrolling stick whenever the thread was
-    // busy -- for a control that could not respond anyway.
     if (value) {
       this.bindInput();
     } else {
@@ -67,9 +39,6 @@ export class CameraOrbitControl {
   }
 
   protected _camera;
-  /**
-   * The camera being controlled.
-   */
   get camera(): Camera {
     return this._camera;
   }
@@ -87,9 +56,6 @@ export class CameraOrbitControl {
       this.updateCamera();
     },
   });
-  /**
-   * Target position (x, y, z) to orbit.
-   */
   get target(): Point3D {
     return this._target;
   }
@@ -117,11 +83,6 @@ export class CameraOrbitControl {
     30,
     180,
   );
-  /**
-   * Orientation euler angles (x-axis and y-axis).
-   * The angle for the x-axis will be clamped between -85 and 85 degrees.
-   * Default value is (30,180).
-   */
   get angles() {
     return this._angles;
   }
@@ -135,10 +96,6 @@ export class CameraOrbitControl {
   }
 
   protected _distance = 5;
-  /**
-   * Distance between camera and the target.
-   * Default value is 5.
-   */
   get distance(): number {
     return this._distance;
   }
@@ -151,10 +108,6 @@ export class CameraOrbitControl {
   }
 
   protected _enableDamping = true;
-  /**
-   * Value indicating if damping (inertia) is enabled, which can be used to give a sense of weight to the controls.
-   * Default is true.
-   */
   get enableDamping(): boolean {
     return this._enableDamping;
   }
@@ -171,10 +124,6 @@ export class CameraOrbitControl {
   }
 
   protected _dampingFactor = 0.1;
-  /**
-   * The damping inertia used if enableDamping is true.
-   * Default is 0.1.
-   */
   get dampingFactor(): number {
     return this._dampingFactor;
   }
@@ -187,7 +136,7 @@ export class CameraOrbitControl {
     return this._panSpeed;
   }
   set panSpeed(value: number) {
-    this._panSpeed = Math.max(0.001, value); // Prevent zero or negative
+    this._panSpeed = Math.max(0.001, value);
   }
 
   protected _zoomSpeed = 1;
@@ -220,12 +169,6 @@ export class CameraOrbitControl {
 
   protected _controlling = false;
 
-  /**
-   * Creates a new camera orbit control.
-   * @param element The element for listening to user events.
-   * @param camera The camera to control.
-   * by default.
-   */
   constructor(camera: Camera = Camera.main, element?: HTMLElement) {
     this._element = element;
     this._camera = camera;
@@ -271,9 +214,7 @@ export class CameraOrbitControl {
   protected onMouseDown = (e: MouseEvent): void => {
     if (this.allowControl) {
       this._controlling = true;
-      // Middle-click or Right-click or Spacebar initiates panning
       if (e.button === 1 || e.button === 2 || this._spacePressed) {
-        // Don't initiate scroll or context menu behaviour
         e.preventDefault();
         this._isPanning = true;
       } else {
@@ -351,7 +292,7 @@ export class CameraOrbitControl {
         this.onPointerDown(clientX, clientY);
       }
       if (e.touches.length === 2) {
-        e.preventDefault(); // Prevent page scroll
+        e.preventDefault();
         this._previousPinchDistance = Math.hypot(
           e.touches[0]!.clientX - e.touches[1]!.clientX,
           e.touches[0]!.clientY - e.touches[1]!.clientY,
@@ -364,7 +305,7 @@ export class CameraOrbitControl {
   protected onPinch = (e: TouchEvent): void => {
     if (this.allowControl) {
       this._controlling = true;
-      e.preventDefault(); // Prevent page scroll
+      e.preventDefault();
       const currentPinchDistance = Math.hypot(
         e.touches[0]!.clientX - e.touches[1]!.clientX,
         e.touches[0]!.clientY - e.touches[1]!.clientY,
@@ -424,8 +365,6 @@ export class CameraOrbitControl {
     this.camera.renderer.runners.prerender.add(this);
     const target = this._element ?? window;
     target.addEventListener("mousedown", this.onMouseDown as EventListener);
-    // Bind mouse and touch equivalent pointermove and pointerup events to window
-    // to support the case where the pointer leaves the element while dragging
 
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
@@ -451,13 +390,6 @@ export class CameraOrbitControl {
     this.unbindInput();
   }
 
-  /** ONLY the scroll-blocking listeners: `wheel` and the touch pair, all
-   *  non-passive so they can preventDefault while orbiting. A non-passive
-   *  listener of these types blocks scrolling for the WHOLE frame whether or not
-   *  it ever acts, so they are attached only while `allowControl` is true (see
-   *  the note on that setter). The rest stay bound always — they cost nothing
-   *  and unbinding them would change unrelated behaviour, e.g. the player would
-   *  start showing a right-click context menu during play. */
   protected bindInput(): void {
     if (this._inputBound) {
       return;
@@ -519,9 +451,6 @@ export class CameraOrbitControl {
     this.fitToBoundingBox(center, radius);
   }
 
-  /**
-   * Updates the position and rotation of the camera.
-   */
   updateCamera(): void {
     if (this.enableDamping) {
       this._dampingAngles.x +=

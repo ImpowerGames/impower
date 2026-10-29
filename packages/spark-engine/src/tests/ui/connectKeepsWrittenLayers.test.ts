@@ -1,11 +1,3 @@
-// A connect clears every clear-on-continue layer, and the beat displayed after
-// it is the first the page sees (#1662). Play keeps the picture on a layer
-// such a beat writes to (`[[animate portrait with shake]]` shakes the portrait
-// the line before showed), so the first beat after a connect shows that
-// picture again, and a layer the beat does not write stays empty. A beat that
-// shows a picture of its own on the layer replaces the earlier one, so the
-// earlier one is neither shown again nor waited for.
-
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import {
@@ -59,8 +51,6 @@ const portraitWrites = (messages: any[]) =>
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((line) => line.includes(text));
 
-/** Save the game once its first `beats` beats are displayed, as a route to
- *  the beat after them does. */
 async function checkpointAfter(beats: number) {
   const h = createHarness(SOURCE);
   await h.ready;
@@ -87,8 +77,6 @@ async function previewAfterConnect(beats: number, previewLine: string) {
   const ui: any = h.game.module.ui;
   expect(ui.getTransientTargets()).toContain("portrait");
   expect(ui.getTransientTargets()).not.toContain("backdrop");
-  // The checkpoint stands for the route to the beat, which the preview
-  // continues from, as it does when a route replay left the checkpoint.
   h.game.simulation = "success";
   h.reset();
   expect(
@@ -129,7 +117,6 @@ describe("the first beat after a connect keeps the layers it writes (#1662)", ()
     const writes = portraitWrites(h.messages);
     expect(writes).toContain("hat.png");
     expect(writes).not.toContain("red.png");
-    // The preview's gate asks the page for the beat's pictures alone.
     const requested = JSON.stringify(
       h.messages.filter((m: any) => m?.method === "assets/load"),
     );
@@ -149,8 +136,6 @@ describe("the first beat after a connect keeps the layers it writes (#1662)", ()
     await h.ready;
     const ui: any = h.game.module.ui;
     h.game.reset();
-    // The animate beat, run from the top after the reset and displayed as
-    // the first beat after it.
     h.jumpToFlow("start");
     h.nextBeat();
     h.nextBeat();

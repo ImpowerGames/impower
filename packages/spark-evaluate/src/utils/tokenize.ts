@@ -12,7 +12,6 @@ const tokenize = (
     const [, ctx] = DEFAULT_PARSER.parse(expr);
     return ctx.tokens;
   } catch {
-    // NoOp
   }
   return [];
 };

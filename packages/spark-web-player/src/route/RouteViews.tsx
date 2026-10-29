@@ -30,27 +30,13 @@ import {
   type ScriptName,
 } from "./routeView";
 
-/*
- * The route button and the route list render from a state object
- * (`RouteViewState`) and say what the author did through their events. They
- * know nothing of the host: the player's toolbar is one place to put them,
- * and any host that hears the route over the bridge can put them elsewhere.
- * Their colours come from the `--swp-route-*` variables, whose defaults are
- * the player's own.
- */
-
 export interface RouteButtonProps {
   state: RouteViewState;
   nameOf: ScriptName;
-  /** The author asked for the route list. */
   onOpen: () => void;
-  /** The author asked to close it. */
   onClose: () => void;
 }
 
-/** The route the preview took, `interrogation (4 → 21)`, with the status
- *  icon that says how it differs from play. A press opens the route list,
- *  and a second press closes it. */
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
@@ -66,7 +52,6 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
       aria-expanded={state.open}
       aria-label={`${label}. ${title}`}
       title={title}
-      // A press on the button is not a drag of whatever bar holds it.
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => (state.open ? onClose() : onOpen())}
     >
@@ -83,18 +68,12 @@ export interface RouteListProps {
   state: RouteViewState;
   nameOf: ScriptName;
   onClose: () => void;
-  /** The author showed or hid a kind. */
   onToggle: (kind: RouteKind, shown: boolean) => void;
-  /** The author asked to see a line. */
   onShowLine: (location: DocumentLocation) => void;
-  /** The author pinned, unpinned or removed pins. */
   onChangePins: (change: RoutePinChange) => void;
   onPinLastRun: () => void;
 }
 
-/** A choice entry's pin control: what the preview did at the stop, the
- *  options offered there in script order with the one taken marked, each
- *  with Pin or Pinned, and Unpin when the stop has a pin. */
 function PinControl({
   decision,
   target,
@@ -153,10 +132,6 @@ function PinControl({
   );
 }
 
-/** The route's decisions in route order, between where it starts and the
- *  line it ends at, filtered by the toggles; or why there is no route. A
- *  choice entry expands to its pin control, and one whose pin was not
- *  followed starts expanded. */
 export function RouteList({
   state,
   nameOf,
@@ -166,7 +141,6 @@ export function RouteList({
   onChangePins,
   onPinLastRun,
 }: RouteListProps) {
-  // Which entries the author expanded or collapsed, by stop.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (!state.open) {
     return null;
@@ -179,10 +153,6 @@ export function RouteList({
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
   const lastRun = state.lastRun ?? 0;
-  // An entry is known by its stop: the menu it met, by where it is met, and
-  // which meeting of that menu it is. A pin that changes the option taken
-  // there, or the options a gate lets it offer, leaves it as it was, so the
-  // control the author pressed stays open.
   const keys = new Map<PreviewRouteDecision, string>();
   const meetings = new Map<string, number>();
   for (const decision of decisions) {

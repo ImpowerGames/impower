@@ -1,25 +1,3 @@
-// #1656 — the preview reports every decision its route made: the option it
-// took at each menu (Auto), each verdict it forced that the program does not
-// reach (Forced), and each loop it left before the program would (Clipped,
-// with the passes the loop ran), each at its line, with where the route
-// starts and the line it ends at.
-//
-// What must hold:
-//   - the example script of #1655 previewed at line 21 lists the option at
-//     line 8, the `if` at line 15 forced true and the loop at line 18
-//     clipped, from the top of scene `interrogation` at line 4 to line 21;
-//   - a loop the route leaves early is clipped, never forced, whether its
-//     test was forced false or a forced branch broke out of it, on any pass,
-//     the first included, and for `while`, `for` and `repeat` loops alike;
-//   - a clipped loop's pass count is the number of passes the replay ran,
-//     which each loop below counts in a store, and its entry stands at the
-//     loop's own first line;
-//   - a forced branch inside a loop that stays in the loop is forced, a call
-//     from it to a function written outside the loop included;
-//   - a hub menu met twice reports which time each option was offered;
-//   - a line the program reaches on its own reports no forced or clipped
-//     decision.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -62,9 +40,6 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** The route the preview takes to the 1-based `line` of `lines`, as the
- *  preview reports it, reading the scripts as the player's worker does, and
- *  the value of the store `counted` once the replay has reached the line. */
 function preview(
   lines: string[],
   line: number,
@@ -85,7 +60,6 @@ function preview(
   };
 }
 
-/** Each decision as its kind and 1-based line. */
 const kindsAndLines = (route: PreviewRoute) =>
   route.decisions.map((d) => [d.kind, d.location.range.start.line + 1]);
 
@@ -182,7 +156,6 @@ describe("the route the preview reports", () => {
     const { route, count } = preview(lines, 12, "total");
     expect(route.decisions.map((d) => d.kind)).toEqual(["forced", "clipped"]);
     expect(route.decisions[0]!.location.range.start.line + 1).toBe(5);
-    // Listed at the loop's own line, whichever verdict left it.
     expect(route.decisions[1]!.location.range.start.line + 1).toBe(6);
     expect(count).toBeGreaterThan(0);
     expect(route.decisions[1]!.passes).toBe(count);
@@ -247,8 +220,6 @@ describe("the route the preview reports", () => {
   }, 120_000);
 
   test("a forced branch inside a loop that calls a function written elsewhere is forced", () => {
-    // The function's own decision comes next, outside the loop's lines; the
-    // call returns to the loop, so the route never left it.
     const lines = [
       "store flag = false",
       "store count = 0",

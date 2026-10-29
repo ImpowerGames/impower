@@ -7,12 +7,6 @@ import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 
-/**
- * Write a beat's text to its targets. On a beat that carries on in the box
- * before it, the events that box already shows are marked `shown`, so the page
- * shows them at once and they never leave it, and only the rest are revealed
- * from `time`.
- */
 export function writeBeatText(
   ui: Game["module"]["ui"],
   instructions: Instructions,
@@ -41,7 +35,6 @@ export class Coordinator<G extends Game> {
 
   protected _interacted = false;
 
-  /** Whether the beat's cutscene is on the page and has not ended yet. */
   protected _cutscenePlaying = false;
 
   protected _timeTypedMS = -1;
@@ -97,13 +90,6 @@ export class Coordinator<G extends Game> {
     }
   }
 
-  /**
-   * A click or advance key. Until a cutscene beat's cutscene has ended, it
-   * ends the cutscene and not the beat: the page plays its exit and answers,
-   * and the beat goes on from there. One that lands before the cutscene
-   * starts was meant for the line before and is dropped. It is settled as it
-   * arrives, so the tick that starts the cutscene cannot take it for a skip.
-   */
   protected interact(): void {
     if (this._instructions.cutscene && !this._finishedExecution) {
       if (this._cutscenePlaying) {
@@ -114,42 +100,29 @@ export class Coordinator<G extends Game> {
     this._interacted = true;
   }
 
-  /**
-   *
-   * @returns 0 = don't continue, 1 = auto advance to continue, 2 = clicked to continue
-   */
   shouldContinue(): number {
     const game = this._game;
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
     if (instructions.hold) {
-      // A held beat advances only when the player asks.
       return this.continueOnInteraction(waitingForChoice);
     }
     if ((instructions.load || instructions.cutscene) && !waitingForChoice) {
-      // A `load` or cutscene beat has nothing to read; it advances on its own
-      // once its loading (and the loading layout's minimum display) has
-      // finished, or its cutscene has ended. One that also presents choices
-      // waits for the choice like any other.
       return this._finishedExecution ? 1 : 0;
     }
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
-    // No text or choices to display, and no audio to wait for
     if (!instructions.text && !waitingForChoice && !instructions.audio) {
-      // So just autoadvance when finished
       const totalDurationMS = (instructions.end ?? 0) * 1000;
       if (this._elapsedMS >= totalDurationMS) {
         return 1;
       }
       return 0;
     }
-    // Should autoadvance
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (instructions.auto) {
-      // Autoadvance (after short delay) when finished typing
       const autoAdvanceDelay =
         game.context.preferences?.["flow"]?.["auto_advance_delay"];
       if (
@@ -163,15 +136,9 @@ export class Coordinator<G extends Game> {
     return this.continueOnInteraction(waitingForChoice);
   }
 
-  /** Whether the player's click advances the beat: 2 once its display has
-   *  finished; a click before then finishes the display at once. */
   protected continueOnInteraction(waitingForChoice: boolean | undefined): number {
-    // Player clicked to advance
     if (this._interacted) {
       this._interacted = false;
-      // Only consume the finished state on the path that actually advances --
-      // while waiting on a choice the interaction is ignored, so it must leave
-      // the beat's finished state alone.
       if (this._finishedExecution && !waitingForChoice) {
         this._finishedExecution = false;
         return 2;
@@ -198,24 +165,15 @@ export class Coordinator<G extends Game> {
 
     const transientLayers: string[] = game.module.ui.getTransientTargets();
 
-    // A beat that carries on in the box before it keeps what that box showed
-    // and the sound and voice it started.
     const extended = Boolean(instructions.extended);
 
     if (!instant && !extended) {
-      // Stop stale sound and voice audio on new dialogue line
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
     }
-    // Stop typewriter audio on instant reveal and new dialogue line
     game.module.audio.stopChannel("typewriter");
 
-    // `time` is when a played beat starts on the shared clock; an instant or
-    // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
-      // The beat goes to the page as one composed `ui/beat` (#1820), which
-      // the page puts up at the instant its text starts revealing. A beat a
-      // preview displays is part of the preview's own, which its sweep sends.
       const composed = game.module.ui.beginCompose();
       writeUI(time);
       if (composed) {
@@ -223,27 +181,19 @@ export class Coordinator<G extends Game> {
       }
     };
     const writeUI = (time?: number) => {
-      // A beat that carries on in the box writes the whole box again; one
-      // with no text of its own (pictures or sound only) leaves it as it is.
       if (!extended || instructions.text) {
         game.module.ui.text.clearAll(transientLayers);
       }
-      // A picture the beat shows replaces the one on its layer. A beat that
-      // carries on in the box keeps the others.
       if (!extended) {
         game.module.ui.image.clearAll(
           transientLayers.filter((layer) => !instructions.image?.[layer]),
         );
       }
-      // The first beat after a connect shows the pictures that connect
-      // cleared from the layers this beat keeps, as the page would still
-      // show them had the connect not cleared it (#1662).
       game.module.ui.image.restoreCleared(instructions);
 
       game.module.ui.showLayout("main");
       game.module.ui.reveal();
 
-      // Display click indicator
       const indicatorStyle: Record<string, string | null> = {};
       if (autoAdvance) {
         indicatorStyle["display"] = "none";
@@ -255,7 +205,6 @@ export class Coordinator<G extends Game> {
       }
       game.module.ui.style.update("continue_indicator", indicatorStyle);
 
-      // Process button events
       const choiceTargets = instructions.choices;
       if (choiceTargets) {
         choiceTargets.forEach((target, index) => {
@@ -270,23 +219,15 @@ export class Coordinator<G extends Game> {
         });
       }
 
-      // Process text events
       writeBeatText(game.module.ui, instructions, instant, time);
 
-      // Process images events
       if (instructions.image) {
         Object.entries(instructions.image).forEach(([target, events]) =>
           game.module.ui.image.write(target, events, instant, time),
         );
       }
 
-      // Process layout-lifecycle events ([[open/close/navigate]]). Mount/destroy
-      // happens here (the reactive layout tree is settled at this point); the
-      // enter/exit transition is fire-and-forget for visuals, while `wait` (which
-      // inflated instructions.end) is what actually holds story advance.
       if (instructions.layout) {
-        // A simulated beat is shown to no one, so its layouts open and close
-        // without their transitions.
         const settle = !!instant || Boolean(game.context.system.simulating);
         Object.values(instructions.layout).forEach((events) =>
           game.module.ui.composeWait(
@@ -295,13 +236,9 @@ export class Coordinator<G extends Game> {
         );
       }
 
-      // Coarse per-turn re-eval of reactive screen bindings (Phase 3 I2). The
-      // story is settled at this point, so binding evaluators are safe to call.
-      // No-op unless the reactive render path is active.
       game.module.ui.refreshLayouts();
     };
 
-    // Process audio
     const audioTriggerIds =
       instant || !instructions.audio
         ? []
@@ -309,10 +246,6 @@ export class Coordinator<G extends Game> {
             game.module.audio.schedule(target, events),
           );
 
-    // Start loading what this beat shows alongside its audio, so the wait is
-    // the slower of the two rather than the sum. A `load` beat pins the named
-    // scenes' sets (and loads their worlds) behind the loading layout; in
-    // preview it only prefetches and never waits.
     const assets = game.module.assets;
     const simulating = Boolean(game.context.system.simulating);
     const assetTriggerId =
@@ -325,10 +258,6 @@ export class Coordinator<G extends Game> {
         assets.runLoad(instructions.load);
       }
     }
-    // A cutscene beat plays its video once the beat's gate has opened, so the
-    // file is resident before the page shows it, and finishes when the page
-    // answers that the video ended or was skipped. A preview asks for its
-    // first frame and a route replay for its music stop; neither waits.
     const cutscene = instructions.cutscene?.[0];
     let cutsceneTriggerId: number | null = null;
 
@@ -350,11 +279,6 @@ export class Coordinator<G extends Game> {
       updateUI();
       handleFinished();
       if (previewing && !simulating) {
-        // The beat is on the page: the preview's prediction window follows
-        // the cursor from here (sent once per cursor position; the beat's
-        // own pictures were waited for by the preview before it displayed
-        // the beat, since there is no clock to wait on here). A composed beat
-        // is on the page once it has been sent (#1820).
         game.module.ui.afterCompose(() => assets.onBeatDisplayed());
       }
       return;
@@ -375,10 +299,6 @@ export class Coordinator<G extends Game> {
         if (audioReady && assetsReady && loadReady) {
           ready = true;
           this._startedExecution = true;
-          // The beat's sound and pictures carry one start time, a little
-          // ahead of now so they reach the page before it. The page plays
-          // the sound at that time and shows the pictures once the sound has
-          // left the speakers, so both line up however the messages arrive.
           const time = game.context.system.now() + BEAT_LEAD_MS;
           game.module.audio.triggerAll(audioTriggerIds, time);
           if (assetTriggerId != null) {
@@ -392,13 +312,7 @@ export class Coordinator<G extends Game> {
             this._cutscenePlaying = true;
           }
           updateUI(time);
-          // The beat's duration counts from when the page shows it. This
-          // tick's time passed before the stamp was taken, so it does not
-          // count.
           elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
-          // The page has the beat and shows it at its stamp: move the
-          // prediction window past it. A composed beat is on the page once it
-          // has been sent, and its pictures stay pinned until then (#1820).
           game.module.ui.afterCompose(() => assets.onBeatDisplayed());
         }
       } else if (!finished) {

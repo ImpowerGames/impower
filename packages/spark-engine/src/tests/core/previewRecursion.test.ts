@@ -1,18 +1,3 @@
-// #1072 — a preview that runs into recursion.
-//
-// The player's worker displays every preview, and while it runs one it
-// compiles nothing and answers nothing else. A preview whose run recurses
-// without end must therefore stop quickly, and say why, rather than spend its
-// whole step budget: the page waits on that display before it takes any later
-// program, so a display that runs for minutes leaves the preview blank for
-// the rest of the session.
-//
-// The ticket found it through a dangling `t.a.` inside a function, which left
-// the function open and compiled the story below it into the function's body
-// (#1079), so a preview of the `Value {f()}` line entered that body, whose
-// interpolation called the function it was in. That parse now keeps the
-// function closed; the recursion cases use functions that call themselves.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
@@ -21,7 +6,6 @@ const runtimeErrors = (messages: any[]) =>
     .filter((m) => m.method === "game/runtimeError")
     .map((m) => String(m.params.message));
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -30,22 +14,15 @@ const writtenText = (harness: any): string =>
     )
     .join("");
 
-/** A call depth these recursions reach within three thousand advances, and a
- *  step budget they would otherwise spend. */
 const LIMITS = { steps: 5_000, depth: 50 };
 
 type Limits = typeof LIMITS;
 
-/** Lower the game's step budget and call depth, so a run that recurses
- *  without end stops in a moment on whichever it reaches first: the run is
- *  synchronous, and no test timeout can end it early. */
 const applyLimits = (game: any, limits: Limits) => {
   game._executionStepLimit = limits.steps;
   game._callDepthLimit = limits.depth;
 };
 
-/** Preview `line` (zero-based), as the editor does when the cursor rests on
- *  it, with how many story advances the run took. */
 const previewOf = async (source: string, line: number, limits?: Limits) => {
   const h = createHarness(source, line);
   await h.ready;
@@ -64,7 +41,6 @@ const previewOf = async (source: string, line: number, limits?: Limits) => {
   };
 };
 
-/** The ticket's script as the editor held it after the `.` was typed. */
 const DANGLING_ACCESS = [
   "$:",
   "  A QUIET ROOM",
@@ -80,7 +56,6 @@ const DANGLING_ACCESS = [
   "",
 ].join("\n");
 
-/** A function that calls itself unconditionally, from a dialogue line. */
 const SELF_CALL = [
   "function f()",
   "  return f()",
@@ -91,8 +66,6 @@ const SELF_CALL = [
   "",
 ].join("\n");
 
-/** A function that displays a line and then calls itself, from a dialogue
- *  line, so each call does the work of a displayed line. */
 const DISPLAY_SELF_CALL = [
   "function f()",
   '  display("Again.")',
@@ -126,8 +99,6 @@ describe("a preview that recurses without end (#1072)", () => {
   }, 120_000);
 
   test("reaches the default call depth long before the default step budget", async () => {
-    // Measured on calls that each display a line, so the headroom holds for
-    // recursion heavier than a bare call.
     const measured = await previewOf(DISPLAY_SELF_CALL, 6, LIMITS);
     expect(measured.errors.join("\n")).toContain("stack overflow");
     const perCall = measured.advancesUsed / LIMITS.depth;
@@ -142,9 +113,6 @@ describe("a preview that recurses without end (#1072)", () => {
 });
 
 describe("PLAY that recurses without end (#1072)", () => {
-  // The stop is a runaway, as the step ceiling's is: the story neither
-  // finishes nor shows anything after it, so the error is the one thing the
-  // player reports.
   test("stops on a stack overflow and does not report the story finished", async () => {
     const h = createHarness(SELF_CALL, 0);
     await h.ready;
@@ -159,11 +127,6 @@ describe("PLAY that recurses without end (#1072)", () => {
 });
 
 describe("a preview through deep recursion that ends (#1072)", () => {
-  // A step inside a call reads the call stack only when the story enters a
-  // different scene, so a run through recursion costs time in proportion to
-  // its depth. The depth is well inside the call limit, and the value shows.
-  // The bound is loose: the preview takes about 3 seconds here, and about 80
-  // when every step walks the stack.
   test("shows the value of a 4,000-deep recursion in under twenty seconds", async () => {
     const source = [
       "function count(n)",

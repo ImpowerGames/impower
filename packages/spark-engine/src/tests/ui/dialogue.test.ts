@@ -1,17 +1,3 @@
-// Golden-master: dialogue rendering (the highest-volume UI path).
-//
-// Locks the CURRENT pre-refactor behavior: the engine turns a typewriter
-// TextInstruction[] into a per-glyph DOM sub-tree (text_line / text_word /
-// text_space / text_letter) with a per-letter reveal `ui/animate`. §9.1.1 of
-// the reactive spec proposes relocating this to the renderer; until then,
-// THIS stream is the baseline.
-//
-// Two driving modes:
-//  - preview()  → the real INSTANT screen-construction + reveal path.
-//  - jumpToFlow("start") + nextBeat() + display(beat, false) → an ANIMATED beat
-//    fanned out exactly as Coordinator.display() does, using the *real*
-//    interpreter Instructions.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -48,7 +34,7 @@ describe("dialogue", () => {
     harness.reset();
     const beat = harness.nextBeat();
     expect(beat).toBeTruthy();
-    await harness.display(beat!, /* instant */ false);
+    await harness.display(beat!, false);
     await flushMicrotasks();
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
@@ -59,7 +45,7 @@ describe("dialogue", () => {
     harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
-    await harness.display(beat!, /* instant */ true);
+    await harness.display(beat!, true);
     await flushMicrotasks();
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
@@ -70,7 +56,6 @@ describe("dialogue", () => {
     harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
-    // The real interpreter output drives the targets — lock the routing.
     expect(Object.keys(beat?.text ?? {}).sort()).toMatchSnapshot("text-targets");
     await harness.display(beat!, true);
     await flushMicrotasks();
@@ -103,25 +88,19 @@ describe("dialogue", () => {
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
-  // Routing comes from the line's `display()` table, resolved at compile
-  // time, so a colon in the BODY (e.g. "Well: hello.") is only text: the whole
-  // body, colon and all, reaches the dialogue target intact.
   test("a body containing a colon still routes to dialogue (no regex mis-extract)", async () => {
     const harness = createHarness(story(`  HERO: Well: hello.`));
     await harness.ready;
     harness.jumpToFlow("start");
     const beat = harness.nextBeat();
-    // The whole line (including the colon) lands on the dialogue target...
     const dialogueText = (beat?.text?.["dialogue"] ?? [])
       .map((e: any) => e.text ?? "")
       .join("");
     expect(dialogueText).toBe("Well: hello.");
-    // ...and the cue resolved the character (HERO is defined with name "HERO").
     const nameText = (beat?.text?.["character_name"] ?? [])
       .map((e: any) => e.text ?? "")
       .join("");
     expect(nameText).toBe("HERO");
-    // Nothing leaked onto the default action target.
     expect(beat?.text?.["action"]).toBeUndefined();
   });
 });

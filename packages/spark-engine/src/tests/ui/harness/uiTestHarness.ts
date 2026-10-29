@@ -1,37 +1,3 @@
-// UI message-stream golden-master harness (Layer 2).
-//
-// Drives the real engine through representative Sparkle UI scenarios and
-// captures the *exact ordered sequence of JSON-RPC messages* the engine
-// emits to its renderer (ui/create, ui/update, ui/animate, ui/observe,
-// ui/unobserve, ui/destroy, audio/*, etc). The captured stream is the
-// golden baseline: upcoming reactivity refactors that relocate the
-// engine→consumer boundary must keep emitting an equivalent stream.
-//
-// How it drives (faithful path, see docs/sparkle/reactive-sparkle-spec.md §9):
-//   1. Compile a tiny `.sd` through the real `SparkdownCompiler`, which pulls in
-//      the implicitly-imported builtins prelude exactly like the production
-//      player (so config/breakpoints/animations/typewriter/transitions are
-//      present).
-//   2. Construct a real `Game` (which instantiates the real `UIModule`,
-//      `AudioModule`, `InterpreterModule`, …) and `connect()` it to a mock
-//      Connection that records every emitted message and replies to requests.
-//      Every message in both directions passes through `cloneMessage`, as it
-//      would crossing to a worker, so a message that a structured clone
-//      refuses or alters fails the test that sends it, and what is recorded
-//      is what the page would receive.
-//   3. Build the layout tree with `game.preview(...)` (the real, instant
-//      screen-construction path) and/or drive individual beats through the
-//      same fan-out the `Coordinator.display()` performs
-//      (`ui.text.write` / `ui.image.write` / `audio.schedule` / `ui.observe`),
-//      feeding the *real* `Instructions` the interpreter produced.
-//
-// Determinism: element ids are STRUCTURAL (`e-<path>`, derived from the screen
-// tree's tag.classes — see UIModule.generateId) and request ids are uuids.
-// `normalizeMessages` rewrites every real element id to `e-1, e-2, …` and every
-// request id to `req-1, req-2, …` in first-seen order, so snapshots are
-// byte-stable. Time inputs are pinned (`now: () => 0`, synchronous
-// `setTimeout`).
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
@@ -49,89 +15,37 @@ export const MAIN_URI = "inmemory:///main.sd";
 
 export interface UIHarness {
   game: Game;
-  /** Every message emitted by the engine, in order. */
   readonly messages: any[];
-  /** Resolves once `connect()` has fully settled (onConnected screen/style
-   *  construction + restore mixer config + all deferred request responses).
-   *  Await this before `reset()` so connect-time noise is captured/dropped
-   *  deterministically rather than racing into a later snapshot. */
   ready: Promise<void>;
-  /** Clear the captured-message buffer (e.g. after preview screen setup). */
   reset(): void;
-  /** Build the screen tree + reveal at a line (the real preview), resolving
-   *  to the address of the beat previewed. A beat with pictures displays
-   *  once the page answers the preview's gate, so await the result before
-   *  reading what such a beat wrote; a beat with none displays before this
-   *  returns. */
   preview(line?: number): Promise<ProgramAddress | null>;
-  /** Connect the game again over the same transport, as the page does
-   *  before every preview: the modules' `onConnected` and the restore run
-   *  again, and a preview waiting from before is taken over. Resolves once
-   *  the connect's own gates have been answered. */
   reconnect(): Promise<void>;
-  /** Reset the story to an address so subsequent `nextBeat()` calls start
-   *  there. (The screen tree is already built by `connect()`'s onConnected.) */
   jumpTo(address: ProgramAddress): void;
-  /** Reset the story to the top of a flow named by its qualified name. */
   jumpToFlow(flow: string): void;
-  /** Run one story beat and return the real interpreter `Instructions`. */
   nextBeat(): Instructions | undefined;
-  /** Fan a beat's text/image/audio out through the real module methods,
-   *  exactly as `Coordinator.display()` does. */
   display(instructions: Instructions, instant: boolean): Promise<void>;
-  /** Simulate a renderer-side DOM event firing on an observed element, by
-   *  feeding an EventMessage notification back into the engine (the round-trip
-   *  the real `UIManager` performs on a click). */
   emitEvent(type: string, elementId: string, extra?: Record<string, unknown>): void;
-  /** Ids minted for `ui/observe` targets (in order), so tests can address an
-   *  observed element for `emitEvent` without scraping the raw stream. */
   observedElementIds(): string[];
-  /** Snapshot-ready, id-normalized view of the captured stream. */
   snapshot(): unknown[];
-  /** Snapshot-ready view filtered to a method prefix, with `ui/batch`
-   *  envelopes FLATTENED into their inner ops — for per-op assertions
-   *  (`snapshotFiltered("ui/create")`). */
   snapshotFiltered(prefix: string): unknown[];
-  /** Snapshot-ready view filtered to a method prefix, preserving `ui/batch`
-   *  envelopes — the faithful wire shape, for golden-master `toMatchSnapshot`. */
   snapshotWire(prefix: string): unknown[];
-  /** Fire every timer the engine armed with a real delay (an asset gate's
-   *  timeout, the loading layout's minimum display), in the order armed.
-   *  Zero-delay timers always fire inline. */
-  /** The delays, in milliseconds, of timers armed and not yet fired, so a
-   *  test can tell which timeout a wait actually used. */
   timerDelays(): number[];
   flushTimers(): void;
-  /** With `holdAssets`, answer every `assets/load` request held so far, as
-   *  the page would once the items are resident, or only the requests under
-   *  the given pin, leaving the rest held. Returns how many. */
   releaseAssets(pin?: string): number;
-  /** How many `assets/load` requests are being held (with `holdAssets`). */
   heldAssetLoadCount(): number;
 }
 
-// The golden-master compiles the builtins .sd PRELUDE into the program (which
-// populates both program.context and the runtime __def tables) — the production
-// engine path.
 export function compileUI(
   source: string,
   opts?: {
     seedBuiltinsIntoStory?: boolean;
-    /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
-    /** Other scripts of the project, by URI. A fixture that needs a second
-     *  file (source offsets start again in every one) names it here at a URI
-     *  in `main.sd`'s folder, which makes it part of the program; a script
-     *  other than `main.sd` holds declarations only at its top level. */
     scripts?: Record<string, string>;
   },
 ) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
-    // The engine sources defines from the live runtime __def tables, so every
-    // Game-feeding compile must seed the builtins prelude into the story VM
-    // (the production player does the same). Default on.
     seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? true,
     files: [
       {
@@ -176,9 +90,6 @@ export function compileUI(
   return { program: result.program, errors };
 }
 
-/** Method-appropriate stub result so the engine's awaited request promises
- *  resolve. The values mirror what the real consumer returns (see UIManager
- *  / AudioManager), but only their *presence* matters for the engine. */
 function resultForMethod(method: string, params?: any): unknown {
   switch (method) {
     case "ui/animate":
@@ -188,8 +99,6 @@ function resultForMethod(method: string, params?: any): unknown {
     case "audio/update":
       return [];
     case "assets/load": {
-      // Every requested item loads and stays pinned, as on a page whose cache
-      // has room.
       const keys = ((params?.items ?? []) as AssetItem[]).map(assetItemKey);
       return { loaded: keys, failed: [], pinned: keys };
     }
@@ -204,42 +113,16 @@ export function createHarness(
   opts?: {
     reactive?: boolean;
     autoOpenAll?: boolean;
-    /** Strip `program.sparkle` before constructing the Game, so `onConnected`
-     *  takes the STATIC `constructLayouts` fallback instead of
-     *  `constructLayoutsFromAst`. That fallback is still reachable in
-     *  production (any program shipping no Sparkle AST), and this is the only
-     *  way to reach it from a test — `_reactive` is set unconditionally, so
-     *  the render path is chosen by the program's shape, not by a flag. */
     staticFallback?: boolean;
-    /** Load a saved checkpoint BEFORE connecting — reproduces the editor's
-     *  scrub/restore flow (`game.load(checkpoint)` then `connectGame()` →
-     *  onConnected + onRestore). Lets a test verify that restore re-mounts the
-     *  reactive screens recorded in the checkpoint. */
     loadCheckpoint?: string;
-    /** Run against the freshly-constructed game BEFORE the checkpoint load and
-     *  the connect. That window is where the editor declares a preview
-     *  (`markPreviewing`), so it is the only place a test can reproduce what
-     *  the modules see during `onRestore`. Note the harness always constructs
-     *  with `previewFrom`, so a game is in preview mode from birth unless this
-     *  hook clears it. */
     beforeConnect?: (game: Game) => void;
-    /** Skip the eager connect — yields an UNCONNECTED game (`ready` resolves
-     *  immediately, onConnected never runs so `_reactive` stays false). Mirrors
-     *  the workspace.worker route-simulation game that builds scrub checkpoints
-     *  without ever connecting. */
     connect?: boolean;
-    /** Hold every `assets/load` request instead of answering it, so a test can
-     *  observe what waits on it; `releaseAssets()` answers them. */
     holdAssets?: boolean;
-    /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
-    /** Other scripts of the project, by URI (see `compileUI`). */
     scripts?: Record<string, string>;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
-    // `compileUI` seeds the builtins prelude by default (the engine sources
-    // defines from the live runtime __def tables).
     assets: opts?.assets,
     scripts: opts?.scripts,
   });
@@ -248,10 +131,6 @@ export function createHarness(
   }
   const messages: any[] = [];
 
-  // Timers armed with a real delay: an asset gate's timeout, the loading
-  // layout's minimum display. Held until `flushTimers()`, so a test can see a
-  // wait before it expires. Zero-delay timers (the Coordinator's audio-latency
-  // sync) fire inline, which removes the only source of real-time flakiness.
   const pendingTimers: Array<{ fn: Function; args: any[]; ms: number }> = [];
 
   const game = new Game({
@@ -268,22 +147,10 @@ export function createHarness(
     }) as any,
   } as any);
 
-  // Reactive screens are the render path whenever the program carries a Sparkle
-  // AST, which it always does here (the builtins prelude contributes one). The
-  // `reactive` opt is therefore ACCEPTED AND IGNORED — it selects nothing, and
-  // a test passing `{reactive: true}` gets exactly what it would get without.
-  // To reach the static fallback, pass `staticFallback: true`. Test
-  // convenience: auto-mount EVERY screen at connect (instant) so tests keep their
-  // "screen is mounted at connect" assumption — production only auto-opens
-  // `main`; a test exercising the real [[open/close]] lifecycle passes
-  // `autoOpenAll: false`.
   (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
   opts?.beforeConnect?.(game);
 
-  // Reproduce the scrub/restore flow: load the checkpoint BEFORE connect, so the
-  // subsequent connect runs onConnected (mounts `main`) then onRestore (re-mounts
-  // the screens recorded in the checkpoint's serialized UI state).
   if (opts?.loadCheckpoint) {
     game.load(opts.loadCheckpoint);
   }
@@ -292,8 +159,6 @@ export function createHarness(
 
   const reply = (msg: any) => {
     const result = resultForMethod(msg.method, msg.params);
-    // Deferred, as a page's answer arrives after the turn that sent the
-    // request: whatever that turn goes on to send is recorded first.
     queueMicrotask(() => {
       game.connection.receive(
         cloneMessage({
@@ -326,10 +191,6 @@ export function createHarness(
     return connected;
   };
 
-  // Connect eagerly (kicks off onConnected screen/style construction +
-  // restore). `ready` resolves only after the whole chain — including the
-  // deferred request responses it awaits — has drained. With `connect: false`
-  // the game stays unconnected (the route-simulation case).
   const ready =
     opts?.connect === false
       ? Promise.resolve()
@@ -360,9 +221,6 @@ export function createHarness(
       let guard = 0;
       while (story.canContinue && !interpreter.shouldFlush() && guard < 1000) {
         story.ContinueAsync();
-        // Mirror Game's continue loop: the step's tables, choices and ordered
-        // text make its beat, and a completed continue that shows nothing
-        // makes no beat, so the loop continues past it.
         if (story.asyncContinueComplete && story.continueShowedSomething) {
           interpreter.queue(
             story.currentDisplayInstructions,
@@ -380,14 +238,9 @@ export function createHarness(
       }
       const ui = game.module.ui;
       const audio = game.module.audio;
-      // A played beat is stamped with its start time, as the Coordinator
-      // stamps it: the pinned `now` plus the lead.
       const time = instant
         ? undefined
         : game.context.system.now() + BEAT_LEAD_MS;
-      // Mirror Coordinator.display()'s fan-out order. Audio is scheduled, then
-      // (once loaded) triggered — `audio/update` only emits on trigger, so we
-      // trigger after the loads settle, exactly as the Coordinator's tick does.
       const audioTriggerIds: number[] = [];
       if (!instant && instructions.audio) {
         for (const [target, events] of Object.entries(instructions.audio)) {
@@ -397,8 +250,6 @@ export function createHarness(
       if (instructions.choices) {
         const choiceTargets = instructions.choices;
         choiceTargets.forEach((target, index) => {
-          // Mirror Coordinator.display()'s real choice handler so a click
-          // EventMessage round-trips into chosePathToContinue(index).
           const handleClick = (): void => {
             ui.text.clearAll(choiceTargets);
             ui.image.clearAll(choiceTargets);
@@ -417,8 +268,6 @@ export function createHarness(
           ),
         );
       }
-      // Apply [[open/close/navigate]] layout-lifecycle directives, mirroring
-      // Coordinator.display()'s fan-out (mount/destroy + enter/exit transitions).
       if (instructions.layout) {
         await Promise.all(
           Object.values(instructions.layout).map((events) =>
@@ -426,11 +275,7 @@ export function createHarness(
           ),
         );
       }
-      // Coarse per-turn reactive re-eval, mirroring Coordinator.display()'s
-      // updateUI (no-op unless the reactive render path is active).
       ui.refreshLayouts();
-      // Trigger scheduled audio once its loads have settled (the Coordinator
-      // does this from its per-frame tick after `audio.isReady(...)`).
       if (audioTriggerIds.length > 0) {
         await flushMicrotasks(10);
         audio.triggerAll(audioTriggerIds, time);
@@ -454,32 +299,25 @@ export function createHarness(
       return normalizeMessages(messages);
     },
     snapshotFiltered(prefix: string) {
-      // Flatten ui/batch so a per-op query (e.g. "ui/create") sees the inner
-      // ops, not just the envelope.
       return normalizeMessages(
         flattenMessages(messages).filter((m) => m.method?.startsWith(prefix)),
       );
     },
     snapshotWire(prefix: string) {
-      // Faithful wire: keep ui/batch envelopes intact (don't flatten).
       return normalizeMessages(
         messages.filter((m) => m.method?.startsWith(prefix)),
       );
     },
-    /** The delays, in milliseconds, of the timers armed and not yet fired,
-     *  so a test can tell which timeout a wait actually used. */
     timerDelays(): number[] {
       return pendingTimers.map((t) => t.ms);
     },
     flushTimers() {
-      // A fired timer may arm another; run what was pending at entry only.
       const due = pendingTimers.splice(0, pendingTimers.length);
       for (const { fn, args } of due) {
         fn(...args);
       }
     },
     releaseAssets(pin?: string) {
-      // Every held request, or only those under the given pin.
       const held = heldAssetLoads.filter(
         (msg) => pin === undefined || msg.params?.pin === pin,
       );
@@ -499,27 +337,15 @@ export function createHarness(
   return harness;
 }
 
-/** Drain the microtask queue so deferred request-responses are delivered. */
 export async function flushMicrotasks(rounds = 5): Promise<void> {
   for (let i = 0; i < rounds; i++) {
     await Promise.resolve();
   }
 }
 
-// ---------------------------------------------------------------------------
-// ID normalization
-// ---------------------------------------------------------------------------
-
 const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g;
 const escapeRegExp = (s: string): string => s.replace(REGEX_META_RE, "\\$&");
 
-/** The authoritative element ids are the strings that appear in an id-bearing
- *  protocol field (`element`/`parent`/`before`) of ANY message. Element ids are
- *  now STRUCTURAL (e.g. `e-ui-main-div_hud-0`), not a fixed-shape uuid, so they
- *  can't be recognized by a regex — we recognize them by membership in this set
- *  instead. We must scan every message (not just `ui/create`): a captured slice
- *  often starts after connect, so a target the beat only `ui/update`s was
- *  created off-camera and its id appears solely as an `element` ref. */
 const ID_BEARING_KEYS = new Set(["element", "parent", "before"]);
 function collectElementIds(messages: any[]): string[] {
   const ids = new Set<string>();
@@ -543,14 +369,9 @@ function collectElementIds(messages: any[]): string[] {
     }
   };
   visit(messages);
-  // Longest-first so the alternation never matches a shorter id that is a prefix
-  // of a longer one (e.g. `e-ui-0` inside `e-ui-0-main-0`).
   return [...ids].sort((a, b) => b.length - a.length);
 }
 
-/** Rewrite nondeterministic ids to stable counters in first-seen order:
- *  structural element ids → `e-1, e-2, …`; request ids (uuid) → `req-1, …`.
- *  Returns a deep-cloned, stable view safe to snapshot. */
 export function normalizeMessages(messages: any[]): unknown[] {
   const elementIds = new Map<string, string>();
   const requestIds = new Map<string, string>();
@@ -572,13 +393,6 @@ export function normalizeMessages(messages: any[]): unknown[] {
     return mapped;
   };
 
-  // A single alternation of every real element id, replaced left-to-right so
-  // the numbering follows first-seen (= creation) order whether an id appears
-  // standalone (`element`/`parent`/`before`) or inline (e.g. a style `url(#…)`).
-  // Boundary lookarounds (`[\w-]`) keep an id matching only as a whole token —
-  // without them the bare root id `e` would match the `e` inside every word
-  // (`none` → `none-1`). Longest-first ordering means a longer id wins over a
-  // shorter one sharing its prefix.
   const idTokens = collectElementIds(messages);
   const elementIdRe =
     idTokens.length > 0
@@ -620,9 +434,6 @@ export function normalizeMessages(messages: any[]): unknown[] {
         m.params &&
         Array.isArray(m.params.messages)
       ) {
-        // A `ui/batch` carries inner op messages whose own `id`s (uuids) and
-        // element ids must be normalized too — recurse so the envelope is fully
-        // deterministic, preserving first-seen numbering across the burst.
         out.params = { messages: m.params.messages.map(normalizeOne) };
       } else {
         out.params = normalizeValue(m.params);
@@ -638,10 +449,6 @@ export function normalizeMessages(messages: any[]): unknown[] {
   return messages.map(normalizeOne);
 }
 
-/** Expand any `ui/batch` envelope into its inner op messages, in order, leaving
- *  every other message untouched. The golden `snapshot()` keeps batches intact
- *  (faithful wire); the per-op query helpers (`snapshotFiltered`,
- *  `observedElementIds`) flatten first so they see through batching. */
 export function flattenMessages(messages: any[]): any[] {
   const out: any[] = [];
   for (const m of messages) {

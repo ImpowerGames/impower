@@ -1,26 +1,3 @@
-// Layer 1 — DOM-render golden-master harness.
-//
-// Drives the real engine (compiled `.sd` → `Game` → `UIModule`) and pipes its
-// emitted message stream into the REAL web consumer (`spark-web-player`
-// `UIManager`) running under jsdom, then snapshots the resulting overlay DOM
-// (tag / id / class / attributes / textContent / inline styles), id-normalized.
-//
-// This is the layer that should stay INVARIANT across the engine→consumer
-// relocation refactors: the engine may change *which side* builds the spans,
-// but the rendered overlay tree must not regress.
-//
-// Avoiding pixi: we never construct `Application` (which bundles pixi.js +
-// WebGL). `UIManager` itself imports only spark-dom utils + spark-engine
-// message classes + `Manager` (whose only pixi reference is an erased
-// type-import). We hand it a MINIMAL stub `app` exposing just `overlay` +
-// `emit`. The managers are connected to the game the way `Application`
-// connects them, through its `MessageRouter`, and every message in both
-// directions passes through `cloneMessage`, as it would crossing to a worker.
-// The Web Animations API (`new Animation`, `KeyframeEffect`) that
-// `AnimationPlayer.play()` needs is absent in jsdom, so we install a tiny
-// no-op stub — reveal animations apply opacity via WAAPI (invisible to jsdom's
-// computed styles regardless), so stubbing them does not change the snapshot.
-
 import { JSDOM, VirtualConsole } from "jsdom";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
@@ -41,44 +18,25 @@ const MAIN_URI = "inmemory:///main.sd";
 export interface DOMHarness {
   game: Game;
   ui: UIManager;
-  /** The page's end of the current game's stream. */
   router: MessageRouter;
   overlay: HTMLElement;
   ready: Promise<void>;
-  /** Preview at a line. A beat with pictures displays once the page
-   *  answers the preview's gate, so await the result before reading what
-   *  such a beat wrote. */
   preview(line?: number): Promise<ProgramAddress | null>;
-  /** Re-render a (possibly edited) source into the same overlay via the same
-   *  reconciling UIManager — models a live-preview edit. `afterConnect` sees
-   *  the page once the connect and its restore have settled, before the
-   *  preview writes the beat: what the page can paint while the display waits
-   *  for its beat. `connectOnly` stops there, as a display another display
-   *  takes over does, with no preview and no sweep. */
   rerender(
     newSource: string,
     line?: number,
     opts?: { afterConnect?: () => void; connectOnly?: boolean },
   ): Promise<void>;
-  /** Reset the story to the top of a flow named by its qualified name. */
   jumpTo(flow: string): void;
   nextBeat(): Instructions | undefined;
   display(instructions: Instructions, instant: boolean): Promise<void>;
-  /** Serialize the overlay DOM into a stable, id-normalized tree snapshot. */
   snapshotDOM(): unknown;
 }
 
-/** A fixture's program, compiled to statement chunks for the binary
- *  program's engine (#692); a fixture the compile makes no chunks for is
- *  refused, with the errors it reported. */
 export function compile(source: string, files: Record<string, unknown>[] = []) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    // Builtins come from the implicitly-imported builtins prelude (the compiler
-    // default), exactly like the production player.
     useBuiltinsPrelude: true,
-    // The engine sources defines from the live runtime __def tables, so seed the
-    // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
     files: [
       {
@@ -104,8 +62,6 @@ export function compile(source: string, files: Record<string, unknown>[] = []) {
   return result.program;
 }
 
-/** jsdom lacks the Web Animations API; install no-op stubs so
- *  `AnimationPlayer.add/play` don't throw. They never mutate inline styles. */
 function installWAAPIStub(win: any) {
   if (typeof win.Animation === "undefined") {
     win.Animation = class {
@@ -129,8 +85,6 @@ function installWAAPIStub(win: any) {
   if (!win.document.timeline) {
     win.document.timeline = { currentTime: 0 };
   }
-  // jsdom doesn't expose CSS.escape on the global the consumer reads
-  // (D14's UIManager.findTargetElements uses it to build a class selector).
   if (typeof win.CSS === "undefined") {
     win.CSS = {} as any;
   }
@@ -175,7 +129,6 @@ function installWAAPIStub(win: any) {
   }
 }
 
-/** The globals `installJSDOM` points at its window. */
 const GLOBALS = [
   "window",
   "document",
@@ -190,13 +143,7 @@ const GLOBALS = [
   "CSS",
 ];
 
-/** A fresh jsdom, with its globals (document, Animation, KeyframeEffect, …)
- *  bound so the consumer's `document.createElement` and AnimationPlayer
- *  resolve, and the overlay the managers render into. */
 export function installJSDOM() {
-  // jsdom can't parse `@container`/`@media` in the engine-generated stylesheet
-  // text (it still stores the textContent, which is what we snapshot); mute the
-  // "Could not parse CSS stylesheet" jsdomError so it doesn't spam the output.
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", () => {});
   const dom = new JSDOM(
@@ -210,10 +157,6 @@ export function installJSDOM() {
   g.window = win;
   g.document = win.document;
   g.HTMLElement = win.HTMLElement;
-  // The renderer gates live value/checked on `instanceof HTMLInputElement` /
-  // `HTMLSelectElement`. Those constructors must come from THIS jsdom realm (the
-  // one that created the elements), or the instanceof is false and the
-  // value-property path (e.g. selecting a <select> option) silently no-ops.
   g.HTMLInputElement = win.HTMLInputElement;
   g.HTMLSelectElement = win.HTMLSelectElement;
   g.Element = win.Element;
@@ -223,8 +166,6 @@ export function installJSDOM() {
   g.FontFace = win.FontFace ?? class {};
   g.CSS = win.CSS;
   const overlay = win.document.getElementById("overlay") as HTMLElement;
-  /** Put back every global this replaced, so a later test file run in the
-   *  same process sees its own environment's. */
   const restore = () => {
     for (const [name, value] of previous) {
       g[name] = value;
@@ -233,9 +174,6 @@ export function installJSDOM() {
   return { win, overlay, restore };
 }
 
-/** An image that loads on the next microtask, like a cached response, so the
- *  engine's asset gates settle without a network. With `hold`, a load waits
- *  until `hold` says the src may finish. */
 export function createFakeImage(
   hold?: (src: string) => Promise<void> | undefined,
 ): ImageTarget {
@@ -262,9 +200,6 @@ export function createFakeImage(
   return target;
 }
 
-/** The slice of an `Application` the page's managers use: the overlay, the
- *  way back to the game, an asset cache and an audio graph with nothing to
- *  play. */
 export function createStubApp(
   overlay: HTMLElement,
   emit: (message: any) => void,
@@ -274,8 +209,6 @@ export function createStubApp(
     overlay,
     emit,
     assetCache: new AssetCache({ createImage }),
-    // The game's clock reads 0 here, so a beat's shared-clock stamp maps to
-    // the start of the document timeline.
     audioClock: new AudioClock(0, () => 0),
     audio: {
       decodeAudioBuffer: async () => null,
@@ -284,8 +217,6 @@ export function createStubApp(
   };
 }
 
-/** This harness has no audio graph or world: it answers their requests as a
- *  page with nothing to play would, so the game does not wait on them. */
 export class SilentPageManager extends Manager {
   override async onReceiveRequest(msg: RequestMessage) {
     return msg.method.startsWith("audio/") || msg.method.startsWith("world/")
@@ -299,18 +230,10 @@ export function createDOMHarness(
   startLine = 0,
   opts?: {
     reactive?: boolean;
-    /** Compose each display and each played beat into one `ui/beat`, as the
-     *  worker that shows the preview and PLAY does (#1820). */
     compose?: boolean;
     autoOpenAll?: boolean;
-    /** Load a saved checkpoint before the connect, as the page does when it
-     *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
-    /** Called once the page has handled each message the game sends. The
-     *  page handles each message as a task of its own, and a frame can
-     *  render between any two, so this sees every state a frame can show. */
     afterEachMessage?: (message: any) => void;
-    /** Asset files compiled beside the script, such as an image's artwork. */
     files?: Record<string, unknown>[];
   },
 ): DOMHarness {
@@ -318,9 +241,6 @@ export function createDOMHarness(
   const program = compile(source, files);
   const { overlay } = installJSDOM();
 
-  // Timers armed with a real delay (an asset gate's timeout, the loading
-  // layout's minimum display) are held for `flushTimers()`; zero-delay timers
-  // (the Coordinator's audio-latency sync) fire inline, as before.
   const pendingTimers: Array<{ fn: Function; args: any[] }> = [];
 
   const makeGame = (prog: any) => {
@@ -338,47 +258,25 @@ export function createDOMHarness(
         return 0;
       }) as any,
     } as any);
-    // Enable the reactive (AST-driven) render path before connect()'s eager
-    // onConnected runs (mirrors uiTestHarness) — required to render screen
-    // widgets. `onConnected` now always sets `_reactive`, so the `reactive` opt
-    // is only kept for back-compat with existing call sites.
     if (opts?.reactive) {
       (g.module.ui as any)._reactive = true;
     }
-    // Auto-mount EVERY screen at connect (instant) so tests keep their "screen is
-    // mounted at connect" assumption — production only auto-opens `main`, so a
-    // test exercising the real [[open/close]] lifecycle passes
-    // `autoOpenAll: false`. Mirrors the Layer-2 uiTestHarness default.
     (g.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
     return g;
   };
 
-  // The game can be swapped (rerender) to model a live-preview edit; event
-  // round-trips + request responses must follow the CURRENT game.
   let game = makeGame(program);
 
-  // Minimal stub `app` — UIManager only ever touches `.overlay` and `.emit`.
-  // `emit` is the renderer→engine path: when a real DOM event fires on an
-  // observed element, UIManager calls `app.emit(EventMessage...)`; we route it
-  // straight back into the engine so click→advance round-trips end to end.
   const stubApp = createStubApp(overlay, (message) => {
     game.connection.receive(cloneMessage(message));
   });
-  // A request a manager meets inside another message is answered through the
-  // router, as `Application.answer` does.
   stubApp.answer = (message: any, work: Promise<any>) => router.answer(message, work);
 
-  // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
-  // persists across the swap).
   let ui = new UIManager(stubApp);
-  // The asset side persists like the page's shared cache does.
   const assets = new AssetManager(stubApp);
   void assets.onInit();
   const silent = new SilentPageManager(stubApp);
 
-  // The engine's output reaches the real managers through the router
-  // `Application` uses, which answers every request back to the CURRENT game.
-  // A game connects to its own page end, so each game gets a router.
   const makeRouter = () =>
     new MessageRouter(
       () => [ui, assets, silent],
@@ -410,25 +308,10 @@ export function createDOMHarness(
     preview(line = startLine) {
       return game.preview(MAIN_URI, line);
     },
-    /**
-     * Model a live-preview EDIT: compile `newSource`, build a fresh game, and
-     * render it into the SAME overlay through the SAME (persistent) UIManager —
-     * exactly what `GamePlayerController.updatePreview` does, minus pixi. The
-     * reconcile (the connect's `ui/reconcile-begin` → reuse-by-id → the game's
-     * `ui/reconcile-sweep`) runs, so the overlay is patched in place rather than
-     * rebuilt. Returns once settled.
-     */
     async rerender(newSource: string, line = startLine, opts) {
       const newProgram = compile(newSource, files);
       game = makeGame(newProgram);
       router = makeRouter();
-      // Faithfully model GamePlayerController.buildApp on an edit: the OLD
-      // manager is disposed (which now PRESERVES the overlay DOM, only tearing
-      // down listeners), a FRESH manager is built, and its onInit adopts the
-      // preserved DOM (beginReconcilePass). The fresh manager has no in-memory
-      // caches — anything reused-without-rework must ride state stored on the
-      // preserved nodes themselves. Then the stream reuses unchanged nodes and
-      // the tail is swept.
       ui.onDispose();
       ui = new UIManager(stubApp);
       await ui.onInit();
@@ -452,9 +335,6 @@ export function createDOMHarness(
       let guard = 0;
       while (story.canContinue && !interpreter.shouldFlush() && guard < 1000) {
         story.ContinueAsync();
-        // Mirror Game's continue loop: the step's tables, choices and ordered
-        // text make its beat, and a completed continue that shows nothing
-        // makes no beat, so the loop continues past it.
         if (story.asyncContinueComplete && story.continueShowedSomething) {
           interpreter.queue(
             story.currentDisplayInstructions,
@@ -497,8 +377,6 @@ export function createDOMHarness(
   };
 }
 
-/** Wait until the page has committed a played beat waiting for the instant
- *  its text starts revealing (#1820): a real timer, a few milliseconds here. */
 export async function untilShown(overlay: HTMLElement): Promise<void> {
   await flushMicrotasks(10);
   for (let i = 0; i < 200 && (overlay as any).__sdBeat != null; i++) {
@@ -512,10 +390,6 @@ export async function flushMicrotasks(rounds = 5): Promise<void> {
     await Promise.resolve();
   }
 }
-
-// ---------------------------------------------------------------------------
-// DOM serialization (id-normalized, stable)
-// ---------------------------------------------------------------------------
 
 interface DOMNode {
   tag: string;
@@ -543,10 +417,6 @@ export function serializeDOM(root: HTMLElement): DOMNode {
 
   const walk = (el: Element): DOMNode => {
     const node: DOMNode = { tag: el.tagName.toLowerCase() };
-    // [Layer 1] Element ids are a non-visible implementation detail (and D14
-    // stops minting them on consumer-built text spans). Id-assignment behavior
-    // is covered by the Layer 2 message snapshots, so this visible-DOM oracle
-    // omits ids — leaving structure + class + attrs + text + style.
     const className = el.getAttribute("class");
     if (className) {
       node.class = className;
@@ -581,8 +451,5 @@ export function serializeDOM(root: HTMLElement): DOMNode {
     return node;
   };
 
-  // First normalize element-id assignment in creation order: walk once
-  // assigning ids in document order (depth-first), which matches the order the
-  // engine created them.
   return walk(root);
 }

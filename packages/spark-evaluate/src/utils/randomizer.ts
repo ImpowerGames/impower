@@ -1,12 +1,3 @@
-/*
- * A port of an algorithm by Johannes Baagøe <baagoe@baagoe.com>, 2010
- * http://baagoe.com/en/RandomMusings/javascript
- * https://github.com/nquinlan/better-random-numbers-for-javascript-mirror
- *
- * Copyright (c) 2010 by Johannes Baagøe <baagoe@baagoe.org>
- * Released under the MIT License.
- */
-
 import uuid from "./uuid";
 
 const createMasher = (): ((data: string | number) => number) => {
@@ -22,9 +13,9 @@ const createMasher = (): ((data: string | number) => number) => {
       h *= n;
       n = h >>> 0;
       h -= n;
-      n += h * 0x100000000; // 2^32
+      n += h * 0x100000000;
     }
-    return (n >>> 0) * 2.3283064365386963e-10; // 2^-32
+    return (n >>> 0) * 2.3283064365386963e-10;
   };
 
   return func;
@@ -38,7 +29,6 @@ const randomizer = (seed?: string | number): (() => number) => {
 
   const masher = createMasher();
 
-  // Apply the seeding algorithm from Baagoe.
   const validSeed = seed == null ? uuid() : seed;
 
   c = 1;
@@ -59,7 +49,7 @@ const randomizer = (seed?: string | number): (() => number) => {
   }
 
   const next = () => {
-    const t = 2091639 * s0 + c * 2.3283064365386963e-10; // 2^-32
+    const t = 2091639 * s0 + c * 2.3283064365386963e-10;
     s0 = s1;
     s1 = s2;
     return (s2 = t - (c = t | 0));

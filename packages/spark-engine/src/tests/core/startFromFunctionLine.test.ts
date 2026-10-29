@@ -1,15 +1,3 @@
-// #835 — PLAY or a preview from a line with no story flow of its own.
-//
-// A `store` whose value is a function literal, a `function` declaration's
-// header and the lines of a function's body hold only function rows. A run
-// from such a line starts at the story's next line of flow after it, or at the
-// top of the story when none follows; a preview of the line shows what that
-// start shows. Neither runs the function's body as story.
-//
-// Story lines written after a function's `end` are compiled into the
-// function's container (#834). They are story, not function code, so a run or
-// a preview from them, or from the function above them, still reaches them.
-
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { functionSpans } from "@impower/sparkdown/src/tests/programListing";
 import { describe, expect, test } from "vitest";
@@ -24,7 +12,6 @@ const runtimeErrors = (messages: any[]) =>
     .filter((m) => m.method === "game/runtimeError")
     .map((m) => m.params.message);
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -33,7 +20,6 @@ const writtenText = (harness: any): string =>
     )
     .join(" ");
 
-/** Press PLAY with the cursor on `line` of `file`. */
 const playFrom = async (
   source: string,
   line: number,
@@ -59,7 +45,6 @@ const playFrom = async (
   };
 };
 
-/** Preview `line`, as the editor does when the cursor rests on it. */
 const previewOf = async (source: string, line: number) => {
   const h = createHarness(source, line);
   await h.ready;
@@ -224,8 +209,6 @@ describe("a function declaration after the last story line (#835)", () => {
 describe("a function declared in another script of the project (#835)", () => {
   const OTHER_URI = "inmemory:///other.sd";
   const MAIN = [`A`, ``].join("\n");
-  // A script other than main holds declarations only at its top level, so
-  // the story lines around the function stand in scenes.
   const OTHER = [
     `scene before`,
     `  B`,
@@ -244,7 +227,6 @@ describe("a function declared in another script of the project (#835)", () => {
   test("records the lines of its declaration in that script", () => {
     const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
     const scripts = Object.keys(program.scripts);
-    // The function's flow row (`functionSpans`).
     expect(functionSpans(program as any)).toContainEqual({
       path: "less",
       lines: [scripts.indexOf(OTHER_URI), 4, 6],
@@ -275,7 +257,6 @@ describe("the lines of a function body still resolve for the debugger (#835)", (
       ``,
     ].join("\n");
     const { program } = compileUI(SOURCE);
-    // The flow the line's address stands in, by the program's locator.
     const locator = programLocator(program);
     const found = locator.addressAt(MAIN_URI, 4, { functions: true });
     expect(locator.sceneAt(found)).toBe("less");

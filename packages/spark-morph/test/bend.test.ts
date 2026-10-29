@@ -28,10 +28,6 @@ import {
   upperOpen,
 } from "./fixtures";
 
-// Tolerances. Endpoint frames are handoff polylines of 48 points blended
-// fully onto the authored art, so they should sit on it to within a small
-// fraction of a unit; mid-morph frames are checked for topology and the
-// prototype's thickness criterion rather than a position.
 const ENDPOINT_TOLERANCE = 0.5;
 const bakeProgress = Array.from({ length: 8 }, (_, i) => i / 7);
 
@@ -74,11 +70,8 @@ describe("bendTrack", () => {
       }
       expect(r.track.canonicalFrom).toHaveLength(BEND_DEFAULTS.anchors);
       expect(r.track.canonicalTo).toHaveLength(BEND_DEFAULTS.anchors);
-      // The track's endpoints share the frames' topology.
       expect(r.track.from).toHaveLength(r.track.frame(0.5).length);
       expect(r.track.to).toHaveLength(r.track.frame(0.5).length);
-      // No candidate that inflates the ribbon mid-morph is chosen: the
-      // area never exceeds the larger rest pose by more than a quarter.
       const area = (segs: ReturnType<typeof loop>) => Math.abs(signedArea(segs));
       const cap = 1.25 * Math.max(area(r.track.canonicalFrom), area(r.track.canonicalTo));
       for (const t of runtimeProgress) expect(area(r.track.canonical(t)), `area at ${t}`).toBeLessThanOrEqual(cap);
@@ -86,12 +79,6 @@ describe("bendTrack", () => {
   }
 
   test("among candidates that hold thickness, the least-travel one wins over a thicker one", () => {
-    // Two viable candidates built from the closed lash's canonical loop:
-    // the real one, and a copy pushed 5 units right and thinned to 90%,
-    // whose mid-morph ratio is higher (the ratio is measured against the
-    // thinner endpoint) but whose anchors travel farther. On the synthetic
-    // fixtures the tip search never yields two viable candidates, so the
-    // policy is pinned on this constructed pair.
     const r = bendTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -111,8 +98,6 @@ describe("bendTrack", () => {
     const picked = selectCandidate(a, [shifted, real], score, BEND_DEFAULTS.thicknessRatio);
     expect(picked.candidate).toBe(real);
     expect(picked.travel).toBeLessThan(selectCandidate(a, [shifted], score, BEND_DEFAULTS.thicknessRatio).travel);
-    // When only one holds thickness it wins regardless of travel, and when
-    // none does the least-pinching one is reported.
     expect(selectCandidate(a, [shifted, real], (b) => (b === real ? 0.9 : 0.3), BEND_DEFAULTS.thicknessRatio).candidate).toBe(real);
     expect(selectCandidate(a, [real, shifted], (b) => (b === real ? 0.3 : 0.5), BEND_DEFAULTS.thicknessRatio).candidate).toBe(shifted);
   });
@@ -131,14 +116,9 @@ describe("bendTrack", () => {
     const r = bendTrack(loop(roundedOpen), loop(roundedClosed));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    // The canonical loops must describe the art: smoothing the junction
-    // where the tip's arc meets the body would flip the underside and
-    // double the area.
     const area = (segs: ReturnType<typeof loop>) => Math.abs(signedArea(segs));
     expect(Math.abs(area(r.track.canonicalFrom) - area(loop(roundedOpen))) / area(loop(roundedOpen))).toBeLessThan(0.15);
     expect(Math.abs(area(r.track.canonicalTo) - area(loop(roundedClosed))) / area(loop(roundedClosed))).toBeLessThan(0.15);
-    // Width of the ribbon a short way in from each tip, at every runtime
-    // progress, must stay between the two rest poses' widths (with slack).
     const widthNearTip = (t: number, which: 0 | 1, at: number) => {
       const [e1, e2] = r.track.edges(t, 40);
       const i = which === 0 ? at : 39 - at;
@@ -170,8 +150,6 @@ describe("bendTrack", () => {
   });
 
   test("between the rest poses the edges lie on the frame that is drawn", () => {
-    // An aperture built on the edges meets the drawing a player draws only
-    // when they are that drawing's own boundary.
     const r = bendTrack(loop(upperOpen), loop(closedLash));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -260,8 +238,6 @@ describe("bendTrack", () => {
   });
 
   test("the default tip distance bends a portrait-shaped ribbon lash into its closed pose", () => {
-    // The portrait lashes taper over a few units of a span over a hundred
-    // and sixty, the shape the prototype bent with flanks sixteen units in.
     const r = bendTrack(loop(ribbonOpen), loop(ribbonClosed));
     expect(r.ok ? "ok" : r.failure.message).toBe("ok");
     for (const thickness of [8, 12, 16, 20]) {
@@ -273,9 +249,6 @@ describe("bendTrack", () => {
   });
 
   test("the default tip distance bends a closed pose drawn at another size than the open one", () => {
-    // Each loop places its flanks along its own span: a distance shared from
-    // the smaller loop sits too near the larger loop's rounded tips for its
-    // canonical loop to hold the drawn area.
     for (const k of [0.1, 0.5, 2, 5, 10, 20]) {
       for (const [name, open, closed] of [
         ["rounded", roundedOpen, roundedClosed],
@@ -298,8 +271,6 @@ describe("morphSubpaths with the bend method", () => {
   });
 
   test("an open subpath with a real gap is refused as not-closed instead of being sealed silently", () => {
-    // The lash's perimeter is about 250 units; the default seam tolerance
-    // is 2% of that, so a gap of 10 or more is a real opening.
     for (const gap of [10, 20, 40]) {
       const open = `M0,50 C30,5 70,5 100,50 C70,25 30,25 ${gap},50`;
       const r = morphSubpaths(parsePathData(open), parsePathData(closedLash), { method: "bend" });
@@ -307,8 +278,6 @@ describe("morphSubpaths with the bend method", () => {
       if (r.ok) return;
       expect(r.failure).toMatchObject({ code: "not-closed", subpath: 0 });
     }
-    // A seam within the tolerance (a hair short of closing) is accepted,
-    // and a stricter tolerance refuses it.
     const nearly = "M0,50 C30,5 70,5 100,50 C70,25 30,25 2,50";
     expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "bend" }).ok).toBe(true);
     expect(morphSubpaths(parsePathData(nearly), parsePathData(closedLash), { method: "bend", seamTolerance: 0.001 })).toMatchObject({

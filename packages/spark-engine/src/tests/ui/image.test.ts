@@ -1,12 +1,3 @@
-// Golden-master: image show / hide / transition / layered / animate.
-//
-// Locks the CURRENT engine image realization: `image.write` builds web DOM in
-// the engine (an `instance` span carrying `background_image: url(...)` + a
-// child `img` object), reveals it via `ui/animate`, and on a subsequent
-// `show` hides + destroys the previous layer (the crossfade). §9.1.2 of the
-// reactive spec proposes shipping `ImageInstruction[]` and realizing this
-// renderer-side; until then, THIS stream is the baseline.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -42,7 +33,6 @@ function story(body: string) {
   return `${DEFS}\n-> start\n\nscene start\n${body}\nend\n`;
 }
 
-// Drive every queued beat (instant) and snapshot the resulting ui/* stream.
 async function runInstant(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
@@ -86,7 +76,7 @@ describe("image", () => {
     harness.jumpToFlow("start");
     harness.reset();
     const beat = harness.nextBeat();
-    await harness.display(beat!, /* instant */ false);
+    await harness.display(beat!, false);
     await flushMicrotasks();
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });

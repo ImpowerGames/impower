@@ -1,11 +1,3 @@
-// A checkpoint's runtime record (the executed positions, the choices and the
-// conditions met) is the record the game held when it took the checkpoint
-// (#1701). An ordinary continue starts the record again, so in play a
-// checkpoint holds its own beat's record; a route replay (`continue(true)`)
-// keeps it, so there a checkpoint holds every beat's since the replay began.
-// The store keeps the record as each beat's changes, replayed from a chain's
-// start; a beat that started the record again must not be replayed onto the
-// beats before it.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -24,7 +16,6 @@ const SCRIPT = [
   "",
 ].join("\n");
 
-// A script whose beats meet conditions and choices.
 const DECISIONS = [
   "store key = false",
   "",
@@ -58,8 +49,6 @@ const DECISIONS = [
   "",
 ].join("\n");
 
-// The line of `scene start`, 0-based, and so the 1-based line after it. Both
-// scripts open their scene on the same line.
 const SCENE_LINE = SCRIPT.split("\n").indexOf("scene start");
 
 function compile(script = SCRIPT): SparkProgram {
@@ -97,9 +86,6 @@ function createGame(program: SparkProgram, config: Record<string, unknown>) {
   } as never);
 }
 
-/** Starts a game and continues it `beats` times, with `preserve` passed to
- *  each continue, and returns the runtime record the game held right after
- *  each checkpoint it took. */
 function play(game: Game, beats: number, preserve: boolean): string[] {
   const live: string[] = [];
   const checkpoint = game.checkpoint.bind(game);
@@ -123,7 +109,6 @@ describe("a checkpoint's runtime record", () => {
     ["a route replay", true],
   ] as const) {
     it(`is the record the game held when it took the checkpoint, in ${mode}`, () => {
-      // A keyframe every 4 beats, so the run crosses keyframes and deltas.
       const game = createGame(compile(), { checkpointBaseInterval: 4 });
       const live = play(game, 12, preserve);
       const store = game.checkpoints;
@@ -135,14 +120,12 @@ describe("a checkpoint's runtime record", () => {
           i,
           record: live[i],
         });
-        // The full save holds the same positions, written durably.
         const save = JSON.parse(store.getJson(i)!);
         expect({ i, count: executedOf(save.runtime).length }).toEqual({
           i,
           count: executedOf(live[i]!).length,
         });
       }
-      // A replay's record grows with every beat, so it exercises the chain.
       if (preserve) {
         const counts = live.map((r) => executedOf(r).length);
         expect(counts.at(-1)!).toBeGreaterThan(counts[1]! + 4);
@@ -168,8 +151,6 @@ describe("a checkpoint's runtime record", () => {
     }
     const store = game.checkpoints;
     const records = live.map((r) => JSON.parse(r));
-    // The run met conditions and choices, and checkpointed beats between
-    // keyframes after them.
     expect(records.some((r) => r.choicesEncountered.length > 0)).toBe(true);
     expect(records.some((r) => r.conditionsEncountered.length > 0)).toBe(true);
     expect(store.stats.deltas).toBeGreaterThan(2);
@@ -186,12 +167,10 @@ describe("a checkpoint's runtime record", () => {
     const live = play(game, 12, false);
     const executed = () =>
       JSON.stringify((game as any).executedParams().executedLines);
-    // The report the game made from the record it held at checkpoint 5.
     const restoredLive = (game as any)._runtimeState;
     expect(game.restoreCheckpoint(5)).toBe(true);
     expect((game as any)._runtimeState.toJSON()).toBe(live[5]);
     const afterRestore = executed();
-    // The same record loaded directly gives the report the game made then.
     (game as any)._runtimeState = (restoredLive.constructor as any).fromJSON(live[5]);
     expect(afterRestore).toBe(executed());
     const lines = JSON.parse(afterRestore)[MAIN];

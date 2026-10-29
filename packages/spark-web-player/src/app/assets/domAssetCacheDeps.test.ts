@@ -16,7 +16,6 @@ describe("createDomAssetCacheDeps", () => {
     expect(container).not.toBeNull();
     expect(container.parentElement).toBe(document.body);
     expect(container.getAttribute("aria-hidden")).toBe("true");
-    // Hidden by opacity, never by `display`, which would load nothing.
     expect(container.style.display).toBe("");
     expect(container.style.opacity).toBe("0");
     expect(container.style.pointerEvents).toBe("none");
@@ -28,8 +27,6 @@ describe("createDomAssetCacheDeps", () => {
     expect(container.children).toHaveLength(1);
     b.remove();
     expect(container.children).toHaveLength(0);
-    // The container stays for the next image, and is reused rather than
-    // duplicated.
     deps.warmImage!("/c.png");
     expect(document.querySelectorAll(`#${WARM_CONTAINER_ID}`)).toHaveLength(1);
     expect(container.children).toHaveLength(1);
@@ -44,8 +41,6 @@ describe("createDomAssetCacheDeps", () => {
     const container = bare.getElementById(WARM_CONTAINER_ID)!;
     expect(container.parentElement).toBe(bare.documentElement);
     expect(container.children).toHaveLength(1);
-    // A document with no root at all has nowhere to hold a picture: no
-    // handle, so the cache knows the picture is not in the document.
     const empty = document.implementation.createDocument(null, null);
     const none = createDomAssetCacheDeps(empty as unknown as Document);
     expect(none.warmImage!("/a.png")).toBeUndefined();

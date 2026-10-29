@@ -1,17 +1,3 @@
-// #384 — what stops the engine replaying a preview route.
-//
-// Clicking a line asks the engine to replay the story up to that line. That
-// replay has to stop eventually, because an author can write a story that never
-// ends. What it stops ON decides whether a long scene can be previewed at all:
-// a ceiling counted in elapsed time rejects a scene for being long, reports the
-// reason as "possible infinite loop", and reaches a different verdict on a busy
-// machine than on an idle one.
-//
-// So the ceiling is counted in story advances. What must hold:
-//   - a scene far longer than any real script replays end to end;
-//   - a replay that genuinely runs away is still stopped;
-//   - the verdict does not depend on how long the replay took.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -49,12 +35,6 @@ function longScene(beats: number): string {
   return lines.join("\n");
 }
 
-/** The player worker's settings, plus a REAL clock.
- *
- *  `Game`'s default `now` is `() => 0` (a frozen clock), which silently
- *  disables every wall-clock guard in the engine. A replay measured under it
- *  reports success where the editor reports failure, so a test that means to
- *  say anything about timing has to supply a real one. */
 const newGame = (program: unknown, executionStepLimit?: number) =>
   new Game({
     program: program as any,
@@ -98,10 +78,6 @@ const previewLastBeat = (program: unknown, beats: number, limit?: number) => {
 };
 
 describe("a long scene replays to its end", () => {
-  // A scene of 10,000 display lines, several times longer than a real one,
-  // takes seconds to replay. Under a ceiling counted in seconds, a slow
-  // machine abandons it partway and reports a possible infinite loop, on a
-  // scene that contains no loop at all.
   test("a 10,000 line scene previews its last beat instead of reporting a loop", () => {
     const beats = 10_000;
     const program = compileSrc(longScene(beats));
@@ -110,27 +86,18 @@ describe("a long scene replays to its end", () => {
     expect(result.route).toBeTruthy();
     expect(result.simulation).toBe("success");
     expect(result.errors).toEqual([]);
-    // However long it took, the replay was ordinary work: comfortably inside
-    // the ceiling, which is what makes the verdict machine-independent. The
-    // program engine spends about 8 advances on a display line.
     expect(result.advancesUsed).toBeGreaterThan(50_000);
     expect(result.advancesUsed).toBeLessThan(500_000);
   }, 300_000);
 });
 
 describe("no clock governs execution", () => {
-  // The strongest guard against the old behaviour coming back, and the only
-  // one that does not depend on how fast the machine is: hand the engine a
-  // clock that has already jumped far into the future. Under a wall-clock
-  // guard the very first check fires and the replay is abandoned. Under a
-  // ceiling counted in work, the clock is simply not consulted.
   test("a replay finishes even when the clock jumps hours forward mid-run", () => {
     const beats = 400;
     const program = compileSrc(longScene(beats));
     let calls = 0;
     const game = new Game({
       program: program as any,
-      // Real for a moment, then far past any plausible deadline.
       now: () => (calls++ < 2 ? 0 : 60 * 60 * 1000),
       setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
         fn(...a);
@@ -162,15 +129,6 @@ describe("no clock governs execution", () => {
 });
 
 describe("the ceiling is calibrated against what the editor compiles", () => {
-  // The same trap that shipped the planner's ceiling several times too small:
-  // a ceiling that looks generous against a program coarser than the editor's
-  // can still ration a real replay. The fixture compiles as the editor does,
-  // every line a `display()` call, so its cost per line is the editor's.
-  //
-  // Measured rather than hard-coded, so this also fires if that cost drifts —
-  // which is the half of the problem a frozen number misses. The multiplier is
-  // the headroom the default leaves over a 20,000-line replay (see
-  // `_executionStepLimit` in Game.ts): two and a half times.
   const HEADROOM = 2.5;
 
   test("the default leaves room well beyond a measured replay", () => {
@@ -180,7 +138,6 @@ describe("the ceiling is calibrated against what the editor compiles", () => {
     expect(measured.simulation).toBe("success");
     expect(measured.advancesUsed).toBeGreaterThan(1_000);
 
-    // Per display line, so the assertion holds whatever size is used here.
     const perLine = measured.advancesUsed / beats;
     const limit = newGame(program) as unknown as {
       _executionStepLimit: number;
@@ -199,9 +156,6 @@ describe("a replay that runs away is still stopped", () => {
     expect(generous.simulation).toBe("success");
     expect(generous.errors).toEqual([]);
 
-    // The same scene, with a ceiling deliberately below its cost. The ceiling
-    // stops the replay part way through a line, and the replay still returns
-    // its last checkpoint (#1693).
     const starved = previewLastBeat(program, beats, 50);
     expect(starved.simulation).not.toBe("success");
     expect(starved.errors.join("\n")).toContain("possible infinite loop");
@@ -214,8 +168,6 @@ describe("a replay that runs away is still stopped", () => {
     const needed = previewLastBeat(program, beats).advancesUsed;
     expect(needed).toBeGreaterThan(100);
 
-    // Repeating either side of the boundary always reaches the same verdict.
-    // Under a clock these are a coin toss on a loaded machine.
     for (let attempt = 0; attempt < 3; attempt += 1) {
       expect(previewLastBeat(program, beats, needed).simulation).toBe("success");
       expect(previewLastBeat(program, beats, needed - 1).simulation).not.toBe(

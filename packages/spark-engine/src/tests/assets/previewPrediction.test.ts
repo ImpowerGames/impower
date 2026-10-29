@@ -17,14 +17,6 @@ import {
   MAIN_URI,
 } from "../ui/harness/uiTestHarness";
 
-// What a preview loads and waits for (#429, #434): the beat under the cursor
-// waits for exactly the pictures it writes, whatever the source looks like,
-// since the preview runs the beat and holds what it flushed until those
-// pictures are resident, then writes it all together; the checkpoint's own
-// pictures are gated by the connect; the window around the cursor warms
-// first and the rest of the scene behind it, once per scene; and the window
-// follows the cursor without being sent for every beat.
-
 const asset = (type: string, name: string, ext: string): File => ({
   uri: `inmemory:///${name}.${ext}`,
   type,
@@ -45,8 +37,6 @@ const ASSETS: File[] = [
   asset("font", "Fancy", "ttf"),
 ];
 
-// Line numbers matter: what displays together is decided by the story as it
-// runs, and the tests below say which line the cursor is on.
 const STORY = `scene A
   [[show backdrop room]]
   Line one.
@@ -71,11 +61,7 @@ scene B
 end
 `;
 
-/** Source shapes whose beats look alike and display differently: what
- *  separates two image lines decides whether they display together, and
- *  only the story knows which lines display. */
 const SHAPES: Record<string, string> = {
-  // A line of dialogue between every two beats: each displays alone.
   alternating: `scene A
   [[show backdrop room]]
   Line one.
@@ -86,7 +72,6 @@ const SHAPES: Record<string, string> = {
   done
 end
 `,
-  // Two image-only lines in a row display together with the line below.
   consecutive: `scene A
   [[show backdrop room]]
   [[show portrait bunny]]
@@ -96,7 +81,6 @@ end
   done
 end
 `,
-  // Blank lines change nothing: three image-only lines display together.
   blank: `scene A
   [[show backdrop room]]
 
@@ -107,8 +91,6 @@ end
   done
 end
 `,
-  // A directive that displays nothing between two image lines: they still
-  // display together.
   hide: `scene A
   [[show backdrop room]]
   [[hide portrait]]
@@ -117,7 +99,6 @@ end
   done
 end
 `,
-  // Control flow between two image lines displays nothing either.
   ifBetween: `scene A
   store q = 5
   [[show backdrop room]]
@@ -129,7 +110,6 @@ end
   done
 end
 `,
-  // A divert carries the beat into the next scene's first beat.
   divert: `scene A
   [[show backdrop room]]
   -> B
@@ -141,7 +121,6 @@ scene B
   done
 end
 `,
-  // A line of dialogue above the scene's first beat displays alone.
   textAbove: `scene A
   Line one.
   [[show portrait bunny]]
@@ -149,7 +128,6 @@ end
   done
 end
 `,
-  // However many image lines display together, all of them are gated.
   seven: `scene A
   [[show backdrop room]]
   [[show backdrop room2]]
@@ -162,7 +140,6 @@ end
   done
 end
 `,
-  // A hide that names the picture it hides shows nothing, and gates nothing.
   hideNamed: `scene A
   [[show backdrop room]]
   [[show portrait bunny]]
@@ -186,7 +163,6 @@ const src = (name: string) => `/file:/proj/${name}.png?v=1`;
 
 const fileOf = (key: string) => key.split("/").pop()!.split("?")[0]!;
 
-/** The address of the beat in `flow` that shows `image`. */
 const beatShowing = (
   game: Game,
   flow: string,
@@ -200,14 +176,10 @@ const beatShowing = (
   return beat.address;
 };
 
-/** The address the editor's cursor on `line` resolves to: the last beat at
- *  or before the line, by the program's own locator, as the preview reads
- *  it. */
 const pathAt = (game: Game, line: number): ProgramAddress | null =>
   programLocator(game.program).addressAt(MAIN_URI, line, { beat: "last" }) ??
   null;
 
-/** Whether a promise has settled by the time the microtasks drain. */
 const settled = async (promise: Promise<unknown>): Promise<boolean> => {
   let done = false;
   void promise.then(
@@ -222,9 +194,6 @@ const settled = async (promise: Promise<unknown>): Promise<boolean> => {
   return done;
 };
 
-/** The pictures the messages show, by file: what a write-image message's
- *  instructions show, leaving out a hide, which can name the picture it
- *  hides. */
 const imagesWritten = (messages: any[]) =>
   [
     ...new Set(
@@ -238,23 +207,14 @@ const imagesWritten = (messages: any[]) =>
     ),
   ].sort();
 
-/** Everything the page is told about the layouts and the beat: the
- *  messages that write or update the screen. */
 const screenMessages = (messages: any[]) =>
   messages.filter((m) => m?.method?.startsWith("ui/"));
 
-/** The screen operations, with the `ui/batch` envelopes opened. */
 const screenOps = (messages: any[]) =>
   screenMessages(flattenMessages(messages));
 
-/** Whether a screen operation is about a choice target: the interpreter's
- *  target `choice 0`, or the element named after it, `choice_0`. */
 const aboutChoice = (m: any) => /choice[ _]\d/.test(JSON.stringify(m));
 
-/** What clearing a choice the last beat presented sends for its target:
- *  the text and the picture cleared (an update and a write each), the
- *  click observer gone (an update and the unobserve), the element hidden
- *  (an update). */
 const CLEAR_OPS_PER_CHOICE: Record<string, number> = {
   "ui/update": 4,
   "ui/write-text": 1,
@@ -262,7 +222,6 @@ const CLEAR_OPS_PER_CHOICE: Record<string, number> = {
   "ui/unobserve": 1,
 };
 
-/** What clearing `n` choices sends, counted by method. */
 const clearOpsFor = (n: number): Record<string, number> =>
   Object.fromEntries(
     Object.entries(CLEAR_OPS_PER_CHOICE).map(([method, count]) => [
@@ -271,7 +230,6 @@ const clearOpsFor = (n: number): Record<string, number> =>
     ]),
   );
 
-/** The methods of the given operations, counted. */
 const countMethods = (ops: any[]): Record<string, number> => {
   const counts: Record<string, number> = {};
   for (const op of ops) {
@@ -285,9 +243,6 @@ const syncTimeout = ((fn: Function, _ms?: number, ...a: any[]) => {
   return 0;
 }) as any;
 
-/** The checkpoint the compile worker hands the page for a preview at
- *  `line`: a real route simulation, as `patchAndSimulateRoute` runs it in
- *  production. Null when no route reaches the line. */
 const checkpointFor = (story: string, line: number): string | null => {
   const { program } = compileUI(story, {
     assets: ASSETS,
@@ -304,19 +259,12 @@ const checkpointFor = (story: string, line: number): string | null => {
   return route ? sim.patchAndSimulateRoute(route) : null;
 };
 
-/** How a preview gets to its beat: by jumping to it from a reset story
- *  (no route, or a failed one), or by continuing from the route's
- *  checkpoint; `prepare` sets the game up further before it connects (a
- *  breakpoint, a budget). */
 type Arrival = {
   simulation?: "fail";
   checkpoint?: string;
   prepare?: (game: Game) => void;
 };
 
-/** A game connected the way the page connects one for a preview at `line`:
- *  the point marked, the checkpoint loaded, every load request held until
- *  `releaseAssets()` answers it. */
 const connected = (story: string, line: number, arrival: Arrival = {}) =>
   createHarness(story, line, {
     assets: ASSETS,
@@ -334,17 +282,6 @@ const connected = (story: string, line: number, arrival: Arrival = {}) =>
     },
   });
 
-/**
- * What the connect and the preview at `line` ask the page for, and what
- * each then writes. `restore` is the connect's gate (the checkpoint's
- * pictures, by request), `restored` what the connect wrote; `gate` the
- * preview's requests while it waits, `before` what the beat wrote to the
- * screen while the preview waited (none, or the wait is not a gate), or
- * "no wait" for a preview with nothing to wait for, which writes its beat
- * at once, `written` what the preview wrote once the page answered,
- * `prefetches` how many prefetches the preview sent before it was
- * answered.
- */
 const previewGate = async (
   story: string,
   line: number,
@@ -386,8 +323,6 @@ const previewGate = async (
 
 describe("preview prediction and gate", () => {
   it("waits to write the beat until the pictures it shows are resident, then writes them together", async () => {
-    // Line 3 is `[[show portrait bunny]]`; line 4, `Line two.`, displays on
-    // its own before `hat` on line 5.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -398,14 +333,9 @@ describe("preview prediction and gate", () => {
     expect(load[0].params.pin).toBe("preview:1");
     expect(load[0].params.priority).toBe(0);
     expect(itemKeys(load[0])).toEqual([src("bunny")]);
-    // Nothing of the beat reaches the screen while the page loads: no
-    // picture, no line, no layout update; and the preview has not settled.
     expect(screenMessages(h.messages)).toEqual([]);
     expect(await settled(previewing)).toBe(false);
     h.releaseAssets();
-    // Once the page answers, the preview settles (a wait that never ends
-    // fails this test by its timeout) and writes the beat: its picture and
-    // its line, then the pin goes.
     expect(await previewing).toBe(pathAt(h.game, 3));
     expect(imagesWritten(h.messages)).toEqual(["bunny.png"]);
     expect(JSON.stringify(screenMessages(h.messages))).toContain("Line two.");
@@ -413,8 +343,6 @@ describe("preview prediction and gate", () => {
       pins: ["preview:1"],
       drop: false,
     });
-    // The execution report follows the writes, as it does in play, and the
-    // preview notice follows it.
     const methods = h.messages.map((m) => m.method);
     expect(methods.indexOf("ui/write-image")).toBeLessThan(
       methods.indexOf("game/executed"),
@@ -426,13 +354,6 @@ describe("preview prediction and gate", () => {
   });
 
   it("gates exactly what the preview writes, whatever the source shape", async () => {
-    // Beat lines: 1, 3, 5 in the alternating and blank shapes; 1, 2, 4 in
-    // the consecutive one; 1 and 3 in the hide shape; 2 and 6 with control
-    // flow between. Line 0 is the scene heading, which holds no beat: the
-    // program's locator answers it with the first beat below it
-    // (`ProgramLocator.addressAt`), so a preview of it shows line 1 and gates
-    // that beat's backdrop. A jump to a line runs from that line's address,
-    // so a backdrop on the line above is not written.
     const cases: Array<[string, number, string[]]> = [
       ["alternating", 0, ["room.png"]],
       ["alternating", 1, ["room.png"]],
@@ -491,16 +412,6 @@ describe("preview prediction and gate", () => {
   });
 
   it("gates the checkpoint's pictures at connect and the beat's at preview, from a route's checkpoint", async () => {
-    // The page loads the checkpoint the route simulation built for the
-    // cursor's line before it connects, and the preview continues from it
-    // rather than jumping. Each row gives the connect's request (the
-    // pictures the checkpoint restores), what the connect wrote, the
-    // preview's request (the pictures the beat writes), and what the
-    // preview wrote. A route runs from the top of the cursor's scene, so a
-    // checkpoint in scene B restores nothing scene A showed; and a portrait
-    // shows only with the beat that writes it (the connect clears the
-    // target), so a checkpoint taken after a portrait beat restores the
-    // backdrop alone and the previous beat's portrait is not waited for.
     const seven = [
       "bunny.png",
       "cat.png",
@@ -555,11 +466,6 @@ describe("preview prediction and gate", () => {
   });
 
   it("sends no prefetch of its own for the beat while it waits, whatever the beat shows", async () => {
-    // The scene's window went out when the connect entered the scene; the
-    // preview's run enters a scene only when its beat runs into one (the
-    // divert shape). The interpreter's own prefetch of the names it parses
-    // would add to these and start the gate's pictures in a background slot
-    // first.
     const cases: Array<[string, number, number]> = [
       ["alternating", 3, 0],
       ["consecutive", 1, 0],
@@ -603,7 +509,6 @@ scene A
   done
 end
 `;
-    // Line 9 is the portrait's line; its beat sets `hp` and shows the line.
     const h = connected(story, 9);
     await h.ready;
     h.reset();
@@ -619,7 +524,6 @@ end
     expect(imagesWritten(h.messages)).toEqual(["bunny.png"]);
   });
 
-  // A beat of choices on line 2, and the portrait's beat on line 11.
   const CHOICES = `scene A
   [[show backdrop room]]
   Pick a fruit:
@@ -637,8 +541,6 @@ end
 end
 `;
 
-  // The same choices in scene A, and the portrait's beat at the top of
-  // scene B (line 12), which a route from B's start reaches.
   const CROSS_CHOICES = `scene A
   [[show backdrop room]]
   Pick a fruit:
@@ -657,8 +559,6 @@ scene B
 end
 `;
 
-  // The same choices, each branch falling through: a route from A's start
-  // to a branch's first line (5) replays a choice to reach it.
   const ROUTED_CHOICES = `scene A
   [[show backdrop room]]
   Pick a fruit:
@@ -674,7 +574,6 @@ end
 end
 `;
 
-  /** The messages' methods, each with the pin it names, for order checks. */
   const pinnedMethods = (messages: any[]) =>
     messages.map(
       (m) =>
@@ -682,14 +581,6 @@ end
     );
 
   it("clears the choices the last preview showed as the next preview starts, after its gate's request and before its wait", async () => {
-    // The choices go before the wait, so none of them can be clicked while
-    // the beat's pictures load: a click would reach a story that has
-    // jumped away from them. They go after the beat's own request, so that
-    // request is the first thing out; they are exactly the two choices
-    // shown, and nothing else reaches the screen before the page answers.
-    // The host here previews again without a connect between, which is
-    // what leaves the last preview's choices on the page; the editor's
-    // page connects first, and that connect takes them off.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -721,11 +612,6 @@ end
   });
 
   it("clears the choices the last preview showed on the checkpoint route too", async () => {
-    // The ordinary route: the compile worker's checkpoint is loaded and the
-    // preview continues from it. The checkpoint's own state holds no
-    // choices, yet the ones the last preview showed are still on the page
-    // of a host that previews without a connect between, so the game
-    // remembers them and clears exactly those.
     const h = connected(CROSS_CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -750,10 +636,6 @@ end
   });
 
   it("sends no clears for choices the connect has already taken off the page", async () => {
-    // The page connects the game again before every preview. The connect
-    // clears every transient target, the choice slots among them, out of
-    // the page and out of the module's state, so the restore does not bring
-    // them back and the preview after it has nothing to clear.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -780,13 +662,10 @@ end
   });
 
   it("clears the choices the last preview showed even when the beat that replaces them stops at a breakpoint", async () => {
-    // A host that previews without a connect between: the run stops at a
-    // breakpoint before its flush, and the choices go all the same.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
     await h.preview(2);
-    // Line 12 is `Line two.`, inside the portrait's beat.
     h.game.setBreakpoints([{ file: MAIN_URI, line: 12 }]);
     h.reset();
     expect(await h.preview(11)).toBe(pathAt(h.game, 11));
@@ -795,8 +674,6 @@ end
     const ops = screenOps(h.messages);
     expect(countMethods(ops)).toEqual(clearOpsFor(2));
     expect(ops.every(aboutChoice)).toBe(true);
-    // A preview after a beat that presented no choices (line 12's, text
-    // alone) clears nothing.
     h.game.setBreakpoints([]);
     h.reset();
     await h.preview(12);
@@ -809,13 +686,6 @@ end
   });
 
   it("keeps its record of the choices shown through a route replay, which presents none, and clears them after it", async () => {
-    // A replay runs on the connected game with the page's paints
-    // suppressed, so the page still shows what the last displayed beat
-    // presented, and the record must still say so: the preview after the
-    // replay clears exactly those choices. The replay's own flush, the
-    // beat before the choices, carries none, since the simulator resolves
-    // a choice point before the interpreter sees it, and a record taken
-    // from it would empty the two the page shows.
     const h = connected(ROUTED_CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -824,12 +694,9 @@ end
     h.game.setStartFrom({ file: MAIN_URI, line: 5 });
     h.game.simulate();
     expect(h.game.simulation).toBe("success");
-    // The replay's own layout updates go out in a batch of their own.
     await flushMicrotasks(20);
     h.reset();
     expect(await h.preview(5)).toBe(pathAt(h.game, 5));
-    // The beat's own display clears every choice slot's text and picture;
-    // the record's clear is the one that unobserves the clicks.
     expect(
       byMethod(screenOps(h.messages), "ui/unobserve").map(
         (m) => m.params.event,
@@ -913,10 +780,6 @@ end
       [src("bunny")],
       [src("hat")],
     ]);
-    // The first preview's wait ends at once, and its pin goes right after
-    // the second's request: not before, which would let the page's
-    // background queue start loads beside the second's picture, and not
-    // when the first's own wait would have ended.
     expect(await first).toBeNull();
     const order = pinnedMethods(h.messages);
     expect(order.indexOf("assets/release:preview:1")).toBe(
@@ -924,7 +787,6 @@ end
     );
     h.releaseAssets();
     expect(await second).toBe(pathAt(h.game, 5));
-    // Only the later beat is written; each preview releases its own pin.
     expect(imagesWritten(h.messages)).toEqual(["hat.png"]);
     expect(
       byMethod(h.messages, "assets/release")
@@ -988,7 +850,6 @@ end
     expect(
       byMethod(h.messages, "assets/release").map((m) => m.params.pins),
     ).toEqual([["preview:1"]]);
-    // The page's late answer changes nothing.
     const count = h.messages.length;
     h.releaseAssets();
     await flushMicrotasks(20);
@@ -996,8 +857,6 @@ end
   });
 
   it("displays nothing for a preview that PLAY interrupts, and lets its pin go at once", async () => {
-    // Without this the beat would be written over the running game once
-    // the page answered, and the game left without its coordinator.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1024,12 +883,7 @@ end
     await flushMicrotasks(20);
     h.game.load(checkpointFor(STORY, 10)!);
     expect(await previewing).toBeNull();
-    // The abandoned pin waits for the next gate's request.
     expect(byMethod(h.messages, "assets/release")).toHaveLength(0);
-    // The page loads the checkpoint for the line the cursor moved to, and
-    // previews that line: the preview continues from the checkpoint to the
-    // beat, which shows `cat` on line 10, and the abandoned pin goes right
-    // after that beat's request.
     const again = h.preview(10);
     await flushMicrotasks(20);
     const order = pinnedMethods(h.messages);
@@ -1053,8 +907,6 @@ end
     });
     h.game.updateProgram(program as any);
     expect(await first).toBeNull();
-    // No gate follows a recompile by itself, so the abandoned pin goes when
-    // its own load settles.
     expect(byMethod(h.messages, "assets/release")).toHaveLength(0);
     h.releaseAssets();
     await flushMicrotasks(20);
@@ -1093,9 +945,6 @@ end
   });
 
   it("previews the same point again after a load interrupts its wait", async () => {
-    // A load replaces the state the waiting preview would have displayed
-    // into; the point is not remembered as previewed, so asking for it
-    // again runs it again.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1116,8 +965,6 @@ end
   });
 
   it("displays nothing for a preview a connect interrupts", async () => {
-    // The page connects before every preview; a preview waiting from
-    // before the connect would display its beat over the restored state.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1128,15 +975,10 @@ end
     expect(await first).toBeNull();
     const released = () =>
       byMethod(h.messages, "assets/release").flatMap((m) => m.params.pins);
-    // The connect's own gates do not release the abandoned pin, and this
-    // connect has nothing of its own to wait for (no fonts, nothing to
-    // restore): the pin goes when the page answers the preview's load.
     expect(released()).not.toContain("preview:1");
     expect(h.releaseAssets("preview:1")).toBe(1);
     await flushMicrotasks(20);
     expect(released()).toContain("preview:1");
-    // The connect's own traffic clears the transient targets (empty
-    // writes); the abandoned beat's line and picture never land.
     expect(
       screenOps(h.messages).filter(
         (m) => (m.params?.instructions?.length ?? 0) > 0,
@@ -1157,7 +999,6 @@ end
     const count = h.messages.length;
     h.releaseAssets();
     await flushMicrotasks(20);
-    // Only the abandoned pin's release, when its load settles.
     expect(h.messages.slice(count).map((m) => m.method)).toEqual([
       "assets/release",
     ]);
@@ -1182,7 +1023,6 @@ scene A
   done
 end
 `;
-    // Line 12 is the portrait's line.
     const h = connected(story, 12);
     await h.ready;
     const button = h.observedElementIds()[0];
@@ -1200,7 +1040,6 @@ end
     expect(JSON.stringify(screenMessages(h.messages))).toContain("Line two.");
     const reports = byMethod(h.messages, "game/executed");
     expect(reports).toHaveLength(1);
-    // `heal`'s body is lines 1 and 2.
     const executed = expandLineRanges(
       reports[0].params.executedLines[MAIN_URI].ranges,
     );
@@ -1209,8 +1048,6 @@ end
   });
 
   it("waits without a clock when `restore_timeout` is 0, until the page answers or a later preview takes over", async () => {
-    // The config block moves the story down four lines: the portrait is on
-    // line 7 and `hat` on line 9.
     const story = `define assets as config with\n  restore_timeout = 0\nend\n\n${STORY}`;
     const h = connected(story, 7);
     await h.ready;
@@ -1240,8 +1077,6 @@ end
       const second = h.preview(5);
       await flushMicrotasks(20);
       expect(await first).toBeNull();
-      // Both gates' clocks run out: the abandoned one settles silently,
-      // the live one displays its beat anyway and says so.
       h.flushTimers();
       expect(await second).toBe(pathAt(h.game, 5));
       expect(imagesWritten(h.messages)).toEqual(["hat.png"]);
@@ -1255,13 +1090,7 @@ end
   });
 
   it("keeps the abandoned pin through a connect's own gates, and lets it go with the next beat's", async () => {
-    // A real project's main layout has fonts, so the page's connect issues
-    // a gate of its own before the next beat's picture is asked for. That
-    // gate settles first; the abandoned pin must outlive it, or the page's
-    // background queue restarts between the two and shares the worker with
-    // the next portrait.
     const story = `style main with\n  font_family = "Fancy"\nend\n\n${STORY}`;
-    // The style block moves the story down four lines: bunny on 7, hat on 9.
     const h = connected(story, 7);
     await flushMicrotasks(20);
     expect(h.releaseAssets("layout:main")).toBe(1);
@@ -1278,7 +1107,6 @@ end
     expect(pinnedMethods(h.messages)).toContain("assets/load:layout:main");
     const released = () =>
       byMethod(h.messages, "assets/release").flatMap((m) => m.params.pins);
-    // The connect releases its own restore pin; the abandoned one stays.
     expect(released()).not.toContain("preview:1");
     expect(h.releaseAssets("layout:main")).toBe(1);
     await flushMicrotasks(20);
@@ -1295,9 +1123,6 @@ end
   });
 
   it("lets the abandoned pin go at once when the beat that takes over needs no picture", async () => {
-    // Line 4 is `Line two.` alone: no gate, so nothing for the abandoned
-    // pin to protect, and the page's prefetching must not stay paused
-    // behind a picture nobody waits for.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1314,10 +1139,6 @@ end
   });
 
   it("displays nothing for a preview a debug step interrupts, and lets its pin go with the first step", async () => {
-    // A step advances the story one element from where the held beat left
-    // it; stepping on to the next beat displays that beat at once, and the
-    // held beat's line never lands. A step gates nothing, so nothing waits:
-    // the abandoned pin goes with the first step, which reaches no beat.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1329,7 +1150,6 @@ end
     ).toEqual([["preview:1"]]);
     expect(await first).toBeNull();
     for (let steps = 0; steps < 100 && !h.game.step(); steps++) {
-      // The step that reaches the next beat's flush returns true.
     }
     h.releaseAssets();
     await flushMicrotasks(20);
@@ -1340,8 +1160,6 @@ end
   });
 
   it("displays nothing for a preview a call for an unknown point interrupts, and lets its pin go at once", async () => {
-    // The call takes the waiting preview over and gates no beat, so
-    // nothing waits and the page's prefetching must not stay paused.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1362,9 +1180,6 @@ end
   });
 
   it("previews the same point again after a load with nothing waiting", async () => {
-    // A load replaces the state the last preview displayed into, whether
-    // or not a preview is waiting, so the point is not remembered as
-    // previewed.
     const h = connected(STORY, 3);
     await h.ready;
     h.reset();
@@ -1402,8 +1217,6 @@ end
   });
 
   it("remembers the choices play presents, and forgets them once a path is chosen", async () => {
-    // Play records the choices at the beat's flush; a chosen path takes
-    // them off the page through the coordinator's own handler.
     const h = connected(CHOICES, 2);
     await h.ready;
     h.releaseAssets();
@@ -1438,11 +1251,6 @@ end
   });
 
   it("repaints the layouts from the story's state for a handler that runs while the beat waits, as play does while a beat's gate waits", async () => {
-    // The beat has already changed the state when its wait begins, in
-    // preview as in play, and a handler's repaint reads that state: the
-    // binding that reads the beat's variable paints the beat's value
-    // beside the one that reads the handler's, before the beat's line, in
-    // both.
     const story = `store hp = 100
 store pings = 0
 function ping()
@@ -1463,7 +1271,6 @@ scene A
   done
 end
 `;
-    // Line 14 is the portrait's line; its beat sets `hp` to 50.
     const preview = connected(story, 14);
     await preview.ready;
     const previewButton = preview.observedElementIds()[0];
@@ -1482,8 +1289,6 @@ end
     await previewing;
     expect(JSON.stringify(screenOps(preview.messages))).toContain("Line two.");
 
-    // Play from the same beat: its own gate waits for the same picture,
-    // and the same click paints the same text before the line.
     const play = connected(story, 14);
     await play.ready;
     const playButton = play.observedElementIds()[0];
@@ -1506,7 +1311,6 @@ end
     h.reset();
     const first = h.preview(3);
     await flushMicrotasks(20);
-    // Line 6 is `Line three.`, inside the beat that shows `hat`.
     h.game.setBreakpoints([{ file: MAIN_URI, line: 6 }]);
     expect(await h.preview(5)).toBe(pathAt(h.game, 5));
     expect(await first).toBeNull();
@@ -1525,7 +1329,6 @@ end
     h.reset();
     const first = h.preview(3);
     await flushMicrotasks(20);
-    // Line 2 is `Line one.` alone: play's first beat has no gate.
     h.game.setStartFrom({ file: MAIN_URI, line: 2 });
     h.game.start();
     expect(await first).toBeNull();
@@ -1538,11 +1341,6 @@ end
   });
 
   it("gates and writes for a cursor inside a function what it does for the story after the function", async () => {
-    // A function's body runs only when called, so a preview of one of its
-    // lines previews the story's next line of flow after it (#835): the
-    // function's picture is never asked for, and the story's is. The story
-    // lines follow the function's `end`, where #834 compiles them into the
-    // function's container; they are still story.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.
@@ -1572,7 +1370,6 @@ Line one.
     expect(await h.game.preview("file://proj/deleted.sd", 3)).toBeNull();
     expect(byMethod(h.messages, "assets/load")).toHaveLength(0);
     expect(byMethod(h.messages, "game/executed")).toHaveLength(0);
-    // A jump to a line between beats writes that line and no picture.
     const between = await previewGate(SHAPES["alternating"]!, 2);
     expect(between.gated).toEqual([]);
     expect(between.written).toEqual([]);
@@ -1595,15 +1392,12 @@ Line one.
     assets.onEnterScene("A", null, []);
     const prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.map((m) => m.params.priority)).toEqual([2, 3, 3]);
-    // One beat either side of the cursor's.
     expect(itemKeys(prefetches[0])).toEqual([
       src("bunny"),
       src("hat"),
       src("cat"),
     ]);
-    // The rest of the scene: what follows the window, then what precedes it.
     expect(itemKeys(prefetches[1])).toEqual([src("dog"), src("room")]);
-    // The scene A diverts to, from its first beat.
     expect(itemKeys(prefetches[2])).toEqual([src("room2")]);
   });
 
@@ -1620,7 +1414,6 @@ Line one.
     );
     await h.ready;
     h.reset();
-    // The cursor lands in B: the scene changes, so the whole of B warms.
     const inB = beatShowing(h.game, "B", "room2");
     h.game.markPreviewing(inB);
     h.game.observeScene(inB);
@@ -1631,9 +1424,6 @@ Line one.
   });
 
   it("enters a scene the cursor is not in from that scene's first beat, whichever side of the cursor it lies", async () => {
-    // The cursor sits in B, defined after A in the source; the story enters
-    // A (a divert back). Anchored on the cursor, the window would start from
-    // A's last beat, the one before the cursor in the source.
     const h = createHarness(
       `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
       18,
@@ -1665,17 +1455,12 @@ Line one.
     );
     await h.ready;
     h.reset();
-    // The beats one preview writes, with the cursor where it was: the
-    // window was sent on entering the scene and is not sent again.
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
-    // One beat further (within half the reach of two): the last window
-    // still covers it, nothing is sent.
     h.game.markPreviewing(beatShowing(h.game, "A", "bunny"));
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
-    // Two beats further: the window around the new position, and only that.
     h.game.markPreviewing(beatShowing(h.game, "A", "hat"));
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     let prefetches = byMethod(h.messages, "assets/prefetch");
@@ -1688,11 +1473,9 @@ Line one.
       src("dog"),
     ]);
     h.reset();
-    // Another program with the same scenes: the window stands (#657).
     h.game.module.assets.onProgramUpdate();
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
-    // Another program whose scenes changed: what was sent is forgotten.
     h.game.module.assets.onSceneMapChanged();
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     prefetches = byMethod(h.messages, "assets/prefetch");
@@ -1700,7 +1483,6 @@ Line one.
   });
 
   it("re-sends the window when the cursor leaves half of its reach, not the whole of it", async () => {
-    // Five beats and a reach of six: half the reach is three beats.
     const h = createHarness(
       `define assets as config with\n  predict_distance = 6\nend\n\n${STORY}`,
       1,
@@ -1713,11 +1495,9 @@ Line one.
     );
     await h.ready;
     h.reset();
-    // Three beats on: within half the reach, nothing.
     h.game.markPreviewing(beatShowing(h.game, "A", "cat"));
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     expect(byMethod(h.messages, "assets/prefetch")).toHaveLength(0);
-    // Four beats on: past half the reach, though well within the whole.
     h.game.markPreviewing(beatShowing(h.game, "A", "dog"));
     new Coordinator(h.game, { text: { dialogue: [] }, end: 0 });
     const prefetches = byMethod(h.messages, "assets/prefetch");
@@ -1810,9 +1590,7 @@ Line one.
     expect(beatIndexIn(beats, locator, at(5))).toBe(1);
     expect(beatIndexIn(beats, locator, at(2))).toBe(0);
     expect(beatIndexIn(beats, locator, at(7))).toBe(2);
-    // Only the beats in the address's own script precede it.
     expect(beatIndexIn(beats, locator, at(1, OTHER_URI))).toBe(-1);
-    // An address no chunk of the program holds.
     expect(beatIndexIn(beats, locator, 2 ** 40)).toBe(-1);
     expect(beatIndexIn(beats, locator, null)).toBe(-1);
   });

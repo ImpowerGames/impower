@@ -1,10 +1,3 @@
-/**
- * bezier-points <https://github.com/pshihn/bezier-points>
- *
- * Copyright (c) 2020 Preet Shihn
- * Released under the MIT License.
- */
-
 import { Curve } from "../types/Curve";
 import { Point } from "../types/Point";
 
@@ -57,12 +50,10 @@ export const curveToBezier = (curve: Curve, curveTightness = 0): Curve => {
   return out;
 };
 
-// distance between 2 points squared
 const distanceSq = (p1: Point, p2: Point): number => {
   return (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2;
 };
 
-// distance between 2 points
 const distance = (p1: Point, p2: Point): number => {
   return Math.sqrt(distanceSq(p1, p2));
 };
@@ -71,7 +62,6 @@ const lerp = (a: Point, b: Point, t: number): Point => {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 };
 
-// Sistance squared from a point p to the line segment vw
 const distanceToSegmentSq = (p: Point, v: Point, w: Point): number => {
   const l2 = distanceSq(v, w);
   if (l2 === 0) {
@@ -82,7 +72,6 @@ const distanceToSegmentSq = (p: Point, v: Point, w: Point): number => {
   return distanceSq(p, lerp(v, w, t));
 };
 
-// Adapted from https://seant23.wordpress.com/2010/11/12/offset-bezier-curves/
 const flatness = (points: Curve, offset: number): number => {
   const p1 = points[offset + 0]!;
   const p2 = points[offset + 1]!;
@@ -128,7 +117,6 @@ const getPointsOnBezierCurveWithSplitting = (
     }
     outPoints.push(points[offset + 3]!);
   } else {
-    // subdivide
     const t = 0.5;
     const p1 = points[offset + 0]!;
     const p2 = points[offset + 1]!;
@@ -160,8 +148,6 @@ const getPointsOnBezierCurveWithSplitting = (
   return outPoints;
 };
 
-// Ramer–Douglas–Peucker algorithm
-// https://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
 const simplifyPoints = (
   points: Curve,
   start: number,
@@ -171,7 +157,6 @@ const simplifyPoints = (
 ): Point[] => {
   const outPoints = newPoints || [];
 
-  // find the most distance point from the endpoints
   const s = points[start]!;
   const e = points[end - 1]!;
   let maxDistSq = 0;
@@ -184,7 +169,6 @@ const simplifyPoints = (
     }
   }
 
-  // if that point is too far, split
   if (Math.sqrt(maxDistSq) > epsilon) {
     simplifyPoints(points, start, maxNdx + 1, epsilon, outPoints);
     simplifyPoints(points, maxNdx, end, epsilon, outPoints);

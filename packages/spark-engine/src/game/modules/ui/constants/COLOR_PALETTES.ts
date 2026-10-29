@@ -1,12 +1,3 @@
-/*
- * Based on svelte-svg-patterns <https://github.com/catchspider2002/svelte-svg-patterns>
- *
- * Copyright (c) 2021 pattern.monster
- * Released under the MIT license.
- *
- * Website: https://pattern.monster
- */
-
 export const COLOR_PALETTES = [
   ["#44337A", "#FFC800", "#FFFFFF", "#FF0054", "#00A878"],
   ["#2A2A30", "#616161", "#9e9e9e", "#e0e0e0", "#f5f5f5"],

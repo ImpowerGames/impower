@@ -1,12 +1,3 @@
-// Phase 3a: the semantic element tags. Builtins that carry real HTML meaning
-// now render as that tag instead of a styled <div>, so the overlay tree is
-// navigable (links, lists, tables, headings-in-context) rather than div soup.
-//
-// Names that already exist as style CLASSES (`small`, `nav`, `progress`,
-// `group`, `grid`, `muted`, …) are deliberately NOT promoted to tags: existing
-// authoring like `text.small "…"` uses them as classes, and a styled <div>
-// renders identically.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -49,7 +40,6 @@ end
     const ol = h.overlay.querySelector("ol");
     expect(ul).toBeTruthy();
     expect(ol).toBeTruthy();
-    // <li>s must be DIRECT children so the list markers apply.
     expect([...ul!.children].every((c) => c.tagName === "LI")).toBe(true);
     expect(ul!.children.length).toBe(2);
     expect(ul!.children[0]!.textContent).toBe("Alpha");
@@ -80,31 +70,16 @@ end
   text.abbreviation "HTML"
 end
 `);
-    // Structural text elements keep real tags.
     expect(h.overlay.querySelector("blockquote")).toBeTruthy();
     expect(h.overlay.querySelector("cite")?.textContent).toBe("- Someone");
 
-    // SEMANTIC inline elements survive as tags: <strong> means importance and
-    // <em> means stress emphasis, and assistive tech acts on both.
     expect(h.overlay.querySelector("strong")?.textContent).toBe("important");
     expect(h.overlay.querySelector("em")?.textContent).toBe("stressed");
 
-    // Promoted from style CLASSES to elements. A heading is what assistive tech
-    // navigates by and a `<div class="h2">` is not one; `<kbd>` is the key to
-    // press and `<small>` is fine print. The class spelling still works — these
-    // are additive — so only the ELEMENT form proves the promotion landed.
     expect(h.overlay.querySelector("kbd")?.textContent).toBe("Esc");
     expect(h.overlay.querySelector("h2")?.textContent).toBe("Heading");
     expect(h.overlay.querySelector("small")?.textContent).toBe("fine print");
 
-    // `paragraph` is a real <p> AND the one block builtin that ships with a
-    // margin — everything else takes its rhythm from a container's `child-gap`.
-    // The margin is the reason it exists as a separate element from `text`: a
-    // paragraph's closing space belongs to the paragraph, so prose reads right
-    // in a grid cell, where a gap cannot reach and a margin cannot collapse.
-    // The margin arrives as a SHEET rule on `.paragraph`, not an inline style —
-    // a builtin's `style` block always does. Only an inline `#prop` lands on the
-    // element itself.
     const p = h.overlay.querySelector("p");
     expect(p?.textContent).toBe("Prose.");
     expect(p?.className).toContain("paragraph");
@@ -114,15 +89,6 @@ end
     const rule = sheet.slice(sheet.indexOf(".paragraph {"));
     expect(rule.slice(0, 120)).toContain("margin-bottom");
 
-    // VISUAL styling is a CLASS on a text element — <b>/<i> are defined as
-    // stylistic-only, so there is no element for them. Styling WITHIN a line
-    // uses rich-text tags (see domRichText.test.ts).
-    //
-    // `kbd` is NOT in this list any more — it is a real element now, because
-    // "the key you press" is meaning, not appearance. It still works as a class
-    // (`text.kbd "Ctrl"` above renders a div), which is why this list passing
-    // was never evidence: the fixture happens to use the class form, so the
-    // assertion held while the claim it encodes had already become false.
     for (const tag of ["mark", "del", "ins", "abbr"]) {
       expect(
         h.overlay.querySelector(tag),
@@ -183,7 +149,6 @@ end
     ]) {
       expect(h.overlay.querySelector(tag), `expected a <${tag}>`).toBeTruthy();
     }
-    // <summary> must be a direct child of <details> for native disclosure.
     expect(h.overlay.querySelector("details > summary")).toBeTruthy();
   });
 
@@ -211,7 +176,6 @@ end
 `);
     const table = h.overlay.querySelector("table");
     expect(table).toBeTruthy();
-    // Parentage matters: a wrapper div between these would break table layout.
     expect(h.overlay.querySelector("table > thead > tr > th")).toBeTruthy();
     expect(h.overlay.querySelectorAll("table > tbody > tr").length).toBe(2);
     expect(h.overlay.querySelectorAll("tbody td").length).toBe(4);
@@ -228,12 +192,10 @@ end
   }
 end
 `);
-    // `small` stayed a class on a text div, not a <small> element.
     expect(h.overlay.querySelector("small")).toBeNull();
     expect(h.overlay.querySelector(".text.small")?.textContent).toBe(
       "Small print",
     );
-    // `nav` likewise stays a class.
     expect(h.overlay.querySelector("nav")).toBeNull();
     expect(h.overlay.querySelector(".nav")).toBeTruthy();
   });

@@ -1,8 +1,3 @@
-// The cache under the races the review found: an entry removed while its
-// request runs, a drop that lands on an in-flight load, dispose with waiters
-// pending, two requests under one pin, failures forgotten on teardown, and a
-// shared asset counted once against the load cap.
-
 import { describe, expect, it } from "vitest";
 import { type ImageAssetItem } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
@@ -72,7 +67,6 @@ describe("AssetCache lifecycle", () => {
       "load:A",
     );
     await finish("/file:/a.png?v=1");
-    // The file changed while b was still loading: a is gone.
     cache.evictFile("/file:/a.png");
     await finish("/file:/b.png?v=1");
     const result = await pending;
@@ -87,7 +81,6 @@ describe("AssetCache lifecycle", () => {
     const pending = cache.request([image("/file:/a.png?v=1")], 1, "load:X");
     cache.release(["load:X"], true);
     expect(cache.has("/file:/a.png?v=1")).toBe(false);
-    // The bytes that arrive belong to nobody.
     await finish("/file:/a.png?v=1");
     expect(cache.has("/file:/a.png?v=1")).toBe(false);
     expect(cache.bytes).toBe(0);
@@ -130,11 +123,9 @@ describe("AssetCache lifecycle", () => {
       await fail("/file:/a.png?v=1");
     }
     expect((await first).failed).toEqual(["/file:/a.png?v=1"]);
-    // Inside the cool-down a new request settles as failed at once…
     expect((await cache.request([image("/file:/a.png?v=1")], 0, "beat:2")).failed).toEqual([
       "/file:/a.png?v=1",
     ]);
-    // …unless the failures were cleared, when it loads again.
     cache.clearFailures();
     const retry = cache.request([image("/file:/a.png?v=1")], 0, "beat:3");
     expect(cache.stateOf("/file:/a.png?v=1")).toBe("loading");
@@ -148,15 +139,12 @@ describe("AssetCache lifecycle", () => {
     const a = cache.request([shared], 1, "load:A");
     await finish(shared.src);
     expect((await a).pinned).toEqual([shared.src]);
-    // Scene B shares the backdrop and adds a portrait: 2 images in total, so
-    // both fit the cap; the shared one is not charged twice.
     const portrait = image("/file:/portrait.png?v=1");
     const b = cache.request([shared, portrait], 1, "load:B");
     await finish(portrait.src);
     const result = await b;
     expect(result.pinned).toEqual([shared.src, portrait.src]);
     expect(cache.pinsOf(shared.src)).toEqual(["load:A", "load:B"]);
-    // Leaving A keeps the shared backdrop pinned by B.
     cache.release(["load:A"], true);
     expect(cache.has(shared.src)).toBe(true);
   });
