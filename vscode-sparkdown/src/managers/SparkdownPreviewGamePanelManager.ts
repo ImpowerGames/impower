@@ -5,8 +5,14 @@ import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileCha
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { INTERNAL_ERROR } from "@impower/jsonrpc/src/common/utils/toResponseError";
+import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
+import {
+  SetRoutePinsMessage,
+  type RoutePin,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import {
   SetRouteTogglesMessage,
   type RouteTogglesParams,
@@ -48,6 +54,7 @@ import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
+import { SparkdownRoutePinsManager } from "./SparkdownRoutePinsManager";
 
 /** The empty message the game webview posts once its script has loaded. */
 const isWebviewHello = (message: unknown) =>
@@ -162,6 +169,18 @@ export class SparkdownPreviewGamePanelManager {
     line: number;
   };
 
+  constructor() {
+    SparkdownRoutePinsManager.instance.onDidChangePins((pins) =>
+      this.sendRoutePins(pins),
+    );
+  }
+
+  protected sendRoutePins(pins: RoutePin[]) {
+    this._panel?.webview.postMessage(
+      SetRoutePinsMessage.type.request({ pins }),
+    );
+  }
+
   async showPanel(
     context: vscode.ExtensionContext,
     document: vscode.TextDocument | undefined,
@@ -263,6 +282,7 @@ export class SparkdownPreviewGamePanelManager {
             {},
           ),
         }).catch(console.error);
+        this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
@@ -281,6 +301,21 @@ export class SparkdownPreviewGamePanelManager {
           ROUTE_TOGGLES_STATE_KEY,
           message.params.toggles,
         );
+      }
+      if (ChangeRoutePinsMessage.type.isRequest(message)) {
+        try {
+          const pins = await SparkdownRoutePinsManager.instance.change(
+            message.params,
+          );
+          this.sendResponse(ChangeRoutePinsMessage.type, message.id, { pins });
+        } catch (e) {
+          panel.webview.postMessage(
+            ChangeRoutePinsMessage.type.error(message.id, {
+              code: INTERNAL_ERROR,
+              message: e instanceof Error ? e.message : String(e),
+            }),
+          );
+        }
       }
       if (ShowDocumentMessage.type.isRequest(message)) {
         // A line the route list links to.

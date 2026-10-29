@@ -31,6 +31,7 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import type { ChangeRoutePinsParams } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
+import { changedRoutePins } from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
@@ -491,34 +492,10 @@ export default class WorkspaceWindow {
   /** Apply a change the author made to the pins from the Game Preview's
    *  route list (`preview/changeRoutePins`), answering every pin kept. */
   changeRoutePins(change: ChangeRoutePinsParams): RoutePin[] {
-    const same = (
-      a: { line: number; offer: number },
-      uri: string,
-      b: RoutePin,
-    ) => uri === b.uri && a.line === b.line && a.offer === b.offer;
-    // Each script keeps its place while the change empties and refills it.
-    const byScript: Record<string, { line: number; offer: number }[]> = {};
-    if (!change.removeAll) {
-      for (const [uri, pins] of Object.entries(
-        this.store.debug.routePins ?? {},
-      )) {
-        byScript[uri] = pins.filter(
-          (pin) => !(change.remove ?? []).some((gone) => same(pin, uri, gone)),
-        );
-      }
-    }
-    for (const pin of change.add ?? []) {
-      const pins = (byScript[pin.uri] ??= []);
-      if (!pins.some((at) => same(at, pin.uri, pin))) {
-        pins.push({ line: pin.line, offer: pin.offer });
-      }
-    }
-    for (const [uri, pins] of Object.entries(byScript)) {
-      if (pins.length === 0) {
-        delete byScript[uri];
-      }
-    }
-    this.storeRoutePins(byScript, true);
+    this.storeRoutePins(
+      changedRoutePins(this.store.debug.routePins ?? {}, change),
+      true,
+    );
     return this.getRoutePins();
   }
 

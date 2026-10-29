@@ -2,6 +2,7 @@
 import * as vscode from "vscode";
 import { activateContextService } from "./context/activateContextService";
 import { activateDebugger } from "./debugger/activateDebugger";
+import { SparkdownRoutePinsManager } from "./managers/SparkdownRoutePinsManager";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
@@ -36,6 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateCheatSheetView(context);
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
+  SparkdownRoutePinsManager.instance.activate(context);
   activatePreviewGamePanel(context);
   activateCompletionPreview(context);
   activateExecutionLineDecorator(context);

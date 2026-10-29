@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkdownPreviewGamePanelSerializer } from "../managers/SparkdownPreviewGamePanelSerializer";
+import { SparkdownRoutePinsManager } from "../managers/SparkdownRoutePinsManager";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
@@ -59,6 +60,7 @@ export const activatePreviewGamePanel = async (
         change.document,
         change.contentChanges,
       );
+      SparkdownRoutePinsManager.instance.moveThroughEdit(change);
     }),
   );
   // Notify game preview whenever text editor selection (i.e. cursor position) changed
