@@ -34,7 +34,7 @@ const errors = (text: string) => errorsOf(newCompiler(text));
 /** The official parser's errors for a define body, read as a `do` block the define's `end` closes. */
 const official = (body: string) => officialErrorList(`do\n${body}end\n`);
 
-const define = (body: string) => `define X with\n${body}end\n`;
+const define = (body: string) => `define X with\n${body}end\nscene start\nend\n`;
 
 /** The position of `offset` in `text`, as an LSP position. */
 function positionAt(text: string, offset: number) {

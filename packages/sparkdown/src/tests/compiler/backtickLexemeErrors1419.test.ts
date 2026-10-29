@@ -14,6 +14,7 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
+const BLANK = "\n".repeat(SCENE.split("\n").length - 1);
 
 /** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
@@ -77,19 +78,19 @@ describe("a rejected backtick string is read as Luau's lexemes (I-1419)", () => 
       const luau = `function f()\n${body}\nend\n`;
       const expected = official(luau);
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(expected);
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(expected);
     });
   }
 
   test("the ticket's reproduction", () => {
-    expect(sparkdownErrors("function f()\n`a {x} b`\nend\nGo {f()}.\n")).toEqual(
+    expect(sparkdownErrors("function f()\n`a {x} b`\nend\n" + SCENE)).toEqual(
       [
         "1:0-1:4 Expected identifier when parsing expression, got `a {",
         "1:4-1:5 Incomplete statement: expected assignment or a function call",
         "1:5-1:9 Expected identifier when parsing expression, got } b`",
       ].sort(),
     );
-    expect(sparkdownErrors("function f()\nlocal t = (1 `a {x} b`)\nend\nGo {f()}.\n")).toEqual(
+    expect(sparkdownErrors("function f()\nlocal t = (1 `a {x} b`)\nend\n" + SCENE)).toEqual(
       [
         "1:13-1:17 Expected ')' (to close '(' at column 11), got `a {",
         "1:17-1:18 Incomplete statement: expected assignment or a function call",
@@ -105,7 +106,7 @@ function placements(rest: string): [string, string, string[]][] {
   const luau = `local ${rest}\n`;
   return [
     ["store", `store ${rest}\n${SCENE}`, official(luau)],
-    ["store alone", `store ${rest}\n`, official(luau)],
+    ["store alone", `${SCENE}store ${rest}\n`, official(`${BLANK}${luau}`)],
     // Indented as written, since an error naming a bracket gives its column.
     // A blank line stands for the scene's header, so a message naming a line names the document's.
     ["a scene-level local", `scene start\n  local ${rest}\n  Hello.\nend\n`, official(`\n  ${luau}`)],
@@ -128,7 +129,7 @@ describe("a rejected backtick string in a story statement is read as Luau's lexe
       // and the line after it is story (I-1532): Luau's errors are the
       // first line's alone.
       const unclosed = rest === "s = (1\n  `a {x} b)" && form.startsWith("store");
-      const expected = unclosed ? official(`local ${rest.slice(0, rest.indexOf("\n"))}\n`) : luauExpected;
+      const expected = unclosed ? official(`${form === "store alone" ? BLANK : ""}local ${rest.slice(0, rest.indexOf("\n"))}\n`) : luauExpected;
       test(`${form} ${rest}`, () => {
         expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
         expect(sparkdownErrors(text)).toEqual(expected);
