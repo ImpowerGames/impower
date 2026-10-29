@@ -34,7 +34,6 @@ export const UNDEFINED_KIND = -1;
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
 
-/** The name of the scene the story starts in. */
 export const START_FLOW_NAME = "start";
 
 /** How a function the compiler named is shown to an author. */

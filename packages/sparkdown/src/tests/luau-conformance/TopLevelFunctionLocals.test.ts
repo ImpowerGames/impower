@@ -1,11 +1,3 @@
-// A function or a define's method written at the top level reads and writes
-// a store, a const and a global, as Luau does (I-823), and reads the builtin
-// of a stdlib name; no local is in scope where it is written, as a `local`
-// at the top level is a compile error. A local function written in a scene
-// reads and writes the scene's local declared above it, and calls a closure
-// one holds. A define written in a function has its methods read that
-// function's locals through global cells its line points at them when it
-// runs (`DefineCellBinding`), which a save keeps.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -46,7 +38,6 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `start`, where the story starts.
 const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 const withStart = (declarations: string[], story: string[]) => [...declarations, ...inScene(story)];
@@ -292,9 +283,6 @@ describe("a define written in a function", () => {
 });
 
 describe("a save holding a top-level method value", () => {
-  // The fixture's top-level method captures nothing, though a define written
-  // in it has a method that reads a local of the scene: the method's
-  // parameters are what its own body reads.
   test("loads, and a method whose define reads a scene's local passes its parameters", () => {
     const text = readFileSync(join(FIXTURES, "nested-define-method-value.sd"), "utf-8").trimEnd();
     const story = new ProgramStory(rootOf([text]));

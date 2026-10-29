@@ -1,8 +1,3 @@
-/// <reference path="../../sd-raw.d.ts" />
-// The builtins prelude is seeded into every compiled program, so anything the
-// prelude held for the story to run would travel with every game. The story
-// starts in the scene named `start`, which the prelude does not declare, and
-// seeding the builtins into a program adds nothing to that scene.
 
 import { describe, expect, test } from "vitest";
 import BUILTINS_PRELUDE from "../../compiler/builtins/builtins.sd?raw";
@@ -45,14 +40,11 @@ const compileScript = (text: string, seedBuiltinsIntoStory: boolean) => {
   return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
 };
 
-/** The instructions of the scene a story starts in (`start`, `flowListings`). */
 const startFlowContent = (program: any): string[] => {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
   return flowListings(program.chunks).get("start") ?? [];
 };
 
-/** Every text the start scene plays back: each string a display table takes
- *  as its `text`, and each string written as text. */
 const startFlowText = (program: any): string[] => {
   const listing = startFlowContent(program);
   return listing.flatMap((line, i) => {
@@ -85,9 +77,6 @@ describe("the builtins prelude's top level", () => {
   });
 
   test("adds nothing to the scene the story starts in when it is seeded", () => {
-    // What a player actually receives: the editor's diagnostics compile leaves
-    // the builtins unseeded, the runtime seeds them, and the two have to play
-    // the same beats from the start scene.
     const SRC = "scene start\n  Hello from the script.\nend\n";
     const seeded = compileScript(SRC, true);
     const unseeded = compileScript(SRC, false);

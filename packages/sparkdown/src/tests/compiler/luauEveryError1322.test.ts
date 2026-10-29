@@ -263,8 +263,6 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
 });
 
 describe("text after a scene or branch header is reported on the header line (I-674)", () => {
-  // A script whose header line (line 1) is a branch's in a scene, or a
-  // scene's after a line of prose.
   const scene = (header: string) => `// Hi.\n${header}\n  Hello.\nend\nscene start\nend\n`;
   const branch = (header: string) => `scene start\n${header}\n    Hello.\n  end\nend\n`;
   // The diagnostics on the header's line.

@@ -1,10 +1,3 @@
-// A screenplay made of the constructs of functions (#698): functions declared
-// at the top level with fixed and variadic parameters and several returns, a
-// function left in an `if` block, closures that capture a local and write a
-// global, a closure made by a closure, a comparator a builtin calls, a
-// protected call, the method of a define, and display lines that call them
-// through interpolation. Each scene ends with `done`, whose hint covers what
-// an edit writes after it.
 export function functionScreenplay(scenes = 3): string {
   const L: string[] = [
     "store total = 0",

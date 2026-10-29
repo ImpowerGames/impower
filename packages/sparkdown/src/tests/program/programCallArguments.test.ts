@@ -90,8 +90,6 @@ const inRun = (body: string[], result = T3): string =>
     "",
   ].join("\n");
 
-/** A script whose scene `start` runs `body` and shows `result`. The `store`
- *  lines and `function` blocks of `body` stay at the top level. */
 const topLevel = (body: string[], result = T3): string => {
   const declarations: string[] = [];
   const statements: string[] = [];

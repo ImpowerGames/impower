@@ -212,8 +212,6 @@ end
     expect(recordedRun(result.program.chunks)).toEqual([7]);
   });
 
-  // A run line at the top level of a script runs its file with the
-  // declarations, before the story starts.
   test("runs a run line at the top level of a script with the declarations", () => {
     const { result, errs } = compileWithFiles([
       {

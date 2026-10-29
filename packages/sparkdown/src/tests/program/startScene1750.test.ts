@@ -1,7 +1,3 @@
-// The story starts in the scene named start, wherever the project declares
-// it, and a top-level `run` runs its file with the declarations, before the
-// story starts, so every scene a route enters sees the file's globals
-// (I-1750, Feature #1749). A `run` inside a scene runs where its line stands.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { errorsOf, programCompiler, storyRun } from "./programHarness";

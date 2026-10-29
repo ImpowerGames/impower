@@ -544,8 +544,6 @@ describe("a preview compile", () => {
     expect(diverged(fieldSig(incremental), fieldSig(coldProgram({ ...texts, [URI]: typed.after })))).toEqual([]);
   });
 
-  // The edit of the fuzz from which the incremental compile leaves out an
-  // error a cold compile reports, and the open Bug it fails on.
   const KNOWN_FROM = 55;
   const KNOWN_BUG = "#1793";
   let interleaved: string[] | undefined;

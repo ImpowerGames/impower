@@ -33,9 +33,6 @@ export const hoistedInsideFlowMessage = (keyword: string): string =>
     ? `${keyword} must be at the top level`
     : `${keyword} declaration must be at the top level`;
 
-/** Whether `message` is a placement error's, which says where a declaration
- *  or a statement stands and nothing of how it reads: the reporters of
- *  syntax errors do not take it for a report of the statement's errors. */
 export const isPlacementMessage = (message: string): boolean =>
   message === TOP_LEVEL_STATEMENT_MESSAGE ||
   message === LOCAL_OUTSIDE_FLOW_MESSAGE ||

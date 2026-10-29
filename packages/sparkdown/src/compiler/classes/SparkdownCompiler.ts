@@ -2434,14 +2434,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Parses the script `uri` into the story's objects. The script a compile
-   * starts from is parsed with `isInclude` false, and reads the other scripts
-   * of its project (`SparkdownCompilerState.projectScripts`) after its own
-   * statements. Each script of the project is parsed with `declarationOnly`:
-   * a statement of its top level that declares nothing is reported and left
-   * out of the program.
-   */
   parseIncrementally(
     uri: string,
     fileHandler: IFileHandler,
@@ -2873,21 +2865,6 @@ export class SparkdownCompiler {
       }
     };
 
-    // Try to reuse last compile's constructed flow for the run declared by
-    // `declBlock`: every content chunk of the recorded run must reappear
-    // identically in order (interleaved content-less chunks — include lines,
-    // context-only — and closed function declarations are transparent), no
-    // run chunk may carry a reuse disqualifier, the flow must not have raised
-    // generation-time diagnostics, and, unless the flow is a closed function,
-    // the chunk FOLLOWING the run (past any closed function declarations)
-    // must not be one that would attach new body content into this flow.
-    // A `run` statement among those chunks, or following them, refuses the
-    // reuse: its content, the call of its file's wrapper, is made by each
-    // compile once it resolves the file, so the chunk's block holds none. So
-    // does a chunk of the run the script's top level now holds and refuses
-    // (`refused`), which an edit above it can leave outside the flow: the
-    // compile records nothing of it. A refused chunk after the run adds
-    // nothing to any flow.
     const tryReuseFlowRun = (
       declBlock: object,
       startIdx: number,
@@ -2943,10 +2920,6 @@ export class SparkdownCompiler {
       return prevRun.flow;
     };
 
-    // A script holds declarations only: the statements of its top level that
-    // run are reported and left out (`topLevelStatements`): those whose
-    // syntax runs, and those whose syntax declares but that also lowered to
-    // something that runs (`onlyDeclares`).
     const tree = declarationOnly ? this.documents.tree(uri) : undefined;
     const topLevel =
       tree && document
@@ -2961,11 +2934,6 @@ export class SparkdownCompiler {
         (declares === true && !onlyDeclares(rec.block.content))
       );
     };
-    // A `local` outside a flow and a hoisted declaration inside one are
-    // reported where they are written (`misplacedDeclarations`). A top-level
-    // `local` reports that alone, and is left out as the other lines that run
-    // are. A `.luau` file is Luau,
-    // whose top-level `local` is its chunk's.
     const misplacedLocals = new Set<number>();
     const placementTree =
       this._injectingPrelude || hasLuauExtension(uri)
@@ -3061,9 +3029,6 @@ export class SparkdownCompiler {
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
       if (refused(rec)) {
-        // A line that runs belongs in a scene or a branch. The statement is
-        // reported and left out of the program, as if it were not written;
-        // what its lowering itself reported still stands.
         if (!misplacedLocals.has(rec.from)) {
           onDiagnostic(
             TOP_LEVEL_STATEMENT_MESSAGE,
@@ -3074,9 +3039,6 @@ export class SparkdownCompiler {
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
-      // A `run` at the top level runs its file with the declarations
-      // (`programFlows`), so its call stands in the script's own top level,
-      // never in the flow written above it.
       const hoisted = !!run && declares === true;
       // A layout or component is declared in one script: one a script
       // other than the first to declare it declares again is reported in
@@ -3170,11 +3132,6 @@ export class SparkdownCompiler {
         }
       }
       if (run) {
-        // `run helpers` or `run "path"` — load the `.luau` file the
-        // operand names (`resolveRunOperand`), wrap its body in a
-        // function, place a call of the function where the statement
-        // stands, in the script's top level or in a scene's body, and hoist
-        // the function declaration to the end of the parent program.
         const previousParentUri =
           state.fileResolutionState?.currentParentUri ?? uri;
         if (state.fileResolutionState) {
@@ -4105,9 +4062,6 @@ export class SparkdownCompiler {
     emit(validateOpenBlocks(tree.topNode, ctx));
   }
 
-  /** Reports where the story's start is wrong (`startSceneProblems`) across
-   *  the script `uri` a compile starts from and the other scripts of its
-   *  project, each on the first line of the statement it stands at. */
   protected validateStartScene(
     uri: string,
     scripts: readonly string[],
@@ -6356,8 +6310,6 @@ export class SparkdownCompiler {
       if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
-      // A placement error (`misplacedDeclarations`, `topLevelStatements`) and
-      // a start scene's error report no syntax error.
       const existing = diagnostics.filter(
         (d) =>
           d.severity === DiagnosticSeverity.Error &&

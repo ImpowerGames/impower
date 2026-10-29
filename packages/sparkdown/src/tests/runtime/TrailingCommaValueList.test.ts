@@ -308,8 +308,6 @@ describe("Luau code: a comma with nothing after it", () => {
 // value missing after the comma is `<eof>`, never the next line's word.
 const missingAtLineEnd = "Expected identifier when parsing expression, got <eof>";
 
-// A story line at the top level is left out of the program with this error, so
-// each one the declaration does not swallow is reported once.
 const placed =
   "statement must be inside a scene or branch; the top level holds declarations only";
 

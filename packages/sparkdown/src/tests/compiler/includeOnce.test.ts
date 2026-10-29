@@ -243,8 +243,6 @@ describe("a Luau file that main runs twice", () => {
     expect(play(program)).toBe("After one 1.\nAfter two 2.\n");
   });
 
-  // I-1439: a run inside a scene runs when the scene does, after the scene
-  // before it has shown what stands before the divert.
   it("runs where its line stands in main's top level and where it stands in a scene of main", () => {
     const program = compileWithLuau(
       {

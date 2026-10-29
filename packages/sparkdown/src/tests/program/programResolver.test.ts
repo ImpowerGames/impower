@@ -324,8 +324,6 @@ describe("a statement the resolver kept resolved", () => {
   });
 
   it("keeps back a diagnostic of a source an earlier statement reported, as a cold compile does", () => {
-    // A function and a second store named like the global each collide with
-    // it, and the story reports each against the global's name.
     const text = [
       "store tally = 1",
       "",
@@ -349,8 +347,6 @@ describe("a statement the resolver kept resolved", () => {
     const collisions = (program: SparkProgram) =>
       diagnostics(program).filter((d) => d.includes("Duplicate identifier `tally`"));
     expect(collisions(s.program)).toHaveLength(2);
-    // The function is resolved anew, after the colliding function's statement
-    // is replayed.
     s.edit("  return tally() + 1", "  return tally() + 2");
     expect(s.resolver.passesLastResolve.cold).toBe(false);
     expect(s.resolver.passesLastResolve.replayed).toBeGreaterThan(0);

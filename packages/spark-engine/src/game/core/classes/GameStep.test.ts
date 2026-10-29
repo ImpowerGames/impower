@@ -122,7 +122,6 @@ describe("Game flow on the program engine", () => {
       game.start();
       const executed = emitted.find((e) => e.method === "game/executed");
       expect(executed?.params?.["state"]).toBe("running");
-      // The first beat is line 1.
       expect(executed?.params?.["executedLines"]).toEqual({
         "inmemory:///main.sd": { ranges: [1, 1], last: 1 },
       });

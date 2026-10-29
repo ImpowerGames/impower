@@ -13,7 +13,6 @@ import { messageOf } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const HEADER = "define X with";
 
-/** A compiler holding `text` followed by an empty `scene start`. */
 function newCompiler(text: string): SparkdownCompiler {
   const compiler = new SparkdownCompiler();
   compiler.configure({

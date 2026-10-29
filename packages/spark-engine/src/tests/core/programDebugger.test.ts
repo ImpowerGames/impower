@@ -705,10 +705,6 @@ describe("the debugger on the program engine", () => {
         d.range.start.line,
         typeof d.message === "string" ? d.message : d.message.value,
       ]);
-    // `NESTED` holds lines 0 to 24, so the scene starts on line 25 and the
-    // divert is line 26. The divert's own error is the one error on that
-    // line (#1708): the program's unsupported-construct report is not
-    // added on top of it.
     expect(errors.filter(([line]) => line === 26)).toEqual([
       [
         26,
@@ -1650,9 +1646,6 @@ describe("the debugger on the program engine", () => {
     // Each header, each beat and each line of the function is offered.
     const beats = [3, 5, 9, 12, 14, 15, 18, 19, 20, 22];
     expect(program.filter((line) => beats.includes(line))).toEqual(beats);
-    // So is each statement of logic, on its own line, the divert on line 23
-    // among them; and no declaration, which runs before a debugger can stop
-    // the story.
     const logic = program.filter((line) => !beats.includes(line));
     expect(logic).toEqual([4, 6, 7, 8, 10, 13, 16, 23]);
     // A breakpoint on each of those lines and on each beat stays on it; one
@@ -2295,21 +2288,21 @@ describe("a choose block's caption on the program engine", () => {
   it("does not stand a loaded checkpoint's frame on the beat the game waited on before the load", () => {
     const h = debugGame(
       [
-        "scene start", //            0
-        "  choose", //               1
-        "    First.", //             2
-        "    & aside()", //          3
-        "    * One", //              4
-        "  end", //                  5
-        "  choose", //               6
-        "    Second.", //            7
-        "    & aside()", //          8
-        "    * Two", //              9
-        "  end", //                  10
-        "end", //                    11
-        "function aside()", //       12
-        '  print("Aside.")', //      13
-        "end", //                    14
+        "scene start",
+        "  choose",
+        "    First.",
+        "    & aside()",
+        "    * One",
+        "  end",
+        "  choose",
+        "    Second.",
+        "    & aside()",
+        "    * Two",
+        "  end",
+        "end",
+        "function aside()",
+        '  print("Aside.")',
+        "end",
         "",
       ].join("\n"),
     );

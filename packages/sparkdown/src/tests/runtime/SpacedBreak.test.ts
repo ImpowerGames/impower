@@ -40,8 +40,6 @@ function continueBeats(
   return beats;
 }
 
-// The source's lines, each indented two spaces, as the body of the scene
-// `start` the story begins in.
 const storyInStart = (source: string) =>
   makeRuntimeStoryFromSource(
     `scene start\n${source

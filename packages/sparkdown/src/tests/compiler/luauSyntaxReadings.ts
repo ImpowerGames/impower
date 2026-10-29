@@ -23,8 +23,6 @@ export const NOT_SYNTAX: RegExp[] = [
   /cannot be used for the name of a function because it's a built in function$/,
   /^A variable must be initialized to /,
   /^(?:Scene|Branch) is missing its closing `end` keyword\./,
-  // What a script's top level holds, where a declaration or a local is
-  // written, and the scene the story starts in.
   /^statement must be inside a scene or branch; /,
   / must be at the top level(?:;|$)/,
   /^local declaration must be inside a scene, branch or function; /,

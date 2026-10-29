@@ -56,8 +56,6 @@ describe("a .luau file's top level is Luau (I-732)", () => {
     expect(warningMessages.filter((m) => m.includes("A new statement is on the same line"))).toEqual([]);
   });
 
-  // A `.luau` file is a Luau chunk, whose top level may return; a scene's
-  // body is story, where a return is an error.
   test("a return at a .luau file's top level is no error", () => {
     for (const source of ["local x = 1\nreturn x\n", "return\n"]) {
       expect(collectDiagnostics(source, "inmemory:///util.luau").errorMessages, JSON.stringify(source)).toEqual([]);

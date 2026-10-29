@@ -196,11 +196,6 @@ describe("previous and next beat navigation", () => {
       }
       return out;
     };
-    // [line, next, previous], null for nowhere. The stops in the main script
-    // are scene start's header (0) and beat (1), scene A's header (4), its
-    // beats (5 and 11) and the dialogue, which starts at its parenthetical
-    // (8); the divert at the scene's own level is none. The chapter's are its
-    // header (0) and its two beats (1 and 3).
     expect(await rows(MAIN, MAIN_SRC)).toEqual([
       [0, 1, null],
       [1, 4, 0],

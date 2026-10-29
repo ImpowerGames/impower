@@ -64,7 +64,6 @@ const previewOf = async (source: string, line: number, limits?: Limits) => {
   };
 };
 
-/** The ticket's script after the `.` was typed, its story in `start`. */
 const DANGLING_ACCESS = [
   "function f()",
   "  local t = { a = { b = 7 } }",

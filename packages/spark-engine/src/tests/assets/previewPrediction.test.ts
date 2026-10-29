@@ -1538,9 +1538,6 @@ end
   });
 
   it("gates and writes for a cursor inside a function what it does for the story after the function", async () => {
-    // A function's body runs only when called, so a preview of one of its
-    // lines previews the story's next line of flow after it (#835): the
-    // function's picture is never asked for, and the story's is.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.

@@ -56,11 +56,9 @@ const instructionsOf = (root: ProgramRoot, chunk: ProgramChunk): string[] =>
     describeInstruction(chunk, offset, root.table),
   );
 
-/** A script of `declarations` and a scene `start` holding `body`. */
 const start = (body: string, declarations = ""): string =>
   `${declarations}scene start\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
-/** The code of each statement of the scene `start`, its end left out. */
 const code = (body: string, declarations = ""): string[][] => {
   const root = chunked(start(body, declarations));
   return root
@@ -69,14 +67,12 @@ const code = (body: string, declarations = ""): string[][] => {
     .map((chunk) => instructionsOf(root, chunk));
 };
 
-/** The code of each statement of body `k` of statement `entry` of the scene `start`. */
 const bodyCode = (body: string, entry: number, k = 0, declarations = ""): string[][] => {
   const root = chunked(start(body, declarations));
   const owner = root.flowNamed("start")!.arrays.chunks[entry]!;
   return root.body(owner, k)!.arrays.chunks.map((chunk) => instructionsOf(root, chunk));
 };
 
-/** Every instruction a script runs from its start, with the state it left. */
 const trace = (body: string, declarations = ""): TracedStep[] =>
   traceSteps(new ProgramStory(chunked(start(body, declarations))));
 
@@ -783,8 +779,6 @@ describe("a continue that returns between two lines", () => {
     expect(story.variablesState.$("count")).toBe(1);
     story.Continue();
     expect(story.canContinue).toBe(false);
-    // Each instruction ran once: one step per instruction of the scene's
-    // statements, and the step that finds it over.
     const reader = new BinaryProgramReader(root);
     const instructions = root
       .flowNamed("start")!
@@ -869,7 +863,6 @@ describe("a continue that returns between two lines", () => {
   });
 });
 
-// Each script runs from its start and shows the lines `SHOWS` names for it.
 const SCRIPTS: Record<string, string> = {
   "nested scopes that shadow a name": start([
     "local n = 1",
@@ -1144,9 +1137,6 @@ describe("the constructs a compile builds", () => {
     });
   }
 
-  // The story takes a function out of a `do` block, and leaves one in any
-  // other block, where its body runs; both are emitted
-  // (programFunctions.test.ts runs them).
   it("names no construct for a function defined inside a block", () => {
     for (const text of [
       start("do\n  function run()\n    return 1\n  end\nend\nHello.\n"),

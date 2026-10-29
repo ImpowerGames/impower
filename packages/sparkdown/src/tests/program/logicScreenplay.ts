@@ -1,10 +1,3 @@
-// A screenplay made of the constructs the writer emits for logic (#695):
-// global declarations of every kind, a constant and a variable read before
-// the constant they read is declared, locals, expressions and operators,
-// interpolation of every value type, tables with computed keys, property
-// stores, multiple assignment, `if` blocks with `elseif` and `else`, the
-// four loops with `break` and `continue` from inside nested blocks, nested
-// scopes that shadow a name, and display lines between them.
 export function logicScreenplay(scenes = 5): string {
   const L: string[] = [
     "store count = 0",

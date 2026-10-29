@@ -22,7 +22,6 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
-// The lines in the scene the story starts in, each ending with `eol`.
 function startScene(eol: string, ...lines: string[]): string {
   return `scene start${eol}${lines.map((l) => `  ${l}${eol}`).join("")}end${eol}`;
 }

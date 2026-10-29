@@ -144,8 +144,6 @@ describe("the declaration sequence", () => {
       "CallStd __def/3",
       "SetVar $character_hero flags 3",
     ]);
-    // The flow holds the line and its end alone: the declarations stand in
-    // their sequence.
     expect(root.flowNamed("start")!.arrays.chunks).toHaveLength(2);
     // The sequence is in line order, and the declarations run constants
     // first, then the rest in line order.

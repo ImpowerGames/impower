@@ -62,9 +62,6 @@ function flags(story: RuntimeStory, flag: string): boolean[] {
   );
 }
 
-// Writes a source's story lines as the body of `scene start`, and leaves its
-// declarations (a `store`, an `external`, a `function`, a `scene`) at the top
-// level below it.
 function inStart(source: string): string {
   const body: string[] = [];
   const declarations: string[] = [];

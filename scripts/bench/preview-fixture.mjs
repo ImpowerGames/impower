@@ -28,8 +28,6 @@ const CHARACTERS = [
   { id: "hero", name: "HERO" },
   { id: "rival", name: "RIVAL" },
 ];
-// The story's start scene, in a script of its own so that main.sd holds the
-// fixture's scenes alone: it enters the first of them.
 const START = "scene start\n  -> MAIN\nend\n";
 
 const EXPRESSIONS = ["calm", "concerned", "confident", "confused", "shy", "unsure", "frustrated", "smug", "sad", "happy", "angry", "tired"];

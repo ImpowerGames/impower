@@ -40,8 +40,6 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines as the body of the scene the story starts in, where a local
-// belongs.
 const inScene = (...body: string[]) => ["scene start", ...body.map((line) => `  ${line}`), "end"];
 
 describe("a scene's local of a stdlib name", () => {

@@ -21,8 +21,6 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
-// Places the lines in the scene the story starts in, where a local is
-// declared, below the declarations written at the top level.
 function inScene(body: string, top = ""): string {
   const lines = body.replace(/\n$/, "").split("\n");
   return `${top}scene start\n${lines.map((l) => `  ${l}`).join("\n")}\nend\n`;

@@ -27,7 +27,6 @@ const outcome = ({ program }: { program: SparkProgram }) => {
 
 const run = (text: string) => outcome(compileScript(text));
 
-// The scene the story starts in, holding the lines it runs.
 const start = (...lines: string[]) =>
   `scene start\n${lines.map((line) => `  ${line}\n`).join("")}end\n`;
 

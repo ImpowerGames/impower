@@ -9,9 +9,6 @@ import { resolvePreviewPoint } from "./resolvePreviewPoint";
 
 const MAIN = "file:///local/main.sd";
 
-/** A program compiled from a script whose scene start has a line of story on
- *  each of `lines` and nothing on any other line, so that each of those lines
- *  owns an address of its own and no other line does. */
 const programOf = (lines: number[]): SparkProgram => {
   const last = Math.max(0, ...lines);
   const text = Array.from({ length: last + 2 }, (_, line) =>

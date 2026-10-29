@@ -1,8 +1,3 @@
-// Every script's top level holds declarations only, main.sd's included, and
-// the story starts in the scene named start (I-1750, Feature #1749). A line
-// that runs at the top level is an error on its first line; a project with
-// no start scene reports on the first line of the script it compiles from,
-// and a start scene that takes parameters reports on its header.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -36,9 +31,6 @@ const quiet = <T>(run: () => T): T => {
   }
 };
 
-/** The errors a compile of `texts` from main reports, each as the script it
- *  is reported in, the line it starts on, its message and the text of its
- *  range. */
 const diagnose = (
   texts: Record<string, string>,
 ): { uri: string; line: number; message: string; text: string }[] => {
@@ -62,7 +54,6 @@ const diagnose = (
 };
 
 const START = ["scene start", "  Begin.", "end"];
-// What a refused line can name, declared where it may be.
 const DECLARED = ["store x = 0", "function f()", "end"];
 
 const refused: [string, string[]][] = [

@@ -15,7 +15,6 @@ import { compileScript, describeRoot, errorsOf, programSession, storyRun } from 
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const lines = (...parts: string[]) => parts.join("\n") + "\n";
-/** The lines as the body of the scene the story starts in, where a local belongs. */
 const inScene = (...body: string[]) => ["scene start", ...body.filter((line) => line).map((line) => `  ${line}`), "end"];
 
 const run = (source: string) => {

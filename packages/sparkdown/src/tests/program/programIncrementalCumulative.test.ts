@@ -19,8 +19,6 @@ import {
   SHAPED_EDITS,
 } from "./incrementalOracleHarness";
 
-// The edit of the coupled run from which the incremental compile stops under
-// chunk verification, and the open Bug it fails on.
 const KNOWN_FROM = 108;
 const KNOWN_BUG = "#1794";
 

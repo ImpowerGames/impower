@@ -233,8 +233,6 @@ describe("a function declaration after the last story line (#835)", () => {
 describe("a function declared in another script of the project (#835)", () => {
   const OTHER_URI = "inmemory:///other.sd";
   const MAIN = [`scene start`, `  A`, `end`, ``].join("\n");
-  // A script's top level holds declarations only, so the story lines around
-  // the function stand in scenes.
   const OTHER = [
     `scene before`,
     `  B`,

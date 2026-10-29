@@ -904,8 +904,6 @@ end
     expect(
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
     ).toEqual([]);
-    // `intro` → `game` on the divert line and the scene line, as two range
-    // edits, so the rest of the document is carried forward.
     compiler.updateDocument({
       textDocument: { uri: URI, version: 2 },
       contentChanges: [

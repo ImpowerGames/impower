@@ -1165,14 +1165,6 @@ export class ChunkStore {
           build.placedFor?.get(statement) ?? build.chunkOf.get(statement),
       );
     }
-    // The declarations run again when a declaration chunk or a function
-    // changed, since an initializer may read another global or call a
-    // function: a compile that changed only the statements of flows runs
-    // none. An initializer that raises an error stops the build with that
-    // error, which the compile reports as a compile that threw, and makes no
-    // program, as a story's reset raising it did. The files the top-level
-    // `run` lines name run here too, after every global initializes, so an
-    // error a file raises stops the build at its `run` line.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
       // An issue the run raises stands at the global whose value raised it,

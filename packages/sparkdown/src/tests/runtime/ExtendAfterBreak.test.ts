@@ -32,7 +32,6 @@ interface Table {
   glue?: boolean;
 }
 
-// A script whose scene `start` holds `body`, after the declarations.
 const inStart = (body: string, declarations = "") => {
   const lines = body
     .trimEnd()

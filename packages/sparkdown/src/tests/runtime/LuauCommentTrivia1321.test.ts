@@ -31,7 +31,6 @@ function topLevel(source: string): string[] {
   return names;
 }
 
-/** A story whose scene `start` holds `lines`, each indented two spaces. */
 function inScene(lines: string): string {
   const body = lines
     .split("\n")

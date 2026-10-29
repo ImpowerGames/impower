@@ -1,7 +1,3 @@
-// A loop written directly in a scene's body runs in that flow the same as one
-// written in a function: every iteration applies every statement of its body,
-// and the flow continues after the loop ends. A loop at the top level is a
-// compile error, and so is one written without `do`.
 
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -16,8 +12,6 @@ const STORES = `store n = 0
 store seen = 0
 `;
 
-// The same body lines, placed in the scene `start` (indented under it) or at
-// the top level of the script.
 const indent = (body: string) =>
   body
     .split("\n")
@@ -151,11 +145,6 @@ describe("a loop without do in a scene", () => {
 end
 n is {n}.`),
     );
-    // The header ends at its line (#1907), so Luau's reading meets its end
-    // of input where the `do` should be. The `end` written for the loop
-    // then closes the scene, the two lines after it stand at the top level
-    // and are refused, and the last `end` closes nothing and is reported
-    // (#774).
     expect([...ctx.errorMessages].sort()).toEqual([
       `Expected 'do' when parsing ${keyword} loop, got <eof>`,
       "Expected <eof>, got 'end'",

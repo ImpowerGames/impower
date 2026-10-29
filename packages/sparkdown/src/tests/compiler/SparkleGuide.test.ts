@@ -158,8 +158,6 @@ function errorsIn(code: string, declarations: Declaration[]): string[] {
   for (let i = 0; i < code.length; i++) {
     if (code[i] === "\n") lineStarts.push(i + 1);
   }
-  // An example shows part of a project, whose start scene it need not
-  // declare.
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
     .filter(

@@ -61,10 +61,6 @@ interface Found {
   text: string;
 }
 
-/**
- * Every diagnostic a full compile reports for `text` followed by an empty
- * `scene start`, with the text it underlines.
- */
 function diagnosticsOf(text: string): Found[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({

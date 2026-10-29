@@ -416,8 +416,6 @@ describe("a reference table", () => {
 
 describe("a flow's kind", () => {
   const text = "scene start\n  Intro.\nend\nscene SAME\n  One.\nend\n";
-  // Whether a root's description gives the flow SAME the kind. A branch
-  // written below the scene `start` belongs to it, so it is named after it.
   const describesSameAs = (root: ProgramRoot, kind: SymbolKindValue) =>
     describeRoot(root).some(
       (line) =>
@@ -813,12 +811,6 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got 21."]);
   });
 
-  // A function's statement binds the parameters and declares the hoisted
-  // locals, and the functions its body declares, with the closures they
-  // create, are other chunks' code. Its chunk refers to none of those
-  // closures, so it holds while they keep their symbols (the cumulative fuzz
-  // of the function screenplay, seed 2029, after an edit broke a scene's
-  // `end`).
   it("keeps its chunk across an edit elsewhere when a function in its body creates a closure", () => {
     const text = [
       "function outer()",
@@ -853,9 +845,6 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got true.", "More words."]);
   });
 
-  // The function's entry declares the locals its body's functions, declared
-  // without `local`, hoist there, in their order, so an edit that swaps two
-  // of them emits it again, though its own syntax is unchanged.
   it("is emitted again when an edit swaps two functions its body declares", () => {
     const text = [
       "function outer()",
@@ -883,9 +872,6 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got 21."]);
   });
 
-  // A `define`'s chunk builds the table and writes its methods. Its chunk
-  // refers to none of the methods' symbols, which the declaration gives them
-  // (the cumulative fuzz of the function screenplay, seed 2027).
   it("keeps the chunk of a `define` across an edit elsewhere", () => {
     const text = [
       "define Point with",

@@ -51,7 +51,6 @@ function diagnostics(program: any): Found[] {
   return all;
 }
 
-// The ticket's script. Line 2 holds the dangling access.
 const SCRIPT = `function f()
   local t = { a = { b = 7 } }
   local y = t.a.
@@ -308,9 +307,6 @@ describe("a dangling member access (#1079)", () => {
   });
 
   it("leaves the story after the function in its scene", () => {
-    // The line at line 11 has an address, and it stands in the `start`
-    // scene, not in `f` (the current engine's paths at that line, none under
-    // `f.`).
     const root = compile(SCRIPT).chunks!;
     const address = root.addressAt(URI, 11);
     expect(address).toBeDefined();

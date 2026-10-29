@@ -1,8 +1,3 @@
-// Verifies that statement-level function calls work inside function
-// bodies WITHOUT the `&` discard-prefix. Per sparkdown's promised
-// semantics: outside functions, Luau statements require the
-// `&` prefix; inside function bodies, bare calls are valid Luau
-// syntax and should fire at runtime.
 
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";

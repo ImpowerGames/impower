@@ -1,5 +1,3 @@
-// #1748: a one-line `& for`, `& while` or `& if` statement runs inside a
-// scene as the same statement without the `&` does.
 import { describe, expect, it } from "vitest";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { testCompiler, testStory } from "../engineUnderTest";

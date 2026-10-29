@@ -1,8 +1,3 @@
-// A `function … end` declaration closes at its `end`. The story lines that
-// follow it belong to the flow they would join if the function were not
-// there: the scene `start` when the function is declared at the top level, or
-// the scene whose content a `local function` is declared among. They never
-// join the function's own body, where they would sit after its `return`.
 
 import { describe, expect, test } from "vitest";
 import { flowListings, pushesString } from "../programListing";
@@ -128,8 +123,6 @@ describe("story lines after a function declaration", () => {
   });
 
   test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
-    // The line does not close the definition early, so its `end` closes it
-    // and the line after the function is in the scene `start` (#1093).
     const ctx = makeRuntimeStoryFromSource(
       `function greet()\n  local x = 1\n  How are you?\nend\n\nscene start\n  After it.\nend\n`,
     );

@@ -1167,7 +1167,6 @@ describe("flows on the program engine", () => {
     const s = session(text);
     const before = new Set(rootChunks(s.first.chunks!));
     const renamed = s.edit("scene place", "scene spot");
-    // The edit leaves the divert without its target.
     expect(renamed.chunks).toBeDefined();
     const cold = silence(() =>
       programCompiler({ [MAIN_URI]: s.text }).compile().program,

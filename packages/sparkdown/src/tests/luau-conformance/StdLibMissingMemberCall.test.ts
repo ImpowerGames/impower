@@ -355,9 +355,6 @@ describe("a local named like a library", () => {
   });
 });
 
-// A local belongs to the scene or function that declares it, so it reaches no
-// other script of the project. A local at a script's top level is refused,
-// since the top level holds declarations only.
 describe("a local named like a library in a project of several scripts", () => {
   const SHADOW = "local table = { nogetn = function() return 1 end }";
   const missing = (sources: Record<string, string>) =>

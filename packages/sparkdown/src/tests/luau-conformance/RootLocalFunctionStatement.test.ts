@@ -42,7 +42,6 @@ const run = (lines: string[]) =>
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `start`, where the story starts.
 const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 describe("a function statement in a scene's local function naming the scene's local", () => {

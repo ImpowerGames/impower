@@ -81,9 +81,6 @@ export interface ProgramFlowsInput {
   /** The script the compiler seeds the builtins from, whose top-level
    *  content holds declarations alone. */
   preludeUri?: string;
-  /** Whether the top level of the script the compile starts from runs as
-   *  the flow named by the empty string, as a `.luau` file's chunk does,
-   *  rather than with the declarations. */
   topLevelFlow?: boolean;
   /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
@@ -111,42 +108,6 @@ export interface ProgramFlows {
   functions: number;
 }
 
-/**
- * The flows of an assembled parsed story, each as the statements its weave
- * holds, grouped by the compiled block each placed object came from. A scene
- * or a branch is a flow named by its qualified name, and the flow named by
- * the empty string stands for the top level, which runs nothing but the
- * chunk of a `.luau` file a compile starts from (`topLevelFlow`). A block
- * statement's statements carry the statements of its bodies, from the shape
- * its lowering recorded.
- *
- * Every script's top level holds declarations, the writes of its member
- * functions (`function api.f()`) and the calls of the files its `run` lines
- * name. The story places the starting script's in the top level, and the top
- * level of each story it includes there too, in a weave of its own
- * (`Story.PreProcessTopLevelObjects`): the builtins prelude's, which holds
- * declarations alone, and each other script's. A write or a call is a
- * declaration of its script that declares no global (`memberWrites`): it runs
- * after every global initializes, in the order the story places the scripts
- * (the starting script's first, then path order), and before the story
- * starts, so no flow stands for it (I-1438, I-1750). An `include` line
- * includes nothing, and a `run` statement inside a scene or a branch is a
- * call of its file's wrapper where its line stands, a statement like any
- * other (I-1439).
- *
- * The compiler adds a few objects of its own: the `-> DONE` that ends a flow
- * that does not end itself, and the final gather and `done` of the top level.
- * A sequence that runs out ends its flow as those do, so they are left out.
- * Any other placement the build-out has not reached names a construct: an
- * object no statement placed. A scene or a branch that takes parameters
- * starts with the statement that binds them (`flowEntry`), and one that
- * enters no branch ends with a statement of its own (`flowEnd`).
- *
- * The global declarations become the declaration statements of their
- * scripts, each holding the globals it declares in the order the story's
- * `global decl` container initializes them (constants first), under the
- * names that container assigns them.
- */
 export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const flows: FlowSource[] = [];
   const out: ProgramFlows = {
@@ -167,10 +128,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   // the order the story places them (`memberWrites`).
   const writes: DeclarationSource[] = [];
 
-  /** The statements of `content`, a flow's weave, written in the script
-   *  `uri`, each given to `found` when it is given, as it is found. The weave
-   *  of an included story's top-level content holds none of them
-   *  (`memberWrites`). */
   const statementsOf = (
     content: readonly ParsedObject[],
     uri: string,
@@ -257,10 +214,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       statementsOf(weave.content, uri, 0, (statement) => write(statement, uri));
     }
   };
-  // Known by a key of its own, kept for as long as the statement's block is:
-  // a statement that declares a global and writes a member function
-  // (`& store api = {}; function api.f() end`) is a declaration of that global
-  // under its block too, in the same declaration sequence.
   const write = (statement: StatementSource, uri: string) => {
     writes.push({ ...statement, block: writeKey(statement.block), uri, globals: [] });
   };
@@ -407,9 +360,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
   };
 
-  // The starting script's top level, whose writes and calls run with the
-  // declarations as each other script's do, in the order the story places
-  // them (`memberWrites`), or as the top-level flow (`topLevelFlow`).
   const rootContent = input.story._rootWeave?.content ?? [];
   const rootStatements = input.topLevelFlow
     ? statementsOf(rootContent, input.uri, 0)
@@ -518,15 +468,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       current.source.lineEnd = record.lineEnd;
     }
   }
-  // The member functions' writes and the `run` calls run after every global
-  // initializes: a write into a table another script declares finds it, and
-  // a file a `run` names reads every store (`memberWrites`). A write's statement can also
-  // declare a global (`& store api = { make = function() … end }; function
-  // api.f() … end`), whose initializer's functions are bodies of the global's
-  // declaration: the write leaves them out, so it does not plan their
-  // symbols after the global and take the global's functions for its own
-  // (`ChunkStore.planFunctions` gives a function the symbol of the last
-  // statement planned with it).
   const globalFunctions = new Set<ParsedObject>();
   for (const declaration of out.declarations) {
     for (const body of declaration.bodies ?? []) {

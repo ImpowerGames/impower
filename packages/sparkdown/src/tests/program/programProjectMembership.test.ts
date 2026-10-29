@@ -1,9 +1,3 @@
-// A project is a folder (#1387, Feature #1386): every `.sd` script under the
-// folder of the script a compile starts from is part of its story, with no
-// include line. A subfolder holding its own main script is a project of its
-// own, and a folder named `node_modules` or whose name begins with `.` is in
-// no project. Every script holds declarations only, which register main
-// first and then by path, and the story starts in the scene named `start`.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
@@ -114,8 +108,6 @@ describe("a project folder", () => {
   });
 
   it("reads only .sd files as its scripts, whatever else a host registers as one", () => {
-    // The Luau file a `run` reads, registered as a script, is run with the
-    // declarations and is not also read as a script of the project.
     const program = compileProject({
       [MAIN]: lines('run "helper"', "scene start", "  Main {x}.", "end"),
       [`${ROOT}helper.luau`]: lines("x = 1"),

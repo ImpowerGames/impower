@@ -64,9 +64,6 @@ function isWrapperWarning(d: SparkDiagnostic) {
   return d.code === "FunctionUnused" && d.range?.start.line === 0 && d.range.start.character === "function ".length && diagnosticMessage(d).startsWith("Function 'run' ");
 }
 
-/** Every diagnostic of the compile but the type checker's warnings, the
- *  wrapper's FunctionUnused warning (`isWrapperWarning`) and the error for the
- *  start scene a snippet does not declare, lint warnings included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   return diagnoseFilesDetailed({ "main.sd": source });
 }

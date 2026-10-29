@@ -81,12 +81,10 @@ function read(text: string): Reading {
 }
 
 interface Case {
-  /** The script: a function, then the scene `start` that shows the story line it is called from. */
   text: string;
   /** The function's name and its first and last lines (its `end`). */
   fn: [string, number, number];
   output: string;
-  /** Its Luau, given to the official parser. */
   luau: string;
 }
 

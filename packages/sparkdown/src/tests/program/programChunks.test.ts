@@ -110,8 +110,6 @@ type Shown = string | { text: string; tags?: string[]; tables?: [string, unknown
 const unjoined = (line: number) =>
   `RUNTIME WARNING: 'main' line ${line}: This line begins with \`..\`, but the line shown before it does not end with \`..\`, so it does not join it.`;
 
-// Each script runs from its scene `start`, and shows these beats and reports
-// these errors.
 const SHOWS: Record<string, [string, Shown[], string[]?]> = {
   "action and dialogue": [
     inStart("Hello there.\nBOB: Hi.\nThe end.\n"),

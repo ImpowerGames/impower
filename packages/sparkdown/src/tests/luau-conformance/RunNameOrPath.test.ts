@@ -57,11 +57,9 @@ function recorded(chunks: unknown) {
   return values;
 }
 
-/** main.sd running `operand` from the first line of its start scene. */
 const mainRunning = (operand: string) =>
   `external harness_record(v)\nscene start\n  run ${operand}\n  done\nend\n`;
 
-/** The range of `operand` on main's third line. */
 const operandRange = (operand: string) => ({
   start: { line: 2, character: 6 },
   end: { line: 2, character: 6 + operand.length },

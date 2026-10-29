@@ -10,9 +10,6 @@ import { createPlayerHarness, MAIN_URI, settle } from "./worker/playerHarness";
 const CONTINUES_WARNING =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
-// Line 4 raises a warning on every route through the scene. Line 9 raises one
-// only on the left branch, which a route to the right branch searches first
-// and abandons.
 const SOURCE = [
   "store x = 0",
   "scene start",

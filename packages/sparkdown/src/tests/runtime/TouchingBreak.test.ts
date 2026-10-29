@@ -52,7 +52,6 @@ function steps(story: TestStory): Step[] {
 // compiler warns about; nothing else may be reported.
 const UNDECLARED = /^Cannot find character named/;
 
-// The lines before the first `scene` header are the body of `scene start`.
 function inStart(source: string): string {
   const header = source.search(/^scene /m);
   const body = header < 0 ? source : source.slice(0, header);

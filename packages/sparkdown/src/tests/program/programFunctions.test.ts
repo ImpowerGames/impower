@@ -181,9 +181,6 @@ describe("functions on the program engine", () => {
     expect(texts(actual.beats)).toEqual(["Got 1,2,2,3,2.\n"]);
   });
 
-  // A function is declared at the top level. One written inside a block
-  // is an error, whether the block stands at the top level or in a scene,
-  // and the function is not defined.
   it("reports a function defined inside a block and defines no function", () => {
     const cases: { text: string; errors: [number, string][] }[] = [
       {
@@ -1172,8 +1169,6 @@ describe("a function's symbol", () => {
     ]);
   });
 
-  // A function whose body passes a closure to a builtin: the story places
-  // the closure among the function's own flows, whose code is other chunks'.
   it("keeps the chunk of a function whose body passes a closure, when an edit to a line below it lowers it again", () => {
     const s = session(
       [

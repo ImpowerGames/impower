@@ -1335,9 +1335,6 @@ export class ProgramStory implements StoryEngine {
    *  (`CallStack.ForProgram`, `ProgramRoot.tables`), with no global
    *  initialized, then the program's declaration chunks run in the order the
    *  object engine's `global decl` container initialized the globals in. */
-  /** Resets the story to its initial state, a fresh playthrough at the top of
-   *  the scene named start (`startName`), whose history of beats starts
-   *  empty. */
   ResetState(): void {
     this.resetState();
     this.history.replace([], false);
@@ -4065,8 +4062,6 @@ export class ProgramStory implements StoryEngine {
    *  with it forgot `previousAddress`; null after any other step. */
   endedAt: number | null = null;
 
-  /** The symbol of the scene named start, or nothing in a program that has
-   *  none, which the compile reports. */
   protected startSymbol(): number | undefined {
     const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
     return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
@@ -4074,23 +4069,12 @@ export class ProgramStory implements StoryEngine {
       : undefined;
   }
 
-  /** The name of the flow the story starts in: the scene named start, or the
-   *  top-level content's flow in a program that has none. */
   protected startName(): string {
     return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
   }
 
-  /** The scene a reset placed the story at the top of, which the story
-   *  enters when it first steps from there: it counts the scene, as a jump
-   *  into it from outside does, and enters its first branch. A move or a
-   *  load before that step lands elsewhere and counts what it enters
-   *  itself, so a reset followed by a jump into the scene counts it once. */
   protected _entering: number | null = null;
 
-  /** The start of the flow or label a qualified name names, the flow the
-   *  story starts in as `"0"` (`startName`) and the top-level content's as
-   *  `""`; a position in the source is chosen by its address
-   *  (`ChooseAddress`). */
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {

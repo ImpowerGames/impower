@@ -49,7 +49,6 @@ const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `start`, where the story starts.
 const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 describe("a function written at the top level", () => {

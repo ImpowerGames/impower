@@ -71,7 +71,6 @@ describe("diagnostics from statements inside nested blocks", () => {
   });
 
   test("the nested choice-mark error sits on the choice's own line", () => {
-    // Line 3 (zero-based) is `    * [Pick]`, below the `if` on line 2.
     expect(diagnosticLines(scene(IN_IF), CHOICE_MARK)).toEqual([3]);
   });
 
@@ -274,7 +273,6 @@ describe("other diagnostics from statements inside alternator arms and choose bl
 
   // The range currently runs through the next arm's line (#1030).
   test.fails("the unreachable range after fin in a queue arm ends before the next arm", () => {
-    // Line 5 is `    Never.`; line 6 is `  | B`, a reachable arm.
     expect(diagnosticRanges(scene("  queue\n  | A\n    fin\n    Never.\n  | B\n  end"), UNREACHABLE)).toEqual([
       [5, 5],
     ]);

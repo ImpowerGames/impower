@@ -41,11 +41,6 @@ end
   });
 });
 
-// Luau: UnknownGlobal
-// "Unknown global 'foo'; consider assigning to it first"
-//
-// Sparkdown reports the read with its own wording inside a function (adapted
-// below).
 describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
     expect(diagnoseWithLintsInFunction("return foo")).toEqual([
@@ -54,7 +49,6 @@ describe("an unknown global read inside a function (adapted)", () => {
   });
 });
 
-// Sparkdown: the same read in a scene, where a story's statements stand.
 describe("an unknown global read in a scene", () => {
   test("& print(foo)", () => {
     expect(diagnoseWithLints("scene start\n  & print(foo)\nend\n")).toEqual([

@@ -227,9 +227,6 @@ describe("compiler cumulative incremental equivalence", () => {
       });
       incr.compile({ textDocument: { uri: URI } });
 
-      // Delete the "& store f1 = ..." line + its trailing blank line: a single edit
-      // after the first flow's start, and more than one line away from f2's
-      // (so f2's chunk is carried).
       const f1Line = before.split("\n").findIndex((l) => l.startsWith("& store f1"));
       incr.updateDocument({
         textDocument: { uri: URI, version: 2 },

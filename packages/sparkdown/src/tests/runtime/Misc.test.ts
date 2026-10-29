@@ -74,9 +74,6 @@ describe("Misc — multi-file fixtures", () => {
 
 describe("Misc — ported from ink fixture rewrites", () => {
   test("an empty scene start compiles and produces empty output", () => {
-    // Upstream ink: an empty .ink file compiles and `ContinueMaximally`
-    // returns `""`. The story starts in a scene named `start`, so the
-    // smallest source that compiles is an empty one.
     const ctx = makeRuntimeStoryFromSource("scene start\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("");

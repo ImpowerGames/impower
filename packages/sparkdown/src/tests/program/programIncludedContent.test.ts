@@ -182,10 +182,7 @@ describe("a script other than main", () => {
     for (const uri of [MAIN, FIRST, SECOND]) {
       expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
     }
-    // Nor has the `run` statement: its call runs with the declarations.
     expect(included).toEqual([]);
-    // The declarations call the wrapper on the run line, and `start` holds
-    // main's lines alone.
     expect(
       root.initialization
         .map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21))
@@ -257,9 +254,6 @@ describe("a script other than main", () => {
     for (const uri of [MAIN, FIRST, SECOND]) {
       expect(root.flowNamed(includedFlowName(uri))).toBeUndefined();
     }
-    // The declaration chunks in the order they run, by script and first
-    // line: the globals, main's first and then each script's in path order,
-    // then main's `run` line, and then the writes, in the same order.
     const scripts = new Set([MAIN, FIRST, SECOND]);
     expect(
       root.initialization
@@ -274,7 +268,6 @@ describe("a script other than main", () => {
       [FIRST, 2],
       [SECOND, 2],
     ]);
-    // `start` holds main's own lines alone.
     const top = root.flowNamed("start")!;
     expect(
       top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
@@ -308,7 +301,6 @@ describe("a script other than main", () => {
     const two = root.addressAt(FIRST, 3)!;
     expect(root.locationOf(two)).toMatchObject({ uri: FIRST, startLine: 3 });
     expect(root.sceneAt(two)).toBe("S");
-    // `start` holds main's lines alone.
     const top = root.flowNamed("start")!;
     expect(
       top.arrays.chunks.map((chunk) => root.locationOf(chunkId(chunk) * 2 ** 21)),
@@ -1116,8 +1108,6 @@ const OLD_SAVES: {
   ),
 );
 
-/** The main file of an old save with its stores kept at the top level and
- *  its other lines in the scene `start`. */
 const inStart = (main: string) => {
   const rows = main.trimEnd().split("\n");
   return lines(
@@ -1129,7 +1119,6 @@ const inStart = (main: string) => {
   );
 };
 
-/** An old save with the flow it names as the top level named `start`. */
 const atStart = (save: string) =>
   save
     .split('"flow":""')

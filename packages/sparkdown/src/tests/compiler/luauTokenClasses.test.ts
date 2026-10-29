@@ -23,7 +23,6 @@ const repository = GRAMMAR_DEFINITION.repository as unknown as Record<string, Ru
 
 const URI = "inmemory:///main.sd";
 
-/** Every syntax error a full compile reports, with its range. */
 const errorsOf = (text: string): string[] => {
   const c = new SparkdownCompiler();
   c.configure({

@@ -90,10 +90,6 @@ scene start
 end
 `;
 
-// One scene per producer, so a producer that loses or gains coverage shows up
-// by its own line. Each maps to its body and its covered lines: the body's
-// lines from line 5, the `done` after the body, and `Savile Row.` and
-// `done` in `later`.
 const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
   "a tagged line": [
     `  The bell rings. # ominous\n  HERO: Goodbye. # final`,
@@ -115,7 +111,6 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     [5, 6, 7, 11, 12],
   ],
   "a load arrow": [`  -> load later`, [5, 6, 10, 11]],
-  // The alternator line (5) covers its own line with its statement (#944).
   "a single-line alternator": [
     `  queue | A # t | B end\n  After the alternator.`,
     [5, 6, 7, 11, 12],
@@ -124,10 +119,7 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
     [5, 6, 7, 8, 12, 13],
   ],
-  // The `& f()` logic line (5) covers its own line with its call (#824).
   "a print() call": [`  & f()\n  After the print.`, [5, 6, 7, 11, 12]],
-  // The `choose` line (5) and its `end` (8) start no beat: the menu's
-  // choices (6, 7) do.
   "picked choices": [
     `  choose\n    * Take it # picked\n    * Leave it -> later\n  end`,
     [6, 7, 9, 13, 14],
@@ -187,7 +179,6 @@ describe("address coverage", () => {
     });
   }
 
-  // The `if true then` line (11) covers its own line with its statement (#944).
   test("a glued chain covers its source lines", () => {
     expect(coveredLines(GLUED)).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 14]);
   });

@@ -40,7 +40,6 @@ const errorsOf = (p: any) =>
     : Object.values(p.diagnostics ?? {}).flat()
   ).filter((d: any) => d.severity === 1);
 
-/** Compile `body` plus a start scene that references SHOW, with `story` as one more line in it. */
 function check(body: string, story = "") {
   const realWarn = console.warn;
   const realError = console.error;

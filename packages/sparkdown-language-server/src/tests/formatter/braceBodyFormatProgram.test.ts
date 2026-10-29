@@ -60,8 +60,6 @@ function program(text: string) {
   return {
     context: normalize(result.context),
     sparkle: normalize(result.sparkle),
-    // The fixtures declare UI and no story, so the error for the start
-    // scene they do not declare is left out.
     diagnostics: (result.diagnostics?.[URI] ?? [])
       .map((d) => ({
         severity: d.severity,

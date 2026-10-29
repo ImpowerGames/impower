@@ -220,8 +220,6 @@ end
     const cold = compiler.compile({ textDocument: { uri } }).program;
     expect(cold.chunks).toBeTruthy();
 
-    // Insert one character into `tonight`, on the line holding the
-    // interpolation: line index 4, just before the final ".".
     const line = 4;
     const character = "    The limit is {LIMIT} tonight".length;
     compiler.updateDocument({

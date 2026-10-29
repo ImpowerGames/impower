@@ -97,8 +97,6 @@ const NO_STORY_FLOW = `define config with
 end
 `;
 
-/** A scene, and a `define` block after the scene, whose lines hold no beat
- *  and have none below them. */
 const SCENE_THEN_DEFINE = `scene start
   First beat of the scene.
 end
@@ -311,8 +309,6 @@ describe("a game that simulates for itself records the same reason", () => {
   test("a file with no story flow is recorded as unroutable", () => {
     const program = compileSrc(NO_STORY_FLOW);
     const game: any = newGame(program);
-    // Nothing in this file resolves to a story position, so the start
-    // address falls back to the top of the story.
     expect(game.setStartFrom({ file: URI, line: 1 })).toBeNull();
     expect(game.startAddress).toBe(TOP_LEVEL_START);
     game.simulate();

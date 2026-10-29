@@ -1,10 +1,3 @@
-// A Luau statement in a story body (a scene or a branch) ends at its physical line unless an open `(`, `[` or `{`, a long
-// string or a block comment carries it on (#1907, slice S3 of #1904). Nothing
-// else continues it: a trailing operator, an if expression's `then` or
-// `else`, a type's `|` line and an indented line all leave the next line to
-// the story. The statement's Luau meets its end of input at the line's end,
-// so what it is missing there is Luau's error with `got <eof>`, as on an `&`
-// line (#1374), and the next line plays.
 import { describe, expect, test, vi } from "vitest";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -79,21 +72,14 @@ const missingAtLineEnd = (statement: string, firstLine = 0): string => {
   return `${line}:${lines.at(-1)!.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`;
 };
 
-// The story starts in the scene named `start`, and a story statement is
-// written in its body.
 const SCENE = "scene start\n";
 const SCENE_LINES = SCENE.split("\n").length - 1;
 
 /** `text` with each of its lines indented two spaces, as a scene body's are. */
 const indented = (text: string): string => text.replace(/^(?=.)/gm, "  ");
 
-/** `body` as the body of the scene the story starts in. */
 const inScene = (body: string): string => `${SCENE}${indented(body)}end\n`;
 
-/**
- * `lines` where the story writes them: the `store` and `const` declarations
- * that lead them at the top level, and the rest in the start scene.
- */
 const placed = (lines: string): string => {
   const all = lines.split("\n");
   const declarations = all.findIndex((line) => !/^(?:store|const)\b/.test(line));
@@ -335,8 +321,6 @@ describe("a story `if` header ends at its line", () => {
   });
 });
 
-// A story loop's header ends at its line too. In Luau code the condition
-// still begins on the line after `for` or `while`.
 describe("a story loop header ends at its line", () => {
   test.each([
     ["a `for` with its body on later lines", "store x = 0\nscene start\n  for i = 1, 3 do\n    x = i\n  end\n  Value {x}.\nend\n", "Value 3.\n"],

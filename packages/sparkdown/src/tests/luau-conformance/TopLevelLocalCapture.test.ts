@@ -30,7 +30,6 @@ const shown = (root: ProgramRoot) => {
 const run = (lines: string[]) =>
   quiet(() => shown(compileScript([...lines, ""].join("\n")).program.chunks!));
 
-// The lines of scene `start`, where the story starts.
 const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 const reads = ["local f = function()", "  return a", "end", "Got {tostring(f())}."];

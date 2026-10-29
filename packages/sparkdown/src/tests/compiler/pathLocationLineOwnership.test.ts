@@ -39,7 +39,6 @@ function compile(text: string) {
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
-/** The lines of `body` as the body of the scene the story starts in. */
 const inStart = (body: string): string =>
   [
     "scene start",
