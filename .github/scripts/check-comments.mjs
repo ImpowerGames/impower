@@ -107,6 +107,18 @@ function duplicates(file, key, root, state) {
   return found;
 }
 
+export async function listPullRequestFiles({ repository, number, token, api = "https://api.github.com", fetch = globalThis.fetch, limit = LISTING_LIMIT }) {
+  const records = [];
+  for (let page = 1; ; page++) {
+    const url = `${api}/repos/${repository}/pulls/${number}/files?per_page=100&page=${page}`;
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28" } });
+    if (!response.ok) throw new Error(`${url} answered ${response.status}: ${await response.text()}`);
+    const batch = JSON.parse(await response.text());
+    records.push(...batch);
+    if (batch.length < 100 || records.length >= limit) return records;
+  }
+}
+
 export function judgedRecords(records) {
   return records.filter((record) => record.status !== "removed" && codeFile(record.filename) && !exemptPath(record.filename));
 }
@@ -202,8 +214,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   const filesPath = option("--files");
   if (!filesPath) {
-    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--detect | --merge-base <sha> [--root <checkout>]] [--limit <n>]");
+    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--list | --detect | --merge-base <sha> [--root <checkout>]] [--limit <n>]");
     process.exit(2);
+  }
+  if (args.includes("--list")) {
+    const { GITHUB_REPOSITORY, PR_NUMBER, GH_TOKEN, GITHUB_API_URL } = process.env;
+    const records = await listPullRequestFiles({ repository: GITHUB_REPOSITORY, number: PR_NUMBER, token: GH_TOKEN, api: GITHUB_API_URL || undefined });
+    fs.writeFileSync(filesPath, JSON.stringify(records));
+    console.log(`${records.length} changed file(s) listed for ${GITHUB_REPOSITORY}#${PR_NUMBER}`);
+    process.exit(0);
   }
   const limit = Number(option("--limit") ?? LISTING_LIMIT);
   if (args.includes("--detect")) {

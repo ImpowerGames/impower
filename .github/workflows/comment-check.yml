@@ -34,9 +34,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
-            | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --list
       - name: Decide whether any changed file is one the comment rule judges
         id: detect
         run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --detect
@@ -63,9 +61,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
-            | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --list
       - name: Find the merge base the pull request's patches are taken from
         id: merge-base
         env:
