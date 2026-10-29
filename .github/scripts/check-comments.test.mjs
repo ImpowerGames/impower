@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { addedLines, checkComments, LISTING_LIMIT } from "./check-comments.mjs";
+import { baseFromPatch, checkComments, LISTING_LIMIT, parsePatch } from "./check-comments.mjs";
 import { loadTypescript } from "../../.agents/hooks/comment-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -72,10 +72,14 @@ function typescriptEntry() {
 
 try {
   {
-    const { added, removed } = addedLines("@@ -1,2 +1,3 @@\n keep\n-old line\n+new line\n+another\n\\ No newline at end of file\n@@ -10,0 +12,1 @@\n+tail");
+    const head = ["keep", "new line", "another", "4", "5", "6", "7", "8", "9", "10", "11", "tail", ""].join("\n");
+    const { added, hunks } = parsePatch("@@ -1,2 +1,3 @@\n keep\n-old line\n+new line\n+another\n\\ No newline at end of file\n@@ -10,0 +12 @@\n+tail");
     assert.deepEqual([...added], [2, 3, 12]);
-    assert.deepEqual(removed, ["old line"]);
-    assert.deepEqual([...addedLines("@@ -1,2 +0,0 @@\n-gone\n-too").added], [], "a hunk that empties a file adds nothing");
+    assert.equal(baseFromPatch(head, hunks), ["keep", "old line", "4", "5", "6", "7", "8", "9", "10", "11", ""].join("\n"), "the base is rebuilt from the head and the patch");
+    const emptied = parsePatch("@@ -1,2 +0,0 @@\n-gone\n-too");
+    assert.deepEqual([...emptied.added], [], "a hunk that empties a file adds nothing");
+    assert.equal(baseFromPatch("", emptied.hunks), "gone\ntoo\n");
+    assert.throws(() => baseFromPatch("other\n", parsePatch("@@ -1 +1 @@\n-a\n+b").hunks), /does not match the head file/, "a patch that does not fit the head fails rather than guessing");
   }
 
   const repo = repository(true);
@@ -87,6 +91,10 @@ try {
   write("packages/sparkdown/src/inkjs/Story.ts", "export class Story {}\n");
   write("src/gone.ts", "// a prose comment in a file the pull request deletes\nexport {};\n");
   write("README.md", "# Fixture\n");
+  write("src/literal.ts", "export const fixture = \"/* prose that was only a string */\";\n");
+  write("src/template.ts", "export const t = `\n// prose that was only template text\n`;\n");
+  const separators = { "src/line-separator.ts": 0x2028, "src/paragraph-separator.ts": 0x2029, "src/carriage-return.ts": 13 };
+  for (const file of Object.keys(separators)) write(file, "export {};\n");
   const base = commit("base");
 
   write("src/existing.ts", "export const a = 2; // legacy note kept from before the rule\n// re-asserts the border, since the normalize reset clears it\nexport const b = 2;\n");
@@ -99,6 +107,9 @@ try {
   write("src/unpatched.ts", "// a comment in a file whose patch the listing omits\nexport const p = 1;\n");
   write("README.md", "# Fixture\n\n<!-- a prose note in markdown -->\n");
   fs.rmSync(path.join(checkout, "src/gone.ts"));
+  write("src/literal.ts", "/* prose that was only a string */\nexport {};\n");
+  write("src/template.ts", "export {}; // prose that was only template text\n");
+  for (const [file, code] of Object.entries(separators)) write(file, `export {};${String.fromCharCode(code)}// prose after a JavaScript line terminator\n`);
   commit("head");
 
   const records = [
@@ -112,6 +123,9 @@ try {
     { ...record(base, "src/unpatched.ts", "added"), patch: undefined },
     record(base, "README.md"),
     record(base, "src/gone.ts", "removed"),
+    record(base, "src/literal.ts"),
+    record(base, "src/template.ts"),
+    ...Object.keys(separators).map((file) => record(base, file)),
   ];
   const result = checkComments({ root: checkout, records, base });
   const at = (file) => result.findings.filter((f) => f.file === file);
@@ -133,6 +147,9 @@ try {
   assert.ok(!at("src/fixture-copy.ts")[0]?.reasons.some((r) => /fixture\.test\.ts/.test(r)), "text inside a string literal elsewhere is not a comment");
   assert.ok(!at("src/short-copy.ts")[0]?.reasons.some((r) => /short\.ts/.test(r)), "a comment under 30 characters is never reported as a duplicate");
   assert.deepEqual(at("src/unpatched.ts").map((f) => f.line), [1], "a file without a patch is compared with its base version");
+  assert.deepEqual(at("src/literal.ts").map((f) => f.line), [1], "removed text that was a string, not a comment, does not excuse an added comment");
+  assert.deepEqual(at("src/template.ts").map((f) => f.line), [1], "removed text that was template content, not a comment, does not excuse an added comment");
+  for (const file of Object.keys(separators)) assert.deepEqual(at(file).map((f) => f.line), [1], `${file}: a comment after a JavaScript-only line terminator is found on the patch's physical line`);
 
   if (typescript) assert.ok(result.scanners.has(`TypeScript ${typescript.version}`), [...result.scanners].join(", "));
 

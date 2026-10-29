@@ -7,43 +7,65 @@ import { bodyLines, codeFile, exemptPath, judgeComments, loadTypescript, rule, s
 export const LISTING_LIMIT = 3000;
 export const DUPLICATE_MIN_LENGTH = 30;
 
-export function addedLines(patch) {
-  const added = new Set(), removed = [];
-  let line = null;
+export function parsePatch(patch) {
+  const added = new Set(), hunks = [];
+  let line = null, hunk = null;
   for (const text of String(patch ?? "").split("\n")) {
-    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
-    if (hunk) line = Number(hunk[1]);
-    else if (line === null || text.startsWith("\\")) continue;
-    else if (text.startsWith("+")) added.add(line++);
-    else if (text.startsWith("-")) removed.push(text.slice(1).replace(/\r$/, ""));
-    else line++;
+    const header = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(text);
+    if (header) {
+      hunk = { newStart: Number(header[3]), newCount: header[4] === undefined ? 1 : Number(header[4]), lines: [] };
+      hunks.push(hunk);
+      line = hunk.newStart;
+    } else if (!hunk || text.startsWith("\\")) continue;
+    else {
+      const op = text[0] === "+" || text[0] === "-" ? text[0] : " ";
+      hunk.lines.push({ op, text: text.slice(1) });
+      if (op === "+") added.add(line++);
+      else if (op === " ") line++;
+    }
   }
-  return { added, removed };
+  return { added, hunks };
+}
+
+export function baseFromPatch(headText, hunks) {
+  const head = headText.split("\n"), out = [];
+  let at = 0;
+  for (const hunk of hunks) {
+    const start = hunk.newCount === 0 ? hunk.newStart : hunk.newStart - 1;
+    if (start < at || start + hunk.newCount > head.length) throw new Error("its patch does not fit the head file");
+    out.push(...head.slice(at, start));
+    let k = start;
+    for (const { op, text } of hunk.lines) {
+      if (op !== "-" && head[k++] !== text) throw new Error(`its patch does not match the head file at line ${k}`);
+      if (op !== "+") out.push(text);
+    }
+    if (k !== start + hunk.newCount) throw new Error("its patch's line counts do not match its hunks");
+    at = k;
+  }
+  out.push(...head.slice(at));
+  return out.join("\n");
+}
+
+function physicalLines(text) {
+  const breaks = [];
+  for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) breaks.push(i);
+  return (offset) => {
+    let lo = 0, hi = breaks.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (breaks[mid] < offset) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo + 1;
+  };
 }
 
 const normalize = (text) => text.replace(/\s+/g, " ").trim().toLowerCase();
 const commentKey = (text) => normalize(bodyLines(text).join(" "));
+const sameComment = (text) => text.replace(/\s+/g, " ").trim();
 
 function git(root, args) {
   return spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true, maxBuffer: 1 << 30 });
-}
-
-function holds(line, piece) {
-  const at = line.lastIndexOf(piece);
-  if (at < 0 || (at > 0 && /[/*#<!-]/.test(line[at - 1]))) return false;
-  return !/^(?:\/\/|#)/.test(piece) || at + piece.length === line.length;
-}
-
-function preexisting(comment, removed) {
-  const pieces = comment.text.split(/\r?\n|\p{Zl}|\p{Zp}/u).map((l) => l.trim()).filter(Boolean);
-  const taken = new Set();
-  for (const piece of pieces) {
-    const found = removed.findIndex((r, k) => !r.used && !taken.has(k) && holds(r.text, piece));
-    if (found < 0) return false;
-    taken.add(found);
-  }
-  for (const k of taken) removed[k].used = true;
-  return true;
 }
 
 function baseText(root, base, file, state) {
@@ -79,7 +101,7 @@ function duplicates(comment, file, key, root, state) {
   for (const [other, entry] of state.corpus) {
     if (other === file || !entry.normalized.includes(needle)) continue;
     const match = scanComments(entry.text, other, { root }).find((c) => commentKey(c.text) === key);
-    if (match) found.push(`${other}:${match.line}`);
+    if (match) found.push(`${other}:${physicalLines(entry.text)(match.start)}`);
   }
   return found;
 }
@@ -98,25 +120,38 @@ export function checkComments({ root, records, base, limit = LISTING_LIMIT }) {
       problems.push(`${file}: the pull request changes it, but the head checkout cannot read it (${error.code ?? error.message})`);
       continue;
     }
-    let added, removed;
+    let added, before;
     try {
-      if (typeof record.patch === "string") ({ added, removed } = addedLines(record.patch));
-      else if ((record.additions ?? 1) > 0) {
-        added = new Set(text.split(/\n/).map((_, k) => k + 1));
-        removed = baseText(root, base, record.previous_filename ?? file, state).split("\n");
+      if (typeof record.patch === "string") {
+        const parsed = parsePatch(record.patch);
+        added = parsed.added;
+        before = baseFromPatch(text, parsed.hunks);
+      } else if ((record.additions ?? 1) > 0) {
+        added = new Set(text.split("\n").map((_, k) => k + 1));
+        before = baseText(root, base, record.previous_filename ?? file, state);
       } else continue;
     } catch (error) {
       problems.push(`${file}: ${error.message}`);
       continue;
     }
-    const pool = removed.map((r) => ({ text: r.trim(), used: false }));
-    const comments = judgeComments(text, file, { root });
+    const line = physicalLines(text);
+    const comments = judgeComments(text, file, { root }).map((c) => ({ ...c, line: line(c.start), endLine: line(Math.max(c.start, c.end - 1)) }));
+    const touches = (c) => {
+      for (let k = c.line; k <= c.endLine; k++) if (added.has(k)) return true;
+      return false;
+    };
+    const pool = new Map();
+    for (const c of scanComments(before, file, { root })) pool.set(sameComment(c.text), (pool.get(sameComment(c.text)) ?? 0) + 1);
+    for (const c of comments) if (!touches(c) && pool.get(sameComment(c.text)) > 0) pool.set(sameComment(c.text), pool.get(sameComment(c.text)) - 1);
     if (/\.(?:[cm]?js|tsx?)$/i.test(file)) scanners.add(scanComments("//", "probe.ts", { root })[0].scanner);
     for (const comment of comments) {
       scanners.add(comment.scanner);
-      let touched = false;
-      for (let line = comment.line; line <= comment.endLine && !touched; line++) touched = added.has(line);
-      if (!touched || preexisting(comment, pool)) continue;
+      if (!touches(comment)) continue;
+      const key = sameComment(comment.text);
+      if (pool.get(key) > 0) {
+        pool.set(key, pool.get(key) - 1);
+        continue;
+      }
       const reasons = [];
       if (comment.kind === "refused") reasons.push(comment.reason);
       if (comment.kind !== "directive" && comment.kind !== "workaround") {
