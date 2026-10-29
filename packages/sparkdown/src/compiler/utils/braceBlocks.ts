@@ -234,12 +234,12 @@ export interface BraceBlockPath {
   outerFrom: number;
 }
 
-/** The tokens that start a new brace entry: a block's `{` and `}`, and a
- *  `;` between entries. */
 const ENTRY_SEPARATOR_NAMES = nodeNameSet([
   "LuauStructBlockOpen",
   "LuauStructBlockClose",
   "LuauStructBlockSeparator",
+  "LuauStructBlockEntryComma",
+  "LuauStructBlockTrailingComma",
 ]);
 
 /** Element-head tokens that begin with the quote an author has opened but not
