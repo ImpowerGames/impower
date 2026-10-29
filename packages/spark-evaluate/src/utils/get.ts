@@ -1,3 +1,10 @@
+/*
+ * get-value <https://github.com/jonschlinkert/get-value>
+ *
+ * Copyright (c) 2014-2018, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
 interface Options<T = never, V = never> {
   default?: V;
   separator?: string;

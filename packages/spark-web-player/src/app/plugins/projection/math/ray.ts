@@ -1,3 +1,10 @@
+/*
+ * Based on pixi3d <https://github.com/jnsmalm/pixi3d>
+ *
+ * Copyright (c) 2023 Jens Malmborg
+ * Released under the MIT license.
+ */
+
 import { Point3D } from "../transform/point";
 
 export class Ray {

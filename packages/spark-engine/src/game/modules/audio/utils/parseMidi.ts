@@ -1,3 +1,10 @@
+/*
+ * Based on midi-json-parser-worker <https://github.com/chrisguttandin/midi-json-parser-worker>
+ *
+ * Copyright (c) 2023 Christoph Guttandin
+ * Released under the MIT license.
+ */
+
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
 import {
   MIDI_STATUS_SYSTEM,

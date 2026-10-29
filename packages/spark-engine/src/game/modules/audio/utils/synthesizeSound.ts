@@ -1,3 +1,10 @@
+/*
+ * Based on bfxr2 <https://github.com/increpare/bfxr2>
+ *
+ * Copyright (c) 2021 Stephen Lavelle
+ * Released under the MIT license.
+ */
+
 export type OscillatorType =
   | "sine"
   | "triangle"

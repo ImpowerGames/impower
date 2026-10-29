@@ -1,3 +1,16 @@
+/*
+ * Based on pixi3d <https://github.com/jnsmalm/pixi3d>
+ *
+ * Copyright (c) 2023 Jens Malmborg
+ * Released under the MIT license.
+ */
+
+/*
+* Based on pixi3d <https://github.com/jnsmalm/pixi3d>
+*
+* Copyright (c) 2023 Jens Malmborg
+* Released under the MIT license.
+*/
 import type { TransformId } from "./transform-id";
 
 export class MatrixComponent<T> {

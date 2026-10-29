@@ -1,3 +1,10 @@
+/**
+ * bezier-points <https://github.com/pshihn/bezier-points>
+ *
+ * Copyright (c) 2020 Preet Shihn
+ * Released under the MIT License.
+ */
+
 import { Curve } from "../types/Curve";
 import { Point } from "../types/Point";
 

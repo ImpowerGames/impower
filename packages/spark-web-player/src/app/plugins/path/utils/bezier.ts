@@ -1,3 +1,10 @@
+/*
+ * Based on bezier-easing <https://github.com/thednp/bezier-easing>
+ *
+ * Copyright (c) 2020 thednp
+ * Released under the MIT license.
+ */
+
 export const sampleCurveX = (
   t: number,
   ax: number,
