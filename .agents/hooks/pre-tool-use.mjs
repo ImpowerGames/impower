@@ -2,6 +2,30 @@ import { pathToFileURL } from "node:url";
 import { decide } from "./policy.mjs";
 import { gate } from "./session-title.mjs";
 
+function eventCwd(payload) {
+  return typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined;
+}
+
+function patchFiles(command) {
+  const files = [];
+  let file = null;
+  for (const line of command.split(/\r?\n/)) {
+    const header = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$/.exec(line);
+    if (header) {
+      if (header[1] === "Move to") {
+        if (file) file.path = header[2].trimEnd();
+        continue;
+      }
+      file = header[1] === "Delete File" ? null : { path: header[2].trimEnd(), lines: [], removed: [], whole: header[1] === "Add File" };
+      if (file) files.push(file);
+    } else if (!file || line.startsWith("*** ") || line.startsWith("@@")) continue;
+    else if (line.startsWith("+")) file.lines.push({ text: line.slice(1), added: true });
+    else if (line.startsWith("-")) file.removed.push(line.slice(1));
+    else if (line.startsWith(" ")) file.lines.push({ text: line.slice(1), added: false });
+  }
+  return files;
+}
+
 export function normalize(payload, harness) {
   if (!["claude", "codex"].includes(harness)) throw new Error("Supply the hook adapter: claude or codex");
   if (!payload || typeof payload !== "object") throw new Error("Expected a tool event object");
@@ -12,19 +36,19 @@ export function normalize(payload, harness) {
     const paths = [...input.command.matchAll(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)\r?$/gm)].map((m) => m[1].trimEnd());
     // Only added lines are content; context and removed lines already exist.
     const contents = input.command.split(/\r?\n/).filter((line) => line.startsWith("+")).map((line) => line.slice(1));
-    return { kind: "edit", paths, contents };
+    return { kind: "edit", paths, contents, files: patchFiles(input.command), cwd: eventCwd(payload) };
   }
   if (tool === "write" || tool === "edit" || tool === "multiedit") {
     if (typeof input?.file_path !== "string") throw new Error("Edit event is missing file_path");
     const contents = [input.content, input.new_string, ...(Array.isArray(input.edits) ? input.edits.map((e) => e?.new_string) : [])];
-    return { kind: "edit", paths: [input.file_path], contents };
+    const file = typeof input.content === "string" ? { path: input.file_path, content: input.content } : { path: input.file_path, edits: Array.isArray(input.edits) ? input.edits : [input] };
+    return { kind: "edit", paths: [input.file_path], contents, files: [file], cwd: eventCwd(payload) };
   }
   if (tool === "bash" || tool === "powershell") {
     if (typeof input?.command !== "string") throw new Error("Shell event is missing command text");
     // The unified exec Bash alias also covers PowerShell; it is not a shell
     // identity. Evaluate both dialects instead of guessing from that alias.
-    const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined;
-    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd };
+    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd: eventCwd(payload) };
   }
   return { kind: "other" };
 }

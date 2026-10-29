@@ -3,12 +3,152 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import os from "node:os";
 import { decide } from "./policy.mjs";
 import { normalize } from "./pre-tool-use.mjs";
+import { classifyComment, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name, tool_input });
+
+{
+  const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-outside-"));
+  try {
+    fs.mkdirSync(path.join(checkout, ".git"));
+    fs.mkdirSync(path.join(checkout, ".agents/hooks"), { recursive: true });
+    fs.copyFileSync(path.join(root, ".agents/hooks/comment-policy.json"), path.join(checkout, ".agents/hooks/comment-policy.json"));
+    fs.writeFileSync(path.join(checkout, "package-lock.json"), JSON.stringify({
+      packages: {
+        "": { name: "fixture-monorepo" },
+        "packages/sparkle": { name: "@impower/sparkle" },
+        "packages/spark-engine": { name: "@impower/spark-engine" },
+        "node_modules/@impower/sparkle": { resolved: "packages/sparkle", link: true },
+        "node_modules/@codemirror/view": { version: "6.0.0" },
+        "packages/sparkle/node_modules/idiomorph": { version: "0.3.0" },
+      },
+    }));
+    const at = (rel) => path.join(checkout, rel);
+    const write = (rel, text) => {
+      fs.mkdirSync(path.dirname(at(rel)), { recursive: true });
+      fs.writeFileSync(at(rel), text);
+    };
+    const judge = (tool, input, harness = "claude") => decide(normalize({ ...event(tool, input), cwd: checkout }, harness));
+    write("src/a.ts", "// legacy rationale the file already holds\nexport const a = 1;\n");
+    const added = (line) => judge("Edit", { file_path: at("src/a.ts"), old_string: "export const a = 1;", new_string: `${line}\nexport const a = 1;` });
+
+    const prose = added("// keeps the row direction, since the host forces column");
+    assert.match(prose ?? "", /comment rule \(AGENTS\.md, Repository-wide rules\)/, "a prose comment is refused with the rule as the reason");
+    assert.match(prose, /src\/a\.ts:2: `\/\/ keeps the row direction/, "the reason names the file and the first offending line");
+    assert.equal(added("// @ts-expect-error the fixture's value is untyped"), null);
+    assert.equal(added("// workaround(chromium): rows collapse in Chromium 131, https://crbug.com/1"), null);
+    assert.equal(added("// workaround(@codemirror/view): measure runs late in 6.0.0, https://github.com/codemirror/dev/issues/1"), null);
+    assert.equal(added("// workaround(idiomorph): a nested lockfile entry is a dependency too"), null);
+    for (const name of ["sparkle", "spark-engine", "@impower/sparkle"]) assert.match(added(`// workaround(${name}): the reset forces column`) ?? "", /is a package of this repository/, name);
+    assert.match(added("// workaround(left-pad): not installed") ?? "", /neither a dependency in a package-lock\.json nor a platform/);
+    assert.match(added("// workaround: no name") ?? "", /takes the form/);
+    assert.equal(judge("Edit", { file_path: at("src/a.ts"), old_string: "export const a = 1;", new_string: "export const a = 2;" }), null, "an edit near a legacy comment introduces none");
+    assert.equal(judge("Edit", { file_path: at("src/a.ts"), old_string: "// legacy rationale the file already holds\nexport const a = 1;", new_string: "// legacy rationale the file already holds\nexport const a = 2;" }), null, "unchanged context lines are not introduced");
+    assert.match(judge("MultiEdit", { file_path: at("src/a.ts"), edits: [{ old_string: "a = 1", new_string: "a = 3" }, { old_string: "export", new_string: "/* added block */ export" }] }) ?? "", /`\/\* added block \*\/`/);
+
+    const legacy = "// legacy note\nexport const b = 1; // trailing legacy note\n";
+    write("src/b.ts", legacy);
+    assert.equal(judge("Write", { file_path: at("src/b.ts"), content: legacy + "export const c = 2;\n" }), null, "a whole-file write that introduces no comment is allowed");
+    assert.match(judge("Write", { file_path: at("src/b.ts"), content: legacy + "export const c = 2; // a new note\n" }) ?? "", /src\/b\.ts:3/, "a whole-file write that adds one is refused");
+    assert.match(judge("Write", { file_path: at("src/new.mjs"), content: "export {};\n# not a comment in JavaScript\n/** prose doc */\n" }) ?? "", /src\/new\.mjs:3/);
+    assert.equal(judge("Write", { file_path: at("src/new.mjs"), content: "/** @type {number} */\nexport const n = 1;\n" }), null);
+
+    for (const rel of ["packages/sparkdown/src/inkjs/engine/Story.ts", "impower-app/src/a.tsx", "impower-dev/src/modules/spark-editor/workspace/types/RemoteStorageTypes.ts", "docs/guide.md"]) {
+      assert.equal(judge("Write", { file_path: at(rel), content: "// upstream prose\nexport {};\n" }), null, `${rel} is never judged`);
+    }
+    assert.equal(judge("Write", { file_path: path.join(outside, "a.ts"), content: "// prose\n" }), null, "a file outside a checkout carrying the policy is not judged");
+
+    const patch = (body) => judge("apply_patch", { command: `*** Begin Patch\n${body}\n*** End Patch` }, "codex");
+    assert.match(patch("*** Update File: src/a.ts\n@@\n export const a = 1;\n+// a patch note\n+export const z = 0;") ?? "", /src\/a\.ts: `\/\/ a patch note`/);
+    assert.equal(patch("*** Update File: src/a.ts\n@@\n-// legacy rationale the file already holds\n-export const a = 1;\n+export const a = 1;\n+// legacy rationale the file already holds"), null, "a moved comment line is not introduced");
+    assert.match(patch("*** Add File: src/c.ts\n+export {};\n+// added prose") ?? "", /src\/c\.ts:2/);
+    assert.equal(patch("*** Add File: src/d.ts\n+// @ts-nocheck\n+export {};"), null);
+
+    const comments = (text, file) => scanComments(text, file).map((c) => c.text);
+    assert.deepEqual(comments(String.raw`const s = "// no", t = '/* no */', u = /\/\/no[/]/g; // yes`, "a.ts"), ["// yes"]);
+    assert.deepEqual(comments("const t = `a // no ${f(/* yes */ 1, `b // no ${2}`)} c // no`; const r = x / 2 / y; // yes", "a.ts"), ["/* yes */", "// yes"]);
+    assert.deepEqual(comments("const v = <a href=\"http://x\">see</a>; // yes", "a.tsx"), ["// yes"]);
+    assert.deepEqual(comments("#!/usr/bin/env node\nreturn /re/.test(s) // yes", "a.mjs"), ["// yes"]);
+    assert.deepEqual(comments(".a { content: '/* no */'; } /* yes */ // no", "a.css"), ["/* yes */"]);
+    assert.deepEqual(comments("<p>// no</p><!-- yes -->", "a.html"), ["<!-- yes -->"]);
+    assert.deepEqual(comments("#!/bin/sh\necho \"# no\" '# no' a#no $# ${#x} # yes\ncat <<'EOF'\n# no\nEOF\n# yes", "a.sh"), ["# yes", "# yes"]);
+    assert.deepEqual(comments("s = '# no' + \"\"\"\n# no\n\"\"\"  # yes", "a.py"), ["# yes"]);
+    assert.deepEqual(comments("$a = 'x # no' + \"y `\" # no\" ; a#no # yes\n<# yes #>\n@'\n# no\n'@", "a.ps1"), ["# yes", "<# yes #>"]);
+    assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - run: |\n      # yes\n      echo \"# no\"\n# lookaround: yes", "a.yml"), ["# yes", "# yes", "# lookaround: yes"]);
+
+    const kind = (text, file = "src/a.ts") => classifyComment(text, file, { root: checkout }).kind;
+    assert.equal(kind("/// <reference types=\"vite/client\" />"), "directive");
+    assert.equal(kind("/* eslint-disable no-console */"), "directive");
+    assert.equal(kind("/** @type {number} */"), "refused", "TypeScript reads JSDoc types only in JavaScript files");
+    assert.equal(kind("/**\n * @param {string} a the name\n * @returns {number}\n */", "src/a.js"), "directive");
+    assert.equal(kind("/**\n * Describes the function.\n * @param {string} a\n */", "src/a.js"), "refused");
+    assert.equal(kind("// value-level: the token carries the flag"), "directive");
+    assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
+    assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
+    assert.equal(kind("<!-- prettier-ignore -->", "a.html"), "directive");
+    assert.equal(kind("// @vitest-environment jsdom", "src/a.test.ts"), "directive");
+    assert.equal(kind("/* @vite-ignore */"), "directive");
+    assert.equal(kind("/// @internal"), "refused");
+    assert.equal(kind("//"), "refused");
+    assert.equal(kind("// prose", "packages/spark-evaluate/src/_modules/x.ts"), "exempt");
+    assert.equal(kind("// prose", "README.md"), "exempt");
+
+    const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
+    assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
+    assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
+
+    const source = [
+      "// a whole-line note",
+      "import { a } from \"./a\"; // a trailing note",
+      "",
+      "/**",
+      " * A block note",
+      " */",
+      "",
+      "// @ts-expect-error the value is untyped",
+      "const b = f(/* inline */ a, c/* tight */d, /* lead */ e);",
+      "// workaround(chromium): rows collapse in Chromium 131, https://crbug.com/1",
+      "// with a continuation line",
+      "const s = \"// kept\";",
+      "",
+      "// last note",
+      "",
+    ].join("\n");
+    const expected = [
+      "import { a } from \"./a\";",
+      "",
+      "// @ts-expect-error the value is untyped",
+      "const b = f(a, c d, e);",
+      "// workaround(chromium): rows collapse in Chromium 131, https://crbug.com/1",
+      "// with a continuation line",
+      "const s = \"// kept\";",
+      "",
+    ].join("\n");
+    const stripped = stripComments(source, "src/a.ts", { root: checkout });
+    assert.equal(stripped, expected, "a removed comment takes its line and one neighbouring blank line when it stood between two blanks, at the file start, or at the file end");
+    const codeTokens = (text) => {
+      let code = "", at = 0;
+      for (const c of scanComments(text, "src/a.ts")) {
+        code += text.slice(at, c.start) + " ";
+        at = c.end;
+      }
+      return (code + text.slice(at)).match(/[\w$]+|\S/g);
+    };
+    assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
+    assert.equal(stripComments("a();\r\n// note\r\nb();\r\n", "src/a.ts", { root: checkout }), "a();\r\nb();\r\n");
+    assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
+  } finally {
+    fs.rmSync(checkout, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+  console.log("PASS: comment policy classifier, scanner, strip function and edit route");
+}
 // Control bytes are built from their code points so that no tool writing this
 // file can decode an escape into the byte itself.
 const nul = String.fromCharCode(0), esc = String.fromCharCode(0x1b), bs = String.fromCharCode(92);
