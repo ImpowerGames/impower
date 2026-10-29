@@ -387,6 +387,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(strip(mixedDoc, "src/a.ts"), "const p = {};\n", "TypeScript reads no JSDoc types in a TypeScript file");
     assert.equal(strip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
     assert.equal(strip("/** Prose. @type is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
+    assert.equal(strip("/**\n * The options.\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "src/a.js"), "/**\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "a typedef keeps its property tags");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });

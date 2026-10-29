@@ -8,7 +8,7 @@
     { "form": "^@vitest-environment\\s+\\S", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^@vite-ignore$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^/\\s*<(?:reference|amd-module|amd-dependency)\\b", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
-    { "form": "^@(?:type|param|returns?)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^@(?:type|param|returns?|property|prop)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@type\\s+[A-Za-z_$]", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
