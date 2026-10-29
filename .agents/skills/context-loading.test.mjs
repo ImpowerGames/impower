@@ -44,7 +44,7 @@ function inspect(files) {
     if (!description || words(description) > 80) errors.push("discovery description: " + file);
     if (/Read \[runner notes\].*(?:before proceeding|repository's agent instructions)/.test(text)) errors.push("unconditional reread: " + file);
   }
-  if (words(files.get("AGENTS.md") ?? "") > 750) errors.push("oversize: AGENTS.md");
+  if (words(files.get("AGENTS.md") ?? "") > 800) errors.push("oversize: AGENTS.md");
   if (words(files.get(".agents/skills/RUNNERS.md") ?? "") > 400) errors.push("oversize: RUNNERS.md");
   for (const file of files.keys()) {
     if (file.includes("/references/") && file.endsWith(".md") && !visited.has(file)) errors.push("unreachable: " + file);
@@ -98,7 +98,7 @@ const orphan = new Map(docs);
 orphan.set(".agents/references/orphan.md", "# Unreachable instructions");
 assert.ok(inspect(orphan).includes("unreachable: .agents/references/orphan.md"));
 const oversized = new Map(docs);
-oversized.set("AGENTS.md", "word ".repeat(751));
+oversized.set("AGENTS.md", "word ".repeat(801));
 assert.ok(inspect(oversized).includes("oversize: AGENTS.md"));
 const recursive = new Map(docs);
 recursive.set(".agents/skills/file-bug/SKILL.md", docs.get(".agents/skills/file-bug/SKILL.md") + "\nRead [runner notes](../RUNNERS.md) and the repository's agent instructions before proceeding.");

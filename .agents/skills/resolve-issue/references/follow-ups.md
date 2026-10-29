@@ -2,7 +2,7 @@
 
 Run this once, at the end of the session's own work: after review-pr's last correction is adjudicated and reverified, immediately before the PR is marked ready, before asking the user to authorize rounds beyond the cap, or before an incomplete draft handoff. Not earlier. Until then an out-of-scope observation is a one-line note with its `file:line`; reproducing, investigating or filing it mid-task spends context the issue's own fix, verification and review still need. Even in the sweep, the reproduction and filing are delegated, as the last section describes.
 
-When the sweep starts, list what the session noticed and left unresolved: a defect in neighboring code, a wrong or stale comment or document, a failing or missing test, a workaround you added, a verification gap. Then settle each item, either by fixing it in this PR or by filing a ticket. Nothing on the list is left only in the session transcript.
+When the sweep starts, list what the session noticed and left unresolved: a defect in neighboring code, a wrong or stale comment or document, a failing or missing test, a comment or code that works around behaviour of this repository's own code, which is a defect to fix in this PR or ticket, a verification gap. Then settle each item, either by fixing it in this PR or by filing a ticket. Nothing on the list is left only in the session transcript.
 
 ## Fix it here by default
 
