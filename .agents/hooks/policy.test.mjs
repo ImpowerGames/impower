@@ -48,6 +48,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(added("// workaround(idiomorph): a nested lockfile entry is a dependency too"), null);
     assert.equal(added("// SPDX-License-Identifier: MPL-2.0"), null, "adding a licence notice is never refused");
     assert.equal(added("/* Copyright (c) 2024 Example Holder. Released under the MIT License. */"), null);
+    assert.match(added("// Copyright handling must stay centralized because the generator depends on it") ?? "", /neither a directive/, "prose that mentions copyright is refused on the edit route");
     for (const name of ["sparkle", "spark-engine", "@impower/sparkle"]) assert.match(added(`// workaround(${name}): the reset forces column`) ?? "", /is a package of this repository/, name);
     assert.match(added("// workaround(left-pad): not installed") ?? "", /neither a dependency in a package-lock\.json nor a platform/);
     assert.match(added("// workaround: no name") ?? "", /takes the form/);
@@ -236,6 +237,18 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// the license check runs before the build"), "refused", "the word license without a named licence is prose");
     assert.equal(kind("// MIT"), "refused");
     assert.equal(kind("// LICENSED_FEATURES gates the menu"), "refused");
+    assert.equal(kind("// ©2024 Example Holder"), "licence");
+    assert.equal(kind("// SPDX-FileCopyrightText: 2024 Example Holder"), "licence");
+    assert.equal(kind("// Copyright (C) Microsoft Corporation. All rights reserved."), "licence");
+    assert.equal(kind("// MIT License"), "licence", "a licence title on its own is a notice");
+    assert.equal(kind("// Permission is hereby granted, free of charge, to any person obtaining a copy"), "licence");
+    assert.equal(kind("// covered by the MPL 2.0 License"), "licence");
+    for (const prose of [
+      "// Copyright handling must stay centralized because the generator depends on it",
+      "// MIT license detection runs before the build because the cache needs it",
+      "// LICENSE checks must stay before the build because the cache needs it",
+      "// the MIT License text is read from the package",
+    ]) assert.equal(kind(prose), "refused", `${prose} discusses licences without being a notice`);
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
@@ -314,9 +327,28 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
     const mit = "/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */\n";
     const ported = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n";
-    for (const notice of [mpl, mit, ported]) {
+    const fullMit = [
+      "// MIT License",
+      "//",
+      "// Copyright (c) 2024 Example Holder",
+      "//",
+      "// Permission is hereby granted, free of charge, to any person obtaining a copy",
+      "// of this software and associated documentation files (the \"Software\"), to deal",
+      "// in the Software without restriction.",
+      "//",
+      "// The above copyright notice and this permission notice shall be included in all",
+      "// copies or substantial portions of the Software.",
+      "//",
+      "// THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR",
+      "// IMPLIED.",
+      "",
+    ].join("\n");
+    const symbols = "// ©2024 Example Holder\n// SPDX-FileCopyrightText: 2024 Example Holder\n";
+    for (const notice of [mpl, mit, ported, fullMit, symbols]) {
       assert.equal(strip(`${notice}\n// prose\nexport const n = 1;\n`, "src/a.ts"), `${notice}\nexport const n = 1;\n`, "a licence notice is kept verbatim while the prose beside it goes");
     }
+    assert.equal(strip(`${fullMit.trimEnd()}\n//\n// The parser reads the header first.\nexport const n = 1;\n`, "src/a.ts"), `${fullMit}export const n = 1;\n`, "an empty comment line joins two notice paragraphs, not a notice and the prose after it");
+    assert.equal(strip("// Copyright handling must stay centralized because the generator depends on it\nexport const n = 1;\n", "src/a.ts"), "export const n = 1;\n");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });

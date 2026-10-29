@@ -799,24 +799,35 @@ export function judgeComments(text, file, options = {}) {
     }
     previous = comment;
   }
-  const paragraph = [];
-  const close = () => {
-    const first = paragraph[0];
-    if (paragraph.length > 1 && licenceNotice(paragraph.flatMap((c) => bodyLines(c.text)))) {
-      for (const c of paragraph) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${first.line}` });
-    }
-    paragraph.length = 0;
-  };
+  const runs = [];
   for (const comment of comments) {
-    const last = paragraph[paragraph.length - 1];
-    if (!single(comment) || !bodyLines(comment.text).length) {
-      close();
-      continue;
-    }
-    if (last && (comment.line !== last.endLine + 1 || comment.column !== last.column)) close();
-    paragraph.push(comment);
+    const run = runs[runs.length - 1], last = run?.[run.length - 1];
+    if (!single(comment)) continue;
+    if (last && comment.line === last.endLine + 1 && comment.column === last.column) run.push(comment);
+    else runs.push([comment]);
   }
-  close();
+  for (const run of runs) {
+    const paragraphs = [];
+    let current = null;
+    for (const comment of run) {
+      if (!bodyLines(comment.text).length) {
+        paragraphs.push({ separator: comment });
+        current = null;
+      } else if (current) current.members.push(comment);
+      else paragraphs.push((current = { members: [comment] }));
+    }
+    for (const p of paragraphs) {
+      if (!p.members) continue;
+      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text))) : p.members[0].kind === "licence";
+      if (p.licence) for (const c of p.members) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${p.members[0].line}` });
+    }
+    paragraphs.forEach((p, k) => {
+      if (!p.separator) return;
+      const before = paragraphs.slice(0, k).reverse().find((q) => q.members);
+      const after = paragraphs.slice(k + 1).find((q) => q.members);
+      if (before?.licence && after?.licence) Object.assign(p.separator, { kind: "licence", reason: `separates the licence notice on line ${before.members[0].line}` });
+    });
+  }
   return comments;
 }
 
