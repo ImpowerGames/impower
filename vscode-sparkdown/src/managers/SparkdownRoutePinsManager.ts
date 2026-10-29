@@ -77,7 +77,7 @@ export class SparkdownRoutePinsManager {
       this.markOpenDocument(document, byScript);
     }
     await saved;
-    return allRoutePins(byScript);
+    return this.pins;
   }
 
   protected async store(byScript: RoutePinsByScript) {
@@ -85,7 +85,7 @@ export class SparkdownRoutePinsManager {
       throw new Error("Pins are not kept before the extension activates");
     }
     await this._workspaceState.update(ROUTE_PINS_STATE_KEY, byScript);
-    this._onDidChangePins.fire(allRoutePins(byScript));
+    this._onDidChangePins.fire(this.pins);
   }
 
   protected markOpenDocument(
