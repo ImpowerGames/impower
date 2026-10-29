@@ -782,9 +782,18 @@ export function classifyComment(text, file, { root = defaultRoot } = {}) {
     const reason = workaroundNameReason(marker[1], root);
     return reason ? { kind: "refused", reason } : { kind: "workaround", reason: `a workaround note for \`${marker[1]}\`` };
   }
-  const allowed = directives.filter((d) => !d.extensions || d.extensions.includes(extension));
-  if (lines.every((line) => allowed.some((d) => d.form.test(line)))) return { kind: "directive", reason: "a directive a tool reads" };
+  if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
+}
+
+function directiveLine(line, extension) {
+  return directives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
+}
+
+function jsdocDirectiveLines(comment, file) {
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  if (![".js", ".mjs", ".cjs"].includes(extension) || !comment.startsWith("/**")) return [];
+  return bodyLines(comment).map((line) => line.replace(/\s+\*+$/, "")).filter((line) => directiveLine(line, extension));
 }
 
 export function judgeComments(text, file, options = {}) {
@@ -849,16 +858,29 @@ export function stripComments(text, file, options = {}) {
     }
     return out + text.slice(at);
   }
+  const cuts = [];
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const removals = [];
+  for (const c of refused) {
+    const kept = family === "js" ? jsdocDirectiveLines(c.text, file) : [];
+    if (!kept.length) {
+      removals.push(c);
+      continue;
+    }
+    const before = text.slice(c.lineStart, c.start);
+    const pad = /^[ \t]*$/.test(before) ? before : "";
+    const replacement = kept.length === 1 ? `/** ${kept[0]} */` : `/**${eol}${kept.map((line) => `${pad} * ${line}`).join(eol)}${eol}${pad} */`;
+    cuts.push({ from: c.start, to: c.end, replacement, rewrite: true });
+  }
   const removed = new Uint8Array(text.length);
-  for (const c of refused) removed.fill(1, c.start, c.end);
+  for (const c of removals) removed.fill(1, c.start, c.end);
   const code = (from, to) => {
     for (let k = from; k < to; k++) if (!removed[k] && !/\s/.test(text[k])) return true;
     return false;
   };
   const { starts, ends, lineOf } = lineIndex(text, family === "js");
   const nextLine = (offset) => starts[lineOf(offset) + 1] ?? text.length;
-  const cuts = [];
-  for (const c of refused) {
+  for (const c of removals) {
     const leading = code(c.lineStart, c.start), following = code(c.end, c.lineStop);
     if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true });
     else if (!following) {
@@ -881,7 +903,7 @@ export function stripComments(text, file, options = {}) {
   const merged = [];
   for (const cut of cuts) {
     const last = merged[merged.length - 1];
-    if (last && cut.from <= last.to) {
+    if (last && (cut.from < last.to || (cut.from === last.to && !cut.rewrite && !last.rewrite))) {
       last.to = Math.max(last.to, cut.to);
       last.whole ||= cut.whole;
       if (strength(cut.replacement) > strength(last.replacement)) last.replacement = cut.replacement;
