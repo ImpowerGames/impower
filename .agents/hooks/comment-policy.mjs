@@ -877,17 +877,21 @@ export function stripComments(text, file, options = {}) {
     } else merged.push({ ...cut });
   }
   const blankLine = (k) => k >= 0 && k < starts.length && !text.slice(starts[k], ends[k]).trim();
+  const lineText = (k) => (k >= 0 && k < starts.length ? text.slice(starts[k], ends[k]) : "");
   for (const cut of merged) {
     if (!cut.whole) continue;
     const first = lineOf(cut.from);
+    const after = cut.to < text.length ? lineOf(cut.to) : -1;
     const blankBefore = first === 0 || blankLine(first - 1);
-    if (blankBefore && cut.to < text.length && blankLine(lineOf(cut.to))) cut.to = nextLine(cut.to);
+    if (blankBefore && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
     else if (cut.to >= text.length && first > 0 && blankLine(first - 1)) cut.from = starts[first - 1];
+    else if (first > 0 && /[{([]\s*$/.test(lineText(first - 1)) && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
+    else if (first > 0 && blankLine(first - 1) && after >= 0 && /^\s*[})\]]/.test(lineText(after))) cut.from = starts[first - 1];
   }
   let out = "", at = 0;
   for (const cut of merged) {
-    if (cut.from < at) continue;
-    out += text.slice(at, cut.from) + (cut.replacement ?? "");
+    if (cut.to <= at) continue;
+    out += text.slice(at, Math.max(at, cut.from)) + (cut.replacement ?? "");
     at = cut.to;
   }
   return out + text.slice(at);

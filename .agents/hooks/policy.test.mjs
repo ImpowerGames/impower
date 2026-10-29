@@ -292,6 +292,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     };
     assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
     assert.equal(strip("a();\r\n// note\r\nb();\r\n", "src/a.ts"), "a();\r\nb();\r\n");
+    assert.equal(strip("describe(\"x\", () => {\n  // note\n\n  test();\n});\n", "src/a.ts"), "describe(\"x\", () => {\n  test();\n});\n", "a removed run directly after an opening bracket takes the blank line below it");
+    assert.equal(strip("if (a) {\n  b();\n\n  // note\n}\n", "src/a.ts"), "if (a) {\n  b();\n}\n", "a removed run directly before a closing bracket takes the blank line above it");
+    assert.equal(strip("f({\n  // one\n\n  // two\n});\n", "src/a.ts"), "f({\n});\n", "removals that meet across a blank line keep neither the blank nor any code between them");
     const asi = "function f() { return /* why\n*/ 1; }";
     const asiStripped = strip(asi, "src/a.ts");
     assert.equal(asiStripped, "function f() { return\n1; }", "a removed block comment holding a line break leaves one, so automatic semicolon insertion is unchanged");
