@@ -47,10 +47,6 @@
 //                       and write <file>.parsed.json and a heap snapshot at
 //                       <file>.heapsnapshot, for heap-retained.mjs (#1712);
 //                       not with --cpu-prof
-//   --starting-values <json>
-//                       every start's values, as a host keeps them
-//                       ({"MAIN":{"store:mood":"1"}}), which the worker's game
-//                       starts its routes with
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json

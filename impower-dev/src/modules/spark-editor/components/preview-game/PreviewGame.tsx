@@ -190,9 +190,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           const message = e.data;
           preferences.received(message);
           if (ChangeStartingValuesMessage.type.isRequest(message)) {
-            // The author changed starting values in the player's tab: the
-            // project keeps them, and the player hears every start's values
-            // back.
             const { start, changes } = message.params;
             Workspace.window.changeStartingValues(start, changes);
             iframeChannelRef.current?.sendResponse(message, {});

@@ -6,14 +6,11 @@ import type { StartingValueListing } from "@impower/sparkdown/src/program/starti
 export type GetGameStartingValueListingMethod =
   typeof GetGameStartingValueListingMessage.method;
 
-/** What the start `start` can take in the program the preview's game holds,
- *  which the Starting values tab lists. */
 export interface GetGameStartingValueListingParams {
   start: string;
 }
 
 export interface GetGameStartingValueListingResult {
-  /** Nothing while the worker holds no game. */
   listing?: StartingValueListing;
 }
 

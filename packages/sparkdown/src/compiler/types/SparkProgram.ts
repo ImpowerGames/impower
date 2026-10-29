@@ -117,9 +117,6 @@ export interface SparkProgram {
   labelLocations?: {
     [name: string]: ScriptLocation;
   };
-  /** Each top-level store's type annotation, whole, as written after its
-   *  name (`store hp: number` gives `hp` the annotation `number`), which
-   *  the Game Preview's starting values are checked against. */
   storeTypes?: {
     [name: string]: string;
   };

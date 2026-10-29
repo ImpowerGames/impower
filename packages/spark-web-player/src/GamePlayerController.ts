@@ -323,8 +323,6 @@ export class GamePlayerController {
   protected _valuesShownStart?: string;
 
   protected _valuesSearch = "";
-  /** What the route's start can take, and the program and start it was
-   *  listed for. */
   protected _listing?: { key: string; listing?: StartingValueListing };
   /** Counts the preview updates, so one that another overtakes while it
    *  waits can tell (`updatePreview`). */
@@ -467,8 +465,6 @@ export class GamePlayerController {
     /** What the editor last asked of the preview's debug toggle, which the
      *  game built next enters as the breakpoints above are applied to it. */
     debugging?: boolean;
-    /** Every start's values, which a game built next starts its routes
-     *  with, as the breakpoints above are applied to it. */
     startingValues?: StartingValues;
   };
 
@@ -929,8 +925,6 @@ export class GamePlayerController {
     });
   }
 
-  /** The start whose starting values the route panel lists: the scene the
-   *  previewed line is in, or the top-level content. */
   protected valuesStart(): string | undefined {
     const { route, failure } = this._routeState;
     if (route) {
@@ -942,8 +936,6 @@ export class GamePlayerController {
     return undefined;
   }
 
-  /** Ask the worker what `start` can take in the program it holds, once for
-   *  each program and start. */
   protected async fetchListing(start: string) {
     const key = `${programIdentity(this._program) ?? ""}:${start}`;
     if (this._listing?.key === key) {
@@ -966,7 +958,6 @@ export class GamePlayerController {
     }
   }
 
-  /** What the author does in the Starting values tab. */
   protected valuesEvents: StartingValuesEvents = {
     onSet: (key, value) => void this.changeValues({ [key]: value }),
     onClear: (key) => void this.changeValues({ [key]: null }),
@@ -995,13 +986,6 @@ export class GamePlayerController {
     },
   };
 
-  /**
-   * Ask the host to keep a change to the starting values of the start the
-   * panel lists. The tab shows the change at once; the host sends every
-   * start's values back once it has kept it, which the preview then takes.
-   * A change it does not keep puts each field back, with an error badge
-   * that says so.
-   */
   protected async changeValues(changes: Record<string, string | null>) {
     const start = this.valuesStart();
     if (start === undefined || !this._valueFields.kept) {
@@ -1033,8 +1017,6 @@ export class GamePlayerController {
   protected handleRouteTab = (tab: RouteTab) => {
     this._routeState = { ...this._routeState, tab };
     this.renderRoute();
-    // The host keeps the tab the author used last, and the panel opens on
-    // it.
     sendProtocolMessage(
       DidChangeRouteTogglesMessage.type.notification({
         toggles: this._routeState.toggles,
@@ -1059,8 +1041,6 @@ export class GamePlayerController {
 
   protected handleRouteKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this._routeState.open) {
-      // Escape in a starting value's field that holds text not kept puts
-      // back what the field held; the next Escape closes the panel.
       const field = (e.target as Element | null)?.closest?.(".sv-row");
       const key = field?.getAttribute("data-key");
       const start = this.valuesStart();
@@ -2081,9 +2061,6 @@ export class GamePlayerController {
     return SetRouteTogglesMessage.type.response(message.id, {});
   };
 
-  /** Every start's values, as the host keeps them: the tab shows them, and
-   *  the worker's games start their routes with them, so the preview shows
-   *  the line again when they changed. */
   protected handleSetStartingValues = async (
     message: SetStartingValuesMessage.Request,
   ) => {

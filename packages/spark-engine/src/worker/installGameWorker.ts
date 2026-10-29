@@ -164,8 +164,6 @@ export function installGameWorker(connection: MessageConnection) {
     return game;
   };
 
-  /** Gives every game the worker holds, and every one it builds, the values
-   *  each start of a route takes. */
   const setStartingValues = (values: StartingValues) => {
     pending.startingValues = values;
     for (const game of games()) {
@@ -173,7 +171,6 @@ export function installGameWorker(connection: MessageConnection) {
     }
   };
 
-  /** Whether the starting values were set since the worker started. */
   const hasStartingValues = () => pending.startingValues !== undefined;
 
   const state: {
@@ -186,8 +183,6 @@ export function installGameWorker(connection: MessageConnection) {
     createGame: typeof createGame;
     setStartingValues: typeof setStartingValues;
     hasStartingValues: typeof hasStartingValues;
-    /** A script's line's text, which a game's starting values' listing
-     *  names an option or an alternator by. */
     scriptLineText?: (uri: string, line: number) => string | undefined;
   } = {
     systemConfiguration,

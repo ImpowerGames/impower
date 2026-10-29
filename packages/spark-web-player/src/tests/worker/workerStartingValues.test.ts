@@ -1,8 +1,3 @@
-// #1666 — the Game Preview's routes start with the starting values the host
-// keeps for the author, which reach the player with its configuration and
-// whenever they change. A change shows the line again with the new values:
-// the route searched again from the top of its scene, not one a search
-// established before the change.
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import { describe, expect, it } from "vitest";
@@ -28,7 +23,6 @@ scene interrogation(hour)
 end
 `;
 
-/** The route the last `game/executed` report the page heard names. */
 const lastRoute = (toEditor: any[]) =>
   toEditor.filter((m) => m.method === "game/executed").at(-1)?.params?.route;
 
@@ -94,8 +88,6 @@ describe("starting values the host sends", () => {
 });
 
 describe("a line no route reaches", () => {
-  /** What the preview of `line` (zero-based) of `source` writes, with the
-   *  host's `values`. */
   const previewWith = async (
     source: string,
     line: number,

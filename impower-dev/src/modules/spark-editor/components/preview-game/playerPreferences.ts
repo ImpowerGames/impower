@@ -28,23 +28,11 @@ const storedRouteToggles = (): RouteTogglesParams => {
   }
 };
 
-/** The route panel's tab the author used last, in every project. */
 const storedRouteTab = (): "route" | "values" | undefined => {
   const tab = localStorage.getItem(WorkspaceConstants.ROUTE_TAB_STORAGE_KEY);
   return tab === "route" || tab === "values" ? tab : undefined;
 };
 
-/**
- * Keeps a game player in step with the editor's player preferences: whether
- * portraits animate, which kinds the route list shows and the route panel's
- * tab, which the player reports when the author changes them; and with the
- * project's pins (`routePins`) and starting values, which the workspace
- * sends again whenever they change. A new player starts with portraits
- * animating, every kind shown, no pins and no starting values, and its
- * controller handles nothing until it announces itself with
- * `preview/connected`, which can come before or after Initialize completes;
- * it hears the preferences, the pins and the starting values at both.
- */
 export const createPlayerPreferenceSync = (
   post: (message: unknown) => void,
   routePins: () => RoutePin[] = () => [],

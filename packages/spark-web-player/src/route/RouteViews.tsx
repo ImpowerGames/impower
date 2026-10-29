@@ -34,15 +34,6 @@ import {
   type StartingValuesEvents,
 } from "./StartingValuesViews";
 
-/*
- * The route button and the route panel render from a state object
- * (`RouteViewState`) and say what the author did through their events. They
- * know nothing of the host: the player's toolbar is one place to put them,
- * and any host that hears the route over the bridge can put them elsewhere.
- * Their colours come from the `--swp-route-*` variables, whose defaults are
- * the player's own.
- */
-
 export interface RouteButtonProps {
   state: RouteViewState;
   nameOf: ScriptName;
@@ -52,10 +43,6 @@ export interface RouteButtonProps {
   onClose: () => void;
 }
 
-/** The route the preview took, `interrogation (4 → 21)`, with the status
- *  icon that says how it differs from play, in a slot the name keeps its
- *  place after when there is no icon. A press opens the route panel, and a
- *  second press closes it. */
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
@@ -96,9 +83,7 @@ export interface RouteListProps {
   onToggle: (kind: RouteKind, shown: boolean) => void;
   /** The author asked to see a line. */
   onShowLine: (location: DocumentLocation) => void;
-  /** The author chose a tab. */
   onTab?: (tab: RouteTab) => void;
-  /** What the author did in the Starting values tab. */
   values?: StartingValuesEvents;
   /** The author pinned, unpinned or removed pins. */
   onChangePins: (change: RoutePinChange) => void;
@@ -165,11 +150,6 @@ function PinControl({
   );
 }
 
-/** The route panel: the route tab, with the route's decisions in route
- *  order up to the line it ends at, filtered by the toggles, or why there
- *  is no route, a choice entry expanding to its pin control and one whose
- *  pin was not followed starting expanded; and the Starting values tab,
- *  when the host keeps starting values. */
 export function RouteList({
   state,
   nameOf,

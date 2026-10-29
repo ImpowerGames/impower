@@ -1,10 +1,3 @@
-/**
- * Starting values: what the author tells the Game Preview a scene's start
- * holds, as the hosts keep them and the player edits them. This module is
- * the part with no engine in it, which the player's page reads as well as
- * the engine: the keys, the literal a value is written as, and the checks a
- * value is given against what the program declares.
- */
 import { RESERVED } from "../compiler/utils/luauReservedWords";
 import { numberLiteralValue } from "../compiler/utils/numberLiteralValue";
 import {
@@ -12,36 +5,20 @@ import {
   stringLiteralValue,
 } from "../compiler/utils/stringLiteralValue";
 
-/** The values one start takes: each value's key and the literal it is
- *  written as. */
 export type StartingValueSet = Record<string, string>;
 
-/** Every start's values, by the start: a scene's qualified name, or `"0"`
- *  for the top-level content. */
 export type StartingValues = Record<string, StartingValueSet>;
 
-/** The top-level content's start, as a route names it. */
 export const TOP_LEVEL_FLOW = "0";
 
-/** The key of the seed. */
 export const SEED_KEY = "seed";
 
 export const paramKey = (name: string) => `param:${name}`;
 
-/** A store's key, by its path: `trust`, a define's field `guide.mood`, or a
- *  table store's field `player.hp`. */
 export const storeKey = (path: string) => `store:${path}`;
 
-/** A scene's, a branch's or a label's visits, by its qualified name. */
 export const visitsKey = (name: string) => `visits:${name}`;
 
-/**
- * The visits of a counted place with no name, a once-only option or an
- * alternator, by where it is written: its script, its line counting from 0,
- * and which of the line's counted places it is, counting from 0. A place's
- * key follows its line through edits; one whose line was deleted is
- * detached (`detachPlaceKey`) and never resolves.
- */
 export const placeKey = (uri: string, line: number, index = 0) =>
   `place:${index}:${line}:${uri}`;
 
@@ -49,7 +26,6 @@ export interface PlaceKey {
   uri: string;
   line: number;
   index: number;
-  /** The line it was on was deleted. */
   detached: boolean;
 }
 
@@ -66,8 +42,6 @@ export const readPlaceKey = (key: string): PlaceKey | undefined => {
   };
 };
 
-/** The key a place's value moves to when its line moves to `line`, or is
- *  detached when its line was deleted (`line` null). */
 export const movePlaceKey = (key: string, line: number | null): string => {
   const place = readPlaceKey(key);
   if (!place) {
@@ -78,8 +52,6 @@ export const movePlaceKey = (key: string, line: number | null): string => {
     : placeKey(place.uri, line, place.index);
 };
 
-/** The lines of `uri` that the values of its places are kept on, counting
- *  from 0, in every start. */
 export const placeLinesOf = (values: StartingValues, uri: string): number[] => {
   const lines = new Set<number>();
   for (const set of Object.values(values)) {
@@ -93,11 +65,6 @@ export const placeLinesOf = (values: StartingValues, uri: string): number[] => {
   return [...lines].sort((a, b) => a - b);
 };
 
-/**
- * Every start's values with the places of `uri` moved: `moves` maps a line a
- * value was kept on to the line it is on now, or to null for a line that was
- * deleted. Answers the same object when nothing moved.
- */
 export const movePlaceLines = (
   values: StartingValues,
   uri: string,
@@ -125,16 +92,12 @@ export const movePlaceLines = (
   return changed ? out : values;
 };
 
-/** `record`'s own entry for `key`, never one it inherits: a scene can be
- *  named `toString` or `__proto__`. */
 export const ownEntry = <T>(
   record: Readonly<Record<string, T>> | undefined,
   key: string,
 ): T | undefined =>
   record && Object.hasOwn(record, key) ? record[key] : undefined;
 
-/** Sets `record`'s own entry for `key`, which assigning `__proto__` would
- *  not. */
 const setOwnEntry = <T>(record: Record<string, T>, key: string, value: T) => {
   Object.defineProperty(record, key, {
     value,
@@ -144,9 +107,6 @@ const setOwnEntry = <T>(record: Record<string, T>, key: string, value: T) => {
   });
 };
 
-/** Every start's values with one start's changes applied: a key given a
- *  literal is set to it, and a key given null is cleared. A start left with
- *  no values is dropped. */
 export const changeStartingValues = (
   values: StartingValues,
   start: string,
@@ -169,8 +129,6 @@ export const changeStartingValues = (
   return out;
 };
 
-/** Every start's values read from what a host stored: each start's values
- *  that are strings, and nothing else. */
 export const startingValuesFrom = (stored: unknown): StartingValues => {
   const out: StartingValues = {};
   if (!stored || typeof stored !== "object") {
@@ -193,26 +151,15 @@ export const startingValuesFrom = (stored: unknown): StartingValues => {
   return out;
 };
 
-/* ----- Literals ----- */
-
-/** One entry of a table written as a literal: a value the next list
- *  position takes, or a value under a key. */
 export type LiteralEntry =
   | { value: Literal }
   | { key: Exclude<Literal, null>; value: Literal };
 
-/** A table written as a literal: its entries in the order they were
- *  written, which is the order a table constructor assigns them in, so a
- *  later entry for the same key wins. */
 export interface LiteralTable {
   entries: LiteralEntry[];
-  /** Read from a table that also held entries no literal writes (a
-   *  function), which `entries` leaves out. */
   partial?: boolean;
 }
 
-/** A value written as a literal: nil, a boolean, a number, a string or a
- *  table of literals. */
 export type Literal = null | boolean | number | string | LiteralTable;
 
 export type LiteralType = "nil" | "boolean" | "number" | "string" | "table";
@@ -231,10 +178,6 @@ export const literalTypeOf = (value: Literal): LiteralType =>
           ? "string"
           : "table";
 
-/** A table's entries by key, as its constructor leaves them: a list entry
- *  under the next position, a later entry replacing an earlier one of the
- *  same key, and a nil value no entry. A table key is a table of its own,
- *  equal to no other key. */
 export const literalTableFields = (
   table: LiteralTable,
 ): Map<string, { key: Exclude<Literal, null>; value: Exclude<Literal, null> }> => {
@@ -269,12 +212,8 @@ const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
 const UNWRITTEN_NUMBER = /-?math\.huge(?![\w.])|0\/0(?![\w.])/y;
 const LONG_OPEN = /^\[(=*)\[/;
-/** How deep a literal's tables may nest, which keeps the reader, the writer
- *  and the runtime's copy of a value within the call stack. */
 const MAX_TABLE_DEPTH = 64;
 
-/** A number's token as its value, as the compiler reads the literal after
- *  its sign (`numberLiteralValue`). */
 const numberOf = (token: string): number => {
   const negative = token.startsWith("-");
   const magnitude = numberLiteralValue(
@@ -285,7 +224,6 @@ const numberOf = (token: string): number => {
 
 class LiteralReader {
   at = 0;
-  /** How many tables the reader is inside. */
   depth = 0;
   constructor(readonly text: string) {}
 
@@ -293,7 +231,6 @@ class LiteralReader {
     throw new LiteralError(message);
   }
 
-  /** Passes whitespace. A comment is no part of a literal. */
   skip() {
     while (this.at < this.text.length && /\s/.test(this.text[this.at]!)) {
       this.at += 1;
@@ -327,7 +264,6 @@ class LiteralReader {
     return match[0];
   }
 
-  /** Whether a long string (`[[`, `[==[`) opens here. */
   longOpens() {
     this.skip();
     return LONG_OPEN.test(this.text.slice(this.at));
@@ -336,7 +272,6 @@ class LiteralReader {
   value(): Literal {
     const char = this.peek();
     if (char === undefined) {
-      // Text that ends inside a table ends before the table does.
       this.fail(
         this.depth > 0 ? "expected } to close the table" : "expected a value",
       );
@@ -353,7 +288,6 @@ class LiteralReader {
     if (char === "`") {
       this.fail("expected a string in quotes; a backtick string is an expression");
     }
-    // The numbers no digits write, as the writer writes them.
     const unwritten = this.match(UNWRITTEN_NUMBER);
     if (unwritten !== undefined) {
       return unwritten === "0/0"
@@ -383,8 +317,6 @@ class LiteralReader {
     this.fail(`expected a value, not ${char}`);
   }
 
-  /** A quoted string, its escapes checked as the language's lexer checks
-   *  them and read as the compiler reads them (`processLuauEscapes`). */
   quoted(quote: string): string {
     const start = this.at + 1;
     let at = start;
@@ -406,8 +338,6 @@ class LiteralReader {
     return processLuauEscapes(this.text.slice(start, at));
   }
 
-  /** Checks the escape after the backslash at `at - 1`, and answers where
-   *  the text after it starts. */
   escape(at: number): number {
     const escape = this.text[at];
     if (escape === undefined) {
@@ -420,7 +350,6 @@ class LiteralReader {
       return this.text[at + 1] === "\n" ? at + 2 : at + 1;
     }
     if (escape === "z") {
-      // It skips the whitespace after it, line breaks included.
       let next = at + 1;
       while (next < this.text.length && /[ \t-\r]/.test(this.text[next]!)) {
         next += 1;
@@ -453,7 +382,6 @@ class LiteralReader {
     return at + digits[0].length;
   }
 
-  /** A long string, read as the compiler reads one (`stringLiteralValue`). */
   long(): string {
     const open = LONG_OPEN.exec(this.text.slice(this.at))!;
     const close = `]${open[1]}]`;
@@ -524,7 +452,6 @@ class LiteralReader {
 
 class LiteralError extends Error {}
 
-/** A value's literal read: the value, or why it is not one. */
 export const parseLiteral = (text: string): ParsedLiteral => {
   const reader = new LiteralReader(text);
   try {
@@ -559,8 +486,7 @@ const quote = (s: string) =>
             ? "\\r"
             : c === "\t"
               ? "\\t"
-              : // Three digits, so a digit after it is not read into it.
-                `\\${String(c.charCodeAt(0)).padStart(3, "0")}`,
+              : `\\${String(c.charCodeAt(0)).padStart(3, "0")}`,
   )}"`;
 
 const formatNumber = (n: number) =>
@@ -574,9 +500,6 @@ const formatNumber = (n: number) =>
           ? "-0"
           : String(n);
 
-/** A literal written as an author writes it: `nil`, `true`, `3`, `"Ana"`,
- *  `{ name = "Ana", hp = 10 }`. A table read from a value that held more
- *  than a literal writes (`partial`) ends with `…`. */
 export const formatLiteral = (value: Literal): string => {
   if (value === null) {
     return "nil";
@@ -607,48 +530,30 @@ export const formatLiteral = (value: Literal): string => {
   return entries.length === 0 ? "{ }" : `{ ${entries.join(", ")} }`;
 };
 
-/* ----- What a start can take ----- */
-
 export type StartingValueGroup =
   | "parameters"
   | "stores"
   | "visits"
   | "randomization";
 
-/** One thing a start can take, as the Starting values tab lists it. */
 export interface StartingValueItem {
   key: string;
   group: StartingValueGroup;
-  /** What the row names it by: a parameter's or a store's name, a field's
-   *  `.name`, a flow's or a label's qualified name, an option's text or an
-   *  alternator's first alternative, or `seed`. */
   name: string;
-  /** The line a place is written on, counting from 0, and its script. */
   uri?: string;
   line?: number;
-  /** The value it starts with when nothing is set, as a literal. */
   first: string;
-  /** The type a value given it is checked against: the store's annotation
-   *  (`declared`) or, without one, its first value's; none for a
-   *  parameter, which takes any value, or for an annotation that is not one
-   *  literal type (a union, a named type), which takes any value too. */
   type?: LiteralType;
-  /** The type is the store's annotation. */
   declared?: boolean;
-  /** The annotation is optional (`number?`), so nil is of its type. */
   nullable?: boolean;
-  /** A table store's fields, each of which can be set on its own. */
   fields?: StartingValueItem[];
 }
 
-/** What a start can take: its parameters, the program's stores, its counted
- *  places and the seed, each with its first value. */
 export interface StartingValueListing {
   start: string;
   items: StartingValueItem[];
 }
 
-/** Every item of a listing, a table store's fields after it. */
 export const listingItems = (
   listing: StartingValueListing | undefined,
 ): StartingValueItem[] =>
@@ -660,9 +565,6 @@ export type StartingValueCheck =
 
 const article = (type: LiteralType) => (type === "nil" ? "nil" : `a ${type}`);
 
-/** A value given an item, checked: one that does not parse is an error and
- *  is not kept; one of another type than the item's warns and still
- *  applies; a visit count or a seed must be a whole number. */
 export const checkStartingValue = (
   item: StartingValueItem,
   text: string,
@@ -690,7 +592,6 @@ export const checkStartingValue = (
   const type = literalTypeOf(parsed.value);
   if (
     item.type &&
-    // A store that starts as nil, with no annotation, takes any value.
     !(item.type === "nil" && !item.declared) &&
     type !== item.type &&
     !(type === "nil" && item.nullable)
@@ -705,7 +606,6 @@ export const checkStartingValue = (
   return { status: "ok" };
 };
 
-/** Why a value whose key no longer resolves is not used. */
 export const unresolvedMessage = (key: string): string => {
   const place = readPlaceKey(key);
   if (place) {
@@ -725,7 +625,6 @@ export const unresolvedMessage = (key: string): string => {
   }
 };
 
-/** What a row whose value no longer resolves is named by. */
 export const unresolvedName = (key: string): string => {
   const place = readPlaceKey(key);
   if (place) {

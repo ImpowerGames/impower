@@ -1,8 +1,3 @@
-// #1666 — starting values applied by a store's path, a define's fields, a
-// line no route reaches, a store's annotation, and a change of values before
-// the route's first step. Kept apart from startingValues.test.ts so each
-// file's compiles run in a worker heap of their own.
-
 import { describe, expect, test } from "vitest";
 import {
   checkStartingValue,
@@ -36,8 +31,6 @@ describe("a change of starting values", () => {
     });
     const { game, compiler } = routeTo(example, 20, values(from));
     expect(game.simulation).toBe("success");
-    // A compile that changes nothing leaves a route that resumes, so the
-    // change of values below is what stops it.
     const doc = compiler.documents.get(URI)!;
     compiler.configure({
       files: [
@@ -197,8 +190,6 @@ describe("a first value", () => {
 });
 
 describe("a line no route reaches, jumped to with the start's values", () => {
-  /** What the story writes from the 1-based `line` of `lines` on, jumped
-   *  to with `values`. */
   const runFrom = (lines: string[], line: number, values: StartingValues) => {
     const { program } = compileSrc(lines.join("\n"));
     const game: any = newGame(program);

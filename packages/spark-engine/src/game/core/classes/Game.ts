@@ -150,8 +150,6 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
-/** How a route search starts each flow it starts at the top of: the values
- *  the author set for it (`Game.startPlans`). */
 export interface RouteStarts {
   startPlans?: (from: string) => StartPlan | undefined;
 }
@@ -757,22 +755,14 @@ export class Game<T extends M = {}> {
 
   protected _levelZeroChangeId?: number;
 
-  /** The values each start takes, as the host keeps them for the author
-   *  (`setStartingValues`). */
   protected _startingValues: StartingValues = {};
 
-  /** A script's line's text, which the starting values' listing names an
-   *  option or an alternator by. */
   protected _scriptLineText?: (uri: string, line: number) => string | undefined;
 
-  /** The plan the planned route started with (`startPlan`), as JSON: a
-   *  route resumes only while its start takes the same values. */
   protected _plannedRouteStart?: string;
 
-  /** Whether this is PLAY's game (`GameConfiguration.play`). */
   protected _play = false;
 
-  /** Each start's plan, for the root named below (`keptStartPlan`). */
   protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
 
   protected _startPlansRoot?: ProgramRoot | null;
@@ -1569,8 +1559,6 @@ export class Game<T extends M = {}> {
    *  address (#1608). */
   routesFromStartFirst(address: ProgramAddress): boolean {
     const scene = this.sceneOf(address);
-    // A scene with any parameter given a starting value starts at its top,
-    // with the values.
     return (
       scene !== null &&
       this._story.takesParameters(scene) &&
@@ -1578,14 +1566,10 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The values each start takes. */
   get startingValues(): StartingValues {
     return this._startingValues;
   }
 
-  /** Takes the values each start takes, as the host sends them. Answers
-   *  whether any changed: a route whose start's values changed no longer
-   *  resumes (`routeResumption`). */
   setStartingValues(values: StartingValues): boolean {
     if (JSON.stringify(values) === JSON.stringify(this._startingValues)) {
       return false;
@@ -1595,7 +1579,6 @@ export class Game<T extends M = {}> {
     return true;
   }
 
-  /** Where the starting values' listing reads a line's text. */
   set scriptLineText(lineText: (uri: string, line: number) => string | undefined) {
     this._scriptLineText = lineText;
   }
@@ -1623,26 +1606,16 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** How a route starts at the top of `from` (a scene's qualified name, or
-   *  `"0"` for the top-level content): with the values the author set for
-   *  it, and a seed of 0 where none is set, so that a line shows the same
-   *  random results every time. */
   startPlan(from: string): StartPlan {
     return this.keptStartPlan(from).plan;
   }
 
-  /** A start's plan and its JSON, kept for the program the story runs and
-   *  the values set, which a resumption compares with the planned route's
-   *  (`plannedRouteStartsAs`) on every search. */
   protected keptStartPlan(from: string): { plan: StartPlan; json: string } {
     const root = this._story.root;
     if (this._startPlansRoot !== root) {
       this._startPlans.clear();
       this._startPlansRoot = root;
     }
-    // A Play from the top-level content starts the story itself, so it
-    // draws its seed from the clock, as the game does, unless that content's
-    // own seed is set; every other route starts with 0 where none is set.
     const unsetSeed =
       from === TOP_LEVEL_FLOW && this.playsFromTopLevel() ? null : 0;
     const key = `${unsetSeed}:${from}`;
@@ -1661,7 +1634,6 @@ export class Game<T extends M = {}> {
     return kept;
   }
 
-  /** Whether this is PLAY's game starting from the top-level content. */
   protected playsFromTopLevel(): boolean {
     return (
       this._play &&
@@ -1670,9 +1642,6 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** Whether this game's route draws a seed of its own, which a route the
-   *  preview searched with its fixed seed cannot stand for: PLAY from the
-   *  top-level content with no seed set there. */
   get drawsOwnSeed(): boolean {
     return (
       this.playsFromTopLevel() &&
@@ -1680,10 +1649,8 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The plans a route search starts its flows with. */
   readonly startPlans = (from: string): StartPlan => this.startPlan(from);
 
-  /** What the start `from` can take, with each item's first value. */
   startingValueListing(from: string): StartingValueListing {
     return startingValueListing(this._story, from, this.startingValueSource());
   }
@@ -2677,10 +2644,6 @@ export class Game<T extends M = {}> {
    * Everything here is a question about the PREVIOUS route, so it must be asked
    * before anything replaces it.
    */
-  /** Whether the planned route starts at the top of `from` with the values
-   *  `from` takes now. A route from another start, or from this one with
-   *  other starting values, differs from its first step on, so none of its
-   *  steps or checkpoints is one a route from `from` can resume from. */
   protected plannedRouteStartsAs(from: string): boolean {
     return (
       this._plannedRoute?.from === from &&
@@ -4265,9 +4228,6 @@ export class Game<T extends M = {}> {
   jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
     if (withStartingValues) {
-      // A preview or a Play from a line no route reaches: the stores, the
-      // visit counts, the seed and the parameters its start takes still
-      // apply.
       const plan = this.startPlan(this.routeStartOf(address));
       this._story.resetSeed = plan.seed;
       this._story.ResetState();
@@ -4280,9 +4240,6 @@ export class Game<T extends M = {}> {
     this._positions.jumpTo(address);
   }
 
-  /** Resets the story and moves it to the top of a flow named by its
-   *  qualified name (a route's start), with the values it takes
-   *  (`startPlan`), as the route search starts it. */
   jumpToFlow(flow: string) {
     this.discardOpenStoryLine();
     const plan = this.startPlan(flow);

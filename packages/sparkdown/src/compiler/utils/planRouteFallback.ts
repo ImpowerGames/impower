@@ -194,7 +194,6 @@ interface FallbackRunResult {
   terminal: boolean; //  true if branch ended this run
 }
 
-
 interface SearchBudget {
   /** Story advances left before the search gives up */
   stepsRemaining: number;
@@ -330,7 +329,6 @@ const claimForkSite = (
   budget.visited.add(key);
   return true;
 };
-
 
 /**
  * Search for a way from the top of the flow `from` to the address `to`, by
@@ -848,20 +846,8 @@ const makeStartNode = (
   start?: StartPlan,
 ): FallbackNode => {
   if (start) {
-    // The values the start takes, as the faithful search's start applies
-    // them (`enterStart`).
     startStoryAt(story, { ...start, from });
   } else {
-    // Start from fresh state, and jump to the knot start.
-    //
-    // A story that was reset and has not run since is already in that fresh
-    // state, and resetting it again would re-evaluate every global definition
-    // in the program — the seeded builtins included — to arrive back where it
-    // already is. That is the ordinary case here: the search runs on a story
-    // the compile constructed and reset moments earlier. Any story that has
-    // been advanced, diverted, loaded into or written over reports itself as
-    // no longer pristine, so the reset still happens wherever it means
-    // something.
     if (!story.stateIsPristine) {
       resetStory(story);
     }
@@ -972,7 +958,6 @@ const forkChoice = (
     overrides: [...parent.overrides, ov],
   };
 };
-
 
 const now = () =>
   typeof performance !== "undefined" && performance.now

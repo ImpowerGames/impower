@@ -54,15 +54,6 @@ export interface RouteFailure {
   target?: DocumentLocation;
 }
 
-/**
- * Everything the route button and the route panel show, which they render
- * from and nothing else: the route the preview took, or why it found none,
- * whether the panel is open and on which tab, which kinds the route list
- * shows, every pin in the project as the host keeps it, a note when the host
- * did not save a change to them, and the Starting values tab's state, which
- * a host that keeps no starting values leaves out, and the panel offers no
- * such tab.
- */
 export interface RouteViewState {
   route?: PreviewRoute;
   failure?: RouteFailure;

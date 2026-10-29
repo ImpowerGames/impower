@@ -9,21 +9,9 @@ import {
   type ValueRow,
 } from "./startingValuesView";
 
-/*
- * The Starting values tab renders from a state object
- * (`StartingValuesViewState`) and says what the author did through its
- * events, knowing nothing of the host, as the route button and list do. Its
- * colours come from the `--swp-route-*` variables. Every row is one line
- * high in every state, every field keeps its icon slot and × keeps its
- * column, so nothing appears, disappears or moves as values change.
- */
-
 export interface StartingValuesEvents {
-  /** The author set a value. */
   onSet: (key: string, value: string) => void;
-  /** The author cleared a value. */
   onClear: (key: string) => void;
-  /** A field holds text that is not kept (null when it no longer does). */
   onDraft: (key: string, text: string | null) => void;
   onResetAll: () => void;
   onSearch: (search: string) => void;
@@ -33,8 +21,6 @@ export interface StartingValuesTabLabelProps {
   state: StartingValuesViewState;
 }
 
-/** The tab's label: its icon, "Starting values" and the count of values
- *  set. */
 export function StartingValuesTabLabel({ state }: StartingValuesTabLabelProps) {
   const icon = valuesTabIcon(state);
   return (
@@ -100,8 +86,6 @@ function ValueField({
           if (e.key === "Enter") {
             commit(e.currentTarget);
           } else if (e.key === "Escape" && e.currentTarget.value !== (row.value ?? "")) {
-            // Escape puts back what the field held; a second one closes the
-            // panel.
             e.stopPropagation();
             events.onDraft(row.key, null);
           }
@@ -133,8 +117,6 @@ export interface StartingValuesTabProps {
   events: StartingValuesEvents;
 }
 
-/** The values the start can take, in groups, each row with its first value
- *  in grey, then the status line and Reset all. */
 export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
   const groups = valueGroups(state);
   return (

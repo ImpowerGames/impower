@@ -15,8 +15,6 @@ export interface LoadEditorParams {
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
-  /** The lines a once-only option's or an alternator's starting value is
-   *  kept on (`editor/setStartingValueLines`). */
   startingValueLines?: number[];
   /** The document's pins on the options the Game Preview takes, which the
    *  editor keeps on their lines through edits. */

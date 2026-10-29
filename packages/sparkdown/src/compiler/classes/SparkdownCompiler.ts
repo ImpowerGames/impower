@@ -451,11 +451,6 @@ function indexOfWord(text: string, word: string): number {
   return -1;
 }
 
-/** The type annotation `rest` begins with (`: number | string = 1` gives
- *  `number | string`), up to the `=` or `,` that ends it outside any bracket
- *  or string, or the end of its line. A bracket still open at the end of a
- *  line continues the annotation on the lines after it (`lineAfter`, from
- *  0), and comments are left out of it. None when `rest` holds none. */
 function annotationAt(
   rest: string,
   lineAfter: (index: number) => string | undefined,
@@ -494,7 +489,6 @@ function annotationAt(
       }
       annotation += c;
     }
-    // A string does not go on past its line.
     quote = undefined;
     const line = depth > 0 && next < 200 ? lineAfter(next) : undefined;
     if (line === undefined) {
@@ -4976,8 +4970,6 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "var" && scopePathParts.length === 0) {
-              // A top-level `store`: the annotation written after the name
-              // the parse marks (`store hp: number = 0`), whole.
               const line = doc.getLineText(range.end.line) ?? "";
               const annotation = /^\s*store\b/.test(line)
                 ? annotationAt(line.slice(range.end.character), (index) =>
@@ -4985,7 +4977,6 @@ export class SparkdownCompiler {
                   )
                 : undefined;
               if (annotation) {
-                // No prototype, so a store named `__proto__` is an entry.
                 program.storeTypes ??= Object.create(null) as {};
                 program.storeTypes[name] = annotation;
               }

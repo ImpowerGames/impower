@@ -116,8 +116,6 @@ interface EditorConfig {
   breakpointLineNumbers?: number[];
   pinpointLineNumbers?: number[];
   highlightLineNumbers?: number[];
-  /** The lines, counting from 0, that a starting value of the Game Preview
-   *  is kept on, which follow their text through edits. */
   startingValueLines?: number[];
   /** The document's pins on the options the Game Preview takes. */
   routePins?: DocumentRoutePin[];
@@ -145,9 +143,6 @@ interface EditorConfig {
   ) => void;
   onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
-  /** An edit moved lines a starting value is kept on: each from the line it
-   *  was on to the line it is on now, or to null when its line was
-   *  deleted. */
   onStartingValueLinesChanged?: (
     update: ViewUpdate,
     moves: [from: number, to: number | null][],

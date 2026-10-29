@@ -474,9 +474,6 @@ export class ProgramStory implements StoryEngine {
    *  as it starts (#1686). */
   beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
-  /** The seed each reset gives the story before its declarations run, or
-   *  null for one drawn from the clock. The Game Preview fixes it, so that a
-   *  line shows the same random results every time (`startStoryAt`). */
   resetSeed: number | null = null;
 
   /** Formats the message the `error` builtin raises, as the object engine's
@@ -3482,7 +3479,6 @@ export class ProgramStory implements StoryEngine {
     state.blockStack = [];
     state.didSafeExit = true;
   }
-
 
   /** Moves to `target` in the current frame (docs/engine/binary-program.md,
    *  section 5): the frame's block stack is rebuilt from the root's sequence

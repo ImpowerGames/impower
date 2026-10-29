@@ -984,8 +984,6 @@ spark-web-player .route-pin-note {
   color: var(--swp-route-error-color);
 }
 
-/* ===== The route panel's tabs ===== */
-
 spark-web-player .route-tabs {
   display: flex;
   flex-direction: row;
@@ -1042,16 +1040,9 @@ spark-web-player .sv-tab-icon[data-icon="error"] {
   color: var(--swp-route-error-color);
 }
 
-/* The button keeps its icon's place when it has no icon, so the name does
-   not move as icons come and go. */
 spark-web-player .route-icon-slot {
   display: inline-block;
 }
-
-/* ===== The Starting values tab =====
-   Every row is one line high in every state, every field keeps its icon
-   slot and the clear button keeps its column, so nothing moves as values
-   change. */
 
 spark-web-player .sv-tab {
   display: flex;
@@ -1111,7 +1102,6 @@ spark-web-player .sv-row {
   padding-left: 8px;
 }
 
-/* A set row's accent bar, in the margin. */
 spark-web-player .sv-row[data-set]::before {
   content: "";
   position: absolute;
@@ -1228,8 +1218,6 @@ spark-web-player .sv-badge:focus-visible {
   box-shadow: 0 0 0 1px var(--swp-route-accent-color);
 }
 
-/* A badge's message opens over the rows above it, on hover or keyboard
-   focus, so no row moves to make room. */
 spark-web-player .sv-popup {
   visibility: hidden;
   position: absolute;

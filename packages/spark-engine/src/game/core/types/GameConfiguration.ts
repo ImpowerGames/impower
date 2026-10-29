@@ -25,11 +25,7 @@ export interface GameConfiguration {
   breakpoints?: { file: string; line: number }[];
   functionBreakpoints?: { name: string }[];
   dataBreakpoints?: { dataId: string }[];
-  /** The values each start of a route takes (`Game.setStartingValues`). */
   startingValues?: StartingValues;
-  /** The game is PLAY's, not the preview's: a Play from the top-level
-   *  content draws its seed from the clock unless that content's seed is
-   *  set (`Game.drawsOwnSeed`). */
   play?: boolean;
   /** Beats between the checkpoints' keyframe images. Default 50. */
   checkpointBaseInterval?: number;

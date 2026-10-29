@@ -620,11 +620,6 @@ export interface SearchOptions {
    */
   resumeFrom?: RouteResumePoint;
 
-  /**
-   * The values the start takes (`startPlanOf`): the seed, the stores, the
-   * visit counts and the arguments. Without it the start is entered with
-   * every store at its first value and no arguments.
-   */
   start?: StartPlan;
 
   /**
@@ -2546,22 +2541,11 @@ const makeStartNode = (
   };
 };
 
-/** Puts the story at the top of `from` with the values its plan sets, or
- *  with every store at its first value when there is no plan. */
 export const enterStart = (story: Story, from: string, start?: StartPlan) => {
   if (start) {
     startStoryAt(story, { ...start, from });
     return;
   }
-  // Start from fresh state, and jump to the knot start.
-  //
-  // A story that was reset and has not run since is already in that fresh
-  // state, and resetting it again would re-evaluate every global definition in
-  // the program — the seeded builtins included — to arrive back where it
-  // already is. That is the ordinary case here: the search runs on a story the
-  // compile constructed and reset moments earlier. Any story that has been
-  // advanced, diverted, loaded into or written over reports itself as no longer
-  // pristine, so the reset still happens wherever it means something.
   if (!story.stateIsPristine) {
     resetStory(story);
   }

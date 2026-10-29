@@ -358,8 +358,6 @@ export default class WorkspaceWindow {
     });
   };
 
-  /** An edit moved the lines option and alternator values are kept on:
-   *  the values move with them, and the player hears where they are now. */
   protected handleChangedEditorStartingValueLines = (
     message: ChangedEditorStartingValueLinesMessage.Notification,
   ) => {
@@ -489,14 +487,10 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
-  /** Every start's values the Game Preview's routes start with, as this
-   *  project keeps them for the author. */
   get startingValues(): StartingValues {
     return startingValuesFrom(this.store.debug.startingValues);
   }
 
-  /** Keeps a change the author made to one start's values in the player's
-   *  Starting values tab, and sends every start's values back. */
   changeStartingValues(start: string, changes: Record<string, string | null>) {
     this.setStartingValues(
       changeStartingValues(this.startingValues, start, changes),
@@ -504,9 +498,6 @@ export default class WorkspaceWindow {
     );
   }
 
-  /** Keeps every start's values, and sends them to the player and, when
-   *  `lines`, the lines option and alternator values are kept on to the
-   *  editor, which keeps them on those lines through edits. */
   protected setStartingValues(values: StartingValues, lines: boolean) {
     this.update({
       ...this.store,
@@ -518,8 +509,6 @@ export default class WorkspaceWindow {
     this.publishStartingValues(lines);
   }
 
-  /** Sends every start's values to the player, which the preview relays
-   *  (`preview/`), and the lines they are kept on to the editor. */
   publishStartingValues(lines = true) {
     const values = this.startingValues;
     sendProtocolMessage(SetStartingValuesMessage.type.request({ values }));

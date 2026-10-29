@@ -13,14 +13,6 @@ import {
   setLineAnchors,
 } from "../src/cm-line-anchors/lineAnchors";
 
-// #1666 — a once-only option's or an alternator's starting value has no name
-// and is kept on its line, which the editor keeps on the same text through
-// edits: inserting lines above it moves the value down with its option,
-// Enter at the option's start moves it with the option's text, and deleting
-// the option's line leaves the value on no line, so it no longer resolves.
-// Each edit reports the lines it moved, which the host applies to the values
-// it keeps.
-
 const URI = "file:///proj/main.sd";
 
 const script = [
@@ -43,8 +35,6 @@ afterEach(() => {
   moved = [];
 });
 
-/** An editor of `script` with anchors on the lines `lines`, counting from
- *  0, which records every edit's moves. */
 const editor = (lines: number[]) => {
   view = new EditorView({
     state: EditorState.create({
@@ -78,8 +68,6 @@ describe("a starting value kept on its line", () => {
         [4, 6],
       ],
     ]);
-    // The host moves the values it keeps by the moves, so the option's value
-    // is on the option's new line.
     const values: StartingValues = {
       interrogation: { [placeKey(URI, 4)]: "1", "store:trust": "2" },
     };

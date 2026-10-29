@@ -5,9 +5,6 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type SetEditorStartingValueLinesMethod =
   typeof SetEditorStartingValueLinesMessage.method;
 
-/** The lines, counting from 0, of each script that a once-only option's or
- *  an alternator's starting value is kept on, which the editor keeps on
- *  their lines through edits (`editor/startingValueLinesChanged`). */
 export interface SetEditorStartingValueLinesParams {
   scripts: { uri: string; lines: number[] }[];
 }

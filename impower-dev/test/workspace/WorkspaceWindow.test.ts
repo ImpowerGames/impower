@@ -654,11 +654,6 @@ describe("Route pins", () => {
   });
 });
 
-// #1666 — the project keeps the Game Preview's starting values for the
-// author: a change the player asks for is kept, across reloads and per
-// project, and every start's values go back to the player and the lines the
-// values of options are kept on to the editor. An edit that moves those
-// lines moves the values with them.
 describe("Starting values", () => {
   let windows: WorkspaceWindow[] = [];
   let sent: { method: string; params: any }[] = [];
@@ -673,7 +668,6 @@ describe("Starting values", () => {
     return win;
   };
   const OPTION = "place:0:12:file:///main.sd";
-  /** The store as a page that has loaded no workspace holds it. */
   const freshPage = () => {
     workspace.current = {
       ...workspace.current,
@@ -717,7 +711,6 @@ describe("Starting values", () => {
   it("survives an editor reload, and is kept per project", async () => {
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
     load().changeStartingValues("s", { "store:trust": "2" });
-    // The workspace is written on a short debounce.
     await new Promise((resolve) => setTimeout(resolve, 400));
     freshPage();
     expect(load().startingValues).toEqual({ s: { "store:trust": "2" } });

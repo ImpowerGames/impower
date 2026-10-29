@@ -59,8 +59,5 @@ export interface SparkdownCompilerConfig {
       favoredChoices?: (number | undefined)[];
     }
   >;
-  /** The values each start of the Game Preview's route takes, as the host
-   *  keeps them for the author, which the player's games start with until
-   *  the host sends others (`game/setStartingValues`). */
   startingValues?: StartingValues;
 }

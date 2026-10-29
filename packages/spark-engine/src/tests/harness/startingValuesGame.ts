@@ -36,8 +36,6 @@ export const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** A game of `lines` with the starting values `values`, its route planned
- *  to the 1-based `line` and replayed there. */
 export function routeTo(lines: string[], line: number, values: StartingValues = {}) {
   const { compiler, program } = compileSrc(lines.join("\n"));
   const game: any = newGame(program);
@@ -49,10 +47,8 @@ export function routeTo(lines: string[], line: number, values: StartingValues = 
   return { game, compiler };
 }
 
-/** The text of the beat the replay stopped on, the target line's. */
 export const shown = (game: any): string => game.story.currentText ?? "";
 
-/** The kinds of the decisions the route's report lists. */
 export const decisionsOf = (game: any, compiler: SparkdownCompiler) =>
   game
     .previewRouteOf(game.plannedRoute, {
@@ -87,7 +83,6 @@ export const example = [
   "end",
 ];
 
-/** Gives `game` the program `compiler` makes of `text`, as an edit does. */
 export const recompile = (compiler: SparkdownCompiler, game: any, text: string) => {
   const doc = compiler.documents.get(URI)!;
   compiler.configure({

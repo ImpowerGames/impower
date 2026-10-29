@@ -1,9 +1,4 @@
 // #1656 — the toolbar shows the route the preview took: a route button,
-// `interrogation (4 → 21)`, with one status icon in a slot the name keeps its
-// place after when there is none (#1666), which opens the route list below
-// the toolbar: toggles for each kind with their counts, an entry for each
-// decision, Target line, line links sent to the host as
-// `window/showDocument`, and "N hidden by the toggles".
 // A route that failed shows the label in the error colour and the reason in
 // the list. The toggles go to the host to keep, and come back from it.
 //
@@ -151,7 +146,6 @@ describe("the route button", () => {
       route: { ...exampleRoute(), decisions: [exampleRoute().decisions[0]!] },
     });
     expect(p.button()!.querySelectorAll("svg.route-icon")).toHaveLength(0);
-    // The slot stays, so the name does not move as icons come and go.
     expect(p.button()!.firstElementChild!.classList).toContain(
       "route-icon-slot",
     );

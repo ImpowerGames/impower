@@ -6,9 +6,6 @@ import type { StartingValues } from "@impower/sparkdown/src/program/startingValu
 export type SetGameStartingValuesMethod =
   typeof SetGameStartingValuesMessage.method;
 
-/** The values each start takes, by the start (a scene's qualified name, or
- *  `"0"` for the top-level content), every game the worker holds and builds
- *  starts its routes with. */
 export interface SetGameStartingValuesParams {
   values: StartingValues;
 }

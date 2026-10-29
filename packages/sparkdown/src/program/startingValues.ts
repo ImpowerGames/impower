@@ -1,10 +1,3 @@
-/**
- * Starting values in the engine: what a start can take, read from the
- * program and the state its declarations build, and the start of a route
- * with the values the author set for it. The route search, the game's replay
- * of a route and its other starts all start a story through `startStoryAt`,
- * so that each arrives at the same state.
- */
 import { tableFromPairs } from "../runtime/evaluation";
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import { VariableAssignment } from "../runtime/VariableAssignment";
@@ -59,21 +52,13 @@ import {
   type StartingValueSet,
 } from "./startingValueLiterals";
 
-/** What a listing reads of the scripts besides the program: their order,
- *  each line's text, and the scenes, branches and labels they declare, each
- *  with its line. */
 export interface StartingValueSource {
   uris: readonly string[];
   lineText(uri: string, line: number): string | undefined;
   flows: readonly { name: string; uri: string; line: number }[];
-  /** Each store's type annotation as written (`SparkProgram.storeTypes`). */
   storeTypes?: Readonly<Record<string, string>>;
 }
 
-/** The type a store's annotation gives a value: `number`, `string`,
- *  `boolean`, `nil` or one table type, with `?` allowing nil; no type for
- *  any other annotation (a union, a named or a function type), which a
- *  literal's type is not checked against. Nothing without an annotation. */
 const declaredType = (
   annotation: string | undefined,
 ): { type?: LiteralType; nullable: boolean } | undefined => {
@@ -86,7 +71,6 @@ const declaredType = (
     return { type: type as LiteralType, nullable };
   }
   if (type.startsWith("{")) {
-    // One table type: the brace it opens with closes at its end.
     let depth = 0;
     for (let i = 0; i < type.length; i += 1) {
       depth += type[i] === "{" ? 1 : type[i] === "}" ? -1 : 0;
@@ -100,10 +84,6 @@ const declaredType = (
   return { nullable: false };
 };
 
-/** A runtime value as a literal, or nothing for one no literal writes (a
- *  function, or a table with a metatable). A table's entries that no literal
- *  writes, by their value or by their key (a table or a function), are left
- *  out, and the table is marked `partial`. */
 export const literalOfValue = (
   value: InkObject | null | undefined,
   depth = 0,
@@ -126,8 +106,6 @@ export const literalOfValue = (
       return undefined;
     }
     const table: LiteralTable = { entries: [] };
-    // The list part first, by position: once an entry is left out, the ones
-    // after it keep their positions as keys.
     let position = 1;
     let gap = false;
     for (; map.has(String(position)); position++) {
@@ -145,7 +123,6 @@ export const literalOfValue = (
       if (/^[1-9]\d*$/.test(key) && Number(key) < position) {
         continue;
       }
-      // The runtime's key for a table or a function (`luauMapKeyString`).
       const keyed = /^__(tableid|stdlibfn):/.test(key);
       const item = keyed ? undefined : literalOfValue(field, depth + 1);
       if (item === undefined) {
@@ -162,9 +139,6 @@ export const literalOfValue = (
   return undefined;
 };
 
-/** A literal as the runtime value it makes, a table a fresh one built as
- *  its constructor builds it (`tableFromPairs`): its entries assigned in
- *  the order they were written, a list entry at the next position. */
 export const valueOfLiteral = (literal: Literal): AbstractValue => {
   if (literal === null) {
     return new NullValue();
@@ -184,7 +158,6 @@ export const valueOfLiteral = (literal: Literal): AbstractValue => {
   return Value.Create(literal)!;
 };
 
-/** The names each `SetVar` of a declaration chunk declares a global under. */
 const globalsDeclaredBy = (root: ProgramRoot, chunk: ProgramChunk): string[] => {
   const names: string[] = [];
   for (let at = 0; at < codeWords(chunk); at += 2) {
@@ -199,11 +172,6 @@ const globalsDeclaredBy = (root: ProgramRoot, chunk: ProgramChunk): string[] => 
   return names;
 };
 
-/** A table's field, read through its `__index` chain as a define instance
- *  reads its defaults. */
-/** The name a script reads a typed define's instance by, its type's and its
- *  own (`character.hero`), from the markers `__def` puts on its metatable;
- *  none for any other value. */
 const scriptNameOf = (
   value: InkObject | null | undefined,
 ): string | undefined => {
@@ -242,15 +210,12 @@ const firstOf = (value: Literal | undefined) =>
 const typeOf = (value: Literal | undefined) =>
   value === undefined ? undefined : literalTypeOf(value);
 
-/** The text a once-only option is written with on its line. */
 export const optionTextOf = (line: string): string => {
   const body = line.replace(/^\s*[*+]+\s*/, "");
   const bracketed = /\[([^\]]*)\]/.exec(body);
   return (bracketed ? bracketed[1]! : body).trim();
 };
 
-/** An alternator's first alternative: its first arm written after a `|` on
- *  its own line, or on the first line after it that starts with one. */
 const firstAlternativeOf = (
   source: StartingValueSource,
   uri: string,
@@ -274,8 +239,6 @@ const firstAlternativeOf = (
   return own.trim();
 };
 
-/** The once-only options and alternators of the program, each with its
- *  count id and where it is written. */
 const countedPlaces = (
   root: ProgramRoot,
 ): { countId: number; kind: "option" | "alternator"; uri: string; line: number; column: number }[] => {
@@ -331,18 +294,12 @@ const countedPlaces = (
   return places;
 };
 
-/** What a part of a start's listing lists, and how each of its keys is
- *  applied: a store's path, or the count id of what a visits key counts. */
 interface ListedPart<T> {
   items: StartingValueItem[];
   targets: Map<string, T>;
 }
 
-/** The parts of the listings of a program's starts, kept for its root. The
- *  stores and the counted places are the same for every start. */
 interface ListedProgram {
-  /** The stores as the declarations give them (`freshStoryOf`), which the
-   *  listing shows and a plan applies a value by. */
   stores?: ListedPart<string[]>;
   places?: ListedPart<number>;
   flows?: ListedPart<number>;
@@ -375,7 +332,6 @@ export const carryStoreListing = (
   }
 };
 
-/** The parameters the start `from` binds, but its `...`. */
 const parametersOf = (root: ProgramRoot, from: string): string[] => {
   const flow = from === TOP_LEVEL_FLOW ? undefined : root.flowNamed(from);
   return (flow ? entryParameters(root, flow) : [])
@@ -385,15 +341,6 @@ const parametersOf = (root: ProgramRoot, from: string): string[] => {
 
 const freshStories = new WeakMap<ProgramRoot, ProgramStory>();
 
-/**
- * A story of the program that has run its declarations and nothing else:
- * what a store's first value is. A story that has run holds the tables the
- * declarations built, which a run may have written into or deleted from, so
- * a table's or a define's first values, and the paths a plan applies a value
- * by, are read from one of these, made once per program and only when a
- * listing, or a plan with a store's value, asks. Its seed is 0, the preview's, so a declaration
- * that draws shows what the preview draws.
- */
 const freshStoryOf = (root: ProgramRoot): ProgramStory => {
   let story = freshStories.get(root);
   if (!story) {
@@ -407,10 +354,6 @@ const freshStoryOf = (root: ProgramRoot): ProgramStory => {
   return story;
 };
 
-/** The program's stores, in the order the scripts declare them, with a
- *  define's `store` fields and a table store's fields, each with its first
- *  value and the path a value is applied by, as the declarations give them
- *  (`freshStoryOf`). */
 const storesOf = (
   story: ProgramStory,
   source: StartingValueSource,
@@ -434,9 +377,6 @@ const storesOf = (
         const value =
           variables.DefaultGlobal(name) ??
           (variables.GetVariableWithName(name) as InkObject | null);
-        // A typed define's instance is held under a name no script spells
-        // (`$character_hero`), and the script names it by its type
-        // (`character.hero`).
         const listedName = name.startsWith("$") ? scriptNameOf(value) : name;
         if (listedName === undefined) {
           continue;
@@ -506,13 +446,11 @@ const storesOf = (
   return program.stores;
 };
 
-/** Where a script stands in the order the scripts are listed in. */
 const scriptOrder = (source: StartingValueSource, uri: string) => {
   const index = source.uris.indexOf(uri);
   return index < 0 ? source.uris.length : index;
 };
 
-/** The program's scenes, branches and labels, by their qualified names. */
 const flowsOf = (
   story: ProgramStory,
   source: StartingValueSource,
@@ -545,9 +483,6 @@ const flowsOf = (
   return program.flows;
 };
 
-/** The program's once-only options and alternators, each by its line and
- *  named by its text or its first alternative. Read from every chunk of the
- *  program, so read only when a listing or a value of one asks for them. */
 const placesOf = (
   story: ProgramStory,
   source: StartingValueSource,
@@ -595,14 +530,6 @@ const placesOf = (
   return part;
 };
 
-/**
- * What the start `from` (a scene's or a branch's qualified name, or `"0"`
- * for the top-level content) can take, read from a story the program's
- * declarations have run in: the start's parameters, the program's stores
- * with a define's `store` fields and a table store's fields, the scenes,
- * branches and labels, once-only options and alternators it counts, and the
- * seed, each with its first value. Kept for each program and start.
- */
 export const startingValueListing = (
   story: ProgramStory,
   from: string,
@@ -622,7 +549,6 @@ export const startingValueListing = (
     }),
   );
   items.push(...storesOf(story, source).items);
-  // The visits in script order: a flow before the places on its line.
   const places = placesOf(story, source);
   const visits = [...flowsOf(story, source).items, ...places.items];
   const column = (item: StartingValueItem) => places.columns.get(item.key) ?? -1;
@@ -645,23 +571,14 @@ export const startingValueListing = (
   return listing;
 };
 
-/** How a story starts a route: the seed its reset takes, the stores and the
- *  counts set after the reset, and the arguments it enters the start
- *  with. Built for one program (`startPlanOf`). */
 export interface StartPlan {
   from: string;
-  /** The seed, or null for one drawn from the clock. */
   seed: number | null;
   stores: [path: string[], value: Literal][];
   counts: [countId: number, visits: number][];
-  /** The parameters' values in order, up to the last one set; nothing when
-   *  none is set. */
   args?: Literal[];
 }
 
-/** A plan as text two plans share only when they start a story alike: JSON,
- *  with the numbers JSON has no text for (`math.huge`, `-math.huge`, `0/0`
- *  and `-0`) written as the literals they are. */
 export const startPlanKey = (plan: StartPlan | null | undefined): string =>
   JSON.stringify(plan ?? null, (_key, value) =>
     typeof value === "number" &&
@@ -670,14 +587,6 @@ export const startPlanKey = (plan: StartPlan | null | undefined): string =>
       : value,
   );
 
-/**
- * The plan of a start with the values `set`: each value that parses and
- * whose key resolves, the rest left out, as a route ignores a value whose
- * name or line no longer resolves. An unset seed is `unsetSeed`. It reads
- * of the program only what the keys set ask for: a start with no values
- * reads nothing, and only a value of an option or an alternator reads the
- * program's chunks for them.
- */
 export const startPlanOf = (
   story: ProgramStory,
   from: string,
@@ -724,7 +633,6 @@ export const startPlanOf = (
       }
     }
   }
-  // A whole table is set before the fields set over it.
   plan.stores.sort((a, b) => a[0].length - b[0].length);
   if (lastArg >= 0) {
     plan.args = Array.from({ length: lastArg + 1 }, (_, i) => args[i] ?? null);
@@ -732,26 +640,13 @@ export const startPlanOf = (
   return plan;
 };
 
-/** Whether a plan sets any of its start's parameters. */
 export const planSetsParameters = (plan: StartPlan | undefined): boolean =>
   plan?.args !== undefined;
 
-/**
- * Resets the story and starts it at the top of its plan's start with the
- * plan's values: the seed before the declarations run, with its last draw
- * reset, then the stores and the visit counts, a count above zero with the
- * turn before the start as its last visit, then the start entered with the
- * parameters' values as its arguments. A story that was reset with the same
- * seed and has not run since is in the state a reset would build, and is
- * not reset again.
- */
 export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
   story.resetSeed = plan.seed;
   const reseed = plan.seed !== null && story.state.storySeed !== plan.seed;
   if (story.stateIsPristine && reseed && story.state.previousRandom === 0) {
-    // Nothing has drawn from the seed the reset gave it, the declarations
-    // included, so the state is the one a reset with the plan's seed builds,
-    // and running every declaration again would only arrive back here.
     story.state.storySeed = plan.seed!;
   } else if (!story.stateIsPristine || reseed) {
     story.CancelAsyncContinue();
@@ -765,9 +660,6 @@ export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
   );
 };
 
-/** Sets a plan's stores and visit counts on a story just reset, before it
- *  moves: a count above zero with the turn before the start as its last
- *  visit. */
 export const applyStartValues = (story: ProgramStory, plan: StartPlan): void => {
   const variables = story.state.variablesState;
   for (const [path, literal] of plan.stores) {
@@ -800,15 +692,6 @@ export const applyStartValues = (story: ProgramStory, plan: StartPlan): void => 
   }
 };
 
-/**
- * Binds a plan's parameters in the frame of a story moved into its start
- * past the entry that binds them (`ChooseAddress` to a line no route
- * reaches), as the entry's own declarations would have: every parameter,
- * one given no value as nil, so a global of its name stays hidden. They are
- * bound in the scene's scope, the first a flow holds open in the frame
- * (`flowScopesOf`), beneath the scopes of the blocks the line is in, so
- * they outlive those blocks.
- */
 export const bindStartArguments = (
   story: ProgramStory,
   plan: StartPlan,

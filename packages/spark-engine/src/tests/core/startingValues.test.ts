@@ -1,30 +1,3 @@
-// #1666 — the Game Preview's route starts at the top of its scene with the
-// values the author set for that scene's start: its parameters as the
-// arguments the start is entered with, stores and a define's `store` fields
-// by path, visit counts by count id, and the seed. A route's search and its
-// replay start alike, and an unset seed is 0, so a line shows the same random
-// results every time.
-//
-// What must hold:
-//   - #1665's example at line 11 with `hour = "nine"` starts at the top of
-//     `interrogation` and shows "Where were you at nine?"; with nothing set,
-//     the story-start route for a scene with parameters (#1608) stands;
-//   - at line 20 with `trust = 2` set, the route takes "Tell the truth."
-//     with nothing forced;
-//   - with the visits of `interrogation` set to 1, line 8 is reached with
-//     nothing forced; with "Tell the truth." taken once, the menu offers
-//     only "Lie.";
-//   - an unset seed is 0, the same on every search, and a set seed draws
-//     what that seed draws; a table store's field applies over its first
-//     value, and a define's `store` field by its dotted name;
-//   - a value whose name no longer resolves is ignored, and one that does
-//     not parse is not applied;
-//   - a change of starting values is a change before the route's first
-//     step: the planned route no longer resumes;
-//   - the listing names the start's parameters, the stores, the counted
-//     places and the seed, each with its first value.
-
-
 import { describe, expect, test, vi } from "vitest";
 import {
   checkStartingValue,
@@ -137,8 +110,6 @@ describe("the seed", () => {
     "end",
   ];
 
-  /** The alternative the shuffle shows on each of `times` searches of one
-   *  game, and the seed each ran with. */
   const game: any = routeTo(shuffle, 3).game;
   const searches = (times: number, values: StartingValues = {}) => {
     game.setStartingValues(values);
@@ -162,8 +133,6 @@ describe("the seed", () => {
     const shows = searches(3, { s: { [SEED_KEY]: "7" } });
     expect(shows.every(([, seed]) => seed === 7)).toBe(true);
     expect(new Set(shows.map(([text]) => text)).size).toBe(1);
-    // The seed decides the alternative: across seeds the shuffle shows more
-    // than one.
     const drawn = new Set<string>();
     for (let seed = 0; seed < 8; seed++) {
       drawn.add(searches(1, { s: { [SEED_KEY]: String(seed) } })[0]![0]);
@@ -235,15 +204,12 @@ describe("first values", () => {
     const { game, compiler } = routeTo(example, 20, {
       interrogation: { [paramKey("hour")]: '"nine"' },
     });
-    // The route took an option, which changed trust from its first value.
     expect(game.story.variablesState["trust"]).not.toBe(0);
     const firstOf = (name: string) =>
       game
         .startingValueListing("interrogation")
         .items.find((i: any) => i.name === name)?.first;
     expect(firstOf("trust")).toBe("0");
-    // A compile gives the game a new program, whose engine can take over
-    // the globals the last one held.
     const doc = compiler.documents.get(URI)!;
     const edited = example.join("\n").replace('"Ana"', '"Bo"');
     compiler.configure({
@@ -429,7 +395,6 @@ describe("PLAY from the top-level content", () => {
   const drawing = ["store draw = math.random(1, 100000)", "Drew {draw}."];
 
   test("draws its seed from the clock before the declarations run, as an ordinary game does", () => {
-    // The clock held still, at a time whose seed is not the preview's 0.
     const clock = vi.spyOn(Date.prototype, "getTime").mockReturnValue(1234567);
     try {
       const { program } = compileSrc(drawing.join("\n"));
@@ -452,7 +417,6 @@ describe("PLAY from the top-level content", () => {
       expect(play.simulation).toBe("success");
       expect(play.story.variablesState["draw"]).toBe(expected);
 
-      // The preview of the same line draws with seed 0.
       const preview: any = newGame(program);
       preview.setStartFrom({ file: URI, line: 1 });
       preview.simulate();
