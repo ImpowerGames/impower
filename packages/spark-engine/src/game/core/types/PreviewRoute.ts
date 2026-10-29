@@ -52,6 +52,16 @@ export interface PreviewRouteDecision {
   passes?: number;
 }
 
+export interface RunMeeting {
+  pin: RoutePin;
+  others: RoutePin[];
+}
+
+export interface RunMenu {
+  sources: string[];
+  taken: string;
+}
+
 /** The route the preview took to the line it shows, as `game/executed`
  *  reports it. */
 export interface PreviewRoute {

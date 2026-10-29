@@ -12,14 +12,6 @@ export interface PlayParams {
   startFrom?: { file: string; line: number };
   /** The run replaces one that an edit restarted. */
   restarted?: boolean;
-  /** The choices and conditions a route search favors, by path. */
-  simulationOptions?: Record<
-    string,
-    {
-      favoredConditions?: (boolean | undefined)[];
-      favoredChoices?: (number | undefined)[];
-    }
-  >;
 }
 
 export interface PlayResult {

@@ -20,6 +20,7 @@ export interface RouteViewProps {
   onTab?: (tab: RouteTab) => void;
   values?: StartingValuesEvents;
   onChangePins: (change: RoutePinChange) => void;
+  onPinLastRun: () => void;
 }
 
 export const renderRouteViews = (

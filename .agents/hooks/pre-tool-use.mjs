@@ -2,6 +2,40 @@ import { pathToFileURL } from "node:url";
 import { decide } from "./policy.mjs";
 import { gate } from "./session-title.mjs";
 
+function eventCwd(payload) {
+  return typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined;
+}
+
+function patchFiles(command) {
+  const files = [];
+  let file = null, hunk = null;
+  for (const line of command.split(/\r?\n/)) {
+    const header = /^\*\*\* (Add File|Update File|Delete File|Move to): (.+)$/.exec(line);
+    if (header) {
+      const target = header[2].trimEnd();
+      if (header[1] === "Move to") {
+        if (file) file.path = target;
+        continue;
+      }
+      hunk = null;
+      file = header[1] === "Delete File" ? null : header[1] === "Add File" ? { path: target, added: [] } : { path: target, source: target, hunks: [] };
+      if (file) files.push(file);
+    } else if (file && hunk && line.trimEnd() === "*** End of File") hunk.eof = true;
+    else if (!file || line.startsWith("*** ")) continue;
+    else if (file.added) {
+      if (line.startsWith("+")) file.added.push(line.slice(1));
+    } else if (line.startsWith("@@")) {
+      if (!hunk || hunk.lines.length) file.hunks.push((hunk = { anchors: [], lines: [] }));
+      const anchor = line.slice(2).trim();
+      if (anchor) hunk.anchors.push(anchor);
+    } else if (/^[ +-]/.test(line)) {
+      if (!hunk) file.hunks.push((hunk = { anchors: [], lines: [] }));
+      hunk.lines.push({ op: line[0], text: line.slice(1) });
+    }
+  }
+  return files.map(({ added, ...rest }) => (added ? { ...rest, content: added.length ? added.join("\n") + "\n" : "" } : rest));
+}
+
 export function normalize(payload, harness) {
   if (!["claude", "codex"].includes(harness)) throw new Error("Supply the hook adapter: claude or codex");
   if (!payload || typeof payload !== "object") throw new Error("Expected a tool event object");
@@ -12,19 +46,19 @@ export function normalize(payload, harness) {
     const paths = [...input.command.matchAll(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)\r?$/gm)].map((m) => m[1].trimEnd());
     // Only added lines are content; context and removed lines already exist.
     const contents = input.command.split(/\r?\n/).filter((line) => line.startsWith("+")).map((line) => line.slice(1));
-    return { kind: "edit", paths, contents };
+    return { kind: "edit", paths, contents, files: patchFiles(input.command), cwd: eventCwd(payload) };
   }
   if (tool === "write" || tool === "edit" || tool === "multiedit") {
     if (typeof input?.file_path !== "string") throw new Error("Edit event is missing file_path");
     const contents = [input.content, input.new_string, ...(Array.isArray(input.edits) ? input.edits.map((e) => e?.new_string) : [])];
-    return { kind: "edit", paths: [input.file_path], contents };
+    const file = typeof input.content === "string" ? { path: input.file_path, content: input.content } : { path: input.file_path, edits: Array.isArray(input.edits) ? input.edits : [input] };
+    return { kind: "edit", paths: [input.file_path], contents, files: [file], cwd: eventCwd(payload) };
   }
   if (tool === "bash" || tool === "powershell") {
     if (typeof input?.command !== "string") throw new Error("Shell event is missing command text");
     // The unified exec Bash alias also covers PowerShell; it is not a shell
     // identity. Evaluate both dialects instead of guessing from that alias.
-    const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined;
-    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd };
+    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd: eventCwd(payload) };
   }
   return { kind: "other" };
 }

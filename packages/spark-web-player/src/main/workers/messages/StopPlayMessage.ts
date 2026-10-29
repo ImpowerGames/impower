@@ -13,6 +13,7 @@ export interface StopPlayParams {
 export interface StopPlayResult {
   /** Where PLAY's game last executed, read before it went. */
   location: DocumentLocation | null;
+  choices?: number;
 }
 
 /** End PLAY's game in the worker. */

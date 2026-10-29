@@ -1203,12 +1203,6 @@ export class SparkdownCompiler {
     ) {
       this._config.startFrom = config.startFrom;
     }
-    if (
-      config.simulationOptions !== undefined &&
-      config.simulationOptions !== this._config.simulationOptions
-    ) {
-      this._config.simulationOptions = config.simulationOptions;
-    }
     if (config.startingValues !== undefined) {
       this._config.startingValues = config.startingValues;
     }
@@ -2291,9 +2285,6 @@ export class SparkdownCompiler {
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
-    }
-    if (this._config.simulationOptions !== undefined) {
-      program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
     // A compile of statement chunks says exactly what changed in its chunks

@@ -390,8 +390,8 @@ async function main() {
   // The checkpoint is the value the worker's route hands its display
   // (`searchRouteFor`), which the display loads in place (#1758).
   let searched: { to: ProgramAddress; checkpoint?: StoredCheckpoint } | undefined;
-  const search = (game: Game, to: ProgramAddress, log: RouteSearchLog, remember: boolean) => {
-    const checkpoint = searchRouteFor(game, to, log, { config: (compiler as any).config, profilerId: PROFILER_ID, remember });
+  const search = (game: Game, to: ProgramAddress, log: RouteSearchLog) => {
+    const checkpoint = searchRouteFor(game, to, log, { profilerId: PROFILER_ID });
     routeSteps = (game as any)._plannedRoute?.steps?.length ?? 0;
     searched = { to, checkpoint };
   };
@@ -403,7 +403,7 @@ async function main() {
       setStartFrom(game, params.program.startFrom);
       const to = game.startAddress;
       if (to != null) {
-        search(game, to, routeSearches, true);
+        search(game, to, routeSearches);
         // Attaches the route's checkpoint to the result, as the worker does.
         routeSearches.report(params, to);
       }
@@ -415,7 +415,7 @@ async function main() {
     const to = game.startAddress;
     if (to != null) {
       const log = new RouteSearchLog();
-      search(game, to, log, false);
+      search(game, to, log);
       log.report(params, to);
     }
   });

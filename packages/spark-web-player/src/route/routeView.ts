@@ -3,6 +3,7 @@ import type {
   PreviewRouteDecision,
   PreviewRouteOption,
   RoutePin,
+  RunMeeting,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type { RouteTab, StartingValuesViewState } from "./startingValuesView";
@@ -63,10 +64,14 @@ export interface RouteViewState {
   values?: StartingValuesViewState;
   pins: RoutePin[];
   pinNote?: string;
+  lastRun?: number;
 }
 
 /** What the list says when the host does not save a change to the pins. */
 export const PIN_NOT_SAVED = "The pin was not saved.";
+
+export const LAST_RUN_CHANGED =
+  "The script has changed where the last run chose, so its choices were not pinned.";
 
 /** The change to the pins the author asked for (`preview/changeRoutePins`). */
 export interface RoutePinChange {
@@ -125,6 +130,26 @@ export const stopIsPinned = (
   pins: RoutePin[],
   decision: PreviewRouteDecision,
 ): boolean => pinsAtStop(pins, decision).length > 0;
+
+export const lastRunChange = (
+  pins: RoutePin[],
+  run: RunMeeting[],
+): RoutePinChange | null => {
+  const add = run
+    .map((meeting) => meeting.pin)
+    .filter((pin) => !pins.some((at) => samePin(at, pin)));
+  const remove = run
+    .flatMap((meeting) => meeting.others)
+    .filter(
+      (other) =>
+        pins.some((at) => samePin(at, other)) &&
+        !run.some((meeting) => samePin(meeting.pin, other)),
+    );
+  return add.length > 0 || remove.length > 0 ? { add, remove } : null;
+};
+
+export const lastRunText = (count: number): string =>
+  `Pin the ${count} ${count === 1 ? "choice" : "choices"} from the last run`;
 
 /** The pins `change` leaves of `pins`, in the order the host would keep
  *  them, which the list shows until the host answers. */

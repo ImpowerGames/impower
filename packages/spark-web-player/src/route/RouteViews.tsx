@@ -11,6 +11,7 @@ import {
   decisionText,
   isPinned,
   kindCounts,
+  lastRunText,
   pinChange,
   stopIsPinned,
   unpinChange,
@@ -87,6 +88,7 @@ export interface RouteListProps {
   values?: StartingValuesEvents;
   /** The author pinned, unpinned or removed pins. */
   onChangePins: (change: RoutePinChange) => void;
+  onPinLastRun: () => void;
 }
 
 /** A choice entry's pin control: what the preview did at the stop, the
@@ -159,6 +161,7 @@ export function RouteList({
   onTab,
   values,
   onChangePins,
+  onPinLastRun,
 }: RouteListProps) {
   // Which entries the author expanded or collapsed, by stop.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -177,6 +180,7 @@ export function RouteList({
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
+  const lastRun = state.lastRun ?? 0;
   // An entry is known by its stop: the menu it met, by where it is met, and
   // which meeting of that menu it is. A pin that changes the option taken
   // there, or the options a gate lets it offer, leaves it as it was, so the
@@ -345,9 +349,18 @@ export function RouteList({
               {state.pinNote}
             </p>
           ) : null}
-          {hidden > 0 || state.pins.length > 0 ? (
+          {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
             <footer class="route-list-foot">
               {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+              {lastRun > 0 ? (
+                <button
+                  type="button"
+                  class="route-pin-last-run"
+                  onClick={onPinLastRun}
+                >
+                  {lastRunText(lastRun)}
+                </button>
+              ) : null}
               {state.pins.length > 0 ? (
                 <button
                   type="button"

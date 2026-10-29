@@ -12,6 +12,7 @@ import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types
 import type {
   PreviewRoute,
   RoutePin,
+  RunMenu,
   ScriptSource,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
@@ -61,6 +62,7 @@ import {
   type StopPlayParams,
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
+import { LastRunMessage } from "./messages/LastRunMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
@@ -76,9 +78,6 @@ import { watchExecution } from "./watchExecution";
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
-  /** Its own: a search run in one program says nothing about another. The
-   *  newest real program's is `routeSearches`, whose searches the compiler
-   *  remembers the choices of; no other program's are remembered. */
   log: RouteSearchLog;
 }
 
@@ -182,7 +181,6 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  PLAY's game (#1758). */
   const searchRealRouteTo = (game: Game, to: ProgramAddress) =>
     searchRouteFor(game, to, routeSearches, {
-      config: compiler.config,
       profilerId: compiler.profilerId,
       source,
     });
@@ -402,12 +400,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     profile("end", profilerId + " " + "game/setStartFrom");
     const to = game.startAddress;
     if (to != null) {
-      searchRouteFor(game, to, log, {
-        config: compiler.config,
-        profilerId,
-        remember: false,
-        source,
-      });
+      searchRouteFor(game, to, log, { profilerId, source });
       log.report(params, to);
     }
     const entry: DisplayableProgram = {
@@ -558,6 +551,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     /** The route the checkpoint was replayed along, as the preview reports
      *  it. */
     route?: PreviewRoute;
+    menus?: RunMenu[];
   };
 
   /** What `log` holds about the address `to`, as the display and PLAY read
@@ -574,6 +568,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       ...report,
       checkpoint: log.checkpointFor(to),
       route: log.outcomeFor(to)?.route,
+      menus: log.outcomeFor(to)?.menus,
     };
   };
 
@@ -620,9 +615,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     (entry: DisplayableProgram, fromStart: boolean) =>
     (searched: Game, address: ProgramAddress) =>
       searchRouteFor(searched, address, entry.log, {
-        config: compiler.config,
         profilerId: compiler.profilerId,
-        remember: entry.log === routeSearches,
         fromStart,
         source,
       });
@@ -853,19 +846,18 @@ export function installPlayerWorker(connection: MessageConnection) {
   // sends the page nothing (`sendToPage`) and replays no route for a
   // selection.
 
-  /** PLAY's game while it runs, with the run the page knows it by, a
-   *  settlement that STOP answers everything still waiting on it with, and
-   *  the channel it sends the page its stream on once connected. */
   let current:
     | {
         run: number;
         game: Game;
+        prefix: RunMenu[];
         stopped: Promise<void>;
         stop: () => void;
         channel?: BroadcastChannel;
       }
     | undefined;
   let runs = 0;
+  let lastRun: RunMenu[] = [];
 
   /** Where PLAY's game `running` sends the page what it shows, while it
    *  is the one that runs: a game STOP ended cannot write into the next
@@ -915,6 +907,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
+    lastRun = [];
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
     const running = gameState.createGame({
@@ -934,7 +927,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     const errors = player.putAtStartPoint(
       running,
-      params.simulationOptions,
       {
         // PLAY's game is a game of its own, whose story loads the route's
         // checkpoint from its full save, written here by the game that ran
@@ -953,7 +945,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     gameState.running = running;
     let stop!: () => void;
     const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = { run: ++runs, game: running, stopped, stop };
+    current = {
+      run: ++runs,
+      game: running,
+      prefix: route.menus ?? [],
+      stopped,
+      stop,
+    };
     return {
       built: true,
       compiled: isRunnableProgram(program),
@@ -1038,21 +1036,19 @@ export function installPlayerWorker(connection: MessageConnection) {
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };
   };
 
-  /** End PLAY's game, answering where it last executed: the run the page
-   *  names, or whichever runs when it names none. A run already replaced is
-   *  left alone. */
   const stopPlay = (params: StopPlayParams): StopPlayResult => {
     const ending = current;
     if (!ending || (params.run != null && params.run !== ending.run)) {
       return { location: null };
     }
     const location = ending.game.getLastExecutedDocumentLocation();
+    lastRun = ending.game.runMenus(ending.prefix);
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();
     ending.channel?.close();
     ending.stop();
-    return { location };
+    return { location, choices: lastRun.length };
   };
 
   /** PLAY's game for the run the page names, if it still runs. */
@@ -1160,6 +1156,18 @@ export function installPlayerWorker(connection: MessageConnection) {
           game.skip(seconds);
         }
         return {};
+      });
+      return;
+    }
+    if (LastRunMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        return {
+          run:
+            game && !gameState.running && lastRun.length > 0
+              ? game.runMeetings(lastRun)
+              : null,
+        };
       });
       return;
     }

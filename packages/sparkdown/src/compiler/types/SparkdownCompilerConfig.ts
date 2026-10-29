@@ -52,12 +52,5 @@ export interface SparkdownCompilerConfig {
    */
   uriPathsAsWritten?: boolean;
   startFrom?: { file: string; line: number };
-  simulationOptions?: Record<
-    string,
-    {
-      favoredConditions?: (boolean | undefined)[];
-      favoredChoices?: (number | undefined)[];
-    }
-  >;
   startingValues?: StartingValues;
 }

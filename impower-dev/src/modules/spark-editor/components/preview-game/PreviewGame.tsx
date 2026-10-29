@@ -52,32 +52,6 @@ const STYLE = `
 // server (`sparkdown/offsetSourceLocation`) — it owns the program, and its
 // locations are far too large to mirror on the main thread.
 
-/**
- * Right-pane Game preview. Hosts an `<iframe>` pointed at the sparkdown
- * player and brokers messages between the editor and the player via a
- * MessagePort channel. Mirrors the legacy <se-preview-game>:
- *
- *   - On iframe `load`: open a Port1MessageConnection over a new
- *     MessageChannel and Initialize the player with project files, LSP
- *     settings, builtin/optional/schema/description definitions, and the
- *     game configuration (workspace + startFrom + simulationOptions).
- *   - Forward messages from the editor (game/preview/workspace/text-
- *     Document/*) into the iframe channel.
- *   - Forward incoming iframe messages back into the editor's global
- *     MessageProtocol event stream, plus special-case Game lifecycle
- *     events (Started/Executed/Exited/ToggledFullscreenMode), file-read
- *     proxies, and ExecuteCommand RPC.
- *   - PageUp/PageDown traverse program source positions.
- *
- * (The legacy "resizing"/"resized" window listeners that pinned iframe
- * pointer-events during a split-pane drag are gone: the port's SplitPane
- * captures the pointer on its divider (`setPointerCapture`), so a drag over
- * the iframe is no longer swallowed and no pinning is needed.)
- *
- * Renders the (Preact) PreviewGameToolbar above the iframe via the
- * <se-preview-game-toolbar> custom-element tag — that's now backed by
- * the Preact PreviewGameToolbar.
- */
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -176,7 +150,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           return {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
-            simulationOptions: Workspace.window.store.debug.simulationOptions,
             startingValues: Workspace.window.startingValues,
           };
         };
@@ -341,33 +314,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             }
           }
           if (GameExecutedMessage.type.is(message)) {
-            const {
-              executedLines,
-              state,
-              restarted,
-              simulateFlow,
-              conditions,
-              choices,
-              route,
-            } = message.params;
-            // A route the author's pins steered is not a choice to favor
-            // next time, so clearing the pins leaves nothing of them.
-            const pinned =
-              route?.decisions.some(
-                (d: { kind: string }) => d.kind === "pinned",
-              ) ?? false;
-            if (simulateFlow != null && !pinned) {
-              const favoredConditions = conditions.map(
-                (c: { selected?: boolean }) => c.selected,
-              );
-              const favoredChoices = choices.map(
-                (c: { selected?: number }) => c.selected,
-              );
-              Workspace.window.setSimulationOptions(simulateFlow, {
-                favoredConditions,
-                favoredChoices,
-              });
-            }
+            const { executedLines, state, restarted } = message.params;
             const executedMap: Record<string, number[]> = {};
             for (const [uri, lines] of Object.entries(executedLines ?? {})) {
               executedMap[uri] = expandLineRanges(lines.ranges);

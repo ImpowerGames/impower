@@ -122,8 +122,8 @@ async function playInWorker(game: any, worker: WorkerAnswer) {
       game.program = options.program;
       return game;
     }) as any;
-    h.workerState.player.putAtStartPoint = (built, simulationOptions) =>
-      putAtStartPoint(built, simulationOptions, {
+    h.workerState.player.putAtStartPoint = (built) =>
+      putAtStartPoint(built, {
         checkpoint: worker.checkpoint,
         address: worker.simulatedAddress,
         programId:
@@ -289,9 +289,9 @@ describe("the worker's own route reaches the rule", () => {
       await h.compile();
       await h.select(line);
       const handed: any[] = [];
-      h.workerState.player.putAtStartPoint = (built, simulationOptions, route, profilerId) => {
+      h.workerState.player.putAtStartPoint = (built, route, profilerId) => {
         handed.push({ built, route });
-        return putAtStartPoint(built, simulationOptions, route, profilerId);
+        return putAtStartPoint(built, route, profilerId);
       };
       expect(await h.controller.startGameAndApp()).toBe(true);
       expect(handed).toHaveLength(1);
