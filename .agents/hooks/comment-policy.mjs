@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
 const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
-const licences = config.licences.map((l) => new RegExp(l.form));
+const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
 const FAMILIES = {
@@ -763,9 +763,50 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
-function licenceNotice(lines) {
-  const body = lines.join(" ");
-  return licences.some((form) => form.test(body));
+function licenceNotice(lines, file, root) {
+  const body = lines.join("\n");
+  return licences.some(({ form, file: group }) => {
+    const match = form.exec(body);
+    if (!match) return false;
+    if (!group) return true;
+    for (let dir = path.posix.dirname(posix(file)); ; dir = path.posix.dirname(dir)) {
+      if (fs.existsSync(path.join(root, dir, match[group]))) return true;
+      if (dir === "." || dir === "/" || dir === "") return false;
+    }
+  });
+}
+
+const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
+const JSDOC_TYPE_TAGS = new Set(["type", "param", "arg", "argument", "returns", "return", "property", "prop", "typedef", "template", "callback", "satisfies", "this", "enum", "import", "overload", "extends", "augments", "implements"]);
+const JSDOC_UNTYPED_TAGS = new Set(["typedef", "template", "callback", "import", "overload"]);
+
+function jsdocParts(comment) {
+  let body = comment.slice(3);
+  if (body.endsWith("*/")) body = body.slice(0, -2);
+  const text = body
+    .split(/\r\n|\n|\r|\u2028|\u2029/)
+    .map((line) => line.replace(/^\s*\*(?!\/)\s?/, "").replace(/\s+\*+$/, "").replace(/\s+$/, ""))
+    .join("\n");
+  const starts = [];
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}") depth = Math.max(0, depth - 1);
+    else if (text[i] === "@" && depth === 0 && (i === 0 || /\s/.test(text[i - 1])) && /[A-Za-z]/.test(text[i + 1] ?? "")) starts.push(i);
+  }
+  const tags = starts.map((start, k) => {
+    const raw = text.slice(start, starts[k + 1] ?? text.length).replace(/\s+$/, "");
+    const name = /^@([A-Za-z]+)/.exec(raw)[1];
+    const rest = raw.slice(name.length + 1);
+    const read = JSDOC_TYPE_TAGS.has(name) && (/^\s*\{/.test(rest) || JSDOC_UNTYPED_TAGS.has(name) || (name === "type" && /^\s+[A-Za-z_$][\w$.]*(?:<[^<>]*>)?(?:\[\])*$/.test(rest)));
+    return { name, raw, read };
+  });
+  return { prose: text.slice(0, starts[0] ?? text.length).trim(), tags };
+}
+
+function jsdocKeptLines(comment, file) {
+  if (!JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase()) || !comment.startsWith("/**")) return [];
+  return jsdocParts(comment).tags.filter((t) => t.read).flatMap((t) => t.raw.split("\n"));
 }
 
 export function classifyComment(text, file, { root = defaultRoot } = {}) {
@@ -775,12 +816,16 @@ export function classifyComment(text, file, { root = defaultRoot } = {}) {
   if (!FAMILIES[extension]) return { kind: "exempt", reason: `${extension || rel} is not a code file type the rule covers` };
   const lines = bodyLines(text);
   if (!lines.length) return { kind: "refused", reason: "an empty comment" };
-  if (licenceNotice(lines)) return { kind: "licence", reason: "a licence or copyright notice" };
+  if (licenceNotice(lines, rel, root)) return { kind: "licence", reason: "a licence or copyright notice" };
   if (/^workaround\b/i.test(lines[0])) {
     const marker = /^workaround\(([^()\s]+)\):\s*\S/.exec(lines[0]);
     if (!marker) return { kind: "refused", reason: "a workaround note takes the form `workaround(<name>): <what the dependency or platform does wrong, with the version or link that retires the note>`" };
     const reason = workaroundNameReason(marker[1], root);
     return reason ? { kind: "refused", reason } : { kind: "workaround", reason: `a workaround note for \`${marker[1]}\`` };
+  }
+  if (JS_DOC_EXTENSIONS.has(extension) && text.startsWith("/**")) {
+    const { prose, tags } = jsdocParts(text);
+    if (tags.length && !prose && tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc type tags TypeScript reads" };
   }
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
@@ -788,12 +833,6 @@ export function classifyComment(text, file, { root = defaultRoot } = {}) {
 
 function directiveLine(line, extension) {
   return directives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
-}
-
-function jsdocDirectiveLines(comment, file) {
-  const extension = path.posix.extname(posix(file)).toLowerCase();
-  if (![".js", ".mjs", ".cjs"].includes(extension) || !comment.startsWith("/**")) return [];
-  return bodyLines(comment).map((line) => line.replace(/\s+\*+$/, "")).filter((line) => directiveLine(line, extension));
 }
 
 export function judgeComments(text, file, options = {}) {
@@ -827,7 +866,7 @@ export function judgeComments(text, file, options = {}) {
     }
     for (const p of paragraphs) {
       if (!p.members) continue;
-      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text))) : p.members[0].kind === "licence";
+      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text)), file, options.root ?? defaultRoot) : p.members[0].kind === "licence";
       if (p.licence) for (const c of p.members) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${p.members[0].line}` });
     }
     paragraphs.forEach((p, k) => {
@@ -862,14 +901,16 @@ export function stripComments(text, file, options = {}) {
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const removals = [];
   for (const c of refused) {
-    const kept = family === "js" ? jsdocDirectiveLines(c.text, file) : [];
+    const kept = family === "js" ? jsdocKeptLines(c.text, file) : [];
     if (!kept.length) {
       removals.push(c);
       continue;
     }
     const before = text.slice(c.lineStart, c.start);
-    const pad = /^[ \t]*$/.test(before) ? before : "";
-    const replacement = kept.length === 1 ? `/** ${kept[0]} */` : `/**${eol}${kept.map((line) => `${pad} * ${line}`).join(eol)}${eol}${pad} */`;
+    const alone = /^[ \t]*$/.test(before);
+    const pad = alone ? before : "";
+    const breaks = /[\n\r\u2028\u2029]/.test(c.text);
+    const replacement = kept.length === 1 && (alone || !breaks) ? `/** ${kept[0]} */` : `/**${eol}${kept.map((line) => `${pad} *${line ? ` ${line}` : ""}`).join(eol)}${eol}${pad} */`;
     cuts.push({ from: c.start, to: c.end, replacement, rewrite: true });
   }
   const removed = new Uint8Array(text.length);
