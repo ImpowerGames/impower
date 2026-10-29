@@ -72,6 +72,42 @@ describe("a route replayed from the previous route's checkpoints", () => {
     expect((game.story.variablesState as any).$("trust")).toBe(2);
   });
 
+  test("takes no loop pass the checkpoint has already taken", () => {
+    const LOOP = `store total = 0
+
+scene start
+  Opening beat.
+  for i = 1, 5 do
+    total += i
+    Loop beat {total}.
+  end
+  Middle beat.
+  choose
+    + [First]
+      total += 10
+      First result.
+    + [Second]
+      total += 20
+      Second result.
+  end
+  if total > 50 then
+    Forced result.
+  end
+  Final beat {total}.
+end
+`;
+    const loopLine = (text: string) =>
+      LOOP.split("\n").findIndex((l) => l.includes(text));
+    const program = compileSrc(LOOP);
+    const game = newGame(program);
+    game.patchAndSimulateRoute(planTo(game, program, loopLine("Middle beat.")));
+    expect((game.story.variablesState as any).$("total")).toBe(15);
+
+    game.patchAndSimulateRoute(planTo(game, program, loopLine("First result.")));
+    expect(game.simulation).toBe("success");
+    expect((game.story.variablesState as any).$("total")).toBe(25);
+  });
+
   test("keeps the pins the new route was planned with", () => {
     const program = compileSrc(SOURCE);
     const game = newGame(program);
