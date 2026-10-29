@@ -93,6 +93,14 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("const a = {} / 2; // yes\nlet b = 2; const c = b++ / 2; // yes\nif (x) {} /re/.test(y); // yes\nconst o = { k: 1 } / 3; // yes\nconst s = `${d}` / 2; // yes", "a.ts"), ["// yes", "// yes", "// yes", "// yes", "// yes"]);
     assert.deepEqual(comments("const n = function() {} / 2; // yes\nswitch (1) { case 1: {} /[/*]/.test(\"/\"); default: {} /a/.test(\"a\"); } // yes\nexport default {} / 2; // yes", "a.ts"), ["// yes", "// yes", "// yes"]);
     assert.deepEqual(comments("const s = \"a\\\r\n// no\";\r\n// yes\r\n", "a.ts"), ["// yes"]);
+    assert.deepEqual(comments("const r = /a//* yes */; const q = /b/// yes\nconst n = function () {} / 2; // yes\nfunction g() {} /c/.test(d); // yes", "a.ts"), ["/* yes */", "// yes", "// yes", "// yes"]);
+    assert.deepEqual(comments("switch (1) { case true ? 1 : 2: {} /[/*]/.test(\"/\"); case a?.b ?? c: {} /d/.test(e); } // yes", "a.ts"), ["// yes"]);
+    const breaks = [0x2028, 0x2029, 13].map((code) => String.fromCharCode(code));
+    for (const lineBreak of breaks) assert.deepEqual(scanComments(`a(); // yes${lineBreak}b(); // yes`, "a.ts").map((c) => [c.text, c.line]), [["// yes", 1], ["// yes", 2]], `JavaScript line terminator ${lineBreak.charCodeAt(0)}`);
+    assert.deepEqual(comments("|\n  # no\n", "a.yaml"), []);
+    assert.deepEqual(comments("key: |2\n  value\n # yes\nnext: ok\nother: >\n    text\n  # yes\n- |\n  # no\n", "a.yaml"), ["# yes", "# yes"]);
+    assert.deepEqual(comments("echo \"$(case x in\nx)\n  # yes\n  echo hi;;\n(y) echo y;;\nesac)\" # yes\n", "a.sh"), ["# yes", "# yes"]);
+    assert.deepEqual(comments("Write-Output \"$(\n  # yes\n  Get-Date\n) # no\" # yes\n$h = @\"\n$( <# yes #> 1 ) # no\n\"@\n", "a.ps1"), ["# yes", "# yes", "<# yes #>"]);
     assert.deepEqual(comments("const id = <T = string>(x: T) => x;\n// yes\nconst k = <const T,>(x: T) => x; // yes", "a.tsx"), ["// yes", "// yes"]);
     assert.deepEqual(comments("const a = b <c && d > e;\n// yes\n", "a.tsx"), ["// yes"], "a guess at JSX that never closes is rescanned as code");
     assert.deepEqual(comments("if (true) /[/*]/.test(\"/\"); while (x) /a\\/b/.test(y); f(a) / 2 / g; // yes", "a.ts"), ["// yes"]);
@@ -181,6 +189,13 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(stripComments("div/* prose */.active { color: red; }\na /* prose */ b {}\n", "a.css", { root: checkout }), "div.active { color: red; }\na  b {}\n", "CSS removal inserts no whitespace a selector would read");
     assert.equal(stripComments("<p>hello<!-- prose -->world</p>\n", "a.html", { root: checkout }), "<p>helloworld</p>\n", "HTML removal inserts no text");
     assert.equal(stripComments("<pre>A\n<!-- note --> B</pre><pre>A <!-- note -->\nB</pre>\n  <!-- line -->\n", "a.html", { root: checkout }), "<pre>A\n B</pre><pre>A \nB</pre>\n  \n", "HTML removal takes the comment and nothing around it");
+    const separator = String.fromCharCode(0x2028);
+    const terminated = `function f() { const value = 1; // prose${separator}return value + 1; }`;
+    const terminatedStripped = stripComments(terminated, "src/a.ts", { root: checkout });
+    assert.equal(terminatedStripped, `function f() { const value = 1;${separator}return value + 1; }`);
+    assert.equal(new Function(`${terminatedStripped}; return f();`)(), 2);
+    const adjacentRegex = "function f() { const r = /a//* prose */; return r.test(\"a\"); }";
+    assert.equal(new Function(`${stripComments(adjacentRegex, "src/a.ts", { root: checkout })}; return f();`)(), true, "a regex followed directly by a comment keeps its code");
     const crlf = "const s = \"a\\\r\n// literal\";\r\n";
     assert.equal(stripComments(crlf, "src/a.ts", { root: checkout }), crlf);
     assert.equal(stripComments(source, "packages/sparkdown/src/inkjs/a.ts", { root: checkout }), source, "an exempt file is returned unchanged");
