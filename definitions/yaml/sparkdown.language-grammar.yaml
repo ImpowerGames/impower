@@ -914,9 +914,11 @@ variables:
   # (§10.1, "tighten what a variable matches").
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
   # A define-body key written with `:` (`name: value`): whitespace after the
-  # colon, and a value that starts no method call (`a: b()`, `a: b {`, `a: b "s"`).
-  # lookaround: `LuauFunctionCall`'s method call (`a: b()`) is a statement of the body, not a property; read only inside `LuauPropertyDefinition`'s begin lookahead, which leaves that line to the statement rules.
-  LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{WS}}*:{{WS}}+(?!{{LUAU_IDENTIFIER}}{{WS}}*[({"'\[])(?=\S))
+  # colon, and no method call after it, as `LuauAccessPath` reads one
+  # (`LUAU_SHARED_PATH_NO_METHOD_CALL`: `a: b()`, `a: b --[[c]] ()`,
+  # `a: b<<T>>()`, `a: b [[s]]`), so `a: t["k"]` is a field.
+  # lookaround: `LuauFunctionAccessor` owns a method call (`a: b()`), a statement of the body rather than a property, and the shared variable is its own test for one; reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line. The trailing `(?=\S)` leaves a `:` with nothing after it on its line to the statement rules, which report the missing method name.
+  LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}{{WS}}*:{{WS}}+(?=\S))
   # A define's key spelled as a reserved word other than a closer, or as a
   # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
   # Sparkdown's own, as a table's bracketed keys are. Only

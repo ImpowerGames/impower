@@ -48,6 +48,7 @@ describe("a field written with `:`", () => {
     ["a `style`", "style panel with\n  width: 100%\nend\n", [1]],
     ["a `layout`", "layout main with\n  column {\n    image: black\n    text \"a\"\n  }\nend\n", [2]],
     ["a `define`", "define config with\n  speed: 2\n  name : \"x\"\nend\n", [1, 2]],
+    ["a `define` whose value is indexed", "define items with\n  first = 2\nend\n\ndefine config with\n  typo: items[\"first\"]\nend\n", [5]],
   ])("in %s is reported on its colon alone", (_, text, lines) => {
     expect(diagnosticsOf(text)).toEqual(lines.map(colon));
   });
@@ -89,6 +90,9 @@ describe("a field written with `:`", () => {
 
   test.each([
     ["a method call in a `define`", "define config with\n  speed: go()\nend\n"],
+    ["a method call with a comment before its arguments in a `define`", "define config with\n  speed: go --[[ note ]] ()\nend\n"],
+    ["a method call with type arguments in a `define`", "define config with\n  speed: go<<number>>()\nend\n"],
+    ["a method call with a long string argument in a `define`", "define config with\n  speed: go [[text]]\nend\n"],
     ["a label with a colon in a `morph`", "morph m with\n  method = bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n  clips {\n    {\n      between { eyelash-left:eyes }\n      targets { pupil-left }\n    }\n  }\nend\n"],
     ["a URL value in a `theme`", "theme t with\n  link = http://example.com\nend\n"],
   ])("%s is no field colon", (_, text) => {
