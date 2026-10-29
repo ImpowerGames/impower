@@ -374,22 +374,34 @@ describe("a value is a literal", () => {
     expect(parseLiteral(text)).toEqual({ ok: true, value });
   });
 
-  test("a table reads its list entries and its keyed ones, and writes them back", () => {
-    const parsed = parseLiteral('{ "a", 2, name = "Ana", [3] = true, }');
+  test("a table reads its entries in the order they are written, and writes them back", () => {
+    const parsed = parseLiteral('{ "a", name = "Ana", 2, [3] = true, }');
     expect(parsed).toEqual({
       ok: true,
       value: {
-        list: ["a", 2],
-        fields: [
-          ["name", "Ana"],
-          [3, true],
+        entries: [
+          { value: "a" },
+          { key: "name", value: "Ana" },
+          { value: 2 },
+          { key: 3, value: true },
         ],
       },
     });
     expect(formatLiteral((parsed as any).value)).toBe(
-      '{ "a", 2, name = "Ana", [3] = true }',
+      '{ "a", name = "Ana", 2, [3] = true }',
     );
-    expect(formatLiteral({ list: [], fields: [] })).toBe("{ }");
+    expect(formatLiteral({ entries: [] })).toBe("{ }");
+  });
+
+  test.each([
+    ["-0x10", -16],
+    ["-0b101", -5],
+    ['"a\\z  \n  b"', "ab"],
+    ['"\\u{110000}"', "�"],
+    ["{ [[hello]] }", { entries: [{ value: "hello" }] }],
+    ["[==[a]]b]==]", "a]]b"],
+  ])("%j reads as the language reads it", (text, value) => {
+    expect(parseLiteral(text)).toEqual({ ok: true, value });
   });
 
   test.each([
@@ -400,7 +412,8 @@ describe("a value is a literal", () => {
     ["2 + 1", "expected the value to end before + 1"],
     ["x", "expected a value, not the name x"],
     ["`hi`", "expected a string in quotes; a backtick string is an expression"],
-    ['"\\u{110000}"', "\\u{110000} is past the last code point"],
+    ['"\\u{80000000}"', "\\u{80000000} is past the last code point"],
+    ['"\\q"', "\\q is not an escape"],
     ['"\\256"', "\\256 is past the last byte, 255"],
     ["{".repeat(65) + "}".repeat(65), "expected no more than 64 tables inside each other"],
   ])("%j is not a value: %s", (text, error) => {
@@ -508,5 +521,67 @@ describe("PLAY from the top-level content", () => {
     play.simulate();
     expect(play.simulation).toBe("success");
     expect(play.story.state.storySeed).toBe(9);
+  });
+});
+
+describe("a table's starting value", () => {
+  test("assigns its entries in the order they are written, as the script's own table does", () => {
+    const script = [
+      "store bag = { [1] = 5, 9 }",
+      "scene s",
+      "  Value {bag[1]}.",
+      "end",
+    ];
+    expect(shown(routeTo(script, 3).game)).toContain("Value 9.");
+    const { game } = routeTo(script, 3, {
+      s: { [storeKey("bag")]: "{ [1] = 5, 9 }" },
+    });
+    expect(game.simulation).toBe("success");
+    expect(shown(game)).toContain("Value 9.");
+  });
+
+  test("of a store with an entry no literal writes still lists the store and its fields, and applies a field", () => {
+    const script = [
+      "store bag = { hp = 10, method = math.abs }",
+      "scene s",
+      "  Value {bag.hp}.",
+      "end",
+    ];
+    const listed = routeTo(script, 3).game.startingValueListing("s");
+    const bag = listed.items.find((i: any) => i.name === "bag");
+    expect(bag.first).toBe("{ hp = 10, … }");
+    expect(bag.fields.map((f: any) => [f.key, f.first])).toEqual([
+      [storeKey("bag.hp"), "10"],
+    ]);
+    const { game } = routeTo(script, 3, {
+      s: { [storeKey("bag.hp")]: "3" },
+    });
+    expect(shown(game)).toContain("Value 3.");
+  });
+});
+
+describe("a store's type annotation", () => {
+  test("is the type a value is checked against, an optional one taking nil", () => {
+    const { game } = routeTo(
+      [
+        "store hp: number",
+        "store mood: string? = nil",
+        "scene s",
+        "  Hello.",
+        "end",
+      ],
+      4,
+    );
+    const items = game.startingValueListing("s").items;
+    const hp = items.find((i: any) => i.name === "hp");
+    const mood = items.find((i: any) => i.name === "mood");
+    expect([hp.type, hp.declared]).toEqual(["number", true]);
+    expect(checkStartingValue(hp, '"high"')).toEqual({
+      status: "warning",
+      message: "hp is declared as a number. This still applies.",
+    });
+    expect(checkStartingValue(hp, "3")).toEqual({ status: "ok" });
+    expect(checkStartingValue(mood, "nil")).toEqual({ status: "ok" });
+    expect(checkStartingValue(mood, "1")).toMatchObject({ status: "warning" });
   });
 });

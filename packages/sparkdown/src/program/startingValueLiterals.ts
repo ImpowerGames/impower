@@ -5,6 +5,10 @@
  * the engine: the keys, the literal a value is written as, and the checks a
  * value is given against what the program declares.
  */
+import {
+  processLuauEscapes,
+  stringLiteralValue,
+} from "../compiler/utils/stringLiteralValue";
 
 /** The values one start takes: each value's key and the literal it is
  *  written as. */
@@ -170,11 +174,17 @@ export const startingValuesFrom = (stored: unknown): StartingValues => {
 
 /* ----- Literals ----- */
 
-/** A table written as a literal: its list entries, then its keyed ones, in
- *  the order they were written. */
+/** One entry of a table written as a literal: a value the next list
+ *  position takes, or a value under a key. */
+export type LiteralEntry =
+  | { value: Literal }
+  | { key: Exclude<Literal, null>; value: Literal };
+
+/** A table written as a literal: its entries in the order they were
+ *  written, which is the order a table constructor assigns them in, so a
+ *  later entry for the same key wins. */
 export interface LiteralTable {
-  list: Literal[];
-  fields: [Exclude<Literal, null>, Literal][];
+  entries: LiteralEntry[];
 }
 
 /** A value written as a literal: nil, a boolean, a number, a string or a
@@ -197,6 +207,29 @@ export const literalTypeOf = (value: Literal): LiteralType =>
           ? "string"
           : "table";
 
+/** A table's entries by key, as its constructor leaves them: a list entry
+ *  under the next position, a later entry replacing an earlier one of the
+ *  same key, and a nil value no entry. */
+export const literalTableFields = (
+  table: LiteralTable,
+): Map<string, { key: Exclude<Literal, null>; value: Exclude<Literal, null> }> => {
+  const fields = new Map<
+    string,
+    { key: Exclude<Literal, null>; value: Exclude<Literal, null> }
+  >();
+  let position = 1;
+  for (const entry of table.entries) {
+    const key = "key" in entry ? entry.key : position++;
+    const id = typeof key === "string" ? `s:${key}` : `${typeof key}:${String(key)}`;
+    if (entry.value === null) {
+      fields.delete(id);
+    } else {
+      fields.set(id, { key, value: entry.value });
+    }
+  }
+  return fields;
+};
+
 export type ParsedLiteral =
   | { ok: true; value: Literal }
   | { ok: false; error: string };
@@ -204,10 +237,24 @@ export type ParsedLiteral =
 const NAME = /[A-Za-z_][A-Za-z0-9_]*/y;
 const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
+const LONG_OPEN = /^\[(=*)\[/;
 const KEYWORDS = new Set(["nil", "true", "false"]);
 /** How deep a literal's tables may nest, which keeps the reader, the writer
  *  and the runtime's copy of a value within the call stack. */
 const MAX_TABLE_DEPTH = 64;
+
+/** A number's token as its value: decimal, hexadecimal or binary, with `_`
+ *  separators and a sign. */
+const numberOf = (token: string): number => {
+  const negative = token.startsWith("-");
+  const digits = (negative ? token.slice(1) : token).replace(/_/g, "");
+  const magnitude = /^0[xX]/.test(digits)
+    ? parseInt(digits.slice(2), 16)
+    : /^0[bB]/.test(digits)
+      ? parseInt(digits.slice(2), 2)
+      : Number(digits);
+  return negative ? -magnitude : magnitude;
+};
 
 class LiteralReader {
   at = 0;
@@ -253,6 +300,12 @@ class LiteralReader {
     return match[0];
   }
 
+  /** Whether a long string (`[[`, `[==[`) opens here. */
+  longOpens() {
+    this.skip();
+    return LONG_OPEN.test(this.text.slice(this.at));
+  }
+
   value(): Literal {
     const char = this.peek();
     if (char === undefined) {
@@ -267,7 +320,7 @@ class LiteralReader {
     if (char === '"' || char === "'") {
       return this.quoted(char);
     }
-    if (char === "[" && /^\[=*\[/.test(this.text.slice(this.at))) {
+    if (this.longOpens()) {
       return this.long();
     }
     if (char === "`") {
@@ -275,11 +328,7 @@ class LiteralReader {
     }
     const number = this.match(NUMBER);
     if (number !== undefined) {
-      const n = Number(number.replace(/_/g, "").replace(/^-0[bB]/, "-0b"));
-      const value = /^-?0[bB]/.test(number)
-        ? (number.startsWith("-") ? -1 : 1) *
-          parseInt(number.replace(/^-?0[bB]/, "").replace(/_/g, ""), 2)
-        : n;
+      const value = numberOf(number);
       if (Number.isNaN(value)) {
         this.fail(`${number} is not a number`);
       }
@@ -298,99 +347,87 @@ class LiteralReader {
     this.fail(`expected a value, not ${char}`);
   }
 
+  /** A quoted string, its escapes checked as the language's lexer checks
+   *  them and read as the compiler reads them (`processLuauEscapes`). */
   quoted(quote: string): string {
-    this.at += 1;
-    let out = "";
+    const start = this.at + 1;
+    let at = start;
     for (;;) {
-      const char = this.text[this.at];
-      if (char === undefined || char === "\n") {
+      const char = this.text[at];
+      if (char === undefined || char === "\n" || char === "\r") {
         this.fail(`expected ${quote} to close the string`);
       }
-      this.at += 1;
       if (char === quote) {
-        return out;
+        break;
       }
-      if (char !== "\\") {
-        out += char;
+      if (char === "\\") {
+        at = this.escape(at + 1);
         continue;
       }
-      const escape = this.text[this.at];
-      this.at += 1;
-      switch (escape) {
-        case "n":
-          out += "\n";
-          break;
-        case "t":
-          out += "\t";
-          break;
-        case "r":
-          out += "\r";
-          break;
-        case "a":
-          out += "\u0007";
-          break;
-        case "b":
-          out += "\b";
-          break;
-        case "f":
-          out += "\f";
-          break;
-        case "v":
-          out += "\v";
-          break;
-        case "\\":
-        case '"':
-        case "'":
-        case "\n":
-          out += escape;
-          break;
-        case "x": {
-          const hex = this.text.slice(this.at, this.at + 2);
-          if (!/^[0-9a-fA-F]{2}$/.test(hex)) {
-            this.fail("expected two hex digits after \\x");
-          }
-          out += String.fromCharCode(parseInt(hex, 16));
-          this.at += 2;
-          break;
-        }
-        case "u": {
-          const match = /^\{([0-9a-fA-F]+)\}/.exec(this.text.slice(this.at));
-          if (!match) {
-            this.fail("expected \\u{...} with hex digits");
-          }
-          const code = parseInt(match[1]!, 16);
-          if (code > 0x10ffff) {
-            this.fail(`\\u{${match[1]}} is past the last code point`);
-          }
-          out += String.fromCodePoint(code);
-          this.at += match[0].length;
-          break;
-        }
-        default: {
-          const digits = /^[0-9]{1,3}/.exec(this.text.slice(this.at - 1));
-          if (!digits) {
-            this.fail(`\\${escape ?? ""} is not an escape`);
-          }
-          if (Number(digits[0]) > 255) {
-            this.fail(`\\${digits[0]} is past the last byte, 255`);
-          }
-          out += String.fromCharCode(Number(digits[0]));
-          this.at += digits[0].length - 1;
-        }
-      }
+      at += 1;
     }
+    this.at = at + 1;
+    return processLuauEscapes(this.text.slice(start, at));
   }
 
+  /** Checks the escape after the backslash at `at - 1`, and answers where
+   *  the text after it starts. */
+  escape(at: number): number {
+    const escape = this.text[at];
+    if (escape === undefined) {
+      this.fail("expected an escape after \\");
+    }
+    if ("abfnrtv\\\"'{\n".includes(escape)) {
+      return at + 1;
+    }
+    if (escape === "\r") {
+      return this.text[at + 1] === "\n" ? at + 2 : at + 1;
+    }
+    if (escape === "z") {
+      // It skips the whitespace after it, line breaks included.
+      let next = at + 1;
+      while (next < this.text.length && /[ \t-\r]/.test(this.text[next]!)) {
+        next += 1;
+      }
+      return next;
+    }
+    if (escape === "x") {
+      if (!/^[0-9a-fA-F]{2}/.test(this.text.slice(at + 1))) {
+        this.fail("expected two hex digits after \\x");
+      }
+      return at + 3;
+    }
+    if (escape === "u") {
+      const match = /^\{([0-9a-fA-F]+)\}/.exec(this.text.slice(at + 1));
+      if (!match) {
+        this.fail("expected \\u{...} with hex digits");
+      }
+      if (parseInt(match[1]!, 16) > 0x7fffffff) {
+        this.fail(`\\u{${match[1]}} is past the last code point`);
+      }
+      return at + 1 + match[0].length;
+    }
+    const digits = /^[0-9]{1,3}/.exec(this.text.slice(at));
+    if (!digits) {
+      this.fail(`\\${escape} is not an escape`);
+    }
+    if (Number(digits[0]) > 255) {
+      this.fail(`\\${digits[0]} is past the last byte, 255`);
+    }
+    return at + digits[0].length;
+  }
+
+  /** A long string, read as the compiler reads one (`stringLiteralValue`). */
   long(): string {
-    const open = /^\[(=*)\[/.exec(this.text.slice(this.at))!;
+    const open = LONG_OPEN.exec(this.text.slice(this.at))!;
     const close = `]${open[1]}]`;
-    const start = this.at + open[0].length;
-    const end = this.text.indexOf(close, start);
+    const end = this.text.indexOf(close, this.at + open[0].length);
     if (end < 0) {
       this.fail(`expected ${close} to close the string`);
     }
+    const text = this.text.slice(this.at, end + close.length);
     this.at = end + close.length;
-    return this.text.slice(start, end).replace(/^\r?\n/, "");
+    return stringLiteralValue(text, true);
   }
 
   table(): LiteralTable {
@@ -399,7 +436,7 @@ class LiteralReader {
     if (this.depth > MAX_TABLE_DEPTH) {
       this.fail(`expected no more than ${MAX_TABLE_DEPTH} tables inside each other`);
     }
-    const table: LiteralTable = { list: [], fields: [] };
+    const table: LiteralTable = { entries: [] };
     for (;;) {
       if (this.eat("}")) {
         this.depth -= 1;
@@ -408,7 +445,8 @@ class LiteralReader {
       if (this.peek() === undefined) {
         this.fail("expected } to close the table");
       }
-      if (this.eat("[")) {
+      if (this.peek() === "[" && !this.longOpens()) {
+        this.at += 1;
         const key = this.value();
         if (!this.eat("]")) {
           this.fail("expected ] after the key");
@@ -422,15 +460,15 @@ class LiteralReader {
         if (typeof key === "number" && Number.isNaN(key)) {
           this.fail("a table's key cannot be NaN");
         }
-        table.fields.push([key, this.value()]);
+        table.entries.push({ key, value: this.value() });
       } else {
         const from = this.at;
         const name = this.match(NAME);
         if (name !== undefined && !KEYWORDS.has(name) && this.eat("=")) {
-          table.fields.push([name, this.value()]);
+          table.entries.push({ key: name, value: this.value() });
         } else {
           this.at = from;
-          table.list.push(this.value());
+          table.entries.push({ value: this.value() });
         }
       }
       if (!this.eat(",") && !this.eat(";") && this.peek() !== "}") {
@@ -493,8 +531,9 @@ const formatNumber = (n: number) =>
         : String(n);
 
 /** A literal written as an author writes it: `nil`, `true`, `3`, `"Ana"`,
- *  `{ name = "Ana", hp = 10 }`. */
-export const formatLiteral = (value: Literal): string => {
+ *  `{ name = "Ana", hp = 10 }`. A table that holds more than a literal
+ *  writes (`partial`) ends with `…`. */
+export const formatLiteral = (value: Literal, partial = false): string => {
   if (value === null) {
     return "nil";
   }
@@ -507,14 +546,20 @@ export const formatLiteral = (value: Literal): string => {
   if (typeof value === "string") {
     return quote(value);
   }
-  const entries = [
-    ...value.list.map(formatLiteral),
-    ...value.fields.map(([key, field]) =>
-      typeof key === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) && !KEYWORDS.has(key)
-        ? `${key} = ${formatLiteral(field)}`
-        : `[${formatLiteral(key)}] = ${formatLiteral(field)}`,
-    ),
-  ];
+  const entries = value.entries.map((entry) => {
+    if (!("key" in entry)) {
+      return formatLiteral(entry.value);
+    }
+    const { key } = entry;
+    return typeof key === "string" &&
+      /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) &&
+      !KEYWORDS.has(key)
+      ? `${key} = ${formatLiteral(entry.value)}`
+      : `[${formatLiteral(key)}] = ${formatLiteral(entry.value)}`;
+  });
+  if (partial) {
+    entries.push("…");
+  }
   return entries.length === 0 ? "{ }" : `{ ${entries.join(", ")} }`;
 };
 
@@ -539,9 +584,14 @@ export interface StartingValueItem {
   line?: number;
   /** The value it starts with when nothing is set, as a literal. */
   first: string;
-  /** The type a value given it is checked against: the first value's, or
-   *  none for a parameter, which takes any value. */
+  /** The type a value given it is checked against: the store's annotation
+   *  (`declared`) or, without one, its first value's; none for a
+   *  parameter, which takes any value. */
   type?: LiteralType;
+  /** The type is the store's annotation. */
+  declared?: boolean;
+  /** The annotation is optional (`number?`), so nil is of its type. */
+  nullable?: boolean;
   /** A table store's fields, each of which can be set on its own. */
   fields?: StartingValueItem[];
 }
@@ -593,10 +643,17 @@ export const checkStartingValue = (
     return { status: "ok" };
   }
   const type = literalTypeOf(parsed.value);
-  if (item.type && item.type !== "nil" && type !== item.type) {
+  if (
+    item.type &&
+    item.type !== "nil" &&
+    type !== item.type &&
+    !(type === "nil" && item.nullable)
+  ) {
     return {
       status: "warning",
-      message: `${item.name} starts as ${article(item.type)}. This still applies.`,
+      message: item.declared
+        ? `${item.name} is declared as ${article(item.type)}. This still applies.`
+        : `${item.name} starts as ${article(item.type)}. This still applies.`,
     };
   }
   return { status: "ok" };

@@ -117,6 +117,13 @@ export interface SparkProgram {
   labelLocations?: {
     [name: string]: ScriptLocation;
   };
+  /** Each top-level store's type annotation as written after its name
+   *  (`store hp: number` gives `hp` the type `number`, `{ ... }` is
+   *  `table`), which the Game Preview's starting values are checked
+   *  against. */
+  storeTypes?: {
+    [name: string]: string;
+  };
   // Per top-level flow (a scene, a function, or `0` for root content): the
   // asset names its beats reference in document order, plus the flows it can
   // reach. Read by the engine's asset module for prediction and explicit

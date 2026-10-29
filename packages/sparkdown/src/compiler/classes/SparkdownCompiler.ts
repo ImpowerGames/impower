@@ -4921,6 +4921,19 @@ export class SparkdownCompiler {
                 range.end.character,
               ];
             }
+            if (cur.value.type === "var" && scopePathParts.length === 0) {
+              // A top-level `store`: the annotation written after the name
+              // the parse marks (`store hp: number = 0`).
+              const line = doc.getLineText(range.end.line) ?? "";
+              const annotation = /^\s*:\s*(\{|[A-Za-z_][\w.]*\??)/.exec(
+                line.slice(range.end.character),
+              );
+              if (annotation && /^\s*store\b/.test(line)) {
+                program.storeTypes ??= {};
+                program.storeTypes[name] =
+                  annotation[1] === "{" ? "table" : annotation[1]!;
+              }
+            }
             if (cur.value.type === "label") {
               // A label replaces the previous label in the same scope.
               if (scopePathParts.at(-1)?.kind === "label") {

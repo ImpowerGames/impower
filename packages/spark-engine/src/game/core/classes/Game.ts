@@ -1566,6 +1566,7 @@ export class Game<T extends M = {}> {
       uris,
       flows,
       lineText: (uri, line) => this._scriptLineText?.(uri, line),
+      storeTypes: this._program.storeTypes,
     };
   }
 

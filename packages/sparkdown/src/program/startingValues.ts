@@ -42,6 +42,7 @@ import {
   TOP_LEVEL_FLOW,
   formatLiteral,
   isLiteralTable,
+  literalTableFields,
   literalTypeOf,
   paramKey,
   parseLiteral,
@@ -49,6 +50,8 @@ import {
   storeKey,
   visitsKey,
   type Literal,
+  type LiteralTable,
+  type LiteralType,
   type StartingValueItem,
   type StartingValueListing,
   type StartingValueSet,
@@ -61,13 +64,29 @@ export interface StartingValueSource {
   uris: readonly string[];
   lineText(uri: string, line: number): string | undefined;
   flows: readonly { name: string; uri: string; line: number }[];
+  /** Each store's type annotation as written (`SparkProgram.storeTypes`). */
+  storeTypes?: Readonly<Record<string, string>>;
 }
 
+/** The type a store's annotation gives a value: `number`, `string`,
+ *  `boolean`, `nil` or a table type, with `?` allowing nil; nothing for
+ *  a type a literal's type cannot be checked against. */
+const declaredType = (
+  annotation: string | undefined,
+): { type: LiteralType; nullable: boolean } | undefined => {
+  const match = /^(number|string|boolean|nil|table)(\?)?$/.exec(annotation ?? "");
+  return match
+    ? { type: match[1] as LiteralType, nullable: match[2] === "?" }
+    : undefined;
+};
+
 /** A runtime value as a literal, or nothing for one no literal writes (a
- *  function, or a table with a metatable). */
+ *  function, or a table with a metatable). A table's entries that no literal
+ *  writes are left out, and `partial`, when given, records that some were. */
 export const literalOfValue = (
   value: InkObject | null | undefined,
   depth = 0,
+  partial?: { skipped: boolean },
 ): Literal | undefined => {
   if (value == null || value instanceof NullValue) {
     return null;
@@ -86,52 +105,54 @@ export const literalOfValue = (
     if (map.has("__closure_fn") || map.has("__stdlib_fn")) {
       return undefined;
     }
-    const table: Exclude<Literal, null | boolean | number | string> = {
-      list: [],
-      fields: [],
-    };
-    for (let i = 1; map.has(String(i)); i++) {
-      const item = literalOfValue(map.get(String(i)), depth + 1);
+    const table: LiteralTable = { entries: [] };
+    // The list part first, by position: once an entry is left out, the ones
+    // after it keep their positions as keys.
+    let position = 1;
+    let gap = false;
+    for (; map.has(String(position)); position++) {
+      const item = literalOfValue(map.get(String(position)), depth + 1, partial);
       if (item === undefined) {
-        return undefined;
+        gap = true;
+        if (partial) partial.skipped = true;
+      } else if (gap) {
+        table.entries.push({ key: position, value: item });
+      } else {
+        table.entries.push({ value: item });
       }
-      table.list.push(item);
     }
     for (const [key, field] of map) {
-      if (/^[1-9]\d*$/.test(key) && Number(key) <= table.list.length) {
+      if (/^[1-9]\d*$/.test(key) && Number(key) < position) {
         continue;
       }
-      const item = literalOfValue(field, depth + 1);
+      const item = literalOfValue(field, depth + 1, partial);
       if (item === undefined) {
-        return undefined;
+        if (partial) partial.skipped = true;
+        continue;
       }
-      table.fields.push([/^-?\d+(\.\d+)?$/.test(key) ? Number(key) : key, item]);
+      table.entries.push({
+        key: /^-?\d+(\.\d+)?$/.test(key) ? Number(key) : key,
+        value: item,
+      });
     }
     return table;
   }
   return undefined;
 };
 
-/** A literal as the runtime value it makes, a table a fresh one. */
+/** A literal as the runtime value it makes, a table a fresh one with its
+ *  entries assigned in the order they were written. */
 export const valueOfLiteral = (literal: Literal): AbstractValue => {
   if (literal === null) {
     return new NullValue();
   }
   if (isLiteralTable(literal)) {
     const entries = new Map<string, AbstractValue>();
-    literal.list.forEach((item, i) => {
-      if (item !== null) {
-        entries.set(String(i + 1), valueOfLiteral(item));
-      }
-    });
-    for (const [key, item] of literal.fields) {
-      const keyString =
-        typeof key === "string" ? key : valueOfLiteral(key).toString();
-      if (item === null) {
-        entries.delete(keyString);
-      } else {
-        entries.set(keyString, valueOfLiteral(item));
-      }
+    for (const { key, value } of literalTableFields(literal).values()) {
+      entries.set(
+        typeof key === "string" ? key : valueOfLiteral(key).toString(),
+        valueOfLiteral(value),
+      );
     }
     return new ObjectValue(entries);
   }
@@ -373,21 +394,29 @@ const storesOf = (
           }
           continue;
         }
-        const first = literalOfValue(value);
+        const partial = { skipped: false };
+        const first = literalOfValue(value, 0, partial);
         if (first === undefined) {
           continue;
         }
+        const declared = declaredType(source.storeTypes?.[name]);
         const item: StartingValueItem = {
           key: storeKey(name),
           group: "stores",
           name,
-          first: formatLiteral(first),
-          type: literalTypeOf(first),
+          first: formatLiteral(first, partial.skipped),
+          type: declared?.type ?? literalTypeOf(first),
+          ...(declared
+            ? { declared: true, ...(declared.nullable ? { nullable: true } : {}) }
+            : {}),
         };
         targets.set(item.key, [name]);
-        if (isLiteralTable(first) && first.fields.length > 0) {
+        const fields = isLiteralTable(first)
+          ? [...literalTableFields(first).values()]
+          : [];
+        if (fields.length > 0) {
           item.fields = [];
-          for (const [field, fieldValue] of first.fields) {
+          for (const { key: field, value: fieldValue } of fields) {
             if (typeof field !== "string") {
               continue;
             }
