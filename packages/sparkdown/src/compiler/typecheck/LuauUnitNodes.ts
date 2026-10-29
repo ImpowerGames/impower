@@ -9,6 +9,7 @@ import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleName
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import { RESERVED } from "../utils/luauReservedWords";
 
 // The statements of a `.sd` file that are Luau, wherever they sit.
 export const LUAU_STATEMENTS = new Set([
@@ -267,30 +268,7 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
-// Luau's reserved words, which are never a name.
-export const RESERVED: ReadonlySet<string> = new Set([
-  "and",
-  "break",
-  "do",
-  "else",
-  "elseif",
-  "end",
-  "false",
-  "for",
-  "function",
-  "if",
-  "in",
-  "local",
-  "nil",
-  "not",
-  "or",
-  "repeat",
-  "return",
-  "then",
-  "true",
-  "until",
-  "while",
-]);
+export { RESERVED };
 
 // The statements the tree begins on a new line where Luau's parser could
 // read on into the statement before them (`a, b = 1,` before a line `goto

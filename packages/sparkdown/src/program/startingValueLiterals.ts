@@ -5,6 +5,7 @@
  * the engine: the keys, the literal a value is written as, and the checks a
  * value is given against what the program declares.
  */
+import { RESERVED } from "../compiler/utils/luauReservedWords";
 import { numberLiteralValue } from "../compiler/utils/numberLiteralValue";
 import {
   processLuauEscapes,
@@ -268,7 +269,6 @@ const NUMBER =
   /-?(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?)/y;
 const UNWRITTEN_NUMBER = /-?math\.huge(?![\w.])|0\/0(?![\w.])/y;
 const LONG_OPEN = /^\[(=*)\[/;
-const KEYWORDS = new Set(["nil", "true", "false"]);
 /** How deep a literal's tables may nest, which keeps the reader, the writer
  *  and the runtime's copy of a value within the call stack. */
 const MAX_TABLE_DEPTH = 64;
@@ -500,7 +500,12 @@ class LiteralReader {
       } else {
         const from = this.at;
         const name = this.match(NAME);
-        if (name !== undefined && !KEYWORDS.has(name) && this.eat("=")) {
+        if (name !== undefined && this.eat("=")) {
+          if (RESERVED.has(name)) {
+            this.fail(
+              `${name} is a reserved word, so a key named it is written ["${name}"]`,
+            );
+          }
           table.entries.push({ key: name, value: this.value() });
         } else {
           this.at = from;
@@ -565,7 +570,9 @@ const formatNumber = (n: number) =>
       ? "math.huge"
       : n === -Infinity
         ? "-math.huge"
-        : String(n);
+        : Object.is(n, -0)
+          ? "-0"
+          : String(n);
 
 /** A literal written as an author writes it: `nil`, `true`, `3`, `"Ana"`,
  *  `{ name = "Ana", hp = 10 }`. A table read from a value that held more
@@ -590,7 +597,7 @@ export const formatLiteral = (value: Literal): string => {
     const { key } = entry;
     return typeof key === "string" &&
       /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) &&
-      !KEYWORDS.has(key)
+      !RESERVED.has(key)
       ? `${key} = ${formatLiteral(entry.value)}`
       : `[${formatLiteral(key)}] = ${formatLiteral(entry.value)}`;
   });

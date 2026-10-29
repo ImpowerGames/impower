@@ -392,6 +392,36 @@ describe("the Starting values tab", () => {
     );
   });
 
+  test("a change the host did not keep, answered after a later change to the field was kept, leaves the later one", async () => {
+    const p = await onValuesTab();
+    p.type("store:trust", "2");
+    p.type("store:trust", "3");
+    const [first, second] = p.changes();
+    const answer = (request: any, ok: boolean) =>
+      window.dispatchEvent(
+        new CustomEvent(MessageProtocol.event, {
+          detail: ok
+            ? { jsonrpc: "2.0", id: request.id, method: request.method, result: {} }
+            : {
+                jsonrpc: "2.0",
+                id: request.id,
+                method: request.method,
+                error: { code: -1, message: "not kept" },
+              },
+        }),
+      );
+    answer(second, true);
+    await settle();
+    await p.hostSends({ interrogation: { "store:trust": "3" } });
+    answer(first, false);
+    await settle();
+    expect(p.input("store:trust").value).toBe("3");
+    expect(p.badge("store:trust")).toBeNull();
+    expect((p.controller as any)._startingValues).toEqual({
+      interrogation: { "store:trust": "3" },
+    });
+  });
+
   test("a value whose name left the script is listed apart with its warning, and × clears it", async () => {
     const p = await onValuesTab({
       interrogation: { "store:cells": "2", "visits:truth.ending": "1" },

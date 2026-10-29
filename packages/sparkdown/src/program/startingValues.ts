@@ -626,6 +626,17 @@ export interface StartPlan {
   args?: Literal[];
 }
 
+/** A plan as text two plans share only when they start a story alike: JSON,
+ *  with the numbers JSON has no text for (`math.huge`, `-math.huge`, `0/0`
+ *  and `-0`) written as the literals they are. */
+export const startPlanKey = (plan: StartPlan | null | undefined): string =>
+  JSON.stringify(plan ?? null, (_key, value) =>
+    typeof value === "number" &&
+    (!Number.isFinite(value) || Object.is(value, -0))
+      ? { number: formatLiteral(value) }
+      : value,
+  );
+
 /**
  * The plan of a start with the values `set`: each value that parses and
  * whose key resolves, the rest left out, as a route ignores a value whose

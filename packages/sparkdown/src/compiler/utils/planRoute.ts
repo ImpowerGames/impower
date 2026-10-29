@@ -7,7 +7,11 @@ import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import { planRouteFallback } from "./planRouteFallback";
-import { startStoryAt, type StartPlan } from "../../program/startingValues";
+import {
+  startPlanKey,
+  startStoryAt,
+  type StartPlan,
+} from "../../program/startingValues";
 
 export interface RoutePlan {
   /** The flow the route starts at the top of: a scene's name, or `"0"` for
@@ -640,7 +644,7 @@ const levelZeroKey = (
     maxNodes,
     faithfulBudget.steps,
     LEVEL_SHARE,
-    options?.start ?? null,
+    startPlanKey(options?.start),
   ]);
 
 /** The verdict level zero tries first at an open condition, favoring

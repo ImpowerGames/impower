@@ -308,6 +308,12 @@ export class GamePlayerController {
    *  host has sent none, when the route panel offers no Starting values
    *  tab. */
   protected _startingValues?: StartingValues;
+
+  /** The latest change made to each field, by its start and key, which a
+   *  change the host did not keep puts back only while it is the latest. */
+  protected _valueEdits = new Map<string, number>();
+
+  protected _valueEditCount = 0;
   /** What the Starting values tab holds of its own: what its fields hold
    *  that is not kept, the fields whose change the host did not keep, and
    *  the search. */
@@ -1000,6 +1006,10 @@ export class GamePlayerController {
     if (start === undefined || !before) {
       return;
     }
+    const edit = ++this._valueEditCount;
+    for (const key of Object.keys(changes)) {
+      this._valueEdits.set(`${start}\n${key}`, edit);
+    }
     const unsaved = { ...this._valuesView.unsaved };
     for (const key of Object.keys(changes)) {
       delete unsaved[key];
@@ -1013,11 +1023,20 @@ export class GamePlayerController {
     if (saved || !this._startingValues) {
       return;
     }
-    const kept = ownEntry(before, start) ?? {};
+    // A field a later change has been made to since is that change's to
+    // put back; the rest go back to what the host last sent.
+    const own = Object.keys(changes).filter(
+      (key) => this._valueEdits.get(`${start}\n${key}`) === edit,
+    );
+    if (own.length === 0) {
+      return;
+    }
+    const kept =
+      ownEntry(this._options?.startingValues ?? before, start) ?? {};
     const items = listingItems(this._listing?.listing);
     const putBack: Record<string, string | null> = {};
     const failed = { ...this._valuesView.unsaved };
-    for (const key of Object.keys(changes)) {
+    for (const key of own) {
       putBack[key] = kept[key] ?? null;
       failed[key] =
         kept[key] ?? items.find((item) => item.key === key)?.first ?? "nil";

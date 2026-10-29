@@ -42,6 +42,7 @@ import {
   applyStartValues,
   bindStartArguments,
   planSetsParameters,
+  startPlanKey,
   startPlanOf,
   startStoryAt,
   startingValueListing,
@@ -1603,7 +1604,7 @@ export class Game<T extends M = {}> {
         ownEntry(this._startingValues, from),
         unsetSeed,
       );
-      kept = { plan, json: JSON.stringify(plan) };
+      kept = { plan, json: startPlanKey(plan) };
       this._startPlans.set(key, kept);
     }
     return kept;

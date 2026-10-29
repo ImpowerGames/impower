@@ -39,7 +39,10 @@ import {
   SEED_KEY,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
-import { valueOfLiteral } from "@impower/sparkdown/src/program/startingValues";
+import {
+  startPlanKey,
+  valueOfLiteral,
+} from "@impower/sparkdown/src/program/startingValues";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
@@ -421,6 +424,34 @@ describe("a value is a literal", () => {
     },
   );
 
+  test("-0 is written with its sign and reads back as -0", () => {
+    expect(formatLiteral(-0)).toBe("-0");
+    const parsed = parseLiteral("-0") as any;
+    expect(Object.is(parsed.value, -0)).toBe(true);
+  });
+
+  test("a reserved word is a table's key only in brackets, and is written so", () => {
+    expect(parseLiteral("{ end = 3 }")).toEqual({
+      ok: false,
+      error: 'end is a reserved word, so a key named it is written ["end"]',
+    });
+    const parsed = parseLiteral('{ ["end"] = 3 }') as any;
+    expect(parsed.value).toEqual({ entries: [{ key: "end", value: 3 }] });
+    expect(formatLiteral(parsed.value)).toBe('{ ["end"] = 3 }');
+  });
+
+  test("plans that start a story differently have different keys", () => {
+    const plan = (value: unknown) =>
+      startPlanKey({
+        from: "s",
+        seed: 0,
+        stores: [[["x"], value as any]],
+        counts: [],
+      });
+    const keys = [Infinity, -Infinity, NaN, null, 0, -0].map(plan);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   test("a table key is a table of its own, equal to no other key", () => {
     const parsed = parseLiteral("{ [{ a = 1 }] = 5, [{ b = 2 }] = 9 }");
     const table = valueOfLiteral((parsed as any).value) as any;
@@ -595,6 +626,25 @@ describe("a table's starting value", () => {
     const bag = listed.items.find((i: any) => i.name === "bag");
     expect(bag.first).toBe("{ inner = { hp = 10, … } }");
     expect(bag.fields.map((f: any) => f.first)).toEqual(["{ hp = 10, … }"]);
+  });
+});
+
+describe("a first value", () => {
+  test("is a literal of the value: -0 keeps its sign, and a reserved key stays in brackets", () => {
+    const listed = routeTo(
+      [
+        "store value = -0",
+        'store bag = { ["end"] = 3 }',
+        "scene s",
+        "  Value {1 / value}.",
+        "end",
+      ],
+      4,
+    ).game.startingValueListing("s");
+    const firstOf = (name: string) =>
+      listed.items.find((i: any) => i.name === name)?.first;
+    expect(firstOf("value")).toBe("-0");
+    expect(firstOf("bag")).toBe('{ ["end"] = 3 }');
   });
 });
 
