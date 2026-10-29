@@ -9,16 +9,12 @@ import type { RuleDefinition } from "../types/GrammarDefinition";
 import { createID } from "../utils/createID";
 
 export class GrammarNode implements Node {
-  /** The type of node represented as a unique number. */
   declare typeIndex: number;
 
-  /** The type of node represented as a unique string. */
   declare typeId: string;
 
-  /** Props associated with this node. */
   declare props: Record<string, any>;
 
-  /** @param id - The ID to assign to this node. */
   constructor(
     typeIndex: number,
     def: RuleDefinition,
@@ -37,7 +33,6 @@ export class GrammarNode implements Node {
     this.props = { ...definitionProps, ...otherProps };
   }
 
-  /** Special `Node` used for when a rule doesn't emit anything. */
   static None = new GrammarNode(SpecialRecord.Reuse, { id: "none" });
   static Unrecognized = new GrammarNode(NodeID.unrecognized, {
     id: "unrecognized",

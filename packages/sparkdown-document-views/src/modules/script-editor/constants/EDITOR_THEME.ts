@@ -13,53 +13,26 @@ const EDITOR_THEME: {
   ".lsp-semantic-token.lsp-type-operator *": {
     color: EDITOR_COLORS.operator,
   },
-  // Functions render in the screenwriter-yellow used for identifier
-  // names throughout the codebase. The stdlib variant gets the
-  // orange `standardFunction` tone so authors can tell a built-in
-  // call from a user-defined one at a glance.
   ".lsp-semantic-token.lsp-type-function *": {
     color: EDITOR_COLORS.functionName,
   },
   ".lsp-semantic-token.lsp-type-function.lsp-mod-defaultLibrary *": {
     color: EDITOR_COLORS.standardFunction,
   },
-  // Beats — sparkdown's umbrella for narrative anchors (scenes,
-  // branches, and labels) — share the section-name purple, matching
-  // the VS Code TextMate styling of `keyword.control.section.sd`.
-  // Beat declarations arrive here tagged as `class` (the LSP type
-  // assigned by `SemanticAnnotator` for SceneDeclarationName /
-  // BranchDeclarationName / LabelDeclarationName); divert paths that
-  // resolve to a beat get the same `class` from `getSemanticTokens`'
-  // post-compile lookup. The purple flows through the declaration
-  // AND every reference uniformly.
   ".lsp-semantic-token.lsp-type-class *": {
     color: EDITOR_COLORS.sectionNameDefinition,
   },
-  // Stdlib namespaces (`math`, `string`, ...) get the standard-type
-  // teal so they read as "library root" rather than as a local
-  // identifier.
   ".lsp-semantic-token.lsp-type-namespace *": {
     color: EDITOR_COLORS.standardType,
   },
-  // Const-variable references — the `readonly` modifier flips them
-  // to the brighter constantVariableName cyan so `const` declarations
-  // visually pop next to plain `local` / `store` ones.
   ".lsp-semantic-token.lsp-type-variable.lsp-mod-readonly *": {
     color: EDITOR_COLORS.constantVariableName,
   },
-  // Function parameters render with their own light-blue tone (same
-  // shade as the broader variableName palette but kept on a dedicated
-  // rule so themes can override one without the other).
   ".lsp-semantic-token.lsp-type-parameter *": {
     color: EDITOR_COLORS.parameterName,
   },
   "*, *::before, *::after": {
     boxSizing: "border-box",
-    // When this editor is rendered in light DOM inside a spec-component
-    // shadow (e.g. <spark-editor>), spec-component's normalize.css applies
-    // `background-size: cover` to every element, stretching the search
-    // panel SVG icons to fill their containers. Restore the intrinsic
-    // SVG size here so icons render at the size the SVG declares.
     backgroundSize: "auto",
   },
   ".indent": {
@@ -95,13 +68,7 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.lineNumber,
     border: "none",
     opacity: 0.7,
-    // CodeMirror ships these at z-index 200, and nothing between them and
-    // <body> establishes a stacking context, so that 200 competed against the
-    // HOST app's layers rather than staying inside the editor -- putting the
-    // gutters above dialogs and toasts. Editor CHROME belongs under the app's
-    // UI; only editor POPUPS (`.cm-tooltip`, the LSP context menu) deliberately
-    // stay high, because they must overhang neighbouring panes. Positioned, so
-    // this also contains anything nested inside.
+    // workaround(@codemirror/view): ships gutters at z-index 200 with no stacking context, so they rise above host dialogs and toasts
     zIndex: "1",
   },
   "kbd, code, pre": {
@@ -297,9 +264,6 @@ const EDITOR_THEME: {
   },
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
-    // Same reason as `.cm-gutters` above -- CodeMirror's default is 300, which
-    // put the status bar over the host's dialogs. Kept one above the gutters
-    // to preserve CodeMirror's own relative order (300 > 200).
     zIndex: "2",
   },
   "& .cm-panels.cm-panels-bottom": {
@@ -321,26 +285,8 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.white,
   },
   "& .cm-panels.cm-panels-top": {
-    // Top panels are pulled up INTO the host's 48px header band by the
-    // negative margin below, so they have to outrank it as well. The host
-    // chrome (sticky headers, tab bars, the split divider) sits at z-index
-    // 10-20 and nothing between `.cm-panels` and <body> establishes a
-    // stacking context, so that chrome competes with this value directly:
-    // at the inherited 2 the header paints OVER the search panel and the
-    // whole Find row is invisible and unclickable (#337).
-    //
-    // 30 clears the chrome band while staying under the host's dialogs (50),
-    // toasts (60) and drag overlay (400), and under this editor's own popups
-    // (`.cm-tooltip`, 300) -- all of which must still cover the panel.
-    //
-    // Keep the override scoped to the TOP panels. Only they are pulled into
-    // the header band and so only they need to outrank it; the bottom status
-    // bar overlaps nothing and belongs under the host's UI, per the same rule
-    // that pins `.cm-gutters` to 1. Raising `.cm-panels` as a whole would drag
-    // the status bar up to 30 with it for no reason.
     zIndex: "30",
     "& .cm-panel": {
-      // Top panels should cover up panel header
       marginTop: "-48px",
       minHeight: "40px",
     },
@@ -349,9 +295,6 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
     padding: "8px",
     display: "flex",
-    // Explicit: a host may normalize `flex-direction` across its subtree
-    // (spark-editor forces `column` on every descendant of the editor root),
-    // and a direction-less flex container silently stacks when it does.
     flexDirection: "row",
     gap: "8px",
     "& .cm-textfield": {
@@ -412,12 +355,6 @@ const EDITOR_THEME: {
       display: "inline-block",
       width: "calc(100% - 78px)",
     },
-    // The find and replace fields hold more than one line, so they have to
-    // show every space and every break of what they hold: collapsed
-    // whitespace would put an indent on screen that the replacement does not
-    // carry, or drop one that it does. They grow with their content and then
-    // scroll, since what is pasted into them has no bound and the script
-    // underneath still has to be visible.
     "& [contenteditable][name='search'], & [contenteditable][name='replace']": {
       whiteSpace: "pre-wrap",
       overflowWrap: "break-word",
@@ -583,9 +520,6 @@ const EDITOR_THEME: {
     fontSize: "14px",
     marginRight: "16px",
     display: "flex",
-    // Explicit: a host may normalize `flex-direction` across its subtree
-    // (spark-editor forces `column` on every descendant of the editor root),
-    // and a direction-less flex container silently stacks when it does.
     flexDirection: "row",
   },
   "& .cm-diagnosticAction": {

@@ -1,9 +1,3 @@
-// The quick fix of a `store` declared inside a scene or a branch (I-1673):
-// the declaration is hoisted to the story's start, so the fix changes the
-// line to an assignment. A client that asks for code actions gets it from
-// `textDocument/codeAction`; the web editor's client, which asks for none,
-// gets it in the diagnostic's `data`.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { STORE_INSIDE_FLOW_MESSAGE } from "@impower/sparkdown/src/compiler/utils/declarationPlacement";
@@ -55,8 +49,6 @@ const storeDiagnostics = (program: SparkProgram) =>
       STORE_INSIDE_FLOW_MESSAGE,
   );
 
-/** The actions offered on the one `store` diagnostic of `text`, each with
- *  `text` once its edits apply. */
 const actions = (text: string): { title: string; kind?: string; text: string }[] => {
   const diagnostics = storeDiagnostics(compile(text));
   expect(diagnostics).toHaveLength(1);

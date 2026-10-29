@@ -21,10 +21,6 @@ import { SwitchRule } from "./SwitchRule";
 
 const EMPTY_MATCH_LIMIT = 10;
 
-/**
- * A {@link Rule} subclass that uses {@link RegExpMatcher} or
- * {@link StringMatcher} instances for the underlying pattern.
- */
 export class ScopedRule implements Rule {
   repo: GrammarRepository;
 
@@ -43,8 +39,6 @@ export class ScopedRule implements Rule {
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
 
-    // Refused before anything is registered, so a refusal leaves no type
-    // index without its node (the repository's eager resolution catches it).
     if ("while" in def) {
       throw new Error("while rules are not currently supported");
     }
@@ -61,27 +55,22 @@ export class ScopedRule implements Rule {
     const endId = this.id + "_end";
     const contentId = this.id + "_content";
 
-    // begin
     const beginRuleItem: MatchRuleDefinition = {
       id: beginId,
       match: def.begin,
-      // vscode-textmate falls back on `captures` (beginCaptures || captures)
       captures: def.beginCaptures ?? def.captures,
       closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
 
-    // end
     const endRuleItem: MatchRuleDefinition = {
       id: endId,
       match: def.end,
-      // vscode-textmate falls back on `captures` (endCaptures || captures)
       captures: def.endCaptures ?? def.captures,
       openedBy: (def.openedBy ?? def.brackets) ? beginId : undefined,
     };
     this.endRule = repo.add(endRuleItem, endId);
 
-    // content
     const contentRuleItem: SwitchRuleDefinition = {
       id: contentId,
       patterns: def.patterns ?? [],
@@ -92,14 +81,9 @@ export class ScopedRule implements Rule {
     this.applyEndPatternLast = def.applyEndPatternLast ?? false;
   }
 
-  /**
-   * @param str - The string to match.
-   * @param from - The position to start matching at.
-   * @param state - The current {@link GrammarState}.
-   */
   match(state: GrammarState, from: number) {
     if (state.possibleStackOverflow(this.id, from)) {
-      return null; // Detected infinite recursion
+      return null;
     }
     state.enter(this.id, from);
     const wrappedBeginChildren: Matched[] = [];
@@ -109,7 +93,6 @@ export class ScopedRule implements Rule {
     let pos = from;
     let totalLength = 0;
 
-    // check begin
     let beginMatched = this.begin(state, pos);
     if (!beginMatched) {
       state.exit(this.id, from);
@@ -123,13 +106,11 @@ export class ScopedRule implements Rule {
     }
 
     const contentChildren: Matched[] = [];
-    // check end
     let endMatched = this.applyEndPatternLast ? false : this.end(state, pos);
 
     let emptyMatchCount = 0;
 
     while (!endMatched && pos < state.str.length) {
-      // check patterns
       const patternMatched = this.content(state, pos);
       if (patternMatched) {
         if (patternMatched.length === 0) {
@@ -146,46 +127,25 @@ export class ScopedRule implements Rule {
             break;
           }
         } else {
-          emptyMatchCount = 0; // reset counter on progress
+          emptyMatchCount = 0;
           pos += patternMatched.length;
           totalLength += patternMatched.length;
         }
-        // A pattern matched
         contentChildren.push(patternMatched);
         if (pos >= state.str.length) {
           state.advance();
         }
         if (!this.applyEndPatternLast) {
-          // When applyEndPatternLast is false, we should check the end pattern before every iteration
           endMatched = this.end(state, pos);
         }
       } else {
-        // None of the patterns matched,
-        // so check for end match and forcibly exit scope no matter what
         endMatched = this.end(state, pos);
         break;
       }
     }
-    // Final end-pattern check for rules that legitimately close at end-of-
-    // input via a lookahead (e.g. `(?=$)`). Without this, the loop exits
-    // via `pos >= state.str.length` without ever calling `this.end()` on
-    // the final iteration, and the rule appears incomplete even though it
-    // closed correctly.
     if (!endMatched && pos >= state.str.length) {
       endMatched = this.end(state, pos);
     }
-    // If we reached end-of-input without the `end` pattern matching, treat
-    // that as a natural close rather than an incomplete scope. The scope
-    // ran out of source — not necessarily because the grammar is wrong,
-    // just because there's no more text to parse. Suppressing the warning
-    // here saves every author from having to add a redundant `(?=$)` /
-    // `(?![\s\S])` EOF lookalternative to every `end:` pattern, and the
-    // `INCOMPLETE_NODE` marker is also skipped because the tree is fine —
-    // the scope simply truncates at EOF.
-    //
-    // Genuine mid-content failures (loop fell out of patterns at a
-    // position that is NOT end-of-input) still fire the warning + add
-    // the error marker below.
     const closedAtEof = !endMatched && pos >= state.str.length;
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
@@ -199,12 +159,10 @@ export class ScopedRule implements Rule {
         const contentChild = contentChildren[i];
         if (contentChild) {
           if (i === 0) {
-            // first child
             wrapped.push(
               contentChild.wrap(this.contentRule.node, Wrapping.BEGIN),
             );
           } else if (i === contentChildren.length - 1) {
-            // last child
             wrapped.push(
               contentChild.wrap(this.contentRule.node, Wrapping.END),
             );
@@ -228,22 +186,6 @@ export class ScopedRule implements Rule {
         ...wrappedEndChildren,
       ]);
     } else {
-      // Incomplete scope: the `end` pattern never matched mid-content
-      // (and we're not at end-of-input, which would have been handled
-      // by the `closedAtEof` branch above). This usually means the
-      // rule's `patterns:` list is missing an include for some
-      // construct that appears inside the body — the parser ran the
-      // patterns, ran out, did the forced final end-check, and that
-      // still didn't match. So it had to give up and return without
-      // closing.
-      //
-      // We surface this by appending an `INCOMPLETE_NODE` child (the
-      // prebuilt error-typed node from `Grammar.nodes[NodeID.incomplete]`)
-      // at the end of the scope's children. The error type flows
-      // through `Tree.build` so the resulting tree node is `isError`,
-      // which `printTree` already renders in red — visible in any
-      // snapshot diff or `dumpTree` output without spamming stderr
-      // during every parse.
       const incompleteMarker = Matched.create(
         this.repo.grammar.nodes[NodeID.incomplete]!,
         from + totalLength,
@@ -265,7 +207,6 @@ export class ScopedRule implements Rule {
     if (!begun) {
       return null;
     }
-    // The end's `\N` is the begin's group N, as in vscode-textmate.
     const captures = begun.groups.map((group) => group ?? "");
     const beginMatched = begun.matched.wrap(this.node, Wrapping.BEGIN);
     this.contentRule.resolve();

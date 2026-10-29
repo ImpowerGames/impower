@@ -71,37 +71,30 @@ function jumpToOrigin(
   return true;
 }
 
-/// Jump to the definition of the symbol at the cursor. To support
-/// cross-file jumps, you'll need to implement
-/// [`Workspace.displayFile`](#lsp-client.Workspace.displayFile).
 export const jumpToDefinition: Command = (view) =>
   jumpToOrigin(view, {
     get: getDefinition,
     capability: "definitionProvider",
   });
 
-/// Jump to the declaration of the symbol at the cursor.
 export const jumpToDeclaration: Command = (view) =>
   jumpToOrigin(view, {
     get: getDeclaration,
     capability: "declarationProvider",
   });
 
-/// Jump to the type definition of the symbol at the cursor.
 export const jumpToTypeDefinition: Command = (view) =>
   jumpToOrigin(view, {
     get: getTypeDefinition,
     capability: "typeDefinitionProvider",
   });
 
-/// Jump to the implementation of the symbol at the cursor.
 export const jumpToImplementation: Command = (view) =>
   jumpToOrigin(view, {
     get: getImplementation,
     capability: "implementationProvider",
   });
 
-/// Binds F12 to [`jumpToDefinition`](#lsp-client.jumpToDefinition).
 export const jumpToDefinitionKeymap: readonly KeyBinding[] = [
   { key: "F12", run: jumpToDefinition, preventDefault: true },
 ];

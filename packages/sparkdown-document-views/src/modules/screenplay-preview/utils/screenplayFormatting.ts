@@ -90,9 +90,6 @@ const INLINE_HIDDEN_TAGS = [
   tags.macroName,
   tags.meta,
   tags.logicOperator,
-  // Flow-control keywords (choose/then/end/done/if/else/do/...) are logic, never
-  // screenplay prose. They surface as `keyword.control.*` (controlKeyword) when
-  // the walk descends into a Luau flow-block container, so hide them inline.
   tags.controlKeyword,
 ];
 
@@ -122,11 +119,6 @@ const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
     },
   ]);
 
-// display:none rather than visibility:hidden so a line whose ONLY content is
-// inline-hidden (e.g. a directive-only line `[[show backdrop]]` inside a
-// dialogue block, or a stray `// comment` line) does not generate a line-box
-// and therefore does not occupy line-height of vertical space. The dual
-// dialogue highlight style below already uses display:none for this reason.
 const LANGUAGE_HIGHLIGHTS = createHighlightStyle({
   display: "none",
 });
@@ -247,12 +239,6 @@ export const decorate = (
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
 
-  // Returns true if the text is composed only of inline-hidden directive
-  // markers — `[[image]]`, `((audio))`, `<directive>` — and whitespace.
-  // Used to detect dialogue lines whose source is metadata-only so we
-  // can collapse the wrapping cm-line and not have it occupy a row of
-  // vertical space that visually competes with the inter-block blank
-  // line separator.
   const isOnlyHiddenDirectives = (text: string): boolean => {
     const stripped = text
       .replace(/\[\[[^\]]*\]\]/g, "")
@@ -262,15 +248,6 @@ export const decorate = (
     return stripped.length === 0 && text.trim().length > 0;
   };
 
-  // Block nodes (BlockDialogue, ...) include any trailing
-  // whitespace-only "blank" lines inside their range. When a block is
-  // rendered via a widget-replace (dual dialogue), consuming the whole
-  // range absorbs the blank line that would have visually separated
-  // this block from the next one. Walk backward from `to` to find the
-  // position right after the last content line's terminating newline,
-  // so the widget stops there and the trailing blank line(s) remain as
-  // their own cm-lines (default theme opacity:0 still gives them a
-  // line-height of vertical space — the visible separator).
   const findBlockContentEnd = (from: number, to: number): number => {
     let lastContentChar = -1;
     for (let i = to - 1; i >= from; i--) {
@@ -316,27 +293,9 @@ export const decorate = (
     );
   };
 
-  // The Luau flow-control container nodes the grammar emits — choose/then,
-  // if/elseif/else, do, control, and the alternator blocks
-  // (LuauSparkdownChooseBlock, LuauSparkdownIfBlock, ...ThenClause, etc.).
   const isLuauFlowBlockContainer = (name: string) =>
     /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
 
-  // Logic that lives INSIDE Luau flow blocks (and at top level) but is never
-  // screenplay prose. The flow KEYWORDS (`if`/`else`/`choose`/`then`/`end`/…)
-  // already hide via the controlKeyword inline tag, but these nodes carry
-  // their own non-keyword tokens — variable names, operators, numbers, divert
-  // paths, label names — that the inline-hide tag set doesn't cover, so they
-  // leak into the rendered screenplay as raw `<unknown>` text. Hide each node
-  // wholesale (the walk does not descend, so nested tokens never re-surface):
-  //   Divert                  `-> WishCourage`, `-> Alley`
-  //   Label                   the `(greeting)` anchor on a `then`/label line
-  //   LuauSparkdownExplicit(Block)Statement   `& c.trust -= 1` code
-  //   Luau*BlockCondition     the `trust >= 1 then` / `c.trust == 0 then` head
-  //                           of an `if`/`elseif` block (includes the `then`)
-  //   LuauSparkdownExplicitIfCondition  a story `if`/`elseif` condition, which
-  //                           ends at its line (#1907); its `then` hides as a
-  //                           keyword
   const isHiddenFlowLogic = (name: string) =>
     name === "Divert" ||
     name === "Label" ||
@@ -349,12 +308,9 @@ export const decorate = (
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (nodeRef.node.parent?.name === "sparkdown") {
-      // This is a top-level node
       return (
         name !== "FrontMatter" &&
-        name !== "Scene" && // TODO: Only hide if config doesn't print scene
-        // name !== "Branch" && // TODO: Only hide if config doesn't print branch
-        // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
+        name !== "Scene" &&
         name !== "BlockTitle" &&
         name !== "InlineTitle" &&
         name !== "BlockHeading" &&
@@ -371,11 +327,6 @@ export const decorate = (
         name !== "Choice" &&
         name !== "Newline" &&
         name !== "Whitespace" &&
-        // Flow-block containers wrap their bodies as a single top-level node.
-        // Hiding them whole collapses the display content inside (choices,
-        // dialogue, action). Treat them as transparent so the walk descends —
-        // the flow KEYWORDS hide via the inline tag rules and the inner display
-        // content renders normally.
         !isLuauFlowBlockContainer(name)
       );
     }
@@ -401,17 +352,6 @@ export const decorate = (
         to: hideTo,
       }),
     );
-    // After hiding a block (which collapses a range of source positions to
-    // a single zero-height widget), advance the line cursor past the
-    // consumed range so the next Newline visit doesn't see a "blank"
-    // line that's actually inside the just-hidden block. DON'T also
-    // call processNewline here — that synthesized call would invoke
-    // isWhitespaceOnly(lineStart, lineStart - 1) which returns true
-    // for the empty range (`end <= start`) and emits a spurious
-    // separator collapse at the trailing line position. Across many
-    // edits and incremental reparses the spurious collapses pile up,
-    // producing the "many collapse classes on the trailing cm-line"
-    // drift symptom.
     lineStart = nodeRef.to;
   };
 
@@ -429,13 +369,6 @@ export const decorate = (
     }
   };
 
-  // Source-based blank-line detection. Read the line text directly rather
-  // than tracking a flag across node visits — the grammar wraps a
-  // whitespace-only "blank" line in `BlockLineBlank` with the indent as a
-  // capture inside it, and a flag-based approach would mis-classify those
-  // wrapper nodes as "content" and drop the separator (visible as missing
-  // blank line between consecutive dialogue blocks once the editor leaves
-  // indent on the otherwise-empty line).
   const isWhitespaceOnly = (start: number, end: number): boolean => {
     if (end <= start) return true;
     const slice = doc.sliceString(start, end);
@@ -446,11 +379,6 @@ export const decorate = (
     return true;
   };
 
-  // A node is "leading indentation" when it's a non-empty whitespace run at
-  // the very start of its line. The grammar exposes leading whitespace as a
-  // line-start `OptionalWhitespace` capture (there's no dedicated indent
-  // node — indent is detected by position, not name). Zero-width runs (the
-  // `*` capture matched nothing) and mid-line whitespace are excluded.
   const isLeadingIndent = (
     nodeName: SparkdownNodeName,
     nodeFrom: number,
@@ -462,19 +390,6 @@ export const decorate = (
   };
 
   let lineStart = from;
-  // Workaround for a textmate-grammar-tree incremental parser bug:
-  // after each reparse, duplicate `Newline` nodes accumulate at the
-  // trailing edge of the document (one extra per reparse). Each
-  // duplicate triggered processNewline with lineStart already past
-  // the newline, hit isWhitespaceOnly's `end <= start` short-circuit,
-  // and emitted a spurious `Decoration.line({class:"collapse"})` at
-  // the trailing line — the user-visible "preview deletes the old
-  // line and replaces it with the new one" sync drift.
-  //
-  // A proper fix exists on another branch of textmate-grammar-tree but
-  // hasn't been merged upstream as of 2026-05-29. When that lands and
-  // the parser stops emitting duplicates, this Set guard becomes a
-  // no-op and can be removed.
   const seenNewlineFrom = new Set<number>();
   const processNewline = (newlineFrom: number, newlineTo: number) => {
     if (seenNewlineFrom.has(newlineFrom)) return;
@@ -566,15 +481,6 @@ export const decorate = (
       } else if (name === "TextChunk") {
         if (inDialogue) {
           const value = doc.sliceString(from, to).trimEnd();
-          // A dialogue line whose source is only inline-hidden
-          // directives (`[[image]]`, `((audio))`, `<directive>`) still
-          // gets a dialogue line decoration with display:block — which
-          // contributes a full line-height of vertical space, making
-          // it visually indistinguishable from the real blank-line
-          // separator that ends the block. Push the line with
-          // display:none so it doesn't take a row, while still keeping
-          // the source character offsets intact for selection and
-          // tree mapping.
           const directiveOnly = isOnlyHiddenDirectives(value);
           dialogueContent.push({
             type: "dialogue",
@@ -613,25 +519,6 @@ export const decorate = (
         );
         return false;
       } else if (isLeadingIndent(name, from, to)) {
-        // Leading indentation of a block line — hide it so the rendered
-        // body doesn't show its source indent. The grammar has no dedicated
-        // indent node; leading whitespace surfaces as a line-start
-        // `OptionalWhitespace` run, so `isLeadingIndent` keys off position
-        // rather than node name.
-        //
-        // EXCEPTION: if the indent is the entire content of a
-        // whitespace-only line (an indented "blank" line — what the editor
-        // leaves when the user types into an indented block and then
-        // deletes back to nothing), DON'T replace it. Leaving the source
-        // whitespace as-is gives the cm-line a natural 1em line-box because
-        // there's real text content anchoring it. The base
-        // `.cm-line { opacity: 0 }` rule keeps that whitespace invisible.
-        // Without this skip, the indent gets a Decoration.replace, the
-        // cm-line ends up with only widget buffers as children, CodeMirror
-        // skips `<br>` injection, and the line collapses to zero height —
-        // making the indented blank render differently from a truly-empty
-        // blank (the latter gets `<br>` because CodeMirror sees no
-        // children).
         const indentLine = doc.lineAt(from);
         if (indentLine.from === from && /^[ \t]*$/.test(indentLine.text)) {
           return false;
@@ -639,22 +526,12 @@ export const decorate = (
         hideInlineRange(nodeRef);
         return false;
       } else if (name === "Break") {
-        // A `>` break, anywhere in a display line (`Hi.>Bye.`, `A > B`, a
-        // line-ending `A >`), is a click the player waits for, never
-        // displayed. The PDF parser drops it before token text is emitted;
-        // the preview must too.
         hideInlineRange(nodeRef);
         return false;
       } else if (name === "ColonSeparator") {
-        // The `:` after a character cue (BUNNY:) is grammar — the PDF
-        // parser emits the cue name without it, and the dialogue widget
-        // re-adds it visually when rendering. Hide the source `:` so the
-        // raw character cue doesn't show double-colon.
         hideInlineRange(nodeRef);
         return false;
       } else if (isHiddenFlowLogic(name)) {
-        // Divert targets, then-labels, bare `& …` statements, and `if`/`elseif`
-        // conditions — pure logic, never displayed in the screenplay preview.
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
@@ -673,7 +550,6 @@ export const decorate = (
       const from = nodeRef.from;
       const to = nodeRef.to;
       if (name === "FrontMatter") {
-        // Add FrontMatter Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -717,7 +593,6 @@ export const decorate = (
           );
         }
       } else if (name === "BlockTitle" || name === "InlineTitle") {
-        // Add Title Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -726,7 +601,6 @@ export const decorate = (
           }),
         );
       } else if (name === "BlockHeading" || name === "InlineHeading") {
-        // Add Heading Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -738,7 +612,6 @@ export const decorate = (
         name === "BlockTransitional" ||
         name === "InlineTransitional"
       ) {
-        // Add Transitional Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -751,7 +624,6 @@ export const decorate = (
         name === "InlineAction" ||
         name === "ImplicitAction"
       ) {
-        // Add Action Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -760,7 +632,6 @@ export const decorate = (
           }),
         );
       } else if (name === "Choice") {
-        // Add Choice Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -772,7 +643,6 @@ export const decorate = (
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;
           if (isOdd) {
-            // left (odd position)
             const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
@@ -793,7 +663,6 @@ export const decorate = (
             decorations.push(...createDecorations(doc, spec));
             prevDialogueSpec = spec;
           } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
-            // right (even position)
             const contentEnd = findBlockContentEnd(from, to);
             prevDialogueSpec.grid = true;
             prevDialogueSpec.to = contentEnd;
@@ -805,19 +674,6 @@ export const decorate = (
                 };
               });
             });
-            // Reveal the right side's lines too — PREVIEW_THEME sets
-            // `.cm-line { opacity: 0 }` as the default, and the only way
-            // a cm-line becomes visible is via a reveal line decoration.
-            // The left side's reveal happens to make the FIRST pair
-            // visible because CodeMirror collapses adjacent replace
-            // ranges onto the left's cm-line, but consecutive pairs in
-            // a back-to-back dual block don't share that cm-line, so
-            // the second pair stays at opacity:0 if we only reveal the
-            // left. createDecorations for "reveal" emits one line
-            // decoration per source line in the range. Use contentEnd
-            // (not `to`) so the trailing blank line stays as its own
-            // cm-line and provides visible separation from the next
-            // block.
             decorations.push(
               ...createDecorations(doc, {
                 type: "reveal",
@@ -855,14 +711,6 @@ export const decorate = (
     tree,
     [LANGUAGE_HIGHLIGHTS],
     (from, to, style) => {
-      // Leading whitespace is tagged `definition(content)`, which the
-      // highlight style hides with `display: none`. On a normal block line
-      // that's fine (the indent is hidden and the decorator replaces it
-      // anyway), but on an otherwise-blank line the whitespace is the ONLY
-      // thing anchoring the line-box. Hiding it would collapse the line to
-      // zero height and erase the inter-block separator. Skip highlighting
-      // the leading whitespace of a whitespace-only line so it renders as
-      // bare, visible text.
       const line = doc.lineAt(from);
       if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
         return;
@@ -872,9 +720,6 @@ export const decorate = (
     from,
     to,
   );
-
-  // console.log("REPARSED TREE");
-  // console.log(printTree(tree, doc.toString(), { from, to }));
 
   return decorations;
 };

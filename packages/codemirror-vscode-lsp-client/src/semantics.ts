@@ -14,9 +14,7 @@ import { LSPPlugin } from "./plugin";
 import { coalesceRequest } from "./requestCoalescer";
 
 export interface SemanticTokens {
-  /** (Optional) For delta updates; this extension ignores deltas and expects full sets */
   resultId?: string;
-  /** 5-tuples: [deltaLine, deltaStart, length, tokenType, tokenModifiersBitset, ...] */
   data: number[];
 }
 
@@ -40,7 +38,6 @@ const semanticField = StateField.define<DecorationSet>({
         return e.value;
       }
     }
-    // Map through document changes
     if (tr.docChanged) {
       return value.map(tr.changes);
     }
@@ -117,14 +114,12 @@ export function convertFromServerSemanticTokens(
   return result;
 }
 
-/** Simple range builder that collects decorations efficiently */
 class RangeBuilder {
   private ranges: { from: number; to: number; deco: any }[] = [];
   add(from: number, to: number, deco: any) {
     this.ranges.push({ from, to, deco });
   }
   finish(): DecorationSet {
-    // Sort by from position to avoid overlapping order surprises
     this.ranges.sort((a, b) => a.from - b.from || a.to - b.to);
     const decos = this.ranges.map((r) => r.deco.range(r.from, r.to));
     return Decoration.set(decos, true);
@@ -159,10 +154,6 @@ export function setDocumentSemanticHighlighting(
 }
 
 export interface ServerSemanticHighlightingConfig {
-  /**
-   * Build a className for a token given its type and modifiers.
-   * Default yields: "lsp-semantic-token lsp-type-<type> lsp-modifier-<mod> ..."
-   */
   classNameForToken?: (type: string, modifiers: string[]) => string;
 }
 
@@ -196,8 +187,6 @@ export async function updateDocumentSemanticHighlighting(
     >("textDocument/semanticTokens/full", {
       textDocument: { uri },
     });
-    // A result for a version the editor has moved past is dropped: the change
-    // that moved it pulled again (#1785).
     if (client.workspace.getFile(uri)?.version !== version) return;
     if (LSPPlugin.get(view) !== plugin) return;
     view.dispatch(

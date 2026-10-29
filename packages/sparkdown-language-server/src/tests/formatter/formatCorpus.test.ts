@@ -6,11 +6,6 @@ import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 import { tokenChange } from "./tokenChanges";
 
-// Every tracked `.sd` file formats to text a second format leaves alone, and
-// its first format loses, adds or joins no token (I-874, I-1238). The format
-// snapshots check this for their own fixtures; this covers the grammar,
-// compiler and runtime fixtures and the examples too.
-
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
 const tracked = execFileSync("git", ["ls-files", "-z", "--", "*.sd"], {
@@ -25,8 +20,6 @@ test("the corpus holds the tracked scripts", () => {
   expect(tracked.length).toBeGreaterThan(0);
 });
 
-// The largest script (large-screenplay.sd) takes about 5 s here and more
-// than 5 s in CI, Vitest's default.
 const TIMEOUT_MS = 60_000;
 
 describe("tracked scripts format stably", () => {

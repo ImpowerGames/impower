@@ -1,10 +1,3 @@
-// A `.luau` file open in the language server is read from the grammar's Luau
-// root, as the compiler reads it (I-1320): the server reports the diagnostics
-// a compile of the file reports, and a `local` list continued after a
-// trailing comma at the file's top level is not an error (I-732).
-//
-// The workspace is the language server's own, with its compiler's worker in
-// this process (`languageServerWorker.ts`).
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, it, vi } from "vitest";
@@ -13,13 +6,11 @@ import { quietly, silentConnection, TestWorkspace } from "./languageServerWorker
 
 const UTIL = "file:///project/util.luau";
 
-/** A `.luau` file as VS Code's client holds it: the `sparkdown-luau` language. */
 const hostConfig = (text: string) => ({
   files: [{ uri: UTIL, type: "script", name: "util", ext: "luau", text, version: 1, languageId: "sparkdown-luau" }],
   workspace: "file:///project",
 });
 
-/** A cold compile of `text` with the configuration the language server's compiler holds. */
 const coldCompile = (text: string): SparkProgram => {
   const compiler = new SparkdownCompiler();
   compiler.configure(hostConfig(text) as never);
@@ -38,7 +29,6 @@ const messages = (diagnostics: readonly { message: unknown }[] | undefined) =>
   (diagnostics ?? []).map((d) => (typeof d.message === "string" ? d.message : JSON.stringify(d.message)));
 
 describe("a .luau file in the language server (I-1320)", () => {
-  // The continued list is Luau's; `local = 3` is an error Luau reports.
   const TEXT = "local a, b = 1,\n  2\nprint(b)\nlocal = 3\n";
 
   it("reports the diagnostics a compile of the file reports", async () => {
@@ -52,13 +42,8 @@ describe("a .luau file in the language server (I-1320)", () => {
     expect(served.filter((m) => m.includes("got '2'"))).toEqual([]);
   }, 60_000);
 
-  // A story that runs the file reads it; while an editor has it open, the
-  // document's own compile owns its diagnostics ("luau-document"), and the
-  // story's compile, which reports the file's diagnostics under its uri too,
-  // leaves them alone. Closing the document clears them.
   it("publishes an open .luau document's own diagnostics, which no story entry takes over", async () => {
     const MAIN = "file:///project/main.sd";
-    // The workspace's compile debounce runs on a worker's global scope.
     vi.stubGlobal("self", globalThis);
     const workspace = new TestWorkspace(silentConnection);
     const sent = vi.spyOn(workspace, "sendNotification").mockImplementation(() => undefined as never);
@@ -82,8 +67,6 @@ describe("a .luau file in the language server (I-1320)", () => {
     await vi.waitFor(() => expect(published().at(-1)).toEqual(own), { timeout: 10000 });
     expect((workspace as any)._lastPublishedDiagnostics.get(UTIL).owner).toBe("luau-document");
 
-    // The story's compile, which reports the file's errors under its uri
-    // too, does not replace them.
     const { program: story } = await quietly<{ program: SparkProgram }>(() => (workspace as any).compileDocument(MAIN));
     expect(Object.keys(story.diagnostics ?? {})).toContain(UTIL);
     workspace.onCompiledTextDocument({ textDocument: { uri: MAIN }, program: story });
@@ -95,11 +78,6 @@ describe("a .luau file in the language server (I-1320)", () => {
     expect((workspace as any)._lastPublishedDiagnostics.has(UTIL)).toBe(false);
   }, 60_000);
 
-  // An edit to an open `.luau` file changes the story that runs it: the
-  // story compiles again and its scripts' diagnostics follow, here the
-  // GlobalUsedAsLocal warning a use in the file kept away. A runtime report
-  // the story's run sends later for the file leaves the open document's own
-  // diagnostics in place.
   it("recompiles the story an edit to an open .luau file changes, whose runtime report keeps the file's own diagnostics", async () => {
     const MAIN = "file:///project/main.sd";
     const STORY = 'run "util"\nfunction f()\n  score = 1\n  return score\nend\n& f()\n';
@@ -111,7 +89,6 @@ describe("a .luau file in the language server (I-1320)", () => {
       { uri: UTIL, type: "script", name: "util", ext: "luau", text: "print(score)\n", version: 1, languageId: "sparkdown-luau" },
     ];
     await quietly(() => workspace.loadCompiler({ files, workspace: "file:///project" } as never));
-    // The project the host watches, as its configuration sets it.
     Object.assign(workspace as any, { _scriptFilePattern: /\.sd$/ });
     for (const file of files) (workspace as any)._watchedFiles.set(file.uri, file);
     const published = (uri: string) =>
@@ -136,8 +113,6 @@ describe("a .luau file in the language server (I-1320)", () => {
     const own = published(UTIL).at(-1);
     expect(own).not.toContain("boom");
 
-    // A run of the story as it compiled last, whose report the story's
-    // diagnostics would carry.
     const story = (workspace as any)._entryPrograms.get(MAIN);
     expect(story.scripts[UTIL]).toBe(2);
     workspace.reportRuntimeDiagnostics({

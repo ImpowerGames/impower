@@ -2,52 +2,27 @@ import { type Input, TreeFragment } from "@lezer/common";
 
 const ENDS_WITH_NEWLINE_REGEX = /(\r\n|\r|\n)$/;
 
-/**
- * The region of a document that should be parsed, along with other
- * information such as what the edited range of the document was.
- */
 export class TextmateParseRegion {
-  /** The parser should start before or at this position. */
   declare from: number;
 
-  /** The parse should stop past or at this position. */
   declare to: number;
 
-  /**
-   * The range describing the original parse range when this region was
-   * constructed. This is so that the `from` and `to` properties can be
-   * modified while retaining originally designated parse range.
-   */
   declare original: {
-    /** The start of the original range. */
     from: number;
-    /** The end of the original range. */
     to: number;
-    /** The length of the original range. */
     length: number;
   };
 
-  /** The edited range of the document. */
   declare edit?: {
-    /** The start of the edited range. */
     from: number;
-    /** The end of the edited range. */
     to: number;
-    /** The number of characters added in the change. */
     offset: number;
   };
 
-  /** The `Input` used to read strings from the document. */
   declare input: Input;
 
-  /** The ranges to be parsed. */
   declare ranges: { from: number; to: number }[];
 
-  /**
-   * @param input - The input to get the parse region for.
-   * @param ranges - The ranges of the document that should be parsed.
-   * @param fragments - Fragments that are used to compute the edited range.
-   */
   constructor(
     input: Input,
     ranges: { from: number; to: number }[],
@@ -59,21 +34,11 @@ export class TextmateParseRegion {
     this.original = { from: this.from, to: this.to, length: this.length };
     this.ranges = ranges;
 
-    // get the edited range of the document,
-    // spanning from the start of the first edit to the end of the last edit
     if (fragments?.length) {
       let from: number, to: number, offset: number;
 
       if (fragments.length === 1) {
         const fragment = fragments[0]!;
-        // special case that seems to happen when scrolling,
-        // the fragment is the entire parsed range.
-        // The full-coverage check (`from === 0 && to >= input.length`) is
-        // load-bearing: a REPLACEMENT at the document tail also yields a
-        // single `{offset: 0, !openStart, openEnd}` fragment, but that
-        // fragment stops BEFORE the input end — collapsing it to a
-        // zero-width edit at the document end would let the reuse fast
-        // path keep stale chunks for the replaced text.
         if (
           fragment.offset === 0 &&
           !fragment.openStart &&
@@ -100,8 +65,6 @@ export class TextmateParseRegion {
         to = last.openStart && last.openEnd ? last.to : last.from;
         offset = -last.offset;
 
-        // not sure why this is needed, something I don't understand about fragments
-        // usually if this is the case the parse was interrupted, and is being continued
         if (from > to) {
           from = this.to;
           to = this.to;
@@ -113,24 +76,14 @@ export class TextmateParseRegion {
     }
   }
 
-  /** The length of the region. */
   get length() {
     return this.to - this.from;
   }
 
-  /** True if we don't need to care about range handling. */
   get contiguous() {
     return this.ranges.length === 1;
   }
 
-  /**
-   * Compensates for an adjustment to a position. That is, given the range
-   * `pos` is inside of, what position should adding `addition` return?
-   * This is for skipping past the gaps inbetween ranges.
-   *
-   * @param pos - The position to start from.
-   * @param addition - The amount to add to `pos`.
-   */
   compensate(pos: number, addition: number): number {
     const desired = pos + addition;
     if (this.ranges.length === 1) {
@@ -142,46 +95,32 @@ export class TextmateParseRegion {
       return desired;
     }
 
-    // forwards compensation
     if (desired > range.to) {
       const next = this.posRange(pos, 1);
       if (!next) {
         return desired;
       }
       const nextDesired = next.from + (desired - range.to) - 1;
-      // recursively compensate, if needed
       if (nextDesired > next.to) {
         return this.compensate(next.to, nextDesired - next.to);
       }
       return nextDesired;
     }
-    // backwards compensation
     else if (desired < range.from) {
       const prev = this.posRange(pos, -1);
       if (!prev) {
         return desired;
       }
       const prevDesired = prev.to + (desired - range.from) + 1;
-      // recursively compensate, if needed
       if (prevDesired < prev.from) {
         return this.compensate(prev.from, prevDesired - prev.from);
       }
       return prevDesired;
     }
 
-    // no compensation needed
     return desired;
   }
 
-  /**
-   * Clamps a `to` value for a range to the end of the parse range that
-   * `from` is inside of.
-   *
-   * @param from - The `from` position, for which the `to` position will be
-   *   clamped relative to.
-   * @param to - The `to` position, which will be clamped to the end of the
-   *   range that `from` is inside of.
-   */
   clamp(from: number, to: number) {
     const range = this.posRange(from);
     if (!range) {
@@ -190,14 +129,6 @@ export class TextmateParseRegion {
     return range.to;
   }
 
-  /**
-   * Gets what range the given position is inside of. Returns `null` if the
-   * position can't be found inside of any range.
-   *
-   * @param pos - The position to get the range for.
-   * @param side - The side of the range to get. -1 returns the range
-   *   previous, 1 returns the range after. Defaults to 0.
-   */
   posRange(pos: number, side: -1 | 0 | 1 = 0) {
     if (this.ranges.length === 1) {
       return this.ranges[0];
@@ -218,11 +149,6 @@ export class TextmateParseRegion {
     return null;
   }
 
-  /**
-   * Reads from the specified position to the next chunk that ends with a newline
-   *
-   * @param pos - The position to start at
-   */
   next(from: number) {
     let str = "";
     let pos = from;
@@ -234,11 +160,6 @@ export class TextmateParseRegion {
     return str;
   }
 
-  /**
-   * True if `str`, the text read up to `pos`, ends with a whole line break.
-   * A `\r` that a chunk ends with is one only when no `\n` follows it, so
-   * that a `\r\n` served in two chunks stays one break.
-   */
   protected endsLine(str: string, pos: number) {
     if (!str.match(ENDS_WITH_NEWLINE_REGEX)) {
       return false;

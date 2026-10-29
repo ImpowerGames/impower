@@ -5,11 +5,9 @@
 export interface RuleDefinition {
   id?: string;
 
-  // VSCode properties
   name?: string;
   contentName?: string;
 
-  // CodeMirror properties
   tag?: string;
   contentTag?: string;
   brackets?: boolean;
@@ -48,7 +46,6 @@ export interface ScopedRuleDefinition extends RuleDefinition {
   end: string;
   beginCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   endCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
-  /** Used for begin or end when it has no `beginCaptures` or `endCaptures`, as in vscode-textmate. */
   captures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   patterns?: IncludeDefinition[];
   applyEndPatternLast?: boolean;
@@ -56,10 +53,6 @@ export interface ScopedRuleDefinition extends RuleDefinition {
 
 export type IncludeDefinition = { include: string };
 
-/**
- * A rule that carries only `captures`, contributing capture handling to the
- * rule that includes it rather than matching anything itself.
- */
 export interface CapturesOnlyRuleDefinition extends RuleDefinition {
   captures: Record<string, RuleDefinition | SwitchRuleDefinition>;
 }
@@ -71,7 +64,6 @@ export type RepositoryDefinition =
   | CapturesOnlyRuleDefinition;
 
 export interface GrammarDefinition {
-  // VSCode properties
   fileTypes?: string[];
   name?: string;
   patterns?: IncludeDefinition[];

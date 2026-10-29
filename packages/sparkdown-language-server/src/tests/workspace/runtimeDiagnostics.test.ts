@@ -1,7 +1,3 @@
-// #816 — the player's runtime errors and warnings reach the language server,
-// which publishes them beside the compile's diagnostics for the same document.
-// The next compile of an edited document clears them, since they describe the
-// text as it was when the run raised them.
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
@@ -75,8 +71,6 @@ function setup() {
     sendRequest: vi.fn(),
   });
   workspace.listen();
-  /** Compile `program` as the workspace's compiler would report it, holding
-   *  it as the main script's program. */
   const compiled = (program: any) => {
     (workspace as any)._programStates.set(main, { program });
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
@@ -110,8 +104,6 @@ describe("runtime diagnostics", () => {
     expect(published(main).at(-1)).toEqual([compileWarning, runtimeWarning]);
     expect(published(story).at(-1)).toEqual([runtimeError]);
 
-    // An edit to either script recompiles the program, and the run that raised
-    // them described the program before it.
     (workspace as any)._documentVersions.set(story, 2);
     compiled({
       uri: main,
@@ -167,7 +159,6 @@ describe("runtime diagnostics", () => {
   it("of a script main does not import are published against that script's own program", () => {
     const { workspace, compiled, report, published } = setup();
     compiled({ uri: main, scripts: { [main]: 1 }, diagnostics: {} });
-    // The workspace compiles a script main does not import on its own.
     const standalone = { uri: story, scripts: { [story]: 1 }, diagnostics: {} };
     (workspace as any)._programStates.set(story, { program: standalone });
     workspace.onCompiledTextDocument({ textDocument: { uri: story }, program: standalone });
@@ -190,7 +181,6 @@ describe("runtime diagnostics", () => {
       diagnostics: { [story]: [runtimeWarning] },
     });
     expect(published(story).at(-1)).toEqual([runtimeWarning]);
-    // A run of the other entry raises something else in the same document.
     report({
       program: { uri: other, scripts: { [other]: 1, [story]: 1 } },
       diagnostics: { [story]: [runtimeError] },
@@ -207,7 +197,6 @@ describe("runtime diagnostics", () => {
       diagnostics: { [story]: [runtimeWarning] },
     });
     expect(published(story).at(-1)).toEqual([runtimeWarning]);
-    // The player compiled the other entry before this server did.
     report({
       program: { uri: other, scripts: { [other]: 1, [story]: 1 } },
       diagnostics: { [story]: [runtimeError] },
@@ -223,8 +212,6 @@ describe("runtime diagnostics", () => {
       program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
       diagnostics: { [story]: [runtimeWarning] },
     });
-    // A script main does not import compiles on its own, and publishes the
-    // documents it names.
     const standalone = { uri: other, scripts: { [other]: 1 }, diagnostics: {} };
     (workspace as any)._programStates.set(other, { program: standalone });
     workspace.onCompiledTextDocument({ textDocument: { uri: other }, program: standalone });
@@ -239,8 +226,6 @@ describe("runtime diagnostics", () => {
       program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
       diagnostics: { [story]: [runtimeWarning] },
     });
-    // The workspace stores a compile under every script it names, so the
-    // nested entry's program takes main's state too.
     const program = {
       uri: nested,
       scripts: { [nested]: 1, [main]: 1, [story]: 1 },
@@ -256,7 +241,6 @@ describe("runtime diagnostics", () => {
   it("are not shown against a program with other scripts", () => {
     const { compiled, report, published } = setup();
     compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
-    // A run of main before it imported story shares main's version.
     report({
       program: { uri: main, scripts: { [main]: 1 } },
       diagnostics: { [main]: [runtimeWarning] },
@@ -273,12 +257,9 @@ describe("runtime diagnostics", () => {
       diagnostics: { [main]: [runtimeWarning] },
     });
     expect(published(main).at(-1)).toEqual([runtimeWarning]);
-    // Replacing an asset recompiles the same script versions into another
-    // program, which the run did not run.
     workspace.onChangedFile({ uri: "file:///project/hero.svg", name: "hero", ext: "svg", type: "image" });
     compiled({ ...program });
     expect(published(main).at(-1)).toEqual([]);
-    // A run of the program as it is now is shown again.
     report({
       program: { uri: main, scripts: { [main]: 1 } },
       diagnostics: { [main]: [runtimeWarning] },

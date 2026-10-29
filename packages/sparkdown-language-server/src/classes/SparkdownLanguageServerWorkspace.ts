@@ -47,11 +47,8 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
-/** The owner a .luau file's own diagnostics are published under while the
- *  file is open in an editor, which the stories that run it leave alone. */
 export const LUAU_DOCUMENT_OWNER = "luau-document";
 
-/** How long an open `.luau` document's own compile waits for typing to pause. */
 const LUAU_DOCUMENT_DELAY = 300;
 
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
@@ -112,8 +109,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._workspaceFolders = workspaceFolders;
   }
 
-  /** The `.luau` files a `run` in the script `uri` finds by name: those of
-   *  the project of its nearest main script (`projectLuauFiles`). */
   runLuauFiles(uri: string): string[] {
     return projectLuauFiles(
       this.getMainScriptUri(uri) ?? uri,
@@ -124,13 +119,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
-  /**
-   * The `.luau` file the operand of a `run` statement in the script `uri`
-   * names, as the compiler resolves it (#1389): a quoted operand is a path
-   * relative to the script, `.luau` implied, and an unquoted one the name of
-   * the one `.luau` file of that name in the project. `undefined` when no
-   * file, or more than one, answers.
-   */
   resolveRun(uri: string, operand: string): string | undefined {
     const text = operand.trim();
     const quoted = /^(["']).*\1$/.test(text) && text.length > 1;
@@ -174,15 +162,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._documents.annotations(uri);
   }
 
-  // Last formatted output per document — the diff baseline for
-  // incremental (delta) formatting. Always a genuine format output (see
-  // diffDirtyRange's safety note), so the span between it and the current
-  // text bounds everything that might need reformatting.
   protected _lastFormattedText = new Map<string, string>();
 
-  // The byte range that may need reformatting since the last format, or
-  // undefined for a full format (no baseline yet). `currentText` is the
-  // document's current text.
   formatDirtyRange(
     uri: string,
     currentText: string,
@@ -259,15 +240,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return result;
   }
 
-  /**
-   * Project scripts are registered with deferred parses (see onCreatedFile)
-   * so initialize can return immediately. Warm them here in the background --
-   * smallest first, one per tick so early feature requests aren't stuck
-   * behind the whole project -- because some features (e.g. completions) read
-   * every script's annotations and would otherwise pay all outstanding
-   * parses at once on first use. tree() is a no-op for anything already
-   * parsed on demand in the meantime.
-   */
   protected scheduleBackgroundParses() {
     const uris = Array.from(this._documents.keys()).sort(
       (a, b) =>
@@ -281,8 +253,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       }
       const uri = uris[i++]!;
       try {
-        // The document can have been removed since the list was captured;
-        // touching it would just recreate an empty registry state entry.
         if (this._documents.has(uri)) {
           this._documents.tree(uri);
         }
@@ -324,8 +294,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
     clearTimeout(this._luauDocumentCompiles.get(uri));
     this._luauDocumentCompiles.delete(uri);
-    // The editor no longer shows the file: its own diagnostics go, and the
-    // story entries that read it own its diagnostics again.
     if (this._lastPublishedDiagnostics.get(uri)?.owner === LUAU_DOCUMENT_OWNER) {
       this._lastPublishedDiagnostics.delete(uri);
       this.sendNotification(PublishDiagnosticsNotification.method, {
@@ -335,11 +303,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  /** The pending compile of each open `.luau` document, by its uri. */
   protected _luauDocumentCompiles = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /** Compile an open `.luau` document on its own once typing pauses
-   *  (`publishLuauDocument`). Every other document is left to the entries. */
   protected scheduleLuauDocument(uri: string) {
     if (!isLuauFile(uri)) {
       return;
@@ -354,15 +319,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
-  /**
-   * A `.luau` document an editor has open is not a story entry (a `run`
-   * reads it), but the editor shows its own diagnostics: the document is
-   * compiled on its own, read from the grammar's Luau root (I-1320), and its
-   * diagnostics are published under `LUAU_DOCUMENT_OWNER` while it stays
-   * open. The compile is posted after the document's updates, as an entry's
-   * is, and is neither recorded as the last compiled entry nor published as
-   * a program.
-   */
   async publishLuauDocument(uri: string) {
     await this.compilerReady();
     await this._documentUpdatesPosted;
@@ -383,14 +339,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
-  // Fingerprint + published-at version of the last diagnostics publish per
-  // uri, so a compile only notifies files whose diagnostics actually changed.
-  // Every publish fans out into client-side feature re-pulls, so N identical
-  // publishes per compile multiply into real work. The VERSION must be part
-  // of the key: clients that declare versionSupport DROP a publish whose
-  // version trails their document (routine mid-typing, since compiles are
-  // debounced with a max-wait), so an identical-content publish at a NEWER
-  // version must still go out or the client keeps stale squiggles forever.
   protected _lastPublishedDiagnostics = new Map<
     string,
     {
@@ -401,16 +349,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   >();
 
-  /**
-   * Under `stripImageData` (#299) the program's image structs arrive without
-   * their inlined SVG source, but LS-side previews (hover/completion
-   * `filterImage` calls, composite previews) still read `image.data` — and in
-   * VS Code the markdown sanitizer only loads http(s)/data: srcs, so previews
-   * of FILTERED svgs must stay data-URI-based. Attach a lazy, self-memoizing
-   * `data` getter that rebuilds the source from `_watchedFiles` (which
-   * retains every svg's text and refreshes it on change) on first access —
-   * so nothing pays for it until a preview actually needs it.
-   */
+  // workaround(vscode): the hover and completion markdown sanitizer loads only http(s) and data: image srcs, so filtered SVG previews stay data URIs
   protected attachLazyImageData(program: {
     context?: { image?: Record<string, any> };
   }): void {
@@ -446,18 +385,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  /**
-   * Morph bakes (packages/sparkdown/src/morph/README.md). This server holds
-   * every artwork's source on every host, so it bakes each compiled reference
-   * for its diagnostics and for the rest render previews show. Bake results
-   * are kept by artifact key, so a recompile that leaves a key unchanged
-   * republishes its diagnostics at once instead of dropping them until the
-   * bake answers again.
-   */
   protected _morphService?: MorphBakeService;
   protected _morphDiagnostics?: Map<string, MorphBakeDiagnostic[]>;
   protected static readonly MORPH_DIAGNOSTIC_KEYS = 512;
-  /** How long a preview waits for a rest render before showing the static one. */
   protected static readonly MORPH_PREVIEW_WAIT_MS = 1500;
 
   protected get morphService() {
@@ -485,12 +415,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  /**
-   * Every reference in a program with the variant it is for and the URI of
-   * its artwork. Several consumers can share one key (the same art in two
-   * files, two names for one selection): the bake runs once per key, but
-   * each consumer is its own place to report on.
-   */
   protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef; uri?: string }[] {
     const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
     for (const [variant, list] of Object.entries(program.morphs?.variants ?? {})) {
@@ -511,13 +435,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  /**
-   * The bake diagnostics of `program`'s references whose artwork is `uri`.
-   * A bake's diagnostics describe the art; where they are shown and which
-   * variants they name come from each consumer of the key as this program
-   * has it, never from whichever consumer happened to bake it. One problem in
-   * the art shows once, naming every variant it affects.
-   */
   protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
     type Group = { diagnostic: MorphBakeDiagnostic; variants: string[] };
     const grouped = new Map<string, Group>();
@@ -546,12 +463,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return out;
   }
 
-  /**
-   * Bakes the references whose results this server does not have yet, then
-   * republishes the artwork they report on, if `program` is still its
-   * entry's latest compile. An older program's late results are kept by key
-   * but never published under the newer program.
-   */
   protected bakeProgramMorphs(program: SparkProgram, owner: string | undefined) {
     const consumers = this.morphRefs(program);
     const pending = new Map<string, { variant: string; ref: MorphRef }>();
@@ -582,7 +493,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       ),
     ).then(() => {
       if (owner && this._entryPrograms.get(owner) !== program) return;
-      // Every artwork a baked key reports on, not only the one that baked it.
       const uris = new Set(
         consumers.filter(({ ref, uri }) => uri && pending.has(ref.key)).map(({ uri }) => uri!),
       );
@@ -590,16 +500,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  /**
-   * The rest render of a variant a morph plays on, for a preview: the static
-   * render with its rest apertures applied. Undefined when no morph plays on
-   * the struct, when the bake fails, or when it does not answer in time; the
-   * bake keeps running, so a later preview finds it cached.
-   */
   async morphRestRender(context: SparkProgram["context"], struct: any): Promise<string | undefined> {
     if (!context) return undefined;
-    // A completion candidate resolves in a private copy of the context that
-    // shares the program's image table.
     const program = [...this._entryPrograms.values()].find(
       (p) => p.context === context || (!!p.context?.["image"] && p.context["image"] === context["image"]),
     );
@@ -619,17 +521,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return Promise.race([resolved, wait]);
   }
 
-  /** Publish `diagnostics` for `uri`, unless they are what was last
-   *  published for the document at its current version. */
   protected publishDiagnostics(
     uri: string,
     diagnostics: ReturnType<SparkdownWorkspace["getDiagnostics"]>,
     owner: string | undefined,
   ) {
     const last = this._lastPublishedDiagnostics.get(uri);
-    // An open `.luau` document's own compile owns its diagnostics
-    // (`publishLuauDocument`): no other publisher replaces them while an
-    // editor has it open, though a story that runs it reports under its uri.
     if (
       last?.owner === LUAU_DOCUMENT_OWNER &&
       owner !== LUAU_DOCUMENT_OWNER &&
@@ -650,26 +547,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  /** The runtime errors and warnings of the player's current run, as it last
-   *  reported them, and how many project files had been created, changed or
-   *  deleted when the report arrived. */
   protected _runtimeDiagnostics?: {
     params: RuntimeDiagnosticsParams;
     files: number;
   };
 
-  /** Counts the project files created, changed and deleted. A changed asset
-   *  recompiles the same script versions into another program, which a run
-   *  reported before the change did not run. */
   protected _fileChanges = 0;
 
-  /** Take the player's report of its current run in place of the last, and
-   *  republish every document either report names, so the last run's
-   *  diagnostics go and the new run's are shown if its program has compiled
-   *  here. A document's compile diagnostics come from the new run's entry
-   *  program when this server has compiled it, and otherwise from the program
-   *  that published the document last; the new run's appear once its entry
-   *  compiles. */
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
     const last = this._runtimeDiagnostics?.params;
     const uris = new Set([
@@ -678,9 +562,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
     for (const uri of uris) {
-      // An open `.luau` document's own compile is no story entry: the run's
-      // report is published as its story's, which leaves the document's own
-      // diagnostics in place while it stays open (`publishDiagnostics`).
       const published = this._lastPublishedDiagnostics.get(uri)?.owner;
       const owner = published === LUAU_DOCUMENT_OWNER ? undefined : published;
       const entryUri = [
@@ -692,8 +573,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       ].find((candidate) => candidate && this.compiledProgram(candidate));
       const program = entryUri ? this.compiledProgram(entryUri) : undefined;
       if (!program || !entryUri) {
-        // Nothing is published for a document before a program naming it
-        // compiles, and that compile publishes what this report says.
         continue;
       }
       this.publishDiagnostics(
@@ -704,22 +583,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  /** The program each entry script last compiled here, by the entry's uri.
-   *  Kept apart from the program states, which the workspace fills under
-   *  every script a compile names, so an entry that includes another would
-   *  otherwise take that entry's place. */
   protected _entryPrograms = new Map<string, SparkProgram>();
 
-  /** The program `uri` last compiled here as an entry script, if it has. */
   protected compiledProgram(uri: string): SparkProgram | undefined {
     return this._entryPrograms.get(uri);
   }
 
-  /** Whether a run built from `ran` ran `program`: the same entry script,
-   *  compiled from the same scripts at the same document versions, with no
-   *  project file changed since the run was reported. A run of an older
-   *  version describes text that has changed since, and one of a newer
-   *  version describes text this server has not compiled yet. */
   protected ranProgram(
     ran: { params: RuntimeDiagnosticsParams; files: number },
     program: SparkProgram,
@@ -740,10 +609,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
-  /** `diagnostics` of `uri`, each that has quick fixes carrying them in its
-   *  `data`, for a client that asks for no code actions: the web editor's
-   *  client shows a diagnostic's `data` as its actions. A client that asks
-   *  for code actions gets the same fixes from `getCodeActions`. */
   protected withDiagnosticActions<
     T extends ReturnType<SparkdownWorkspace["getDiagnostics"]>[number],
   >(diagnostics: T[], uri: string): T[] {
@@ -756,20 +621,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       if (actions.length > 0) {
         return { ...diagnostic, data: actions };
       }
-      // That client reads `data` as actions alone, so the compiler's own
-      // (a run operand's `RunFixData`) does not reach it.
       const { data: _data, ...rest } = diagnostic;
       return rest as T;
     });
   }
 
-  /** The compile's diagnostics for `uri`, then the player's current run's,
-   *  while that run ran the program its entry script last compiled here,
-   *  whichever program is publishing the document now: compiling another
-   *  entry that names the document leaves the run standing. The run's are the
-   *  player's report, which this server does not produce, so it shows each
-   *  runtime problem once per severity, message and place itself, as #816
-   *  requires, rather than rely on the report having done so. */
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = this.withDiagnosticActions(
       [...super.getDiagnostics(program, uri), ...this.morphDiagnosticsFor(program, uri)],
@@ -803,9 +659,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (owner) {
       this._entryPrograms.set(owner, params.program);
     }
-    // Assets need diagnostics even when they have never been opened as text.
-    // Include prior publications so warnings removed by repair are cleared,
-    // and artwork whose morph bakes reported something.
     const morphUris = this.morphRefs(params.program)
       .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
       .map(({ uri }) => uri!);
@@ -817,16 +670,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ]);
     for (const uri of uris) {
       const last = this._lastPublishedDiagnostics.get(uri);
-      // While a .luau file is open in an editor, its own compile publishes
-      // its diagnostics under LUAU_DOCUMENT_OWNER, and a story that runs it
-      // leaves them alone even when it has diagnostics for the file; once
-      // that publication is cleared on close, the story's compiles publish
-      // the file's again (#1389).
       if (hasLuauExtension(uri) && last?.owner === LUAU_DOCUMENT_OWNER) {
         continue;
       }
-      // An unrelated entry point must not clear another program's assets.
-      // An explicit asset result transfers ownership even if it is unchanged.
       if (
         !this.isScriptDocument(uri) &&
         last &&
@@ -839,17 +685,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       this.publishDiagnostics(uri, this.getDiagnostics(params.program, uri), owner);
     }
     this.bakeProgramMorphs(params.program, owner);
-    // These refreshes are workspace-wide and carry no params, so once per
-    // compile is lossless. (They used to be sent inside the loop above --
-    // 2 x tracked-uris redundant refresh storms per keystroke, each of which
-    // made clients re-pull folding/semantic tokens for every visible file.)
     this.requestRefresh(FoldingRangeRefreshRequest.method);
     this.requestRefresh(SemanticTokensRefreshRequest.method);
   }
 
-  /** Asks the client to pull a feature again. A client with no editor open
-   *  yet may refuse it (#1785); a refresh carries no result, so the refusal
-   *  is not a failure. */
   protected requestRefresh(method: string) {
     Promise.resolve(this.sendRequest(method, {})).catch(() => {});
   }
@@ -872,11 +711,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      // Defer the parse: this fires for EVERY project script during
-      // initialize, but this registry only serves language-feature requests,
-      // which arrive for documents the user actually has open. Eagerly
-      // parsing the whole project here (with all annotators) cost many
-      // seconds of time-to-first-interaction on large projects (#224/#285).
       this._documents.set(
         {
           textDocument: {
@@ -902,7 +736,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     this._fileChanges += 1;
-    // Edited art gets new artifact keys; its old bakes only take memory.
     this._morphService?.invalidate((entry) => entry.uri === file?.uri);
     if (
       file &&
@@ -911,8 +744,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      // Only unopened scripts arrive here (see SparkdownWorkspace.changeFile);
-      // defer their re-parse until something reads them.
       this._documents.set(
         {
           textDocument: {
@@ -962,8 +793,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   private getFileDiagnostics(uri: string) {
     if (!this.isScriptDocument(uri)) {
-      // Assets may belong to a standalone script with no main.sd. Use the
-      // latest publication, including repairs, rather than guessing an entry.
       return this._lastPublishedDiagnostics.get(uri)?.diagnostics ?? [];
     }
     const mainUri = this.getMainScriptUri(uri);
@@ -972,18 +801,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   override async compile(uri: string, force: boolean): Promise<SparkProgram | undefined> {
-    // Diagnostics, semantic-token pulls and explicit program requests can all
-    // arrive for assets. An asset is not a compiler entry point: compiling it
-    // would also replace the last script URI used by subsequent file updates.
-    // A Luau file a `run` reads is not one either, but an edit to it changes
-    // every story that runs it (#1389): each entry whose last program read the
-    // file, which a quoted path can do from another project, compiles again
-    // and sees the edit through the file's own version. A file no program has
-    // read yet compiles its project's main script.
     if (hasLuauExtension(uri)) {
-      // Each entry, and whether its program read an older version of the
-      // file. Once one entry has compiled, the file counts as compiled for
-      // every later one, so a later entry with an older read is forced.
       const entries = new Map<string, boolean>();
       const version = this._documentVersions.get(uri);
       for (const state of this._programStates.values()) {
@@ -1023,8 +841,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         },
       ),
     );
-    // Asset inspectors pull just their selected file's messages. Never compile
-    // an SVG as a text document or send the full diagnostic map to the client.
     disposables.push(
       this._connection.onRequest("sparkdown/fileDiagnostics", (params: { uri: string }) => {
         return this.getFileDiagnostics(params.uri);
@@ -1038,10 +854,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
-          // Clients may pull diagnostics for an asset after its first publish,
-          // including when it is open in an XML editor. Only scripts are valid
-          // compiler entry points. Always return a full report for assets so a
-          // repair clears an earlier warning without relying on script versions.
           if (!document || !this.isScriptDocument(uri)) {
             return {
               kind: "full",
@@ -1068,17 +880,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         async (
           params: CompileProgramParams,
         ): Promise<SparkProgram | undefined> => {
-          // Tolerate the bare `{ uri }` shape older clients sent.
           const uri =
             params.textDocument?.uri ?? (params as { uri?: string }).uri;
           if (!uri) {
             return undefined;
           }
-          // force=false: when nothing changed since the last compile this
-          // serves the cached program WITHOUT re-compiling or re-notifying.
-          // A forced compile here re-broadcast compiler/didCompile, and
-          // pull-on-didCompile consumers (the vscode compilation view) would
-          // chase their own tail in an infinite pull->compile->notify loop.
           return this.compile(uri, false);
         },
       ),

@@ -5,8 +5,6 @@ import type { RoutePin } from "../preview/SetRoutePinsMessage";
 
 export type SetEditorRoutePinsMethod = typeof SetEditorRoutePinsMessage.method;
 
-/** Every pin in the project, after the author changed them from the Game
- *  Preview: the editor keeps its document's on their lines through edits. */
 export interface SetEditorRoutePinsParams {
   pins: RoutePin[];
 }

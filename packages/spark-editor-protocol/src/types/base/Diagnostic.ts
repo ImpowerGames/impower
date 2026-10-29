@@ -10,7 +10,6 @@ export type {
   CodeDescription,
 } from "vscode-languageserver-protocol";
 
-/** Spark diagnostics also support rendered markup in their message. */
 export interface Diagnostic extends Omit<LSPDiagnostic, "message"> {
   message: string | MarkupContent;
 }

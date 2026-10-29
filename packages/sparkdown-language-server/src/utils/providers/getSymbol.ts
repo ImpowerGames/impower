@@ -8,10 +8,6 @@ import { Tree } from "@lezer/common";
 import { Position } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
 
-// The OOP `define <name> as character with name = "X" …` literal. Returns the
-// string CONTENT node (`X`, quotes excluded) when the cursor is inside it, so
-// rename/find-references key on the same range as the `character.?.name=X`
-// annotation. Returns undefined for any other string.
 const findCharacterNameValue = (
   document: SparkdownDocument,
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
@@ -72,42 +68,30 @@ export const getSymbol = (
     getStack<SparkdownNodeName>(tree, document.offsetAt(position), -1),
   ];
   for (const stack of stacks) {
-    // A character's `name = "X"` literal: renaming/find-references targets the
-    // string CONTENT (`X`), matching the `character.?.name=X` annotation the
-    // ReferenceAnnotator emits over that same range. The Luau-port define is
-    // `define <name> as character with name = "X"` — an OOP LuauPropertyDefinition
-    // (not the pre-port struct field), so detect it via that shape.
     const characterNameValue = findCharacterNameValue(document, stack);
     if (characterNameValue) {
       return characterNameValue;
     }
     const symbol = stack.find(
       (n) =>
-        // Narrative beats + functions
         n.name === "LuauFunctionName" ||
         n.name === "SceneDeclarationName" ||
         n.name === "BranchDeclarationName" ||
         n.name === "LabelDeclarationName" ||
         n.name === "DivertPartName" ||
-        // Defines (inverted model): name is the instance/root-type, parent is
-        // the type (OOP) or `$extends` (structural).
         n.name === "LuauDefineName" ||
         n.name === "LuauDefineParentName" ||
-        // Struct-body property/header keys (style/layout/screen/component/animation/theme)
         n.name === "StylingDeclarationScalarPropertyName" ||
         n.name === "DeclarationScalarPropertyKey" ||
         n.name === "BuiltinComponentName" ||
         n.name === "CustomComponentName" ||
-        // Brace elements: the element name and a dotted class name.
         n.name === "LuauSparkleElementName" ||
         n.name === "LuauSparkleClassName" ||
         n.name === "ComponentName" ||
         n.name === "PropertyName" ||
         n.name === "SelectorPropertyNamePart" ||
-        // Luau identifiers (variable reads/decls + OOP define property names)
         n.name === "LuauVariableName" ||
         n.name === "TypeName" ||
-        // Narrative references
         n.name === "DialogueCharacterName" ||
         n.name === "AssetCommandFileName" ||
         n.name === "AssetCommandTarget" ||
@@ -117,9 +101,6 @@ export const getSymbol = (
     if (symbol) {
       const symbolRange = document.range(symbol.from, symbol.to);
       if (symbol.name === "RunContent") {
-        // A `run` operand renames the `.luau` file it names (#1389): its
-        // name is the file name the operand ends with, before the first
-        // dot, inside any quotes.
         const [start, end] = runOperandNameSpan(
           document.read(symbol.from, symbol.to),
         );

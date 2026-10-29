@@ -13,7 +13,6 @@ export const resolveSymbolId = (
   config: SparkdownCompilerConfig | undefined,
 ) => {
   if (refId.startsWith("?.")) {
-    // Infer the type from the place it is used
     if (!program || !reference?.selectors) {
       return null;
     }
@@ -34,11 +33,9 @@ export const resolveSymbolId = (
     }
   }
   if (refId.startsWith(".")) {
-    // This reference is local to the scope
     return scopePath + refId;
   }
   if (refId.includes("..")) {
-    // includes recursive search
     const [obj, foundPath] = selectProperty(program?.context, refId);
     if (obj !== undefined) {
       return foundPath;

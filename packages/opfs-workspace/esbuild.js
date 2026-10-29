@@ -4,13 +4,6 @@ import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
-/**
- * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
- * file in a dedicated namespace, then load its contents as a text string.
- * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
- * same `import text from "./some.file?raw"` works in code bundled by either.
- * @type {import('esbuild').Plugin}
- */
 const rawPlugin = {
   name: "raw",
   setup(build) {
@@ -59,7 +52,6 @@ const esbuildProblemMatcher = () => ({
   },
 });
 
-/** @type BuildOptions */
 const config = {
   entryPoints: ["./src/opfs-workspace.ts"],
   outdir: OUTDIR,
@@ -75,10 +67,6 @@ const config = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // The helper watches this worker's full input graph — its own src AND its
-    // @impower deps (imported via /src/ subpaths, so they resolve to source) —
-    // from change notifications, where ctx.watch() polls those files. A failed
-    // rebuild (e.g. a syntax error mid-edit) is logged and watching continues.
     const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
       onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),

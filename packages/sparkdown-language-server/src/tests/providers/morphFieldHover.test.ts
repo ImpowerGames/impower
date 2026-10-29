@@ -4,8 +4,6 @@ import { getHover } from "../../utils/providers/getHover";
 
 let version = 0;
 
-// The hover's text and the text it marks, or null, with the cursor on the
-// `n`th occurrence of `needle` in `text` (plus `within` characters).
 const hoverAt = async (text: string, needle: string, within = 1, n = 0) => {
   const uri = `file:///morph${++version}.sd`;
   const documents = new SparkdownDocumentRegistry(["references"]);
@@ -90,7 +88,6 @@ describe("morph field hover", () => {
   it("does not document values, labels or anything outside the morph", async () => {
     expect(await hoverAt(MORPH, "#c9c9c9")).toBeNull();
     expect(await hoverAt(MORPH, "eyelash-left }", 2, 1)).toBeNull();
-    // A layer label that shares a field's name is a label.
     expect(await hoverAt(MORPH, "fill { fallback")).toBeNull();
     expect(await hoverAt(MORPH, "fill = 2")).toBeNull();
   });
