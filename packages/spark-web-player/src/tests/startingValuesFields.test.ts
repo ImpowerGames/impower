@@ -61,6 +61,25 @@ describe("the Starting values fields", () => {
     });
   });
 
+  test("a change the host refused while a later change to the field waits for its answer leaves the later one waiting", () => {
+    const earlier = changed(kept({ [S]: { "store:trust": "1" } }), S, {
+      "store:trust": "2",
+    });
+    const later = changed(earlier.state, S, { "store:trust": "3" });
+    let state = answered(later.state, S, earlier.edit, false, first);
+    expect(view(state)).toEqual({
+      values: { "store:trust": "3" },
+      drafts: {},
+      unsaved: {},
+    });
+    state = answered(state, S, later.edit, false, first);
+    expect(view(state)).toEqual({
+      values: { "store:trust": "1" },
+      drafts: {},
+      unsaved: { "store:trust": "1" },
+    });
+  });
+
   test("a change the host refused goes back to the value the host last sent, with its badge", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const change = changed(state, S, { "store:trust": "2" });
