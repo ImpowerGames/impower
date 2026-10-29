@@ -253,7 +253,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const cases: [string, string, string?][] = [
       ["a fallback colour", 'fill="url(#a) red"'],
       ["a pattern", 'fill="url(#p)"'],
-      ["a quoted reference", "style=\"fill:url('#a')\""],
       ["a missing gradient", 'fill="url(#missing)"'],
       ["a gradient outside the grammar", 'fill="url(#c)"', '<linearGradient id="c" style="color:red"><stop offset="0"/><stop offset="1"/></linearGradient>'],
     ];
@@ -262,6 +261,12 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
       expect(artifact.status).toBe("live");
       expect(track(artifact, "lash").gradients).toBeUndefined();
       expect(fillOf(drawn(artifact, 0.25, "lash")) ?? "").not.toMatch(/morph-gradient/);
+    });
+    test("a quoted reference in an inline style keeps the artwork static", () => {
+      // A string is outside the inline style grammar, so the bake refuses the artwork.
+      const artifact = pair("style=\"fill:url('#a')\"");
+      expect(artifact.status).toBe("static");
+      expect(artifact.diagnostics.map((d) => d.code)).toEqual(["unsupported-element"]);
     });
     test("in-grammar controls blend", () => {
       for (const open of ['fill="url(#a)"', 'fill="URL(#a)"', 'style="fill: url(#a) !important"', 'fill=" url(#a) "']) {
