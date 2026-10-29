@@ -1,6 +1,11 @@
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import {
+  createPlayerHarness,
+  MAIN_URI,
+  settle,
+  writtenText,
+} from "./playerHarness";
 
 const SOURCE = `store trust = 0
 store clues = 0
@@ -45,6 +50,16 @@ const shown = (h: any) => {
   };
 };
 
+const setPins = async (
+  h: any,
+  pins: { uri: string; line: number; offer: number }[],
+) => {
+  await h.controller.handleSetRoutePins(
+    SetRoutePinsMessage.type.request({ pins }),
+  );
+  await settle(40);
+};
+
 describe("a pinned route resumed for a line inside the if it forced", () => {
   it("previews the line inside the if after the line past it", async () => {
     const h = await createPlayerHarness({
@@ -81,6 +96,49 @@ describe("a pinned route resumed for a line inside the if it forced", () => {
         failure: undefined,
         trust: 2,
       });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("previews the line inside the if by the searched route once a pin set before the first preview is cleared", async () => {
+    const source = SOURCE.replace(
+      "    * [Show the photograph.]\n      trust += 5\n",
+      "",
+    );
+    const line = (text: string) =>
+      source.split("\n").findIndex((l) => l.includes(text));
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line: line("I believe you") },
+    });
+    try {
+      await setPins(h, [{ uri: MAIN_URI, line: line("[Lie.]"), offer: 1 }]);
+      await h.compile();
+      await h.select(line("I believe you"));
+      await settle(60);
+      expect(shown(h)).toEqual({
+        decisions: [
+          ["pinned", "Lie."],
+          ["forced", "trust > 3"],
+        ],
+        failure: undefined,
+        trust: -1,
+      });
+
+      const sentBefore = h.toRouter.length;
+      await setPins(h, []);
+      expect(shown(h)).toEqual({
+        decisions: [
+          ["auto", "Lie."],
+          ["forced", "trust > 3"],
+        ],
+        failure: undefined,
+        trust: -1,
+      });
+      expect(writtenText(h.toRouter.slice(sentBefore))).toContain(
+        "I believe you.",
+      );
     } finally {
       h.dispose();
     }
