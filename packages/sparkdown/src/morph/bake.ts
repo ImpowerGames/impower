@@ -761,6 +761,8 @@ export function* bakeSteps(
           const value = ownColor(paintOf(leaf), name, color);
           if (value) base[name] = value;
         }
+        const opacity = paintOf(leaf).opacity;
+        if (entry.opacity !== undefined && opacity !== undefined) base.opacity = opacity;
         nodes[leaf.node] = base;
       }
       const tracks: MorphPaintPose["tracks"] = [];
@@ -779,6 +781,11 @@ export function* bakeSteps(
             const b = recorded?.[1] ?? ownColor(paintOf(leafByNode.get(t.to)!), name, color);
             if (a && b) ends[name] = [a, b];
           }
+          if (entry.opacity !== undefined) {
+            const a = t.paint?.opacity?.[0] ?? paintOf(leafByNode.get(t.from)!).opacity;
+            const b = t.paint?.opacity?.[1] ?? paintOf(leafByNode.get(t.to)!).opacity;
+            if (a !== undefined && b !== undefined) ends.opacity = [a, b];
+          }
           tracks.push({ segment: s, draw: t.draw, ends });
         }
       });
@@ -787,6 +794,7 @@ export function* bakeSteps(
         state: pose.state,
         span: entry.span,
         ...Object.fromEntries(colors),
+        ...(entry.opacity === undefined ? {} : { opacity: entry.opacity }),
         nodes,
         tracks,
       });

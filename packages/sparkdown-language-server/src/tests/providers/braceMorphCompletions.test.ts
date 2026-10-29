@@ -493,8 +493,8 @@ end
   });
 
   test("an entry offers its fields, and `targets` inserts a block", () => {
-    expect(labels(PAINTED("|"))).toEqual(["targets", "state", "when", "fill", "stroke", "span"]);
-    expect(labels(PAINTED("fill = red; |"))).toEqual(["targets", "state", "when", "fill", "stroke", "span"]);
+    expect(labels(PAINTED("|"))).toEqual(["targets", "state", "when", "fill", "stroke", "opacity", "span"]);
+    expect(labels(PAINTED("fill = red; |"))).toEqual(["targets", "state", "when", "fill", "stroke", "opacity", "span"]);
     const item = at(PAINTED("|")).find((i) => i.label === "targets")!;
     expect(insertedText(item)).toBe("targets {  }");
     expect(insertedText(at(PAINTED("|")).find((i) => i.label === "fill")!)).toBe("fill = ");
@@ -545,12 +545,13 @@ end
     expect(docOf(`morph blink with
   |
 end
-`, "paints")).toContain("Colours that layers take at one pose");
+`, "paints")).toContain("Colours and opacities that layers take at one pose");
     expect(docOf(PAINTED("|"), "targets")).toContain("this entry recolours");
     expect(docOf(PAINTED("|"), "state")).toContain("The pose the colour belongs to");
     expect(docOf(PAINTED("|"), "when")).toContain("does not drive");
     expect(docOf(PAINTED("|"), "fill")).toContain("fill colour");
     expect(docOf(PAINTED("|"), "stroke")).toContain("stroke colour");
+    expect(docOf(PAINTED("|"), "opacity")).toContain("The opacity the drawings take at the pose");
     expect(docOf(PAINTED("|"), "span")).toContain("Default `100%`");
     expect(docOf(PAINTED("state = |"), "eyes.closed")).toContain("The pose the colour belongs to");
     expect(docOf(PAINTED("when = |"), "mask.on")).toContain("does not drive");

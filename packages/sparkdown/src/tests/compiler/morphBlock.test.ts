@@ -1294,6 +1294,18 @@ end
     expect(recipeOf(child, "child").paints).toEqual(recipeOf(child).paints);
   });
 
+  test("`opacity = 0.4` and `opacity = 40%` give one recipe, alone or beside a colour", () => {
+    const decimal = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 0.4; span = 40% }"]);
+    const percent = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 40%; span = 40% }"]);
+    expect(morphDiagnostics(decimal)).toEqual([]);
+    expect(morphDiagnostics(percent)).toEqual([]);
+    expect(recipeOf(decimal).paints).toEqual([{ targets: ["eyeshadow-left", "eyeshadow-right"], state: "eyes.closed", span: 0.4, opacity: 0.4 }]);
+    expect(compile(percent).morphs!.recipes["m"]).toBe(compile(decimal).morphs!.recipes["m"]);
+    expect(recipeOf(PAINTED(["{ targets { lids }; state = eyes.closed; fill = red; opacity = 0 }"])).paints).toEqual([
+      { targets: ["lids"], state: "eyes.closed", span: 1, fill: "rgba(255,0,0,1)", opacity: 0 },
+    ]);
+  });
+
   test("equal colours give one recipe, and changing a colour changes the bake key", () => {
     const spelled = PAINTED([ENTRY.replace("#c9c9c9", "rgb(201 201 201)")]);
     expect(compile(spelled).morphs!.recipes["m"]).toBe(compile(PAINTED()).morphs!.recipes["m"]);
@@ -1315,7 +1327,10 @@ end
     ["the starting state", "{ targets { eyelash-left }; state = eyes.open; fill = red }", "eyes.open", "the state this morph starts from"],
     ["a bare `when`", "{ targets { eyelash-left }; state = eyes.closed; when = on; fill = red }", "on", "`when` names a state with its group"],
     ["a `when` naming a driven group", "{ targets { eyelash-left }; state = eyes.closed; when = eyes.open; fill = red }", "eyes.open", "which this morph drives"],
-    ["no `fill` or `stroke`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or a `stroke`"],
+    ["no `fill`, `stroke` or `opacity`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or `stroke` colour or an `opacity`"],
+    ["an `opacity` over 1", "{ targets { eyelash-left }; state = eyes.closed; opacity = 1.5 }", "1.5", "`opacity` is a number from 0 to 1"],
+    ["an `opacity` over 100%", "{ targets { eyelash-left }; state = eyes.closed; opacity = 140% }", "140%", "`opacity` is a number from 0 to 1"],
+    ["an unreadable `opacity`", "{ targets { eyelash-left }; state = eyes.closed; opacity = half }", "half", "`opacity` is a number from 0 to 1"],
     ["a `fill` that does not parse", "{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9z }", "#c9c9c9z", "is not a `fill` colour"],
     ["a `stroke` that names no colour of its own", "{ targets { eyelash-left }; state = eyes.closed; stroke = currentColor }", "currentColor", "is not a `stroke` colour"],
     ["a `span` over 100%", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 140% }", "140%", "`span` is a percentage from `0%` to `100%`"],

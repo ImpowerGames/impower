@@ -200,6 +200,7 @@ function paintColorProblem(field: string, value: unknown): string | null {
 }
 
 const SPAN_PROBLEM = "`span` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `span = 40%`.";
+const OPACITY_PROBLEM = "A `paints` entry's `opacity` is a number from 0 to 1 or a percentage from `0%` to `100%`, such as `opacity = 0`.";
 
 /**
  * The problems in one `paints` entry's values that do not depend on the
@@ -213,9 +214,10 @@ function paintFormProblems(entry: Record<string, unknown>): { field: string; mes
   if ("when" in entry && !parseMorphQualifiedState(entry["when"])) {
     problems.push({ field: "when", message: paintWhenProblem(entry["when"], new Map())! });
   }
-  if (!("fill" in entry) && !("stroke" in entry)) {
-    problems.push({ field: "", message: "This `paints` entry needs a `fill` or a `stroke` colour, such as `fill = #c9c9c9`." });
+  if (!("fill" in entry) && !("stroke" in entry) && !("opacity" in entry)) {
+    problems.push({ field: "", message: "This `paints` entry needs a `fill` or `stroke` colour or an `opacity`, such as `fill = #c9c9c9` or `opacity = 0`." });
   }
+  if ("opacity" in entry && parseMorphSpan(entry["opacity"]) === undefined) problems.push({ field: "opacity", message: OPACITY_PROBLEM });
   for (const field of ["fill", "stroke"]) {
     const problem = field in entry ? paintColorProblem(field, entry[field]) : null;
     if (problem) problems.push({ field, message: problem });

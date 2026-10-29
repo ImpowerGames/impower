@@ -59,7 +59,12 @@ const paintEntryOf = (entry: Record<string, unknown>): MorphPaintEntry | undefin
     if (!color) return undefined;
     out[name] = formatColor(color);
   }
-  return out.fill || out.stroke ? out : undefined;
+  if (entry["opacity"] !== undefined) {
+    const opacity = parseMorphSpan(entry["opacity"]);
+    if (opacity === undefined) return undefined;
+    out.opacity = opacity;
+  }
+  return out.fill || out.stroke || out.opacity !== undefined ? out : undefined;
 };
 
 /**
