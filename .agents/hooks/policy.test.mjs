@@ -248,7 +248,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       "// MIT license detection runs before the build because the cache needs it",
       "// LICENSE checks must stay before the build because the cache needs it",
       "// the MIT License text is read from the package",
+      "// The generator throws when LICENSE.md is missing because the cache needs it",
     ]) assert.equal(kind(prose), "refused", `${prose} discusses licences without being a notice`);
+    assert.equal(kind("// see LICENSE.md"), "licence");
+    assert.equal(kind("/** @type BuildOptions */", "src/a.js"), "directive", "TypeScript reads a type name without braces");
+    assert.equal(kind("/** @type BuildOptions */"), "refused");
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
@@ -344,11 +348,32 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       "",
     ].join("\n");
     const symbols = "// ©2024 Example Holder\n// SPDX-FileCopyrightText: 2024 Example Holder\n";
-    for (const notice of [mpl, mit, ported, fullMit, symbols]) {
+    const apache = [
+      "// Copyright 2024 Example Holder",
+      "//",
+      "// Licensed under the Apache License, Version 2.0 (the \"License\");",
+      "// you may not use this file except in compliance with the License.",
+      "// You may obtain a copy of the License at",
+      "//",
+      "//     http://www.apache.org/licenses/LICENSE-2.0",
+      "//",
+      "// Unless required by applicable law or agreed to in writing, software",
+      "// distributed under the License is distributed on an \"AS IS\" BASIS,",
+      "// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+      "// See the License for the specific language governing permissions and",
+      "// limitations under the License.",
+      "",
+    ].join("\n");
+    for (const notice of [mpl, mit, ported, fullMit, symbols, apache]) {
       assert.equal(strip(`${notice}\n// prose\nexport const n = 1;\n`, "src/a.ts"), `${notice}\nexport const n = 1;\n`, "a licence notice is kept verbatim while the prose beside it goes");
     }
     assert.equal(strip(`${fullMit.trimEnd()}\n//\n// The parser reads the header first.\nexport const n = 1;\n`, "src/a.ts"), `${fullMit}export const n = 1;\n`, "an empty comment line joins two notice paragraphs, not a notice and the prose after it");
     assert.equal(strip("// Copyright handling must stay centralized because the generator depends on it\nexport const n = 1;\n", "src/a.ts"), "export const n = 1;\n");
+    const mixedDoc = "/**\n * Loads raw files.\n * @type {import('esbuild').Plugin}\n */\nconst p = {};\n";
+    assert.equal(strip(mixedDoc, "src/a.js"), "/** @type {import('esbuild').Plugin} */\nconst p = {};\n", "a JavaScript doc comment keeps the type tags TypeScript reads and loses its prose");
+    assert.equal(strip(mixedDoc, "src/a.ts"), "const p = {};\n", "TypeScript reads no JSDoc types in a TypeScript file");
+    assert.equal(strip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
+    assert.equal(strip("/** Prose. @type is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
