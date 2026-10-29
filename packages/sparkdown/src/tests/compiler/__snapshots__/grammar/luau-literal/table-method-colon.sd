@@ -1,0 +1,3 @@
+local t = { speed: 2 }
+local u = { speed: bend }
+local v = { speed:go(), w = x :: number }

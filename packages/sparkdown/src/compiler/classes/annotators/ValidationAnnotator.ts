@@ -21,6 +21,7 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { FIELD_COLON } from "../../lower/utils/fieldColon";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -188,10 +189,9 @@ const UNCLOSED_STRUCT_BLOCK =
 const STRUCT_ENTRY_COMMA =
   "Separate entries on one line with `;`, not `,`.";
 // Tokens a brace block cannot hold: a `}` that closes no block, and an
-// indented-form `key:` header or `-` item inside a block.
+// indented-form `-` item inside a block.
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
-  "LuauStructInvalidColon",
   "LuauStructBlockItemMark",
 ]);
 // In a layout or component block: text that starts no entry, and a character
@@ -816,8 +816,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * Brace blocks in `style`, `animation`, `theme` and `morph` bodies. A `{`
    * with no `}` is reported on that brace: the grammar ends the block where
    * the declaration's `end` starts a line, so everything up to it is read into
-   * the block. A `}` that closes no block, and an indented-form `key:` header
-   * or `-` item inside a block, are invalid tokens. A comma between two
+   * the block. A `}` that closes no block and an indented-form `-` item are
+   * invalid tokens, and a field's `:` (`key: value`, `key:`), here or in a
+   * `layout` or `define` body, is reported on the colon as the `=` it stands
+   * for. A comma between two
    * entries on one line would otherwise be read into the first entry's value,
    * so it is reported with the separator entries take.
    */
@@ -847,6 +849,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // edit that makes or fixes one can stand after the place it is reported.
     if (INVALID_SPARKLE_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
+    }
+    if (nodeRef.name === "LuauStructInvalidColon") {
+      this.error(annotations, FIELD_COLON, nodeRef.from, nodeRef.to);
       return true;
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {

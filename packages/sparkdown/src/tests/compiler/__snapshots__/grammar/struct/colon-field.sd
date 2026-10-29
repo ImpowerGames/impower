@@ -1,0 +1,19 @@
+theme t with
+  primary: red
+  colors {
+    secondary: blue
+  }
+  link = http://example.com
+end
+
+layout l with
+  column {
+    image: black
+  }
+end
+
+define config with
+  speed: 2
+  name : "x"
+  call: go()
+end
