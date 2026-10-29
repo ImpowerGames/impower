@@ -408,6 +408,18 @@ describe("the Starting values tab", () => {
     );
   });
 
+  test("text typed after a change shows its own error when that change is not kept", async () => {
+    const p = await onValuesTab();
+    p.type("store:trust", "2");
+    p.type("store:trust", "{ found =");
+    p.hostAnswers("preview/changeStartingValues", false);
+    await settle();
+    expect(p.input("store:trust").value).toBe("{ found =");
+    expect(p.badge("store:trust")!.textContent).toBe(
+      "Not a value yet: expected } to close the table. It isn't kept until it is one.",
+    );
+  });
+
   test("a change the host did not keep, answered after a later change to the field was kept, leaves the later one", async () => {
     const p = await onValuesTab();
     p.type("store:trust", "2");
@@ -532,6 +544,22 @@ describe("the Starting values tab's fields", () => {
     await settle();
     expect(p.input("param:hour").value).toBe('"ten"');
     expect(p.badge("param:hour")).toBeNull();
+  });
+
+  test.each([
+    ["its value", { "store:trust": "2" }, "2"],
+    ["empty while unset", {}, ""],
+  ])("Escape closes the panel when a field's text is back to %s", async (_, values, back) => {
+    const p = await onValuesTab({ interrogation: values });
+    const field = p.input("store:trust");
+    field.value = "3";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    p.input("store:trust").value = back;
+    p.input("store:trust").dispatchEvent(new Event("input", { bubbles: true }));
+    p.input("store:trust").dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(p.routeList.hidden).toBe(true);
   });
 
   test("Escape in a field that holds text not kept puts the field back, and the next Escape closes the panel", async () => {

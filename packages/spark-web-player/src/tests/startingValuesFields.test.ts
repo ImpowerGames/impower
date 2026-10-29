@@ -220,6 +220,35 @@ describe("the Starting values fields", () => {
     });
   });
 
+  test.each([
+    ["before", true],
+    ["after", false],
+  ])("text typed into a field %s its change is refused shows instead of the refusal until it is gone", (_, before) => {
+    const change = changed(kept({ [S]: { "store:trust": "1" } }), S, {
+      "store:trust": "2",
+    });
+    let state = before ? drafted(change.state, S, "store:trust", "{") : change.state;
+    state = answered(state, S, change, false);
+    state = before ? state : drafted(state, S, "store:trust", "{");
+    expect(view(state)).toEqual({
+      values: { "store:trust": "1" },
+      drafts: { "store:trust": "{" },
+      unsaved: {},
+    });
+    state = drafted(state, S, "store:trust", null);
+    expect(view(state).unsaved).toEqual({ "store:trust": "1" });
+  });
+
+  test("text that is the field's value again, or empty in an unset field, is no text of its own", () => {
+    let state = drafted(kept({ [S]: { "store:trust": "2" } }), S, "store:trust", "3");
+    expect(view(state).drafts).toEqual({ "store:trust": "3" });
+    state = drafted(state, S, "store:trust", "2");
+    state = drafted(state, S, "store:suspect", '"x"');
+    state = drafted(state, S, "store:suspect", "");
+    expect(view(state).drafts).toEqual({});
+    expect(state.fields.size).toBe(0);
+  });
+
   test("a change the host kept while a later change to the field waits leaves the later one waiting over it", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const earlier = changed(state, S, { "store:trust": "2" });

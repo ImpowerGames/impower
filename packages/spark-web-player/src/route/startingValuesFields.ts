@@ -101,7 +101,7 @@ export const fieldsView = (
     if (field.draft !== undefined) {
       drafts[key] = field.draft;
     }
-    if (field.refused) {
+    if (field.refused && field.draft === undefined) {
       unsaved[key] = values[key] ?? firstOf(key) ?? "nil";
     }
   }
@@ -116,9 +116,10 @@ export const drafted = (
 ): StartingValuesFields =>
   withFields(state, (fields) => {
     const field = fields.get(fieldId(start, key)) ?? {};
+    const shown = ownEntry(shownValues(state), start)?.[key] ?? "";
     fields.set(fieldId(start, key), {
       ...field,
-      draft: text ?? undefined,
+      draft: text === null || text === shown ? undefined : text,
     });
   });
 
