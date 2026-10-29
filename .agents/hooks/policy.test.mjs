@@ -238,6 +238,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("# terms: see LICENSE.md", "scripts/a.py"), "licence", "a reference reaches a licence file in an ancestor directory");
     assert.equal(kind("// see LICENSE-missing.txt"), "refused", "a reference to a file that does not exist is prose");
     assert.equal(kind("// Copyright Microsoft Corporation"), "licence", "a copyright line may name its holder alone");
+    assert.equal(kind("/* © example.org */", "a.css"), "licence", "a holder may be a domain");
+    assert.equal(kind("// Copyright Handling must stay centralized because the generator depends on it."), "refused", "a sentence after Copyright is not a holder");
+    assert.equal(kind("// The generator reads its defaults in this file; see LICENSE.md because the cache needs it."), "refused", "a LICENSE reference closes its sentence");
+    assert.equal(kind("// Licensed terms are in the project root; see LICENSE.md for details."), "licence");
     assert.equal(kind("// Neither the name of the cache nor its key may change during this loop."), "refused");
     assert.equal(kind("// The generator reads its defaults in LICENSE.md because the cache needs it."), "refused");
     assert.equal(kind("// the license check runs before the build"), "refused", "the word license without a named licence is prose");
