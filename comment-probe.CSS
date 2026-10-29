@@ -1,0 +1,2 @@
+.probe { color: red; }
+/* re-asserts the border, since the normalize reset clears it */
