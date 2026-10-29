@@ -6,7 +6,9 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function countingStory(source: string) {
-  const ctx = makeRuntimeStoryFromSource(`external tick()\n${source}`);
+  const ctx = makeRuntimeStoryFromSource(
+    `external tick()\n\nscene start\n${source.replace(/^(?=.)/gm, "  ")}end\n`,
+  );
   expect(ctx.errorMessages).toEqual([]);
   let calls = 0;
   ctx.story.BindExternalFunction("tick", () => ++calls);

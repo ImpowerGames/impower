@@ -13,6 +13,7 @@ import { describe, expect, test } from "vitest";
 import {
   makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
   runToEnd,
 } from "./runtimeTestHarness";
 
@@ -72,13 +73,20 @@ describe("Misc — multi-file fixtures", () => {
 });
 
 describe("Misc — ported from ink fixture rewrites", () => {
-  test("empty source compiles and produces empty output", () => {
+  test("an empty scene start compiles and produces empty output", () => {
     // Upstream ink: an empty .ink file compiles and `ContinueMaximally`
-    // returns `""`. Direct port — sparkdown's compiler should accept
-    // an empty fixture and the runtime should produce no output.
-    const ctx = makeRuntimeStoryFromFile("misc", "empty");
+    // returns `""`. The story starts in a scene named `start`, so the
+    // smallest source that compiles is an empty one.
+    const ctx = makeRuntimeStoryFromSource("scene start\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("");
+  });
+
+  test("empty source reports the missing scene start", () => {
+    const ctx = makeRuntimeStoryFromFile("misc", "empty");
+    expect(ctx.errorMessages).toEqual([
+      "no scene named start; the story starts in a scene named start",
+    ]);
   });
 
   test("escape characters inside alternator arms (rewrite of inkjs `escape_character.ink`)", () => {
