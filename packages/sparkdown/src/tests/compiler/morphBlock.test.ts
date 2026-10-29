@@ -1336,12 +1336,13 @@ end
     ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }")],
     ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n")],
   ])("a field set with `:` in %s is reported on its colon alone", (_, text) => {
-    expect(paintErrors(text)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
+    // The colon is the grammar's error, reported with the body's other syntax errors.
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
   });
 
-  test("a label list set with `:` in a clip entry is reported on its colon and as the list it is", () => {
+  test("a label list set with `:` in a clip entry is reported on its colon", () => {
     const text = PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n");
-    expect(paintErrors(text)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
   });
 
   test("a `paints` block missing its closing brace is reported on the brace", () => {

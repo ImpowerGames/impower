@@ -161,6 +161,7 @@ variables:
   LUAU_COLON_BEFORE_LONG_COMMENT: (?:[:](?![:]){{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
   # A method's `:` with no name after it on its line (`{ speed: 2 }`): not a
   # word, a comment or the line's end, where a method name may yet come.
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, and `LuauMethodNameAccessor`, `LuauFunctionAccessor` and `LuauNextLineMethodAccessor` own a `:` a name follows; read only inside `LuauAccessPath`'s `end:` lookahead, which hands the rest to `LuauTableMethodColon` (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_NO_NAME: (?:[:](?![:])(?!{{WS}}*(?:{{LUAU_WORD}}|$|--)))
   # A type operator whose right operand is missing before a `:`
   # (`t :: T | :do`, `t :: :do`), where the `:` is a type's stray colon
@@ -913,6 +914,7 @@ variables:
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
   # A define-body key written with `:` (`name: value`): whitespace after the
   # colon, and a value that starts no method call (`a: b()`, `a: b {`, `a: b "s"`).
+  # lookaround: `LuauFunctionCall`'s method call (`a: b()`) is a statement of the body, not a property; read only inside `LuauPropertyDefinition`'s begin lookahead, which leaves that line to the statement rules.
   LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{WS}}*:{{WS}}+(?!{{LUAU_IDENTIFIER}}{{WS}}*[({"'\[])(?=\S))
   # A define's key spelled as a reserved word other than a closer, or as a
   # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
@@ -5619,6 +5621,7 @@ repository:
   # its `:` invalid, so the error stands on the colon alone and the value is
   # read as the value of `name = value`.
   LuauPropertyColonAssignment:
+    # lookaround: `LuauVariableAssignment` reads the same name before an `=`, after this rule in `LuauPropertyDefinition`; the `:` stays unconsumed for `LuauPropertyColonOperation`, which reads it with its own captures.
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:]{{WS}})
     beginCaptures:
       1:
@@ -5629,7 +5632,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauPropertyColonOperation" }
-    end: (?={{BEAT}})|(?=^|$|[,;)\]}])|(?<=\S)(?={{WS}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|{{LUAU_AT_LATER_LINE_TOKEN}}
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|{{LUAU_AT_LATER_LINE_TOKEN}}
 
   # The `: value` of `LuauPropertyColonAssignment`: `LuauAssignmentOperation`
   # with the colon in the operator's place.
