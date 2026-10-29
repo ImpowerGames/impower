@@ -189,7 +189,7 @@ describe("the preview displayed from the worker's game", () => {
       `  src = "https://example.com/b.png"`,
       `end`,
       ``,
-      `-> start`,
+      ``,
       ``,
       `scene start`,
       `  HERO:`,
@@ -242,7 +242,7 @@ describe("the preview displayed from the worker's game", () => {
     // `greeting` from `bridge`: the call resolves through `bridge`'s parents
     // to the function of whichever story they lead to.
     const text = [
-      "-> bridge",
+      "",
       "",
       "function greeting()",
       `  return "the real greeting"`,
@@ -250,6 +250,10 @@ describe("the preview displayed from the worker's game", () => {
       "",
       "scene bridge",
       "  The bridge says {greeting()}.",
+      "end",
+      "",
+      "scene start",
+      "  -> bridge",
       "end",
       "",
     ].join("\n");

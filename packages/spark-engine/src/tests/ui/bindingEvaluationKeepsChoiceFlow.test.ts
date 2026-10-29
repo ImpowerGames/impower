@@ -21,7 +21,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.

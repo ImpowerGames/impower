@@ -140,7 +140,7 @@ describe("the route the preview reports", () => {
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  if flag then",
       "    for i = 1, 40000 do",
@@ -165,7 +165,7 @@ describe("the route the preview reports", () => {
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  if flag then",
       "    while total >= 0 do",
@@ -191,7 +191,7 @@ describe("the route the preview reports", () => {
   test("a repeat loop left at its first test is clipped after its one pass", () => {
     const lines = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  repeat",
       "    total += 1",
@@ -209,7 +209,7 @@ describe("the route the preview reports", () => {
   test("a forced break on a loop's first pass is a clipped loop", () => {
     const lines = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  repeat",
       "    total += 1",
@@ -230,7 +230,7 @@ describe("the route the preview reports", () => {
   test("a forced branch inside a loop that stays in the loop is forced", () => {
     const lines = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 3 do",
       "    total += 1",
@@ -258,7 +258,7 @@ describe("the route the preview reports", () => {
       "  end",
       "  return 2",
       "end",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 3 do",
       "    if flag then",
@@ -278,7 +278,7 @@ describe("the route the preview reports", () => {
   test("a hub menu met twice says which time each option was offered", () => {
     const lines = [
       "store asked = 0",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    choose",
@@ -307,7 +307,7 @@ describe("the route the preview reports", () => {
   test("a line the program reaches on its own reports no forced or clipped decision", () => {
     const lines = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 3 do",
       "    total += 1",

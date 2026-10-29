@@ -279,11 +279,9 @@ describe("an edit inside one beat", () => {
 // the statements that are not carried, and a sequence keeps the entries
 // above and below its window as the current root holds them.
 describe("the bookkeeping of a build over an edit", () => {
-  // `count` scenes, each a line, an `if` block and a line, under a top level
-  // that runs them in turn.
   const scenes = (count: number) =>
     [
-      ...Array.from({ length: count }, (_, i) => `-> S${i} ->`),
+      ...Array.from({ length: count }, () => ""),
       "",
       ...Array.from({ length: count }, (_, i) => [
         `scene S${i}`,
@@ -295,6 +293,10 @@ describe("the bookkeeping of a build over an edit", () => {
         "end",
         "",
       ]).flat(),
+      "scene start",
+      ...Array.from({ length: count }, (_, i) => `  -> S${i} ->`),
+      "end",
+      "",
     ].join("\n");
   // A flat scene of `lines` beats.
   const beats = (lines: number) => {
@@ -1091,11 +1093,15 @@ describe("a construct the program cannot compile, written and removed by edits",
       "",
     ];
     const text = [
-      "-> FIRST",
+      "",
       "",
       ...scene("FIRST", "SECOND"),
       ...scene("SECOND", "THIRD"),
       ...scene("THIRD", "FIRST"),
+      "scene start",
+      "  -> FIRST",
+      "end",
+      "",
     ].join("\n");
     // A read of a list builtin, which the writer has no emit path for.
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";

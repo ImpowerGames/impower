@@ -20,7 +20,7 @@ const BEATS = Array.from(
   (_, i) => `  HERO:\n  Line number ${i}.\n`,
 );
 
-const SOURCE = `-> start
+const SOURCE = `
 
 scene start
 ${BEATS.join("\n")}
@@ -143,7 +143,7 @@ define second_theme as audio with
   src = "https://example.com/second.wav"
 end
 
--> start
+
 
 scene start
   ((play music first_theme))
@@ -206,7 +206,7 @@ define second_theme as audio with
   src = "https://example.com/second.wav"
 end
 
--> start
+
 
 scene start
   ((play music first_theme))
@@ -262,7 +262,7 @@ end
   text "HUD"
 end
 
--> start
+
 
 scene start
   [[open hud]]
@@ -295,7 +295,7 @@ end
   text "HUD"
 end
 
--> start
+
 
 scene start
 ${BEATS.slice(0, 10).join("\n")}
@@ -342,7 +342,7 @@ end
 describe("a route replayed from the top of its scene", { timeout: 30_000 }, () => {
   // The target is the scene's first beat, so the replay reaches it before any
   // beat of its own displays and sets nothing over what came before it.
-  const SHORT = `-> start
+  const SHORT = `
 
 scene start
   HERO:

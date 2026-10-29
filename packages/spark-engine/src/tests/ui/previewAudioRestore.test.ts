@@ -25,7 +25,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   ((play music theme))

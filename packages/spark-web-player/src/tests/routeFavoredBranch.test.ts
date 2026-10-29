@@ -50,7 +50,7 @@ const TEXT = [
   "store flag = false",
   "store total = 0",
   "",
-  "-> start",
+  "",
   "",
   "scene start",
   "  Opening beat.",

@@ -69,7 +69,7 @@ const actions = (text: string): { title: string; kind?: string; text: string }[]
 };
 
 const scene = (...body: string[]) =>
-  lines("store gold = 0", "-> start", "scene start", ...body, "  Gold: {gold}.", "end", "");
+  lines("store gold = 0", "", "scene start", ...body, "  Gold: {gold}.", "end", "");
 
 describe("the store-inside-a-flow quick fix", () => {
   test("changes a store inside a scene to an assignment", () => {
@@ -101,7 +101,7 @@ describe("the store-inside-a-flow quick fix", () => {
           "function pair()",
           "  return 1, 2",
           "end",
-          "-> start",
+          "",
           "scene start",
           "  store a, b = pair()",
           "  {a} {b}",

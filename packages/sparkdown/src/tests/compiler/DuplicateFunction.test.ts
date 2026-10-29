@@ -110,7 +110,7 @@ describe("DuplicateFunction at a script's top level", () => {
   // second, and the compiler reports no duplicate story function.
   test("lints a scene's second local function of one name as Luau does, with no duplicate identifier", () => {
     const found = diagnoseDetailed(
-      "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
+      "\nscene start\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
     );
     expect(found.filter((d) => d.message.startsWith("Duplicate identifier"))).toEqual([]);
     expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range?.start.line, d.message])).toEqual([

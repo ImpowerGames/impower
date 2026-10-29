@@ -151,14 +151,14 @@ describe("a hoisted declaration inside a flow", () => {
 
   it.each(cases)("refuses a %s inside a scene", (_, body, message, text) => {
     expect(
-      placementErrors(lines("-> s", "scene s", ...indent(body, "  "), "  Hi.", "end")),
+      placementErrors(lines("", "scene start", ...indent(body, "  "), "  Hi.", "end")),
     ).toEqual([{ message, text }]);
   });
 
   it.each(cases)("refuses a %s inside a branch", (_, body, message, text) => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  -> b", "  branch b", ...indent(body, "    "), "    Hi.", "  end", "end"),
+        lines("", "scene start", "  -> b", "  branch b", ...indent(body, "    "), "    Hi.", "  end", "end"),
       ),
     ).toEqual([{ message, text }]);
   });
@@ -167,8 +167,8 @@ describe("a hoisted declaration inside a flow", () => {
     expect(
       placementErrors(
         lines(
-          "-> s",
-          "scene s",
+          "",
+          "scene start",
           "  if true then",
           "    store a = 1",
           "  end",
@@ -190,7 +190,7 @@ describe("a hoisted declaration inside a flow", () => {
   it("refuses a function Luau reads after a scene's local on its line, past a block comment", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  local x = 1 --[[c]] function f() return x end", "  Value {x}.", "end"),
+        lines("", "scene start", "  local x = 1 --[[c]] function f() return x end", "  Value {x}.", "end"),
       ),
     ).toEqual([
       {
@@ -203,7 +203,7 @@ describe("a hoisted declaration inside a flow", () => {
   it("refuses a function written with a scope inside a scene, and a marked store", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  store function g() end", "  & store x = 1", "end"),
+        lines("", "scene start", "  store function g() end", "  & store x = 1", "end"),
       ),
     ).toEqual([
       { message: "function declaration must be at the top level", text: "store function g() end" },
@@ -226,8 +226,8 @@ describe("the placements that stay allowed", () => {
           "  local n = 1",
           "  hp = math.min(hp + n, MAX)",
           "end",
-          "-> s",
-          "scene s",
+          "",
+          "scene start",
           "  local greeting = \"Hello\"",
           "  & hp = hp - 1",
           "  local function twice(x) return x * 2 end",
@@ -274,7 +274,7 @@ describe("the placements that stay allowed", () => {
   it("compiles an anonymous function written inside a scene", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  local f = function() return 1 end", "  {f()}", "end"),
+        lines("", "scene start", "  local f = function() return 1 end", "  {f()}", "end"),
       ),
     ).toEqual([]);
   });

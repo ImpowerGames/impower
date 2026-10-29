@@ -35,7 +35,7 @@ end
 `;
 
 function story(body: string) {
-  return `${SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
+  return `${SCREEN}\n\n\nscene start\n${body}\nend\n`;
 }
 
 describe("dom render", () => {
@@ -114,7 +114,7 @@ end
 `;
 
 function imageStory(body: string) {
-  return `${IMAGE_SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
+  return `${IMAGE_SCREEN}\n\n\nscene start\n${body}\nend\n`;
 }
 
 async function runImageBeats(body: string) {
@@ -191,7 +191,7 @@ end
 `;
 
 const CHOICE_STORY = `${CHOICE_SCREEN}
--> start
+
 
 scene start
   Pick:

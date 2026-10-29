@@ -27,7 +27,7 @@ end
 `;
 
 const source = (picture: string, words: string) => `${SCREEN}
--> start
+
 
 scene start
   The rain has not let up.
@@ -275,7 +275,7 @@ describe("redrawing the preview keeps the beat on screen (#1820)", () => {
   });
 });
 
-const PLAYED = `-> start
+const PLAYED = `
 
 scene start
   HERO: Do you understand?

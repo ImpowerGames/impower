@@ -29,7 +29,7 @@ const TIMING = `  timing {
 `;
 
 const SOURCE = `${blinkScript(TIMING)}
--> start
+
 
 scene start
   HERO:
@@ -265,7 +265,7 @@ describe("morph playback in the page", () => {
   });
 
   test("a write without a morph is the write it always was", async () => {
-    const source = `-> start
+    const source = `
 
 scene start
   HERO:
@@ -931,7 +931,7 @@ describe("morph claims", () => {
     const second = blinkScript(TIMING).replace("morph blink", "morph wink");
     const source = `${blinkScript(TIMING)}
 ${second}
--> start
+
 
 scene start
   HERO:
