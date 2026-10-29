@@ -175,6 +175,33 @@ describe("the Starting values fields", () => {
     });
   });
 
+  test.each([
+    ["a newer change kept first", (state: StartingValuesFields, older: any, newer: any) => answered(answered(state, S, newer, true, first), S, older, true, first)],
+    [
+      "the host's values holding a newer change, then an older change kept",
+      (state: StartingValuesFields, older: any) =>
+        answered(hostSent(state, { [S]: { "store:trust": "3" } }), S, older, true, first),
+    ],
+  ])("an older change kept after %s leaves the newer value", (_, settle) => {
+    const earlier = changed(kept({ [S]: { "store:trust": "1" } }), S, {
+      "store:trust": "2",
+    });
+    const later = changed(earlier.state, S, { "store:trust": "3" });
+    const state = settle(later.state, earlier, later);
+    expect(state.kept).toEqual({ [S]: { "store:trust": "3" } });
+    expect(view(state).values).toEqual({ "store:trust": "3" });
+  });
+
+  test("an older change kept after a newer clear was kept leaves the field cleared", () => {
+    const set = changed(kept({ [S]: { "store:trust": "1" } }), S, {
+      "store:trust": "2",
+    });
+    const clear = changed(set.state, S, { "store:trust": null });
+    let state = answered(clear.state, S, clear, true, first);
+    state = answered(state, S, set, true, first);
+    expect(view(state).values).toEqual({});
+  });
+
   test("a change the host kept while a later change to the field waits leaves the later one waiting over it", () => {
     let state = kept({ [S]: { "store:trust": "1" } });
     const earlier = changed(state, S, { "store:trust": "2" });

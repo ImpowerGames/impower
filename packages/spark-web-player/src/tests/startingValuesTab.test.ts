@@ -357,6 +357,15 @@ describe("the Starting values tab", () => {
     expect(p.badge("store:trust")).toBeNull();
   });
 
+  test("Reset all clears values whose names left the script when no other value is set", async () => {
+    const p = await onValuesTab({ interrogation: { "store:cells": "2" } });
+    expect(p.row("store:cells").hasAttribute("data-unresolved")).toBe(true);
+    const reset = p.routeList.querySelector<HTMLButtonElement>(".sv-reset")!;
+    expect(reset.disabled).toBe(false);
+    reset.click();
+    expect(p.changes().at(-1).params.changes).toEqual({ "store:cells": null });
+  });
+
   test("a change the host does not keep is put back, with its error badge", async () => {
     const p = await onValuesTab();
     p.type("store:trust", "2");

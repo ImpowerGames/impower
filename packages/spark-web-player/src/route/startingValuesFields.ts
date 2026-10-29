@@ -23,6 +23,7 @@ export interface FieldState {
 export interface StartingValuesFields {
   kept?: StartingValues;
   fields: ReadonlyMap<string, FieldState>;
+  settled: ReadonlyMap<string, number>;
   edits: number;
 }
 
@@ -66,6 +67,7 @@ const fieldsOf = (state: StartingValuesFields, start: string) =>
 
 export const emptyFields = (): StartingValuesFields => ({
   fields: new Map(),
+  settled: new Map(),
   edits: 0,
 });
 
@@ -143,13 +145,24 @@ export const answered = (
   kept: boolean,
   firstOf: (key: string) => string | undefined,
 ): StartingValuesFields => {
-  const settled = kept
+  const settled = new Map(state.settled);
+  const newer: Record<string, string | null> = {};
+  if (kept) {
+    for (const [key, value] of Object.entries(sent.changes)) {
+      if ((settled.get(fieldId(start, key)) ?? 0) < sent.edit) {
+        settled.set(fieldId(start, key), sent.edit);
+        newer[key] = value;
+      }
+    }
+  }
+  const next = kept
     ? {
         ...state,
-        kept: changeStartingValues(state.kept ?? {}, start, sent.changes),
+        settled,
+        kept: changeStartingValues(state.kept ?? {}, start, newer),
       }
     : state;
-  return withFields(settled, (fields) => {
+  return withFields(next, (fields) => {
     for (const [key, field] of fieldsOf(state, start)) {
       if (field.pending?.edit !== sent.edit) {
         continue;
@@ -171,8 +184,9 @@ export const answered = (
 export const hostSent = (
   state: StartingValuesFields,
   values: StartingValues,
-): StartingValuesFields =>
-  withFields({ ...state, kept: values }, (fields) => {
+): StartingValuesFields => {
+  const settled = new Map(state.settled);
+  return withFields({ ...state, kept: values, settled }, (fields) => {
     for (const [id, field] of state.fields) {
       const [start, key] = splitId(id);
       const now = ownEntry(values, start)?.[key];
@@ -180,6 +194,9 @@ export const hostSent = (
         field.pending && now !== (field.pending.value ?? undefined)
           ? field.pending
           : undefined;
+      if (field.pending && !pending) {
+        settled.set(id, Math.max(settled.get(id) ?? 0, field.pending.edit));
+      }
       fields.set(id, {
         draft: field.draft,
         pending,
@@ -187,6 +204,7 @@ export const hostSent = (
       });
     }
   });
+};
 
 export const startChanged = (
   state: StartingValuesFields,

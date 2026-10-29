@@ -180,7 +180,7 @@ export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
         <button
           type="button"
           class="sv-reset"
-          disabled={valuesSet(state) === 0}
+          disabled={Object.keys(state.values).length === 0}
           onClick={events.onResetAll}
         >
           Reset all
