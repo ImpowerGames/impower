@@ -425,7 +425,7 @@ export function* bakeSteps(
     );
     return disable();
   }
-  // The same holds for an inline style the bake cannot read safely.
+  // The same holds for styling the bake cannot read safely.
   for (const element of subtree(doc.root)) {
     const unreadable = unreadableStyle(element);
     if (unreadable === undefined) continue;
@@ -435,7 +435,7 @@ export function* bakeSteps(
     report(
       "unsupported-element",
       "error",
-      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has an inline style declaration the bake cannot read safely (\`${unreadable}\`), so this variant shows without the morph. The bake reads inline styles in plain ASCII, without \`all\`, \`var()\`, comments, escapes or strings.`,
+      `\`<${element.tagName}${id === undefined ? "" : ` id="${id}"`}>\`${label ? ` in layer "${label}"` : ""} has a style the bake cannot read safely (\`${unreadable}\`), so this variant shows without the morph. The bake reads inline styles in plain ASCII, without \`all\`, \`var()\`, comments, escapes, character references or strings, and opacity as a number or a percentage.`,
       { ...(label ? { layer: label } : {}), ...(key === undefined ? {} : { path: key }) },
     );
     return disable();

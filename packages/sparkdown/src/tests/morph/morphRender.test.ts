@@ -406,6 +406,15 @@ ${TORSO}
     const spaced = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4\t!\nimportant ;opacity:0.9"), selection: {}, recipe, key: "fade3" });
     const kept = elements(renderMorphFrame(spaced, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(kept.attributes["style"]).toBe("opacity:0.2 !important");
+    // A percentage is the number it stands for, inline or as the attribute.
+    for (const [from, to] of [
+      ["opacity:0.4", "opacity:40%"],
+      ['style="opacity:0.4"', 'opacity="40%"'],
+    ] as const) {
+      const percent = bakeMorphArtifact({ source: faded.replace(from, to), selection: {}, recipe, key: "fade4" });
+      const halved = elements(renderMorphFrame(percent, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
+      expect(halved.attributes["style"], to).toBe("opacity:0.2");
+    }
   });
 
   test("the aperture blends onto its closed line as the eye closes", () => {

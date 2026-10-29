@@ -17,7 +17,7 @@ import {
 import type { Node } from "../txml/txml";
 import { stringify } from "../txml/txml";
 import { IDENTITY, multiply, parseTransform, type Affine } from "./affine";
-import { cssTrim } from "./color";
+import { cssTrim, readAlpha } from "./color";
 
 export type Element = Exclude<Node, string | null>;
 
@@ -202,13 +202,16 @@ const visible = (text: string) =>
   text.replace(/[^\x20-\x7e]/g, (ch) => `<U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`);
 
 /**
- * The declaration that keeps the bake from reading an element's inline style
- * safely, as written, or undefined: a style outside the grammar, an `all`
- * declaration, a substituted value (`var()`, `env()`, `attr()`), or a
+ * The declaration that keeps the bake from reading an element's styling
+ * safely, as written, or undefined: an inline style outside the grammar, an
+ * `all` declaration, a substituted value (`var()`, `env()`, `attr()`), a
  * CSS-wide keyword on a property the bake decides structure from by value
- * (`display` and the compositing properties).
+ * (`display` and the compositing properties), or an opacity, inline or as an
+ * attribute, that is not a number or a percentage (`calc()` among them).
  */
 export function unreadableStyle(element: Element): string | undefined {
+  const opacity = element.attributes["opacity"];
+  if (opacity !== undefined && readAlpha(opacity) === undefined) return visible(`opacity="${opacity}"`);
   const style = element.attributes["style"];
   if (style === undefined) return undefined;
   const at = styleOutsideAt(style);
@@ -224,7 +227,8 @@ export function unreadableStyle(element: Element): string | undefined {
     ({ name, value }) =>
       name === "all" ||
       SUBSTITUTION.test(value) ||
-      ((name === "display" || COMPOSITING.includes(name)) && CSS_WIDE_KEYWORDS.has(value.toLowerCase())),
+      ((name === "display" || COMPOSITING.includes(name)) && CSS_WIDE_KEYWORDS.has(value.toLowerCase())) ||
+      (name === "opacity" && readAlpha(value) === undefined),
   );
   return unreadable && `${unreadable.name}: ${unreadable.value}${unreadable.important ? " !important" : ""}`;
 }
@@ -234,12 +238,11 @@ const COMPOSITING = ["opacity", "filter", "mask", "mix-blend-mode", "isolation"]
 
 /** Whether a declared value of a compositing property actually composites. */
 export const compositingValue = (name: string, value: string): boolean => {
-  const v = value.replace(IMPORTANT, "").trim().toLowerCase();
+  const v = cssTrim(value.replace(IMPORTANT, "")).toLowerCase();
   if (!COMPOSITING.includes(name)) return false;
-  if (name === "opacity") {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) && n < 1;
-  }
+  // An opacity the reader cannot read may still be below 1, so it keeps its
+  // group whole; the bake refuses such an opacity before it asks.
+  if (name === "opacity") return (readAlpha(v) ?? 0) < 1;
   return v !== "" && v !== "none" && v !== "normal" && v !== "auto";
 };
 
