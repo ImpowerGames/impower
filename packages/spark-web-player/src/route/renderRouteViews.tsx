@@ -16,6 +16,7 @@ export interface RouteViewProps {
   onToggle: (kind: RouteKind, shown: boolean) => void;
   onShowLine: (location: DocumentLocation) => void;
   onChangePins: (change: RoutePinChange) => void;
+  onPinLastRun: () => void;
 }
 
 /** Render the route button and the route list into the places a host gave

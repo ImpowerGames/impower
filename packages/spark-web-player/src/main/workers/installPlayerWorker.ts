@@ -12,8 +12,10 @@ import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types
 import type {
   PreviewRoute,
   RoutePin,
+  RunMenu,
   ScriptSource,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
+import type { RoutePlan } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import {
   installGameWorker,
@@ -60,6 +62,7 @@ import {
   type StopPlayParams,
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
+import { LastRunMessage } from "./messages/LastRunMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
@@ -834,13 +837,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     | {
         run: number;
         game: Game;
-        route?: PreviewRoute;
+        plan?: RoutePlan | null;
         stopped: Promise<void>;
         stop: () => void;
         channel?: BroadcastChannel;
       }
     | undefined;
   let runs = 0;
+  let lastRun: RunMenu[] = [];
 
   /** Where PLAY's game `running` sends the page what it shows, while it
    *  is the one that runs: a game STOP ended cannot write into the next
@@ -890,6 +894,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
+    const plan = start ? game.plannedRoute : null;
+    lastRun = [];
     releaseUnneeded();
     profile("start", compiler.profilerId + " " + "play/create");
     const running = gameState.createGame({
@@ -926,7 +932,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     gameState.running = running;
     let stop!: () => void;
     const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = { run: ++runs, game: running, route: route.route, stopped, stop };
+    current = { run: ++runs, game: running, plan, stopped, stop };
     return {
       built: true,
       compiled: isRunnableProgram(program),
@@ -1017,13 +1023,13 @@ export function installPlayerWorker(connection: MessageConnection) {
       return { location: null };
     }
     const location = ending.game.getLastExecutedDocumentLocation();
-    const run = ending.game.runMeetings(ending.route);
+    lastRun = ending.game.runMenus(ending.plan);
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();
     ending.channel?.close();
     ending.stop();
-    return { location, run };
+    return { location, choices: lastRun.length };
   };
 
   /** PLAY's game for the run the page names, if it still runs. */
@@ -1131,6 +1137,18 @@ export function installPlayerWorker(connection: MessageConnection) {
           game.skip(seconds);
         }
         return {};
+      });
+      return;
+    }
+    if (LastRunMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        return {
+          run:
+            game && !gameState.running && lastRun.length > 0
+              ? game.runMeetings(lastRun)
+              : null,
+        };
       });
       return;
     }

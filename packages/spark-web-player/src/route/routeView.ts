@@ -61,11 +61,14 @@ export interface RouteViewState {
   toggles: RouteToggles;
   pins: RoutePin[];
   pinNote?: string;
-  lastRun?: RunMeeting[];
+  lastRun?: number;
 }
 
 /** What the list says when the host does not save a change to the pins. */
 export const PIN_NOT_SAVED = "The pin was not saved.";
+
+export const LAST_RUN_CHANGED =
+  "The script has changed where the last run chose, so its choices were not pinned.";
 
 /** The change to the pins the author asked for (`preview/changeRoutePins`). */
 export interface RoutePinChange {

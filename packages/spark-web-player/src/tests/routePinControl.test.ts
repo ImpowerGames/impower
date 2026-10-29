@@ -17,6 +17,7 @@ import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/proto
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { GamePlayerController } from "../GamePlayerController";
+import { LAST_RUN_CHANGED, lastRunChange } from "../route/routeView";
 
 const URI = "file://proj/main.sd";
 
@@ -465,36 +466,41 @@ describe("pinning the last run", () => {
     { pin: pin(8), others: [pin(10), pin(12)] },
     { pin: pin(12, 2), others: [pin(8, 2), pin(10, 2)] },
   ];
-  const lastRun = (p: ReturnType<typeof player>) => {
-    (p.controller as any)._routeState.lastRun = run;
-    p.report(pinnedRoute());
-    p.open();
-  };
 
-  test("pins each menu of the run as played and removes the other pins at those menus", async () => {
-    const p = player();
-    await p.hostPins([pin(10), pin(10, 2), pin(10, 3)]);
-    lastRun(p);
-    p.button("Pin the 2 choices from the last run")!.click();
-    expect(p.requests().at(-1)!.params).toEqual({
+  test("pins each menu of the run as played and removes the other pins at those menus", () => {
+    expect(lastRunChange([pin(10), pin(10, 2), pin(10, 3)], run)).toEqual({
       add: [pin(8), pin(12, 2)],
       remove: [pin(10), pin(10, 2)],
     });
   });
 
-  test("is offered only while it changes a pin", async () => {
-    const p = player();
-    await p.hostPins([pin(8), pin(12, 2)]);
-    lastRun(p);
-    expect(p.routeList.querySelector(".route-pin-last-run")).toBeNull();
+  test("changes nothing when the pins already follow the run", () => {
+    expect(lastRunChange([pin(8), pin(12, 2)], run)).toBeNull();
   });
 
-  test("is offered for one choice in the singular", async () => {
+  test("is offered after a run with its count, in the singular for one choice", () => {
     const p = player();
-    (p.controller as any)._routeState.lastRun = [run[0]];
+    (p.controller as any)._routeState.lastRun = 2;
     p.report(pinnedRoute());
     p.open();
+    expect(p.button("Pin the 2 choices from the last run")).toBeDefined();
+    (p.controller as any)._routeState.lastRun = 1;
+    (p.controller as any).renderRoute();
     expect(p.button("Pin the 1 choice from the last run")).toBeDefined();
+  });
+
+  test("says the choices were not pinned when the run cannot be placed in the script", async () => {
+    const p = player();
+    (p.controller as any)._routeState.lastRun = 2;
+    p.report(pinnedRoute());
+    p.open();
+    p.button("Pin the 2 choices from the last run")!.click();
+    await settle();
+    expect(p.requests()).toEqual([]);
+    expect(p.routeList.querySelector(".route-pin-note")!.textContent).toBe(
+      LAST_RUN_CHANGED,
+    );
+    expect(p.routeList.querySelector(".route-pin-last-run")).toBeNull();
   });
 });
 

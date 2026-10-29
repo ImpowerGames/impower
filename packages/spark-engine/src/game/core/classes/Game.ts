@@ -72,6 +72,7 @@ import type {
   PreviewRouteDecision,
   PreviewRouteOption,
   RunMeeting,
+  RunMenu,
   ScriptSource,
 } from "../types/PreviewRoute";
 import { conditionText } from "../utils/conditionText";
@@ -4297,64 +4298,50 @@ export class Game<T extends M = {}> {
     };
   }
 
-  runMeetings(route?: PreviewRoute): RunMeeting[] {
-    const offers = new Map<string, number>();
-    const keyOf = (pin: Omit<RoutePin, "offer">) => `${pin.line}:${pin.uri}`;
-    const meetings: RunMeeting[] = [];
-    for (const decision of route?.decisions ?? []) {
-      if (!decision.options) {
-        continue;
-      }
-      const others: RoutePin[] = [];
-      let pin: RoutePin | undefined;
-      for (const option of decision.options) {
-        const at = {
-          uri: option.location.uri,
-          line: option.location.range.start.line,
-          offer: option.offer,
-        };
-        offers.set(keyOf(at), option.offer);
-        if (
-          at.uri === decision.location.uri &&
-          at.line === decision.location.range.start.line
-        ) {
-          pin = at;
-        } else {
-          others.push(at);
-        }
-      }
-      if (pin) {
-        meetings.push({ pin, others: [...others, ...(decision.unofferedPins ?? [])] });
+  runMenus(route?: RoutePlan | null): RunMenu[] {
+    const menus: RunMenu[] = [];
+    for (const choice of route?.choices ?? []) {
+      const taken = choice.sources?.[choice.selected];
+      if (choice.sources && taken !== undefined) {
+        menus.push({ sources: [...choice.sources], taken });
       }
     }
-    const lineOfOption = (source: string) => {
-      const location = this.documentLocationOf(Number(source));
-      return location
-        ? { uri: location.uri, line: location.range.start.line }
-        : undefined;
-    };
-    const pinned = this.pinnedOptions;
     for (const menu of this._playedMenus) {
-      const others: RoutePin[] = [];
+      menus.push({ sources: [...menu.sources], taken: menu.taken });
+    }
+    return menus;
+  }
+
+  runMeetings(menus: RunMenu[]): RunMeeting[] | null {
+    const pinned = this.pinnedOptions;
+    const counts = new Map<string, number>();
+    const lines = new Map<string, Omit<RoutePin, "offer"> | null>();
+    const lineOf = (source: string) => {
+      let at = lines.get(source);
+      if (at === undefined) {
+        const location = this.documentLocationOf(Number(source));
+        at = location
+          ? { uri: location.uri, line: location.range.start.line }
+          : null;
+        lines.set(source, at);
+      }
+      return at;
+    };
+    const meetings: RunMeeting[] = [];
+    for (const menu of menus) {
       let pin: RoutePin | undefined;
+      const others: RoutePin[] = [];
       for (const source of menu.sources) {
-        const at = lineOfOption(source);
+        const at = lineOf(source);
         if (!at) {
-          continue;
+          return null;
         }
-        const offer = (offers.get(keyOf(at)) ?? 0) + 1;
-        offers.set(keyOf(at), offer);
+        const offer = (counts.get(source) ?? 0) + 1;
+        counts.set(source, offer);
         if (source === menu.taken) {
           pin = { ...at, offer };
         } else {
           others.push({ ...at, offer });
-        }
-      }
-      const counts = new Map<string, number>();
-      for (const source of pinned.offers.keys()) {
-        const at = lineOfOption(source);
-        if (at) {
-          counts.set(source, offers.get(keyOf(at)) ?? 0);
         }
       }
       for (const { source, offer } of pinnedNotOffered(
@@ -4362,14 +4349,15 @@ export class Game<T extends M = {}> {
         menu.sources,
         counts,
       )) {
-        const at = lineOfOption(source);
+        const at = lineOf(source);
         if (at) {
           others.push({ ...at, offer });
         }
       }
-      if (pin) {
-        meetings.push({ pin, others });
+      if (!pin) {
+        return null;
       }
+      meetings.push({ pin, others });
     }
     return meetings;
   }

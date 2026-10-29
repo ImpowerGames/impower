@@ -85,6 +85,8 @@ import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
 import { PlayMessage } from "./main/workers/messages/PlayMessage";
 import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
+import { LastRunMessage } from "./main/workers/messages/LastRunMessage";
+import type { RunMeeting } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity, type IdentifiableProgram } from "./utils/programIdentity";
@@ -93,6 +95,8 @@ import { profile } from "./utils/profile";
 import { renderRouteViews } from "./route/renderRouteViews";
 import {
   changedPins,
+  LAST_RUN_CHANGED,
+  lastRunChange,
   DEFAULT_ROUTE_TOGGLES,
   PIN_NOT_SAVED,
   routeTogglesFrom,
@@ -860,6 +864,7 @@ export class GamePlayerController {
       onToggle: this.handleRouteToggle,
       onShowLine: this.handleRouteShowLine,
       onChangePins: this.handleRouteChangePins,
+      onPinLastRun: this.handleRoutePinLastRun,
     });
   }
 
@@ -1951,6 +1956,33 @@ export class GamePlayerController {
   /** The author changed pins from the route list: the list shows the change
    *  at once, and the host saves it, answering with every pin it keeps. A
    *  change the host does not save goes from the list, with a note. */
+  protected handleRoutePinLastRun = async () => {
+    let run: RunMeeting[] | null = null;
+    try {
+      run =
+        (await workspace?.gameLink?.request(LastRunMessage.type, {}))?.run ??
+        null;
+    } catch (e) {
+      reportUnlessRestarted(e);
+    }
+    if (!run) {
+      this._routeState = {
+        ...this._routeState,
+        lastRun: undefined,
+        pinNote: LAST_RUN_CHANGED,
+      };
+      this.renderRoute();
+      return;
+    }
+    const change = lastRunChange(
+      this._pendingPinChanges.reduce(changedPins, this._savedRoutePins),
+      run,
+    );
+    if (change) {
+      await this.handleRouteChangePins(change);
+    }
+  };
+
   protected handleRouteChangePins = async (change: RoutePinChange) => {
     this._pendingPinChanges = [...this._pendingPinChanges, change];
     this._routeState = { ...this._routeState, pinNote: undefined };
@@ -2558,8 +2590,8 @@ export class GamePlayerController {
       const stopped = await link?.request(StopPlayMessage.type, {
         run: play.run,
       });
-      if (stopped?.run && !this._workerPlay) {
-        this._routeState = { ...this._routeState, lastRun: stopped.run };
+      if (stopped?.choices && !this._workerPlay) {
+        this._routeState = { ...this._routeState, lastRun: stopped.choices };
         this.renderRoute();
       }
       return stopped?.location ?? null;
