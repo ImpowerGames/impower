@@ -1,6 +1,6 @@
-// #1210 — a bare `count = 0` at the top level makes `count` a global only as
-// its assignment resolves, after every call the compile generates has found
-// its target. A call in a scene whose flow run an incremental compile reuses
+// #1210 — a bare `count = 0` in a scene makes `count` a global only as its
+// assignment resolves, after every call the compile generates has found its
+// target. A call in a scene whose flow run an incremental compile reuses
 // finds its target again after that, and must resolve as a cold compile
 // does: to the function `count`, which a global made that way does not
 // shadow, while a global declared with `store` does, and a global made that
@@ -10,12 +10,16 @@ import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
-// With `start`, the top level diverts to scene B, so that a run from the
-// start assigns the global before the call.
-const script = (global: string, call: string, fn: string[], start = "") =>
+// The global is assigned in scene `start`, or declared above it when
+// `declared`. With `divert`, `start` diverts to scene B, so that a run from
+// the start assigns the global before the call.
+const script = (global: string, call: string, fn: string[], divert = "", declared = false) =>
   [
-    global,
-    start,
+    ...(declared ? [global] : []),
+    "scene start",
+    ...(declared ? [] : [`  ${global}`]),
+    ...(divert ? [`  ${divert}`] : []),
+    "end",
     "",
     "scene A",
     "  First line.",
@@ -126,7 +130,7 @@ describe("incremental call resolution", () => {
 
   it("calls a declared global that a function is named after, as a cold compile does", () => {
     const { incremental, cold } = afterEditingSceneA(
-      script("store count = 0", "count(a, b, 1)", COUNT),
+      script("store count = 0", "count(a, b, 1)", COUNT, "", true),
     );
     expect(cold.errors).toHaveLength(1);
     expect(incremental).toEqual(cold);

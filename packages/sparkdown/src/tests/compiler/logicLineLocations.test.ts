@@ -111,49 +111,57 @@ function raisedLine(source: string): number | undefined {
 
 describe("logic lines own their instructions' addresses (#824)", () => {
   it("an error raised by a logic line resolves to that line", () => {
-    expect(raisedLine(`A\n& error("boom")\nC\n`)).toBe(1);
+    expect(raisedLine(`scene start\n  A\n  & error("boom")\n  C\nend\n`)).toBe(2);
   });
 
   it("a reassignment logic line has an address on it", () => {
-    const program = compile(`store x = 0\nA\n& x = 1\n.. B\n`);
-    expect(addressesOn(program, 2)).not.toEqual([]);
+    const program = compile(`store x = 0\nscene start\n  A\n  & x = 1\n  .. B\nend\n`);
+    expect(addressesOn(program, 3)).not.toEqual([]);
   });
 
   it("a function-call logic line has an address on it", () => {
-    const program = compile(`A\n& print("hi")\nC\n`);
-    expect(addressesOn(program, 1)).not.toEqual([]);
+    const program = compile(`scene start\n  A\n  & print("hi")\n  C\nend\n`);
+    expect(addressesOn(program, 2)).not.toEqual([]);
   });
 
   it("an error raised by a logic line in a scene body resolves to that line", () => {
     expect(
-      raisedLine(`-> start\n\nscene start\n  A\n  & error("boom")\n  C\nend\n`),
-    ).toBe(4);
+      raisedLine(
+        `scene start\n  -> later\nend\n\nscene later\n  A\n  & error("boom")\n  C\nend\n`,
+      ),
+    ).toBe(6);
   });
 
   it("an error raised by a property assignment logic line resolves to that line", () => {
-    expect(raisedLine(`store t = {}\nA\n& t.x = error("boom")\nC\n`)).toBe(2);
+    expect(
+      raisedLine(`store t = {}\nscene start\n  A\n  & t.x = error("boom")\n  C\nend\n`),
+    ).toBe(3);
   });
 
   it("a property assignment logic line has an address on it", () => {
-    const program = compile(`store t = {}\nA\n& t.x = 1\nC\n`);
-    expect(addressesOn(program, 2)).not.toEqual([]);
+    const program = compile(`store t = {}\nscene start\n  A\n  & t.x = 1\n  C\nend\n`);
+    expect(addressesOn(program, 3)).not.toEqual([]);
   });
 
   it("an error raised by a logic line in a choice body resolves to that line", () => {
     expect(
-      raisedLine(`A\nchoose\n  + [Go]\n    & error("boom")\nthen\nC\n`),
-    ).toBe(3);
+      raisedLine(
+        `scene start\n  A\n  choose\n    + [Go]\n      & error("boom")\n  then\n    C\n  end\nend\n`,
+      ),
+    ).toBe(4);
   });
 
   it("an error raised by a logic line in a queue arm resolves to that line", () => {
-    expect(raisedLine(`A\nqueue\n  |\n    & error("boom")\nend\nC\n`)).toBe(3);
+    expect(
+      raisedLine(`scene start\n  A\n  queue\n    |\n      & error("boom")\n  end\n  C\nend\n`),
+    ).toBe(4);
   });
 
   it("a function value assigned on a logic line gets no divert-target hint", () => {
     // The line now has a location, so any warning its statements raise reaches
     // the editor. An anonymous function is a function value, not a misused
     // `-> target`.
-    const program = compile(`A\n& f = function() return 1 end\nC\n`);
+    const program = compile(`scene start\n  A\n  & f = function() return 1 end\n  C\nend\n`);
     expect(warningsMatching(program, /divert target like that/)).toEqual([]);
   });
 
@@ -164,48 +172,45 @@ describe("logic lines own their instructions' addresses (#824)", () => {
   // and the author saw nothing.
   it("an authored divert target misused on a logic line still gets the hint, as a warning on the target", () => {
     const program = compile(
-      `store x = 0\nA\n& x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
+      `store x = 0\nscene start\n  A\n  & x = (-> later) + 1\n  C\n  -> DONE\nend\n\nscene later\n  B\nend\n`,
     );
     expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
-      { line: 2, character: 10, severity: 2 },
+      { line: 3, character: 12, severity: 2 },
     ]);
   });
 
   it("a `& local` declaration's warning reaches the editor on its target", () => {
     const program = compile(
-      `A\n& local x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
+      `scene start\n  A\n  & local x = (-> later) + 1\n  C\n  -> DONE\nend\n\nscene later\n  B\nend\n`,
     );
     expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
-      { line: 1, character: 16, severity: 2 },
+      { line: 2, character: 18, severity: 2 },
     ]);
   });
 
   it("an error raised by a `& local` declaration resolves to that line", () => {
-    expect(raisedLine(`A\n& local x = error("boom")\nC\n`)).toBe(1);
+    expect(raisedLine(`scene start\n  A\n  & local x = error("boom")\n  C\nend\n`)).toBe(2);
   });
 
   it("a `& local` shadowed in a block reports no duplicate identifier and reads the right binding", () => {
     // Luau lets a `local` be declared again in a nested block; the inner one
     // shadows the outer until the block ends.
     const program = compile(
-      `& local x = 1\nif true then\n  & local x = 2\n  Inner {x}.\nend\nOuter {x}.\n`,
+      `scene start\n  & local x = 1\n  if true then\n    & local x = 2\n    Inner {x}.\n  end\n  Outer {x}.\nend\n`,
     );
     expect(diagnosticsMatching(program, /Duplicate identifier/)).toEqual([]);
     expect(runText(program)).toBe("Inner 2.\nOuter 1.\n");
   });
 
   it("a `& local` declared again in the same block reports no duplicate identifier", () => {
-    const program = compile(`& local x = 1\n& local x = x + 1\nValue {x}.\n`);
+    const program = compile(`scene start\n  & local x = 1\n  & local x = x + 1\n  Value {x}.\nend\n`);
     expect(diagnosticsMatching(program, /Duplicate identifier/)).toEqual([]);
     expect(runText(program)).toBe("Value 2.\n");
   });
 
   it("a definition's assignments get no address", () => {
     // A `define` body is not a logic line and not a place PLAY can start.
-    // (The header is written as a define header reads now: `define NAME
-    // with`, closed by `end`. The `define config.thing:` it was written as
-    // is an error that leaves `value = 1` a top-level assignment.)
-    const program = compile(`define thing with\n  value = 1\nend\n`);
+    const program = compile(`define thing with\n  value = 1\nend\n\nscene start\nend\n`);
     expect(addressesOn(program, 1)).toEqual([]);
   });
 });
