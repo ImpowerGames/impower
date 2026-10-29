@@ -140,12 +140,20 @@ const AUTHORED_VOICE = [
   "  }",
   "end",
   "",
-  "RAFFLES:",
-  "\tDo I make a sound now?",
+  "scene start",
+  "  RAFFLES:",
+  "  \tDo I make a sound now?",
+  "end",
   "",
 ].join("\n");
 
-const NO_AUTHORED_VOICE = ["CRAWSHAY:", "\tI always did.", ""].join("\n");
+const NO_AUTHORED_VOICE = [
+  "scene start",
+  "  CRAWSHAY:",
+  "  \tI always did.",
+  "end",
+  "",
+].join("\n");
 
 describe("a character speaking produces audible output", () => {
   it("renders a non-silent buffer for an authored voice", async () => {

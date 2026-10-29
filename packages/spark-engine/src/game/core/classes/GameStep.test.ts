@@ -21,9 +21,14 @@ import { Game } from "./Game";
  * `src/tests/core/programDebugger.test.ts` covers them.
  */
 
-const THREE_BEATS = ["First beat.", "Second beat.", "Third beat.", ""].join(
-  "\n",
-);
+const THREE_BEATS = [
+  "scene start",
+  "  First beat.",
+  "  Second beat.",
+  "  Third beat.",
+  "end",
+  "",
+].join("\n");
 
 const compile = (source: string) => compileProgram(source);
 
@@ -117,9 +122,9 @@ describe("Game flow on the program engine", () => {
       game.start();
       const executed = emitted.find((e) => e.method === "game/executed");
       expect(executed?.params?.["state"]).toBe("running");
-      // The first beat is line 0.
+      // The first beat is line 1.
       expect(executed?.params?.["executedLines"]).toEqual({
-        "inmemory:///main.sd": { ranges: [0, 0], last: 0 },
+        "inmemory:///main.sd": { ranges: [1, 1], last: 1 },
       });
       expect(executed?.params?.["lastExecutedAddress"]).toBeTruthy();
     });
@@ -209,7 +214,7 @@ describe("Game flow on the program engine", () => {
     // when the only beat is flushed, so an over-eager check would declare it
     // finished before the player has read anything.
     it("shows a single-beat script before reporting finished", () => {
-      const oneBeat = compile("Only beat.\n");
+      const oneBeat = compile("scene start\n  Only beat.\nend\n");
       const game = new Game({
         program: oneBeat,
         now: () => 0,
