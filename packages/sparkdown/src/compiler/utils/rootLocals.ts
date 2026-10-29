@@ -47,6 +47,14 @@ const LOCAL_FUNCTIONS = nodeNameSet(["LuauFunctionDefinition", "LuauFunctionAttr
 // A function's body and a define's method, whose locals are the function's
 // and no block's.
 const FUNCTION_BODIES = nodeNameSet(["LuauFunctionBody", "LuauMethodDefinition"]);
+// What a `for` loop's variables are written as in its header, and what
+// ends them.
+const ACCESS_PATHS = nodeNameSet(["LuauAccessPath", "LuauSparkdownExplicitAccessPath"]);
+const FOR_HEADER_ENDS = nodeNameSet([
+  "LuauInKeyword",
+  "LuauAssignmentOperation",
+  "LuauSparkdownExplicitAssignmentOperation",
+]);
 // A loop's header, which a `for` loop's variables are written in.
 const LOOP_CONDITIONS = nodeNameSet(["LuauForCondition", "LuauSparkdownExplicitLoopCondition"]);
 
@@ -317,9 +325,9 @@ export class RootLocals {
   /** The locals `block` declares, read up to its end: a `for` loop's
    *  variables, and those of the statements inside it (`collectBlockPart`). */
   protected collectBlock(block: SyntaxNode, read: (from: number, to: number) => string): void {
-    const condition = forCondition(block, read);
+    const condition = forCondition(block);
     if (condition) {
-      for (const name of forVariables(read(condition.from, condition.to))) {
+      for (const name of forVariables(condition, read)) {
         this.declareInBlock(name, condition.to, block.to);
       }
     }
@@ -404,25 +412,34 @@ function ordinal(list: readonly RootDeclaration[], i: number): string {
 }
 
 /** The header of `node` when it is a `for` loop: the condition its content
- *  opens with, after the `for` keyword. */
-function forCondition(
-  node: SyntaxNode,
-  read: (from: number, to: number) => string,
-): SyntaxNode | null {
-  const content = childEndingWith(node, "_content");
-  const condition = content?.firstChild;
-  if (!condition || !LOOP_CONDITIONS.has(condition.name)) return null;
-  return /(^|[^\w])for\s*$/.test(read(node.from, condition.from)) ? condition : null;
+ *  opens with, after a `for` keyword in its begin. */
+function forCondition(node: SyntaxNode): SyntaxNode | null {
+  const begin = childEndingWith(node, "_begin");
+  if (!begin || !getDescendent("LuauForKeyword", begin)) return null;
+  const condition = childEndingWith(node, "_content")?.firstChild;
+  return condition && LOOP_CONDITIONS.has(condition.name) ? condition : null;
 }
 
-/** The variables a `for` loop's header (`i = 1, 3`, `k, v in t`) declares,
- *  their type annotations aside. */
-function forVariables(header: string): string[] {
-  const list = /^\s*([^=]*?)\s*(?:=|\bin\b)/.exec(header)?.[1] ?? "";
-  return list
-    .split(",")
-    .map((part) => part.split(":")[0]!.trim())
-    .filter((name) => /^[A-Za-z_]\w*$/.test(name));
+/** The variables a `for` loop's header declares: the access paths of one
+ *  variable each it holds before its `in` keyword or its `=` (`i = 1, 3`,
+ *  `k, v in t`), their type annotations aside. */
+function forVariables(
+  condition: SyntaxNode,
+  read: (from: number, to: number) => string,
+): string[] {
+  const names: string[] = [];
+  const content = childEndingWith(condition, "_content");
+  for (let part = content?.firstChild; part; part = part.nextSibling) {
+    if (FOR_HEADER_ENDS.has(part.name)) break;
+    if (!ACCESS_PATHS.has(part.name)) continue;
+    const variable = getDescendent("LuauVariable", part);
+    const path = childEndingWith(part, "_content");
+    if (!variable || !path) continue;
+    const name = read(variable.from, variable.to);
+    // A path of more than its one variable (`a.b`) declares nothing.
+    if (read(path.from, path.to).trim() === name) names.push(name);
+  }
+  return names;
 }
 
 /** The name nodes a `local` declaration declares, in order: a value in its
