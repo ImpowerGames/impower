@@ -978,6 +978,9 @@ export class GamePlayerController {
       this.renderRoute();
     },
     onResetAll: () => {
+      // The text fields hold that is not kept goes with the values.
+      this._valuesView = { ...this._valuesView, drafts: {} };
+      this.renderRoute();
       const start = this.valuesStart();
       const set =
         start !== undefined ? ownEntry(this._startingValues, start) : undefined;
@@ -1010,11 +1013,14 @@ export class GamePlayerController {
     for (const key of Object.keys(changes)) {
       this._valueEdits.set(`${start}\n${key}`, edit);
     }
+    // A value set or cleared replaces the text the field held and its badge.
     const unsaved = { ...this._valuesView.unsaved };
+    const drafts = { ...this._valuesView.drafts };
     for (const key of Object.keys(changes)) {
       delete unsaved[key];
+      delete drafts[key];
     }
-    this._valuesView = { ...this._valuesView, unsaved };
+    this._valuesView = { ...this._valuesView, unsaved, drafts };
     this._startingValues = changeStartingValues(before, start, changes);
     this.renderRoute();
     const saved = await this.requestHost(

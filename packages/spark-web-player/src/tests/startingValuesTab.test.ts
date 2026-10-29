@@ -422,6 +422,25 @@ describe("the Starting values tab", () => {
     });
   });
 
+  test.each([["×"], ["Reset all"]])(
+    "%s on a field holding text not kept puts back its first value",
+    async (action) => {
+      const p = await onValuesTab({ interrogation: { "store:trust": "2" } });
+      p.type("store:trust", "{ unclosed");
+      expect(p.badge("store:trust")!.dataset["status"]).toBe("error");
+      (action === "×"
+        ? p.row("store:trust").querySelector<HTMLElement>(".sv-clear")!
+        : p.routeList.querySelector<HTMLElement>(".sv-reset")!
+      ).click();
+      p.hostAnswers("preview/changeStartingValues");
+      await settle();
+      await p.hostSends({});
+      expect(p.input("store:trust").value).toBe("");
+      expect(p.input("store:trust").placeholder).toBe("0");
+      expect(p.badge("store:trust")).toBeNull();
+    },
+  );
+
   test("a value whose name left the script is listed apart with its warning, and × clears it", async () => {
     const p = await onValuesTab({
       interrogation: { "store:cells": "2", "visits:truth.ending": "1" },

@@ -342,22 +342,50 @@ describe("first values", () => {
 });
 
 describe("a change of starting values", () => {
-  test("is a change before the route's first step", () => {
-    const { game } = routeTo(example, 20, {
-      interrogation: { [paramKey("hour")]: '"nine"' },
-    });
-    expect(game.simulation).toBe("success");
-    game.setStartingValues({
+  test.each([
+    ["2", "3"],
+    ["math.huge", "nil"],
+    ["math.huge", "-math.huge"],
+    ["0", "-0"],
+  ])("from %s to %s is a change before the route's first step", (from, to) => {
+    const values = (trust: string): StartingValues => ({
       interrogation: {
         [paramKey("hour")]: '"nine"',
-        [storeKey("trust")]: "2",
+        [storeKey("trust")]: trust,
       },
     });
-    const to = game.startAddress;
-    expect(game.routeResumption("interrogation", to)).toMatchObject({
+    const { game, compiler } = routeTo(example, 20, values(from));
+    expect(game.simulation).toBe("success");
+    // A compile that changes nothing leaves a route that resumes, so the
+    // change of values below is what stops it.
+    const doc = compiler.documents.get(URI)!;
+    compiler.configure({
+      files: [
+        {
+          uri: URI,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: example.join("\n"),
+          version: (doc as any).version + 1,
+          languageId: "sparkdown",
+        },
+      ],
+    } as never);
+    game.updateProgram(
+      requireChunks(compiler.compile({ textDocument: { uri: URI } }).program),
+    );
+    const address = game.startAddress;
+    expect(game.routeResumption("interrogation", address)).toMatchObject({
+      replayOnly: true,
+    });
+    game.setStartingValues(values(to));
+    expect(game.routeResumption("interrogation", address)).toMatchObject({
       replayOnly: false,
     });
-    expect(game.routeResumption("interrogation", to).resumeFrom).toBeUndefined();
+    expect(
+      game.routeResumption("interrogation", address).resumeFrom,
+    ).toBeUndefined();
   });
 });
 
@@ -626,6 +654,69 @@ describe("a table's starting value", () => {
     const bag = listed.items.find((i: any) => i.name === "bag");
     expect(bag.first).toBe("{ inner = { hp = 10, … } }");
     expect(bag.fields.map((f: any) => f.first)).toEqual(["{ hp = 10, … }"]);
+  });
+});
+
+/** Gives `game` the program `compiler` makes of `text`, as an edit does. */
+const recompile = (compiler: SparkdownCompiler, game: any, text: string) => {
+  const doc = compiler.documents.get(URI)!;
+  compiler.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: (doc as any).version + 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  game.updateProgram(
+    requireChunks(compiler.compile({ textDocument: { uri: URI } }).program),
+  );
+};
+
+describe("a store's value set by its path", () => {
+  test("applies to a table's field a run deleted, after an edit that carries the declarations over", () => {
+    const lines = [
+      "store bag = { hp = 10 }",
+      "scene s",
+      "  Before {bag.hp}.",
+      "  bag.hp = nil",
+      "  After {bag.hp}.",
+      "end",
+    ];
+    const { game, compiler } = routeTo(lines, 5, {
+      s: { [storeKey("bag.hp")]: "3" },
+    });
+    expect(shown(game)).toContain("After nil.");
+    recompile(compiler, game, lines.join("\n").replace("Before", "Edited"));
+    game.setStartFrom({ file: URI, line: 2 });
+    game.simulate();
+    expect(shown(game)).toContain("Edited 3.");
+  });
+
+  test("lists and applies a typed define's store field by the name the script reads it by", () => {
+    const lines = [
+      "define hero as character with",
+      "  store mood = 1",
+      "end",
+      "scene s",
+      "  Mood {character.hero.mood}.",
+      "end",
+    ];
+    const listed = routeTo(lines, 5).game.startingValueListing("s");
+    expect(
+      listed.items
+        .filter((i: any) => i.group === "stores")
+        .map((i: any) => [i.key, i.first]),
+    ).toEqual([[storeKey("character.hero.mood"), "1"]]);
+    const { game } = routeTo(lines, 5, {
+      s: { [storeKey("character.hero.mood")]: "5" },
+    });
+    expect(shown(game)).toContain("Mood 5.");
   });
 });
 

@@ -201,6 +201,26 @@ const globalsDeclaredBy = (root: ProgramRoot, chunk: ProgramChunk): string[] => 
 
 /** A table's field, read through its `__index` chain as a define instance
  *  reads its defaults. */
+/** The name a script reads a typed define's instance by, its type's and its
+ *  own (`character.hero`), from the markers `__def` puts on its metatable;
+ *  none for any other value. */
+const scriptNameOf = (
+  value: InkObject | null | undefined,
+): string | undefined => {
+  if (
+    !(value instanceof ObjectValue) ||
+    !(value.metatable instanceof ObjectValue)
+  ) {
+    return undefined;
+  }
+  const meta = value.metatable.value as Map<string, AbstractValue>;
+  const own = meta.get("__define");
+  const type = meta.get("__defineParent");
+  return own instanceof StringValue && type instanceof StringValue
+    ? `${type.value}.${own.value}`
+    : undefined;
+};
+
 const fieldOf = (table: ObjectValue, field: string): AbstractValue | undefined => {
   let current: ObjectValue | null = table;
   for (let guard = 0; current && guard < 64; guard++) {
@@ -322,11 +342,8 @@ interface ListedPart<T> {
  *  stores and the counted places are the same for every start. */
 interface ListedProgram {
   /** The stores as the declarations give them (`freshStoryOf`), which the
-   *  listing shows. */
+   *  listing shows and a plan applies a value by. */
   stores?: ListedPart<string[]>;
-  /** The stores' paths as a story that has run holds them, which a plan
-   *  needs no fresh run of the declarations for. */
-  storePaths?: ListedPart<string[]>;
   places?: ListedPart<number>;
   flows?: ListedPart<number>;
   starts: Map<string, StartingValueListing>;
@@ -356,9 +373,10 @@ const freshStories = new WeakMap<ProgramRoot, ProgramStory>();
 /**
  * A story of the program that has run its declarations and nothing else:
  * what a store's first value is. A story that has run holds the tables the
- * declarations built, which a run may have written into, so a table's or a
- * define's first values are read from one of these, made once per program
- * and only for a listing. Its seed is 0, the preview's, so a declaration
+ * declarations built, which a run may have written into or deleted from, so
+ * a table's or a define's first values, and the paths a plan applies a value
+ * by, are read from one of these, made once per program and only when a
+ * listing, or a plan with a store's value, asks. Its seed is 0, the preview's, so a declaration
  * that draws shows what the preview draws.
  */
 const freshStoryOf = (root: ProgramRoot): ProgramStory => {
@@ -376,37 +394,42 @@ const freshStoryOf = (root: ProgramRoot): ProgramStory => {
 
 /** The program's stores, in the order the scripts declare them, with a
  *  define's `store` fields and a table store's fields, each with its first
- *  value: as the declarations give them (`fresh`), which the listing shows,
- *  or as `story` holds them, whose paths a plan applies a value by. */
+ *  value and the path a value is applied by, as the declarations give them
+ *  (`freshStoryOf`). */
 const storesOf = (
   story: ProgramStory,
   source: StartingValueSource,
-  fresh: boolean,
 ): ListedPart<string[]> => {
   const root = story.root!;
   const program = listedProgram(root);
-  const kept = fresh ? program.stores : (program.stores ?? program.storePaths);
-  if (kept) {
-    return kept;
+  if (program.stores) {
+    return program.stores;
   }
   const items: StartingValueItem[] = [];
   const targets = new Map<string, string[]>();
   const constants = root.tables?.constantNames ?? new Set<string>();
-  const variables = (fresh ? freshStoryOf(root) : story).state.variablesState;
+  const variables = freshStoryOf(root).state.variablesState;
   for (const uri of source.uris) {
     const declarations = root.declarations(uri);
     for (const chunk of declarations?.arrays.chunks ?? []) {
       for (const name of globalsDeclaredBy(root, chunk)) {
-        if (constants.has(name) || name.startsWith("$") || targets.has(storeKey(name))) {
+        if (constants.has(name) || targets.has(storeKey(name))) {
           continue;
         }
         const value =
           variables.DefaultGlobal(name) ??
           (variables.GetVariableWithName(name) as InkObject | null);
+        // A typed define's instance is held under a name no script spells
+        // (`$character_hero`), and the script names it by its type
+        // (`character.hero`).
+        const listedName = name.startsWith("$") ? scriptNameOf(value) : name;
+        if (listedName === undefined) {
+          continue;
+        }
         if (value instanceof ObjectValue && value.metatable) {
           const define = JsonSerialisation.defineSerializationInfo(value);
           for (const field of define?.storeNames ?? []) {
-            const path = `${name}.${field}`;
+            const path = `${listedName}.${field}`;
             const first = literalOfValue(fieldOf(value, field));
             targets.set(storeKey(path), [name, field]);
             items.push({
@@ -464,13 +487,8 @@ const storesOf = (
       }
     }
   }
-  const part = { items, targets };
-  if (fresh) {
-    program.stores = part;
-  } else {
-    program.storePaths = part;
-  }
-  return part;
+  program.stores = { items, targets };
+  return program.stores;
 };
 
 /** Where a script stands in the order the scripts are listed in. */
@@ -588,7 +606,7 @@ export const startingValueListing = (
       first: "nil",
     }),
   );
-  items.push(...storesOf(story, source, true).items);
+  items.push(...storesOf(story, source).items);
   // The visits in script order: a flow before the places on its line.
   const places = placesOf(story, source);
   const visits = [...flowsOf(story, source).items, ...places.items];
@@ -678,7 +696,7 @@ export const startPlanOf = (
         lastArg = Math.max(lastArg, param);
       }
     } else if (key.startsWith("store:")) {
-      const path = storesOf(story, source, false).targets.get(key);
+      const path = storesOf(story, source).targets.get(key);
       if (path) {
         plan.stores.push([path, value]);
       }
