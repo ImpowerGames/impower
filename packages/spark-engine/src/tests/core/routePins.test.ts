@@ -345,6 +345,34 @@ describe("the preview's route keeps the author's pins", () => {
     ).toEqual([["auto", "Thread option.", undefined, undefined]]);
   }, 120_000);
 
+  test("a menu that presents nothing gives none of its pins to the next menu", () => {
+    // Hidden. leads away from the line, so its gate stays false and its menu
+    // presents nothing; Continue.'s menu owns no pin.
+    const lines = [
+      "store key = false",
+      "scene start",
+      "  choose",
+      "    * if key [Hidden.]",
+      "      -> gone",
+      "  end",
+      "  choose",
+      "    + [Continue.]",
+      "      Continued.",
+      "  end",
+      "  Target.",
+      "end",
+      "scene gone",
+      "  Gone.",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 11, [pin(4)]);
+    expect(route.start.scene).toBe("start");
+    expect(
+      route.decisions.map((d) => [d.kind, d.text, d.notFollowed, d.unofferedPins]),
+    ).toEqual([["auto", "Continue.", undefined, undefined]]);
+  }, 120_000);
+
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",

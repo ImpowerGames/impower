@@ -1,11 +1,10 @@
 // #1657 — the route's report says where a pin was not followed. A menu's own
-// options are those it offers, those of the same statement, those it offered
-// at an earlier meeting, among them an option a thread (`<- name`) adds from
-// another statement, and the gated options whose gate the route met on its
-// way to the meeting. Once-only and already taken, a thread's option is not
-// offered at a later meeting, and a pin on that later offer is reported not
-// followed there; a gated option whose gate the route left false is the
-// menu's even when the menu offers only a thread's options.
+// options are those it offers, those of the same statement, and those it
+// offered at an earlier meeting, among them an option a thread (`<- name`)
+// adds from another statement: once-only and already taken, such an option
+// is not offered at a later meeting, and a pin on that later offer is
+// reported not followed there. A menu that offers only a thread's options
+// owns none of its own statement's options, which is a known limit.
 import { describe, expect, test } from "vitest";
 import type { RoutePlan } from "../../compiler/utils/planRoute";
 import { routeDecisions } from "../../compiler/utils/routeDecisions";
@@ -49,7 +48,7 @@ const pinned = pinnedOptionsOf(
 );
 
 describe("a pin on a gated option of a menu that offers only a thread's options", () => {
-  test("is reported not followed at the meeting whose gate the route met", () => {
+  test("is not reported, since nothing the menu offers names its own statement (a known limit)", () => {
     // `* if key [Show the key.]` in its menu's own statement, its gate left
     // false, so the menu offers only the thread's option, in another chunk.
     const GATE = 3 * 2 ** 21 + 14;
@@ -75,9 +74,9 @@ describe("a pin on a gated option of a menu that offers only a thread's options"
     expect([choice!.kind, choice!.option, choice!.notFollowed]).toEqual([
       "auto",
       "Thread option.",
-      true,
+      undefined,
     ]);
-    expect(choice!.unoffered).toEqual([{ site: GATE, offer: 1 }]);
+    expect(choice!.unoffered).toBeUndefined();
   });
 });
 

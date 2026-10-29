@@ -132,10 +132,6 @@ export const routeDecisions = (
   const missed = new Set<string>();
   // The options each menu, by the site it is met at, has offered so far.
   const offeredAt = new Map<ProgramAddress, Set<string>>();
-  // The sites of the verdicts since the last menu: a gated option's gate is
-  // its own address, and a gate the route met belongs to the next menu,
-  // whichever options that menu offers.
-  let gatesMet = new Set<string>();
   let menus = 0;
   route.decisions.forEach((decision, index) => {
     if (decision.kind === "choice") {
@@ -152,13 +148,11 @@ export const routeDecisions = (
         offeredBefore = new Set();
         offeredAt.set(decision.site, offeredBefore);
       }
-      const own = new Set([...offeredBefore, ...gatesMet]);
-      gatesMet = new Set();
       for (const { source, offer } of pinnedNotOffered(
         pinned,
         sources,
         offers,
-        own,
+        offeredBefore,
       )) {
         const key = `${source}:${offer}`;
         if (!missed.has(key)) {
@@ -188,7 +182,6 @@ export const routeDecisions = (
       });
       return;
     }
-    gatesMet.add(String(decision.site));
     if (!decision.departs) {
       return;
     }
