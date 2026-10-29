@@ -65,7 +65,7 @@ At a pinned menu the preview takes your pinned option wherever your line can be 
 A pin has these limits:
 
 - An option without `+` can be taken once. When the route has already taken it, a later menu cannot offer it again, so a pin on that later offer is not followed.
-- When an edit leaves two pins on one menu, the preview takes the option the menu lists first, and the other pin is not followed.
+- When an edit leaves two pins on one menu, the preview takes the option the menu lists first, and the other pin is not followed: its condition is not forced to offer it.
 - The preview searches the routes that keep your pins first, for a limited share of its work. A pin whose routes take more work than that to reach your line, such as one that runs a long loop on every route, is not followed, as if the line could not be reached through it.
 - A pin follows its line through edits made in this editor. An edit made elsewhere can leave a pin on another line. A pin whose line holds no option is ignored, and the list shows it with Remove.
 

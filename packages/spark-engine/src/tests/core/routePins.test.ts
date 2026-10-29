@@ -12,7 +12,7 @@
 //     a pin on a later offer of it is left there;
 //   - a hub is pinned meeting by meeting;
 //   - when an edit leaves two pins on one stop, the option listed first wins
-//     and the other is not followed;
+//     and the other is not followed, its gate left as the program has it;
 //   - a pin whose line holds no option is unresolved, ignored and reported.
 
 import { describe, expect, test } from "vitest";
@@ -196,6 +196,66 @@ describe("the preview's route keeps the author's pins", () => {
     expect(route.decisions[1]!.text.trim()).toBe("Show the key.");
   }, 120_000);
 
+  test("a pinned gated option wins its menu once a pinned once-only option listed before it is spent", () => {
+    // First. is pinned at both offers and Second. at its first: First. wins
+    // the first meeting, and at the second, where the menu no longer offers
+    // it, Second.'s gate is forced to offer it. Each meeting leaves the
+    // other pin unoffered, so both are reported not followed.
+    const lines = [
+      "store asked = 0",
+      "store key = false",
+      "-> start",
+      "scene start",
+      "  while asked < 2 do",
+      "    choose",
+      "    * [First.]",
+      "      & asked += 1",
+      "    + if key [Second.]",
+      "      & asked += 1",
+      "    + [Other.]",
+      "      & asked += 1",
+      "    end",
+      "  end",
+      "  Done.",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 15, [pin(7, 1), pin(7, 2), pin(9)]);
+    expect(
+      route.decisions.map((d) => [d.kind, d.text.trim(), Boolean(d.notFollowed)]),
+    ).toEqual([
+      ["pinned", "First.", true],
+      ["forced", "+ if key [Second.]", false],
+      ["pinned", "Second.", true],
+    ]);
+  }, 120_000);
+
+  test("a choice entry names where its menu is met, whichever options a gate lets it offer", () => {
+    const lines = [
+      "store key = false",
+      "",
+      "scene s",
+      "  choose",
+      "    * if key [Show the key.]",
+      "      Shown.",
+      "    * [Wait.]",
+      "      Waited.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ];
+    const gated = preview(lines, 10, [pin(5)]).route.decisions.at(-1)!;
+    const plain = preview(lines, 10, [pin(7)]).route.decisions.at(-1)!;
+    expect(gated.options!.map((o) => o.text.trim())).toEqual([
+      "Show the key.",
+      "Wait.",
+    ]);
+    expect(plain.options!.map((o) => o.text.trim())).toEqual(["Wait."]);
+    expect(gated.menu).toBeDefined();
+    expect(plain.menu).toEqual(gated.menu);
+  }, 120_000);
+
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",
@@ -317,6 +377,27 @@ describe("the preview's route keeps the author's pins", () => {
     expect(choice!.kind).toBe("pinned");
     expect(choice!.text).toBe("Show the photograph.");
     expect(choice!.notFollowed).toBe(true);
+  }, 120_000);
+
+  test("two pins on one stop: the gate of the pin that loses is not forced", () => {
+    const lines = [
+      "store key = false",
+      "",
+      "scene s",
+      "  choose",
+      "    * [First.]",
+      "      Took first.",
+      "    * if key [Second.]",
+      "      Took second.",
+      "  end",
+      "  After.",
+      "end",
+      "",
+    ];
+    const { route } = preview(lines, 10, [pin(5), pin(7)]);
+    expect(
+      route.decisions.map((d) => [d.kind, d.text, Boolean(d.notFollowed)]),
+    ).toEqual([["pinned", "First.", true]]);
   }, 120_000);
 
   test("the example of #1655 at line 21 with Tell the truth. pinned: Pinned 8, Forced 15, Clipped 18", () => {

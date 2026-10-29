@@ -36,6 +36,9 @@ export interface PreviewRouteDecision {
   text: string;
   /** Which time the route is offered the option it took, from 1. */
   meeting?: number;
+  /** Where a choice's menu is met, which stays the menu's whichever
+   *  options it offers. */
+  menu?: DocumentLocation;
   /** The options a choice's menu offered, in the order it lists them. */
   options?: PreviewRouteOption[];
   /** Set on a choice where a pin was not followed (`routeDecisions`). */

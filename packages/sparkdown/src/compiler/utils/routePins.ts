@@ -103,6 +103,29 @@ export const pinsNextOffer = (
   count: number,
 ): boolean => pinned.offers.get(source)?.has(count + 1) ?? false;
 
+/** The identity of a pinned offer a route meets: the option and which time
+ *  it is offered. */
+export const pinnedOfferKey = (source: string, offer: number): string =>
+  `${source}:${offer}`;
+
+/**
+ * Whether a pinned option's gate, met while its menu has already offered
+ * `offered` (the choices the story has raised for it,
+ * `ProgramStoryState.generatedChoices`), is the gate of the pin that wins
+ * the menu: none of those options is pinned at its offer there. When an edit
+ * leaves two pins on one menu the option listed first wins (`pinnedAtMenu`)
+ * and the other is not followed, so the losing option's gate is left as the
+ * program decides it.
+ */
+export const gateWinsMenu = (
+  pinned: PinnedOptions,
+  offered: readonly string[],
+  counts: ReadonlyMap<string, number>,
+): boolean =>
+  !offered.some((source) =>
+    pinsNextOffer(pinned, source, counts.get(source) ?? 0),
+  );
+
 /** The indices of the options of a menu offering `sources` whose offer
  *  there is pinned, in the order the menu lists them: the first wins, and
  *  any other is not followed. */

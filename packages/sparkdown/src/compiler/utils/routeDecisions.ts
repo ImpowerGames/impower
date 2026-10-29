@@ -38,6 +38,9 @@ export interface RouteDecision {
   option?: string;
   /** Which time the route is offered the option it took, from 1. */
   meeting?: number;
+  /** For a choice, the site its menu is met at, which stays the menu's
+   *  whichever options it offers. */
+  menu?: ProgramAddress;
   /** The options the menu offered, in the order it lists them. */
   options?: RouteOption[];
   /** Set on a choice where a pin was not followed: the route took another
@@ -161,6 +164,7 @@ export const routeDecisions = (
         site: Number(decision.value),
         option: menu?.options[menu.selected] ?? "",
         meeting: offers.get(decision.value) ?? 1,
+        menu: decision.site,
         options: sources.map((source, i) => ({
           site: Number(source),
           text: menu?.options[i] ?? "",

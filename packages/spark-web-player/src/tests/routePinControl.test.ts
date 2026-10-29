@@ -264,6 +264,61 @@ describe("the pin control", () => {
     expect(p.button("Pinned", p.option("Lie."))).toBeDefined();
   });
 
+  test("the pin control stays open when the pin closes a gate on the first option there", async () => {
+    // `* if key [Show the key.]` on line 5 before `* [Wait.]` on line 7, with
+    // `key` false: pinning Wait. leaves the gate false, so the menu offers
+    // Wait. alone.
+    const gated = (): PreviewRoute => ({
+      start: { scene: "s", location: at(3) },
+      target: at(10),
+      decisions: [
+        { kind: "forced", location: at(5), text: "key", verdict: true },
+        {
+          kind: "pinned",
+          location: at(5),
+          text: "Show the key.",
+          meeting: 1,
+          menu: at(4),
+          options: [
+            { location: at(5), text: "Show the key.", offer: 1, pinned: true },
+            { location: at(7), text: "Wait.", offer: 1 },
+          ],
+        },
+      ],
+    });
+    const p = player();
+    await p.hostPins([pin(5)]);
+    p.report(gated());
+    p.open();
+    p.routeList
+      .querySelector<HTMLButtonElement>('.route-entry[data-kind="pinned"] .route-entry-toggle')!
+      .click();
+    await settle();
+    p.button("Pin", p.option("Wait."))!.click();
+    expect(p.requests().at(-1)!.params).toEqual({
+      add: [pin(7)],
+      remove: [pin(5)],
+    });
+    p.answer({ pins: [pin(7)] });
+    await settle();
+    p.report({
+      ...gated(),
+      decisions: [
+        {
+          kind: "pinned",
+          location: at(7),
+          text: "Wait.",
+          meeting: 1,
+          menu: at(4),
+          options: [{ location: at(7), text: "Wait.", offer: 1, pinned: true }],
+        },
+      ],
+    });
+    await settle();
+    expect(p.routeList.querySelector(".route-pin-control")).not.toBeNull();
+    expect(p.button("Pinned", p.option("Wait."))).toBeDefined();
+  });
+
   test("Unpin and pressing Pinned remove the stop's pin", async () => {
     const p = player();
     await p.hostPins([pin(8)]);

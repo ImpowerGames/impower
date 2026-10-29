@@ -40,6 +40,7 @@ import {
   type SearchState,
 } from "./planRoute";
 import {
+  gateWinsMenu,
   NO_PINS,
   pinnedAtMenu,
   pinnedOfferCounts,
@@ -772,12 +773,16 @@ const runUntilDecisionOrBranch = (
           );
         // A pinned option's gate at its pinned offer is tried true first.
         const site = story.pausedBeforeCondition!;
+        const counts = pinned.sites.has(site)
+          ? pinnedOfferCounts(node.choices, pinned)
+          : null;
         const gate =
-          pinned.sites.has(site) &&
-          pinsNextOffer(
+          counts !== null &&
+          pinsNextOffer(pinned, String(site), counts.get(String(site)) ?? 0) &&
+          gateWinsMenu(
             pinned,
-            String(site),
-            pinnedOfferCounts(node.choices, pinned).get(String(site)) ?? 0,
+            story.state.generatedChoices.map((c) => c.sourcePath),
+            counts,
           );
         const favoredConditionalValue = gate
           ? true

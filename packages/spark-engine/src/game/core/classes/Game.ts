@@ -27,7 +27,7 @@ import {
   showsBeatAhead,
   routeChargeAt,
   stepsBeforeDeparture,
-  stepsBeforePinLeft,
+  stepsBeforePinMet,
   sameFavoredReads,
   type LevelZeroStore,
   type LevelZeroWork,
@@ -2535,12 +2535,13 @@ export class Game<T extends M = {}> {
       // A route origin/main's search found (`planRoute`) is resumed and
       // replayed as origin/main's preview resumes its own routes: from the
       // deepest checkpoint the new program agrees with, by origin/main's
-      // search alone (a resume point without a charge), and no later than a
-      // choice that left a pin, which another line may be reached through.
+      // search alone (a resume point without a charge), and no later than
+      // its first pinned meeting, whose decision another line may make
+      // otherwise.
       const resume = this.findResumePoint(
         replayOnly
           ? validSteps
-          : Math.min(validSteps, stepsBeforePinLeft(route, this.pinnedOptions)),
+          : Math.min(validSteps, stepsBeforePinMet(route, this.pinnedOptions)),
       );
       if (!resume) {
         return { validSteps, replayOnly: false };
@@ -2555,10 +2556,11 @@ export class Game<T extends M = {}> {
     }
     // A search resumed inside the route keeps every decision before the
     // point it resumes from, and a search from the top forces a verdict
-    // against the program, or leaves a pin, only where the target needs it
-    // (`planRoute`). So a search resumes no later than the route's first such
-    // decision, or the preview would show a branch the route took for another
-    // line.
+    // against the program only where the target needs it (`planRoute`). So a
+    // search resumes no later than the route's first such verdict, or the
+    // preview would show a branch the route took for another line; nor later
+    // than its first pinned meeting, since only a search from the top knows
+    // which pins each route met and how much of a pin's tier it spent.
     const searchSteps = replayOnly
       ? validSteps
       : Math.min(validSteps, stepsBeforeDeparture(route, this.pinnedOptions));
@@ -4316,6 +4318,10 @@ export class Game<T extends M = {}> {
           });
         }
       }
+      const menu =
+        decision.menu !== undefined
+          ? this.documentLocationOf(decision.menu)
+          : null;
       decisions.push({
         kind: decision.kind,
         location,
@@ -4330,6 +4336,7 @@ export class Game<T extends M = {}> {
           ? { meeting: decision.meeting }
           : {}),
         ...(decision.options ? { options } : {}),
+        ...(menu ? { menu } : {}),
         ...(decision.notFollowed ? { notFollowed: true as const } : {}),
         ...(decision.verdict !== undefined
           ? { verdict: decision.verdict }

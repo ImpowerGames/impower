@@ -175,13 +175,15 @@ export function RouteList({
   const shown = decisions.filter((d) => state.toggles[d.kind]);
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
-  // An entry is known by its stop: the menu it met, by its first option, and
+  // An entry is known by its stop: the menu it met, by where it is met, and
   // which meeting of that menu it is. A pin that changes the option taken
-  // there leaves it as it was, so the control the author pressed stays open.
+  // there, or the options a gate lets it offer, leaves it as it was, so the
+  // control the author pressed stays open.
   const keys = new Map<PreviewRouteDecision, string>();
   const meetings = new Map<string, number>();
   for (const decision of decisions) {
-    const at = decision.options?.[0]?.location ?? decision.location;
+    const at =
+      decision.menu ?? decision.options?.[0]?.location ?? decision.location;
     const stop = `${decision.options ? "menu" : decision.kind}:${at.uri}:${at.range.start.line}`;
     const meeting = (meetings.get(stop) ?? 0) + 1;
     meetings.set(stop, meeting);
