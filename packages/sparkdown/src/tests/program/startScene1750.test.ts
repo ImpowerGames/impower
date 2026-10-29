@@ -46,6 +46,53 @@ describe("the start of the story", () => {
     });
     expect(beatsOf(story)).toEqual(["The gate.\n", "The forest.\n"]);
   });
+
+  const counted = {
+    [MAIN]: lines(
+      "scene start",
+      "  Visits {count.visits(-> start)}, turns {count.turns(-> start)}.",
+      "end",
+    ),
+  };
+
+  it("counts start as entered when the story starts there", () => {
+    expect(beatsOf(storyOf(counted))).toEqual(["Visits 1, turns 0.\n"]);
+  });
+
+  it("counts start once when a reset is followed by a jump into it", () => {
+    const story = storyOf(counted);
+    story.ResetState();
+    expect(beatsOf(story, "start")).toEqual(["Visits 1, turns 0.\n"]);
+  });
+
+  it("enters the first branch of a start scene that opens with one", () => {
+    const story = storyOf({
+      [MAIN]: lines(
+        "scene start",
+        "  branch opening",
+        "    The opening, {count.visits(-> start)}.",
+        "  end",
+        "end",
+      ),
+    });
+    expect(beatsOf(story)).toEqual(["The opening, 1.\n"]);
+  });
+
+  it("gives start's locals the scene's scope", () => {
+    const story = storyOf({
+      [MAIN]: lines(
+        "scene start",
+        "  local n = 2",
+        "  if n > 1 then",
+        "    local m = n * 2",
+        "    Inner {m}.",
+        "  end",
+        "  Outer {n}.",
+        "end",
+      ),
+    });
+    expect(beatsOf(story)).toEqual(["Inner 4.\n", "Outer 2.\n"]);
+  });
 });
 
 describe("a top-level run", () => {

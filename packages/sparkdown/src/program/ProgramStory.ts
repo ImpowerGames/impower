@@ -861,6 +861,7 @@ export class ProgramStory implements StoryEngine {
   protected restoreInPlace(image: ProgramImage, translate = true): boolean {
     // As a load of a state's JSON, a restore runs between the steps of an
     // asynchronous continue, which a route search drives.
+    this._entering = null;
     this.enableImages();
     if (
       !restoreImage(
@@ -1365,6 +1366,7 @@ export class ProgramStory implements StoryEngine {
     // A state loaded in place (`LoadJson`, a route search's port) stands
     // at no beat this engine took.
     this._state.onBeginLoad = () => {
+      this._entering = null;
       this._currentBeat = null;
       this.ownDeclarations();
       // The load writes what it reads by paths no table barrier hears, so
@@ -1394,8 +1396,16 @@ export class ProgramStory implements StoryEngine {
     variablesState.ObserveVariableChange(() => {
       this._stateIsPristine = false;
     });
-    const start = this.root.flowNamed(this.startName());
-    this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
+    const start = this.startSymbol();
+    const place = start === undefined ? undefined : this.root.place(start);
+    if (place) {
+      this.land(place, [], 0);
+      this._entering = start!;
+    } else {
+      const root = this.root.flowNamed(ROOT_FLOW_NAME);
+      this._state.position = root ? { sequence: root, entry: 0, offset: 0 } : null;
+      this._entering = null;
+    }
     if (this._imagesOn) {
       this.attachImages();
     }
@@ -1506,6 +1516,7 @@ export class ProgramStory implements StoryEngine {
     // stack is reset, as the object engine's `ChoosePath` counted them from
     // its thread's previous pointer after the turn it started.
     const left = resetCallstack ? -1 : this._state.previousFlow;
+    this._entering = null;
     if (resetCallstack) {
       this.ResetCallstack();
     }
@@ -2513,6 +2524,12 @@ export class ProgramStory implements StoryEngine {
    *  with a `done`. */
   Step(): void {
     const state = this._state;
+    if (this._entering !== null && state.position) {
+      const start = this._entering;
+      this._entering = null;
+      this.countEntered(state.position.sequence, -1);
+      this.enterStart(start, state.position.sequence);
+    }
     const position = state.position;
     if (!position) {
       return;
@@ -4048,15 +4065,27 @@ export class ProgramStory implements StoryEngine {
    *  with it forgot `previousAddress`; null after any other step. */
   endedAt: number | null = null;
 
-  /** The name of the flow the story starts in: the scene named start, or the
-   *  top-level content's flow in a program that has none, which the compile
-   *  reports. */
-  protected startName(): string {
+  /** The symbol of the scene named start, or nothing in a program that has
+   *  none, which the compile reports. */
+  protected startSymbol(): number | undefined {
     const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
     return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
-      ? START_FLOW_NAME
-      : ROOT_FLOW_NAME;
+      ? symbol
+      : undefined;
   }
+
+  /** The name of the flow the story starts in: the scene named start, or the
+   *  top-level content's flow in a program that has none. */
+  protected startName(): string {
+    return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
+  }
+
+  /** The scene a reset placed the story at the top of, which the story
+   *  enters when it first steps from there: it counts the scene, as a jump
+   *  into it from outside does, and enters its first branch. A move or a
+   *  load before that step lands elsewhere and counts what it enters
+   *  itself, so a reset followed by a jump into the scene counts it once. */
+  protected _entering: number | null = null;
 
   /** The start of the flow or label a qualified name names, the flow the
    *  story starts in as `"0"` (`startName`) and the top-level content's as
