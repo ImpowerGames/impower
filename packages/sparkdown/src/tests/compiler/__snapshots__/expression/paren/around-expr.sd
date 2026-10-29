@@ -1,1 +1,3 @@
-(a + b)
+scene start
+  (a + b)
+end

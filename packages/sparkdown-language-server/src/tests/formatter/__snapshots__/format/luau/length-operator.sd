@@ -1,3 +1,5 @@
-a = # TIME_OF_DAY
-b = #  arr
-c = #obj
+scene start
+  a = # TIME_OF_DAY
+  b = #  arr
+  c = #obj
+end

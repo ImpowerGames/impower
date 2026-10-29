@@ -1,5 +1,7 @@
 store x = -> knot
--> main
+scene start
+  -> main
+end
 scene main
   Count start - {READ_COUNT(x)} {READ_COUNT(-> knot)} {knot}
   -> x(1) ->

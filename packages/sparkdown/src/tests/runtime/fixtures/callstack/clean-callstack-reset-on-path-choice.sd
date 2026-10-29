@@ -1,4 +1,6 @@
--> RunAThing
+scene start
+  -> RunAThing
+end
 
 scene RunAThing
   The first line.

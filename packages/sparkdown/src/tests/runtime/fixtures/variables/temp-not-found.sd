@@ -1,4 +1,3 @@
--> start
 scene start
   {x}
   & local x = 5

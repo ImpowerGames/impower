@@ -1,1 +1,3 @@
--> Foo ->
+scene start
+  -> Foo ->
+end

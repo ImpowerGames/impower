@@ -1,9 +1,11 @@
-first gather
-choose
-  + [option 1]
-  + [option 2]
-then
-  the main gather
-  bottom gather
-  done
+scene start
+  first gather
+  choose
+    + [option 1]
+    + [option 2]
+  then
+    the main gather
+    bottom gather
+    done
+  end
 end

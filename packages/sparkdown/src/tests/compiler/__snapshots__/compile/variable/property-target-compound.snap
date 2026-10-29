@@ -1,12 +1,23 @@
 {
   "content": [
     {
+      "type": "Knot",
+      "name": "start",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
       "type": "Weave",
       "content": [
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__pa_base_$2",
+          "name": "__pa_base_$16",
           "expression": {
             "type": "VariableReference",
             "path": [
@@ -17,7 +28,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__pa_key_$2",
+          "name": "__pa_key_$16",
           "expression": {
             "type": "StringExpression",
             "content": [
@@ -30,13 +41,13 @@
           "base": {
             "type": "VariableReference",
             "path": [
-              "__pa_base_$2"
+              "__pa_base_$16"
             ]
           },
           "key": {
             "type": "VariableReference",
             "path": [
-              "__pa_key_$2"
+              "__pa_key_$16"
             ]
           },
           "value": {
@@ -47,13 +58,13 @@
               "base": {
                 "type": "VariableReference",
                 "path": [
-                  "__pa_base_$2"
+                  "__pa_base_$16"
                 ]
               },
               "key": {
                 "type": "VariableReference",
                 "path": [
-                  "__pa_key_$2"
+                  "__pa_key_$16"
                 ]
               }
             },
@@ -68,3 +79,5 @@
     }
   ]
 }
+
+{}

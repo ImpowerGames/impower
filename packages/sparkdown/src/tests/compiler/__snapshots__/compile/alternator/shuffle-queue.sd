@@ -1,5 +1,7 @@
-shuffle queue
-  | -> A
-  | -> B
-  | -> C
+scene start
+  shuffle queue
+    | -> A
+    | -> B
+    | -> C
+  end
 end

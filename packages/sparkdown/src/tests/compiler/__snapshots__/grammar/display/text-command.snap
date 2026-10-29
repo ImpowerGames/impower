@@ -1,620 +1,638 @@
-sparkdown [0..245]
- ├─ ImplicitAction [0..16]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..16]
- │   │   └─ ActionLineEnd [0..16]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..16]
- │   │       │   └─ TextChunk [0..16]
- │   │       │       ├─ TextChunk_begin 0
- │   │       │       ├─ TextChunk_content [0..16]
- │   │       │       │   ├─ Word [0..2]: "Go"
- │   │       │       │   ├─ Space [2..3]: " "
- │   │       │       │   ├─ TextCommand [3..11]
- │   │       │       │   │   ├─ TextCommand_c1 [3..4]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [4..10]
- │   │       │       │   │   │   ├─ TextCommandContent [4..9]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 4
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [4..8]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [4..8]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [4..8]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [4..8]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [8..9]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [8..9]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 9
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 9
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 9
- │   │       │       │   │   │   └─ TextCommandContent [9..10]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 9
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [9..10]
- │   │       │       │   │   │       │   └─ TextCommandControl [9..10]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [9..10]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [9..10]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [9..10]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 10
- │   │       │       │   │   │       ├─ TextCommandContent_c3 10
- │   │       │       │   │   │       ├─ TextCommandContent_c4 10
- │   │       │       │   │   │       ├─ TextCommandContent_c5 10
- │   │       │       │   │   │       └─ TextCommandContent_c6 10
- │   │       │       │   │   └─ TextCommand_c3 [10..11]: ">"
- │   │       │       │   ├─ Space [11..12]: " "
- │   │       │       │   ├─ Word [12..15]: "now"
- │   │       │       │   └─ Punctuation [15..16]: "."
- │   │       │       └─ TextChunk_end 16
- │   │       └─ ActionLineEnd_end 16
- │   └─ ImplicitAction_end 16
- ├─ Newline [16..17]: "\n"
- ├─ ImplicitAction [17..34]
- │   ├─ ImplicitAction_begin 17
- │   │   └─ ImplicitAction_begin_c1 17
- │   │       └─ OptionalWhitespace 17
- │   ├─ ImplicitAction_content [17..34]
- │   │   └─ ActionLineEnd [17..34]
- │   │       ├─ ActionLineEnd_begin 17
- │   │       │   └─ ActionLineEnd_begin_c1 17
- │   │       │       └─ OptionalWhitespace 17
- │   │       ├─ ActionLineEnd_content [17..34]
- │   │       │   └─ TextChunk [17..34]
- │   │       │       ├─ TextChunk_begin 17
- │   │       │       ├─ TextChunk_content [17..34]
- │   │       │       │   ├─ Word [17..19]: "Go"
- │   │       │       │   ├─ Space [19..20]: " "
- │   │       │       │   ├─ TextCommand [20..29]
- │   │       │       │   │   ├─ TextCommand_c1 [20..21]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [21..28]
- │   │       │       │   │   │   ├─ TextCommandContent [21..26]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 21
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [21..25]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [21..25]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [21..25]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [21..25]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [25..26]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [25..26]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 26
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 26
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 26
- │   │       │       │   │   │   └─ TextCommandContent [26..28]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 26
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [26..27]
- │   │       │       │   │   │       │   └─ TextCommandControl [26..27]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [26..27]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [26..27]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [26..27]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 27
- │   │       │       │   │   │       ├─ TextCommandContent_c3 [27..28]
- │   │       │       │   │   │       │   └─ ExtraWhitespace [27..28]: " "
- │   │       │       │   │   │       ├─ TextCommandContent_c4 28
- │   │       │       │   │   │       ├─ TextCommandContent_c5 28
- │   │       │       │   │   │       └─ TextCommandContent_c6 28
- │   │       │       │   │   └─ TextCommand_c3 [28..29]: ">"
- │   │       │       │   ├─ Space [29..30]: " "
- │   │       │       │   ├─ Word [30..33]: "now"
- │   │       │       │   └─ Punctuation [33..34]: "."
- │   │       │       └─ TextChunk_end 34
- │   │       └─ ActionLineEnd_end 34
- │   └─ ImplicitAction_end 34
- ├─ Newline [34..35]: "\n"
- ├─ ImplicitAction [35..54]
- │   ├─ ImplicitAction_begin 35
- │   │   └─ ImplicitAction_begin_c1 35
- │   │       └─ OptionalWhitespace 35
- │   ├─ ImplicitAction_content [35..54]
- │   │   └─ ActionLineEnd [35..54]
- │   │       ├─ ActionLineEnd_begin 35
- │   │       │   └─ ActionLineEnd_begin_c1 35
- │   │       │       └─ OptionalWhitespace 35
- │   │       ├─ ActionLineEnd_content [35..54]
- │   │       │   └─ TextChunk [35..54]
- │   │       │       ├─ TextChunk_begin 35
- │   │       │       ├─ TextChunk_content [35..54]
- │   │       │       │   ├─ Word [35..37]: "Go"
- │   │       │       │   ├─ Space [37..38]: " "
- │   │       │       │   ├─ TextCommand [38..41]
- │   │       │       │   │   ├─ TextCommand_c1 [38..39]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [39..40]
- │   │       │       │   │   │   └─ TextCommandContent [39..40]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 39
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [39..40]
- │   │       │       │   │   │       │   └─ TextCommandControl [39..40]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [39..40]
- │   │       │       │   │   │       │           └─ TextCommandControlKeyword [39..40]: "b"
- │   │       │       │   │   │       ├─ TextCommandContent_c3 40
- │   │       │       │   │   │       ├─ TextCommandContent_c4 40
- │   │       │       │   │   │       ├─ TextCommandContent_c5 40
- │   │       │       │   │   │       └─ TextCommandContent_c6 40
- │   │       │       │   │   └─ TextCommand_c3 [40..41]: ">"
- │   │       │       │   ├─ Word [41..45]: "bold"
- │   │       │       │   ├─ TextCommand [45..49]
- │   │       │       │   │   ├─ TextCommand_c1 [45..46]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [46..48]
- │   │       │       │   │   │   └─ TextCommandContent [46..48]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 46
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [46..48]
- │   │       │       │   │   │       │   └─ TextCommandControl [46..48]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [46..48]
- │   │       │       │   │   │       │           └─ TextCommandControlKeyword [46..48]: "/b"
- │   │       │       │   │   │       ├─ TextCommandContent_c3 48
- │   │       │       │   │   │       ├─ TextCommandContent_c4 48
- │   │       │       │   │   │       ├─ TextCommandContent_c5 48
- │   │       │       │   │   │       └─ TextCommandContent_c6 48
- │   │       │       │   │   └─ TextCommand_c3 [48..49]: ">"
- │   │       │       │   ├─ Space [49..50]: " "
- │   │       │       │   ├─ Word [50..53]: "now"
- │   │       │       │   └─ Punctuation [53..54]: "."
- │   │       │       └─ TextChunk_end 54
- │   │       └─ ActionLineEnd_end 54
- │   └─ ImplicitAction_end 54
- ├─ Newline [54..55]: "\n"
- ├─ InlineDialogue [55..77]
- │   ├─ InlineDialogue_begin [55..61]
- │   │   ├─ InlineDialogue_begin_c1 55
- │   │   │   └─ OptionalWhitespace 55
- │   │   ├─ InlineDialogue_begin_c2 [55..59]
- │   │   │   └─ DialogueCharacter [55..59]
- │   │   │       ├─ DialogueCharacter_c1 55
- │   │   │       ├─ DialogueCharacter_c2 [55..59]
- │   │   │       │   └─ DialogueCharacterName [55..59]
- │   │   │       │       └─ DialogueCharacterName_c1 [55..59]
- │   │   │       │           └─ Word [55..59]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 59
- │   │   │       ├─ DialogueCharacter_c4 59
- │   │   │       ├─ DialogueCharacter_c5 59
- │   │   │       ├─ DialogueCharacter_c6 59
- │   │   │       └─ DialogueCharacter_c7 59
- │   │   ├─ InlineDialogue_begin_c3 [59..60]
- │   │   │   └─ ColonSeparator [59..60]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [60..61]
- │   │   │   └─ RequiredWhitespace [60..61]: " "
- │   │   └─ InlineDialogue_begin_c5 61
- │   ├─ InlineDialogue_content [61..77]
- │   │   └─ LineEnd [61..77]
- │   │       ├─ LineEnd_begin 61
- │   │       │   └─ LineEnd_begin_c1 61
- │   │       │       └─ OptionalWhitespace 61
- │   │       ├─ LineEnd_content [61..77]
- │   │       │   └─ TextChunk [61..77]
- │   │       │       ├─ TextChunk_begin 61
- │   │       │       ├─ TextChunk_content [61..77]
- │   │       │       │   ├─ Word [61..63]: "Go"
- │   │       │       │   ├─ Space [63..64]: " "
- │   │       │       │   ├─ TextCommand [64..72]
- │   │       │       │   │   ├─ TextCommand_c1 [64..65]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [65..71]
- │   │       │       │   │   │   ├─ TextCommandContent [65..70]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 65
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [65..69]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [65..69]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [65..69]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [65..69]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [69..70]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [69..70]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 70
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 70
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 70
- │   │       │       │   │   │   └─ TextCommandContent [70..71]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 70
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [70..71]
- │   │       │       │   │   │       │   └─ TextCommandControl [70..71]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [70..71]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [70..71]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [70..71]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 71
- │   │       │       │   │   │       ├─ TextCommandContent_c3 71
- │   │       │       │   │   │       ├─ TextCommandContent_c4 71
- │   │       │       │   │   │       ├─ TextCommandContent_c5 71
- │   │       │       │   │   │       └─ TextCommandContent_c6 71
- │   │       │       │   │   └─ TextCommand_c3 [71..72]: ">"
- │   │       │       │   ├─ Space [72..73]: " "
- │   │       │       │   ├─ Word [73..76]: "now"
- │   │       │       │   └─ Punctuation [76..77]: "."
- │   │       │       └─ TextChunk_end 77
- │   │       └─ LineEnd_end 77
- │   └─ InlineDialogue_end 77
- ├─ Newline [77..78]: "\n"
- ├─ InlineDialogue [78..101]
- │   ├─ InlineDialogue_begin [78..84]
- │   │   ├─ InlineDialogue_begin_c1 78
- │   │   │   └─ OptionalWhitespace 78
- │   │   ├─ InlineDialogue_begin_c2 [78..82]
- │   │   │   └─ DialogueCharacter [78..82]
- │   │   │       ├─ DialogueCharacter_c1 78
- │   │   │       ├─ DialogueCharacter_c2 [78..82]
- │   │   │       │   └─ DialogueCharacterName [78..82]
- │   │   │       │       └─ DialogueCharacterName_c1 [78..82]
- │   │   │       │           └─ Word [78..82]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 82
- │   │   │       ├─ DialogueCharacter_c4 82
- │   │   │       ├─ DialogueCharacter_c5 82
- │   │   │       ├─ DialogueCharacter_c6 82
- │   │   │       └─ DialogueCharacter_c7 82
- │   │   ├─ InlineDialogue_begin_c3 [82..83]
- │   │   │   └─ ColonSeparator [82..83]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [83..84]
- │   │   │   └─ RequiredWhitespace [83..84]: " "
- │   │   └─ InlineDialogue_begin_c5 84
- │   ├─ InlineDialogue_content [84..101]
- │   │   └─ LineEnd [84..101]
- │   │       ├─ LineEnd_begin 84
- │   │       │   └─ LineEnd_begin_c1 84
- │   │       │       └─ OptionalWhitespace 84
- │   │       ├─ LineEnd_content [84..101]
- │   │       │   └─ TextChunk [84..101]
- │   │       │       ├─ TextChunk_begin 84
- │   │       │       ├─ TextChunk_content [84..101]
- │   │       │       │   ├─ Word [84..86]: "Go"
- │   │       │       │   ├─ Space [86..87]: " "
- │   │       │       │   ├─ TextCommand [87..96]
- │   │       │       │   │   ├─ TextCommand_c1 [87..88]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [88..95]
- │   │       │       │   │   │   ├─ TextCommandContent [88..93]
- │   │       │       │   │   │   │   ├─ TextCommandContent_c1 88
- │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [88..92]
- │   │       │       │   │   │   │   │   └─ TextCommandControl [88..92]
- │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [88..92]
- │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [88..92]: "wait"
- │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [92..93]
- │   │       │       │   │   │   │   │   └─ ExtraWhitespace [92..93]: " "
- │   │       │       │   │   │   │   ├─ TextCommandContent_c4 93
- │   │       │       │   │   │   │   ├─ TextCommandContent_c5 93
- │   │       │       │   │   │   │   └─ TextCommandContent_c6 93
- │   │       │       │   │   │   └─ TextCommandContent [93..95]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 93
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [93..94]
- │   │       │       │   │   │       │   └─ TextCommandControl [93..94]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [93..94]
- │   │       │       │   │   │       │           └─ LuauNumericDecimal [93..94]
- │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [93..94]: "1"
- │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 94
- │   │       │       │   │   │       ├─ TextCommandContent_c3 [94..95]
- │   │       │       │   │   │       │   └─ ExtraWhitespace [94..95]: " "
- │   │       │       │   │   │       ├─ TextCommandContent_c4 95
- │   │       │       │   │   │       ├─ TextCommandContent_c5 95
- │   │       │       │   │   │       └─ TextCommandContent_c6 95
- │   │       │       │   │   └─ TextCommand_c3 [95..96]: ">"
- │   │       │       │   ├─ Space [96..97]: " "
- │   │       │       │   ├─ Word [97..100]: "now"
- │   │       │       │   └─ Punctuation [100..101]: "."
- │   │       │       └─ TextChunk_end 101
- │   │       └─ LineEnd_end 101
- │   └─ InlineDialogue_end 101
- ├─ Newline [101..102]: "\n"
- ├─ InlineDialogue [102..127]
- │   ├─ InlineDialogue_begin [102..108]
- │   │   ├─ InlineDialogue_begin_c1 102
- │   │   │   └─ OptionalWhitespace 102
- │   │   ├─ InlineDialogue_begin_c2 [102..106]
- │   │   │   └─ DialogueCharacter [102..106]
- │   │   │       ├─ DialogueCharacter_c1 102
- │   │   │       ├─ DialogueCharacter_c2 [102..106]
- │   │   │       │   └─ DialogueCharacterName [102..106]
- │   │   │       │       └─ DialogueCharacterName_c1 [102..106]
- │   │   │       │           └─ Word [102..106]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 106
- │   │   │       ├─ DialogueCharacter_c4 106
- │   │   │       ├─ DialogueCharacter_c5 106
- │   │   │       ├─ DialogueCharacter_c6 106
- │   │   │       └─ DialogueCharacter_c7 106
- │   │   ├─ InlineDialogue_begin_c3 [106..107]
- │   │   │   └─ ColonSeparator [106..107]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [107..108]
- │   │   │   └─ RequiredWhitespace [107..108]: " "
- │   │   └─ InlineDialogue_begin_c5 108
- │   ├─ InlineDialogue_content [108..127]
- │   │   └─ LineEnd [108..127]
- │   │       ├─ LineEnd_begin 108
- │   │       │   └─ LineEnd_begin_c1 108
- │   │       │       └─ OptionalWhitespace 108
- │   │       ├─ LineEnd_content [108..127]
- │   │       │   └─ TextChunk [108..127]
- │   │       │       ├─ TextChunk_begin 108
- │   │       │       ├─ TextChunk_content [108..127]
- │   │       │       │   ├─ Word [108..110]: "Go"
- │   │       │       │   ├─ Space [110..111]: " "
- │   │       │       │   ├─ TextCommand [111..114]
- │   │       │       │   │   ├─ TextCommand_c1 [111..112]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [112..113]
- │   │       │       │   │   │   └─ TextCommandContent [112..113]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 112
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [112..113]
- │   │       │       │   │   │       │   └─ TextCommandControl [112..113]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [112..113]
- │   │       │       │   │   │       │           └─ TextCommandControlKeyword [112..113]: "b"
- │   │       │       │   │   │       ├─ TextCommandContent_c3 113
- │   │       │       │   │   │       ├─ TextCommandContent_c4 113
- │   │       │       │   │   │       ├─ TextCommandContent_c5 113
- │   │       │       │   │   │       └─ TextCommandContent_c6 113
- │   │       │       │   │   └─ TextCommand_c3 [113..114]: ">"
- │   │       │       │   ├─ Word [114..118]: "bold"
- │   │       │       │   ├─ TextCommand [118..122]
- │   │       │       │   │   ├─ TextCommand_c1 [118..119]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [119..121]
- │   │       │       │   │   │   └─ TextCommandContent [119..121]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 119
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [119..121]
- │   │       │       │   │   │       │   └─ TextCommandControl [119..121]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [119..121]
- │   │       │       │   │   │       │           └─ TextCommandControlKeyword [119..121]: "/b"
- │   │       │       │   │   │       ├─ TextCommandContent_c3 121
- │   │       │       │   │   │       ├─ TextCommandContent_c4 121
- │   │       │       │   │   │       ├─ TextCommandContent_c5 121
- │   │       │       │   │   │       └─ TextCommandContent_c6 121
- │   │       │       │   │   └─ TextCommand_c3 [121..122]: ">"
- │   │       │       │   ├─ Space [122..123]: " "
- │   │       │       │   ├─ Word [123..126]: "now"
- │   │       │       │   └─ Punctuation [126..127]: "."
- │   │       │       └─ TextChunk_end 127
- │   │       └─ LineEnd_end 127
- │   └─ InlineDialogue_end 127
- ├─ Newline [127..128]: "\n"
- ├─ InlineDialogue [128..154]
- │   ├─ InlineDialogue_begin [128..134]
- │   │   ├─ InlineDialogue_begin_c1 128
- │   │   │   └─ OptionalWhitespace 128
- │   │   ├─ InlineDialogue_begin_c2 [128..132]
- │   │   │   └─ DialogueCharacter [128..132]
- │   │   │       ├─ DialogueCharacter_c1 128
- │   │   │       ├─ DialogueCharacter_c2 [128..132]
- │   │   │       │   └─ DialogueCharacterName [128..132]
- │   │   │       │       └─ DialogueCharacterName_c1 [128..132]
- │   │   │       │           └─ Word [128..132]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 132
- │   │   │       ├─ DialogueCharacter_c4 132
- │   │   │       ├─ DialogueCharacter_c5 132
- │   │   │       ├─ DialogueCharacter_c6 132
- │   │   │       └─ DialogueCharacter_c7 132
- │   │   ├─ InlineDialogue_begin_c3 [132..133]
- │   │   │   └─ ColonSeparator [132..133]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [133..134]
- │   │   │   └─ RequiredWhitespace [133..134]: " "
- │   │   └─ InlineDialogue_begin_c5 134
- │   ├─ InlineDialogue_content [134..154]
- │   │   └─ LineEnd [134..154]
- │   │       ├─ LineEnd_begin 134
- │   │       │   └─ LineEnd_begin_c1 134
- │   │       │       └─ OptionalWhitespace 134
- │   │       ├─ LineEnd_content [134..154]
- │   │       │   └─ TextChunk [134..154]
- │   │       │       ├─ TextChunk_begin 134
- │   │       │       ├─ TextChunk_content [134..154]
- │   │       │       │   ├─ Word [134..136]: "Go"
- │   │       │       │   ├─ Space [136..137]: " "
- │   │       │       │   ├─ TextCommand [137..149]
- │   │       │       │   │   ├─ TextCommand_c1 [137..138]: "<"
- │   │       │       │   │   ├─ TextCommand_c2 [138..148]
- │   │       │       │   │   │   └─ TextCommandContent [138..148]
- │   │       │       │   │   │       ├─ TextCommandContent_c1 138
- │   │       │       │   │   │       ├─ TextCommandContent_c2 [138..143]
- │   │       │       │   │   │       │   └─ TextCommandControl [138..143]
- │   │       │       │   │   │       │       └─ TextCommandControl_c1 [138..143]
- │   │       │       │   │   │       │           └─ TextCommandControlKeyword [138..143]: "speed"
- │   │       │       │   │   │       ├─ TextCommandContent_c3 143
- │   │       │       │   │   │       ├─ TextCommandContent_c4 [143..144]
- │   │       │       │   │   │       │   └─ ColonOperator [143..144]: ":"
- │   │       │       │   │   │       ├─ TextCommandContent_c5 [144..145]
- │   │       │       │   │   │       │   └─ ExtraWhitespace [144..145]: " "
- │   │       │       │   │   │       └─ TextCommandContent_c6 [145..148]
- │   │       │       │   │   │           └─ TextCommandArguments [145..148]
- │   │       │       │   │   │               └─ TextCommandArguments_c1 [145..148]
- │   │       │       │   │   │                   └─ TextCommandArgument [145..148]
- │   │       │       │   │   │                       ├─ TextCommandArgument_begin 145
- │   │       │       │   │   │                       ├─ TextCommandArgument_content [145..148]
- │   │       │       │   │   │                       │   └─ LuauNumericDecimal [145..148]
- │   │       │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [145..148]: "0.5"
- │   │       │       │   │   │                       │       └─ LuauNumericDecimal_c2 148
- │   │       │       │   │   │                       └─ TextCommandArgument_end 148
- │   │       │       │   │   │                           └─ TextCommandArgument_end_c1 148
- │   │       │       │   │   └─ TextCommand_c3 [148..149]: ">"
- │   │       │       │   ├─ Space [149..150]: " "
- │   │       │       │   ├─ Word [150..153]: "now"
- │   │       │       │   └─ Punctuation [153..154]: "."
- │   │       │       └─ TextChunk_end 154
- │   │       └─ LineEnd_end 154
- │   └─ InlineDialogue_end 154
- ├─ Newline [154..155]: "\n"
- └─ BlockDialogue [155..245]
-     ├─ BlockDialogue_begin [155..160]
-     │   ├─ BlockDialogue_begin_c1 155
-     │   │   └─ OptionalWhitespace 155
-     │   ├─ BlockDialogue_begin_c2 [155..159]
-     │   │   └─ DialogueCharacter [155..159]
-     │   │       ├─ DialogueCharacter_c1 155
-     │   │       ├─ DialogueCharacter_c2 [155..159]
-     │   │       │   └─ DialogueCharacterName [155..159]
-     │   │       │       └─ DialogueCharacterName_c1 [155..159]
-     │   │       │           └─ Word [155..159]: "HERO"
-     │   │       ├─ DialogueCharacter_c3 159
-     │   │       ├─ DialogueCharacter_c4 159
-     │   │       ├─ DialogueCharacter_c5 159
-     │   │       ├─ DialogueCharacter_c6 159
-     │   │       └─ DialogueCharacter_c7 159
-     │   ├─ BlockDialogue_begin_c3 [159..160]
-     │   │   └─ ColonSeparator [159..160]: ":"
-     │   └─ BlockDialogue_begin_c4 160
-     └─ BlockDialogue_content [160..245]
-         ├─ Newline [160..161]: "\n"
-         ├─ BlockLineContinue [161..179]
-         │   ├─ BlockLineContinue_begin [161..163]
-         │   │   ├─ BlockLineContinue_begin_c1 [161..163]
-         │   │   │   └─ OptionalWhitespace [161..163]: "  "
-         │   │   └─ BlockLineContinue_begin_c2 163
-         │   ├─ BlockLineContinue_content [163..179]
-         │   │   └─ TextChunk [163..179]
-         │   │       ├─ TextChunk_begin 163
-         │   │       ├─ TextChunk_content [163..179]
-         │   │       │   ├─ Word [163..165]: "Go"
-         │   │       │   ├─ Space [165..166]: " "
-         │   │       │   ├─ TextCommand [166..174]
-         │   │       │   │   ├─ TextCommand_c1 [166..167]: "<"
-         │   │       │   │   ├─ TextCommand_c2 [167..173]
-         │   │       │   │   │   ├─ TextCommandContent [167..172]
-         │   │       │   │   │   │   ├─ TextCommandContent_c1 167
-         │   │       │   │   │   │   ├─ TextCommandContent_c2 [167..171]
-         │   │       │   │   │   │   │   └─ TextCommandControl [167..171]
-         │   │       │   │   │   │   │       └─ TextCommandControl_c1 [167..171]
-         │   │       │   │   │   │   │           └─ TextCommandControlKeyword [167..171]: "wait"
-         │   │       │   │   │   │   ├─ TextCommandContent_c3 [171..172]
-         │   │       │   │   │   │   │   └─ ExtraWhitespace [171..172]: " "
-         │   │       │   │   │   │   ├─ TextCommandContent_c4 172
-         │   │       │   │   │   │   ├─ TextCommandContent_c5 172
-         │   │       │   │   │   │   └─ TextCommandContent_c6 172
-         │   │       │   │   │   └─ TextCommandContent [172..173]
-         │   │       │   │   │       ├─ TextCommandContent_c1 172
-         │   │       │   │   │       ├─ TextCommandContent_c2 [172..173]
-         │   │       │   │   │       │   └─ TextCommandControl [172..173]
-         │   │       │   │   │       │       └─ TextCommandControl_c1 [172..173]
-         │   │       │   │   │       │           └─ LuauNumericDecimal [172..173]
-         │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [172..173]: "1"
-         │   │       │   │   │       │               └─ LuauNumericDecimal_c2 173
-         │   │       │   │   │       ├─ TextCommandContent_c3 173
-         │   │       │   │   │       ├─ TextCommandContent_c4 173
-         │   │       │   │   │       ├─ TextCommandContent_c5 173
-         │   │       │   │   │       └─ TextCommandContent_c6 173
-         │   │       │   │   └─ TextCommand_c3 [173..174]: ">"
-         │   │       │   ├─ Space [174..175]: " "
-         │   │       │   ├─ Word [175..178]: "now"
-         │   │       │   └─ Punctuation [178..179]: "."
-         │   │       └─ TextChunk_end 179
-         │   └─ BlockLineContinue_end 179
-         │       └─ BlockLineContinue_end_c1 179
-         ├─ Newline [179..180]: "\n"
-         ├─ BlockLineContinue [180..199]
-         │   ├─ BlockLineContinue_begin [180..182]
-         │   │   ├─ BlockLineContinue_begin_c1 [180..182]
-         │   │   │   └─ OptionalWhitespace [180..182]: "  "
-         │   │   └─ BlockLineContinue_begin_c2 182
-         │   ├─ BlockLineContinue_content [182..199]
-         │   │   └─ TextChunk [182..199]
-         │   │       ├─ TextChunk_begin 182
-         │   │       ├─ TextChunk_content [182..199]
-         │   │       │   ├─ Word [182..184]: "Go"
-         │   │       │   ├─ Space [184..185]: " "
-         │   │       │   ├─ TextCommand [185..194]
-         │   │       │   │   ├─ TextCommand_c1 [185..186]: "<"
-         │   │       │   │   ├─ TextCommand_c2 [186..193]
-         │   │       │   │   │   ├─ TextCommandContent [186..191]
-         │   │       │   │   │   │   ├─ TextCommandContent_c1 186
-         │   │       │   │   │   │   ├─ TextCommandContent_c2 [186..190]
-         │   │       │   │   │   │   │   └─ TextCommandControl [186..190]
-         │   │       │   │   │   │   │       └─ TextCommandControl_c1 [186..190]
-         │   │       │   │   │   │   │           └─ TextCommandControlKeyword [186..190]: "wait"
-         │   │       │   │   │   │   ├─ TextCommandContent_c3 [190..191]
-         │   │       │   │   │   │   │   └─ ExtraWhitespace [190..191]: " "
-         │   │       │   │   │   │   ├─ TextCommandContent_c4 191
-         │   │       │   │   │   │   ├─ TextCommandContent_c5 191
-         │   │       │   │   │   │   └─ TextCommandContent_c6 191
-         │   │       │   │   │   └─ TextCommandContent [191..193]
-         │   │       │   │   │       ├─ TextCommandContent_c1 191
-         │   │       │   │   │       ├─ TextCommandContent_c2 [191..192]
-         │   │       │   │   │       │   └─ TextCommandControl [191..192]
-         │   │       │   │   │       │       └─ TextCommandControl_c1 [191..192]
-         │   │       │   │   │       │           └─ LuauNumericDecimal [191..192]
-         │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [191..192]: "1"
-         │   │       │   │   │       │               └─ LuauNumericDecimal_c2 192
-         │   │       │   │   │       ├─ TextCommandContent_c3 [192..193]
-         │   │       │   │   │       │   └─ ExtraWhitespace [192..193]: " "
-         │   │       │   │   │       ├─ TextCommandContent_c4 193
-         │   │       │   │   │       ├─ TextCommandContent_c5 193
-         │   │       │   │   │       └─ TextCommandContent_c6 193
-         │   │       │   │   └─ TextCommand_c3 [193..194]: ">"
-         │   │       │   ├─ Space [194..195]: " "
-         │   │       │   ├─ Word [195..198]: "now"
-         │   │       │   └─ Punctuation [198..199]: "."
-         │   │       └─ TextChunk_end 199
-         │   └─ BlockLineContinue_end 199
-         │       └─ BlockLineContinue_end_c1 199
-         ├─ Newline [199..200]: "\n"
-         ├─ BlockLineContinue [200..221]
-         │   ├─ BlockLineContinue_begin [200..202]
-         │   │   ├─ BlockLineContinue_begin_c1 [200..202]
-         │   │   │   └─ OptionalWhitespace [200..202]: "  "
-         │   │   └─ BlockLineContinue_begin_c2 202
-         │   ├─ BlockLineContinue_content [202..221]
-         │   │   └─ TextChunk [202..221]
-         │   │       ├─ TextChunk_begin 202
-         │   │       ├─ TextChunk_content [202..221]
-         │   │       │   ├─ Word [202..204]: "Go"
-         │   │       │   ├─ Space [204..205]: " "
-         │   │       │   ├─ TextCommand [205..208]
-         │   │       │   │   ├─ TextCommand_c1 [205..206]: "<"
-         │   │       │   │   ├─ TextCommand_c2 [206..207]
-         │   │       │   │   │   └─ TextCommandContent [206..207]
-         │   │       │   │   │       ├─ TextCommandContent_c1 206
-         │   │       │   │   │       ├─ TextCommandContent_c2 [206..207]
-         │   │       │   │   │       │   └─ TextCommandControl [206..207]
-         │   │       │   │   │       │       └─ TextCommandControl_c1 [206..207]
-         │   │       │   │   │       │           └─ TextCommandControlKeyword [206..207]: "b"
-         │   │       │   │   │       ├─ TextCommandContent_c3 207
-         │   │       │   │   │       ├─ TextCommandContent_c4 207
-         │   │       │   │   │       ├─ TextCommandContent_c5 207
-         │   │       │   │   │       └─ TextCommandContent_c6 207
-         │   │       │   │   └─ TextCommand_c3 [207..208]: ">"
-         │   │       │   ├─ Word [208..212]: "bold"
-         │   │       │   ├─ TextCommand [212..216]
-         │   │       │   │   ├─ TextCommand_c1 [212..213]: "<"
-         │   │       │   │   ├─ TextCommand_c2 [213..215]
-         │   │       │   │   │   └─ TextCommandContent [213..215]
-         │   │       │   │   │       ├─ TextCommandContent_c1 213
-         │   │       │   │   │       ├─ TextCommandContent_c2 [213..215]
-         │   │       │   │   │       │   └─ TextCommandControl [213..215]
-         │   │       │   │   │       │       └─ TextCommandControl_c1 [213..215]
-         │   │       │   │   │       │           └─ TextCommandControlKeyword [213..215]: "/b"
-         │   │       │   │   │       ├─ TextCommandContent_c3 215
-         │   │       │   │   │       ├─ TextCommandContent_c4 215
-         │   │       │   │   │       ├─ TextCommandContent_c5 215
-         │   │       │   │   │       └─ TextCommandContent_c6 215
-         │   │       │   │   └─ TextCommand_c3 [215..216]: ">"
-         │   │       │   ├─ Space [216..217]: " "
-         │   │       │   ├─ Word [217..220]: "now"
-         │   │       │   └─ Punctuation [220..221]: "."
-         │   │       └─ TextChunk_end 221
-         │   └─ BlockLineContinue_end 221
-         │       └─ BlockLineContinue_end_c1 221
-         ├─ Newline [221..222]: "\n"
-         ├─ BlockLineContinue [222..244]
-         │   ├─ BlockLineContinue_begin [222..224]
-         │   │   ├─ BlockLineContinue_begin_c1 [222..224]
-         │   │   │   └─ OptionalWhitespace [222..224]: "  "
-         │   │   └─ BlockLineContinue_begin_c2 224
-         │   ├─ BlockLineContinue_content [224..244]
-         │   │   └─ TextChunk [224..244]
-         │   │       ├─ TextChunk_begin 224
-         │   │       ├─ TextChunk_content [224..244]
-         │   │       │   ├─ Word [224..226]: "Go"
-         │   │       │   ├─ Space [226..227]: " "
-         │   │       │   ├─ TextCommand [227..239]
-         │   │       │   │   ├─ TextCommand_c1 [227..228]: "<"
-         │   │       │   │   ├─ TextCommand_c2 [228..238]
-         │   │       │   │   │   └─ TextCommandContent [228..238]
-         │   │       │   │   │       ├─ TextCommandContent_c1 228
-         │   │       │   │   │       ├─ TextCommandContent_c2 [228..233]
-         │   │       │   │   │       │   └─ TextCommandControl [228..233]
-         │   │       │   │   │       │       └─ TextCommandControl_c1 [228..233]
-         │   │       │   │   │       │           └─ TextCommandControlKeyword [228..233]: "speed"
-         │   │       │   │   │       ├─ TextCommandContent_c3 233
-         │   │       │   │   │       ├─ TextCommandContent_c4 [233..234]
-         │   │       │   │   │       │   └─ ColonOperator [233..234]: ":"
-         │   │       │   │   │       ├─ TextCommandContent_c5 [234..235]
-         │   │       │   │   │       │   └─ ExtraWhitespace [234..235]: " "
-         │   │       │   │   │       └─ TextCommandContent_c6 [235..238]
-         │   │       │   │   │           └─ TextCommandArguments [235..238]
-         │   │       │   │   │               └─ TextCommandArguments_c1 [235..238]
-         │   │       │   │   │                   └─ TextCommandArgument [235..238]
-         │   │       │   │   │                       ├─ TextCommandArgument_begin 235
-         │   │       │   │   │                       ├─ TextCommandArgument_content [235..238]
-         │   │       │   │   │                       │   └─ LuauNumericDecimal [235..238]
-         │   │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [235..238]: "0.5"
-         │   │       │   │   │                       │       └─ LuauNumericDecimal_c2 238
-         │   │       │   │   │                       └─ TextCommandArgument_end 238
-         │   │       │   │   │                           └─ TextCommandArgument_end_c1 238
-         │   │       │   │   └─ TextCommand_c3 [238..239]: ">"
-         │   │       │   ├─ Space [239..240]: " "
-         │   │       │   ├─ Word [240..243]: "now"
-         │   │       │   └─ Punctuation [243..244]: "."
-         │   │       └─ TextChunk_end 244
-         │   └─ BlockLineContinue_end 244
-         │       └─ BlockLineContinue_end_c1 244
-         └─ Newline [244..245]: "\n"
+sparkdown [0..285]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..30]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..30]
+ │   │   └─ ActionLineEnd [14..30]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..30]
+ │   │       │   └─ TextChunk [14..30]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..30]
+ │   │       │       │   ├─ Word [14..16]: "Go"
+ │   │       │       │   ├─ Space [16..17]: " "
+ │   │       │       │   ├─ TextCommand [17..25]
+ │   │       │       │   │   ├─ TextCommand_c1 [17..18]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [18..24]
+ │   │       │       │   │   │   ├─ TextCommandContent [18..23]
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c1 18
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [18..22]
+ │   │       │       │   │   │   │   │   └─ TextCommandControl [18..22]
+ │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [18..22]
+ │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [18..22]: "wait"
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [22..23]
+ │   │       │       │   │   │   │   │   └─ ExtraWhitespace [22..23]: " "
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c4 23
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c5 23
+ │   │       │       │   │   │   │   └─ TextCommandContent_c6 23
+ │   │       │       │   │   │   └─ TextCommandContent [23..24]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 23
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [23..24]
+ │   │       │       │   │   │       │   └─ TextCommandControl [23..24]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [23..24]
+ │   │       │       │   │   │       │           └─ LuauNumericDecimal [23..24]
+ │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [23..24]: "1"
+ │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 24
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 24
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 24
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 24
+ │   │       │       │   │   │       └─ TextCommandContent_c6 24
+ │   │       │       │   │   └─ TextCommand_c3 [24..25]: ">"
+ │   │       │       │   ├─ Space [25..26]: " "
+ │   │       │       │   ├─ Word [26..29]: "now"
+ │   │       │       │   └─ Punctuation [29..30]: "."
+ │   │       │       └─ TextChunk_end 30
+ │   │       └─ ActionLineEnd_end 30
+ │   └─ ImplicitAction_end 30
+ ├─ Newline [30..31]: "\n"
+ ├─ ImplicitAction [31..50]
+ │   ├─ ImplicitAction_begin [31..33]
+ │   │   └─ ImplicitAction_begin_c1 [31..33]
+ │   │       └─ OptionalWhitespace [31..33]: "  "
+ │   ├─ ImplicitAction_content [33..50]
+ │   │   └─ ActionLineEnd [33..50]
+ │   │       ├─ ActionLineEnd_begin 33
+ │   │       │   └─ ActionLineEnd_begin_c1 33
+ │   │       │       └─ OptionalWhitespace 33
+ │   │       ├─ ActionLineEnd_content [33..50]
+ │   │       │   └─ TextChunk [33..50]
+ │   │       │       ├─ TextChunk_begin 33
+ │   │       │       ├─ TextChunk_content [33..50]
+ │   │       │       │   ├─ Word [33..35]: "Go"
+ │   │       │       │   ├─ Space [35..36]: " "
+ │   │       │       │   ├─ TextCommand [36..45]
+ │   │       │       │   │   ├─ TextCommand_c1 [36..37]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [37..44]
+ │   │       │       │   │   │   ├─ TextCommandContent [37..42]
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c1 37
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [37..41]
+ │   │       │       │   │   │   │   │   └─ TextCommandControl [37..41]
+ │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [37..41]
+ │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [37..41]: "wait"
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [41..42]
+ │   │       │       │   │   │   │   │   └─ ExtraWhitespace [41..42]: " "
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c4 42
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c5 42
+ │   │       │       │   │   │   │   └─ TextCommandContent_c6 42
+ │   │       │       │   │   │   └─ TextCommandContent [42..44]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 42
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [42..43]
+ │   │       │       │   │   │       │   └─ TextCommandControl [42..43]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [42..43]
+ │   │       │       │   │   │       │           └─ LuauNumericDecimal [42..43]
+ │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [42..43]: "1"
+ │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 43
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [43..44]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [43..44]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 44
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 44
+ │   │       │       │   │   │       └─ TextCommandContent_c6 44
+ │   │       │       │   │   └─ TextCommand_c3 [44..45]: ">"
+ │   │       │       │   ├─ Space [45..46]: " "
+ │   │       │       │   ├─ Word [46..49]: "now"
+ │   │       │       │   └─ Punctuation [49..50]: "."
+ │   │       │       └─ TextChunk_end 50
+ │   │       └─ ActionLineEnd_end 50
+ │   └─ ImplicitAction_end 50
+ ├─ Newline [50..51]: "\n"
+ ├─ ImplicitAction [51..72]
+ │   ├─ ImplicitAction_begin [51..53]
+ │   │   └─ ImplicitAction_begin_c1 [51..53]
+ │   │       └─ OptionalWhitespace [51..53]: "  "
+ │   ├─ ImplicitAction_content [53..72]
+ │   │   └─ ActionLineEnd [53..72]
+ │   │       ├─ ActionLineEnd_begin 53
+ │   │       │   └─ ActionLineEnd_begin_c1 53
+ │   │       │       └─ OptionalWhitespace 53
+ │   │       ├─ ActionLineEnd_content [53..72]
+ │   │       │   └─ TextChunk [53..72]
+ │   │       │       ├─ TextChunk_begin 53
+ │   │       │       ├─ TextChunk_content [53..72]
+ │   │       │       │   ├─ Word [53..55]: "Go"
+ │   │       │       │   ├─ Space [55..56]: " "
+ │   │       │       │   ├─ TextCommand [56..59]
+ │   │       │       │   │   ├─ TextCommand_c1 [56..57]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [57..58]
+ │   │       │       │   │   │   └─ TextCommandContent [57..58]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 57
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [57..58]
+ │   │       │       │   │   │       │   └─ TextCommandControl [57..58]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [57..58]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [57..58]: "b"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 58
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 58
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 58
+ │   │       │       │   │   │       └─ TextCommandContent_c6 58
+ │   │       │       │   │   └─ TextCommand_c3 [58..59]: ">"
+ │   │       │       │   ├─ Word [59..63]: "bold"
+ │   │       │       │   ├─ TextCommand [63..67]
+ │   │       │       │   │   ├─ TextCommand_c1 [63..64]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [64..66]
+ │   │       │       │   │   │   └─ TextCommandContent [64..66]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 64
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [64..66]
+ │   │       │       │   │   │       │   └─ TextCommandControl [64..66]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [64..66]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [64..66]: "/b"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 66
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 66
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 66
+ │   │       │       │   │   │       └─ TextCommandContent_c6 66
+ │   │       │       │   │   └─ TextCommand_c3 [66..67]: ">"
+ │   │       │       │   ├─ Space [67..68]: " "
+ │   │       │       │   ├─ Word [68..71]: "now"
+ │   │       │       │   └─ Punctuation [71..72]: "."
+ │   │       │       └─ TextChunk_end 72
+ │   │       └─ ActionLineEnd_end 72
+ │   └─ ImplicitAction_end 72
+ ├─ Newline [72..73]: "\n"
+ ├─ InlineDialogue [73..97]
+ │   ├─ InlineDialogue_begin [73..81]
+ │   │   ├─ InlineDialogue_begin_c1 [73..75]
+ │   │   │   └─ OptionalWhitespace [73..75]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [75..79]
+ │   │   │   └─ DialogueCharacter [75..79]
+ │   │   │       ├─ DialogueCharacter_c1 75
+ │   │   │       ├─ DialogueCharacter_c2 [75..79]
+ │   │   │       │   └─ DialogueCharacterName [75..79]
+ │   │   │       │       └─ DialogueCharacterName_c1 [75..79]
+ │   │   │       │           └─ Word [75..79]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 79
+ │   │   │       ├─ DialogueCharacter_c4 79
+ │   │   │       ├─ DialogueCharacter_c5 79
+ │   │   │       ├─ DialogueCharacter_c6 79
+ │   │   │       └─ DialogueCharacter_c7 79
+ │   │   ├─ InlineDialogue_begin_c3 [79..80]
+ │   │   │   └─ ColonSeparator [79..80]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [80..81]
+ │   │   │   └─ RequiredWhitespace [80..81]: " "
+ │   │   └─ InlineDialogue_begin_c5 81
+ │   ├─ InlineDialogue_content [81..97]
+ │   │   └─ LineEnd [81..97]
+ │   │       ├─ LineEnd_begin 81
+ │   │       │   └─ LineEnd_begin_c1 81
+ │   │       │       └─ OptionalWhitespace 81
+ │   │       ├─ LineEnd_content [81..97]
+ │   │       │   └─ TextChunk [81..97]
+ │   │       │       ├─ TextChunk_begin 81
+ │   │       │       ├─ TextChunk_content [81..97]
+ │   │       │       │   ├─ Word [81..83]: "Go"
+ │   │       │       │   ├─ Space [83..84]: " "
+ │   │       │       │   ├─ TextCommand [84..92]
+ │   │       │       │   │   ├─ TextCommand_c1 [84..85]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [85..91]
+ │   │       │       │   │   │   ├─ TextCommandContent [85..90]
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c1 85
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [85..89]
+ │   │       │       │   │   │   │   │   └─ TextCommandControl [85..89]
+ │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [85..89]
+ │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [85..89]: "wait"
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [89..90]
+ │   │       │       │   │   │   │   │   └─ ExtraWhitespace [89..90]: " "
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c4 90
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c5 90
+ │   │       │       │   │   │   │   └─ TextCommandContent_c6 90
+ │   │       │       │   │   │   └─ TextCommandContent [90..91]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 90
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [90..91]
+ │   │       │       │   │   │       │   └─ TextCommandControl [90..91]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [90..91]
+ │   │       │       │   │   │       │           └─ LuauNumericDecimal [90..91]
+ │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [90..91]: "1"
+ │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 91
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 91
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 91
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 91
+ │   │       │       │   │   │       └─ TextCommandContent_c6 91
+ │   │       │       │   │   └─ TextCommand_c3 [91..92]: ">"
+ │   │       │       │   ├─ Space [92..93]: " "
+ │   │       │       │   ├─ Word [93..96]: "now"
+ │   │       │       │   └─ Punctuation [96..97]: "."
+ │   │       │       └─ TextChunk_end 97
+ │   │       └─ LineEnd_end 97
+ │   └─ InlineDialogue_end 97
+ ├─ Newline [97..98]: "\n"
+ ├─ InlineDialogue [98..123]
+ │   ├─ InlineDialogue_begin [98..106]
+ │   │   ├─ InlineDialogue_begin_c1 [98..100]
+ │   │   │   └─ OptionalWhitespace [98..100]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [100..104]
+ │   │   │   └─ DialogueCharacter [100..104]
+ │   │   │       ├─ DialogueCharacter_c1 100
+ │   │   │       ├─ DialogueCharacter_c2 [100..104]
+ │   │   │       │   └─ DialogueCharacterName [100..104]
+ │   │   │       │       └─ DialogueCharacterName_c1 [100..104]
+ │   │   │       │           └─ Word [100..104]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 104
+ │   │   │       ├─ DialogueCharacter_c4 104
+ │   │   │       ├─ DialogueCharacter_c5 104
+ │   │   │       ├─ DialogueCharacter_c6 104
+ │   │   │       └─ DialogueCharacter_c7 104
+ │   │   ├─ InlineDialogue_begin_c3 [104..105]
+ │   │   │   └─ ColonSeparator [104..105]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [105..106]
+ │   │   │   └─ RequiredWhitespace [105..106]: " "
+ │   │   └─ InlineDialogue_begin_c5 106
+ │   ├─ InlineDialogue_content [106..123]
+ │   │   └─ LineEnd [106..123]
+ │   │       ├─ LineEnd_begin 106
+ │   │       │   └─ LineEnd_begin_c1 106
+ │   │       │       └─ OptionalWhitespace 106
+ │   │       ├─ LineEnd_content [106..123]
+ │   │       │   └─ TextChunk [106..123]
+ │   │       │       ├─ TextChunk_begin 106
+ │   │       │       ├─ TextChunk_content [106..123]
+ │   │       │       │   ├─ Word [106..108]: "Go"
+ │   │       │       │   ├─ Space [108..109]: " "
+ │   │       │       │   ├─ TextCommand [109..118]
+ │   │       │       │   │   ├─ TextCommand_c1 [109..110]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [110..117]
+ │   │       │       │   │   │   ├─ TextCommandContent [110..115]
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c1 110
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c2 [110..114]
+ │   │       │       │   │   │   │   │   └─ TextCommandControl [110..114]
+ │   │       │       │   │   │   │   │       └─ TextCommandControl_c1 [110..114]
+ │   │       │       │   │   │   │   │           └─ TextCommandControlKeyword [110..114]: "wait"
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c3 [114..115]
+ │   │       │       │   │   │   │   │   └─ ExtraWhitespace [114..115]: " "
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c4 115
+ │   │       │       │   │   │   │   ├─ TextCommandContent_c5 115
+ │   │       │       │   │   │   │   └─ TextCommandContent_c6 115
+ │   │       │       │   │   │   └─ TextCommandContent [115..117]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 115
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [115..116]
+ │   │       │       │   │   │       │   └─ TextCommandControl [115..116]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [115..116]
+ │   │       │       │   │   │       │           └─ LuauNumericDecimal [115..116]
+ │   │       │       │   │   │       │               ├─ LuauNumericDecimal_c1 [115..116]: "1"
+ │   │       │       │   │   │       │               └─ LuauNumericDecimal_c2 116
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 [116..117]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [116..117]: " "
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 117
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 117
+ │   │       │       │   │   │       └─ TextCommandContent_c6 117
+ │   │       │       │   │   └─ TextCommand_c3 [117..118]: ">"
+ │   │       │       │   ├─ Space [118..119]: " "
+ │   │       │       │   ├─ Word [119..122]: "now"
+ │   │       │       │   └─ Punctuation [122..123]: "."
+ │   │       │       └─ TextChunk_end 123
+ │   │       └─ LineEnd_end 123
+ │   └─ InlineDialogue_end 123
+ ├─ Newline [123..124]: "\n"
+ ├─ InlineDialogue [124..151]
+ │   ├─ InlineDialogue_begin [124..132]
+ │   │   ├─ InlineDialogue_begin_c1 [124..126]
+ │   │   │   └─ OptionalWhitespace [124..126]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [126..130]
+ │   │   │   └─ DialogueCharacter [126..130]
+ │   │   │       ├─ DialogueCharacter_c1 126
+ │   │   │       ├─ DialogueCharacter_c2 [126..130]
+ │   │   │       │   └─ DialogueCharacterName [126..130]
+ │   │   │       │       └─ DialogueCharacterName_c1 [126..130]
+ │   │   │       │           └─ Word [126..130]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 130
+ │   │   │       ├─ DialogueCharacter_c4 130
+ │   │   │       ├─ DialogueCharacter_c5 130
+ │   │   │       ├─ DialogueCharacter_c6 130
+ │   │   │       └─ DialogueCharacter_c7 130
+ │   │   ├─ InlineDialogue_begin_c3 [130..131]
+ │   │   │   └─ ColonSeparator [130..131]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [131..132]
+ │   │   │   └─ RequiredWhitespace [131..132]: " "
+ │   │   └─ InlineDialogue_begin_c5 132
+ │   ├─ InlineDialogue_content [132..151]
+ │   │   └─ LineEnd [132..151]
+ │   │       ├─ LineEnd_begin 132
+ │   │       │   └─ LineEnd_begin_c1 132
+ │   │       │       └─ OptionalWhitespace 132
+ │   │       ├─ LineEnd_content [132..151]
+ │   │       │   └─ TextChunk [132..151]
+ │   │       │       ├─ TextChunk_begin 132
+ │   │       │       ├─ TextChunk_content [132..151]
+ │   │       │       │   ├─ Word [132..134]: "Go"
+ │   │       │       │   ├─ Space [134..135]: " "
+ │   │       │       │   ├─ TextCommand [135..138]
+ │   │       │       │   │   ├─ TextCommand_c1 [135..136]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [136..137]
+ │   │       │       │   │   │   └─ TextCommandContent [136..137]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 136
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [136..137]
+ │   │       │       │   │   │       │   └─ TextCommandControl [136..137]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [136..137]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [136..137]: "b"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 137
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 137
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 137
+ │   │       │       │   │   │       └─ TextCommandContent_c6 137
+ │   │       │       │   │   └─ TextCommand_c3 [137..138]: ">"
+ │   │       │       │   ├─ Word [138..142]: "bold"
+ │   │       │       │   ├─ TextCommand [142..146]
+ │   │       │       │   │   ├─ TextCommand_c1 [142..143]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [143..145]
+ │   │       │       │   │   │   └─ TextCommandContent [143..145]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 143
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [143..145]
+ │   │       │       │   │   │       │   └─ TextCommandControl [143..145]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [143..145]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [143..145]: "/b"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 145
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 145
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 145
+ │   │       │       │   │   │       └─ TextCommandContent_c6 145
+ │   │       │       │   │   └─ TextCommand_c3 [145..146]: ">"
+ │   │       │       │   ├─ Space [146..147]: " "
+ │   │       │       │   ├─ Word [147..150]: "now"
+ │   │       │       │   └─ Punctuation [150..151]: "."
+ │   │       │       └─ TextChunk_end 151
+ │   │       └─ LineEnd_end 151
+ │   └─ InlineDialogue_end 151
+ ├─ Newline [151..152]: "\n"
+ ├─ InlineDialogue [152..180]
+ │   ├─ InlineDialogue_begin [152..160]
+ │   │   ├─ InlineDialogue_begin_c1 [152..154]
+ │   │   │   └─ OptionalWhitespace [152..154]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [154..158]
+ │   │   │   └─ DialogueCharacter [154..158]
+ │   │   │       ├─ DialogueCharacter_c1 154
+ │   │   │       ├─ DialogueCharacter_c2 [154..158]
+ │   │   │       │   └─ DialogueCharacterName [154..158]
+ │   │   │       │       └─ DialogueCharacterName_c1 [154..158]
+ │   │   │       │           └─ Word [154..158]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 158
+ │   │   │       ├─ DialogueCharacter_c4 158
+ │   │   │       ├─ DialogueCharacter_c5 158
+ │   │   │       ├─ DialogueCharacter_c6 158
+ │   │   │       └─ DialogueCharacter_c7 158
+ │   │   ├─ InlineDialogue_begin_c3 [158..159]
+ │   │   │   └─ ColonSeparator [158..159]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [159..160]
+ │   │   │   └─ RequiredWhitespace [159..160]: " "
+ │   │   └─ InlineDialogue_begin_c5 160
+ │   ├─ InlineDialogue_content [160..180]
+ │   │   └─ LineEnd [160..180]
+ │   │       ├─ LineEnd_begin 160
+ │   │       │   └─ LineEnd_begin_c1 160
+ │   │       │       └─ OptionalWhitespace 160
+ │   │       ├─ LineEnd_content [160..180]
+ │   │       │   └─ TextChunk [160..180]
+ │   │       │       ├─ TextChunk_begin 160
+ │   │       │       ├─ TextChunk_content [160..180]
+ │   │       │       │   ├─ Word [160..162]: "Go"
+ │   │       │       │   ├─ Space [162..163]: " "
+ │   │       │       │   ├─ TextCommand [163..175]
+ │   │       │       │   │   ├─ TextCommand_c1 [163..164]: "<"
+ │   │       │       │   │   ├─ TextCommand_c2 [164..174]
+ │   │       │       │   │   │   └─ TextCommandContent [164..174]
+ │   │       │       │   │   │       ├─ TextCommandContent_c1 164
+ │   │       │       │   │   │       ├─ TextCommandContent_c2 [164..169]
+ │   │       │       │   │   │       │   └─ TextCommandControl [164..169]
+ │   │       │       │   │   │       │       └─ TextCommandControl_c1 [164..169]
+ │   │       │       │   │   │       │           └─ TextCommandControlKeyword [164..169]: "speed"
+ │   │       │       │   │   │       ├─ TextCommandContent_c3 169
+ │   │       │       │   │   │       ├─ TextCommandContent_c4 [169..170]
+ │   │       │       │   │   │       │   └─ ColonOperator [169..170]: ":"
+ │   │       │       │   │   │       ├─ TextCommandContent_c5 [170..171]
+ │   │       │       │   │   │       │   └─ ExtraWhitespace [170..171]: " "
+ │   │       │       │   │   │       └─ TextCommandContent_c6 [171..174]
+ │   │       │       │   │   │           └─ TextCommandArguments [171..174]
+ │   │       │       │   │   │               └─ TextCommandArguments_c1 [171..174]
+ │   │       │       │   │   │                   └─ TextCommandArgument [171..174]
+ │   │       │       │   │   │                       ├─ TextCommandArgument_begin 171
+ │   │       │       │   │   │                       ├─ TextCommandArgument_content [171..174]
+ │   │       │       │   │   │                       │   └─ LuauNumericDecimal [171..174]
+ │   │       │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [171..174]: "0.5"
+ │   │       │       │   │   │                       │       └─ LuauNumericDecimal_c2 174
+ │   │       │       │   │   │                       └─ TextCommandArgument_end 174
+ │   │       │       │   │   │                           └─ TextCommandArgument_end_c1 174
+ │   │       │       │   │   └─ TextCommand_c3 [174..175]: ">"
+ │   │       │       │   ├─ Space [175..176]: " "
+ │   │       │       │   ├─ Word [176..179]: "now"
+ │   │       │       │   └─ Punctuation [179..180]: "."
+ │   │       │       └─ TextChunk_end 180
+ │   │       └─ LineEnd_end 180
+ │   └─ InlineDialogue_end 180
+ ├─ Newline [180..181]: "\n"
+ ├─ BlockDialogue [181..281]
+ │   ├─ BlockDialogue_begin [181..188]
+ │   │   ├─ BlockDialogue_begin_c1 [181..183]
+ │   │   │   └─ OptionalWhitespace [181..183]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [183..187]
+ │   │   │   └─ DialogueCharacter [183..187]
+ │   │   │       ├─ DialogueCharacter_c1 183
+ │   │   │       ├─ DialogueCharacter_c2 [183..187]
+ │   │   │       │   └─ DialogueCharacterName [183..187]
+ │   │   │       │       └─ DialogueCharacterName_c1 [183..187]
+ │   │   │       │           └─ Word [183..187]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 187
+ │   │   │       ├─ DialogueCharacter_c4 187
+ │   │   │       ├─ DialogueCharacter_c5 187
+ │   │   │       ├─ DialogueCharacter_c6 187
+ │   │   │       └─ DialogueCharacter_c7 187
+ │   │   ├─ BlockDialogue_begin_c3 [187..188]
+ │   │   │   └─ ColonSeparator [187..188]: ":"
+ │   │   └─ BlockDialogue_begin_c4 188
+ │   ├─ BlockDialogue_content [188..281]
+ │   │   ├─ Newline [188..189]: "\n"
+ │   │   ├─ BlockLineContinue [189..209]
+ │   │   │   ├─ BlockLineContinue_begin [189..193]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [189..193]
+ │   │   │   │   │   └─ OptionalWhitespace [189..193]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 193
+ │   │   │   ├─ BlockLineContinue_content [193..209]
+ │   │   │   │   └─ TextChunk [193..209]
+ │   │   │   │       ├─ TextChunk_begin 193
+ │   │   │   │       ├─ TextChunk_content [193..209]
+ │   │   │   │       │   ├─ Word [193..195]: "Go"
+ │   │   │   │       │   ├─ Space [195..196]: " "
+ │   │   │   │       │   ├─ TextCommand [196..204]
+ │   │   │   │       │   │   ├─ TextCommand_c1 [196..197]: "<"
+ │   │   │   │       │   │   ├─ TextCommand_c2 [197..203]
+ │   │   │   │       │   │   │   ├─ TextCommandContent [197..202]
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c1 197
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c2 [197..201]
+ │   │   │   │       │   │   │   │   │   └─ TextCommandControl [197..201]
+ │   │   │   │       │   │   │   │   │       └─ TextCommandControl_c1 [197..201]
+ │   │   │   │       │   │   │   │   │           └─ TextCommandControlKeyword [197..201]: "wait"
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c3 [201..202]
+ │   │   │   │       │   │   │   │   │   └─ ExtraWhitespace [201..202]: " "
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c4 202
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c5 202
+ │   │   │   │       │   │   │   │   └─ TextCommandContent_c6 202
+ │   │   │   │       │   │   │   └─ TextCommandContent [202..203]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 202
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [202..203]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [202..203]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [202..203]
+ │   │   │   │       │   │   │       │           └─ LuauNumericDecimal [202..203]
+ │   │   │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [202..203]: "1"
+ │   │   │   │       │   │   │       │               └─ LuauNumericDecimal_c2 203
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 203
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 203
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 203
+ │   │   │   │       │   │   │       └─ TextCommandContent_c6 203
+ │   │   │   │       │   │   └─ TextCommand_c3 [203..204]: ">"
+ │   │   │   │       │   ├─ Space [204..205]: " "
+ │   │   │   │       │   ├─ Word [205..208]: "now"
+ │   │   │   │       │   └─ Punctuation [208..209]: "."
+ │   │   │   │       └─ TextChunk_end 209
+ │   │   │   └─ BlockLineContinue_end 209
+ │   │   │       └─ BlockLineContinue_end_c1 209
+ │   │   ├─ Newline [209..210]: "\n"
+ │   │   ├─ BlockLineContinue [210..231]
+ │   │   │   ├─ BlockLineContinue_begin [210..214]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [210..214]
+ │   │   │   │   │   └─ OptionalWhitespace [210..214]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 214
+ │   │   │   ├─ BlockLineContinue_content [214..231]
+ │   │   │   │   └─ TextChunk [214..231]
+ │   │   │   │       ├─ TextChunk_begin 214
+ │   │   │   │       ├─ TextChunk_content [214..231]
+ │   │   │   │       │   ├─ Word [214..216]: "Go"
+ │   │   │   │       │   ├─ Space [216..217]: " "
+ │   │   │   │       │   ├─ TextCommand [217..226]
+ │   │   │   │       │   │   ├─ TextCommand_c1 [217..218]: "<"
+ │   │   │   │       │   │   ├─ TextCommand_c2 [218..225]
+ │   │   │   │       │   │   │   ├─ TextCommandContent [218..223]
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c1 218
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c2 [218..222]
+ │   │   │   │       │   │   │   │   │   └─ TextCommandControl [218..222]
+ │   │   │   │       │   │   │   │   │       └─ TextCommandControl_c1 [218..222]
+ │   │   │   │       │   │   │   │   │           └─ TextCommandControlKeyword [218..222]: "wait"
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c3 [222..223]
+ │   │   │   │       │   │   │   │   │   └─ ExtraWhitespace [222..223]: " "
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c4 223
+ │   │   │   │       │   │   │   │   ├─ TextCommandContent_c5 223
+ │   │   │   │       │   │   │   │   └─ TextCommandContent_c6 223
+ │   │   │   │       │   │   │   └─ TextCommandContent [223..225]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 223
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [223..224]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [223..224]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [223..224]
+ │   │   │   │       │   │   │       │           └─ LuauNumericDecimal [223..224]
+ │   │   │   │       │   │   │       │               ├─ LuauNumericDecimal_c1 [223..224]: "1"
+ │   │   │   │       │   │   │       │               └─ LuauNumericDecimal_c2 224
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 [224..225]
+ │   │   │   │       │   │   │       │   └─ ExtraWhitespace [224..225]: " "
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 225
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 225
+ │   │   │   │       │   │   │       └─ TextCommandContent_c6 225
+ │   │   │   │       │   │   └─ TextCommand_c3 [225..226]: ">"
+ │   │   │   │       │   ├─ Space [226..227]: " "
+ │   │   │   │       │   ├─ Word [227..230]: "now"
+ │   │   │   │       │   └─ Punctuation [230..231]: "."
+ │   │   │   │       └─ TextChunk_end 231
+ │   │   │   └─ BlockLineContinue_end 231
+ │   │   │       └─ BlockLineContinue_end_c1 231
+ │   │   ├─ Newline [231..232]: "\n"
+ │   │   ├─ BlockLineContinue [232..255]
+ │   │   │   ├─ BlockLineContinue_begin [232..236]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [232..236]
+ │   │   │   │   │   └─ OptionalWhitespace [232..236]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 236
+ │   │   │   ├─ BlockLineContinue_content [236..255]
+ │   │   │   │   └─ TextChunk [236..255]
+ │   │   │   │       ├─ TextChunk_begin 236
+ │   │   │   │       ├─ TextChunk_content [236..255]
+ │   │   │   │       │   ├─ Word [236..238]: "Go"
+ │   │   │   │       │   ├─ Space [238..239]: " "
+ │   │   │   │       │   ├─ TextCommand [239..242]
+ │   │   │   │       │   │   ├─ TextCommand_c1 [239..240]: "<"
+ │   │   │   │       │   │   ├─ TextCommand_c2 [240..241]
+ │   │   │   │       │   │   │   └─ TextCommandContent [240..241]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 240
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [240..241]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [240..241]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [240..241]
+ │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [240..241]: "b"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 241
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 241
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 241
+ │   │   │   │       │   │   │       └─ TextCommandContent_c6 241
+ │   │   │   │       │   │   └─ TextCommand_c3 [241..242]: ">"
+ │   │   │   │       │   ├─ Word [242..246]: "bold"
+ │   │   │   │       │   ├─ TextCommand [246..250]
+ │   │   │   │       │   │   ├─ TextCommand_c1 [246..247]: "<"
+ │   │   │   │       │   │   ├─ TextCommand_c2 [247..249]
+ │   │   │   │       │   │   │   └─ TextCommandContent [247..249]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 247
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [247..249]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [247..249]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [247..249]
+ │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [247..249]: "/b"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 249
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 249
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 249
+ │   │   │   │       │   │   │       └─ TextCommandContent_c6 249
+ │   │   │   │       │   │   └─ TextCommand_c3 [249..250]: ">"
+ │   │   │   │       │   ├─ Space [250..251]: " "
+ │   │   │   │       │   ├─ Word [251..254]: "now"
+ │   │   │   │       │   └─ Punctuation [254..255]: "."
+ │   │   │   │       └─ TextChunk_end 255
+ │   │   │   └─ BlockLineContinue_end 255
+ │   │   │       └─ BlockLineContinue_end_c1 255
+ │   │   ├─ Newline [255..256]: "\n"
+ │   │   ├─ BlockLineContinue [256..280]
+ │   │   │   ├─ BlockLineContinue_begin [256..260]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [256..260]
+ │   │   │   │   │   └─ OptionalWhitespace [256..260]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 260
+ │   │   │   ├─ BlockLineContinue_content [260..280]
+ │   │   │   │   └─ TextChunk [260..280]
+ │   │   │   │       ├─ TextChunk_begin 260
+ │   │   │   │       ├─ TextChunk_content [260..280]
+ │   │   │   │       │   ├─ Word [260..262]: "Go"
+ │   │   │   │       │   ├─ Space [262..263]: " "
+ │   │   │   │       │   ├─ TextCommand [263..275]
+ │   │   │   │       │   │   ├─ TextCommand_c1 [263..264]: "<"
+ │   │   │   │       │   │   ├─ TextCommand_c2 [264..274]
+ │   │   │   │       │   │   │   └─ TextCommandContent [264..274]
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c1 264
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c2 [264..269]
+ │   │   │   │       │   │   │       │   └─ TextCommandControl [264..269]
+ │   │   │   │       │   │   │       │       └─ TextCommandControl_c1 [264..269]
+ │   │   │   │       │   │   │       │           └─ TextCommandControlKeyword [264..269]: "speed"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c3 269
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c4 [269..270]
+ │   │   │   │       │   │   │       │   └─ ColonOperator [269..270]: ":"
+ │   │   │   │       │   │   │       ├─ TextCommandContent_c5 [270..271]
+ │   │   │   │       │   │   │       │   └─ ExtraWhitespace [270..271]: " "
+ │   │   │   │       │   │   │       └─ TextCommandContent_c6 [271..274]
+ │   │   │   │       │   │   │           └─ TextCommandArguments [271..274]
+ │   │   │   │       │   │   │               └─ TextCommandArguments_c1 [271..274]
+ │   │   │   │       │   │   │                   └─ TextCommandArgument [271..274]
+ │   │   │   │       │   │   │                       ├─ TextCommandArgument_begin 271
+ │   │   │   │       │   │   │                       ├─ TextCommandArgument_content [271..274]
+ │   │   │   │       │   │   │                       │   └─ LuauNumericDecimal [271..274]
+ │   │   │   │       │   │   │                       │       ├─ LuauNumericDecimal_c1 [271..274]: "0.5"
+ │   │   │   │       │   │   │                       │       └─ LuauNumericDecimal_c2 274
+ │   │   │   │       │   │   │                       └─ TextCommandArgument_end 274
+ │   │   │   │       │   │   │                           └─ TextCommandArgument_end_c1 274
+ │   │   │   │       │   │   └─ TextCommand_c3 [274..275]: ">"
+ │   │   │   │       │   ├─ Space [275..276]: " "
+ │   │   │   │       │   ├─ Word [276..279]: "now"
+ │   │   │   │       │   └─ Punctuation [279..280]: "."
+ │   │   │   │       └─ TextChunk_end 280
+ │   │   │   └─ BlockLineContinue_end 280
+ │   │   │       └─ BlockLineContinue_end_c1 280
+ │   │   └─ Newline [280..281]: "\n"
+ │   └─ BlockDialogue_end 281
+ ├─ LuauEndKeyword [281..284]: "end"
+ └─ Newline [284..285]: "\n"

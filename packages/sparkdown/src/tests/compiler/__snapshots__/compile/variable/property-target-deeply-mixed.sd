@@ -1,1 +1,3 @@
-& this.is["a"].access.path = "ok"
+scene start
+  & this.is["a"].access.path = "ok"
+end

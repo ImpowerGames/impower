@@ -1,11 +1,13 @@
--> main
+scene start
+  -> main
+end
 scene main
   lang.current = "fr"
-  label start
+  label again
   & n = n + 1
   Vous avez {n} .. plural(n)|one=pomme|other=pommes ..
   if n < 3 then
-    -> start
+    -> again
   end
   fin
 

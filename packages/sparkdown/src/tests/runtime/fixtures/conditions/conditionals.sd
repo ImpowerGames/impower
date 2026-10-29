@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   {if false then "not true" else "true"}
   {if 4 > 5 then "not true" elseif 5 > 4 then "true"}

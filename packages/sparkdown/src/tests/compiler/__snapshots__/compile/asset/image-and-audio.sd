@@ -1,1 +1,3 @@
-[[show backdrop rooftop_night]] ((play music stars))
+scene start
+  [[show backdrop rooftop_night]] ((play music stars))
+end

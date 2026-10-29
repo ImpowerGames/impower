@@ -1,9 +1,11 @@
-N: One > space
-N: Two  >  spaces
-N: Mixed    > widths  >   here
->
-> Lone start
-HERO:
-  One >   two
+scene start
+  N: One > space
+  N: Two  >  spaces
+  N: Mixed    > widths  >   here
   >
-  Three
+  > Lone start
+  HERO:
+    One >   two
+    >
+    Three
+end

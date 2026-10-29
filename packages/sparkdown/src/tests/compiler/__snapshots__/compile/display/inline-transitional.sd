@@ -1,1 +1,3 @@
-%: FADE OUT
+scene start
+  %: FADE OUT
+end

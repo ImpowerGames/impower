@@ -1,1 +1,3 @@
-not foundTheAlley
+scene start
+  not foundTheAlley
+end

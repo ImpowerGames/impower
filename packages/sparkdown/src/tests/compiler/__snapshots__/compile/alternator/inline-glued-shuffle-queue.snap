@@ -1,6 +1,17 @@
 {
   "content": [
     {
+      "type": "Knot",
+      "name": "start",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
       "type": "Weave",
       "content": [
         {
@@ -15,6 +26,8 @@
     }
   ]
 }
+
+{}
 
 {
   "content": [
@@ -55,7 +68,7 @@
                     "content": [
                       "Got ",
                       {
-                        "type": "Weave"
+                        "type": "_Weave"
                       }
                     ]
                   }

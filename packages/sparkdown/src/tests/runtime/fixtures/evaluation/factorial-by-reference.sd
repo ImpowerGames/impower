@@ -1,7 +1,9 @@
 store result = { value = 0 }
-& factorialByRef(result, 5)
-{result.value}
-done
+scene start
+  & factorialByRef(result, 5)
+  {result.value}
+  done
+end
 
 function factorialByRef(r, n)
   if r.value == 0 then

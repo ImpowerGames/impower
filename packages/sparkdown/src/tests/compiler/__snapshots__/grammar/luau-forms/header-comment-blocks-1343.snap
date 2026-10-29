@@ -1,4 +1,4 @@
-sparkdown [0..179]
+sparkdown [0..197]
  ├─ LuauStyle [0..48]
  │   ├─ LuauStyle_begin [0..6]
  │   │   ├─ LuauStyle_begin_c1 0
@@ -249,32 +249,49 @@ sparkdown [0..179]
  │       └─ LuauComponent_end_c3 146
  ├─ Newline [146..147]: "\n"
  ├─ Newline [147..148]: "\n"
- ├─ ImplicitAction [148..178]
- │   ├─ ImplicitAction_begin 148
- │   │   └─ ImplicitAction_begin_c1 148
- │   │       └─ OptionalWhitespace 148
- │   ├─ ImplicitAction_content [148..178]
- │   │   └─ ActionLineEnd [148..178]
- │   │       ├─ ActionLineEnd_begin 148
- │   │       │   └─ ActionLineEnd_begin_c1 148
- │   │       │       └─ OptionalWhitespace 148
- │   │       ├─ ActionLineEnd_content [148..178]
- │   │       │   └─ TextChunk [148..178]
- │   │       │       ├─ TextChunk_begin 148
- │   │       │       ├─ TextChunk_content [148..178]
- │   │       │       │   ├─ Word [148..151]: "The"
- │   │       │       │   ├─ Space [151..152]: " "
- │   │       │       │   ├─ Word [152..156]: "rain"
- │   │       │       │   ├─ Space [156..157]: " "
- │   │       │       │   ├─ Word [157..162]: "stops"
- │   │       │       │   ├─ Space [162..163]: " "
- │   │       │       │   ├─ Word [163..165]: "on"
+ ├─ Scene [148..159]
+ │   ├─ Scene_begin [148..154]
+ │   │   ├─ Scene_begin_c1 148
+ │   │   │   └─ OptionalWhitespace 148
+ │   │   ├─ Scene_begin_c2 [148..153]
+ │   │   │   └─ SceneKeyword [148..153]: "scene"
+ │   │   └─ Scene_begin_c3 [153..154]
+ │   │       └─ RequiredWhitespace [153..154]: " "
+ │   ├─ Scene_content [154..159]
+ │   │   └─ SceneWithoutParametersDeclaration [154..159]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [154..159]
+ │   │       │   └─ SceneDeclarationName [154..159]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 159
+ │   └─ Scene_end 159
+ ├─ Newline [159..160]: "\n"
+ ├─ ImplicitAction [160..192]
+ │   ├─ ImplicitAction_begin [160..162]
+ │   │   └─ ImplicitAction_begin_c1 [160..162]
+ │   │       └─ OptionalWhitespace [160..162]: "  "
+ │   ├─ ImplicitAction_content [162..192]
+ │   │   └─ ActionLineEnd [162..192]
+ │   │       ├─ ActionLineEnd_begin 162
+ │   │       │   └─ ActionLineEnd_begin_c1 162
+ │   │       │       └─ OptionalWhitespace 162
+ │   │       ├─ ActionLineEnd_content [162..192]
+ │   │       │   └─ TextChunk [162..192]
+ │   │       │       ├─ TextChunk_begin 162
+ │   │       │       ├─ TextChunk_content [162..192]
+ │   │       │       │   ├─ Word [162..165]: "The"
  │   │       │       │   ├─ Space [165..166]: " "
- │   │       │       │   ├─ Word [166..169]: "the"
- │   │       │       │   ├─ Space [169..170]: " "
- │   │       │       │   ├─ Word [170..177]: "rooftop"
- │   │       │       │   └─ Punctuation [177..178]: "."
- │   │       │       └─ TextChunk_end 178
- │   │       └─ ActionLineEnd_end 178
- │   └─ ImplicitAction_end 178
- └─ Newline [178..179]: "\n"
+ │   │       │       │   ├─ Word [166..170]: "rain"
+ │   │       │       │   ├─ Space [170..171]: " "
+ │   │       │       │   ├─ Word [171..176]: "stops"
+ │   │       │       │   ├─ Space [176..177]: " "
+ │   │       │       │   ├─ Word [177..179]: "on"
+ │   │       │       │   ├─ Space [179..180]: " "
+ │   │       │       │   ├─ Word [180..183]: "the"
+ │   │       │       │   ├─ Space [183..184]: " "
+ │   │       │       │   ├─ Word [184..191]: "rooftop"
+ │   │       │       │   └─ Punctuation [191..192]: "."
+ │   │       │       └─ TextChunk_end 192
+ │   │       └─ ActionLineEnd_end 192
+ │   └─ ImplicitAction_end 192
+ ├─ Newline [192..193]: "\n"
+ ├─ LuauEndKeyword [193..196]: "end"
+ └─ Newline [196..197]: "\n"

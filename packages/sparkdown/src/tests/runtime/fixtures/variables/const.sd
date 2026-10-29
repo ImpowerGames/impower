@@ -1,3 +1,5 @@
 const c = 5
 store x = c
-{x}
+scene start
+  {x}
+end

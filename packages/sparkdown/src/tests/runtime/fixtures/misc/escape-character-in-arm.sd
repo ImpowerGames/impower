@@ -1,1 +1,3 @@
-chain | this is a '\|' character | this isn't end
+scene start
+  chain | this is a '\|' character | this isn't end
+end

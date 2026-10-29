@@ -1,5 +1,7 @@
-if 3 == 3 then
-elseif 3 == 4 then
-  txt
+scene start
+  if 3 == 3 then
+  elseif 3 == 4 then
+    txt
+  end
+  done
 end
-done

@@ -1,34 +1,51 @@
-sparkdown [0..34]
- ├─ ImplicitAction [0..33]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..33]
- │   │   └─ ActionLineEnd [0..33]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..33]
- │   │       │   └─ TextChunk [0..33]
- │   │       │       ├─ TextChunk_begin 0
- │   │       │       ├─ TextChunk_content [0..33]
- │   │       │       │   ├─ Word [0..4]: "Mail"
- │   │       │       │   ├─ Space [4..5]: " "
- │   │       │       │   ├─ Word [5..7]: "me"
- │   │       │       │   ├─ Space [7..8]: " "
- │   │       │       │   ├─ Punctuation [8..9]: "@"
- │   │       │       │   ├─ Space [9..10]: " "
- │   │       │       │   ├─ Word [10..14]: "home"
- │   │       │       │   ├─ Punctuation [14..15]: ","
- │   │       │       │   ├─ Space [15..16]: " "
- │   │       │       │   ├─ Word [16..18]: "or"
+sparkdown [0..52]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..47]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..47]
+ │   │   └─ ActionLineEnd [14..47]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..47]
+ │   │       │   └─ TextChunk [14..47]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..47]
+ │   │       │       │   ├─ Word [14..18]: "Mail"
  │   │       │       │   ├─ Space [18..19]: " "
- │   │       │       │   ├─ Punctuation [19..20]: "@"
- │   │       │       │   ├─ Word [20..26]: "native"
- │   │       │       │   ├─ Space [26..27]: " "
- │   │       │       │   ├─ Word [27..32]: "later"
- │   │       │       │   └─ Punctuation [32..33]: "."
- │   │       │       └─ TextChunk_end 33
- │   │       └─ ActionLineEnd_end 33
- │   └─ ImplicitAction_end 33
- └─ Newline [33..34]: "\n"
+ │   │       │       │   ├─ Word [19..21]: "me"
+ │   │       │       │   ├─ Space [21..22]: " "
+ │   │       │       │   ├─ Punctuation [22..23]: "@"
+ │   │       │       │   ├─ Space [23..24]: " "
+ │   │       │       │   ├─ Word [24..28]: "home"
+ │   │       │       │   ├─ Punctuation [28..29]: ","
+ │   │       │       │   ├─ Space [29..30]: " "
+ │   │       │       │   ├─ Word [30..32]: "or"
+ │   │       │       │   ├─ Space [32..33]: " "
+ │   │       │       │   ├─ Punctuation [33..34]: "@"
+ │   │       │       │   ├─ Word [34..40]: "native"
+ │   │       │       │   ├─ Space [40..41]: " "
+ │   │       │       │   ├─ Word [41..46]: "later"
+ │   │       │       │   └─ Punctuation [46..47]: "."
+ │   │       │       └─ TextChunk_end 47
+ │   │       └─ ActionLineEnd_end 47
+ │   └─ ImplicitAction_end 47
+ ├─ Newline [47..48]: "\n"
+ ├─ LuauEndKeyword [48..51]: "end"
+ └─ Newline [51..52]: "\n"

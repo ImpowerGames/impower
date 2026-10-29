@@ -1,7 +1,9 @@
-# author: Joe
-# version: 1.0
-This is the content
-done
+scene start
+  # author: Joe
+  # version: 1.0
+  This is the content
+  done
+end
 
 scene knot
   # knot tag

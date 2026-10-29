@@ -1,1 +1,3 @@
-companion.O.trust
+scene start
+  companion.O.trust
+end

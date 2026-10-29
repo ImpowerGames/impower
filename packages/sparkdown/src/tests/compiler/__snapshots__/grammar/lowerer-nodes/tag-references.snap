@@ -1,176 +1,194 @@
-sparkdown [0..69]
- ├─ Tags [0..68]
- │   ├─ Tags_begin 0
- │   │   └─ Tags_begin_c1 0
- │   ├─ Tags_content [0..68]
- │   │   └─ Tag [0..68]
- │   │       ├─ Tag_c1 0
- │   │       ├─ Tag_c2 [0..1]: "#"
- │   │       └─ Tag_c3 [1..68]
- │   │           └─ TagContent [1..68]
- │   │               ├─ TagContent_begin 1
- │   │               ├─ TagContent_content [1..68]
- │   │               │   ├─ TagText [1..2]: " "
- │   │               │   ├─ LuauInterpolatedStringExpression [2..10]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [2..3]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [2..3]
- │   │               │   │   │       └─ PunctuationBraceOpen [2..3]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [3..9]
- │   │               │   │   │   └─ LuauAccessPath [3..9]
- │   │               │   │   │       ├─ LuauAccessPath_begin 3
- │   │               │   │   │       ├─ LuauAccessPath_content [3..9]
- │   │               │   │   │       │   └─ LuauAccessPart [3..9]
- │   │               │   │   │       │       └─ LuauVariable [3..9]
- │   │               │   │   │       │           └─ LuauVariable_c1 [3..9]
- │   │               │   │   │       │               └─ LuauVariableName [3..9]: "amount"
- │   │               │   │   │       └─ LuauAccessPath_end 9
- │   │               │   │   │           └─ LuauAccessPath_end_c1 9
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [9..10]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [9..10]
- │   │               │   │           └─ PunctuationBraceClose [9..10]: "}"
- │   │               │   ├─ TagText [10..11]: " "
- │   │               │   ├─ LuauInterpolatedStringExpression [11..21]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [11..12]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [11..12]
- │   │               │   │   │       └─ PunctuationBraceOpen [11..12]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [12..20]
- │   │               │   │   │   ├─ ExtraWhitespace [12..13]: " "
- │   │               │   │   │   ├─ LuauAccessPath [13..19]
- │   │               │   │   │   │   ├─ LuauAccessPath_begin 13
- │   │               │   │   │   │   ├─ LuauAccessPath_content [13..19]
- │   │               │   │   │   │   │   └─ LuauAccessPart [13..19]
- │   │               │   │   │   │   │       └─ LuauVariable [13..19]
- │   │               │   │   │   │   │           └─ LuauVariable_c1 [13..19]
- │   │               │   │   │   │   │               └─ LuauVariableName [13..19]: "amount"
- │   │               │   │   │   │   └─ LuauAccessPath_end 19
- │   │               │   │   │   │       └─ LuauAccessPath_end_c1 19
- │   │               │   │   │   └─ ExtraWhitespace [19..20]: " "
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [20..21]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [20..21]
- │   │               │   │           └─ PunctuationBraceClose [20..21]: "}"
- │   │               │   ├─ TagText [21..22]: " "
- │   │               │   ├─ LuauInterpolatedStringExpression [22..34]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [22..23]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [22..23]
- │   │               │   │   │       └─ PunctuationBraceOpen [22..23]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [23..33]
- │   │               │   │   │   ├─ LuauAccessPath [23..30]
- │   │               │   │   │   │   ├─ LuauAccessPath_begin 23
- │   │               │   │   │   │   ├─ LuauAccessPath_content [23..29]
- │   │               │   │   │   │   │   └─ LuauAccessPart [23..29]
- │   │               │   │   │   │   │       └─ LuauVariable [23..29]
- │   │               │   │   │   │   │           └─ LuauVariable_c1 [23..29]
- │   │               │   │   │   │   │               └─ LuauVariableName [23..29]: "amount"
- │   │               │   │   │   │   └─ LuauAccessPath_end [29..30]
- │   │               │   │   │   │       └─ LuauAccessPath_end_c1 [29..30]
- │   │               │   │   │   │           └─ LuauAccessPath_end_c1 [29..30]
- │   │               │   │   │   │               └─ OptionalWhitespace [29..30]: " "
- │   │               │   │   │   └─ LuauArithmeticOperation [30..33]
- │   │               │   │   │       ├─ LuauArithmeticOperation_begin 30
- │   │               │   │   │       │   └─ LuauArithmeticOperation_begin_c1 30
- │   │               │   │   │       ├─ LuauArithmeticOperation_content [30..33]
- │   │               │   │   │       │   ├─ LuauArithmeticOperator [30..32]
- │   │               │   │   │       │   │   ├─ LuauArithmeticOperator_begin [30..32]
- │   │               │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 30
- │   │               │   │   │       │   │   │   │   └─ OptionalWhitespace 30
- │   │               │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [30..31]: "+"
- │   │               │   │   │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [31..32]
- │   │               │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [31..32]
- │   │               │   │   │       │   │   │           └─ OptionalWhitespace [31..32]: " "
- │   │               │   │   │       │   │   └─ LuauArithmeticOperator_end 32
- │   │               │   │   │       │   └─ LuauNumericDecimal [32..33]
- │   │               │   │   │       │       ├─ LuauNumericDecimal_c1 [32..33]: "1"
- │   │               │   │   │       │       └─ LuauNumericDecimal_c2 33
- │   │               │   │   │       └─ LuauArithmeticOperation_end 33
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [33..34]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [33..34]
- │   │               │   │           └─ PunctuationBraceClose [33..34]: "}"
- │   │               │   ├─ TagText [34..35]: " "
- │   │               │   ├─ LuauInterpolatedStringExpression [35..49]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [35..36]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [35..36]
- │   │               │   │   │       └─ PunctuationBraceOpen [35..36]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [36..48]
- │   │               │   │   │   └─ LuauAccessPath [36..48]
- │   │               │   │   │       ├─ LuauAccessPath_begin 36
- │   │               │   │   │       ├─ LuauAccessPath_content [36..48]
- │   │               │   │   │       │   ├─ LuauAccessPart [36..42]
- │   │               │   │   │       │   │   └─ LuauVariable [36..42]
- │   │               │   │   │       │   │       └─ LuauVariable_c1 [36..42]
- │   │               │   │   │       │   │           └─ LuauVariableName [36..42]: "amount"
- │   │               │   │   │       │   └─ LuauAccessPart [42..48]
- │   │               │   │   │       │       └─ LuauPropertyAccessor [42..48]
- │   │               │   │   │       │           ├─ LuauPropertyAccessor_c1 42
- │   │               │   │   │       │           ├─ LuauPropertyAccessor_c2 [42..43]
- │   │               │   │   │       │           │   └─ LuauAccessorOperator [42..43]: "."
- │   │               │   │   │       │           ├─ LuauPropertyAccessor_c3 43
- │   │               │   │   │       │           └─ LuauPropertyAccessor_c4 [43..48]
- │   │               │   │   │       │               └─ LuauPropertyName [43..48]: "value"
- │   │               │   │   │       └─ LuauAccessPath_end 48
- │   │               │   │   │           └─ LuauAccessPath_end_c1 48
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [48..49]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [48..49]
- │   │               │   │           └─ PunctuationBraceClose [48..49]: "}"
- │   │               │   ├─ TagText [49..50]: " "
- │   │               │   ├─ LuauInterpolatedStringExpression [50..61]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [50..51]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [50..51]
- │   │               │   │   │       └─ PunctuationBraceOpen [50..51]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [51..60]
- │   │               │   │   │   └─ LuauAccessPath [51..60]
- │   │               │   │   │       ├─ LuauAccessPath_begin 51
- │   │               │   │   │       ├─ LuauAccessPath_content [51..60]
- │   │               │   │   │       │   ├─ LuauAccessPart [51..57]
- │   │               │   │   │       │   │   └─ LuauVariable [51..57]
- │   │               │   │   │       │   │       └─ LuauVariable_c1 [51..57]
- │   │               │   │   │       │   │           └─ LuauVariableName [51..57]: "amount"
- │   │               │   │   │       │   └─ LuauAccessPart [57..60]
- │   │               │   │   │       │       └─ LuauPropertyIndexer [57..60]
- │   │               │   │   │       │           ├─ LuauPropertyIndexer_begin [57..58]
- │   │               │   │   │       │           │   ├─ LuauPropertyIndexer_begin_c1 57
- │   │               │   │   │       │           │   └─ LuauPropertyIndexer_begin_c2 [57..58]
- │   │               │   │   │       │           │       └─ PunctuationBracketOpen [57..58]: "["
- │   │               │   │   │       │           ├─ LuauPropertyIndexer_content [58..59]
- │   │               │   │   │       │           │   └─ LuauNumericDecimal [58..59]
- │   │               │   │   │       │           │       ├─ LuauNumericDecimal_c1 [58..59]: "1"
- │   │               │   │   │       │           │       └─ LuauNumericDecimal_c2 59
- │   │               │   │   │       │           └─ LuauPropertyIndexer_end [59..60]
- │   │               │   │   │       │               └─ LuauPropertyIndexer_end_c1 [59..60]
- │   │               │   │   │       │                   └─ PunctuationBracketClose [59..60]: "]"
- │   │               │   │   │       └─ LuauAccessPath_end 60
- │   │               │   │   │           └─ LuauAccessPath_end_c1 60
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [60..61]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [60..61]
- │   │               │   │           └─ PunctuationBraceClose [60..61]: "}"
- │   │               │   ├─ TagText [61..62]: " "
- │   │               │   └─ LuauInterpolatedStringExpression [62..68]
- │   │               │       ├─ LuauInterpolatedStringExpression_begin [62..63]
- │   │               │       │   └─ LuauInterpolatedStringExpression_begin_c1 [62..63]
- │   │               │       │       └─ PunctuationBraceOpen [62..63]: "{"
- │   │               │       ├─ LuauInterpolatedStringExpression_content [63..67]
- │   │               │       │   └─ LuauAccessPath [63..67]
- │   │               │       │       ├─ LuauAccessPath_begin 63
- │   │               │       │       ├─ LuauAccessPath_content [63..67]
- │   │               │       │       │   └─ LuauAccessPart [63..67]
- │   │               │       │       │       └─ LuauFunctionCall [63..67]
- │   │               │       │       │           ├─ LuauFunctionCall_begin [63..65]
- │   │               │       │       │           │   ├─ LuauFunctionCall_begin_c1 [63..65]
- │   │               │       │       │           │   │   └─ LuauFunctionName [63..65]: "fn"
- │   │               │       │       │           │   └─ LuauFunctionCall_begin_c2 65
- │   │               │       │       │           ├─ LuauFunctionCall_content [65..67]
- │   │               │       │       │           │   └─ LuauFunctionCallParameters [65..67]
- │   │               │       │       │           │       ├─ LuauFunctionCallParameters_begin [65..66]
- │   │               │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [65..66]
- │   │               │       │       │           │       │       └─ PunctuationParenOpen [65..66]: "("
- │   │               │       │       │           │       └─ LuauFunctionCallParameters_end [66..67]
- │   │               │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [66..67]
- │   │               │       │       │           │               └─ PunctuationParenClose [66..67]: ")"
- │   │               │       │       │           └─ LuauFunctionCall_end 67
- │   │               │       │       └─ LuauAccessPath_end 67
- │   │               │       │           └─ LuauAccessPath_end_c1 67
- │   │               │       └─ LuauInterpolatedStringExpression_end [67..68]
- │   │               │           └─ LuauInterpolatedStringExpression_end_c1 [67..68]
- │   │               │               └─ PunctuationBraceClose [67..68]: "}"
- │   │               └─ TagContent_end 68
- │   └─ Tags_end 68
- └─ Newline [68..69]: "\n"
+sparkdown [0..87]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ Tags [12..82]
+ │   ├─ Tags_begin [12..14]
+ │   │   └─ Tags_begin_c1 [12..14]
+ │   │       └─ RequiredWhitespace [12..14]: "  "
+ │   ├─ Tags_content [14..82]
+ │   │   └─ Tag [14..82]
+ │   │       ├─ Tag_c1 14
+ │   │       ├─ Tag_c2 [14..15]: "#"
+ │   │       └─ Tag_c3 [15..82]
+ │   │           └─ TagContent [15..82]
+ │   │               ├─ TagContent_begin 15
+ │   │               ├─ TagContent_content [15..82]
+ │   │               │   ├─ TagText [15..16]: " "
+ │   │               │   ├─ LuauInterpolatedStringExpression [16..24]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [16..17]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [16..17]
+ │   │               │   │   │       └─ PunctuationBraceOpen [16..17]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [17..23]
+ │   │               │   │   │   └─ LuauAccessPath [17..23]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 17
+ │   │               │   │   │       ├─ LuauAccessPath_content [17..23]
+ │   │               │   │   │       │   └─ LuauAccessPart [17..23]
+ │   │               │   │   │       │       └─ LuauVariable [17..23]
+ │   │               │   │   │       │           └─ LuauVariable_c1 [17..23]
+ │   │               │   │   │       │               └─ LuauVariableName [17..23]: "amount"
+ │   │               │   │   │       └─ LuauAccessPath_end 23
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 23
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [23..24]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [23..24]
+ │   │               │   │           └─ PunctuationBraceClose [23..24]: "}"
+ │   │               │   ├─ TagText [24..25]: " "
+ │   │               │   ├─ LuauInterpolatedStringExpression [25..35]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [25..26]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [25..26]
+ │   │               │   │   │       └─ PunctuationBraceOpen [25..26]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [26..34]
+ │   │               │   │   │   ├─ ExtraWhitespace [26..27]: " "
+ │   │               │   │   │   ├─ LuauAccessPath [27..33]
+ │   │               │   │   │   │   ├─ LuauAccessPath_begin 27
+ │   │               │   │   │   │   ├─ LuauAccessPath_content [27..33]
+ │   │               │   │   │   │   │   └─ LuauAccessPart [27..33]
+ │   │               │   │   │   │   │       └─ LuauVariable [27..33]
+ │   │               │   │   │   │   │           └─ LuauVariable_c1 [27..33]
+ │   │               │   │   │   │   │               └─ LuauVariableName [27..33]: "amount"
+ │   │               │   │   │   │   └─ LuauAccessPath_end 33
+ │   │               │   │   │   │       └─ LuauAccessPath_end_c1 33
+ │   │               │   │   │   └─ ExtraWhitespace [33..34]: " "
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [34..35]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [34..35]
+ │   │               │   │           └─ PunctuationBraceClose [34..35]: "}"
+ │   │               │   ├─ TagText [35..36]: " "
+ │   │               │   ├─ LuauInterpolatedStringExpression [36..48]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [36..37]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [36..37]
+ │   │               │   │   │       └─ PunctuationBraceOpen [36..37]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [37..47]
+ │   │               │   │   │   ├─ LuauAccessPath [37..44]
+ │   │               │   │   │   │   ├─ LuauAccessPath_begin 37
+ │   │               │   │   │   │   ├─ LuauAccessPath_content [37..43]
+ │   │               │   │   │   │   │   └─ LuauAccessPart [37..43]
+ │   │               │   │   │   │   │       └─ LuauVariable [37..43]
+ │   │               │   │   │   │   │           └─ LuauVariable_c1 [37..43]
+ │   │               │   │   │   │   │               └─ LuauVariableName [37..43]: "amount"
+ │   │               │   │   │   │   └─ LuauAccessPath_end [43..44]
+ │   │               │   │   │   │       └─ LuauAccessPath_end_c1 [43..44]
+ │   │               │   │   │   │           └─ LuauAccessPath_end_c1 [43..44]
+ │   │               │   │   │   │               └─ OptionalWhitespace [43..44]: " "
+ │   │               │   │   │   └─ LuauArithmeticOperation [44..47]
+ │   │               │   │   │       ├─ LuauArithmeticOperation_begin 44
+ │   │               │   │   │       │   └─ LuauArithmeticOperation_begin_c1 44
+ │   │               │   │   │       ├─ LuauArithmeticOperation_content [44..47]
+ │   │               │   │   │       │   ├─ LuauArithmeticOperator [44..46]
+ │   │               │   │   │       │   │   ├─ LuauArithmeticOperator_begin [44..46]
+ │   │               │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 44
+ │   │               │   │   │       │   │   │   │   └─ OptionalWhitespace 44
+ │   │               │   │   │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [44..45]: "+"
+ │   │               │   │   │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [45..46]
+ │   │               │   │   │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [45..46]
+ │   │               │   │   │       │   │   │           └─ OptionalWhitespace [45..46]: " "
+ │   │               │   │   │       │   │   └─ LuauArithmeticOperator_end 46
+ │   │               │   │   │       │   └─ LuauNumericDecimal [46..47]
+ │   │               │   │   │       │       ├─ LuauNumericDecimal_c1 [46..47]: "1"
+ │   │               │   │   │       │       └─ LuauNumericDecimal_c2 47
+ │   │               │   │   │       └─ LuauArithmeticOperation_end 47
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [47..48]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [47..48]
+ │   │               │   │           └─ PunctuationBraceClose [47..48]: "}"
+ │   │               │   ├─ TagText [48..49]: " "
+ │   │               │   ├─ LuauInterpolatedStringExpression [49..63]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [49..50]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [49..50]
+ │   │               │   │   │       └─ PunctuationBraceOpen [49..50]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [50..62]
+ │   │               │   │   │   └─ LuauAccessPath [50..62]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 50
+ │   │               │   │   │       ├─ LuauAccessPath_content [50..62]
+ │   │               │   │   │       │   ├─ LuauAccessPart [50..56]
+ │   │               │   │   │       │   │   └─ LuauVariable [50..56]
+ │   │               │   │   │       │   │       └─ LuauVariable_c1 [50..56]
+ │   │               │   │   │       │   │           └─ LuauVariableName [50..56]: "amount"
+ │   │               │   │   │       │   └─ LuauAccessPart [56..62]
+ │   │               │   │   │       │       └─ LuauPropertyAccessor [56..62]
+ │   │               │   │   │       │           ├─ LuauPropertyAccessor_c1 56
+ │   │               │   │   │       │           ├─ LuauPropertyAccessor_c2 [56..57]
+ │   │               │   │   │       │           │   └─ LuauAccessorOperator [56..57]: "."
+ │   │               │   │   │       │           ├─ LuauPropertyAccessor_c3 57
+ │   │               │   │   │       │           └─ LuauPropertyAccessor_c4 [57..62]
+ │   │               │   │   │       │               └─ LuauPropertyName [57..62]: "value"
+ │   │               │   │   │       └─ LuauAccessPath_end 62
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 62
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [62..63]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [62..63]
+ │   │               │   │           └─ PunctuationBraceClose [62..63]: "}"
+ │   │               │   ├─ TagText [63..64]: " "
+ │   │               │   ├─ LuauInterpolatedStringExpression [64..75]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [64..65]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [64..65]
+ │   │               │   │   │       └─ PunctuationBraceOpen [64..65]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [65..74]
+ │   │               │   │   │   └─ LuauAccessPath [65..74]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 65
+ │   │               │   │   │       ├─ LuauAccessPath_content [65..74]
+ │   │               │   │   │       │   ├─ LuauAccessPart [65..71]
+ │   │               │   │   │       │   │   └─ LuauVariable [65..71]
+ │   │               │   │   │       │   │       └─ LuauVariable_c1 [65..71]
+ │   │               │   │   │       │   │           └─ LuauVariableName [65..71]: "amount"
+ │   │               │   │   │       │   └─ LuauAccessPart [71..74]
+ │   │               │   │   │       │       └─ LuauPropertyIndexer [71..74]
+ │   │               │   │   │       │           ├─ LuauPropertyIndexer_begin [71..72]
+ │   │               │   │   │       │           │   ├─ LuauPropertyIndexer_begin_c1 71
+ │   │               │   │   │       │           │   └─ LuauPropertyIndexer_begin_c2 [71..72]
+ │   │               │   │   │       │           │       └─ PunctuationBracketOpen [71..72]: "["
+ │   │               │   │   │       │           ├─ LuauPropertyIndexer_content [72..73]
+ │   │               │   │   │       │           │   └─ LuauNumericDecimal [72..73]
+ │   │               │   │   │       │           │       ├─ LuauNumericDecimal_c1 [72..73]: "1"
+ │   │               │   │   │       │           │       └─ LuauNumericDecimal_c2 73
+ │   │               │   │   │       │           └─ LuauPropertyIndexer_end [73..74]
+ │   │               │   │   │       │               └─ LuauPropertyIndexer_end_c1 [73..74]
+ │   │               │   │   │       │                   └─ PunctuationBracketClose [73..74]: "]"
+ │   │               │   │   │       └─ LuauAccessPath_end 74
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 74
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [74..75]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [74..75]
+ │   │               │   │           └─ PunctuationBraceClose [74..75]: "}"
+ │   │               │   ├─ TagText [75..76]: " "
+ │   │               │   └─ LuauInterpolatedStringExpression [76..82]
+ │   │               │       ├─ LuauInterpolatedStringExpression_begin [76..77]
+ │   │               │       │   └─ LuauInterpolatedStringExpression_begin_c1 [76..77]
+ │   │               │       │       └─ PunctuationBraceOpen [76..77]: "{"
+ │   │               │       ├─ LuauInterpolatedStringExpression_content [77..81]
+ │   │               │       │   └─ LuauAccessPath [77..81]
+ │   │               │       │       ├─ LuauAccessPath_begin 77
+ │   │               │       │       ├─ LuauAccessPath_content [77..81]
+ │   │               │       │       │   └─ LuauAccessPart [77..81]
+ │   │               │       │       │       └─ LuauFunctionCall [77..81]
+ │   │               │       │       │           ├─ LuauFunctionCall_begin [77..79]
+ │   │               │       │       │           │   ├─ LuauFunctionCall_begin_c1 [77..79]
+ │   │               │       │       │           │   │   └─ LuauFunctionName [77..79]: "fn"
+ │   │               │       │       │           │   └─ LuauFunctionCall_begin_c2 79
+ │   │               │       │       │           ├─ LuauFunctionCall_content [79..81]
+ │   │               │       │       │           │   └─ LuauFunctionCallParameters [79..81]
+ │   │               │       │       │           │       ├─ LuauFunctionCallParameters_begin [79..80]
+ │   │               │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [79..80]
+ │   │               │       │       │           │       │       └─ PunctuationParenOpen [79..80]: "("
+ │   │               │       │       │           │       └─ LuauFunctionCallParameters_end [80..81]
+ │   │               │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [80..81]
+ │   │               │       │       │           │               └─ PunctuationParenClose [80..81]: ")"
+ │   │               │       │       │           └─ LuauFunctionCall_end 81
+ │   │               │       │       └─ LuauAccessPath_end 81
+ │   │               │       │           └─ LuauAccessPath_end_c1 81
+ │   │               │       └─ LuauInterpolatedStringExpression_end [81..82]
+ │   │               │           └─ LuauInterpolatedStringExpression_end_c1 [81..82]
+ │   │               │               └─ PunctuationBraceClose [81..82]: "}"
+ │   │               └─ TagContent_end 82
+ │   └─ Tags_end 82
+ ├─ Newline [82..83]: "\n"
+ ├─ LuauEndKeyword [83..86]: "end"
+ └─ Newline [86..87]: "\n"

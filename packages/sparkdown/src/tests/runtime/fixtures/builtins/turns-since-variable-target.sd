@@ -1,4 +1,3 @@
--> start
 scene start
   {count.turns(-> start)}
   {count.turns(-> start)}
