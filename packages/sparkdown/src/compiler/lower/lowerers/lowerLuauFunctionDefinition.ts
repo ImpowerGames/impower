@@ -31,7 +31,6 @@ import {
   functionArguments,
   lowerFunctionBody,
   parameterNames,
-  closureRootCaptures,
   rootCaptureSlots,
   type RootRead,
 } from "../expression/lowerFunction";
@@ -98,8 +97,7 @@ export function lowerLuauFunctionDefinition(
     // (Luau), while bare `function NAME` is sugar for `NAME = function()
     // end` (I-1422): it assigns the local named NAME in scope where it is
     // written (a parameter, a `local`, a local function, an enclosing
-    // function's local, a top-level `local` the function's entry binds),
-    // and the global NAME when none is.
+    // function's local), and the global NAME when none is.
     const isLocal = stat instanceof AstStatLocalFunction;
     // A variadic function (`function f(a, ...) ... end`) is a closure
     // too, which packs its `...` when a call runs it, as every call
@@ -127,12 +125,8 @@ export function lowerLuauFunctionDefinition(
   // (function values, nested named functions), so they live as subFlows of
   // this function rather than at the chunk's top level, and stacks this
   // function's own locals so a nested function's capture scan can detect
-  // shadowing. Its entry binds each name the body reads from a `local` of
-  // the root frame's own scope in scope where the function is written
-  // (`rootBindings`, captured none): a function written at the top level
-  // reads and writes that local as Luau's upvalue, though it is built before
-  // the local exists.
-  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx, null);
+  // shadowing.
+  const { hoisted, body, nested, close } = lowerFunctionBody(func, node, ctx);
   const knot = new Knot(identifier, [], args, true);
   close(knot);
   // A definition closes at its `end` or just before a following `scene` or
@@ -231,13 +225,11 @@ function lowerNestedNamedFunction(
       upvals,
       ctx,
     ),
-    closureRootCaptures(rootReads, upvals, ctx),
   );
 
   // `function NAME ... end` (no `local`) is `NAME = function() end`, as
   // Luau's is (I-1422): it assigns the variable NAME resolves to where it
-  // is written, the innermost local of that name in scope (one the
-  // function's entry binds to a top-level `local` included), else the
+  // is written, the innermost local of that name in scope, else the
   // global, and declares nothing that would hide it from the lines before.
   if (!isLocal) {
     return wrapInWeave([
@@ -336,7 +328,6 @@ function lowerPropertyTargetFunctionDefinition(
     upvals,
     userArity,
     rootCaptureSlots(rootReads, upvals, ctx),
-    closureRootCaptures(rootReads, upvals, ctx),
   );
   const keyExpr = new StringExpression([new Text(name.index)]);
   const definition = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);

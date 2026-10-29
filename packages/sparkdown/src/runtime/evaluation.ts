@@ -97,15 +97,6 @@ export function extractClosureTarget(
   if (target === null) return null;
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
-  // The cells of the root locals the function's entry binds that the
-  // closure kept where it was built, which the call keeps in the function's
-  // frame as it enters it (`EnterFunction`); none for a closure built before
-  // closures kept them, whose entry binds them as it runs.
-  const rootsVal = map.get("__closure_roots");
-  story.SetClosureRoots?.(
-    target,
-    rootsVal instanceof ObjectValue && rootsVal.value instanceof Map ? rootsVal.value : null,
-  );
   // `__closure_user_arity` counts FIXED params only. A variadic
   // target binds one extra slot — the packed `...` MultiValue the
   // call-site normalization (packVariadicValueCallArgs /
@@ -323,54 +314,6 @@ export function openVariablePointer(
 }
 
 /**
- * The pointer at the top-level local `name` a function reaches at its entry
- * (`Op.BindRoot`): the binding of the name in the own scope of the current
- * thread's root frame, which the top level binds (a scene's and a branch's
- * bindings are in scopes of their own above it, `flowScopesOf`), registered
- * there as an open upvalue, and shared with a closure that captured the
- * same binding (`openVariablePointer`). A block's local of the name, in a
- * scope of its own, is never it. Null when that scope binds no such name, as
- * before its `local` statement runs, or the root frame is the current one.
- *
- * With `slot` (`ROOT_SLOT`), the binding of one declaration of a name the
- * scope declares more than once: the cell the declaration stored in its slot
- * (`rootSlotCell`), or null when it has not run. With `anyScope`
- * (`ROOT_ANY_SCOPE`), the binding in the outermost scope of the root frame
- * that binds the name, a block's local included (I-1468).
- */
-export function rootVariablePointer(
-  callStack: CallStack,
-  name: string,
-  slot: string | null = null,
-  anyScope = false,
-): VariablePointerValue | null {
-  const root = callStack.elements[0];
-  if (!root || callStack.elements.length < 2) return null;
-  if (slot) {
-    const cell = rootSlotCell(root.temporaryScopes[0]!, name, slot);
-    if (cell !== undefined) return cell;
-  }
-  const scopeIdx = anyScope
-    ? root.temporaryScopes.findIndex((scope) => scope.has(name))
-    : root.temporaryScopes[0]!.has(name)
-      ? 0
-      : -1;
-  if (scopeIdx < 0) return null;
-  const slotValue = root.temporaryScopes[scopeIdx]!.get(name);
-  if (slotValue instanceof VariablePointerValue) {
-    return slotValue;
-  }
-  const existing = callStack.FindOpenUpvalue(1, name, scopeIdx);
-  if (existing) {
-    return existing;
-  }
-  const newPtr = new VariablePointerValue(name, 1);
-  newPtr.scopeIndex = scopeIdx;
-  callStack.RegisterOpenUpvalue(newPtr, 1);
-  return newPtr;
-}
-
-/**
  * The cell the root frame's own scope (`scope`) keeps for one declaration of
  * `name` in its slot (`slot`, `ROOT_SLOT`). Where that slot is missing,
  * the binding an engine before the slots made, which a save it wrote holds:
@@ -403,7 +346,7 @@ export function rootSlotCell(
  * replace, when the scope holds it with no slot of the name at all: one an
  * engine before the slots made, which a save it wrote holds. Its cell goes in
  * the slot `<name>$0`, which the declaration's replacement closes on the
- * binding's value, so a function or a closure that reads a declaration whose
+ * binding's value, so a closure that reads a declaration whose
  * slot that engine never wrote still reaches the binding it left (I-1374).
  */
 export function keepLegacyRootBinding(callStack: CallStack, name: string): void {

@@ -11,16 +11,11 @@
 // one written before it reads what the name names there (I-1365); a
 // top-level `local` beside a `store` of its name is a compile error (#1177).
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { compileScript, errorsOf, programCompiler, programSession, storyBeats } from "../program/programHarness";
 import { programListing } from "../programListing";
-
-const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 const LOCAL_PLACEMENT =
   "local declaration must be inside a scene, branch or function; use store or const at the top level";
@@ -47,16 +42,6 @@ const rootOf = (lines: string[]) =>
   quiet(() => {
     const { program } = compileScript([...lines, ""].join("\n"));
     expect(errorsOf(program)).toEqual([]);
-    return program.chunks!;
-  });
-
-// The root of a script an older engine wrote a save of. The script declares
-// locals at the top level, each a compile error; it reports no other error,
-// and its program runs.
-const legacyRootOf = (text: string) =>
-  quiet(() => {
-    const { program } = compileScript(`${text.trimEnd()}\n`);
-    expect(errorsOf(program).filter(([, message]) => message !== LOCAL_PLACEMENT)).toEqual([]);
     return program.chunks!;
   });
 
@@ -424,9 +409,8 @@ describe("a closure written in the root frame", () => {
     ).toEqual(got("Got 1 2 2."));
   });
 
-  // The call binds the kept cell as it enters the closure's frame, in the
-  // frame's own state, which a save taken before the entry's code runs
-  // holds: taking one does not change what the game shows.
+  // The closure keeps the cell it captured, which a save taken as its call
+  // enters holds: taking one does not change what the game shows.
   test("keeps the cell it kept across a save taken as its call enters", () => {
     const story = new ProgramStory(
       rootOf([
@@ -494,6 +478,24 @@ describe("a closure written in the root frame", () => {
     expect(
       run(inScene([header, "  local f = function() return print end", "  Got {tostring(f())}.", "end"])),
     ).toEqual(got("Got 2."));
+  });
+
+  // The block's local is declared on a statement before the closure's, which
+  // the converter reads apart from it (I-1468).
+  test("reads a stdlib-named local an if block declares above it", () => {
+    expect(
+      run(inScene(["if true then", "  local print = 2", "  local f = function() return print end", "  Got {tostring(f())}.", "end"])),
+    ).toEqual(got("Got 2."));
+  });
+
+  // Each arm of an `if` is a scope of its own, so another arm's local of a
+  // stdlib name leaves the builtin.
+  test.each([
+    ["an elseif", ["if false then", "  local print = 2", "elseif true then", "  local f = function() return type(print) end", "  Got {f()}.", "end"]],
+    ["an else", ["if false then", "  local print = 2", "else", "  local f = function() return type(print) end", "  Got {f()}.", "end"]],
+    ["the first arm", ["if true then", "  local f = function() return type(print) end", "  Got {f()}.", "else", "  local print = 2", "end"]],
+  ])("reads the builtin for a stdlib name another arm declares, in %s", (_, lines) => {
+    expect(run(inScene(lines))).toEqual(got("Got function."));
   });
 
   // An `&` line's loop is a block too, and the closure after its `end` on
@@ -764,46 +766,6 @@ describe("a top-level local beside a store of its name", () => {
       "Duplicate identifier `a`. A var named `a` already exists on null",
       "Duplicate identifier `a`. A temp named `a` already exists on line 2 of 'main'",
     ]);
-  });
-});
-
-describe("the entry of a function written at the top level", () => {
-  test("binds nothing for a name only a scene's local takes", () => {
-    const listing = programListing(
-      rootOf(["function g()", "  return a + math.abs(-1)", "end", ...inScene(["local a = 1", "Got {g()}."])]),
-    );
-    expect(listing.filter((line) => line.startsWith("BindRoot"))).toEqual([]);
-  });
-});
-
-describe("a save written by an engine that bound top-level locals by name", () => {
-  // `redeclared-local-value-save-0a06f357b.json` is the save the engine at
-  // 0a06f357b wrote of `redeclared-local-value.sd` after `First.`: the scope
-  // holds the second `a` and no slot. The function and the closure, which
-  // read the second declaration, reach the binding by name, as that engine
-  // did.
-  test("loads, and a function and a closure read the local it holds", () => {
-    const text = readFileSync(join(FIXTURES, "redeclared-local-value.sd"), "utf-8");
-    const save = readFileSync(join(FIXTURES, "redeclared-local-value-save-0a06f357b.json"), "utf-8");
-    const loaded = new ProgramStory(legacyRootOf(text));
-    loaded.loadSave(save);
-    const { beats, errors } = storyBeats(loaded);
-    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 2 2."));
-  });
-
-  // `redeclared-after-load-save-ae10deabd.json` is the save the engine at
-  // ae10deabd wrote of `redeclared-after-load.sd` after `First 1.`: the scope
-  // holds the first `a`, which `f` captured, and no slot. The scene's `local a`
-  // that runs after the load keeps that binding's cell (`<name>$0`), which the
-  // function, written after the first declaration, reads in place of the slot
-  // that engine never wrote.
-  test("loads, and a later declaration keeps the binding it left for the function", () => {
-    const text = readFileSync(join(FIXTURES, "redeclared-after-load.sd"), "utf-8");
-    const save = readFileSync(join(FIXTURES, "redeclared-after-load-save-ae10deabd.json"), "utf-8");
-    const loaded = new ProgramStory(legacyRootOf(text));
-    loaded.loadSave(save);
-    const { beats, errors } = storyBeats(loaded);
-    expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 1 1 2."));
   });
 });
 

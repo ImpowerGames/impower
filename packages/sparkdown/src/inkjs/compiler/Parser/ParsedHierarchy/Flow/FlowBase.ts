@@ -12,7 +12,6 @@ import { MultiReturnType } from "../MultiReturnType";
 //import { Story } from '../Story';
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
-import { RootBinding } from "../Variable/RootBinding";
 import { Weave } from "../Weave";
 import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
@@ -332,9 +331,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // function it builds under a generated name: what its frames and its
   // value are labelled by (`functionLabel`), as Luau names it.
   public _authoredName: string | null = null;
-  // Set by the lowering on the function it builds for a define's method,
-  // which reads no flow's local (`VariableReference.IsBoundAtEntry`).
-  public isDefineMethod = false;
   public variableDeclarations: Map<string, VariableAssignment> =
     FlowBase.declarationTable();
 
@@ -615,28 +611,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     result.found = false;
 
     return result;
-  };
-
-  // Whether the flow's entry binds `varName` to a `local` of the root frame's
-  // own scope (`RootBinding`), as the entry of a function written in a scene,
-  // a branch or a choice body binds each name its body reads from a `local`
-  // of that flow declared above the read, and a top-level function's each it
-  // reads from a top-level `local`. The lowering writes those bindings first
-  // in the flow's root weave. A binding by name in any scope, which a
-  // function written inside a block of a flow makes for every name it reads
-  // (`ROOT_IN_BLOCK`), counts only where a local of the block or of a flow
-  // around it is in scope at the read (`RootBinding.local`).
-  public BindsRootLocal = (varName: string): boolean => {
-    recordRead(varName);
-    for (const obj of this._rootWeave?.content ?? []) {
-      if (!(obj instanceof RootBinding)) {
-        return false;
-      }
-      if (obj.variableName === varName && (!obj.anyScope || obj.local)) {
-        return true;
-      }
-    }
-    return false;
   };
 
   // Whether `fromNode` reads the variable `varName` rather than whatever the
