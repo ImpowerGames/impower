@@ -9,6 +9,7 @@
     { "form": "^@vite-ignore$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^/\\s*<(?:reference|amd-module|amd-dependency)\\b", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^@(?:type|param|returns?)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^@type\\s+[A-Za-z_$]", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
@@ -22,9 +23,9 @@
     { "form": "\\b(?:[Rr]eleased|[Ll]icen[cs]ed|[Dd]istributed|[Cc]overed|[Aa]vailable|[Pp]rovided) (?:under|by) (?:the )?(?:terms of (?:the )?)?(?:MIT|MPL|Mozilla Public|Apache|BSD|L?GPL|GNU|ISC|CC|Creative Commons)\\b" },
     { "form": "\\b(?:MIT|MPL|Apache|BSD|L?GPL|ISC)-licen[cs]ed\\b" },
     { "form": "^(?:The )?(?:MIT|ISC|Apache|BSD(?:[- ]\\d-Clause)?|Mozilla Public|GNU (?:Lesser )?General Public|L?GPL)(?: [\\d.]+)? Licen[cs]e(?:,? [Vv]ersion [\\d.]+)?\\.?$" },
-    { "form": "\\b(?:Permission is hereby granted|THE SOFTWARE IS PROVIDED|The above copyright notice|Redistribution and use in source and binary forms|WITHOUT WARRANT(?:Y|IES) OF ANY KIND|All rights reserved|Licensed under the Apache License)" },
-    { "form": "(?<![\\w-])LICEN[CS]E[-.][\\w.-]*\\w(?![\\w-])" },
-    { "form": "\\b(?:[Ss]ee|in) (?:the )?`?LICEN[CS]E`?(?: file)?(?![\\w-])" }
+    { "form": "\\b(?:Permission is hereby granted|Permission to use, copy, modify|THE SOFTWARE IS PROVIDED|THIS SOFTWARE IS PROVIDED|The above copyright notice|Redistribution and use in source and binary forms|Redistributions of source code must retain|Neither the name of|WITHOUT WARRANT(?:Y|IES)(?: OR CONDITIONS)? OF ANY KIND|IN NO EVENT SHALL|All rights reserved|Licensed under the Apache License|you may not use this file except in compliance with the License|You may obtain a copy of the License|Unless required by applicable law or agreed to in writing|This program is free software|distributed in the hope that it will be useful|You should have received a copy of the GNU)" },
+    { "form": "https?://\\S*/licen[cs]es?(?:/|\\b)" },
+    { "form": "\\b(?:[Ss]ee|in|under) (?:the )?`?LICEN[CS]E(?:[-.][\\w.-]*\\w)?`?(?: file)?(?![\\w-])" }
   ],
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [
