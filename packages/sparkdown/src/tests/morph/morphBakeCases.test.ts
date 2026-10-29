@@ -288,8 +288,10 @@ describe("morph bake: compositing and authored style", () => {
       // A browser drops a value it does not accept, so the earlier `display:none` stays in force.
       "a display value the bake does not know": ["display:none;display:bogus", "display: bogus"],
       "an empty display value": ["display:none;display:!important", "display: !important"],
-      "a second !important": ["display:none;display:inline!important!important", "display: inline!important !important"],
-      "a stray !": ["display:none;display:inline!", "display: inline!"],
+      "a second !important": ["display:none;display:inline!important!important", "display:inline!important!important"],
+      "a stray ! in a value": ["display:none;display:inline!", "display:inline!"],
+      "a ! in a name": ["!bad:0", "!bad:0"],
+      "a ! with no colon": ["stroke:red;!", "!"],
       // `display: contents` hides a drawing.
       "display: contents": ["display:contents", "display: contents"],
       "an empty compositing value": ["filter:url(#f);filter:", "filter:"],

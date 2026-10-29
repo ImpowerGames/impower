@@ -233,8 +233,7 @@ const DISPLAY_KEYWORDS = new Set([
  * cannot vouch for could leave an earlier declaration in force unseen.
  */
 const readableDeclaration = ({ name, value }: InlineDeclaration): boolean => {
-  // Anything but one trailing `!important` is outside the grammar.
-  if (name === "all" || value.includes("!") || SUBSTITUTION.test(value)) return false;
+  if (name === "all" || SUBSTITUTION.test(value)) return false;
   const keyword = value.toLowerCase();
   if (name === "display") return DISPLAY_KEYWORDS.has(keyword);
   if (name === "opacity") return readAlpha(value) !== undefined;
@@ -269,6 +268,10 @@ export function unreadableStyle(element: Element): string | undefined {
     const next = STYLE_OUTSIDE.exec(style)?.index === at ? style.indexOf(";", reference < 0 ? at : reference + 1) : -1;
     return visible(cssTrim(style.slice(start, next < 0 ? style.length : next)));
   }
+  // A `!` anywhere but one trailing `!important`, in a name, a value or a
+  // fragment with no colon, is outside the grammar.
+  const bang = style.split(";").find((piece) => cssTrim(piece).replace(STYLE_IMPORTANT, "").includes("!"));
+  if (bang !== undefined) return cssTrim(bang);
   const unreadable = inlineDeclarations(element)!.find((declaration) => !readableDeclaration(declaration));
   return unreadable && [`${unreadable.name}:`, unreadable.value, unreadable.important ? "!important" : ""].filter(Boolean).join(" ");
 }
