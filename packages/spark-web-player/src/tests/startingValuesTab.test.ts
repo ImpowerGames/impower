@@ -417,9 +417,8 @@ describe("the Starting values tab", () => {
     await settle();
     expect(p.input("store:trust").value).toBe("3");
     expect(p.badge("store:trust")).toBeNull();
-    expect((p.controller as any)._startingValues).toEqual({
-      interrogation: { "store:trust": "3" },
-    });
+    expect(p.row("store:trust").hasAttribute("data-set")).toBe(true);
+    expect(p.valuesTab()!.textContent).toBe("Starting values1");
   });
 
   test.each([["×"], ["Reset all"]])(

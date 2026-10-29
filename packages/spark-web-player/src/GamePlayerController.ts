@@ -107,18 +107,23 @@ import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/cor
 import { GetGameStartingValueListingMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStartingValueListingMessage";
 import {
   TOP_LEVEL_FLOW,
-  changeStartingValues,
   listingItems,
-  ownEntry,
   startingValuesFrom,
   type StartingValueListing,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
+import type { RouteTab } from "./route/startingValuesView";
 import {
-  emptyValuesState,
-  type RouteTab,
-  type StartingValuesViewState,
-} from "./route/startingValuesView";
+  answered,
+  changed,
+  drafted,
+  emptyFields,
+  fieldsView,
+  hostSent,
+  resetAll,
+  startChanged,
+  type StartingValuesFields,
+} from "./route/startingValuesFields";
 import type { StartingValuesEvents } from "./route/StartingValuesViews";
 
 const COMMON_ASPECT_RATIOS = [
@@ -304,20 +309,11 @@ export class GamePlayerController {
     toggles: { ...DEFAULT_ROUTE_TOGGLES },
     tab: "route",
   };
-  /** Every start's values as the host keeps them, or nothing while the
-   *  host has sent none, when the route panel offers no Starting values
-   *  tab. */
-  protected _startingValues?: StartingValues;
+  protected _valueFields: StartingValuesFields = emptyFields();
 
-  /** The latest change made to each field, by its start and key, which a
-   *  change the host did not keep puts back only while it is the latest. */
-  protected _valueEdits = new Map<string, number>();
+  protected _valuesShownStart?: string;
 
-  protected _valueEditCount = 0;
-  /** What the Starting values tab holds of its own: what its fields hold
-   *  that is not kept, the fields whose change the host did not keep, and
-   *  the search. */
-  protected _valuesView: StartingValuesViewState = emptyValuesState();
+  protected _valuesSearch = "";
   /** What the route's start can take, and the program and start it was
    *  listed for. */
   protected _listing?: { key: string; listing?: StartingValueListing };
@@ -888,26 +884,20 @@ export class GamePlayerController {
       this.refs.routeList.hidden = !open;
     }
     const start = this.valuesStart();
-    if (this._valuesView.start !== start) {
-      // What a field holds that is not kept, and a change the host did not
-      // keep, belong to the start they were made in: another start's fields
-      // show its own values.
-      this._valuesView = {
-        ...emptyValuesState(),
-        search: this._valuesView.search,
-        start,
-      };
+    if (this._valuesShownStart !== start) {
+      this._valuesShownStart = start;
+      this._valueFields = startChanged(this._valueFields, start);
     }
     const values =
-      this._startingValues && start !== undefined
+      this._valueFields.kept && start !== undefined
         ? {
-            ...this._valuesView,
+            ...fieldsView(this._valueFields, start),
             start,
             listing:
               this._listing?.listing?.start === start
                 ? this._listing.listing
                 : undefined,
-            values: ownEntry(this._startingValues, start) ?? {},
+            search: this._valuesSearch,
           }
         : undefined;
     this._routeState = { ...this._routeState, values };
@@ -968,30 +958,26 @@ export class GamePlayerController {
     onSet: (key, value) => void this.changeValues({ [key]: value }),
     onClear: (key) => void this.changeValues({ [key]: null }),
     onDraft: (key, text) => {
-      const drafts = { ...this._valuesView.drafts };
-      if (text === null) {
-        delete drafts[key];
-      } else {
-        drafts[key] = text;
+      const start = this.valuesStart();
+      if (start !== undefined) {
+        this._valueFields = drafted(this._valueFields, start, key, text);
+        this.renderRoute();
       }
-      this._valuesView = { ...this._valuesView, drafts };
-      this.renderRoute();
     },
     onResetAll: () => {
-      // The text fields hold that is not kept goes with the values.
-      this._valuesView = { ...this._valuesView, drafts: {} };
-      this.renderRoute();
       const start = this.valuesStart();
-      const set =
-        start !== undefined ? ownEntry(this._startingValues, start) : undefined;
-      if (set) {
-        void this.changeValues(
-          Object.fromEntries(Object.keys(set).map((key) => [key, null])),
-        );
+      if (start === undefined) {
+        return;
+      }
+      const reset = resetAll(this._valueFields, start);
+      this._valueFields = reset.state;
+      this.renderRoute();
+      if (Object.keys(reset.changes).length > 0) {
+        void this.changeValues(reset.changes);
       }
     },
     onSearch: (search) => {
-      this._valuesView = { ...this._valuesView, search };
+      this._valuesSearch = search;
       this.renderRoute();
     },
   };
@@ -1005,57 +991,23 @@ export class GamePlayerController {
    */
   protected async changeValues(changes: Record<string, string | null>) {
     const start = this.valuesStart();
-    const before = this._startingValues;
-    if (start === undefined || !before) {
+    if (start === undefined || !this._valueFields.kept) {
       return;
     }
-    const edit = ++this._valueEditCount;
-    for (const key of Object.keys(changes)) {
-      this._valueEdits.set(`${start}\n${key}`, edit);
-    }
-    // A value set or cleared replaces the text the field held and its badge.
-    const unsaved = { ...this._valuesView.unsaved };
-    const drafts = { ...this._valuesView.drafts };
-    for (const key of Object.keys(changes)) {
-      delete unsaved[key];
-      delete drafts[key];
-    }
-    this._valuesView = { ...this._valuesView, unsaved, drafts };
-    this._startingValues = changeStartingValues(before, start, changes);
+    const change = changed(this._valueFields, start, changes);
+    this._valueFields = change.state;
     this.renderRoute();
     const saved = await this.requestHost(
       ChangeStartingValuesMessage.type.request({ start, changes }),
     );
-    if (saved || !this._startingValues) {
-      return;
-    }
-    // A field a later change has been made to since is that change's to
-    // put back; the rest go back to what the host last sent.
-    const own = Object.keys(changes).filter(
-      (key) => this._valueEdits.get(`${start}\n${key}`) === edit,
-    );
-    if (own.length === 0) {
-      return;
-    }
-    const kept =
-      ownEntry(this._options?.startingValues ?? before, start) ?? {};
     const items = listingItems(this._listing?.listing);
-    const putBack: Record<string, string | null> = {};
-    const failed = { ...this._valuesView.unsaved };
-    for (const key of own) {
-      putBack[key] = kept[key] ?? null;
-      failed[key] =
-        kept[key] ?? items.find((item) => item.key === key)?.first ?? "nil";
-    }
-    this._startingValues = changeStartingValues(
-      this._startingValues,
+    this._valueFields = answered(
+      this._valueFields,
       start,
-      putBack,
+      change.edit,
+      saved,
+      (key) => items.find((item) => item.key === key)?.first,
     );
-    if (this._valuesView.start === start) {
-      // The badges are the start's own, shown while the panel lists it.
-      this._valuesView = { ...this._valuesView, unsaved: failed };
-    }
     this.renderRoute();
   }
 
@@ -1117,7 +1069,12 @@ export class GamePlayerController {
       // back what the field held; the next Escape closes the panel.
       const field = (e.target as Element | null)?.closest?.(".sv-row");
       const key = field?.getAttribute("data-key");
-      if (key != null && this._valuesView.drafts[key] !== undefined) {
+      const start = this.valuesStart();
+      if (
+        key != null &&
+        start !== undefined &&
+        fieldsView(this._valueFields, start).drafts[key] !== undefined
+      ) {
         return;
       }
       e.stopPropagation();
@@ -2139,22 +2096,12 @@ export class GamePlayerController {
     const changed =
       JSON.stringify(values) !==
       JSON.stringify(this._options?.startingValues ?? null);
-    this._startingValues = values;
+    this._valueFields = hostSent(this._valueFields, values);
     if (this._options) {
       this._options.startingValues = values;
     } else {
       this._options = { startingValues: values };
     }
-    // A field the host now keeps a value for is no longer one it did not
-    // keep.
-    const start = this.valuesStart();
-    const unsaved = { ...this._valuesView.unsaved };
-    for (const key of Object.keys(unsaved)) {
-      if (start !== undefined && ownEntry(values, start)?.[key] !== undefined) {
-        delete unsaved[key];
-      }
-    }
-    this._valuesView = { ...this._valuesView, unsaved };
     this.renderRoute();
     if (changed) {
       try {
