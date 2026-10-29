@@ -586,7 +586,8 @@ export interface StartingValueItem {
   first: string;
   /** The type a value given it is checked against: the store's annotation
    *  (`declared`) or, without one, its first value's; none for a
-   *  parameter, which takes any value. */
+   *  parameter, which takes any value, or for an annotation that is not one
+   *  literal type (a union, a named type), which takes any value too. */
   type?: LiteralType;
   /** The type is the store's annotation. */
   declared?: boolean;

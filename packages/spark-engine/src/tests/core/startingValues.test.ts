@@ -585,6 +585,37 @@ describe("a store's type annotation", () => {
     expect(checkStartingValue(mood, "1")).toMatchObject({ status: "warning" });
   });
 
+  test("that is not one literal type, a union or a named type, takes any value", () => {
+    const { game } = routeTo(
+      [
+        "store either: number | string = 1",
+        'store pick: "p" | "q", count: number = "p", 5',
+        "store box: { x: number }? = nil",
+        "store pair: { x: number } | { y: number } = { x = 1 }",
+        "store list: Array<number>, label: string = {}, \"a\"",
+        "scene s",
+        "  Hello.",
+        "end",
+      ],
+      7,
+    );
+    const items = game.startingValueListing("s").items;
+    const check = (name: string, text: string) =>
+      checkStartingValue(
+        items.find((i: any) => i.name === name),
+        text,
+      ).status;
+    expect(check("either", '"a"')).toBe("ok");
+    expect(check("pick", "3")).toBe("ok");
+    expect(check("count", '"five"')).toBe("warning");
+    expect(check("box", "nil")).toBe("ok");
+    expect(check("box", "{ x = 2 }")).toBe("ok");
+    expect(check("box", "2")).toBe("warning");
+    expect(check("pair", "2")).toBe("ok");
+    expect(check("list", '"a"')).toBe("ok");
+    expect(check("label", "1")).toBe("warning");
+  });
+
   test("is the one the last compile read, after an edit that changes only the annotation", () => {
     const lines = ["store hp: number = 0", "scene s", "  Hello.", "end"];
     const { game, compiler } = routeTo(lines, 3);

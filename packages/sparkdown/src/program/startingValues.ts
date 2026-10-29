@@ -69,15 +69,33 @@ export interface StartingValueSource {
 }
 
 /** The type a store's annotation gives a value: `number`, `string`,
- *  `boolean`, `nil` or a table type, with `?` allowing nil; nothing for
- *  a type a literal's type cannot be checked against. */
+ *  `boolean`, `nil` or one table type, with `?` allowing nil; no type for
+ *  any other annotation (a union, a named or a function type), which a
+ *  literal's type is not checked against. Nothing without an annotation. */
 const declaredType = (
   annotation: string | undefined,
-): { type: LiteralType; nullable: boolean } | undefined => {
-  const match = /^(number|string|boolean|nil|table)(\?)?$/.exec(annotation ?? "");
-  return match
-    ? { type: match[1] as LiteralType, nullable: match[2] === "?" }
-    : undefined;
+): { type?: LiteralType; nullable: boolean } | undefined => {
+  if (annotation === undefined) {
+    return undefined;
+  }
+  const nullable = annotation.endsWith("?");
+  const type = nullable ? annotation.slice(0, -1).trimEnd() : annotation;
+  if (/^(number|string|boolean|nil|table)$/.test(type)) {
+    return { type: type as LiteralType, nullable };
+  }
+  if (type.startsWith("{")) {
+    // One table type: the brace it opens with closes at its end.
+    let depth = 0;
+    for (let i = 0; i < type.length; i += 1) {
+      depth += type[i] === "{" ? 1 : type[i] === "}" ? -1 : 0;
+      if (depth === 0) {
+        return i === type.length - 1
+          ? { type: "table", nullable }
+          : { nullable: false };
+      }
+    }
+  }
+  return { nullable: false };
 };
 
 /** A runtime value as a literal, or nothing for one no literal writes (a
@@ -400,12 +418,13 @@ const storesOf = (
           continue;
         }
         const declared = declaredType(source.storeTypes?.[name]);
+        const type = declared ? declared.type : literalTypeOf(first);
         const item: StartingValueItem = {
           key: storeKey(name),
           group: "stores",
           name,
           first: formatLiteral(first, partial.skipped),
-          type: declared?.type ?? literalTypeOf(first),
+          ...(type ? { type } : {}),
           ...(declared
             ? { declared: true, ...(declared.nullable ? { nullable: true } : {}) }
             : {}),

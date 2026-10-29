@@ -70,7 +70,7 @@ Each row shows the value its name starts with in grey. Type a value and press En
 A value is a literal: a number, a string, `true`, `false`, `nil` or a table, such as `{ name = "Ana", hp = 10 }`, with no expressions. A visit count or a seed is a whole number.
 
 - A value that is not one yet shows an error badge, and is not kept until it is one.
-- A value of another type than the store's first value shows a warning badge and still applies: a warning never stops a story from running.
+- A value of another type than the store's shows a warning badge and still applies: a warning never stops a story from running. A store's type is its annotation when it has one (`store hp: number`, with `string?` also taking `nil`), and otherwise the type of its first value. An annotation that is not one type, such as `number | string`, takes any value.
 - A value whose name, or whose option's or alternator's line, is no longer in the script is listed under "No longer in the script" with a warning badge. The preview ignores it, and × removes it. A value does not follow a rename.
 - A change the editor could not keep goes back to the value before it, with an error badge that says so.
 
