@@ -5,18 +5,19 @@ import { compareEnginesFull, treeScopeStackAt } from "../compiler/scopeEquality"
 
 const lines = ["return", "return 5", "return 1, 2", "return to the village", "return!", "return 5; -- still prose"];
 const contexts = ["file", "scene", "branch", "conditional", "loop", "choice"] as const;
+const runtimeContexts = contexts.filter((context) => context !== "file");
 function sourceFor(context: typeof contexts[number], line: string) {
-  const body = `  Before.\n  ${line}\n  After.\n`;
-  if (context === "file") return `${body}done\n`;
-  if (context === "scene") return `-> a\nscene a\n${body}  done\nend\n`;
-  if (context === "branch") return `-> a.b\nscene a\nbranch b\n${body}  done\nend\nend\n`;
-  if (context === "conditional") return `if true then\n${body}end\ndone\n`;
-  if (context === "loop") return `for i = 1, 1 do\n${body}end\ndone\n`;
-  return `choose\n  * [Take]\n${body.split("\n").map((s) => s ? `  ${s}` : s).join("\n")}    done\nend\n`;
+  const at = (pad: string) => `${pad}Before.\n${pad}${line}\n${pad}After.\n`;
+  if (context === "file") return `${at("  ")}done\n`;
+  if (context === "scene") return `scene start\n${at("  ")}  done\nend\n`;
+  if (context === "branch") return `scene start\n  -> b\nbranch b\n${at("  ")}  done\nend\nend\n`;
+  if (context === "conditional") return `scene start\n  if true then\n${at("    ")}  end\n  done\nend\n`;
+  if (context === "loop") return `scene start\n  for i = 1, 1 do\n${at("    ")}  end\n  done\nend\n`;
+  return `scene start\n  choose\n    * [Take]\n${at("      ")}      done\n  end\nend\n`;
 }
 
 describe("unmarked return in story scope is ordinary displayed text", () => {
-  for (const context of contexts) test.each(lines)(`${context} displays %s and the next line`, (line) => {
+  for (const context of runtimeContexts) test.each(lines)(`${context} displays %s and the next line`, (line) => {
     const ctx = makeRuntimeStoryFromSource(sourceFor(context, line));
     expect(ctx.errorMessages).toEqual([]);
     let output = ctx.story.ContinueMaximally();
@@ -41,7 +42,7 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
 
-  test.each(contexts)("%s still diagnoses explicitly marked return", (context) => {
+  test.each(runtimeContexts)("%s still diagnoses explicitly marked return", (context) => {
     const ctx = makeRuntimeStoryFromSource(sourceFor(context, "& return 5"));
     expect(ctx.errorMessages.filter((m) => /Return statements can only/.test(m))).toHaveLength(1);
   });
@@ -52,7 +53,7 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     expect(treeScopeStackAt(tree, source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
   });
   test.each(["do\n    return 5\n  end", "do\n    -- comment\n\n    return 5\n  end"])("a real function keeps its multiline do block: %s", (body) => {
-    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  ${body}\nend\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n  Value {f()}.\nend\nfunction f()\n  ${body}\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
@@ -61,12 +62,12 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
   });
   test.each(["", "& "])("a %sfunction expression keeps its multiline code body", (mark) => {
-    const ctx = makeRuntimeStoryFromSource(`-> start\nscene start\n  ${mark}local f = function()\n    do\n      return 5\n    end\n  end\n  Value {f()}.\n  done\nend\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n  ${mark}local f = function()\n    do\n      return 5\n    end\n  end\n  Value {f()}.\n  done\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
   test.each(["", "  ", "\t"])("%s indentation leaves a return sentence as prose", (indent) => {
-    const ctx = makeRuntimeStoryFromSource(`${indent}return to the village\ndone\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n${indent}return to the village\n  done\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("return to the village\n");
   });
@@ -84,14 +85,14 @@ describe("unmarked return in story scope is ordinary displayed text", () => {
     ["do x = 5 end", 5],
     ["--[[comment]] x = 5", 5],
   ])("a bounded do preserves code effects: %s", async (body, value) => {
-    const source = `store x = 0\n-> start\nscene start\n  & do ${body} end\n  return to the village\n  Value {x}.\n  done\nend\n`;
+    const source = `store x = 0\nscene start\n  & do ${body} end\n  return to the village\n  Value {x}.\n  done\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`return to the village\nValue ${value}.\n`);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test.each(["if true then return 5 end", "if false then return 1 elseif true then return 5 else return 2 end"])("a return inside explicit do/if is still code: %s", (body) => {
-    const ctx = makeRuntimeStoryFromSource(`& do ${body} end\nreturn to the village\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n  & do ${body} end\n  return to the village\nend\n`);
     expect(ctx.errorMessages.filter((m) => /Return statements can only/.test(m)).length).toBeGreaterThan(0);
   });
   test.each(["if true then", "if true then if true then", "if false then else", "while true do", "for i = 1, 2 do", "for _, value in ipairs({2, 3}) do", "repeat"])("unfinished nested explicit %s leaves the next line as prose", (body) => {
