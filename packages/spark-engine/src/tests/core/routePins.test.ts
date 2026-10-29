@@ -92,7 +92,7 @@ const kindsAndLines = (route: PreviewRoute) =>
 const interrogation = [
   "store trust = 0",
   "",
-  "scene interrogation",
+  "scene start",
   "  choose",
   "    * [Tell the truth.]",
   "      trust += 2",
@@ -114,7 +114,7 @@ const example = [
   "store trust = 0",
   "store clues = 0",
   "",
-  "scene interrogation",
+  "scene start",
   "  INSPECTOR:",
   "    Where were you at nine?",
   "  choose",
@@ -177,7 +177,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * [Wait.]",
       "      Waited.",
@@ -204,7 +204,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store asked = 0",
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    choose",
@@ -234,7 +234,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * if key [Show the key.]",
       "      Shown.",
@@ -260,7 +260,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * if key [Show the key.]",
       "      Shown.",
@@ -285,7 +285,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a choice entry names its stop's pin on an option the menu did not offer when a thread adds the option the menu lists first", () => {
     const lines = [
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  <- side",
       "  choose",
@@ -318,7 +318,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a line inside a thread's scene starts its route there, so a pin on the menu the thread joins is not at its stop", () => {
     const lines = [
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  <- side",
       "  choose",
@@ -376,7 +376,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    choose",
@@ -404,7 +404,7 @@ describe("the preview's route keeps the author's pins", () => {
     // would skip the menu, which no pin asks for.
     const lines = [
       "store asked = 0",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    <- side",
@@ -435,7 +435,7 @@ describe("the preview's route keeps the author's pins", () => {
       "store trust = 0",
       "store go = true",
       "",
-      "scene s",
+      "scene start",
       "  if go then",
       "    choose",
       "      * [Tell the truth.]",
@@ -464,7 +464,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a hub is pinned meeting by meeting", () => {
     const lines = [
       "store stage = 0",
-      "-> start",
+      "",
       "scene start",
       "  while stage < 1 do",
       "    choose",
@@ -500,7 +500,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * [First.]",
       "      Took first.",
