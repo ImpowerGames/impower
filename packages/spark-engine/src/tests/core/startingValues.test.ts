@@ -43,6 +43,7 @@ import {
   startPlanKey,
   valueOfLiteral,
 } from "@impower/sparkdown/src/program/startingValues";
+import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
@@ -698,6 +699,29 @@ describe("a store's value set by its path", () => {
     expect(shown(game)).toContain("Edited 3.");
   });
 
+  test("runs the declarations no more after an edit that carries them over", () => {
+    const lines = [
+      "store bag = { hp = 10 }",
+      "scene s",
+      "  Before {bag.hp}.",
+      "end",
+    ];
+    const { game, compiler } = routeTo(lines, 3, {
+      s: { [storeKey("bag.hp")]: "3" },
+    });
+    expect(shown(game)).toContain("Before 3.");
+    const runs = vi.spyOn(ProgramStory.prototype as any, "runDeclarations");
+    try {
+      recompile(compiler, game, lines.join("\n").replace("Before", "Edited"));
+      game.setStartFrom({ file: URI, line: 2 });
+      game.simulate();
+      expect(shown(game)).toContain("Edited 3.");
+      expect(runs).not.toHaveBeenCalled();
+    } finally {
+      runs.mockRestore();
+    }
+  });
+
   test("lists and applies a typed define's store field by the name the script reads it by", () => {
     const lines = [
       "define hero as character with",
@@ -717,6 +741,40 @@ describe("a store's value set by its path", () => {
       s: { [storeKey("character.hero.mood")]: "5" },
     });
     expect(shown(game)).toContain("Mood 5.");
+  });
+});
+
+describe("a define's store fields", () => {
+  test("are listed and applied for a type, a leaf two levels down and an instance made with new", () => {
+    const lines = [
+      "define companion as character with",
+      "  store trust = 5",
+      "end",
+      "define O as companion with",
+      '  name = "Orion"',
+      "end",
+      "store pal = new companion()",
+      "scene s",
+      "  Trust {companion.O.trust} {pal.trust}.",
+      "end",
+    ];
+    const listed = routeTo(lines, 9).game.startingValueListing("s");
+    expect(
+      listed.items
+        .filter((i: any) => i.group === "stores")
+        .map((i: any) => [i.key, i.first]),
+    ).toEqual([
+      [storeKey("companion.trust"), "5"],
+      [storeKey("companion.O.trust"), "5"],
+      [storeKey("pal.trust"), "5"],
+    ]);
+    const { game } = routeTo(lines, 9, {
+      s: {
+        [storeKey("companion.O.trust")]: "7",
+        [storeKey("pal.trust")]: "8",
+      },
+    });
+    expect(shown(game)).toContain("Trust 7 8.");
   });
 });
 

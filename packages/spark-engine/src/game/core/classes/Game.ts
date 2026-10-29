@@ -41,6 +41,7 @@ import {
 import {
   applyStartValues,
   bindStartArguments,
+  carryStoreListing,
   planSetsParameters,
   startPlanKey,
   startPlanOf,
@@ -960,6 +961,13 @@ export class Game<T extends M = {}> {
     engine.keepBeatImages = true;
     if (!engine.declarationsCarried) {
       this._declarationsRun += 1;
+    } else if (previous?.root && engine.root) {
+      carryStoreListing(
+        previous.root,
+        engine.root,
+        before?.storeTypes,
+        program.storeTypes,
+      );
     }
     this.noteChangedFlows(before, program);
     this._story = engine;

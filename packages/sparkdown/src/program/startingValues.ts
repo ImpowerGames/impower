@@ -360,6 +360,21 @@ const listedProgram = (root: ProgramRoot): ListedProgram => {
   return kept;
 };
 
+export const carryStoreListing = (
+  from: ProgramRoot,
+  to: ProgramRoot,
+  storeTypesBefore: Readonly<Record<string, string>> | undefined,
+  storeTypes: Readonly<Record<string, string>> | undefined,
+): void => {
+  const stores = listed.get(from)?.stores;
+  if (
+    stores &&
+    JSON.stringify(storeTypesBefore ?? null) === JSON.stringify(storeTypes ?? null)
+  ) {
+    listedProgram(to).stores = stores;
+  }
+};
+
 /** The parameters the start `from` binds, but its `...`. */
 const parametersOf = (root: ProgramRoot, from: string): string[] => {
   const flow = from === TOP_LEVEL_FLOW ? undefined : root.flowNamed(from);
