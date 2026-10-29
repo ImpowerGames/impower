@@ -10,7 +10,7 @@ const CHOICE_MARK = "must appear inside a `choose ... end` block";
 const EMPTY_DIVERT = "Empty diverts (->) are only valid on choices";
 
 const scene = (body: string) =>
-  `store n = 0\n-> s\nscene s\n${body}\n  Done.\n  fin\n\nend\n`;
+  `store n = 0\nscene start\n${body}\n  Done.\n  fin\n\nend\n`;
 
 const count = (messages: string[], fragment: string) =>
   messages.filter((m) => m.includes(fragment)).length;
@@ -71,8 +71,8 @@ describe("diagnostics from statements inside nested blocks", () => {
   });
 
   test("the nested choice-mark error sits on the choice's own line", () => {
-    // Line 4 (zero-based) is `    * [Pick]`, below the `if` on line 3.
-    expect(diagnosticLines(scene(IN_IF), CHOICE_MARK)).toEqual([4]);
+    // Line 3 (zero-based) is `    * [Pick]`, below the `if` on line 2.
+    expect(diagnosticLines(scene(IN_IF), CHOICE_MARK)).toEqual([3]);
   });
 
   test("a choice inside choose inside an if block reports no choice-mark error", () => {
@@ -91,19 +91,19 @@ describe("diagnostics from statements inside nested blocks", () => {
   });
 
   test("the nested empty-divert warning sits on the divert's own line", () => {
-    expect(diagnosticLines(scene("  if n == 0 then\n    ->\n  end"), EMPTY_DIVERT)).toEqual([4]);
+    expect(diagnosticLines(scene("  if n == 0 then\n    ->\n  end"), EMPTY_DIVERT)).toEqual([3]);
   });
 });
 
 // Each body holds one empty divert, on zero-based line `line`.
 const NESTED_EMPTY_DIVERTS: [string, string, number][] = [
-  ["as a queue arm", "  queue\n  | ->\n  | B\n  end", 4],
-  ["on a line of a queue arm's body", "  queue\n  | A\n    ->\n  | B\n  end", 5],
-  ["as an arm of a single-line queue", "  queue | A | -> | C end", 3],
-  ["as an arm of an inline-glued queue", "  Before .. queue|A|->|C .. After.", 3],
-  ["as an arm of a braced queue", '  Two {queue | -> | "b" end} tail', 3],
-  ["in a choose block's preamble", "  choose\n    ->\n    * [A]\n      Picked.\n  end", 4],
-  ["in a choice's body inside choose", "  choose\n    * [A]\n      Picked.\n      ->\n  end", 6],
+  ["as a queue arm", "  queue\n  | ->\n  | B\n  end", 3],
+  ["on a line of a queue arm's body", "  queue\n  | A\n    ->\n  | B\n  end", 4],
+  ["as an arm of a single-line queue", "  queue | A | -> | C end", 2],
+  ["as an arm of an inline-glued queue", "  Before .. queue|A|->|C .. After.", 2],
+  ["as an arm of a braced queue", '  Two {queue | -> | "b" end} tail', 2],
+  ["in a choose block's preamble", "  choose\n    ->\n    * [A]\n      Picked.\n  end", 3],
+  ["in a choice's body inside choose", "  choose\n    * [A]\n      Picked.\n      ->\n  end", 5],
 ];
 
 describe("diagnostics from statements inside alternator arms and choose blocks", () => {
@@ -126,20 +126,20 @@ describe("an empty divert as an arm of a braced inline alternator", () => {
   test("the warning spans the `->` itself", () => {
     // `  Two {queue | ` is 15 characters, so the `->` covers 15 to 17.
     expect(diagnosticSpans(scene(BRACED), EMPTY_DIVERT)).toEqual([
-      { line: 3, from: 15, to: 17 },
+      { line: 2, from: 15, to: 17 },
     ]);
   });
 
   test("the arm outputs nothing, and the next visit takes the next arm", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `store n = 0\n-> s\nscene s\n  n = n + 1\n${BRACED}\n  if n < 2 then\n    -> s\n  end\n  fin\nend\n`,
+      `store n = 0\nscene start\n  n = n + 1\n${BRACED}\n  if n < 2 then\n    -> start\n  end\n  fin\nend\n`,
     );
     expect(runToEnd(ctx.story)).toBe("Two tail\nTwo b tail\n");
   });
 
   test("an arm with a target still diverts and reports no warning", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `store n = 0\n-> s\nscene s\n  Two {queue | -> t | "b" end} tail\n  Done.\n  fin\nend\n\nscene t\n  Target.\n  fin\nend\n`,
+      `store n = 0\nscene start\n  Two {queue | -> t | "b" end} tail\n  Done.\n  fin\nend\n\nscene t\n  Target.\n  fin\nend\n`,
     );
     expect(count(ctx.warningMessages, EMPTY_DIVERT)).toBe(0);
     expect(runToEnd(ctx.story)).toBe("Two Target.\n");
@@ -150,7 +150,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
   const TARGET_NOT_FOUND = "target not found";
   const T = "\nscene t\n  Target.\n  fin\nend\n";
   const visitTwice = (line: string) =>
-    `store n = 0\n-> s\nscene s\n  n = n + 1\n${line}\n  if n < 2 then\n    -> s\n  end\n  fin\nend\n${T}`;
+    `store n = 0\nscene start\n  n = n + 1\n${line}\n  if n < 2 then\n    -> start\n  end\n  fin\nend\n${T}`;
 
   test.each([
     // `  Two {queue | "a" | ` is 21 characters, so the `->` covers 21 to 23.
@@ -159,7 +159,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
   ])("written `%s`, `end` closes the alternator and the warning spans the `->`", (_, line) => {
     const source = scene(line) + T;
     expect(diagnostics(source, TARGET_NOT_FOUND)).toEqual([]);
-    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 3, from: 21, to: 23 }]);
+    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 2, from: 21, to: 23 }]);
   });
 
   test.each([
@@ -179,7 +179,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
 
   test("a target whose name begins with a keyword still diverts", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> s\nscene s\n  Two {queue | -> end-game end} tail\n  fin\nend\n\nscene end-game\n  Over.\n  fin\nend\n`,
+      `scene start\n  Two {queue | -> end-game end} tail\n  fin\nend\n\nscene end-game\n  Over.\n  fin\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Two Over.\n");
@@ -187,7 +187,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
 
   test("a divert-target value compared in an if condition still parses", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `store x = -> t\n-> s\nscene s\n  if x == -> t then\n    Same.\n  end\n  fin\nend\n${T}`,
+      `store x = -> t\nscene start\n  if x == -> t then\n    Same.\n  end\n  fin\nend\n${T}`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Same.\n");
@@ -195,7 +195,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
 
   test.each(["then", "end"])("a divert-target value may name a label called %s", (label) => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> s\nscene s\n  choose\n    + (${label}) Pick\n  then\n    {count.turns(-> ${label})} turns\n    fin\n  end\nend\n`,
+      `scene start\n  choose\n    + (${label}) Pick\n  then\n    {count.turns(-> ${label})} turns\n    fin\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.ContinueMaximally();
@@ -205,7 +205,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
 
   test("a table value may hold a divert target to a label called end", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> s\nscene s\n  choose\n    + (end) Pick\n  then\n    local targets = { -> end }\n    if targets[1] == -> end then\n      Same.\n    end\n    fin\n  end\nend\n`,
+      `scene start\n  choose\n    + (end) Pick\n  then\n    local targets = { -> end }\n    if targets[1] == -> end then\n      Same.\n    end\n    fin\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.ContinueMaximally();
@@ -218,7 +218,7 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
     // covers 37 to 39.
     const source = scene('  Two {match (n) | 0 = "a" | other = -> end} tail') + T;
     expect(diagnostics(source, TARGET_NOT_FOUND)).toEqual([]);
-    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 3, from: 37, to: 39 }]);
+    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 2, from: 37, to: 39 }]);
   });
 });
 
@@ -234,33 +234,33 @@ const OTHER_NESTED_DIAGNOSTICS: [string, string, string, number][] = [
     "a choice mark on a line of a queue arm's body",
     CHOICE_MARK,
     "  queue\n  | A\n    * [Pick]\n      Picked.\n  | B\n  end",
-    5,
+    4,
   ],
   [
     "a line after fin in a queue arm's body",
     UNREACHABLE,
     "  queue\n  | A\n    fin\n    Never.\n  | B\n  end",
-    6,
+    5,
   ],
   [
     "a line after fin in a choice's body inside choose",
     UNREACHABLE,
     "  choose\n    * [A]\n      fin\n      Never.\n  end",
-    6,
+    5,
   ],
   [
     "a load chain on a line of a queue arm's body",
     LOAD_CHAIN,
     "  queue\n  | A\n    -> load Far -> Near\n  | B\n  end",
-    5,
+    4,
   ],
-  ["a load chain as a queue arm", LOAD_CHAIN, "  queue\n  | -> load Far -> Near\n  | B\n  end", 4],
-  ["a load chain as an arm of a single-line queue", LOAD_CHAIN, "  queue | A | -> load Far -> Near | C end", 3],
+  ["a load chain as a queue arm", LOAD_CHAIN, "  queue\n  | -> load Far -> Near\n  | B\n  end", 3],
+  ["a load chain as an arm of a single-line queue", LOAD_CHAIN, "  queue | A | -> load Far -> Near | C end", 2],
   [
     "a load chain in a choose block's preamble",
     LOAD_CHAIN,
     "  choose\n    -> load Far -> Near\n    * [A]\n      Picked.\n  end",
-    4,
+    3,
   ],
 ];
 
@@ -274,9 +274,9 @@ describe("other diagnostics from statements inside alternator arms and choose bl
 
   // The range currently runs through the next arm's line (#1030).
   test.fails("the unreachable range after fin in a queue arm ends before the next arm", () => {
-    // Line 6 is `    Never.`; line 7 is `  | B`, a reachable arm.
+    // Line 5 is `    Never.`; line 6 is `  | B`, a reachable arm.
     expect(diagnosticRanges(scene("  queue\n  | A\n    fin\n    Never.\n  | B\n  end"), UNREACHABLE)).toEqual([
-      [6, 6],
+      [5, 5],
     ]);
   });
 });

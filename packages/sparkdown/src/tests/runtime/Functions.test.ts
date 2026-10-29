@@ -105,17 +105,28 @@ describe("Functions — clean-compile invariants", () => {
   });
 
   test.each([
-    ["a local at the top level beside a store", "store global_var = 5\nlocal global_var = 1\n"],
-    ["two stores of one name", "store global_var = 5\nstore global_var = 1\n"],
+    [
+      "two stores of one name",
+      "store global_var = 5\nstore global_var = 1\nscene start\n  done\nend\n",
+    ],
     [
       "a store declared in the function beside its parameter",
-      "function f(global_var)\n  store global_var = 5\n  return global_var\nend\n",
+      "function f(global_var)\n  store global_var = 5\n  return global_var\nend\nscene start\n  done\nend\n",
     ],
   ])("%s still collides", (_label, source) => {
-    const ctx = makeRuntimeStoryFromSource(`${source}done\n`);
+    const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages.join("\n")).toContain(
       "Duplicate identifier `global_var`",
     );
+  });
+
+  test("a local at the top level beside a store is refused", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "store global_var = 5\nlocal global_var = 1\nscene start\n  done\nend\n",
+    );
+    expect(ctx.errorMessages).toEqual([
+      "local declaration must be inside a scene, branch or function; use store or const at the top level",
+    ]);
   });
 });
 
