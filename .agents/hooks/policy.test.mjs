@@ -15,7 +15,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
 
 {
   const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-"));
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-outside-"));
+  const outside = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "comment-policy-outside-"));
   try {
     fs.mkdirSync(path.join(checkout, ".git"));
     fs.mkdirSync(path.join(checkout, ".agents/hooks"), { recursive: true });
