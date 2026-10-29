@@ -46,6 +46,8 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(added("// workaround(chromium): rows collapse in Chromium 131, https://crbug.com/1"), null);
     assert.equal(added("// workaround(@codemirror/view): measure runs late in 6.0.0, https://github.com/codemirror/dev/issues/1"), null);
     assert.equal(added("// workaround(idiomorph): a nested lockfile entry is a dependency too"), null);
+    assert.equal(added("// SPDX-License-Identifier: MPL-2.0"), null, "adding a licence notice is never refused");
+    assert.equal(added("/* Copyright (c) 2024 Example Holder. Released under the MIT License. */"), null);
     for (const name of ["sparkle", "spark-engine", "@impower/sparkle"]) assert.match(added(`// workaround(${name}): the reset forces column`) ?? "", /is a package of this repository/, name);
     assert.match(added("// workaround(left-pad): not installed") ?? "", /neither a dependency in a package-lock\.json nor a platform/);
     assert.match(added("// workaround: no name") ?? "", /takes the form/);
@@ -216,10 +218,32 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("//"), "refused");
     assert.equal(kind("// prose", "packages/spark-evaluate/src/_modules/x.ts"), "exempt");
     assert.equal(kind("// prose", "README.md"), "exempt");
+    assert.equal(kind("// SPDX-License-Identifier: MIT"), "licence");
+    assert.equal(kind("# SPDX-License-Identifier: Apache-2.0", "scripts/a.sh"), "licence");
+    assert.equal(kind("/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */"), "licence");
+    assert.equal(kind("/* © Example Holder */", "a.css"), "licence");
+    assert.equal(kind("// Copyright 2021 Matthijs Steen"), "licence");
+    assert.equal(kind("/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */"), "licence", "the Exhibit A opening is recognised across a line break");
+    assert.equal(kind("/**\n * Based on awesome-line-wrapping.js by dralletje\n * <https://gist.github.com/dralletje/058fe51415fe7dbac4709a65c615b52e>\n */"), "refused", "an attribution with no licence identifier or copyright statement is prose");
+    assert.equal(kind("// copyright notices are kept"), "refused");
+    assert.equal(kind("// Copyright"), "refused");
+    assert.equal(kind("/* Released under the Apache-2.0 license. */"), "licence");
+    assert.equal(kind("// This software is released under the MIT License."), "licence");
+    assert.equal(kind("// Luau is MIT-licensed"), "licence");
+    assert.equal(kind("// code licensed under the BSD terms"), "licence");
+    assert.equal(kind("// see `LICENSE-luau.txt`"), "licence");
+    assert.equal(kind("# terms in LICENSE.md", "scripts/a.py"), "licence");
+    assert.equal(kind("// the license check runs before the build"), "refused", "the word license without a named licence is prose");
+    assert.equal(kind("// MIT"), "refused");
+    assert.equal(kind("// LICENSED_FEATURES gates the menu"), "refused");
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
+    const luau = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n//\n// The clone walks each type once.\nexport {};\n";
+    assert.deepEqual(refusedLines(luau), [3, 4], "a paragraph of line comments holding a licence notice is kept whole, and the paragraph after it is judged alone");
+    assert.deepEqual(refusedLines("// Constraints, ported from Luau's `Constraint.h`; Luau is\n// MIT-licensed (see `LICENSE-luau.txt`). The generator emits\n// one per relationship.\nexport {};\n"), [], "a licence named across a line break is recognised");
+    assert.deepEqual(refusedLines("// prose\n  // Luau is MIT-licensed\nexport {};\n"), [1], "a line comment at another column is a separate paragraph");
 
     const strip = (text, file) => {
       const fallback = stripComments(text, file, { root: checkout, scanner: "fallback" });
@@ -287,6 +311,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const crlf = "const s = \"a\\\r\n// literal\";\r\n";
     assert.equal(strip(crlf, "src/a.ts"), crlf);
     assert.equal(strip(source, "packages/sparkdown/src/inkjs/a.ts"), source, "an exempt file is returned unchanged");
+    const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
+    const mit = "/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */\n";
+    const ported = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n";
+    for (const notice of [mpl, mit, ported]) {
+      assert.equal(strip(`${notice}\n// prose\nexport const n = 1;\n`, "src/a.ts"), `${notice}\nexport const n = 1;\n`, "a licence notice is kept verbatim while the prose beside it goes");
+    }
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
