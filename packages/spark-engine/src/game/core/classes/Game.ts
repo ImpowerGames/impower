@@ -2925,7 +2925,11 @@ export class Game<T extends M = {}> {
       valid -= 1;
     }
 
-    if (lastValidOldRouteCheckpoint === null) {
+    const resume =
+      lastValidOldRouteCheckpoint === null
+        ? null
+        : this.stepStandingAtCheckpoint(lastValidOldRouteCheckpoint, valid);
+    if (resume === null) {
       // Could not start from an earlier checkpoint, so simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
@@ -2938,23 +2942,28 @@ export class Game<T extends M = {}> {
     for (let i = valid; i < newRoute.steps.length; i += 1) {
       patchedSteps.push(newRoute.steps[i]!);
     }
-    const patchedRoute: RoutePlan = {
-      from: newRoute.from,
-      to: newRoute.to,
-      steps: patchedSteps,
-      decisions: newRoute.decisions,
-      conditions: newRoute.conditions,
-      choices: newRoute.choices,
-      // A later search resumed on this route is charged level zero's bound
-      // as the search that planned it had it (`routeChargeAt`).
-      ...(newRoute.levelZero ? { levelZero: newRoute.levelZero } : {}),
-      ...(newRoute.fallback ? { fallback: true as const } : {}),
-    };
+    const patchedRoute: RoutePlan = { ...newRoute, steps: patchedSteps };
 
     // Add new checkpoints onto the previous simulation
-    const fromStep = valid - 1;
-    this.simulateRoute(patchedRoute, fromStep);
+    this.simulateRoute(patchedRoute, resume.step, resume.checkpoint);
     return this.newestCheckpoint();
+  }
+
+  protected stepStandingAtCheckpoint(
+    checkpointIndex: number,
+    steps: number,
+  ): { step: number; checkpoint: number } | null {
+    const route = this._plannedRoute;
+    const cursor = this._checkpointStepCursors[checkpointIndex];
+    if (!route || cursor == null || cursor < 1) {
+      return null;
+    }
+    const last = steps - 1;
+    if (route.steps[cursor - 1]!.decision === route.steps[last]!.decision) {
+      return { step: last, checkpoint: checkpointIndex };
+    }
+    const placed = this.placeCheckpoint(checkpointIndex, cursor, steps);
+    return placed ? { step: placed.at, checkpoint: checkpointIndex } : null;
   }
 
   /** End the route simulation, so the modules connect, restore and display as
