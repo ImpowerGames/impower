@@ -1,10 +1,12 @@
 
 import { describe, expect, it } from "vitest";
+import { ProgramStory } from "../../program/ProgramStory";
 import {
   MAIN_URI,
   errorsOf,
   programCompiler,
   programSession,
+  storyRun,
 } from "../program/programHarness";
 
 const MAIN = "file://proj/main.sd";
@@ -134,6 +136,18 @@ describe("an edit that leaves a scene's line at the top level", () => {
       [3, TOP_LEVEL],
       [4, "Expected <eof>, got 'end'"],
     ]);
+  });
+
+  it("leaves the line out of the story the incremental compile builds", () => {
+    const session = programSession(lines("scene start", "  First.", "  Second.", "end"));
+    session.edit("  First.\n  Second.\nend\n", "  First.\nend\n  Second.\n");
+    const cold = quiet(() => programCompiler({ [MAIN_URI]: session.text }).compile()).program;
+    expect(errorsOf(session.program)).toEqual([[3, TOP_LEVEL]]);
+    expect(errorsOf(cold)).toEqual([[3, TOP_LEVEL]]);
+    const beats = (program: typeof cold) =>
+      quiet(() => storyRun(new ProgramStory(program.chunks!))).beats.map((beat) => beat.text);
+    expect(beats(session.program)).toEqual(["First.\n"]);
+    expect(beats(cold)).toEqual(["First.\n"]);
   });
 });
 

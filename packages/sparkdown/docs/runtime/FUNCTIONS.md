@@ -301,7 +301,7 @@ Order rationale:
   special-casing needed at the engine level. ✅
 - **D4. Anonymous function syntax**: Luau-form only
   (`function(args) body end`). No arrow-form. ✅
-- **D5. Declaration placement**: a script's top level holds declarations only, in `main.sd` as in every other script: a display line, a choice, a divert, an assignment, a call, an `if` / `for` / `while` / `do` block and a marked line that runs (`& x = 1`, `& f()`) are each a compile-time error there ("statement must be inside a scene or branch; the top level holds declarations only"), and the story starts in the scene named `start`, which any script may declare. A hoisted declaration (`store`, `const`, `define` and the definitions written like one, `function`, `type`, `external`) is written at a script's top level. Each one inside a scene or branch body, at any depth, is a compile-time error, since it takes effect when the story starts wherever it is written; a `store` declaration inside a `function` or a block (`if` / `for` / `while` / `do`) is one too. A `const` or a `define` inside a function is the function's own, as in Luau. A top-level `run` declares too: its file runs once with the declarations when the story starts, after every global has its value, so the globals it defines exist in every scene a route enters; a `run` inside a scene or a branch runs its file where its line stands. A `local` binding is written inside a scene, branch, choice body or function; one at the top level, or in a block of the top level, is a compile-time error. Assignments to existing `store` variables are allowed everywhere, including inside functions and scenes: functions are the standard way to encapsulate state-mutating logic, and `& name = value` sets a store where a scene runs. ✅
+- **D5. Declaration placement**: a script's top level holds declarations only, in `main.sd` as in every other script: a display line, a choice, a divert, an assignment, a call, an `if` / `for` / `while` / `do` block and a marked line that runs (`& x = 1`, `& f()`) are each a compile-time error there ("statement must be inside a scene or branch; the top level holds declarations only"), and the story starts in the scene named `start`, which any script may declare. A hoisted declaration (`store`, `const`, `define` and the definitions written like one, `function`, `type`, `external`) is written at a script's top level. Each one inside a scene or branch body, at any depth, is a compile-time error, since it takes effect when the story starts wherever it is written; a `store` declaration inside a `function` or a block (`if` / `for` / `while` / `do`) is one too. A `const` or a `define` inside a function is the function's own, as in Luau. A top-level `run` declares too: its file runs once with the declarations when the story starts, after every global has its value, so the globals it defines exist in every scene a route enters; a `run` inside a scene or a branch runs its file where its line stands. A `local` binding is written inside a scene, branch, choice body or function; one at the top level, or in a block of the top level, is a compile-time error. Assignments to existing `store` variables are allowed in scenes, branches and functions, never at the top level: functions are the standard way to encapsulate state-mutating logic, and `& name = value` sets a store where a scene runs. ✅
 - **D6. Function value in a `store`** (deep): forbidden — `FunctionValue`
   cannot appear anywhere reachable from a store (including nested
   tables). Compile-time error for the literal case
@@ -351,9 +351,9 @@ assignment to a variable whose binding was declared elsewhere).
 > means the variable only "exists" when the function is called, which
 > doesn't make sense for persistent state.
 >
-> **Assignments to existing `store` variables ARE allowed everywhere**,
-> including inside functions. Functions are the normal way to encapsulate
-> game-state-mutating logic.
+> Assignments to existing `store` variables are allowed in scenes,
+> branches and functions, never at a script's top level. Functions are the
+> normal way to encapsulate game-state-mutating logic.
 >
 > `store` declarations cannot appear inside a `scene` or `branch` body
 > either, at any depth: _store declaration must be at the top level;
