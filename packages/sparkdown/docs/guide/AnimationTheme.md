@@ -13,8 +13,10 @@ clause** when you open, close, or navigate a view (see
 [Screens & Navigation](./Screens.md)):
 
 ```sparkdown
-[[open inventory with fade over 0.3s]]
-[[navigate menu to settings with slide over 0.25s ease ease_out]]
+scene start
+  [[open inventory with fade over 0.3s]]
+  [[navigate menu to settings with slide over 0.25s ease ease_out]]
+end
 ```
 
 Built-in animations: `fade`, `slide`, `shake`,

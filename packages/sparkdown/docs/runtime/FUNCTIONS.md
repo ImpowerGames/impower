@@ -301,20 +301,7 @@ Order rationale:
   special-casing needed at the engine level. ✅
 - **D4. Anonymous function syntax**: Luau-form only
   (`function(args) body end`). No arrow-form. ✅
-- **D5. Declaration placement**: a hoisted declaration (`store`,
-  `const`, `define` and the definitions written like one, `function`,
-  `type`, `external`) is written at a script's top level. Each one
-  inside a scene or branch body, at any depth, is a compile-time
-  error, since it takes effect when the story starts wherever it is
-  written; a `store` declaration inside a `function` or a block (`if` /
-  `for` / `while` / `do`) is one too. A `const` or a `define` inside a
-  function is the function's own, as in Luau. A `local` binding is
-  written inside a scene, branch, choice body or function; one at the
-  top level, or in a block of the top level, is a compile-time error.
-  **Assignments to existing `store` variables are allowed
-  everywhere**, including inside functions and scenes — functions are
-  the standard way to encapsulate state-mutating logic, and
-  `& name = value` sets a store where a scene runs. ✅
+- **D5. Declaration placement**: a script's top level holds declarations only, in `main.sd` as in every other script: a display line, a choice, a divert, an assignment, a call, an `if` / `for` / `while` / `do` block and a marked line that runs (`& x = 1`, `& f()`) are each a compile-time error there ("statement must be inside a scene or branch; the top level holds declarations only"), and the story starts in the scene named `start`, which any script may declare. A hoisted declaration (`store`, `const`, `define` and the definitions written like one, `function`, `type`, `external`) is written at a script's top level. Each one inside a scene or branch body, at any depth, is a compile-time error, since it takes effect when the story starts wherever it is written; a `store` declaration inside a `function` or a block (`if` / `for` / `while` / `do`) is one too. A `const` or a `define` inside a function is the function's own, as in Luau. A top-level `run` declares too: its file runs once with the declarations when the story starts, after every global has its value, so the globals it defines exist in every scene a route enters; a `run` inside a scene or a branch runs its file where its line stands. A `local` binding is written inside a scene, branch, choice body or function; one at the top level, or in a block of the top level, is a compile-time error. Assignments to existing `store` variables are allowed everywhere, including inside functions and scenes: functions are the standard way to encapsulate state-mutating logic, and `& name = value` sets a store where a scene runs. ✅
 - **D6. Function value in a `store`** (deep): forbidden — `FunctionValue`
   cannot appear anywhere reachable from a store (including nested
   tables). Compile-time error for the literal case
@@ -386,19 +373,19 @@ assignment to a variable whose binding was declared elsewhere).
 Examples:
 
 ```sparkdown
--- Allowed: store declaration at top level
+// Allowed: store declaration at top level
 store player_name = "Alex"
 store currentTimeOfDay = 1
 store visited_intro = false
 
--- Allowed: a scene or a branch assigns an existing store
+// Allowed: a scene or a branch assigns an existing store
 scene intro
   & visited_intro = true
   & player_name = "Hero"
   -> hub
 end
 
--- R1 violation — store declaration inside a scene or a branch:
+// R1 violation — store declaration inside a scene or a branch:
 scene hub
   branch first_visit
     store first_visit_done = true          -- compile error: declaration
@@ -406,7 +393,7 @@ scene hub
   end
 end
 
--- Allowed: function MUTATES existing stores (this is the common pattern)
+// Allowed: function MUTATES existing stores (this is the common pattern)
 function advance_time(count: number)
   currentTimeOfDay += count                -- assignment to existing store: OK
   if currentTimeOfDay > #TIME_OF_DAY then
@@ -414,33 +401,33 @@ function advance_time(count: number)
   end
 end
 
--- R1 violation — store DECLARATION inside a function:
+// R1 violation — store DECLARATION inside a function:
 function init()
   store x = 5                              -- compile error: declaration
 end
 
--- R1 violation — store declaration inside a block of a scene:
+// R1 violation — store declaration inside a block of a scene:
 scene intro
   if has_save then
     store loaded = true                    -- compile error: declaration
   end
 end
 
--- R2 violation — function value into a store:
+// R2 violation — function value into a store:
 store callback = function(x) return x end  -- compile error
 
--- R2 violation — function value reaching a store via a table:
+// R2 violation — function value reaching a store via a table:
 store handlers = {}
 function register(h)
   handlers.click = h                       -- runtime error: deep R2 violation
 end
 
--- Workaround for "persistent callable":
+// Workaround for "persistent callable":
 function callback(x)                       -- named function — code, not data
   return x
 end
 
--- Workaround for "persistent target":
+// Workaround for "persistent target":
 store on_chapter_end = -> credits          -- divert-target value: OK in store
 ```
 
