@@ -3,6 +3,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { formatSource } from "./formatSource";
 
 // #1227: the formatter lays out brace bodies by their braces. It may change
@@ -59,10 +60,14 @@ function program(text: string) {
   return {
     context: normalize(result.context),
     sparkle: normalize(result.sparkle),
-    diagnostics: (result.diagnostics?.[URI] ?? []).map((d) => ({
-      severity: d.severity,
-      message: typeof d.message === "string" ? d.message : d.message.value,
-    })),
+    // The fixtures declare UI and no story, so the error for the start
+    // scene they do not declare is left out.
+    diagnostics: (result.diagnostics?.[URI] ?? [])
+      .map((d) => ({
+        severity: d.severity,
+        message: typeof d.message === "string" ? d.message : d.message.value,
+      }))
+      .filter((d) => d.message !== NO_START_SCENE_MESSAGE),
   };
 }
 
