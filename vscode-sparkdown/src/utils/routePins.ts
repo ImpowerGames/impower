@@ -1,46 +1,15 @@
-import type { ChangeRoutePinsParams } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
 import type { RoutePin } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import type { RoutePinsByScript } from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 
 export interface ScriptRoutePin {
   line: number;
   offer: number;
 }
 
-export type RoutePinsByScript = Record<string, ScriptRoutePin[]>;
-
 export const allRoutePins = (byScript: RoutePinsByScript): RoutePin[] =>
   Object.entries(byScript).flatMap(([uri, pins]) =>
     pins.map(({ line, offer }) => ({ uri, line, offer })),
   );
-
-const samePin = (a: ScriptRoutePin, uri: string, b: RoutePin) =>
-  uri === b.uri && a.line === b.line && a.offer === b.offer;
-
-export const changedRoutePins = (
-  byScript: RoutePinsByScript,
-  change: ChangeRoutePinsParams,
-): RoutePinsByScript => {
-  const changed: RoutePinsByScript = {};
-  if (!change.removeAll) {
-    for (const [uri, pins] of Object.entries(byScript)) {
-      changed[uri] = pins.filter(
-        (pin) => !(change.remove ?? []).some((gone) => samePin(pin, uri, gone)),
-      );
-    }
-  }
-  for (const pin of change.add ?? []) {
-    const pins = (changed[pin.uri] ??= []);
-    if (!pins.some((at) => samePin(at, pin.uri, pin))) {
-      pins.push({ line: pin.line, offer: pin.offer });
-    }
-  }
-  for (const [uri, pins] of Object.entries(changed)) {
-    if (pins.length === 0) {
-      delete changed[uri];
-    }
-  }
-  return changed;
-};
 
 export interface RoutePinMark {
   lineStart: number;

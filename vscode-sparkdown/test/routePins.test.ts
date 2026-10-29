@@ -1,7 +1,7 @@
+import { changedRoutePins } from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 import { describe, expect, it } from "vitest";
 import {
   allRoutePins,
-  changedRoutePins,
   mapRoutePinMarks,
   routePinMarks,
   routePinsOfMarks,

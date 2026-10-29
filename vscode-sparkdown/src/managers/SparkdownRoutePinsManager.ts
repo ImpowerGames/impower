@@ -1,15 +1,17 @@
 import type { ChangeRoutePinsParams } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
 import type { RoutePin } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
+import {
+  changedRoutePins,
+  type RoutePinsByScript,
+} from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 import * as vscode from "vscode";
 import {
   allRoutePins,
-  changedRoutePins,
   mapRoutePinMarks,
   routePinMarks,
   routePinsOfMarks,
   type DocumentLines,
   type RoutePinMark,
-  type RoutePinsByScript,
 } from "../utils/routePins";
 
 const ROUTE_PINS_STATE_KEY = "sparkdown.gamePreview.routePins";
