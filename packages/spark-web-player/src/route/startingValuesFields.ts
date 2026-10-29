@@ -98,10 +98,12 @@ export const fieldsView = (
   const drafts: Record<string, string> = {};
   const unsaved: Record<string, string> = {};
   for (const [key, field] of fieldsOf(state, start)) {
-    if (field.draft !== undefined) {
-      drafts[key] = field.draft;
+    const shown = values[key] ?? "";
+    const draft = field.draft === shown ? undefined : field.draft;
+    if (draft !== undefined) {
+      drafts[key] = draft;
     }
-    if (field.refused && field.draft === undefined) {
+    if (field.refused && draft === undefined) {
       unsaved[key] = values[key] ?? firstOf(key) ?? "nil";
     }
   }
