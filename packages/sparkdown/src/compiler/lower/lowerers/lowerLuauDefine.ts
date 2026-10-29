@@ -218,10 +218,6 @@ function reportDefineProperty(
   // its chunk is no longer kept across an edit elsewhere).
   if (value && value.source.errors.length === 0) return null;
   const end = Math.max(propNode.to, last.to);
-  // A key written `name: value` is read as `name = value`: its `:` has its
-  // own report, and Luau's reading reports the value's errors as it does
-  // after an `=`. The `=` takes the colon's one character, so every offset
-  // the reading reports is the document's.
   const colon = getDescendent("LuauStructInvalidColon", propNode);
   const withEquals = (text: string, from: number) =>
     colon && colon.from >= from && colon.from < from + text.length

@@ -1336,7 +1336,6 @@ end
     ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }")],
     ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n")],
   ])("a field set with `:` in %s is reported on its colon alone", (_, text) => {
-    // The colon is the grammar's error, reported with the body's other syntax errors.
     expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
   });
 

@@ -159,9 +159,6 @@ variables:
   # (`LuauExpressionKeywordMethodAccessor`).
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`; read only inside the `end:` lookaheads of the path and of a type, which hand the `:` to those rules (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_LONG_COMMENT: (?:[:](?![:]){{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
-  # A method's `:` that a number or a string follows in place of its name
-  # (`{ speed: 2 }`, `{ name: "x" }`), the value a table field written with
-  # `:` holds.
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, and `LuauTypeAnnotationOperation` keeps every other `:` no name follows (`t: = 2`, `{x:}`), whose missing method name the validator reports there; read only inside `LuauAccessPath`'s `end:` lookahead, which hands this `:` to `LuauTableMethodColon` (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_NO_NAME: (?:[:](?![:])(?={{WS}}*[0-9"']))
   # A type operator whose right operand is missing before a `:`
@@ -913,16 +910,9 @@ variables:
   # it here, once, keeps every rule built on the class from reading it
   # (§10.1, "tighten what a variable matches").
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
-  # A define-body key written with `:` (`name: 2`).
   LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_DEFINE_KEY_COLON}})
-  # The `:` a define's key written with one takes in place of its `=`
-  # (`speed: 2`, `if: "x"`, `["speed"]: { 1 }`), before a value on its line
-  # that no name or comment begins. A name there may be a method's
-  # (`speed: go()`, `speed: --[[c]] go()`, `speed: go` and `()` on the next
-  # line), which Luau reads as a call on the key, so the line is left to it.
   # lookaround: `LuauFunctionAccessor` and the statement rules own a `:` that a name or comment follows; deciding which of those is a call would take reading Luau's whole call syntax ahead of the rules that read it, and reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line.
   LUAU_DEFINE_KEY_COLON: (?:[:]{{WS}}+(?!--|{{LUAU_IDENTIFIER}})\S)
-  # A define key's lone `=`, or the `:` written in its place.
   LUAU_DEFINE_KEY_OPERATOR: (?:{{LUAU_SINGLE_EQUALS}}|{{LUAU_DEFINE_KEY_COLON}})
   # A define's key spelled as a reserved word other than a closer, or as a
   # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
@@ -931,8 +921,7 @@ variables:
   # lookaround: LuauDefine ends at a closer, and LuauRepeatLoop and the
   # other blocks a reserved word begins read any word not before a lone `=`.
   LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}))
-  # lookaround: a modifier before a lone `=`, or the `:` written in its place,
-  # is the key LUAU_DEFINE_KEYWORD_KEY reads.
+  # lookaround: a modifier before a lone `=`, or the `:` written in its place, is the key LUAU_DEFINE_KEYWORD_KEY reads.
   LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR: (?!{{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}})
   # Right after a define's reserved-word key, before its lone `=`.
   # lookaround: without a key read, LuauPropertyDefinition needs a name or a
@@ -5592,9 +5581,6 @@ repository:
     # keys stay Sparkdown's own without any Luau binding taking a reserved
     # word; its `=` and value are the `LuauAssignmentOperation` after it. A
     # modifier before a lone `=` is that key, not a modifier.
-    # A key written `name: value` is the property it means, its `:` invalid
-    # (`LuauPropertyColonAssignment`), when no name or comment begins the
-    # value (`LUAU_DEFINE_KEY_COLON`); `a: b` is left to Luau's reading.
     begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|\[[^\]\r\n]*\]{{WS}}*{{LUAU_DEFINE_KEY_COLON}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
     beginCaptures:
       1:
@@ -5617,7 +5603,6 @@ repository:
       - { include: "#LuauPropertyColonAssignment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauAssignmentOperation" }
-      # The `: value` after a reserved-word or bracketed key.
       - { include: "#LuauPropertyColonOperation" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
@@ -5627,9 +5612,6 @@ repository:
   # any computed key); the value is a normal assignment RHS. Used ONLY inside
   # LuauPropertyDefinition (define bodies) — general statements keep the strict
   # identifier-keyed LuauVariableAssignment.
-  # A define-body property written `name: value`: the property it means, with
-  # its `:` invalid, so the error stands on the colon alone and the value is
-  # read as the value of `name = value`.
   LuauPropertyColonAssignment:
     # lookaround: `LuauVariableAssignment` reads the same name before an `=`, after this rule in `LuauPropertyDefinition`; the `:` stays unconsumed for `LuauPropertyColonOperation`, which reads it with its own captures.
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:]{{WS}})
@@ -5644,8 +5626,6 @@ repository:
       - { include: "#LuauPropertyColonOperation" }
     end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|{{LUAU_AT_LATER_LINE_TOKEN}}
 
-  # The `: value` of `LuauPropertyColonAssignment`: `LuauAssignmentOperation`
-  # with the colon in the operator's place.
   LuauPropertyColonOperation:
     begin: ({{WS}}*)([:])({{WS}}*)
     beginCaptures:
@@ -7292,10 +7272,6 @@ repository:
   # struct bodies and `LuauSparkleElement` in layout bodies, and its begin
   # would still have to look for the brace, as `LuauStructBlock`'s
   # `(?=[{])` does.
-  # A property written `key: value` reads as the property it means, with its
-  # `:` invalid, so the error stands on the colon alone and the body keeps the
-  # field. The colon takes whitespace after it, which leaves `a:b` labels and
-  # URLs to the list value.
   LuauStructBlockProperty:
     match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}}|{{WS}}*[:]{{WS}}+)(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
     captures:
@@ -12920,9 +12896,7 @@ repository:
     # followed by a method name and its arguments stays a method call, with
     # block comments before the arguments too (`t:m --[[c]] ()`). A `:` that
     # a header's `do` or `then` follows on its line ends the path, so the
-    # rule around it reads the `:` (`LUAU_COLON_BEFORE_HEADER_END`). So does
-    # a `:` that no name follows (`{ speed: 2 }`), which no part of the path
-    # reads (`LUAU_COLON_BEFORE_NO_NAME`).
+    # rule around it reads the `:` (`LUAU_COLON_BEFORE_HEADER_END`).
     end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{WS}}*{{LUAU_COLON_BEFORE_NO_NAME}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
@@ -13550,9 +13524,6 @@ repository:
           - { include: "#LuauStdLibGlobals" }
           - { include: "#LuauVariableName" }
 
-  # A `:` and a name that no call follows (`t:m`, `{ speed: bend }`): Luau
-  # reads the name as a method's, whose arguments are missing, so it is read
-  # as one rather than as a property.
   LuauMethodNameAccessor:
     match: ({{WS}}*)({{LUAU_SINGLE_COLON}})({{WS}}*)({{LUAU_IDENTIFIER}})
     captures:
@@ -14342,7 +14313,6 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauTableIndexDeclaration" }
-      # Before the expression, whose type annotation would read the `:`.
       - { include: "#LuauTableMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -14358,10 +14328,6 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # A `:` in a table that no method call took (`{ speed: 2 }`,
-  # `{ speed: bend }`): Luau reads it as a method access on the value before
-  # it, and a name after it as the method's name, so they read so here too.
-  # A table has no `name: value` field; its fields are written with `=`.
   LuauTableMethodColon:
     match: ({{WS}}*)({{LUAU_SINGLE_COLON}})({{WS}}*)({{LUAU_IDENTIFIER}})?
     captures:

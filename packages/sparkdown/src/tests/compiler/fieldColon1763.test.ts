@@ -1,8 +1,3 @@
-// I-1763 — a field written `name: value` in a `define`, `style`, `layout`,
-// `animation`, `theme` or `morph` body is reported once, on its colon, in
-// the wording of Luau's parser for the `=` it expected, and the body keeps
-// the field: the line reads as the property it means.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { ProgramStory } from "../../program/ProgramStory";
