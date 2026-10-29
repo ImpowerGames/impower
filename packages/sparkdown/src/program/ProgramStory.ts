@@ -861,7 +861,6 @@ export class ProgramStory implements StoryEngine {
   protected restoreInPlace(image: ProgramImage, translate = true): boolean {
     // As a load of a state's JSON, a restore runs between the steps of an
     // asynchronous continue, which a route search drives.
-    this._entering = null;
     this.enableImages();
     if (
       !restoreImage(
@@ -1363,7 +1362,6 @@ export class ProgramStory implements StoryEngine {
     // A state loaded in place (`LoadJson`, a route search's port) stands
     // at no beat this engine took.
     this._state.onBeginLoad = () => {
-      this._entering = null;
       this._currentBeat = null;
       this.ownDeclarations();
       // The load writes what it reads by paths no table barrier hears, so
@@ -1397,11 +1395,11 @@ export class ProgramStory implements StoryEngine {
     const place = start === undefined ? undefined : this.root.place(start);
     if (place) {
       this.land(place, [], 0);
-      this._entering = start!;
+      this._start = { symbol: start!, ...place };
     } else {
       const root = this.root.flowNamed(ROOT_FLOW_NAME);
       this._state.position = root ? { sequence: root, entry: 0, offset: 0 } : null;
-      this._entering = null;
+      this._start = null;
     }
     if (this._imagesOn) {
       this.attachImages();
@@ -1513,7 +1511,6 @@ export class ProgramStory implements StoryEngine {
     // stack is reset, as the object engine's `ChoosePath` counted them from
     // its thread's previous pointer after the turn it started.
     const left = resetCallstack ? -1 : this._state.previousFlow;
-    this._entering = null;
     if (resetCallstack) {
       this.ResetCallstack();
     }
@@ -2521,11 +2518,18 @@ export class ProgramStory implements StoryEngine {
    *  with a `done`. */
   Step(): void {
     const state = this._state;
-    if (this._entering !== null && state.position) {
-      const start = this._entering;
-      this._entering = null;
-      this.countEntered(state.position.sequence, -1);
-      this.enterStart(start, state.position.sequence);
+    const start = this._start;
+    const at = state.position;
+    if (
+      start &&
+      at &&
+      at.sequence === start.sequence &&
+      at.entry === start.entry &&
+      at.offset === start.offset &&
+      state.VisitCount(this.countId(start.symbol)) === 0
+    ) {
+      this.countEntered(at.sequence, -1);
+      this.enterStart(start.symbol, at.sequence);
     }
     const position = state.position;
     if (!position) {
@@ -4073,7 +4077,12 @@ export class ProgramStory implements StoryEngine {
     return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
   }
 
-  protected _entering: number | null = null;
+  protected _start: {
+    symbol: number;
+    sequence: SequenceRow;
+    entry: number;
+    offset: number;
+  } | null = null;
 
   protected placeName(
     path: string,

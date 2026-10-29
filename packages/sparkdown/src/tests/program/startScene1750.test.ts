@@ -89,6 +89,84 @@ describe("the start of the story", () => {
     });
     expect(beatsOf(story)).toEqual(["Inner 4.\n", "Outer 2.\n"]);
   });
+
+  const branchFirst = {
+    [MAIN]: lines(
+      "function helper() return 7 end",
+      "scene start",
+      "  branch opening",
+      "    The opening, {count.visits(-> start)}.",
+      "  end",
+      "end",
+    ),
+  };
+
+  it("still enters start after a save of the state before its first step", () => {
+    const plain = storyOf(counted);
+    quiet(() => plain.toSave());
+    expect(beatsOf(plain)).toEqual(["Visits 1, turns 0.\n"]);
+    const story = storyOf(branchFirst);
+    quiet(() => story.toSave());
+    expect(beatsOf(story)).toEqual(["The opening, 1.\n"]);
+  });
+
+  it("enters start from a load of a save of the state before its first step", () => {
+    for (const texts of [counted, branchFirst]) {
+      const save = quiet(() => storyOf(texts).toSave());
+      const story = storyOf(texts);
+      quiet(() => story.loadSave(save));
+      expect(beatsOf(story)).toEqual(
+        texts === counted ? ["Visits 1, turns 0.\n"] : ["The opening, 1.\n"],
+      );
+    }
+  });
+
+  it("still enters start after the host evaluates a function before its first step", () => {
+    const story = storyOf(branchFirst);
+    expect(quiet(() => story.EvaluateFunction("helper"))).toBe(7);
+    expect(beatsOf(story)).toEqual(["The opening, 1.\n"]);
+  });
+});
+
+describe("a top-level declaration after a scene", () => {
+  it("writes a member function with the declarations, not in the scene above it", () => {
+    const story = storyOf({
+      [MAIN]: lines(
+        "store api = {}",
+        "scene unused",
+        "  Unused.",
+        "end",
+        "function api.f() return 3 end",
+        "scene start",
+        "  Answer {api.f()}.",
+        "end",
+      ),
+    });
+    expect(beatsOf(story)).toEqual(["Answer 3.\n"]);
+  });
+
+  it("writes another script's member function after a scene with the declarations", () => {
+    const story = storyOf({
+      [MAIN]: lines("store api = {}", "scene start", "  Answer {api.f()}.", "end"),
+      [OTHER]: lines("scene unused", "  Unused.", "end", "function api.f() return 3 end"),
+    });
+    expect(beatsOf(story)).toEqual(["Answer 3.\n"]);
+  });
+});
+
+describe("a const function at the top level of a Luau file the story starts from", () => {
+  it("reads the file's locals", () => {
+    const LUAU = `${ROOT}main.luau`;
+    const { program } = quiet(() =>
+      programCompiler({
+        [LUAU]: lines("local n = 7", "const function f() return n end", "result = f()"),
+      }).compile(LUAU),
+    );
+    expect(errorsOf(program)).toEqual([]);
+    const story = new ProgramStory(program.chunks!);
+    expect(quiet(() => storyRun(story)).errors).toEqual([]);
+    expect((story.variablesState as any).$("result")).toBe(7);
+  });
 });
 
 describe("a top-level run", () => {

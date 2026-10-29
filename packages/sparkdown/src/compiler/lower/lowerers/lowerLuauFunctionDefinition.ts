@@ -1,4 +1,5 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { hasLuauExtension } from "../../utils/projectMembership";
 import { type SyntaxNode } from "@lezer/common";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -110,7 +111,11 @@ export function lowerLuauFunctionDefinition(
     return lowerNestedNamedFunction(func, node, identifier, ctx, enclosingScope, isLocal);
   }
 
-  if (stat instanceof AstStatLocalFunction && !stat.isConst && ctx.hoistedKnots) {
+  if (
+    stat instanceof AstStatLocalFunction &&
+    ctx.hoistedKnots &&
+    (!stat.isConst || hasLuauExtension(ctx.filePath ?? ""))
+  ) {
     return lowerNestedNamedFunction(func, node, identifier, ctx, ctx.hoistedKnots, true);
   }
 

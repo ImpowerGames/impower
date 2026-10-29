@@ -3039,7 +3039,7 @@ export class SparkdownCompiler {
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
-      const hoisted = !!run && declares === true;
+      const hoisted = declares === true;
       // A layout or component is declared in one script: one a script
       // other than the first to declare it declares again is reported in
       // both and left out, and the first declaration stands. Within one
