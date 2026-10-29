@@ -107,13 +107,20 @@ function duplicates(file, key, root, state) {
   return found;
 }
 
+export function judgedRecords(records) {
+  return records.filter((record) => record.status !== "removed" && codeFile(record.filename) && !exemptPath(record.filename));
+}
+
+export function needsCheck(records, limit = LISTING_LIMIT) {
+  return records.length >= limit || judgedRecords(records).length > 0;
+}
+
 export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT }) {
   const findings = [], problems = [], scanners = new Set();
   const state = {};
   const truncated = records.length >= limit;
-  for (const record of records) {
+  for (const record of judgedRecords(records)) {
     const file = record.filename;
-    if (record.status === "removed" || !codeFile(file) || exemptPath(file)) continue;
     let text;
     try {
       text = fs.readFileSync(path.join(root, file), "utf8");
@@ -195,8 +202,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   const filesPath = option("--files");
   if (!filesPath) {
-    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--merge-base <sha>] [--root <checkout>] [--limit <n>]");
+    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--detect | --merge-base <sha> [--root <checkout>]] [--limit <n>]");
     process.exit(2);
+  }
+  const limit = Number(option("--limit") ?? LISTING_LIMIT);
+  if (args.includes("--detect")) {
+    const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));
+    const judged = judgedRecords(records).map((r) => r.filename);
+    console.log(`${records.length} changed file(s); ${judged.length} the comment rule judges`);
+    for (const file of judged) console.log(`  ${file}`);
+    if (records.length >= limit) console.log(`The listing may be incomplete at ${limit} files; the check runs and fails on it`);
+    const line = `relevant=${needsCheck(records, limit)}`;
+    console.log(line);
+    if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, line + "\n");
+    process.exit(0);
   }
   const root = path.resolve(option("--root") ?? process.cwd());
   if (process.env.COMMENT_POLICY_REQUIRE_TYPESCRIPT === "1" && !loadTypescript(root)) {
@@ -204,7 +223,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   }
   const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));
-  const result = checkComments({ root, records, mergeBase: option("--merge-base"), limit: Number(option("--limit") ?? LISTING_LIMIT) });
+  const result = checkComments({ root, records, mergeBase: option("--merge-base"), limit });
   const report = formatReport(result);
   console.log(report);
   for (const f of result.findings) console.log(`::error file=${f.file},line=${f.line},endLine=${f.endLine}::${escapeAnnotation(f.reasons.join("; "))}`);

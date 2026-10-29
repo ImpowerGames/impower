@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { baseFromPatch, checkComments, LISTING_LIMIT, parsePatch } from "./check-comments.mjs";
+import { baseFromPatch, checkComments, LISTING_LIMIT, needsCheck, parsePatch } from "./check-comments.mjs";
 import { loadTypescript } from "../../.agents/hooks/comment-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -162,6 +162,25 @@ try {
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/comment-check.yml"), "utf8");
   assert.match(workflow, /compare\/\$BASE_SHA\.\.\.\$HEAD_SHA" --jq '\.merge_base_commit\.sha'/, "the workflow takes the merge base the files endpoint diffs against");
   assert.match(workflow, /--merge-base "\$MERGE_BASE"/, "the workflow passes that merge base to the script");
+  assert.match(workflow, /check-comments\.mjs --files "\$RUNNER_TEMP\/pull-request-files\.json" --detect/, "the workflow decides whether to run the check with the classifier's own file types");
+  assert.match(workflow, /if: needs\.changes\.outputs\.relevant == 'true'/);
+  assert.doesNotMatch(workflow, /changed-paths/, "no second list of code file types routes the check");
+
+  const file = (filename, status = "modified") => ({ filename, status });
+  for (const name of ["src/theme.CSS", "src/a.TS", "scripts/run.Sh", "src/page.Html", "config.YML"]) assert.equal(needsCheck([file(name)]), true, `${name} is a code file whatever its extension's case`);
+  assert.equal(needsCheck([file("README.md"), file("docs/a.sd")]), false, "a pull request that changes no code file skips the check");
+  assert.equal(needsCheck([file("packages/sparkdown/src/inkjs/Story.ts"), file("impower-app/src/a.tsx")]), false, "a pull request confined to exempt paths skips the check");
+  assert.equal(needsCheck([file("src/a.ts", "removed")]), false, "a pull request that only deletes code adds no comment");
+  assert.equal(needsCheck(Array.from({ length: LISTING_LIMIT }, (_, k) => file(`docs/page-${k}.md`))), true, "a listing at the cap runs the check, which fails on it");
+  const output = path.join(tempDir("check-comments-output-"), "output");
+  const detectListing = path.join(tempDir("check-comments-detect-listing-"), "files.json");
+  for (const [files, expected] of [[[file("src/theme.CSS")], "true"], [[file("README.md")], "false"]]) {
+    fs.writeFileSync(detectListing, JSON.stringify(files));
+    fs.writeFileSync(output, "");
+    const detect = spawnSync(process.execPath, [script, "--files", detectListing, "--detect"], { cwd: tempDir("check-comments-detect-"), encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_OUTPUT: output, COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
+    assert.equal(detect.status, 0, detect.stdout + detect.stderr);
+    assert.equal(fs.readFileSync(output, "utf8"), `relevant=${expected}\n`, `--detect writes relevant=${expected} for ${files[0].filename}`);
+  }
 
   if (typescript) assert.ok(result.scanners.has(`TypeScript ${typescript.version}`), [...result.scanners].join(", "));
 

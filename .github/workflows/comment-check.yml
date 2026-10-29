@@ -14,21 +14,32 @@ permissions:
 
 jobs:
   changes:
-    uses: ./.github/workflows/changed-paths.yml
-    with:
-      patterns: |
-        **/*.ts
-        **/*.tsx
-        **/*.js
-        **/*.mjs
-        **/*.cjs
-        **/*.css
-        **/*.html
-        **/*.yaml
-        **/*.yml
-        **/*.sh
-        **/*.ps1
-        **/*.py
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      relevant: ${{ steps.detect.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            /.github/scripts/check-comments.mjs
+            /.agents/hooks/comment-policy.mjs
+            /.agents/hooks/comment-policy.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: List the pull request's files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files?per_page=100" --paginate --slurp \
+            | jq '[.[][]]' > "$RUNNER_TEMP/pull-request-files.json"
+      - name: Decide whether any changed file is one the comment rule judges
+        id: detect
+        run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --detect
 
   comments:
     needs: changes
