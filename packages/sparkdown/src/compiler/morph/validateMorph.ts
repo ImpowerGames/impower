@@ -8,6 +8,7 @@ import {
   MORPH_CONTAINER_FIELDS,
   MORPH_DIRECTIONS,
   MORPH_FALLBACKS,
+  MORPH_LAYER_FIELDS,
   MORPH_LAYER_PROPERTIES,
   MORPH_LITERAL_LIST_KEYS,
   MORPH_METHODS,
@@ -17,6 +18,7 @@ import {
   MORPH_TIMING_FIELDS,
   easingProblem,
   parseMorphDepth,
+  parseMorphPartner,
   parseMorphQualifiedState,
   parseMorphSpan,
 } from "./morphSchema";
@@ -46,6 +48,7 @@ const HOME: Record<string, string> = {};
 for (const f of MORPH_TIMING_FIELDS) HOME[f] = "in `timing { … }`";
 for (const f of MORPH_POLICY_FIELDS)
   HOME[f] = "at the morph root or under a label in `layers { … }`";
+for (const f of MORPH_LAYER_FIELDS) HOME[f] = "under a label in `layers { … }`";
 for (const f of MORPH_CONTAINER_FIELDS)
   HOME[f] = "in a keyframe container such as `eyes { … }`";
 for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips { … }` entry";
@@ -58,7 +61,7 @@ HOME["offset"] = "directly in a keyframe";
 const ALLOWED: Record<Where, readonly string[]> = {
   root: MORPH_ROOT_FIELDS,
   timing: MORPH_TIMING_FIELDS,
-  layer: MORPH_POLICY_FIELDS,
+  layer: [...MORPH_POLICY_FIELDS, ...MORPH_LAYER_FIELDS],
   keyframe: ["offset"],
   container: MORPH_CONTAINER_FIELDS,
   clip: MORPH_CLIP_FIELDS,
@@ -149,6 +152,29 @@ function depthProblem(value: unknown, driven: Map<string, string[]>): string | n
   }
   return null;
 }
+
+const PARTNER_FORMS = "such as `partner = eyelash-left` or `partner = { eyeball-shadow-left; eyelash-left }`";
+
+function partnerFormProblem(value: unknown): { item?: number; message: string } | null {
+  if (parseMorphPartner(value)) return null;
+  const empty = (Array.isArray(value) && value.length === 0) || (isRecord(value) && Object.keys(value).length === 0) || value === "";
+  if (empty) return { message: `\`partner\` needs at least one label, ${PARTNER_FORMS}.` };
+  const item = Array.isArray(value) ? value.findIndex((label) => typeof label !== "string" || label.trim() === "") : -1;
+  return { ...(item >= 0 ? { item } : {}), message: `\`partner\` names a label or a list of labels, ${PARTNER_FORMS}.` };
+}
+
+function edgeLabels(morph: Record<string, unknown> | null): Set<string> {
+  const edges = new Set<string>();
+  const clips = morph?.["clips"];
+  for (const clip of Array.isArray(clips) ? clips : []) {
+    const between = isRecord(clip) ? clip["between"] : undefined;
+    for (const label of Array.isArray(between) ? between : []) if (typeof label === "string") edges.add(label);
+  }
+  return edges;
+}
+
+const partnerEdgeProblem = (label: string) =>
+  `\`${label}\` forms an aperture in \`clips\`, so it cannot take a partner: an aperture edge pairs by its own label.`;
 
 const PAINT_ENTRY =
   "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
@@ -368,6 +394,29 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
+  const edges = edgeLabels(decl.effective);
+  const checkPartner = (label: string, policy: Record<string, unknown>) => {
+    const value = policy["partner"];
+    const list = Array.isArray(value) ? value : undefined;
+    const itemSpan = (i: number) => (list ? (src(list)?.itemValues[i] ?? src(list)?.items[i]) : valueSpan(policy, "partner"));
+    const problem = partnerFormProblem(value);
+    if (problem) {
+      push(problem.item === undefined ? keySpan(policy, "partner") : itemSpan(problem.item), problem.message);
+      return;
+    }
+    if (edges.has(label)) {
+      push(keySpan(policy, "partner"), partnerEdgeProblem(label));
+      return;
+    }
+    const labels = parseMorphPartner(value)!;
+    if (labels.every((l) => l === label)) {
+      push(itemSpan(0), `\`partner\` names only \`${label}\` itself, which pairs by name just as leaving \`partner\` out does.`, "warning");
+    }
+    labels.forEach((l, i) => {
+      if (labels.indexOf(l) < i) push(itemSpan(i), `\`${l}\` is listed twice in \`partner\`; its first mention sets its rank.`, "warning");
+    });
+  };
+
   const own = decl.own.struct;
   checkFields(own, "root");
   checkPolicy(own);
@@ -383,7 +432,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
-          if (colonFields(policy, MORPH_POLICY_FIELDS)) continue;
+          if (colonFields(policy, ALLOWED.layer)) continue;
           push(
             src(layers)?.lines.get(label),
             `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
@@ -392,6 +441,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         }
         checkFields(policy, "layer");
         checkPolicy(policy);
+        if ("partner" in policy) checkPartner(label, policy);
       }
     }
   }
@@ -659,6 +709,15 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
+  const parentEdges = edgeLabels(decl.parentEffective);
+  if (isRecord(effectiveLayers)) {
+    for (const [label, policy] of Object.entries(effectiveLayers)) {
+      const written = ownLayers[label];
+      if (!isRecord(policy) || !("partner" in policy) || !edges.has(label) || (isRecord(written) && "partner" in written)) continue;
+      if (parentEdges.has(label) && valueAt(decl.parentEffective, `layers.${label}.partner`) !== undefined) continue;
+      push(decl.parent, `\`layers.${label}.partner\`, inherited: ${partnerEdgeProblem(label)}`);
+    }
+  }
   for (const field of inherited) {
     const value = valueAt(effective, field);
     if (value === undefined || depthFormProblem(value)) continue;
@@ -744,7 +803,10 @@ export function morphValueProblems(
   const layers = struct["layers"];
   if (isRecord(layers)) {
     for (const [label, value] of Object.entries(layers)) {
-      if (isRecord(value)) policy(value, `layers.${label}.`);
+      if (!isRecord(value)) continue;
+      policy(value, `layers.${label}.`);
+      const problem = "partner" in value ? partnerFormProblem(value["partner"]) : null;
+      if (problem) problems.push({ field: `layers.${label}.partner`, message: problem.message });
     }
   }
   const timing = struct["timing"];

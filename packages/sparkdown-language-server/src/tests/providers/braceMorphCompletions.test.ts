@@ -171,7 +171,32 @@ end
   }
 end
 `),
-    ).toEqual(["blend", "method", "fallback", "depth"]);
+    ).toEqual(["blend", "method", "fallback", "depth", "partner"]);
+  });
+
+  test("`partner` under a label offers the candidate artwork's labels in its value", () => {
+    const keyframes = "  keyframes {\n    from { eyes { state = open } }\n  }\n";
+    for (const value of ["partner = |", "partner = { eye| }", "partner { eye| }", "partner {\n        pupil-left\n        eye|\n      }"]) {
+      const labels = labelsAt(`morph blink with
+  layers {
+    pupil-left {
+      ${value}
+    }
+  }
+${keyframes}end
+`);
+      expect(labels, value).toEqual(expect.arrayContaining(["eyelash-left", "pupil-left", "creases"]));
+      expect(labels, value).not.toContain("leaves");
+    }
+    const item = itemAt(`morph blink with
+  layers { pupil-left { partner = | } }
+${keyframes}end
+`, "eyelash-left");
+    expect(insertedText(item)).toBe("eyelash-left");
+    expect(itemAt(`morph blink with
+  layers { pupil-left { | } }
+end
+`, "partner").documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("priority order") }));
   });
 
   test("a `=` typed without a space gets one before the value", () => {

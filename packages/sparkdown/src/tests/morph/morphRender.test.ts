@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
 import type { MorphArtifact, MorphRecipe } from "../../morph/types";
-import { aperturePathData, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
+import { aperturePathData, morphFrameState, morphPosesAt, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink, CLOSED, LOWER_OPEN, MASKED_VARIANTS, maskedBlink, maskedPortrait, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, LOWER_OPEN, MASKED_VARIANTS, maskedBlink, maskedPortrait, partnerPortrait, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -446,6 +446,68 @@ ${TORSO}
     const disabled = bakeMorphArtifact({ source: portrait(), selection: { eyes: "closed" }, recipe: blink(), key: "k2" });
     expect(disabled.status).toBe("static");
     expect(renderMorphFrame(disabled, { segment: 0, progress: 0.5 })).toBe(disabled.rest);
+  });
+});
+
+describe("a drawing carried in its partner's shape", () => {
+  const recipe = (start: string, other: string) =>
+    buildMorphRecipe("blink", {
+      blend: "morph",
+      method: "bend",
+      fallback: "fade",
+      layers: { "eyeball-shadow-left": { partner: "eyelash-left" } },
+      keyframes: [
+        { offset: 0, eyes: { state: start } },
+        { offset: 0.3, eyes: { state: other } },
+        { offset: 0.6, eyes: { state: other } },
+        { offset: 1, eyes: { state: start } },
+      ],
+      clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
+    });
+  const carried = bakeMorphArtifact({ source: partnerPortrait(), selection: {}, recipe: recipe("open", "closed"), key: "carried", variant: "open" });
+  const shadowNode = (artifact: MorphArtifact) => {
+    const leaf = elements(artifact.parts.filter((p) => p.kind === "live").map((p) => p.svg).join("")).find((e) => e.attributes["data-name"] === "eyeball-shadow-left")!;
+    return leaf.attributes["data-morph"]!;
+  };
+  const drawn = (svg: string, node: string) => shown(elements(svg)).filter((e) => e.attributes["data-morph"] === node);
+
+  test("at the end of the closing, while the closed pose holds and at the start of the opening, the shadow draws as its arrival frame in its own paint", () => {
+    expect(carried.diagnostics).toEqual([]);
+    const shadow = shadowNode(carried);
+    const arrival = carried.segments[0]!.carry!.to![shadow]!;
+    expect(morphPosesAt(carried, 0.45)).toEqual({ eyes: { state: "closed", last: 0 } });
+    for (const offset of [0.3, 0.45, 0.6]) {
+      const state = morphFrameState(carried, morphPosesAt(carried, offset));
+      expect(state.shown.has(shadow), String(offset)).toBe(true);
+      expect(state.geometry.get(shadow), String(offset)).toBe(arrival);
+      expect(state.paint.has(shadow), String(offset)).toBe(false);
+      const [element] = drawn(renderMorphAt(carried, offset), shadow);
+      expect(element?.attributes["d"], String(offset)).toBe(arrival);
+      expect(element?.attributes["fill"], String(offset)).toBe("#ccc");
+    }
+  });
+
+  test("away from the closed pose the shadow is its own drawing again", () => {
+    const shadow = shadowNode(carried);
+    for (const offset of [0, 1]) {
+      const state = morphFrameState(carried, morphPosesAt(carried, offset));
+      expect(state.shown.has(shadow)).toBe(true);
+      expect(state.geometry.has(shadow)).toBe(false);
+    }
+  });
+
+  test("a variant resting at the partner's pose draws no carried shadow at rest", () => {
+    const resting = bakeMorphArtifact({ source: partnerPortrait(), selection: { eyes: "closed" }, recipe: recipe("closed", "open"), key: "resting", variant: "closed" });
+    expect(resting.status).toBe("live");
+    expect(resting.diagnostics).toEqual([]);
+    const shadow = shadowNode(resting);
+    for (const offset of [0, 1]) {
+      const state = morphFrameState(resting, morphPosesAt(resting, offset));
+      expect(state.shown.has(shadow), String(offset)).toBe(false);
+      expect([...state.geometry.keys()], String(offset)).toEqual([]);
+      expect(drawn(renderMorphAt(resting, offset), shadow), String(offset)).toEqual([]);
+    }
+    expect(morphFrameState(resting, morphPosesAt(resting, 0.45)).shown.has(shadow)).toBe(true);
   });
 });
 

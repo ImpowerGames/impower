@@ -8,6 +8,7 @@ import {
   MORPH_METHODS,
   MORPH_PAINT_SPAN_DEFAULT,
   parseMorphDepth,
+  parseMorphPartner,
   parseMorphQualifiedState,
   parseMorphSpan,
 } from "../compiler/morph/morphSchema";
@@ -36,6 +37,13 @@ const policyOf = (struct: Record<string, unknown>): MorphPolicy => {
   if (fallback) policy.fallback = fallback;
   if (parseMorphDepth(struct["depth"])) policy.depth = struct["depth"] as string;
   return policy;
+};
+
+const partnerOf = (label: string, entry: Record<string, unknown>, edges: ReadonlySet<string>): string[] | undefined => {
+  const list = parseMorphPartner(entry["partner"]);
+  if (!list || edges.has(label)) return undefined;
+  const distinct = [...new Set(list)];
+  return distinct.every((l) => l === label) ? undefined : distinct;
 };
 
 const labels = (list: unknown): string[] =>
@@ -74,12 +82,18 @@ const paintEntryOf = (entry: Record<string, unknown>): MorphPaintEntry | undefin
  */
 export function buildMorphRecipe(name: string, morph: Record<string, unknown>): MorphRecipe {
   const root = policyOf(morph);
+  const edges = new Set<string>();
+  for (const clip of Array.isArray(morph["clips"]) ? morph["clips"] : []) {
+    if (isRecord(clip)) for (const label of labels(clip["between"])) edges.add(label);
+  }
   const layers: Record<string, MorphPolicy> = table();
   if (isRecord(morph["layers"])) {
     for (const label of Object.keys(morph["layers"]).sort()) {
       const entry = morph["layers"][label];
       if (!isRecord(entry)) continue;
       const policy = policyOf(entry);
+      const partner = partnerOf(label, entry, edges);
+      if (partner) policy.partner = partner;
       if (Object.keys(policy).length > 0) layers[label] = policy;
     }
   }
