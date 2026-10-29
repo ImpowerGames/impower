@@ -24,7 +24,7 @@
 // unblended. Reading less than a browser does is safe; reading something
 // differently is not.
 
-import { IDENTITY, parseTransform, type Affine } from "./affine";
+import { parseTransform, type Affine } from "./affine";
 import { own } from "./own";
 import { stopColor } from "./paint";
 import { gradientAttributes } from "./render";
@@ -44,7 +44,6 @@ const GEOMETRY: Record<MorphGradient["kind"], [string, string | undefined][]> = 
 
 const NUMBER = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/;
 const WSP = /^[ \t\n\r]+|[ \t\n\r]+$/g;
-const TRANSFORMS = new Set(["matrix", "translate", "scale", "rotate", "skewX", "skewY"]);
 const REFERENCE = /^#([A-Za-z0-9_.-]+)$/;
 
 const elementsOf = (element: Element): Element[] =>
@@ -71,23 +70,6 @@ const fraction = (text: string): { value: number; percent: boolean } | undefined
 
 /** A `gradientTransform` in the grammar, or undefined. */
 export function readGradientTransform(text: string): Affine | undefined {
-  let rest = text.replace(WSP, "");
-  if (!rest) return IDENTITY;
-  let first = true;
-  while (rest) {
-    if (!first) {
-      const separator = /^(?:[ \t\n\r]*,[ \t\n\r]*|[ \t\n\r]+)/.exec(rest);
-      if (!separator) return undefined;
-      rest = rest.slice(separator[0].length);
-    }
-    first = false;
-    const call = /^([A-Za-z]+)[ \t\n\r]*\(([^()]*)\)/.exec(rest);
-    if (!call || !TRANSFORMS.has(call[1]!)) return undefined;
-    const args = call[2]!.replace(WSP, "");
-    if (!args || !args.split(/[ \t\n\r]*,[ \t\n\r]*|[ \t\n\r]+/).every((arg) => NUMBER.test(arg))) return undefined;
-    rest = rest.slice(call[0].length);
-  }
-  // Validated, so the lenient parser reads exactly these numbers.
   const matrix = parseTransform(text);
   return matrix && gradientNumbers(matrix) ? matrix : undefined;
 }
