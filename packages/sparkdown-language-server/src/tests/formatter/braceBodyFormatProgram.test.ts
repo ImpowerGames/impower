@@ -69,7 +69,7 @@ function program(text: string) {
 describe("formatting a brace body keeps its program", () => {
   test("the brace-body fixtures are all here", () => {
     // A canonical and a messy fixture for each of the ten brace bodies.
-    expect(FIXTURES.length).toBe(20);
+    expect(FIXTURES.length).toBe(21);
   });
 
   for (const file of FIXTURES) {
