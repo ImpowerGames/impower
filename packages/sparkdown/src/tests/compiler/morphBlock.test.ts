@@ -1511,6 +1511,33 @@ end
     expect(found[0]!.message).toContain(message);
   });
 
+  test("a child whose clip makes an inherited partner's label an aperture edge is reported on its `as`, and loses the partner", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }", "", "")}
+morph child as m with
+  clips {
+    { between { eyelash-left }; targets { pupil-left } }
+  }
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([
+      expect.objectContaining({ text: "m", message: "`layers.eyelash-left.partner`, inherited: `eyelash-left` forms an aperture in `clips`, so it cannot take a partner: an aperture edge pairs by its own label." }),
+    ]);
+    expect(found[0]!.line).toBeGreaterThan(10);
+    expect(recipeOf(text, "child").layers["eyelash-left"]).toBeUndefined();
+  });
+
+  test("a parent's own partner on its aperture edge is reported once, where it is written", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }")}
+morph child as m with
+  fallback = cut
+end
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([expect.objectContaining({ text: "partner", message: expect.stringContaining("forms an aperture in `clips`") })]);
+    expect(found[0]!.line).toBeLessThan(10);
+  });
+
   test("a rejected value leaves `partner` out of the recipe", () => {
     expect(recipeOf(PARTNERED("eyeball-shadow-left { partner { eyelash-left = 2 } }")).layers["eyeball-shadow-left"]).toBeUndefined();
     expect(recipeOf(PARTNERED("eyelash-left { partner = eyeball-shadow-left }")).layers["eyelash-left"]).toBeUndefined();

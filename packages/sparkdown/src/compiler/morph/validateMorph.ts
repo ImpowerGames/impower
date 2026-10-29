@@ -163,6 +163,19 @@ function partnerFormProblem(value: unknown): { item?: number; message: string } 
   return { ...(item >= 0 ? { item } : {}), message: `\`partner\` names a label or a list of labels, ${PARTNER_FORMS}.` };
 }
 
+function edgeLabels(morph: Record<string, unknown> | null): Set<string> {
+  const edges = new Set<string>();
+  const clips = morph?.["clips"];
+  for (const clip of Array.isArray(clips) ? clips : []) {
+    const between = isRecord(clip) ? clip["between"] : undefined;
+    for (const label of Array.isArray(between) ? between : []) if (typeof label === "string") edges.add(label);
+  }
+  return edges;
+}
+
+const partnerEdgeProblem = (label: string) =>
+  `\`${label}\` forms an aperture in \`clips\`, so it cannot take a partner: an aperture edge pairs by its own label.`;
+
 const PAINT_ENTRY =
   "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
 
@@ -379,12 +392,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
-  const edges = new Set<string>();
-  const effectiveClips = decl.effective["clips"];
-  for (const clip of Array.isArray(effectiveClips) ? effectiveClips : []) {
-    const between = isRecord(clip) ? clip["between"] : undefined;
-    for (const label of Array.isArray(between) ? between : []) if (typeof label === "string") edges.add(label);
-  }
+  const edges = edgeLabels(decl.effective);
   const checkPartner = (label: string, policy: Record<string, unknown>) => {
     const value = policy["partner"];
     const list = Array.isArray(value) ? value : undefined;
@@ -395,7 +403,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       return;
     }
     if (edges.has(label)) {
-      push(keySpan(policy, "partner"), `\`${label}\` forms an aperture in \`clips\`, so it cannot take a partner: an aperture edge pairs by its own label.`);
+      push(keySpan(policy, "partner"), partnerEdgeProblem(label));
       return;
     }
     const labels = parseMorphPartner(value)!;
@@ -697,6 +705,15 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       if (isRecord(policy) && "depth" in policy && !(isRecord(written) && "depth" in written)) {
         inherited.push(`layers.${label}.depth`);
       }
+    }
+  }
+  const parentEdges = edgeLabels(decl.parentEffective);
+  if (isRecord(effectiveLayers)) {
+    for (const [label, policy] of Object.entries(effectiveLayers)) {
+      const written = ownLayers[label];
+      if (!isRecord(policy) || !("partner" in policy) || !edges.has(label) || (isRecord(written) && "partner" in written)) continue;
+      if (parentEdges.has(label) && valueAt(decl.parentEffective, `layers.${label}.partner`) !== undefined) continue;
+      push(decl.parent, `\`layers.${label}.partner\`, inherited: ${partnerEdgeProblem(label)}`);
     }
   }
   for (const field of inherited) {
