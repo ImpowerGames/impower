@@ -212,6 +212,10 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// value-level: the token carries the flag"), "directive");
     assert.equal(kind("// not a node name"), "directive");
     assert.equal(kind("// not a node name, since it is a global"), "refused");
+    assert.equal(kind("// Luau: LintGlobalAsLocal / LintSameLineStatement", "src/tests/a.test.ts"), "directive");
+    assert.equal(kind("// Luau:", "src/tests/a.test.ts"), "refused");
+    assert.equal(kind("// Sparkdown-specific", "src/tests/a.test.ts"), "directive");
+    assert.equal(kind("// Sparkdown-specific: the rules about loop ranges", "src/tests/a.test.ts"), "refused");
     assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
     assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
     assert.equal(kind("<!-- prettier-ignore -->", "a.html"), "directive");

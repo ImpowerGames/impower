@@ -14,6 +14,8 @@
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
     { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
+    { "form": "^Luau: \\S", "extensions": [".ts"] },
+    { "form": "^Sparkdown-specific$", "extensions": [".ts"] },
     { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [
