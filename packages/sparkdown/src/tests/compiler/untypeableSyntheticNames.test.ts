@@ -179,11 +179,13 @@ describe("names the compiler generates", () => {
         "store total = 0",
         "store double = function(n) return n * 2 end",
         "",
-        "for i = 1, 3 do total = total + double(i) end",
-        "while total < 20 do total = total + 1 end",
-        "HERO: The loop counted {total} ..",
-        ".. and carried on > to the end.",
-        "Done at {total}.",
+        "scene start",
+        "  for i = 1, 3 do total = total + double(i) end",
+        "  while total < 20 do total = total + 1 end",
+        "  HERO: The loop counted {total} ..",
+        "  .. and carried on > to the end.",
+        "  Done at {total}.",
+        "end",
         "",
       ].join("\n"),
     );
@@ -198,7 +200,7 @@ describe("names the compiler generates", () => {
   // frame shows in a readable form, as a function a statement writes does.
   it("show a binding's evaluator as anonymous in its frame", () => {
     const program = compile(
-      ["layout hud with", '  text "{debug.info(1, \'n\')}"', "end", ""].join("\n"),
+      ["layout hud with", '  text "{debug.info(1, \'n\')}"', "end", "", "scene start", "end", ""].join("\n"),
     );
     expect(errors(program)).toEqual([]);
     const exprId = JSON.stringify(program.sparkle?.layouts?.["hud"]).match(
@@ -221,7 +223,9 @@ describe("names the compiler generates", () => {
       "  return 2",
       "end",
       "",
-      "-> __synth_1",
+      "scene start",
+      "  -> __synth_1",
+      "end",
       "",
       "scene __synth_1",
       "  Hello.",

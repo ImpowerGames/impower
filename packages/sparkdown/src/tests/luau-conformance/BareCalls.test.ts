@@ -1,6 +1,6 @@
 // Verifies that statement-level function calls work inside function
 // bodies WITHOUT the `&` discard-prefix. Per sparkdown's promised
-// semantics: outside functions, top-level Luau statements require the
+// semantics: outside functions, Luau statements require the
 // `&` prefix; inside function bodies, bare calls are valid Luau
 // syntax and should fire at runtime.
 
@@ -41,8 +41,10 @@ describe("bare statement-level calls inside function bodies", () => {
   test("bare call fires the bound external", () => {
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(42)
@@ -63,8 +65,10 @@ end
   test("prefixed call still works (regression guard)", () => {
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(99)
@@ -95,8 +99,10 @@ end
     // the call fires correctly.
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3 }

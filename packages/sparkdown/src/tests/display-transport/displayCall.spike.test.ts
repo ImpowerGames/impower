@@ -60,8 +60,10 @@ function field(obj: ObjectValue, key: string): unknown {
 
 describe("SPIKE: display() Luau-call transport", () => {
   test("a display({...}) call carries a structured table, not text", () => {
-    const { story, errors } = compile(`& display({ kind = "text", body = "Hi." })
-done
+    const { story, errors } = compile(`scene start
+  & display({ kind = "text", body = "Hi." })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);
@@ -82,8 +84,10 @@ done
     // The table value is the live number 5, not the string "score" — the
     // interpolation happened before the call, carried as a real value.
     const { story, errors } = compile(`store score = 5
-& display({ kind = "text", value = score })
-done
+scene start
+  & display({ kind = "text", value = score })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);
@@ -96,9 +100,11 @@ done
   test("the beat closes (Continue completes) at the display call", () => {
     // Content follows the display call; the trailing `\n` must end THIS beat
     // there rather than swallowing the next line into the same Continue.
-    const { story, errors } = compile(`& display({ body = "first" })
-& display({ body = "second" })
-done
+    const { story, errors } = compile(`scene start
+  & display({ body = "first" })
+  & display({ body = "second" })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);

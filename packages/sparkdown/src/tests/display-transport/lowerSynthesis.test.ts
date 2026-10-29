@@ -42,7 +42,7 @@ function field(obj: ObjectValue, key: string): unknown {
 
 describe("lowerer synthesis: display() from authored prose", () => {
   test("a plain action line lowers to a display() call", () => {
-    const { story, errors } = run(`The room is quiet.\ndone\n`);
+    const { story, errors } = run(`scene start\n  The room is quiet.\n  done\nend\n`);
     expect(errors).toEqual([]);
     // Structured, no re-parse: the body arrived as a display instruction table.
     const instructions = story.currentDisplayInstructions;
@@ -58,7 +58,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // `text` (a StringExpression over the body), so the table carries the final
     // string — no flat-string re-parse, value carried live (we beat Ren'Py).
     const { story, errors } = run(
-      `store score = 5\nYou have {score} gold.\ndone\n`,
+      `store score = 5\nscene start\n  You have {score} gold.\n  done\nend\n`,
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -69,7 +69,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
   });
 
   test("a dialogue line carries target=dialogue + the character cue", () => {
-    const { story, errors } = run(`HERO: Hello there.\ndone\n`);
+    const { story, errors } = run(`scene start\n  HERO: Hello there.\n  done\nend\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -83,7 +83,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // each beat re-emits the cue as its own display() call (separate Continues
     // via the display-count boundary).
     const { story, errors } = run(
-      `HERO:\n  First part. >\n  Second part.\ndone\n`,
+      `scene start\n  HERO:\n    First part. >\n    Second part.\n  done\nend\n`,
     );
     expect(errors).toEqual([]);
     // Beat 1.
@@ -102,7 +102,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
 
   test("an inline conditional rides the table (evaluated at call time)", () => {
     const { story, errors } = run(
-      `You feel {if 2 > 1 then "great" else "bad"} today.\ndone\n`,
+      `scene start\n  You feel {if 2 > 1 then "great" else "bad"} today.\n  done\nend\n`,
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -116,7 +116,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // the body, so it takes the display() path and the engine's parse() extracts
     // the image directive from the table's text.
     const { story, errors } = run(
-      `define BG as image with\n  src = "x"\nend\nThe sun rises. [[show backdrop BG]]\ndone\n`,
+      `define BG as image with\n  src = "x"\nend\nscene start\n  The sun rises. [[show backdrop BG]]\n  done\nend\n`,
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -130,7 +130,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // A `# tag` is metadata: it rides the table's `tags`, evaluated after the
     // text, and `display` puts it on the stream so it lands in the same
     // step's `currentTags`.
-    const { story, errors } = run(`The bell rings. # ominous\ndone\n`);
+    const { story, errors } = run(`scene start\n  The bell rings. # ominous\n  done\nend\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -142,7 +142,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // `**`/`*` are not structured at compile time — they stay literal chars in
     // the table's `text` and the engine's parse() turns them into styled spans
     // at render.
-    const { story, errors } = run(`This is **bold** here.\ndone\n`);
+    const { story, errors } = run(`scene start\n  This is **bold** here.\n  done\nend\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -156,7 +156,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     ["a transition", "%:", "transitional"],
   ] as const) {
     test(`${label} takes the display() path with target=${target}`, () => {
-      const { story, errors } = run(`${marker} SOME CONTENT\ndone\n`);
+      const { story, errors } = run(`scene start\n  ${marker} SOME CONTENT\n  done\nend\n`);
       expect(errors).toEqual([]);
       const instructions = story.currentDisplayInstructions;
       expect(instructions).toHaveLength(1);
@@ -166,7 +166,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
   }
 
   test("block dialogue takes the display() path with the cue", () => {
-    const { story, errors } = run(`HERO:\n  A block line.\ndone\n`);
+    const { story, errors } = run(`scene start\n  HERO:\n    A block line.\n  done\nend\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -177,7 +177,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
 
   test("an inline sequence alternator rides the table (first pass captured)", () => {
     const { story, errors } = run(
-      `The light {queue|"flickers"|"steadies"} now.\ndone\n`,
+      `scene start\n  The light {queue|"flickers"|"steadies"} now.\n  done\nend\n`,
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
