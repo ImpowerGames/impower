@@ -22,7 +22,6 @@ import {
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
-import { inBlockLocals } from "../utils/blockLocals";
 
 // An `if` statement: `LuauSparkdownIfBlock` in a scene or at the top level,
 // whose arms also hold display lines, and `LuauIfBlock` in Luau code. The
@@ -96,7 +95,7 @@ export function lowerLuauIfBlock(
   );
   ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
   const mainBody = wrapInScope(
-    inBlockLocals(ctx, [], () => lowerStatements(content, ctx, ifBodySkip, mainShape)),
+    lowerStatements(content, ctx, ifBodySkip, mainShape),
   );
   ctx.scopeDepth--;
   branches.push(buildBranch(condExpr, mainBody, false, mainShape));
@@ -128,7 +127,7 @@ export function lowerLuauIfBlock(
     );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(
-      inBlockLocals(ctx, [], () => lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP, shape)),
+      lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP, shape),
     );
     ctx.scopeDepth--;
     branches.push(buildBranch(ecExpr, body, false, shape));
@@ -144,7 +143,7 @@ export function lowerLuauIfBlock(
       endStart,
     );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
-    const body = wrapInScope(inBlockLocals(ctx, [], () => lowerStatements(elseContent, ctx, undefined, shape)));
+    const body = wrapInScope(lowerStatements(elseContent, ctx, undefined, shape));
     ctx.scopeDepth--;
     branches.push(buildBranch(null, body, true, shape));
   }

@@ -23,7 +23,6 @@ import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLua
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { openBody, recordLoop } from "../utils/statementShape";
-import { inBlockLocals } from "../utils/blockLocals";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -150,8 +149,11 @@ export function lowerLuauForLoop(
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
-  const bodyStatements = inBlockLocals(ctx, [loopVarName], () =>
-    lowerStatements(bodyContent, ctx, FOR_BODY_SKIP, body),
+  const bodyStatements = lowerStatements(
+    bodyContent,
+    ctx,
+    FOR_BODY_SKIP,
+    body,
   );
   ctx.loopStack?.pop();
   ctx.scopeDepth--;

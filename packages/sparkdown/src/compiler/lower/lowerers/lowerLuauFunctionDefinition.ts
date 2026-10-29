@@ -39,7 +39,6 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { reportReassignedConst } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
-import { declareBlockLocals } from "../utils/blockLocals";
 
 // `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
 // the body content placed in the Knot's _rootWeave. parseIncrementally
@@ -89,7 +88,6 @@ export function lowerLuauFunctionDefinition(
   // the resulting closure value (`local function NAME`) or assign it
   // to NAME (`function NAME`, below). Otherwise emit a top-level
   // `Knot` as before.
-  if (stat instanceof AstStatLocalFunction) declareBlockLocals(ctx, [stat.name.name]);
   const stack = ctx.functionScopeStack;
   const enclosingScope =
     stack && stack.length > 0 ? stack[stack.length - 1] : null;

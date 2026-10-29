@@ -23,7 +23,6 @@ import { statementSource } from "../utils/statementSource";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
-import { declareBlockLocals } from "../utils/blockLocals";
 
 // The name the converter gives a name it could not read, as Luau's parser
 // does (`kParseNameError`).
@@ -52,7 +51,6 @@ export function lowerVariableDefinition(
   // A function's `const` with more names than values, and no call or `...`
   // last to give the rest, is Luau's error on the declaration.
   if (stat instanceof AstStatLocal) reportMissingConstInitializer(stat, site.node, ctx);
-  if (stat instanceof AstStatLocal) declareBlockLocals(ctx, stat.vars.map((v) => v.name));
   const targets: PathName[] =
     stat instanceof AstStatLocal
       ? stat.vars.map((v) => ({ name: v.name, location: v.location }))

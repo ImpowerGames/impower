@@ -439,6 +439,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return {
       answer: takesOffset((name: string, at: number) => locals.answer(name, at)),
       answerIgnoringBlocks: takesOffset((name: string, at: number) => locals.answerIgnoringBlocks(name, at)),
+      blockLocal: takesOffset((name: string, at: number) => locals.blockLocal(name, at)),
       declared: takesOffset((name: string, at: number) => locals.declared(name, at)),
     };
   }

@@ -253,7 +253,7 @@ export interface LowerContext {
    * `rootLocalAnswer` asks and records (I-1374, I-1365). Absent for callers
    * that lower no document, where no such local is in scope.
    */
-  rootLocals?: Pick<RootLocals, "answer" | "answerIgnoringBlocks" | "declared">;
+  rootLocals?: Pick<RootLocals, "answer" | "answerIgnoringBlocks" | "blockLocal" | "declared">;
   /**
    * Names that are used as a TYPE somewhere in the document — every
    * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
@@ -294,15 +294,6 @@ export interface LowerContext {
    * has no way to know a stdlib-shaped name is shadowed.
    */
   declaredLocalsStack?: Set<string>[];
-  /**
-   * The locals of the blocks being lowered (an `if` arm, a `do`, a loop),
-   * innermost last, each with the depth of `functionScopeStack` its block
-   * is written at (`inBlockLocals`). Inside a block a top-level statement
-   * opens, the converter reads a later statement apart from the earlier
-   * ones (I-1468), so a closure there learns from this which of the names
-   * it reads a block's local takes.
-   */
-  blockLocalsStack?: { names: Set<string>; functions: number }[];
   /**
    * Stack of per-enclosing-function-scope sibling-subflow frames. A
    * nested function statement, variadic or not, lowers as a closure

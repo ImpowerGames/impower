@@ -90,7 +90,6 @@ import {
   openFunctionBody,
 } from "../utils/statementShape";
 import { recordCaptureRead, scopeDeclaredLocals } from "./bindings";
-import { isBlockLocal } from "../utils/blockLocals";
 
 // The nodes of a function definition's content that are its header, not
 // statements of its body.
@@ -457,11 +456,14 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * the function declares and the converter does not bind to a local, with the
  * `local` of the root frame's own scope that takes it where the function is
  * written (`rootLocalAnswer`), in the order they are first read: a
- * closure built in the root frame captures a captured one through the local's slot when it has one (`rootSlotName`), and at the
- * global when the scope declares the name but none of its declarations is in
- * scope there (`ROOT_NONE`). The answer of every such read is
- * recorded, so the function is lowered again when a `local` above it
- * changes it.
+ * closure built in the root frame captures a captured one through the
+ * local's slot when it has one (`rootSlotName`), and at the global when the
+ * scope declares the name but none of its declarations is in scope there
+ * (`ROOT_NONE`). The answer of every such read is recorded, so the function
+ * is lowered again when a `local` above it changes it. Given it, a name a
+ * flow's `local` takes where the function is written is captured though a
+ * global callable, a store, a const or a stdlib entry of it would otherwise
+ * answer; a define's method, which reads no flow's local, gives none.
  *
  * `node`, the syntax node the function is written at, adds what the methods
  * of each `define` written in the function read from around the define
@@ -545,15 +547,16 @@ export function freeVariables(
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
         // Inside a block a top-level statement opens, a later statement of
         // the block reads the block's locals as globals (I-1468), so the
-        // read names no declaration to capture.
+        // read names no declaration to capture; a local of the block
+        // (`RootLocals.blockLocal`) or of a flow around it in scope at the
+        // read (`rootLocalAnswerIgnoringBlocks`) takes the name.
         if (answer !== ROOT_IN_BLOCK) rootReads?.push({ name, answer });
-        // There, a local of the block (`isBlockLocal`) or of a flow around
-        // it in scope at the read (`rootLocalAnswerIgnoringBlocks`) takes
-        // the name.
         takenByLocal =
-          answer === ROOT_IN_BLOCK
+          !rootReads
+            ? false
+            : answer === ROOT_IN_BLOCK
             ? blockLocal ||
-              isBlockLocal(ctx, name) ||
+              (ctx.rootLocals?.blockLocal(name, at) ?? false) ||
               answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
             : answersDeclaration(answer);
       }
