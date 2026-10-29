@@ -34,6 +34,7 @@ import {
   type SearchOptions,
   type RoutePlan,
   type RouteResumePoint,
+  type RouteSimulator,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import {
   routeDecisions,
@@ -755,6 +756,10 @@ export class Game<T extends M = {}> {
   /** Per checkpoint, the replay's `_shownBeat` when it was captured, which a
    *  replay resumed from the checkpoint starts from. */
   protected _checkpointShownBeats: (Instructions | undefined)[] = [];
+
+  protected _checkpointDecisionsTaken: (number | undefined)[] = [];
+
+  protected _routeSimulator: RouteSimulator | null = null;
 
   /** Whether a run from where the last replay reached its target displays a
    *  beat before the story ends, the beat on screen there included
@@ -2270,15 +2275,17 @@ export class Game<T extends M = {}> {
     this._simulationFailure = undefined;
     this._searchErrors = undefined;
     const startStep = route.steps[fromStep];
-    const fromDecision = startStep?.decision ?? 0;
     // A step's own checkpoint number is stamped when the step is reached, and
     // the engine runs a whole beat between one stamp and the next, so a caller
     // that established which checkpoint a step's story actually comes from says
     // so rather than letting it be re-derived.
     const fromCheckpoint = fromCheckpointOverride ?? startStep?.checkpoint ?? -1;
+    const fromDecision =
+      this._checkpointDecisionsTaken[fromCheckpoint] ?? startStep?.decision ?? 0;
     this._checkpoints.truncate(fromCheckpoint + 1);
     this._checkpointStepCursors.length = fromCheckpoint + 1;
     this._checkpointShownBeats.length = fromCheckpoint + 1;
+    this._checkpointDecisionsTaken.length = fromCheckpoint + 1;
     this._routeTargetShows = undefined;
     this._routeErrors = this._routeErrors.filter(
       (e) => e.at <= fromCheckpoint,
@@ -2289,7 +2296,8 @@ export class Game<T extends M = {}> {
     this._simulateFlow = route.from;
     this._startAddress = route.to;
     // Force the story to follow this route
-    this._story.simulator = buildRouteSimulator(route.decisions, fromDecision);
+    this._routeSimulator = buildRouteSimulator(route.decisions, fromDecision);
+    this._story.simulator = this._routeSimulator;
     this._plannedRouteStepMap = null;
     this._plannedRouteStepCursor = fromStep;
     this._routeTargetWrote = undefined;
@@ -2367,10 +2375,12 @@ export class Game<T extends M = {}> {
     // (a layout-only beat, an auto beat). A run from the top never meets it.
     this.module.interpreter.requeue({ ...this._shownBeat, hold: true });
     const cursor = this._checkpointStepCursors[last];
+    const decisionsTaken = this._checkpointDecisionsTaken[last];
     this._checkpoints.truncate(last);
     this.checkpoint();
     this._checkpointStepCursors[last] = cursor;
     this._checkpointShownBeats[last] = this._shownBeat;
+    this._checkpointDecisionsTaken[last] = decisionsTaken;
     this._routeTargetShows = true;
   }
 
@@ -2395,8 +2405,11 @@ export class Game<T extends M = {}> {
       this._checkpoints.truncate(0);
       this._checkpointStepCursors.length = 0;
       this._checkpointShownBeats.length = 0;
+      this._checkpointDecisionsTaken.length = 0;
       this._plannedRouteStepCursor = 0;
       this._routeErrors = [];
+      this._routeSimulator = buildRouteSimulator(route.decisions);
+      this._story.simulator = this._routeSimulator;
     }
     if (!resumed) {
       // Starting the route at its beginning rather than resuming inside it. The
@@ -2441,6 +2454,7 @@ export class Game<T extends M = {}> {
     }
 
     this._story.simulator = null;
+    this._routeSimulator = null;
   }
 
   /**
@@ -2938,18 +2952,7 @@ export class Game<T extends M = {}> {
     for (let i = valid; i < newRoute.steps.length; i += 1) {
       patchedSteps.push(newRoute.steps[i]!);
     }
-    const patchedRoute: RoutePlan = {
-      from: newRoute.from,
-      to: newRoute.to,
-      steps: patchedSteps,
-      decisions: newRoute.decisions,
-      conditions: newRoute.conditions,
-      choices: newRoute.choices,
-      // A later search resumed on this route is charged level zero's bound
-      // as the search that planned it had it (`routeChargeAt`).
-      ...(newRoute.levelZero ? { levelZero: newRoute.levelZero } : {}),
-      ...(newRoute.fallback ? { fallback: true as const } : {}),
-    };
+    const patchedRoute: RoutePlan = { ...newRoute, steps: patchedSteps };
 
     // Add new checkpoints onto the previous simulation
     const fromStep = valid - 1;
@@ -3109,6 +3112,7 @@ export class Game<T extends M = {}> {
     // stands wherever the last replay left it and means nothing.
     this._checkpointStepCursors.length = this._checkpoints.length;
     this._checkpointShownBeats.length = this._checkpoints.length;
+    this._checkpointDecisionsTaken.length = this._checkpoints.length;
     if (this._checkpoints.length > 0) {
       const simulating = this._simulation === "simulating";
       this._checkpointStepCursors[this._checkpoints.length - 1] = simulating
@@ -3116,6 +3120,9 @@ export class Game<T extends M = {}> {
         : undefined;
       this._checkpointShownBeats[this._checkpoints.length - 1] = simulating
         ? this._shownBeat
+        : undefined;
+      this._checkpointDecisionsTaken[this._checkpoints.length - 1] = simulating
+        ? this._routeSimulator?.decisionsTaken()
         : undefined;
     }
   }
