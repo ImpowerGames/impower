@@ -1,18 +1,12 @@
 // A breadth-first walk over a type, ported from Luau's
 // `IterativeTypeVisitor.h`/`.cpp`; Luau is MIT-licensed (see
 // `LICENSE-luau.txt`).
-//
-// Unlike `GenericTypeVisitor`, this visitor keeps a work queue instead of
-// recursing, so `traverse` only queues a type: its children are visited after
-// every type queued before them. A type met again on the path from the root
-// reaches `cycle`. By default each type is visited once.
 
 import { follow, get, type TypeId, type TypePackId, type TypePackVar, type TypePackVariant, type TypeVariant } from "./Type";
 
 interface WorkItem {
   t: TypeId | TypePackId;
   isType: boolean;
-  /** The index of the item that queued this one, or -1. */
   parent: number;
 }
 
@@ -42,12 +36,10 @@ export abstract class IterativeTypeVisitor {
     return true;
   }
 
-  /** Called with each type's variant; the default defers to `visit`. */
   visitType(ty: TypeId, _variant: TypeVariant): boolean {
     return this.visit(ty);
   }
 
-  /** Called with each type pack's variant; the default defers to `visitPack`. */
   visitTypePack(tp: TypePackId, _variant: TypePackVariant): boolean {
     return this.visitPack(tp);
   }
@@ -68,19 +60,15 @@ export abstract class IterativeTypeVisitor {
     this.processWorkQueue();
   }
 
-  /** Queues a type; it is not processed immediately. */
   protected traverse(ty: TypeId): void {
     this.workQueue.push({ t: ty, isType: true, parent: this.parentCursor });
   }
 
-  /** Queues a type pack; it is not processed immediately. */
   protected traversePack(tp: TypePackId): void {
     this.workQueue.push({ t: tp, isType: false, parent: this.parentCursor });
   }
 
   private process(ty: TypeId): void {
-    // With `skipBoundTypes`, a bound type stands for the type it is bound
-    // to, whatever the entry point into a cyclic type was.
     if (this.skipBoundTypes) {
       if (get(ty, "BoundType")) ty = follow(ty);
       else {
@@ -108,7 +96,6 @@ export abstract class IterativeTypeVisitor {
         }
         break;
       case "TableType":
-        // Some visitors want to see bound tables, so the original type is traversed.
         if (this.skipBoundTypes && v.boundTo) {
           this.traverse(v.boundTo);
         } else if (this.visitType(ty, v)) {
@@ -117,7 +104,6 @@ export abstract class IterativeTypeVisitor {
           } else {
             for (const [, prop] of v.props) {
               if (prop.readTy) this.traverse(prop.readTy);
-              // A property whose read and write types are one type is traversed once.
               if (prop.writeTy && !prop.isShared()) this.traverse(prop.writeTy);
             }
             if (v.indexer) {
@@ -174,7 +160,6 @@ export abstract class IterativeTypeVisitor {
         }
         break;
       case "LazyType":
-        // An unwrapped lazy type is not expanded, which could go on forever.
         if (v.unwrapped) this.traverse(v.unwrapped);
         break;
       case "PendingExpansionType":
@@ -239,7 +224,6 @@ export abstract class IterativeTypeVisitor {
     if (!this.visitOnce) this.seen.delete(tv);
   }
 
-  /** Whether the current item appears among its own ancestors. */
   private isCyclic(t: TypeId | TypePackId, isType: boolean): boolean {
     let item = this.workQueue[this.workCursor]!;
     while (item.parent >= 0) {

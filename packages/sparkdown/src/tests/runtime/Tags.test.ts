@@ -1,45 +1,12 @@
-// Ported from inkjs `src/tests/specs/ink/Tags.spec.ts`.
-//
-// Sparkdown supports tags — `currentTags` and `# tag {expr}` interpolation
-// work and are validated by the choice-tag tests in `Choices.test.ts` plus
-// the knot/stitch/sequence/dynamic-content tests below.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
 
-// Trim whitespace from each tag. The multi-tag-on-one-line form (`# a # b`)
-// leaves a trailing space on the first tag's text since the Tag rule's match
-// includes the inter-tag whitespace — the trim normalizes this.
 function trimmedTags(tags: readonly string[]): string[] {
   return tags.map((t) => t.trim());
 }
 
 describe("Tags (ported from inkjs)", () => {
   test("knot/stitch tags", () => {
-    // Upstream ink fixture exercises three tag-API surfaces:
-    //   - `globalTags`: tags above the first content line are returned
-    //     by `story.globalTags` (file-level metadata).
-    //   - `TagsForContentAtPath(path)`: static lookup of tags that
-    //     appear at the top of a named container (knot or stitch),
-    //     before any non-whitespace content.
-    //   - `currentTags`: dynamic tags accumulated during evaluation.
-    // Sparkdown rewrite uses `scene` for `=== knot` and `branch` for
-    // `= stitch` (per docs/runtime/DIVERGENCES.md). The runtime API is unchanged —
-    // inherited from inkjs.
-    //
-    // Two top-level `# tag` lines now both surface as global tags.
-    // Previously only the first survived because each `# tag` line
-    // was wrapped in its own InkParser-fallback chunk container, and
-    // `Story.TagsAtStartOfFlowContainerWithPathString` broke its walk
-    // as soon as it saw a non-control-command node (the second tag's
-    // wrapping container). The walker now descends into single-Tag
-    // containers at the front of the flow so subsequent tags are also
-    // visible.
-    //
-    // The program engine presents neither `globalTags` nor
-    // `TagsForContentAtPath`, the current engine's static reads of the tags
-    // at the top of a container, which nothing outside the engine's tests
-    // calls (#705); the tags each line carries are `currentTags`, as below.
     const ctx = makeRuntimeStoryFromFile("tags", "knot-stitch-tags");
     expect(ctx.errorMessages).toEqual([]);
 
@@ -59,17 +26,6 @@ describe("Tags (ported from inkjs)", () => {
   });
 
   test("dynamic content in tags (`text # tag {var}{var2}.ext`)", () => {
-    // Upstream ink fixture interpolates `{5+3}` and `{red|blue}`
-    // inside the tag body to produce a dynamic filename
-    // (`pic8red.jpg`). Sparkdown's `appendInterpolatedTagText`
-    // supports `{var}` (single-identifier references) inside tag
-    // bodies but not arbitrary expressions / inline alternators
-    // (same constraint as the choice-tag interpolation path). We
-    // rewrite using pre-computed stored values:
-    //   store hue = "red"   (`color` is a reserved builtin type root)
-    //   store amount = 8
-    //   tag # pic{amount}{hue}.jpg
-    // Same observable result — the tag substitutes to `pic8red.jpg`.
     const ctx = makeRuntimeStoryFromFile("tags", "dynamic-tags");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("tag\n");
@@ -77,19 +33,6 @@ describe("Tags (ported from inkjs)", () => {
   });
 
   test("tags in a sequence (per-arm `#tag` annotations)", () => {
-    // Upstream ink fixture:
-    //   -> knot -> knot ->
-    //   == knot
-    //   A {red #red|white #white|blue #blue|green #green} sequence.
-    //   ->->
-    // Sparkdown rewrite uses the inline-glued alternator
-    // (`.. queue|... ..`) and each arm carries an `ArmTag`
-    // annotation. The `ArmTag` grammar rule is bounded by `|` /
-    // closing-`..` / `end` so it doesn't swallow the rest of the
-    // alternator (the standard `Tag` rule's end-of-line termination
-    // would). `lowerArmContent` in `alternatorArms.ts` emits
-    // `Tag(start)` + `Text(content)` + `Tag(end)` for each `ArmTag`,
-    // matching the runtime's tag-collection convention.
     const ctx = makeRuntimeStoryFromFile("tags", "tags-in-sequence");
     expect(ctx.errorMessages).toEqual([]);
 

@@ -1,18 +1,6 @@
-// The cumulative oracle over long block bodies, served from their memos
-// (#656).
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import { coldSurface, cumulativeRun, quiet } from "./incrementalOracleHarness";
 
-// A screenplay whose blocks have bodies long enough that an edit inside one
-// rebuilds a few of its statements and the parse keeps the rest, so that the
-// compile serves them from their memos (#656): a `choose` block whose choice
-// bodies and `then` clause hold beats, interpolations, portraits, calls,
-// `if` blocks and a label, and a function whose body holds calls, a local
-// and an `if`.
 function longBodiesScreenplay(): string {
   const beats = (pad: string, n: number, tag: string) =>
     Array.from({ length: n }, (_, i) => {
@@ -81,7 +69,6 @@ function longBodiesScreenplay(): string {
   ].join("\n");
 }
 
-// Whole lines the edits inside bodies insert into the long screenplay.
 const LONG_LINES = [
   "HERO: A new line of dialogue.",
   "A new line of action.",
@@ -108,8 +95,6 @@ describe("the oracles over long block bodies, served from their memos", () => {
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
-      // Most edits inside a body leave the rest of its statements to their
-      // memos.
       expect(served, "statements served from their memos").toBeGreaterThan(EDIT_COUNT * 10);
     });
   }, 600_000);

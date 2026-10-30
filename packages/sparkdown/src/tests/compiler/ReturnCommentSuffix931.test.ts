@@ -49,9 +49,6 @@ describe("return suffix comments retain native diagnostics and incremental posit
     expect(converted(source)).toEqual(expected);
     if (!body.includes("unfinished") || body.includes("; ;")) expect(compile(source)).toEqual(expected);
     else {
-      // The existing literal validator publishes expression-position wording
-      // and suppresses overlapping checker errors. Keep that contract distinct
-      // from the native converter's statement/block-context messages.
       const comment = published(source).find(d => messageOf(d.message) === "Expected identifier when parsing expression, got unfinished comment");
       const opening = source.indexOf("--[");
       expect(comment?.range).toEqual({ start: { line: 0, character: opening }, end: { line: 1, character: 0 } });

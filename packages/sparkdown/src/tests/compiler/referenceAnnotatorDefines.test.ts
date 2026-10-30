@@ -1,22 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
-// The ReferenceAnnotator D2 surface: define-name / define-type / struct-property
-// references for the Luau-port grammar. The define model is INVERTED relative to
-// the pre-port grammar (`define <Type> <Name>` → `define <Name> as <Parent>`), and
-// the struct body is now a flat indentation tree of LuauStructBlockProperty and LuauStructBlock nodes (no per-item wrapper nodes).
-// These tests lock the restored symbol-ID shapes the providers (getReferences /
-// getSymbolIds / getRenameEdits / getHover) match against:
-//   - OOP define:  name → `<parent>.<name>` (define_variable_name),
-//                  parent → `<parent>` (define_type_name),
-//                  property → `<parent>.<name>.<prop>` (property),
-//                  character `name = "X"` value → `character.?.name=X` (character_name).
-//   - root define: name (no parent) → `<name>` (define_type_name); props under `$default`.
-//   - structural (style/screen/component/animation/theme): type is the KEYWORD,
-//                  name → `<keyword>.<name>`; struct props → `<keyword>.<name>.<path>`;
-//                  screen layer names also emit `layer.<class>` + interdependent
-//                  `style.<class>`; style props emit interdependent `layer.<class>`.
-
 interface Ref {
   declaration?: string;
   kind?: string;
@@ -79,8 +63,6 @@ end
     const colorProp = find(refs, "color", "property");
     expect(colorProp?.symbolIds).toContain("character.raffles.color");
 
-    // The character `name = "X"` value is the cross-reference target a
-    // dialogue cue (`X:`) resolves to via `character.?.name=X`.
     const charName = find(refs, "RAFFLES", "character_name");
     expect(charName?.symbolIds).toContain("character.?.name=RAFFLES");
   });
@@ -91,7 +73,6 @@ end
 end
 hero: Hi.
 `);
-    // Define name emits character.hero (write); cue emits character.hero (read).
     const decl = find(refs, "hero", "define_variable_name");
     expect(decl?.symbolIds).toContain("character.hero");
     const cueReads = refs.filter((r) => r.text === "hero" && r.kind === "read");
@@ -154,8 +135,6 @@ end
   });
 
   test("screen layer interdependency links to a same-named style block", () => {
-    // The screen layer `backdrop` (interdependent style.backdrop) and the
-    // `style backdrop` block name (style.backdrop) share a resolvable id.
     const refs = collectReferences(`layout s with
   backdrop {
     image = "bg"
@@ -184,7 +163,6 @@ end
     const name = find(refs, "pan_right", "define_variable_name");
     expect(name?.symbolIds).toContain("animation.pan_right");
 
-    // The trailing `as animation` is a read reference to the animation type.
     const ext = refs.find(
       (r) => r.text === "animation" && r.kind === "read",
     );

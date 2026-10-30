@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
 
-// Assets belong to a project the way scripts do (#1388): a compile sees the
-// files under the folder of its main script, outside any subfolder holding a
-// main script of its own and any skipped name. Asset names are a namespace per
-// project, so a name two projects share is no collision.
-
 const ROOT = "file:///repo/game/";
 const MAIN_URI = `${ROOT}main.sd`;
 const SUB_MAIN_URI = `${ROOT}sub/main.sd`;

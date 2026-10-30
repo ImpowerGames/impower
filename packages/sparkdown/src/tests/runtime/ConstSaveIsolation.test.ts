@@ -1,19 +1,8 @@
-// Constants must not round-trip through save data.
-//
-// A `const` is a real runtime global (so it is inspectable — the debug adapter
-// can show it like any other variable), but its value comes entirely from the
-// compiled program. If it were persisted or restored like a mutable global,
-// a save written when the name was still a `store` would overwrite the
-// compiled constant on load and pin it to the stale value forever — editing
-// the `const` in the script would then have no effect for existing players.
-//
-// Both directions are pinned here: never written, and never restored.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 describe("const save isolation", () => {
   test("a stale save cannot overwrite a compiled constant", () => {
-    // v1: `LIMIT` is a mutable global, mutated to 99 and saved.
     const v1 = makeRuntimeStoryFromSource(
       ["store LIMIT = 5", "scene start", "  & LIMIT = 99", "  {LIMIT}", "end"].join("\n"),
     );
@@ -22,8 +11,6 @@ describe("const save isolation", () => {
     const staleSave = v1.story.state.ToJson();
     expect(staleSave).toContain("LIMIT");
 
-    // v2: the author has since turned `LIMIT` into a constant with a new
-    // value. Loading the old save must NOT resurrect 99.
     const v2 = makeRuntimeStoryFromSource(
       ["const LIMIT = 6", "scene start", "  {LIMIT}", "end"].join("\n"),
     );
@@ -32,8 +19,6 @@ describe("const save isolation", () => {
     expect(v2.story.variablesState.$("LIMIT")).toBe(6);
   });
 
-  // #1429, round 3 of the review of #1654 (report 6039459012): the stale
-  // value is not restored, but the table it defines is another global's.
   test("a stale save's value of a constant still defines the table another global shares", () => {
     const v1 = makeRuntimeStoryFromSource(
       ["store K = nil", "store alias = nil", "scene start", "  & K = { n = 1 }", "  & alias = K", "  {alias.n}", "end"].join("\n"),
@@ -61,7 +46,6 @@ describe("const save isolation", () => {
     const save = ctx.story.state.ToJson();
     const variablesState = JSON.parse(save).variablesState ?? {};
     expect(Object.keys(variablesState)).not.toContain("LIMIT");
-    // The mutable global still persists, so this isn't vacuously passing.
     expect(Object.keys(variablesState)).toContain("other");
   });
 
@@ -71,7 +55,6 @@ describe("const save isolation", () => {
     );
     expect(ctx.errorMessages).toEqual([]);
     runToEnd(ctx.story);
-    // Visible through the same API a debugger would use.
     expect(ctx.story.variablesState.$("LIMIT")).toBe(6);
   });
 });

@@ -21,11 +21,9 @@ describe("gradients are read within a closed grammar", () => {
         [1, [255, 255, 255, 1]],
       ],
     });
-    // Coordinates come only from gradients of the first one's kind; the rest from the chain.
     const chained = read(`<linearGradient id="a" href="#t" x2="0.5" gradientTransform="translate(1, 2) scale(2)"/><radialGradient id="t" cx="0.2" spreadMethod="reflect">${STOPS}</radialGradient>`);
     expect(chained).toMatchObject({ kind: "linear", spread: "reflect", geometry: [0, 0, 0.5, 0], transform: [2, 0, 0, 2, 1, 2] });
     expect(chained!.stops).toHaveLength(2);
-    // A namespace declaration that names SVG again changes nothing.
     expect(read(`<linearGradient xmlns="http://www.w3.org/2000/svg" id="a">${STOPS}</linearGradient>`)).toBeDefined();
     expect(read(`<radialGradient id="a" gradientUnits="userSpaceOnUse" cx="5" cy="6" r="4" fy="7" fr="0%">${STOPS}</radialGradient>`)!.geometry).toEqual([5, 6, 4, 5, 7, 0]);
     const stops = read(

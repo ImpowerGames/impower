@@ -1,15 +1,3 @@
-// Layout/screen directive + reference validation. The UI sublanguage:
-//  - `layout NAME [in SCREEN] with … end` defines a mountable element tree;
-//  - `screen NAME with … end` defines a navigation group (holds layouts);
-//  - `[[open/close LAYOUT]]` and `[[navigate SCREEN to LAYOUT]]` flow through the
-//    shared `[[…]]` (image-command) grammar.
-// The validators must treat these as UI directives, not image directives:
-//  - ValidationAnnotator accepts open/close/navigate as valid `[[…]]` controls;
-//  - ReferenceAnnotator resolves open/close targets + navigate destinations as
-//    `layout <name>` defines, the navigate group + `in <screen>` clause as
-//    `screen <name>` defines (not as image layers).
-// So a valid directive stays clean, and a typo lights up precisely.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -81,14 +69,11 @@ describe("layout lifecycle directive validation ([[open/close LAYOUT]])", () => 
   });
 
   test("a control verb used in the wrong bracket still warns", () => {
-    // `stop` is an audio verb; in `[[…]]` (visual brackets) it's invalid.
     const diags = diagnosticsFor(LAYOUT + inStart("[[stop hud]]"));
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(true);
   });
 });
 
-// A `menu` SCREEN holding two layouts. `[[navigate <screen> to <layout>]]`: the
-// FIRST token is the navigation SCREEN, the destination LAYOUT follows `to`.
 const MENU = `screen menu with
 end
 layout pause in menu with
@@ -128,7 +113,6 @@ describe("screen navigation directive validation ([[navigate SCREEN to LAYOUT]])
   });
 
   test("a LAYOUT name used as the screen warns it's not a screen", () => {
-    // `pause` is a defined layout, not a screen → flag the mistake.
     const diags = diagnosticsFor(MENU + inStart("[[navigate pause to settings]]"));
     expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
   });

@@ -1,21 +1,3 @@
-// Callee-signature reuse oracle (regression for a bug the general
-// incremental-vs-cold oracles CANNOT generate).
-//
-// A call site's bytecode is derived from its CALLEE's parameter list at the
-// CALLER's generation time: a trailing `...` makes the caller emit a
-// `PackTuple` to fill the callee's varargs slot (the divert's code
-// generation, deleted in #705).
-// Incremental ExportRuntime reuses a flow whose OWN chunks are unchanged — so
-// without a guard, editing a callee's signature leaves every reused caller
-// emitting argument pushes for the old signature. The callee then pops a
-// different number of values than the caller pushed, silently and with no
-// diagnostic.
-//
-// `incrementalEquivalence`'s fixture has a single non-variadic function and
-// never edits a parameter list, and the cumulative fuzz alphabet contains
-// neither "..." nor "," — so neither oracle can construct this. Hence a
-// dedicated fixture: no front matter (zero root blocks) so the root-region
-// guard stays quiet and flow reuse genuinely engages on the edit under test.
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -145,7 +127,6 @@ function runScenario(
   return log;
 }
 
-// No front matter at all -> zero root blocks -> stable reuse.
 function doc(fnDecl: string, callSite: string) {
   return [
     fnDecl,
@@ -187,9 +168,6 @@ describe("incremental callee-signature reuse", () => {
     expect(out.filter((s) => s.includes("DIVERGED"))).toEqual([]);
   });
 
-  // One plain parameter and none used to share a signature, so dropping the
-  // only parameter left the caller reused and its argument-count error was
-  // lost (#841).
   it("callee loses its only parameter while caller flow is reused", () => {
     const base = doc("function addup(a):", "& local r = addup(2)");
     const out = quiet(() =>

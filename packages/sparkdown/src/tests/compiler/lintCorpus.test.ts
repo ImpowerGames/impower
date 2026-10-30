@@ -1,8 +1,3 @@
-// The false-positive corpus (`scripts/lintCorpus.ts`) reads each Luau
-// conformance file wrapped in `function run()`. GlobalUsedAsLocal reports
-// what a function of the file holds, and only the wrapper's own warning is
-// left out (I-607).
-
 import { describe, expect, test } from "vitest";
 import { conformanceScript, lint } from "../../../scripts/lintCorpus.ts";
 

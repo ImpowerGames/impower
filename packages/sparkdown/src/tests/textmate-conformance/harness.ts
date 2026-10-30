@@ -1,13 +1,3 @@
-// Conformance harness: runs upstream vscode-textmate tokenization fixtures
-// (test-cases/first-mate, test-cases/suite1) through OUR engine
-// (textmate-grammar-tree) and compares the per-line token/scope stream against
-// the expected output recorded by the real vscode-textmate engine.
-//
-// This is the same idea as the Luau conformance suite: upstream owns the
-// oracle; we measure how close our re-implementation is, and the gaps become
-// the work list. The expected tokens in `tests.json` ARE vscode-textmate's
-// recorded output, so no live engine is needed here.
-
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -32,16 +22,15 @@ export interface TestCase {
   lines: ExpectedLine[];
 }
 
-/** Outcome category — the "axis" a case lands on. */
 export type Axis =
   | "pass"
   | "mismatch"
-  | "capture-model" // RegExpMatcher rejects sparse / non-full-cover captures
-  | "while-rule" // `while` rules unsupported
-  | "regex-invalid" // pattern failed to compile under JS RegExp
-  | "incomplete" // tree contains ERROR_INCOMPLETE / ERROR_UNRECOGNIZED
+  | "capture-model"
+  | "while-rule"
+  | "regex-invalid"
+  | "incomplete"
   | "throw-other"
-  | "external-includes" // entry grammar references other grammars (multi/injection)
+  | "external-includes"
   | "load-error";
 
 export interface CaseResult {
@@ -51,7 +40,6 @@ export interface CaseResult {
   grammar: string;
   axis: Axis;
   detail?: string;
-  /** First divergence (for mismatch), human readable. */
   firstDiff?: string;
   lineCount: number;
 }
@@ -66,7 +54,6 @@ interface OurToken {
 const UNRECOGNIZED_ID = 2;
 const INCOMPLETE_ID = 3;
 
-/** Detect `include` references to OTHER grammars (scopeName), not local `#` / `$self` / `$base`. */
 function hasExternalIncludes(rawText: string): boolean {
   const re = /"include"\s*:\s*"([^"]+)"/g;
   let m: RegExpExecArray | null;
@@ -76,7 +63,6 @@ function hasExternalIncludes(rawText: string): boolean {
       return true;
     }
   }
-  // plist form: <key>include</key><string>source.x</string>
   const re2 = /<key>include<\/key>\s*<string>([^<]+)<\/string>/g;
   while ((m = re2.exec(rawText))) {
     const inc = m[1]!;
@@ -103,11 +89,6 @@ function arraysEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
-/**
- * Flatten our parsed tree into TextMate-style per-character scope stacks, then
- * coalesce equal-stack runs into tokens. Newline positions are dropped (upstream
- * tokenizes line-by-line without the trailing newline).
- */
 function flatten(
   parser: any,
   tree: any,
@@ -121,8 +102,6 @@ function flatten(
 
   let hasErrors = false;
 
-  // Adversarial fixtures (e.g. the upstream infinite-loop grammar) can yield a
-  // pathologically deep/large tree; bound the walk so the harness never hangs.
   let visits = 0;
   function walk(node: any, chain: string[]) {
     if (!node || !node.type) return;
@@ -143,7 +122,6 @@ function flatten(
   }
   walk(tree.topNode, root);
 
-  // coalesce, splitting at newlines
   const tokens: OurToken[] = [];
   let i = 0;
   while (i < text.length) {
@@ -162,7 +140,6 @@ function flatten(
   return { tokens, hasErrors };
 }
 
-/** Group our flat tokens by line index. */
 function tokensByLine(tokens: OurToken[], text: string): OurToken[][] {
   const lineStarts: number[] = [0];
   for (let i = 0; i < text.length; i++) {
@@ -186,7 +163,6 @@ function tokensByLine(tokens: OurToken[], text: string): OurToken[][] {
   return byLine;
 }
 
-/** Compare our line tokens vs expected; return first divergence or null. */
 function diffLine(
   ours: OurToken[],
   expected: ExpectedToken[],
@@ -215,12 +191,6 @@ function classifyThrow(msg: string): Axis {
   return "throw-other";
 }
 
-/**
- * Resolve the ENTRY grammar for a case. Upstream cases either name it directly
- * via `grammarPath`, or select it from the `grammars` list by `grammarScopeName`
- * (falling back to the last listed grammar). We load only the entry into our
- * single-grammar engine; cross-grammar includes are flagged separately.
- */
 function resolveEntry(
   suiteDir: string,
   c: TestCase,
@@ -292,7 +262,6 @@ export function runCase(
     return { ...base, axis: classifyThrow((e as Error).message), detail: (e as Error).message };
   }
 
-  // Join all lines and parse as a single document.
   const text = c.lines.map((l) => l.line).join("\n");
   let tree: any;
   try {
@@ -312,9 +281,6 @@ export function runCase(
   for (let li = 0; li < c.lines.length; li++) {
     const expected = c.lines[li]!.tokens;
     let ours = byLine[li] ?? [];
-    // Upstream tokenizes line-by-line: an empty (or whitespace-only that
-    // produced nothing) line still yields a single token carrying just the
-    // root scope. Synthesize it so empty lines compare correctly.
     if (ours.length === 0) {
       ours = [{ from: 0, to: 0, value: "", scopes: [rootScope] }];
     }
@@ -340,7 +306,6 @@ export function loadSuite(suiteDir: string, file: string): TestCase[] {
 
 export function suiteDirFor(metaUrl: string, suite: string): string {
   const here = dirname(new URL(metaUrl).pathname);
-  // On win32 the pathname is like /C:/... — strip leading slash.
   const fixed = here.match(/^\/[A-Za-z]:/) ? here.slice(1) : here;
   return join(fixed, "vendor", suite);
 }

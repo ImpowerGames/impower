@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { MAIN_URI, programCompiler } from "./programHarness";
 
-// An incremental compile reports the same diagnostics as a cold compile of
-// the same text, whatever edit led to it (#1580).
-
 const diagnostics = (program: any) =>
   Object.values(program.diagnostics ?? {})
     .flat()
@@ -19,8 +16,6 @@ const position = (text: string, offset: number) => {
   return { line: lines.length - 1, character: lines.at(-1)!.length };
 };
 
-// Replaces `from`-`to` of `before` with `text`, through an incremental
-// update and through a cold compile of the result.
 function compareAfterEdit(
   before: string,
   edit: { from: number; to: number; text: string },
@@ -46,9 +41,6 @@ function compareAfterEdit(
 }
 
 describe("incremental diagnostics agree with a cold compile", () => {
-  // The fuzzed function screenplay (seed 12345) around the edit that splits
-  // `  local q = function() return 1 end` after its `l`, leaving the
-  // unfinished `  local q =` before a line `  l`.
   const BEFORE = [
     "  Plain line.",
     " & add(3)",
@@ -63,15 +55,9 @@ describe("incremental diagnostics agree with a cold compile", () => {
     " end",
   ].join("\n");
 
-  // An unfinished `local q =` before a comment that spans lines, which the
-  // edit closes early before an `l`. A story statement ends at its line
-  // (#1907), so neither the comment nor the `l` after it is the `=`'s value:
-  // the value is missing at the line's end, `<eof>`, whatever the edit.
   const COMMENT_BEFORE =
     "  Plain line.\n".repeat(20) + "  local q =\n--[[ a\nb\nc\nd\ne\nf\n]]\n  local r = 1\n  return r\n";
 
-  // A `--[[` that opens no comment (in a string, a line comment or a long
-  // string) before the real comment: its first `]]` is inside the real one.
   const FALSE_OPENERS = [
     ["a quoted string", '  local s = "--[["'],
     ["a line comment", "  -- note --[["],

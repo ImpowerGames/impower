@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
 
-// A define property that names an asset is checked against the images,
-// layered images and filtered images the program declares, in both spellings:
-// a bare name (`image = warm`) and a typed one (`image = filtered_image.warm`).
-// A name that is declared resolves without a warning; one that is not warns.
-
 const uri = "file:///project/main.sd";
 const asset = (path: string): File => ({
   uri: `file:///project/assets/${path}`,
@@ -180,8 +175,6 @@ describe("asset references in define bodies", () => {
     expect(missing(program)).toEqual([]);
   });
 
-  // Parentheses do not change a value, so a parenthesized reference is
-  // checked as the same reference written without them.
   it("warns on a parenthesized bare name declared nowhere (#1612)", () => {
     const program = compile([
       "First beat.",
@@ -232,8 +225,6 @@ describe("asset references in define bodies", () => {
     ]);
   });
 
-  // Validation outcomes are kept between compiles; each compile after an edit
-  // reports what a fresh compiler reports for the same text.
   it("follows edits to the asset and to the reference across compiles", () => {
     let text = [
       "First beat.",

@@ -1,10 +1,3 @@
-// Text written after a tunnel chain (`-> a -> b > After`) or after a divert
-// inside an alternator arm (`x .. queue|-> A > y|b .. z`) is stray text, as it
-// is after a single-target divert. Both grammar engines must scope every
-// character of such a line the same way, and the tree must close neither the
-// nested `Tunnel` nor the `ArmDivert` incomplete at the first character its
-// body cannot match (GRAMMAR.md §17).
-
 import { describe, expect, test } from "vitest";
 import { parseSource } from "./grammarSnapshot";
 import {
@@ -43,8 +36,6 @@ const LINES = [
   "x .. queue|-> A >end z|b .. z",
 ];
 
-// Each line with the stray text it holds, which runs from its first character
-// to the arm's boundary or the line's end.
 const STRAY: [string, string][] = [
   ["-> a -> b > After", "> After"],
   ["A -> a -> b > c", "> c"],
@@ -63,13 +54,9 @@ const STRAY: [string, string][] = [
   ["x .. queue|-> A > {y}|b .. z", "> {y}"],
   ["x .. queue|-> A > #y|b .. z", "> #y"],
   ["queue\n  | -> a -> b > y\n  | c\nend", "> y"],
-  // In the glued form `end` closes nothing, so it stays the arm's text.
   ["x .. queue|-> A >end z|b .. z", ">"],
 ];
 
-// The tree parses each line with LF and with CRLF endings. The engine
-// comparison takes LF only: `compareEnginesFull` normalizes line endings
-// before either engine sees the source.
 const CASES = LINES.flatMap((line) =>
   ["\n", "\r\n"].map((eol) => ({
     line,
@@ -103,7 +90,6 @@ describe("text after a tunnel chain or an arm divert", () => {
     const source = `${line}\n`;
     const vscode = await vscodeScopeStacksPerChar(source);
     const tree = parseSource(source);
-    // The stray text follows the last divert mark, whose own `>` comes first.
     const from = line.lastIndexOf(stray);
     const to = from + stray.length;
     for (let offset = 0; offset < line.length; offset++) {

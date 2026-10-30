@@ -1,8 +1,3 @@
-// Batch unlocked by CallLuauFunction + __builtin_iter dispatch:
-// - table.foreach / foreachi (both deprecated in Luau — flagged via
-//   the existing strikethrough diagnostic).
-// - utf8.codes (iterator returning byte_position + codepoint).
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -139,16 +134,10 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // ASCII: each codepoint is 1 byte, positions 1, 2, 3. Codepoints
-    // 97 ('a'), 98 ('b'), 99 ('c').
     expect(recorded).toEqual([1, 97, 2, 98, 3, 99]);
   });
 
   test("byte positions account for multi-byte UTF-8", () => {
-    // 'é' (U+00E9) spelled as its UTF-8 bytes \xC3\xA9 — under the
-    // byte-string convention a bare "é" char IS the raw byte E9
-    // (invalid UTF-8). 'B' is 1 byte; '€' (U+20AC, > 0xFF) encodes
-    // automatically.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -163,7 +152,6 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // Positions: 1 ('é'), 3 ('B'), 4 ('€'). Codepoints: 233, 66, 8364.
     expect(recorded).toEqual([1, 233, 3, 66, 4, 8364]);
   });
 

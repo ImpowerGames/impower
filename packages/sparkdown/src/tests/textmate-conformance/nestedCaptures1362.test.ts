@@ -1,8 +1,3 @@
-// textmate-grammar-tree places each capture from the match's own indices, as
-// vscode-textmate does (I-1362): a group nested in another group, a group
-// after a nested one, and text between groups land where vscode-textmate
-// scopes them. Each grammar here runs through both engines, and the scope
-// stack of every character must agree.
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -71,8 +66,6 @@ describe("capture positions match vscode-textmate", () => {
       line: "--[==[a]=]b]==]end",
     },
     {
-      // A rule may give its own flags, `d` among them; the indices regex
-      // keeps them as they are.
       name: "a nested group in a rule whose flags hold `d`",
       grammar: grammarOf({
         name: "rule",
@@ -127,8 +120,6 @@ describe("capture positions match vscode-textmate", () => {
     },
     {
       name: "a nested group in an end that reads the begin's group",
-      // The block reads its text with a catch-all, since the tree closes a
-      // rule that cannot read its text where vscode-textmate skips it.
       grammar: grammarOf(
         {
           name: "block",

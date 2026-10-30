@@ -1,7 +1,3 @@
-// A `# tag` line compiles to a statement of its own. What it compiles to
-// depends only on the script's text: two compiles of the same script produce
-// the same chunks, and an incremental compile's chunks equal a cold compile's
-// of its text (`describeRoot`).
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -41,8 +37,6 @@ function coldCompile(text: string) {
   });
 }
 
-// Compiles `text`, inserts `insert` at the start of `line`, and returns the
-// incremental compile of the edited text.
 function incrementalCompile(text: string, line: number, insert: string) {
   return quiet(() => {
     const compiler = new SparkdownCompiler();
@@ -63,7 +57,6 @@ function insertLine(text: string, line: number, insert: string): string {
   return lines.join("\n");
 }
 
-/** A compile's chunks by content. */
 function content(program: SparkProgram): string[] {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
   return describeRoot(program.chunks!);

@@ -1,14 +1,3 @@
-// How strictly the compiler type checks Luau (#599). Luau's non-strict mode
-// is the default; the project sets its mode with `define typecheck as config
-// with mode = "..." end`, a `.sd` file with a `typecheck:` front matter
-// field, and a `.luau` file with Luau's own `--!strict`, `--!nonstrict` or
-// `--!nocheck` first line; the more specific setting wins, and a mode
-// Sparkdown does not know is warned about.
-//
-// The Luau checked here tells the modes apart: an unknown global is reported
-// in both non-strict and strict mode, an annotation mismatch only in strict
-// mode, and nothing in no-check mode.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
@@ -24,11 +13,8 @@ const STRICT = ["TypeMismatch", "UnknownSymbol"];
 const NOCHECK: string[] = [];
 
 interface Project {
-  /** The value of the main file's `typecheck:` front matter field. */
   frontMatter?: string;
-  /** The `mode` of a `define typecheck as config` in the main file. */
   config?: string;
-  /** A `.luau` file the main file runs; the main file then holds no Luau of its own. */
   luau?: string;
 }
 
@@ -49,7 +35,6 @@ function compile(project: Project): SparkProgram {
   return compiler.compile({ textDocument: { uri: MAIN } }).program;
 }
 
-/** The kinds of the type warnings a document got, in source order. */
 function typeWarnings(program: SparkProgram, uri: string): string[] {
   return (program.diagnostics?.[uri] ?? []).filter((d) => TYPE_ERROR_KINDS.has(String(d.code))).map((d) => String(d.code));
 }
@@ -131,7 +116,6 @@ describe("type checking modes", () => {
     expect(typeWarnings(compile({ config: "nocheck", frontMatter: "strict" }), MAIN)).toEqual(STRICT);
     expect(typeWarnings(compile({ config: "strict", luau: `--!nonstrict\n${LUAU}` }), HELPER)).toEqual(NONSTRICT);
     expect(typeWarnings(compile({ config: "nocheck", luau: `--!strict\n${LUAU}` }), HELPER)).toEqual(STRICT);
-    // A .sd file's front matter is its own: a .luau file it runs keeps the project's mode.
     expect(typeWarnings(compile({ frontMatter: "strict", luau: LUAU }), HELPER)).toEqual(NONSTRICT);
   });
 
@@ -162,7 +146,6 @@ describe("type checking modes", () => {
     expect(directives(misspelt)).toEqual(["0:0-0:10 Unknown comment directive 'strictt'; did you mean 'strict'?"]);
     expect(typeWarnings(misspelt, HELPER)).toEqual(NOCHECK);
 
-    // The directive is quoted as written, though Luau matches it byte by byte.
     const accented = compile({ luau: `--!stríct\n${LUAU}` });
     expect(directives(accented)).toEqual(["0:0-0:9 Unknown comment directive 'stríct'; did you mean 'strict'?"]);
     expect(typeWarnings(accented, HELPER)).toEqual(NONSTRICT);

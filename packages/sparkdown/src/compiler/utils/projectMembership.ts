@@ -1,16 +1,5 @@
-/** The file name of a project's main script when the compiler's configuration
- *  names none. */
 export const DEFAULT_MAIN_SCRIPT_FILENAME = "main.sd";
 
-/**
- * The folder of the project a compile that starts from `entryUri` belongs to:
- * the folder of that script, as a URI ending in `/`. A host starts a compile
- * from the nearest main script above the edited one, so this is the folder of
- * that main script; a script with no main script above it is the root of a
- * project of its own. A URI with no folder has no project. A URI is read as
- * the host spells the path, so a `?` or `#` in it is part of a file name, as
- * the web editor writes an imported `act#1.sd`.
- */
 export function projectRootUri(entryUri: string): string | undefined {
   const at = entryUri.lastIndexOf("/");
   if (at < 0) {
@@ -19,18 +8,9 @@ export function projectRootUri(entryUri: string): string | undefined {
   return entryUri.slice(0, at + 1);
 }
 
-/** Whether a file or folder name puts what it holds outside every project:
- *  `node_modules`, or a name beginning with `.`. */
 export const isSkippedName = (name: string): boolean =>
   name === "node_modules" || name.startsWith(".");
 
-/**
- * Whether the script `uri` belongs to the project rooted at `rootUri`: it is
- * under the root, no file or folder on its path below the root has a skipped
- * name (`isSkippedName`), and no folder on that path below the root holds a
- * main script of its own, which makes that folder the root of another
- * project. `hasScript` says whether a script is registered.
- */
 export function isInProject(
   rootUri: string,
   uri: string,
@@ -54,13 +34,6 @@ export function isInProject(
   return true;
 }
 
-/**
- * The scripts of the project a compile that starts from `entryUri` reads, in
- * the order their declarations register: the entry first, then every other
- * script of `scriptUris` in the project (`isInProject`) by its path below the
- * root, in byte order (`projectPath`). A URI with no folder is a project of
- * itself alone.
- */
 export function projectScripts(
   entryUri: string,
   scriptUris: Iterable<string>,
@@ -87,14 +60,6 @@ export function projectScripts(
   return [entryUri, ...members];
 }
 
-/**
- * A script's path below the root, as the file system names it. A URI's path
- * is percent-encoded (VS Code registers `scripts/é.sd` as `scripts/%C3%A9.sd`),
- * so it is decoded; a host that writes each path as it is instead
- * (`SparkdownCompilerConfig.uriPathsAsWritten`, the web editor, where
- * `scripts/%C3%A9.sd` is a file of that name) gives it as it is. Text alone
- * cannot tell the two apart. A path that does not decode is its own.
- */
 export const projectPath = (relative: string, asWritten = false): string => {
   if (asWritten) {
     return relative;
@@ -106,8 +71,6 @@ export const projectPath = (relative: string, asWritten = false): string => {
   }
 };
 
-/** Orders two strings by their code points, which is the byte order of their
- *  UTF-8 encodings, where `<` compares UTF-16 code units. */
 function compareCodePoints(a: string, b: string): number {
   const left = [...a];
   const right = [...b];
@@ -121,23 +84,11 @@ function compareCodePoints(a: string, b: string): number {
   return left.length - right.length;
 }
 
-/** The extension of the Luau files a `run` statement reads. */
 export const LUAU_EXTENSION = ".luau";
 
-/** Whether `uri` is a Luau file a `run` statement reads, which is not a
- *  script of the story. */
 export const hasLuauExtension = (uri: string): boolean =>
   uri.endsWith(LUAU_EXTENSION);
 
-/**
- * The Luau files of the project a compile that starts from `entryUri` reads,
- * which a `run` statement finds by name (`luauFileName`): every file of
- * `fileUris` whose name ends in `.luau` and that is in the project
- * (`isInProject`), by its path below the root in byte order (`projectPath`).
- * They are not scripts of the story. `hasScript` says whether a script is
- * registered, which is how a folder holding a main script of its own is
- * known. A URI with no folder has no project, and so no Luau files.
- */
 export function projectLuauFiles(
   entryUri: string,
   fileUris: Iterable<string>,
@@ -163,8 +114,6 @@ export function projectLuauFiles(
     .map(({ uri }) => uri);
 }
 
-/** The name a `run` statement finds a Luau file by: its file name, as the
- *  file system names it (`projectPath`), before the first dot. */
 export const luauFileName = (uri: string, asWritten = false): string => {
   const file = projectPath(uri.slice(uri.lastIndexOf("/") + 1), asWritten);
   const dot = file.indexOf(".");

@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
 
-// #1223: typing a `}` inside a brace body, and deleting it again, changes
-// which lines the blocks around it hold, as far as the declaration's `end`.
-// An incremental compile after each keystroke must give the program a cold
-// compile of the same text gives.
-
 const URI = "inmemory:///main.sd";
 
 const SOURCE = `scene main
@@ -90,9 +85,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - (before.lastIndexOf("\n") + 1) };
 }
 
-// Where the extra `}` goes, and the `}` that is then stray (zero-based line
-// and character): the typed one when it closes nothing, otherwise the `}`
-// that used to close the block the typed one now closes.
 const EDITS = [
   { name: "after a keyframe position", after: "from { opacity = 0 }", stray: { line: 9, character: 2 } },
   { name: "after a style selector block", after: "&.secondary { background-color = slate_50 }", stray: { line: 18, character: 45 } },
@@ -100,7 +92,6 @@ const EDITS = [
   { name: "inside a multi-line block", after: "    duration = 0.4", stray: { line: 13, character: 2 } },
 ];
 
-/** The `Invalid syntax` errors of a compiled program, by start position. */
 function invalidSyntax(program: ReturnType<typeof pick>) {
   return ((program.diagnostics as any)?.[URI] ?? [])
     .filter((d: any) => (typeof d.message === "string" ? d.message : d.message.value) === "Invalid syntax")
@@ -117,7 +108,6 @@ describe("typing and deleting a `}` in a brace body", () => {
     expect(offset).toBeGreaterThan(after.length - 1);
     const typed = SOURCE.slice(0, offset) + "}" + SOURCE.slice(offset);
 
-    // Type the `}`.
     const at = posAt(SOURCE, offset);
     c.updateDocument({
       textDocument: { uri: URI, version: 2 },
@@ -126,11 +116,9 @@ describe("typing and deleting a `}` in a brace body", () => {
     const afterTyping = pick(c.compile({ textDocument: { uri: URI } }).program);
     const coldTyped = coldCompile(typed);
     expect(stable(afterTyping)).toBe(stable(coldTyped));
-    // The stray `}` is reported where it stands, and nowhere else.
     expect(invalidSyntax(coldTyped)).toEqual([stray]);
     expect(invalidSyntax(coldCompile(SOURCE))).toEqual([]);
 
-    // Delete it again.
     const end = { line: at.line, character: at.character + 1 };
     c.updateDocument({
       textDocument: { uri: URI, version: 3 },

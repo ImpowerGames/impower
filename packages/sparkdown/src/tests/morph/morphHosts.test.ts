@@ -41,7 +41,6 @@ describe("morph hosts", () => {
         },
       ),
     });
-    // No asset-service fetch is given, so `src` is not used.
     const ref = program.morphs!.variants["bunny"]![0]!;
     const handle = await host.resolve(ref);
     expect(requested).toEqual(["/file:/local/bunny.svg?v=1-1"]);
@@ -72,7 +71,6 @@ describe("morph hosts", () => {
     });
     const handle = await served.resolve(ref);
     expect(requested).toEqual([ref.src]);
-    // The consumer's identity is the reference's key, whatever the response carries.
     expect(handle.artifact.key).toBe(ref.key);
   });
 

@@ -42,45 +42,25 @@ import {
 import { Op, opOf } from "./ProgramInstructions";
 import { Choice } from "../runtime/Choice";
 
-/** Where the engine stands: an entry of a sequence and an offset into that
- *  entry's code. An offset past the end of a chunk's code is the start of the
- *  next entry. */
 export interface ProgramPosition {
   sequence: SequenceRow;
   entry: number;
   offset: number;
 }
 
-/** A block the frame is inside: the owner's sequence and entry, and the
- *  block's index in the owner's block table, whose row gives where the owner
- *  resumes (docs/engine/binary-program.md, section 1). */
 export interface BlockEntry {
   sequence: SequenceRow;
   entry: number;
   block: number;
 }
 
-/** What the program engine keeps of a call frame beside the call stack
- *  element that holds its temporaries (docs/engine/binary-program.md,
- *  section 7): the position its caller resumes at when it returns, with the
- *  blocks the caller was inside, and the function it runs. A frame a host
- *  pushed, to call a function from outside the story, resumes nothing. */
 export interface ProgramFrame {
   returnTo: ProgramPosition | null;
   blocks: BlockEntry[];
-  /** The symbol of the function the frame runs. */
   symbol: number;
-  /** Set when a load placed the caller after the statement the call was
-   *  made in (docs/engine/binary-program.md, section 8, step 5): the frame
-   *  runs to its return, and its caller resumes at `returnTo` with what it
-   *  returned dropped and the eval stack cut to the caller's own height. */
   dropResult?: boolean;
 }
 
-/** The blocks the position in `sequence` is inside, outermost first, which
- *  follow from the position alone: the owner of each body, up to the flow or
- *  up to the body of the function the position is in, whose frame begins at
- *  that body, or nothing when an owner is not in `root`. */
 export const blockStackOf = (
   root: ProgramRoot,
   sequence: SequenceRow,
@@ -102,22 +82,12 @@ export const blockStackOf = (
   return stack;
 };
 
-/** Where a thread a fork suspended resumes, the blocks it is inside there,
- *  and the flow its last instruction ran in (`previousFlow`), which each
- *  thread of the object engine kept as its own previous pointer. */
 interface SuspendedThread {
   position: ProgramPosition | null;
   blocks: BlockEntry[];
   previousFlow: number;
 }
 
-/** A choice the program engine raised (`Choice`): as the object engine's
- *  choice, with its text, tags, index, whether it is an invisible default and
- *  the thread it holds, and in place of paths, the address of its `Choice`
- *  instruction as `sourcePath`, its identity (docs/engine/binary-program.md,
- *  section 4), and where it leads: its entry, the blocks the entry is inside,
- *  and the chunk that raised it. `previousFlow` is the flow the choice was
- *  raised in, which an invisible default taken by itself is entered from. */
 export class ProgramChoice extends Choice {
   constructor(
     readonly target: ProgramPosition,
@@ -129,46 +99,24 @@ export class ProgramChoice extends Choice {
   }
 }
 
-/** The turn a count id that was never visited holds. */
 const NEVER_VISITED = -0x80000000;
 
-/** A position as an image holds it: the chunk's id (-1 past the last
- *  statement of its sequence), its entry, which is where the chunk is looked
- *  for first, the offset, and the sequence's id. */
 export interface PositionCopy {
   readonly chunk: number;
   readonly entry: number;
   readonly offset: number;
   readonly sequence: number;
-  /** For a position at the start of a statement that is not its sequence's
-   *  first, or past the last statement, where a statement that ran rests
-   *  (a beat's image at its newline stands there): the id of the chunk
-   *  before it, or -1. The position is placed after that chunk when a root
-   *  still holds it and the statement the position stands at, so a compile
-   *  that inserted a statement after it or appended one to its sequence
-   *  leaves the story to run what now follows the statement that ran (#700).
-   *  A statement at the position that was emitted again leaves the position
-   *  unplaced, as it does with no chunk before it (#699). */
   readonly after: number;
-  /** The id of the entry chunk of the flow the position is in, which binds
-   *  a scene's or a branch's parameters, or -1 for a flow with none; and for
-   *  a branch, the id of its scene's (`sceneEntry`, -1 otherwise). A root
-   *  whose flows have other entries places the position through its saved
-   *  form, which restarts a flow whose parameters changed (#1728). */
   readonly flowEntry: number;
   readonly sceneEntry: number;
 }
 
-/** The id of the entry chunk (`FlowEntry`) of flow `symbol`, or -1 for a
- *  flow that has none or a symbol of no flow. */
 const entryChunkOf = (root: ProgramRoot, symbol: number): number => {
   const flow = symbol >= 0 ? root.flow(symbol) : undefined;
   const entry = flow?.arrays.chunks[0];
   return entry && flow.arrays.lineStarts[0] === -1 ? chunkId(entry) : -1;
 };
 
-/** The id of the entry chunk of the scene of the branch `sequence` is in,
- *  or -1 for a sequence of no branch. */
 const sceneEntryOf = (root: ProgramRoot, sequence: SequenceRow): number =>
   sequence.flow >= 0 && sequence.kind === SymbolKind.Branch
     ? entryChunkOf(root, root.parentOf(sequence.flow))
@@ -198,8 +146,6 @@ export const copyPosition = (
   };
 };
 
-/** A call stack element as an image holds it, with the program frame
- *  beside it. */
 export interface ElementCopy {
   readonly type: PushPopType;
   readonly inExpression: boolean;
@@ -215,8 +161,6 @@ export interface ElementCopy {
   } | null;
 }
 
-/** A thread as an image holds it: its frames and, for a thread a fork
- *  suspended, where it resumes and its `previousFlow`. */
 export interface ThreadCopy {
   readonly index: number;
   readonly elements: readonly ElementCopy[];
@@ -226,7 +170,6 @@ export interface ThreadCopy {
   } | null;
 }
 
-/** A waiting choice as an image holds it, with the thread it holds. */
 export interface ChoiceCopy {
   readonly text: string;
   readonly tags: readonly string[] | null;
@@ -239,7 +182,6 @@ export interface ChoiceCopy {
   readonly thread: ThreadCopy;
 }
 
-/** The positional state an image copies whole (`copyPositional`). */
 export interface PositionalCopy {
   readonly position: PositionCopy | null;
   readonly evaluationStack: readonly InkObject[];
@@ -252,7 +194,6 @@ export interface PositionalCopy {
     lineEndPending: boolean;
     addresses: readonly number[];
   } | null;
-  /** The held addresses of a continue in progress (`heldAddresses`). */
   readonly heldAddresses: readonly number[];
   readonly didSafeExit: boolean;
   readonly turn: number;
@@ -260,11 +201,9 @@ export interface PositionalCopy {
   readonly previousRandom: number;
   readonly previousFlow: number;
   readonly previousAddress: number;
-  /** The threads from the outermost; the last is the current one. */
   readonly threads: readonly ThreadCopy[];
   readonly threadCounter: number;
   readonly choices: readonly ChoiceCopy[];
-  /** How many call stack elements the copy holds. */
   frames: number;
 }
 
@@ -272,13 +211,9 @@ export interface PlacedThread {
   copy: ThreadCopy;
   returns: (ProgramPosition | null)[];
   resume: ProgramPosition | null;
-  /** The cuts a translation made (`ThreadCuts`), applied once the thread is
-   *  installed. */
   cuts?: ThreadCuts;
 }
 
-/** A positional copy with its positions placed in a root
- *  (`placePositional`). */
 export interface PlacedPositional {
   copy: PositionalCopy;
   position: ProgramPosition | null;
@@ -286,37 +221,16 @@ export interface PlacedPositional {
   choices: {
     target: ProgramPosition | null;
     thread: PlacedThread;
-    /** The identity of the choice in the root, where a translation gave it
-     *  another (`sourcePath`). */
     sourcePath?: string;
-    /** Set for a choice a translation could not place, which is dropped. */
     dropped?: boolean;
   }[];
-  /** For a copy translated from an older table generation, each symbol id
-   *  of the copy as the root's generation numbers it (-1 for one a reseed
-   *  dropped). */
   remap?: (symbol: number) => number;
 }
 
-/** What a placement after a construct whose layout differs, or the drop of
- *  a frame whose function binds its parameters in other code, does to a
- *  thread's frames (docs/engine/binary-program.md, section 8, step 5). */
 export interface ThreadCuts {
-  /** Per element, whether the position the element stands at (its
-   *  callee's return position, or for the top one the thread's own) was
-   *  placed after the statement or loop it was inside. */
   after: boolean[];
-  /** The first element that is dropped with every one above it, or -1. */
   dropFrom: number;
-  /** When frames are dropped, where the frame below them resumes: after the
-   *  statement that called the first one dropped. */
   callerAfter?: ProgramPosition | null;
-  /** When the element that is now the top stands in a scene or a branch
-   *  whose parameters changed (#1728): the flow's
-   *  qualified name, where the element restarts it (past its entry's
-   *  `SetVar`s), the parameters that entry binds, in the order its header
-   *  writes them, and the names of those the saved entry bound. The
-   *  element's parameters are bound by name from the saved ones. */
   restart?: {
     flow: string;
     position: ProgramPosition;
@@ -325,9 +239,6 @@ export interface ThreadCuts {
   };
 }
 
-/** The scopes `chunk`'s code opens before `offset`: its `BeginScope`s less
- *  its `EndScope`s, read once in order (docs/engine/binary-program.md,
- *  section 1). */
 const scopesBefore = (chunk: ProgramChunk, offset: number): number => {
   let scopes = 0;
   for (let at = 0; at < offset && at < codeWords(chunk); at += 2) {
@@ -341,9 +252,6 @@ const scopesBefore = (chunk: ProgramChunk, offset: number): number => {
   return Math.max(0, scopes);
 };
 
-/** The flow's own sequence a position in `sequence` is written in, past the
- *  bodies of the blocks around it, or null inside a function's body, whose
- *  frame holds no scope of a flow, and where an owner is not in `root`. */
 export const flowSequenceOf = (
   root: ProgramRoot,
   sequence: SequenceRow,
@@ -362,12 +270,6 @@ export const flowSequenceOf = (
   return at;
 };
 
-/** The scopes the flows a position in `sequence` is in hold open in its
- *  frame beneath its blocks' scopes: a scene's one, and for a branch its
- *  scene's and its own nested in it. The top level, a function's body and a
- *  declaration sequence hold none. A flow's parameters and the `local`s of
- *  its body are bound in the flow's scope, so they belong to the flow as a
- *  function's belong to the function. */
 export const flowScopesOf = (root: ProgramRoot, sequence: SequenceRow): number => {
   const flow = flowSequenceOf(root, sequence);
   if (flow?.kind === SymbolKind.Scene) {
@@ -379,12 +281,6 @@ export const flowScopesOf = (root: ProgramRoot, sequence: SequenceRow): number =
   return 0;
 };
 
-/** The scopes a frame has open at `position`: its own, those of the flows
- *  the position is in (`flowScopesOf`), those each owner on the position's
- *  block stack (`blocks`, when the caller has it) has open where it enters
- *  its block, and those the position's chunk has opened before the offset
- *  (section 1). A jump lands at this depth (`ProgramStory.land`), and a
- *  load's cut leaves a frame at it. */
 export const scopeDepthAt = (
   root: ProgramRoot,
   position: ProgramPosition,
@@ -401,8 +297,6 @@ export const scopeDepthAt = (
   return depth;
 };
 
-/** A frame of a thread's copy: the original's, with a position and blocks of
- *  its own, since the engine moves a position in place. */
 const copyFrame = (frame: ProgramFrame): ProgramFrame => ({
   returnTo: frame.returnTo ? { ...frame.returnTo } : null,
   blocks: frame.blocks.slice(),
@@ -410,17 +304,12 @@ const copyFrame = (frame: ProgramFrame): ProgramFrame => ({
   ...(frame.dropResult ? { dropResult: true } : {}),
 });
 
-/** The output a cut carried to the next continue, whether its own line
- *  waits for its newline (`StoryState.CarryOutputPastCut`), and the
- *  addresses of the instructions that ran it, which the continue that shows
- *  it logs (`ProgramStory.beatLog`, #1686). */
 interface CarriedStep {
   output: InkObject[];
   lineEndPending: boolean;
   addresses: number[];
 }
 
-/** A line end a call from a host suspended (`SuspendLineEnd`). */
 export interface SuspendedLineEnd {
   pending: boolean;
   joinable: boolean;
@@ -430,30 +319,8 @@ export interface SuspendedLineEnd {
   joined: boolean;
 }
 
-/**
- * The state of the program engine: its position and the blocks it is inside,
- * its call frames, the eval stack and output, the errors of the continue in
- * progress, the globals, and the temporaries of each frame, which are the
- * scopes of the elements of the call stack its globals were made with (the
- * engine's own, `CallStack.ForProgram`, see `ProgramStory.ResetState`), as
- * `VariablesState` reads and writes them. A call pushes an element and the program frame beside it
- * (`frameOf`), and a return pops them.
- *
- * The output is the object engine's, member for member, so that the builtins
- * a chunk calls (`display`) read and write it as they read and write a
- * `StoryState`: the newline rule and the splitting of a pushed string's
- * surrounding whitespace (`PushToOutputStreamIndividual`,
- * `TrySplittingHeadTailWhitespace`), a function's rule of dropping the
- * newlines it writes until it shows something and trimming its trailing
- * whitespace when it returns, a line end that waits (`lineEndPending`), the
- * offer to join a line that begins with `..` (`lineJoinable`), and the cut
- * that ends a continue at a waiting line end when something shows, whose
- * output is carried to the next continue.
- */
 export class ProgramStoryState {
   position: ProgramPosition | null = null;
-  /** The blocks the position is inside, outermost first, from the body of
-   *  the function the frame runs, or from the flow. */
   blockStack: BlockEntry[] = [];
   evaluationStack: InkObject[] = [];
   outputStream: InkObject[] = [];
@@ -461,103 +328,53 @@ export class ProgramStoryState {
   lineJoinable = false;
   outputCut: number | null = null;
   carried: CarriedStep | null = null;
-  /** The addresses run in this continue since its line end began to wait,
-   *  whose beat is not known yet: the next continue's, when something shows
-   *  and the cut carries the step there, or this one's, when the line ends
-   *  here (`ProgramStory.beatLog`). Held only within a continue. */
   heldAddresses: number[] = [];
-  /** Whether the instruction running joined a waiting line end
-   *  (`JoinLineEnd`); `ProgramStory.Step` clears it before each instruction
-   *  and reads it after. */
   lineEndJoined = false;
-  /** Whether a callback's step runs inside a step that holds its addresses,
-   *  whose own are held with them (`SuspendLineEnd`). */
   protected _holdsInherited = false;
   didSafeExit = false;
   currentTurnIndex = -1;
   storySeed: number;
   previousRandom = 0;
-  /** The symbol of the flow the current thread's last instruction ran in, or
-   *  -1: what a path chosen without resetting the call stack is entered
-   *  from, as the object engine's thread kept its `previousPointer`. A fork
-   *  suspends it with the thread it forks, a forced end clears it, and a
-   *  save writes it by name, for each thread. */
   previousFlow = -1;
-  /** The address of the instruction that ran last, or -1: what a route step
-   *  is known by (docs/engine/binary-program.md, section 8), as the deleted object
-   *  engine's step is known by its previous pointer. An image copies it with
-   *  the position, so a search node restored from one stands where it stood.
-   *  A durable save does not hold it, since an address names a chunk of the
-   *  program it was taken in. */
   previousAddress = -1;
 
   protected _currentErrors: string[] | null = null;
   protected _currentWarnings: string[] | null = null;
   protected _raisedErrors: RaisedError[] = [];
   protected _raisedWarnings: RaisedError[] = [];
-  /** Where `inStringEvaluation` last found the open string
-   *  (`findOpenString`). */
   protected _openStringIndex = -1;
-  /** The open `BeginString` indices and the stream they index
-   *  (`innermostOpenString`). */
   protected _openStrings: number[] = [];
   protected _openStringsStream: InkObject[] | null = null;
-  /** The program frame of each call stack element a call pushed. */
   protected _frames = new WeakMap<CallStack.Element, ProgramFrame>();
-  /** Where each thread below the current one resumes when the threads
-   *  above it end, and the blocks it is inside there (`ForkThread`). */
   protected _suspended = new WeakMap<CallStack.Thread, SuspendedThread>();
 
-  /** The visits of each counted symbol, by count id
-   *  (docs/engine/binary-program.md, section 5). */
   visits: Uint32Array = new Uint32Array(0);
-  /** The turn of each counted symbol's last visit, by count id, or
-   *  `NEVER_VISITED`. */
   turns: Int32Array = new Int32Array(0);
 
-  /** Hears, once a durable save of this state is written, the id the save
-   *  gave each upvalue cell it wrote (`writeSave`), or nothing. A debugger
-   *  watching a captured variable notes its cell's id, and finds the cell a
-   *  load of the save reads under that id (`cellsRead`). */
   cellsWritten:
     | ((cells: ReadonlyMap<VariablePointerValue, number>) => void)
     | null = null;
-  /** Hears, once a durable save is read into this state and before its ids
-   *  are forgotten, each upvalue cell the load holds by the id the save gave
-   *  it (`readSave`), or nothing. */
   cellsRead: ((cells: ReadonlyMap<number, VariablePointerValue>) => void) | null =
     null;
 
-  /** `_noteChanged` tells the story its state is no longer the one a reset
-   *  made, as a load does (`Story.NoteStateChanged`). */
   constructor(
     protected _root: ProgramRoot,
     public variablesState: VariablesState,
     protected _cleanWhitespace: (text: string) => string,
     protected _noteChanged: () => void = () => {},
-    /** The call stack `variablesState` reads temporaries from. */
     public callStack: CallStack,
   ) {
     this.storySeed = new PRNG(new Date().getTime()).next() % 100;
   }
 
-  /** The frame the engine runs in: the call stack's current element, whose
-   *  scopes hold the temporaries. */
   get frame(): CallStack.Element | null {
     return this.callStack.currentElement ?? null;
   }
 
-  /** The program frame beside call stack element `element`, or nothing for
-   *  the flow's own element. */
   frameOf(element: CallStack.Element): ProgramFrame | undefined {
     return this._frames.get(element);
   }
 
-  /** The addresses the story will come back to, from the outermost thread
-   *  in: for each thread, where each of its frames returns to and, for a
-   *  suspended thread, where it resumes, which runs on into those frames'
-   *  returns; then the position (`ProgramStory.stackAddresses`), as the
-   *  object engine's call stack named every thread's elements. */
   stackAddresses(): number[] {
     const out: number[] = [];
     const add = (position: ProgramPosition | null | undefined) => {
@@ -579,15 +396,10 @@ export class ProgramStoryState {
     return out;
   }
 
-  /** Where `thread`, suspended by a fork, resumes when the threads above
-   *  it end, or nothing for the current thread. */
   resumeOf(thread: CallStack.Thread): ProgramPosition | null {
     return this._suspended.get(thread)?.position ?? null;
   }
 
-  /** Pushes a call frame of `type`: its element, with the output's length
-   *  as where the function starts writing, and beside it the program frame
-   *  that returns to `returnTo` inside `blocks`. */
   PushFrame(
     type: PushPopType,
     frame: ProgramFrame,
@@ -599,13 +411,6 @@ export class ProgramStoryState {
     return element;
   }
 
-  // ------------------------------------------------------------- threads
-
-  /** Forks the current thread (`Thread`): the current thread is suspended,
-   *  to resume at `resumeAt` inside the blocks it is in now, and a copy of
-   *  it, frames and temporaries included, becomes the current thread and
-   *  runs on from the position. The copy's frames are the original's, with
-   *  positions of their own. */
   ForkThread(resumeAt: ProgramPosition): void {
     const original = this.callStack.currentThread;
     this._suspended.set(original, {
@@ -625,14 +430,10 @@ export class ProgramStoryState {
     this.blockStack = this.blockStack.slice();
   }
 
-  /** Whether a `Done`, or a flow that runs out, ends a forked thread rather
-   *  than the flow. */
   get canPopThread(): boolean {
     return this.callStack.canPopThread;
   }
 
-  /** Ends the current thread and resumes the one below it where its fork
-   *  left it (`StoryState`'s `PopThread`). */
   PopThread(): void {
     this.callStack.PopThread();
     const resumed = this._suspended.get(this.callStack.currentThread);
@@ -643,10 +444,6 @@ export class ProgramStoryState {
     this.previousFlow = resumed?.previousFlow ?? -1;
   }
 
-  // -------------------------------------------------------------- counts
-
-  /** Raises the visits of count id `id` and records the turn
-   *  (`Visit`). */
   Visit(id: number): void {
     if (id < 0) {
       return;
@@ -659,38 +456,22 @@ export class ProgramStoryState {
     this.images?.count(id);
   }
 
-  /** How many visits this state has counted since it was made: a host
-   *  that watches a stretch of the story for changes to its state compares
-   *  it before and after (#657). Neither saved nor restored. */
   visitsMade = 0;
 
-  /** The count ids this state visits, in order, while a host keeps a log
-   *  here (#657); null when none does. Neither saved nor restored. */
   visitLog: number[] | null = null;
 
-  /** The write barrier of the engine's images, when it keeps them
-   *  (`ProgramImages`): a visit marks its count id. */
   images: ImageTracker | null = null;
 
-  /** The image of the beat before the line in progress, kept from the start
-   *  of a continue that has not yet written its newline
-   *  (`ProgramStory.captureBeat`), or nothing when the state as it stands
-   *  is the beat's. */
   beatImage: ProgramImage | null = null;
 
-  /** The root the state's positions are in. */
   get root(): ProgramRoot {
     return this._root;
   }
 
-  /** The visits of count id `id`. */
   VisitCount(id: number): number {
     return id >= 0 ? (this.visits[id] ?? 0) : 0;
   }
 
-  /** The turns since count id `id` was last visited, or -1 for never. A
-   *  visit before the first turn records turn -1, as the object engine's
-   *  did, so "never" is a turn of its own (`NEVER_VISITED`). */
   TurnsSince(id: number): number {
     const turn = id >= 0 ? (this.turns[id] ?? NEVER_VISITED) : NEVER_VISITED;
     return turn === NEVER_VISITED ? -1 : this.currentTurnIndex - turn;
@@ -756,19 +537,12 @@ export class ProgramStoryState {
     this._raisedWarnings = [];
   }
 
-  /** The choices raised and waiting, in the order they were raised; none
-   *  while the story can continue, since choices come at the end of a
-   *  continue (`StoryState.currentChoices`). */
   get currentChoices(): ProgramChoice[] {
     return this.canContinue ? [] : this.generatedChoices;
   }
 
-  /** Every choice raised since the last one was taken. */
   generatedChoices: ProgramChoice[] = [];
 
-  /** A copy of the current thread, frames and temporaries included, for a
-   *  choice to hold: taking the choice runs on in it
-   *  (`CallStack.ForkThread`). */
   ForkChoiceThread(): CallStack.Thread {
     const original = this.callStack.currentThread;
     const fork = this.callStack.ForkThread();
@@ -782,10 +556,6 @@ export class ProgramStoryState {
     return fork;
   }
 
-  /** Makes the thread a choice holds the only thread, and clears the
-   *  choices: the story runs on in the thread the choice was raised in
-   *  (`Story.ChooseChoice`, `StoryState.SetChosenPath`). The choice's thread
-   *  is used once, since the choices are cleared with it. */
   TakeChoice(choice: ProgramChoice): void {
     this.callStack.currentThread = choice.threadAtGeneration!;
     this.generatedChoices.length = 0;
@@ -794,12 +564,9 @@ export class ProgramStoryState {
     this.didSafeExit = false;
   }
 
-  // The engine runs one flow at a time.
   get callstackDepth(): number {
     return this.callStack.depth;
   }
-
-  // ------------------------------------------------------------- the output
 
   PushEvaluationStack(obj: InkObject): void {
     this.evaluationStack.push(obj);
@@ -809,10 +576,6 @@ export class ProgramStoryState {
   PopEvaluationStack(count: number): InkObject[];
   PopEvaluationStack(count?: number): InkObject | InkObject[] {
     if (count === undefined) {
-      // One pop from an empty stack gives null, as the object engine's
-      // did (`StoryState.PopEvaluationStack`): the arm of a `match` whose
-      // key is not a name compares the value with its own copy and pops the
-      // copy the comparison already took.
       return (this.evaluationStack.pop() ?? null) as InkObject;
     }
     if (count > this.evaluationStack.length) {
@@ -838,7 +601,6 @@ export class ProgramStoryState {
   }
 
   PushToOutputStream(obj: InkObject | null): void {
-    // Every `BeginString` reaches the stream through here, at its end.
     if (isBeginString(obj)) {
       this.innermostOpenString;
       this._openStrings.push(this.outputStream.length);
@@ -852,10 +614,6 @@ export class ProgramStoryState {
     }
     if (obj instanceof StringValue) {
       if (this.inStringEvaluation) {
-        // A function called from inside the open string (its start is after
-        // the string's `BeginString`) still drops newlines until it shows
-        // something, as it does outside a string; a string opened inside the
-        // function keeps its literal newlines (`StoryState.PushToOutputStream`).
         const currEl = this.callStack.currentElement!;
         if (
           currEl.type == PushPopType.Function &&
@@ -882,10 +640,6 @@ export class ProgramStoryState {
     this.OutputStreamDirty();
   }
 
-  /** Writes one piece of output under the newline rule: inside a function
-   *  that has shown nothing yet, a newline is dropped; elsewhere a newline is
-   *  written unless the output already ends in one or holds nothing
-   *  (`StoryState.PushToOutputStreamIndividual`). */
   PushToOutputStreamIndividual(obj: InkObject | null): void {
     if (obj === null) {
       throw new Error("obj");
@@ -917,9 +671,6 @@ export class ProgramStoryState {
         }
       }
     } else if (obj instanceof ObjectValue) {
-      // Inside a function, a display table with visible words ends the
-      // stretch at the function's start where newlines are dropped, as
-      // non-whitespace text does.
       const tableText = obj.value?.get("text");
       if (tableText instanceof StringValue && tableText.isNonWhitespace) {
         this.MarkFunctionsShown();
@@ -931,8 +682,6 @@ export class ProgramStoryState {
     }
   }
 
-  // The functions on top of the call stack have shown something, so their
-  // newlines are no longer dropped.
   protected MarkFunctionsShown(): void {
     const elements = this.callStack.elements;
     for (let i = elements.length - 1; i >= 0; i--) {
@@ -949,8 +698,6 @@ export class ProgramStoryState {
     return splitHeadTailWhitespace(single);
   }
 
-  /** Drops the newlines and inline whitespace a function wrote at its end,
-   *  as its return does (`StoryState.TrimWhitespaceFromFunctionEnd`). */
   TrimWhitespaceFromFunctionEnd(): void {
     let functionStartPoint =
       this.callStack.currentElement!.functionStartInOutputStream;
@@ -959,7 +706,6 @@ export class ProgramStoryState {
     }
     for (let i = this.outputStream.length - 1; i >= functionStartPoint; i--) {
       const obj = this.outputStream[i];
-      // A display table is content, as visible text is.
       if (obj instanceof ObjectValue) break;
       if (!(obj instanceof StringValue)) continue;
       if (obj.isNewline || obj.isInlineWhitespace) {
@@ -971,8 +717,6 @@ export class ProgramStoryState {
     }
   }
 
-  /** Pops the current call frame, trimming a function's trailing whitespace
-   *  first (`StoryState.PopCallStack`), and returns its program frame. */
   PopCallStack(popType: PushPopType | null = null): ProgramFrame | undefined {
     const element = this.callStack.currentElement!;
     if (element.type == PushPopType.Function) {
@@ -1012,12 +756,6 @@ export class ProgramStoryState {
     return this._openStringIndex >= 0;
   }
 
-  // The index of the innermost open `BeginString`, or -1. `_openStrings` holds
-  // the index of each `BeginString` pushed, innermost last; a string that has
-  // closed leaves its index past the stream's end or on other content, and
-  // falls off here. The stack is rebuilt with one scan when the stream is
-  // replaced or rewritten below its end, so a push costs the same however
-  // long a string has been open (#1134).
   protected get innermostOpenString(): number {
     const stream = this.outputStream;
     if (this._openStringsStream !== stream) {
@@ -1040,10 +778,6 @@ export class ProgramStoryState {
     this._openStringsStream = null;
   }
 
-  /** Ends this continue's output at `outputCut` with the newline the cut line
-   *  was waiting for, and carries the output after it to the next continue.
-   *  A function that began before the cut starts at the head of that
-   *  output. */
   CarryOutputPastCut(): void {
     if (this.outputCut === null) return;
     const cut = this.outputCut;
@@ -1057,8 +791,6 @@ export class ProgramStoryState {
     this.lineEndPending = false;
     this.outputStream.push(new StringValue("\n"));
     this.ForgetOpenStrings();
-    // A start of -1 marks a function that has shown something, whose
-    // newlines are no longer dropped, and stays as it is.
     for (const element of this.callStack.elements) {
       if (element.functionStartInOutputStream > 0) {
         element.functionStartInOutputStream = Math.max(
@@ -1070,8 +802,6 @@ export class ProgramStoryState {
     this.OutputStreamDirty();
   }
 
-  /** Writes the newline at `outputCut` and keeps the output after it, for a
-   *  step that leaves no next continue to carry it to. */
   CloseOutputCut(): void {
     if (this.outputCut === null) return;
     this.outputStream.splice(this.outputCut, 0, new StringValue("\n"));
@@ -1086,31 +816,22 @@ export class ProgramStoryState {
     return carried;
   }
 
-  /** Whether the instruction about to run is held (`heldAddresses`): while
-   *  the line end waits, once a cut has ended the line, and inside a
-   *  callback a held step calls. */
   get holdsAddresses(): boolean {
     return (
       this.lineEndPending || this.outputCut !== null || this._holdsInherited
     );
   }
 
-  /** Whether a callback's step runs inside a held step (`SuspendLineEnd`). */
   get holdsInherited(): boolean {
     return this._holdsInherited;
   }
 
-  /** A line that begins with `..` takes the offer of the line before it:
-   *  the waiting line end is dropped and the line continues, so what the
-   *  wait held belongs to this beat, even when the joining line leaves a
-   *  line end waiting of its own (`lineEndJoined`, #1686). */
   JoinLineEnd(): void {
     if (this.lineEndPending) this.lineEndJoined = true;
     this.lineJoinable = false;
     this.lineEndPending = false;
   }
 
-  /** Hands over the held addresses, and holds none. */
   TakeHeldAddresses(): number[] {
     const held = this.heldAddresses;
     this.heldAddresses = [];
@@ -1124,11 +845,6 @@ export class ProgramStoryState {
     this.carried = null;
   }
 
-  // A call that runs against an output stream of its own, whose output never
-  // reaches the story's steps, neither writes a pending newline, cuts a step
-  // nor starts from a carried step: it suspends them and resumes them with
-  // the stream it restores (`StoryState.SuspendLineEnd`). A callback that a
-  // held step calls (`inStep`) has its addresses held with the step's.
   SuspendLineEnd(inStep = false): SuspendedLineEnd {
     const suspended = {
       pending: this.lineEndPending,
@@ -1155,10 +871,6 @@ export class ProgramStoryState {
     this.lineEndJoined = suspended.joined;
   }
 
-  /** Ends the flow, with a fresh frame for the next, as the object engine's
-   *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
-   *  resets the call stack keeps no temporary, no scope and no function frame
-   *  of the flow it left. */
   ForceEnd(): void {
     this.callStack.Reset();
     this.DiscardLineEnd();
@@ -1169,8 +881,6 @@ export class ProgramStoryState {
     this.previousAddress = -1;
     this.didSafeExit = true;
   }
-
-  // ------------------------------------------------- what the output reads as
 
   protected _textDirty = true;
   protected _tagsDirty = true;
@@ -1268,23 +978,14 @@ export class ProgramStoryState {
     return result;
   }
 
-  // ------------------------------------------------------------------- saving
-
-  // The counts are keyed outside the engine by their symbol's qualified name,
-  // or `#<id>` for an anonymous symbol of this root's table generation.
-
-  /** Each counted symbol that was visited, by its key, with its visits. */
   GetVisitCountEntries(): [string, number][] {
     return this.countEntries(this.visits, (v) => v > 0);
   }
 
-  /** Each counted symbol that was visited, by its key, with the turn of its
-   *  last visit. */
   GetTurnIndexEntries(): [string, number][] {
     return this.countEntries(this.turns, (t) => t !== NEVER_VISITED);
   }
 
-  // The key of each count id of the root's table.
   protected _countKeys: string[] | null = null;
 
   protected countKeys(): string[] {
@@ -1317,12 +1018,6 @@ export class ProgramStoryState {
     return out;
   }
 
-  /** The count id a saved key names in this root, or -1: a qualified name,
-   *  or an anonymous symbol of `generation`, taken through the reseeds since
-   *  it (`ProgramRoot.symbolFrom`). A symbol this root does not define has
-   *  none, though the compiler's table may keep its name until a reseed: a
-   *  count saved under a name the program no longer has is dropped
-   *  (docs/engine/binary-program.md, section 2). */
   protected countIdOfKey(key: string, generation: number): number {
     const table = this._root.table;
     let symbol: number | undefined;
@@ -1342,21 +1037,6 @@ export class ProgramStoryState {
       : countIdOf(table, symbol);
   }
 
-  /** The state as JSON: the position as a chunk id, its entry and offset and
-   *  its sequence's id, the output and eval stack, the line end, the globals,
-   *  and the call frames, each with its temporaries scope by scope, the
-   *  upvalue cells still open on it and, for a frame a call pushed, the
-   *  position its caller resumes at and the symbol of its function; the
-   *  threads a fork suspended, each with where it resumes and its frames; and
-   *  the visits and turns of the counted symbols, keyed by their names
-   *  (`GetVisitCountEntries`). A position past
-   *  the last statement of its sequence, where a flow rests after its last
-   *  beat, has no chunk: it is written with chunk id -1 and named by its
-   *  sequence alone. The blocks a position is inside are not written: they
-   *  follow from its sequence. A position holds within a session, for as
-   *  long as a root holds its chunk or, past the last statement, its
-   *  sequence. `ToJson` is the same, under the object engine's other name
-   *  for it (`StoryState.ToJson`). */
   ToJson(): string {
     return this.toJson();
   }
@@ -1365,10 +1045,6 @@ export class ProgramStoryState {
     return this.writeState(new SessionCodec(this));
   }
 
-  /** The state as JSON, with its positions, its frames' functions, its
-   *  choices' identities and its counts written as `codec` writes them: as
-   *  they are within a session (`toJson`), or in the saved form of a durable
-   *  save (`ProgramSave`). */
   writeState(codec: StateCodec): string {
     const writer = this.stateWriter();
     codec.begin?.(writer);
@@ -1386,8 +1062,6 @@ export class ProgramStoryState {
     return writer.toString();
   }
 
-  /** A writer for the state's JSON, which writes a table or a cell the
-   *  program initialized with its anchor. */
   stateWriter(): SimpleJson.Writer {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
@@ -1398,9 +1072,6 @@ export class ProgramStoryState {
     return writer;
   }
 
-  /** Writes the positional state before the globals, into the object the
-   *  writer has open: the position, the eval stack, the output and its line
-   *  end, the turn, the random state and `previousFlow`. */
   writeHead(writer: SimpleJson.Writer, codec: StateCodec): void {
     writer.WritePropertyStart("position");
     codec.position(writer, this.position);
@@ -1435,15 +1106,10 @@ export class ProgramStoryState {
     writer.WriteProperty("didSafeExit", this.didSafeExit);
   }
 
-  /** Writes the positional state after the globals: the current thread's
-   *  frames, the threads a fork suspended and the choices waiting, each
-   *  with its thread. */
   writeTail(writer: SimpleJson.Writer, codec: StateCodec): void {
     writer.WriteProperty("frames", (w) =>
       this.writeFrames(w, this.callStack.elements, codec),
     );
-    // The threads a fork suspended, from the outermost: each with the
-    // position it resumes at and its frames.
     const threads = this.callStack._threads;
     if (threads.length > 1) {
       writer.WriteProperty("threads", (w) => {
@@ -1462,8 +1128,6 @@ export class ProgramStoryState {
         w.WriteArrayEnd();
       });
     }
-    // The choices waiting, each with what it shows, its identity, its entry
-    // and the frames of the thread it holds (`StoryState`'s `WriteChoice`).
     if (this.generatedChoices.length > 0) {
       writer.WriteProperty("choices", (w) => {
         w.WriteArrayStart();
@@ -1497,8 +1161,6 @@ export class ProgramStoryState {
     }
   }
 
-  /** Writes a thread's `previousFlow` by its qualified name, or nothing for
-   *  none. */
   protected writePreviousFlow(w: SimpleJson.Writer, flow: number): void {
     const name = flow >= 0 ? this._root.table.symbols[flow] : undefined;
     if (name !== undefined) {
@@ -1506,7 +1168,6 @@ export class ProgramStoryState {
     }
   }
 
-  /** The `previousFlow` a saved thread names, or -1. */
   protected readPreviousFlow(saved: Record<string, any>): number {
     const name = saved["previousFlow"];
     return typeof name === "string"
@@ -1514,11 +1175,6 @@ export class ProgramStoryState {
       : -1;
   }
 
-  // Each element of a thread's call stack: its type, where its function
-  // started writing, the eval stack's height it was pushed at, for a frame a
-  // call pushed its function's symbol and the position its caller resumes
-  // at, its temporaries scope by scope and the upvalue cells still open on
-  // it.
   protected writeFrames(
     w: SimpleJson.Writer,
     elements: readonly CallStack.Element[],
@@ -1547,11 +1203,6 @@ export class ProgramStoryState {
       }
       w.WriteArrayEnd();
       w.WritePropertyEnd();
-      // The cells still open on the frame, by the ids the closures holding
-      // them are written with, as the object engine's frames wrote them,
-      // and the cells it borrowed, closed or not: a waiting choice's thread
-      // borrows the cells of the thread it was copied from, and adopts them
-      // when the choice is taken (`CallStack.Element.Copy`).
       CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
       if (element.borrowedUpvalues.length > 0) {
         w.WritePropertyStart("borrowedUpvalues");
@@ -1563,7 +1214,6 @@ export class ProgramStoryState {
     w.WriteArrayEnd();
   }
 
-  // Fills the current thread's call stack from saved frames.
   protected readFrames(
     frames: readonly Record<string, any>[],
     codec: StateCodec,
@@ -1603,17 +1253,6 @@ export class ProgramStoryState {
     });
   }
 
-  // ------------------------------------------------------------------ images
-
-  /** The positional state, copied whole for an image
-   *  (docs/engine/binary-program.md, section 7): the position, the eval
-   *  stack and the output with the line end, the turn and the random state,
-   *  each thread's frames with their temporaries scope by scope, the cells
-   *  open on each frame and the cells it borrowed, and the choices waiting,
-   *  each with its thread. Values are held by reference: a table is keyed
-   *  state, which the image holds apart. A position is held as a chunk id,
-   *  its entry and offset, and its sequence's id, and the blocks it is
-   *  inside are not held: they follow from its sequence. */
   copyPositional(): PositionalCopy {
     let frames = 0;
     const copyThread = (
@@ -1696,10 +1335,6 @@ export class ProgramStoryState {
     return copy;
   }
 
-  /** The positions of a positional copy placed in the root this state runs
-   *  on, with the blocks each is inside, or nothing when one cannot be: a
-   *  chunk the root no longer holds, a sequence it no longer has, or a body
-   *  whose owner it no longer holds. */
   placePositional(copy: PositionalCopy): PlacedPositional | undefined {
     const root = this._root;
     let unplaced = false;
@@ -1708,16 +1343,12 @@ export class ProgramStoryState {
         return null;
       }
       let position: ProgramPosition | null = null;
-      // The statement the position stands at must still be held, as for any
-      // position (#699); a statement emitted again leaves it unplaced.
       const held = saved.chunk < 0 || !!root.position(saved.chunk, saved.entry);
       const after =
         held && saved.after >= 0
           ? root.position(saved.after, saved.entry - 1)
           : undefined;
       if (after) {
-        // Where the statement that ran rests: after it, whatever follows it
-        // in this root.
         position = { sequence: after.sequence, entry: after.entry + 1, offset: 0 };
       } else if (saved.chunk < 0) {
         const sequence = root.sequence(saved.sequence);
@@ -1734,8 +1365,6 @@ export class ProgramStoryState {
         unplaced = true;
         return null;
       }
-      // A flow whose entry was emitted again may bind its parameters in
-      // other code, which the saved form's placement checks (#1728).
       if (
         saved.flowEntry !== undefined &&
         (entryChunkOf(root, position.sequence.flow) !== saved.flowEntry ||
@@ -1765,10 +1394,6 @@ export class ProgramStoryState {
     return unplaced ? undefined : placed;
   }
 
-  /** Puts a placed positional copy in place of the positional state. Each
-   *  thread and frame is made again from the copy, which stays as it was,
-   *  since the engine moves a position and writes a frame's scopes in
-   *  place. */
   installPositional(placed: PlacedPositional): void {
     const copy = placed.copy;
     const blocksOf = (position: ProgramPosition | null): BlockEntry[] =>
@@ -1801,7 +1426,6 @@ export class ProgramStoryState {
     const remap = (symbol: number) =>
       placed.remap && symbol >= 0 ? placed.remap(symbol) : symbol;
     const last = placed.threads.length - 1;
-    // The eval stack is in place before the cuts, which cut it.
     this.evaluationStack = copy.evaluationStack.slice();
     let position = placed.position;
     const threads = placed.threads.map((thread, i) => {
@@ -1830,10 +1454,6 @@ export class ProgramStoryState {
     this.lineEndPending = copy.lineEndPending;
     this.lineJoinable = copy.lineJoinable;
     this.outputCut = copy.outputCut;
-    // A carried step's addresses, and those a line in progress holds (an
-    // image taken mid-continue, at a breakpoint or by a save that puts the
-    // live state back), name the program the image was taken in, as
-    // `previousAddress` does, and go where it goes.
     this.carried = copy.carried
       ? {
           output: copy.carried.output.slice(),
@@ -1877,20 +1497,6 @@ export class ProgramStoryState {
     this._noteChanged();
   }
 
-  /**
-   * Applies a placement's cuts to a thread whose frames are in place, and
-   * returns the position the thread now stands at (docs/engine/
-   * binary-program.md, section 8, step 5). Frames dropped because their
-   * function binds its parameters in other code go with every frame above
-   * them, their scopes closed, and the frame below resumes after the
-   * statement that called them, as the top one. A frame placed after the
-   * statement or loop it was inside has its scopes cut to the depth the
-   * new position has, the upvalues of the dropped scopes closed as
-   * `EndScope` closes them; below the top, the frame it called runs to its
-   * return and its result is dropped (`ProgramFrame.dropResult`), and at the
-   * top of the current thread the eval stack is cut to the frame's own
-   * height, which is its height at any statement boundary (section 1).
-   */
   applyCuts(
     thread: CallStack.Thread,
     cuts: ThreadCuts,
@@ -1902,7 +1508,6 @@ export class ProgramStoryState {
     let position = top;
     if (cuts.dropFrom >= 1 && cuts.dropFrom < elements.length) {
       for (let i = elements.length - 1; i >= cuts.dropFrom; i -= 1) {
-        // As a frame that returns closes the cells still open on it.
         elements[i]!.CloseOpenUpvalues(this.callStack.cellBarrier);
       }
       elements.length = cuts.dropFrom;
@@ -1910,13 +1515,9 @@ export class ProgramStoryState {
       after[cuts.dropFrom - 1] = true;
     }
     const t = elements.length - 1;
-    // The scopes the restarting element keeps: its own and those of the
-    // flows down to the one it restarts, whose scope holds the parameters.
     const restartFlow = cuts.restart ? this._root.flowNamed(cuts.restart.flow) : undefined;
     const restartKeeps = restartFlow ? 1 + flowScopesOf(this._root, restartFlow) : undefined;
     if (cuts.restart) {
-      // The element restarts its flow: its scopes are cut to the flow's
-      // start, and its eval stack at the top of the current thread.
       position = cuts.restart.position;
       after[t] = true;
     }
@@ -1928,10 +1529,6 @@ export class ProgramStoryState {
       const at = i < t ? this._frames.get(elements[i + 1]!)?.returnTo : position;
       if (at) {
         const depth = scopeDepthAt(this._root, at);
-        // A restarted flow keeps its own scope and opens the scopes above
-        // it fresh, as entering it again does, a branch it starts with
-        // among them; a frame saved at fewer scopes than its flows hold
-        // now opens them too.
         const restarts = i === t && restartKeeps !== undefined;
         const keeps = restarts ? Math.min(depth, restartKeeps) : depth;
         while (element.temporaryScopes.length > keeps) {
@@ -1964,22 +1561,6 @@ export class ProgramStoryState {
     return position;
   }
 
-  /**
-   * Binds the parameters of a flow an element restarts (#1728) as its entry
-   * would have: each by name from the value the saved entry bound to that
-   * name (`saved`), so a parameter that was reordered keeps its argument,
-   * and nil for a name the saved entry did not bind, so a parameter that was
-   * added or renamed takes nil, the value a divert that passes no argument
-   * for it binds (an empty `...` for a variadic flow's). Every binding the
-   * restart replaces, each saved parameter's and any the frame held under a
-   * new parameter's name, is replaced as a declaration in the same scope
-   * replaces it (`CallStack.Element.RetireBindings`, which
-   * `CallStack.SetTemporaryVariable` shares): a captured cell closes on
-   * its value, and a parameter the flow no longer has is unbound. The
-   * parameters are bound in the restarted flow's own scope, the element's
-   * scope `index`, and a saved value is read from the innermost scope up to
-   * it that binds its name.
-   */
   protected rebindParameters(
     element: CallStack.Element,
     saved: readonly string[],
@@ -2001,9 +1582,6 @@ export class ProgramStoryState {
         values.set(name, value);
       }
     }
-    // Every binding the restart replaces: each saved parameter's, and a
-    // binding of a new parameter's name the frame already held (a local of
-    // the code that diverted), which a closure may have captured.
     const unbound = new Set(
       [...saved, ...params.map((param) => param.name)].filter((name) => scope.has(name)),
     );
@@ -2022,11 +1600,6 @@ export class ProgramStoryState {
     }
   }
 
-  /** Restores a state `toJson` wrote. Each position is placed through the
-   *  root, which must still hold the chunk it names, or for a position past
-   *  the last statement of its sequence, the sequence; a position in a
-   *  statement or flow the program no longer has is refused, since placing
-   *  one is the saved form's work (docs/engine/binary-program.md, section 8). */
   LoadJson(json: string): void {
     const obj = SimpleJson.TextToDictionary(json);
     if (obj["engine"] !== "program") {
@@ -2037,9 +1610,6 @@ export class ProgramStoryState {
     this.previousAddress = typeof previous === "number" ? previous : -1;
   }
 
-  /** Restores a state `writeState` wrote with a codec that reads what it
-   *  wrote. A codec that can check placement first (`check`) refuses a
-   *  state it cannot place before anything changes. */
   readState(obj: Record<string, any>, codec: StateCodec): void {
     codec.check?.(obj);
     this.beginLoad();
@@ -2059,30 +1629,15 @@ export class ProgramStoryState {
     this.OutputStreamDirty();
   }
 
-  /** Called when a load opens (`beginLoad`): the story the state is, which
-   *  no longer stands at the beat it stood at. */
   onBeginLoad: (() => void) | null = null;
 
-  /** Opens a load: the state is no longer the one a reset made, the
-   *  choices waiting are dropped, the next image is a keyframe, and a fresh
-   *  registry of the tables and cells the load reads is opened, whose
-   *  tables and cells the program initialized resolve to this state's. */
   beginLoad(): void {
     this._noteChanged();
     this.onBeginLoad?.();
     this.generatedChoices.length = 0;
-    // What was marked since the last image does not reach the loaded state,
-    // so the next image is a keyframe.
     this.images?.reset(null);
     this.beatImage = null;
-    // A fresh identity registry for this load, as `StoryState.LoadJsonObj`
-    // opens one: a table reference resolves against the tables this load
-    // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
-    // A table or a cell the program initialized that the load restores saved
-    // content into is written in place, so the images keep it as it was
-    // first, as the write barrier would: an image taken before the load
-    // puts it back.
     const images = this.images?.images;
     JsonSerialisation.SetLoadSessionAnchorResolver((anchor) => {
       const found = this.variablesState.InitTableAtAnchor(anchor);
@@ -2096,8 +1651,6 @@ export class ProgramStoryState {
     });
   }
 
-  /** Ends a load: a `new`-instance table saved with its class's name links
-   *  again to the live class global, now that the globals are loaded. */
   endLoad(): void {
     JsonSerialisation.RelinkPendingDefineRefs((className) => {
       const value = this.variablesState.GetVariableWithName(className);
@@ -2105,7 +1658,6 @@ export class ProgramStoryState {
     });
   }
 
-  /** Reads the positional state `writeHead` wrote. */
   readHead(obj: Record<string, any>, codec: StateCodec): void {
     this.position = codec.place(obj["position"]);
     this.blockStack = this.blocksOf(this.position);
@@ -2134,16 +1686,11 @@ export class ProgramStoryState {
     this.didSafeExit = obj["didSafeExit"] === true;
   }
 
-  /** Reads the positional state `writeTail` wrote, after the globals, with
-   *  the cuts the codec's placement made applied to each thread
-   *  (`StateCodec.cutsOf`). */
   readTail(obj: Record<string, any>, codec: StateCodec): void {
     const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
     const threads = Array.isArray(obj["threads"]) ? obj["threads"] : [];
     this.generatedChoices.length = 0;
     this.callStack.Reset();
-    // The suspended threads from the outermost, each with where it
-    // resumes, then the current one.
     threads.forEach((saved: Record<string, any>, i: number) => {
       if (i > 0) {
         this.callStack.PushThread();
@@ -2177,8 +1724,6 @@ export class ProgramStoryState {
       );
       this.blockStack = this.blocksOf(this.position);
     }
-    // Each waiting choice's thread is read as a thread of the stack,
-    // which the choice then holds apart from it.
     const choices = Array.isArray(obj["choices"]) ? obj["choices"] : [];
     for (const saved of choices as Record<string, any>[]) {
       let target = codec.place(saved["target"]);
@@ -2213,8 +1758,6 @@ export class ProgramStoryState {
     }
   }
 
-  /** Sets the visits and the turn of count id `id`, as a load reads
-   *  them. */
   SetCount(id: number, visits: number | null, turn: number | null): void {
     if (id < 0) {
       return;
@@ -2224,13 +1767,10 @@ export class ProgramStoryState {
     if (turn !== null) this.turns[id] = turn;
   }
 
-  /** The count id a saved key names (`countIdOfKey`). */
   CountIdOfKey(key: string, generation: number): number {
     return this.countIdOfKey(key, generation);
   }
 
-  /** The position a saved `[chunk id, entry, offset, sequence id]` names
-   *  in the root. */
   placePosition(saved: unknown): ProgramPosition | null {
     if (!Array.isArray(saved)) {
       return null;
@@ -2259,7 +1799,6 @@ export class ProgramStoryState {
     return { sequence: placed.sequence, entry: placed.entry, offset };
   }
 
-  /** The blocks a position is inside, which follow from its sequence. */
   blocksOf(position: ProgramPosition | null): BlockEntry[] {
     if (!position) {
       return [];
@@ -2274,52 +1813,27 @@ export class ProgramStoryState {
   }
 }
 
-/**
- * How a state's positions, its frames' functions, its choices' identities
- * and its counts are written and read (`ProgramStoryState.writeState`,
- * `readState`): within a session, by chunk id and symbol id
- * (`SessionCodec`), or in the saved form of a durable save
- * (`ProgramSave`).
- */
 export interface StateCodec {
-  /** Called with the state's writer before anything is written. */
   begin?(writer: SimpleJson.Writer): void;
-  /** Writes what the codec puts at the head of the state's object. */
   header?(writer: SimpleJson.Writer): void;
-  /** Writes what the codec puts at the end of the state's object. */
   end?(writer: SimpleJson.Writer): void;
   position(writer: SimpleJson.Writer, position: ProgramPosition | null): void;
   frameSymbol(writer: SimpleJson.Writer, symbol: number): void;
   choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void;
-  /** Writes the addresses a carried step ran (`CarriedStep.addresses`). */
   addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void;
   counts(writer: SimpleJson.Writer): void;
-  /** Places every position of a saved state, and throws when one cannot
-   *  be, before the load changes anything. */
   check?(obj: Record<string, any>): void;
-  /** The cuts the placement of a thread's frames and the position it stands
-   *  at made (docs/engine/binary-program.md, section 8, step 5), or
-   *  nothing. */
   cutsOf?(frames: readonly unknown[], position: unknown): ThreadCuts | undefined;
-  /** Reads the values a saved token holds that the load does not place (a
-   *  choice it dropped), so that the tables and cells defined there are
-   *  known to the rest of the load. */
   skip?(saved: unknown): void;
   beginRead?(): void;
   endRead?(): void;
   place(saved: unknown): ProgramPosition | null;
   readFrameSymbol(saved: Record<string, any>): number;
   readChoiceSource(saved: Record<string, any>, target: ProgramPosition): string;
-  /** The addresses `addresses` wrote, each placed; one that cannot be
-   *  placed is dropped. */
   readAddresses(saved: unknown): number[];
   readCounts(obj: Record<string, any>): void;
 }
 
-/** A state as it holds within a session: positions as chunk ids, a frame's
- *  function by the root's symbol id, a count keyed by its symbol's name or
- *  `#<id>` for an anonymous symbol of the root's table generation, and a
- *  choice by the address of its `Choice`. */
 class SessionCodec implements StateCodec {
   constructor(protected _state: ProgramStoryState) {}
 
@@ -2335,7 +1849,6 @@ class SessionCodec implements StateCodec {
     writer.WriteProperty("sourcePath", choice.sourcePath);
   }
 
-  // Addresses as they hold within a session, as `previousAddress` is kept.
   addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void {
     writer.WriteInjected(addresses.slice());
   }
@@ -2381,7 +1894,6 @@ class SessionCodec implements StateCodec {
   }
 }
 
-// Writes counts by their keys.
 const writeCounts = (
   writer: SimpleJson.Writer,
   entries: readonly [string, number][],
@@ -2393,8 +1905,6 @@ const writeCounts = (
   writer.WriteObjectEnd();
 };
 
-// Writes a position as `[chunk id, entry, offset, sequence id]`, with chunk
-// id -1 for a position past the last statement of its sequence, or null.
 const writePosition = (
   writer: SimpleJson.Writer,
   position: ProgramPosition | null,
@@ -2412,8 +1922,6 @@ const writePosition = (
   writer.WriteArrayEnd();
 };
 
-// Whether pushing `obj` shows something: text that is not only spaces and
-// newlines, a display table, or the start of a tag (`StoryState.ts`).
 function showsOutput(obj: InkObject | null): boolean {
   if (obj instanceof StringValue) return /[^ \t\n]/.test(obj.value ?? "");
   if (obj instanceof ObjectValue || obj instanceof Tag) return true;

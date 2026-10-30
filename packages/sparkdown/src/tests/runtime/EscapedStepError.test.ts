@@ -1,6 +1,3 @@
-// An engine error thrown out of a story step leaves the continue it came from.
-// The story must stop counting that continue as running, or it can never be
-// cancelled, reset, jumped or loaded again (#473).
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -27,7 +24,6 @@ describe("an error thrown out of a story step", () => {
     const story: any = ctx.story;
     withFirstStepThrowing(story);
     expect(() => story.ContinueAsync()).toThrow(TypeError);
-    // The line the step belonged to is still open, for the caller to end.
     expect(story.asyncContinueComplete).toBe(false);
     expect(() => story.CancelAsyncContinue()).not.toThrow();
     expect(() => story.ResetState()).not.toThrow();

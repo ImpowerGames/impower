@@ -154,8 +154,6 @@ export type TypeErrorData =
 
 export type TypeErrorKind = TypeErrorData["kind"];
 
-// Written as a record so that the compiler rejects a list that leaves a kind
-// out or names one `TypeErrorData` lacks.
 const ERROR_KINDS: Record<TypeErrorKind, true> = {
   TypeMismatch: true,
   UnknownSymbol: true,
@@ -221,7 +219,6 @@ const ERROR_KINDS: Record<TypeErrorKind, true> = {
   TypeAnnotationRequired: true,
 };
 
-/** Every kind of error the checker reports, which is a type diagnostic's `code`. */
 export const TYPE_ERROR_KINDS: ReadonlySet<string> = new Set(Object.keys(ERROR_KINDS));
 
 export class LuauTypeError {
@@ -268,7 +265,6 @@ export function countMismatch(
   };
 }
 
-// Luau's `LuauIndentTypeMismatchMaxTypeLength`.
 const INDENT_TYPE_MISMATCH_MAX_TYPE_LENGTH = 10;
 
 function wrongNumberOfArgsString(
@@ -312,7 +308,6 @@ const BINARY_OPS: Record<string, string> = {
 
 const UNARY_OPS: Record<string, string> = { unm: "-", len: "#", not: "not" };
 
-// These type functions always reduce, so their failing is a bug in Luau.
 const UNREACHABLE_TYPE_FUNCTIONS = new Set(["refine", "singleton", "union", "intersect", "and", "or"]);
 
 function definitionModuleName(ty: TypeId): string | undefined {
@@ -335,7 +330,6 @@ function findCallMetamethod(type: TypeId): TypeId | undefined {
   return getTableType(unwrapped)?.props.get("__call")?.readTy;
 }
 
-/** The message Luau's `toString(TypeError)` gives an error. */
 export function errorToString(error: LuauTypeError): string {
   const e = error.data;
   switch (e.kind) {
@@ -679,10 +673,6 @@ const ENUM_NAMES: Record<string, Record<number, string>> = {
   PropertyAccessViolation: { 0: "CannotRead", 1: "CannotWrite" },
 };
 
-/**
- * An error's fields, named as Luau's struct names them, with types and packs
- * printed and enumerations named, for tests and for a diagnostic's data.
- */
 export function errorFields(error: LuauTypeError): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const enums = ENUM_NAMES[error.data.kind];
@@ -709,21 +699,12 @@ function printField(key: string, value: unknown, enums: Record<number, string> |
   return value;
 }
 
-// ---------------------------------------------------------------------------
-// Copying errors (Luau's `copyErrors`, from `Error.cpp`)
-// ---------------------------------------------------------------------------
-
-/** Clones the types the errors refer to into `destArena`, so that the errors never point into the module's internal types. */
 export function copyErrors(errors: LuauTypeError[], destArena: TypeArena, builtinTypes: BuiltinTypes): void {
-  // The cloner's maps from original types to clones stand for Luau's `CloneState`.
   const cloneState = new TypeCloner(destArena, builtinTypes);
 
-  // Each error owns its data in Luau, so each gets a copy with its types
-  // cloned; a nested error is shared, as Luau's `shared_ptr` shares it.
   for (const error of errors) error.data = copyError(error.data, cloneState);
 }
 
-/** A copy of an error's data with its types cloned; a nested error is copied in place. */
 function copyError(e: TypeErrorData, cloneState: TypeCloner): TypeErrorData {
   const clone = (ty: TypeId): TypeId => cloneState.clone(ty);
   const clonePack = (tp: TypePackId): TypePackId => cloneState.clonePack(tp);
@@ -844,7 +825,6 @@ function copyError(e: TypeErrorData, cloneState: TypeCloner): TypeErrorData {
     case "TypeAnnotationRequired":
       return { ...e, inferredTy: clone(e.inferredTy) };
     default: {
-      // Every kind is listed above, as the `static_assert` on Luau's switch requires.
       const unhandled: never = e;
       throw new InternalCompilerError(`Non-exhaustive type switch: ${(unhandled as TypeErrorData).kind}`);
     }

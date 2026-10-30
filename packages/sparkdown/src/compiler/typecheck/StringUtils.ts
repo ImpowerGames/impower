@@ -1,14 +1,7 @@
 // String helpers, ported from Luau's `Common/src/StringUtils.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
 
-/**
- * The Damerau-Levenshtein distance between two strings (Luau's
- * `editDistance`): insertions, deletions, substitutions and transpositions of
- * adjacent characters each cost one.
- */
 export function editDistance(a: string, b: string): number {
-  // When there are matching prefix and suffix, they end up computing as zero
-  // cost, effectively making it no-op. We drop these characters.
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
   a = a.slice(start);
@@ -18,9 +11,6 @@ export function editDistance(a: string, b: string): number {
   a = a.slice(0, a.length - end);
   b = b.slice(0, b.length - end);
 
-  // Since we know the edit distance is the difference of the length of A and
-  // B discounting the matching prefixes and suffixes, it is therefore
-  // pointless to run the rest of this function to find that out.
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
 

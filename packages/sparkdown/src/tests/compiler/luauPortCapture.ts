@@ -1,34 +1,3 @@
-// Reads the upstream snippets of the linter and autocomplete ports by running
-// the port files, for the Luau corpus gate (#1908).
-//
-// A port hands a snippet to a harness helper in whatever form the test is
-// written: a literal, a `test.each` row, a `for ... of` over an array, a local
-// wrapper such as `openMain`, an array joined into a document. Reading the
-// files' syntax would miss every form it was not taught, so each file is
-// transpiled and run with `vitest` replaced and every other import loaded for
-// real: `describe` and `test` run their bodies at once, `expect` passes every
-// assertion, and every harness helper records the text it is given and hands
-// back what the real helper returns, so a body runs on as it does in its own
-// suite. A body in scope that still throws may have stopped before a later
-// snippet, so it fails the gate.
-//
-// What is in scope:
-// - linter ports (`../luau-conformance/Lint*.test.ts`): the top-level
-//   statements from one whose leading comments mark an upstream case
-//   (`// Luau: Name`) up to the next case, or to a statement whose leading
-//   comment opens `// Sparkdown`, which is Sparkdown's own.
-//   A helper whose name ends in `InFunction` takes a function body; the others
-//   (`diagnose`, `diagnoseDetailed`, `diagnoseWithLints`, `lintMessages`) take
-//   a document.
-// - autocomplete ports (`sparkdown-language-server/src/tests/providers/
-//   autocomplete*.test.ts`): the bodies of `upstreamCase` calls whose case is
-//   `ported` in `autocompleteUpstreamCases.ts`. `complete` and `labelsAt`
-//   take a document.
-//
-// Every call in scope to a recording helper, or to a local function that calls
-// one, is a site. A site that never runs is reported, so a port whose snippet
-// the capture cannot reach fails the gate instead of shrinking the corpus.
-
 import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -47,20 +16,15 @@ const AUTOCOMPLETE_HELPERS = new Set(["complete", "labelsAt"]);
 
 export interface CapturedSnippet {
   source: "lint" | "autocomplete";
-  /** The port file's name. */
   file: string;
-  /** The upstream case: a lint group's `// Luau:` names, or an autocomplete case key. */
   scope: string;
-  /** A function body, which the gate places in a function, or a whole document. */
   kind: "body" | "document";
   text: string;
 }
 
 export interface PortCapture {
   snippets: CapturedSnippet[];
-  /** In-scope sites that never ran, as `file:line`. */
   unreached: string[];
-  /** In-scope bodies that threw, and files that did not run, with the error. */
   aborted: string[];
 }
 
@@ -68,7 +32,6 @@ interface Context {
   scope: string;
 }
 
-/** A value every use accepts: any property, call, `new`, iteration or `await`. */
 function anything(): unknown {
   const target = function () {};
   const proxy: unknown = new Proxy(target, {
@@ -87,17 +50,10 @@ function anything(): unknown {
 interface RunState {
   file: string;
   pending: Promise<unknown>[];
-  /** Bodies in scope that threw, which may have stopped before a later snippet. */
   aborted: string[];
-  /** Whether the body running now is in scope. */
   inScope: () => boolean;
 }
 
-/**
- * Runs a body. One in scope that throws, now or when its promise settles, is
- * recorded as aborted: it may have stopped before handing over a later
- * snippet, as a loop over rows does when a row's result is read.
- */
 function settle(body: () => unknown, state: RunState, title: string): void {
   const abort = (error: unknown) => {
     if (!state.inScope()) return;
@@ -115,7 +71,6 @@ function settle(body: () => unknown, state: RunState, title: string): void {
 
 type Body = (...args: unknown[]) => unknown;
 
-/** `test`, `it` or `describe`: runs the body at once, and the same for `.skip`, `.only`, `.each(rows)` and the like. */
 function runner(state: RunState): unknown {
   const run = (name: unknown, body?: Body) => {
     if (typeof body === "function") settle(() => body(), state, String(name));
@@ -137,7 +92,6 @@ function parse(file: string, text = readFileSync(file, "utf8")): ts.SourceFile {
   return ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
 }
 
-/** The names a file imports from `module`, each local name with the name the module exports. */
 function importsFrom(source: ts.SourceFile, module: string): Map<string, string> {
   const names = new Map<string, string>();
   for (const statement of source.statements) {
@@ -160,7 +114,6 @@ function callsAny(node: ts.Node, names: Set<string>): boolean {
   return found;
 }
 
-/** The recording helpers a file imports, and its own top-level functions that call one. */
 function siteCallees(source: ts.SourceFile, recording: Set<string>): Set<string> {
   const callees = new Set(recording);
   for (const statement of source.statements) {
@@ -183,15 +136,12 @@ interface Edit {
 
 function applyEdits(text: string, edits: Edit[]): string {
   let out = text;
-  // From the end, and at one offset the replacement before the insertion, so
-  // every edit's offsets still hold when it is applied.
   for (const edit of [...edits].sort((a, b) => b.from - a.from || b.to - a.to)) {
     out = out.slice(0, edit.from) + edit.text + out.slice(edit.to);
   }
   return out;
 }
 
-/** Marks every call to one of `callees` inside `node` as a site. */
 function markSites(source: ts.SourceFile, node: ts.Node, callees: Set<string>, sites: string[], edits: Edit[]): void {
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && callees.has(n.expression.text)) {
@@ -207,13 +157,6 @@ function markSites(source: ts.SourceFile, node: ts.Node, callees: Set<string>, s
 const LUAU_CASE = /^\/\/ Luau: (.+)$/gm;
 const SPARKDOWN_GROUP = /^\/\/ Sparkdown\b/;
 
-/**
- * The upstream cases each top-level statement of a linter port belongs to.
- * A statement whose leading comments name cases (`// Luau: Name`) starts
- * them, one whose leading comment opens `// Sparkdown` is Sparkdown's own and
- * ends them, and any other statement continues the cases before it, as a
- * second `describe` for the same upstream case does.
- */
 function luauCaseGroups(source: ts.SourceFile): Map<ts.Statement, string[]> {
   const groups = new Map<ts.Statement, string[]>();
   let current: string[] = [];
@@ -229,7 +172,6 @@ function luauCaseGroups(source: ts.SourceFile): Map<ts.Statement, string[]> {
   return groups;
 }
 
-/** The case key of an `upstreamCase(key, ...)` or `upstreamCase.bug(bug, key, ...)` call. */
 function upstreamCaseKey(call: ts.CallExpression): string | undefined {
   const callee = call.expression;
   const bug = ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "upstreamCase";
@@ -238,7 +180,6 @@ function upstreamCaseKey(call: ts.CallExpression): string | undefined {
   return key && (ts.isStringLiteral(key) || ts.isNoSubstitutionTemplateLiteral(key)) ? key.text : undefined;
 }
 
-/** The file a relative import names, as Vite would find it. */
 function resolveImport(from: string, specifier: string): string {
   if (!specifier.startsWith(".")) return specifier;
   const base = join(dirname(from), specifier);
@@ -248,7 +189,6 @@ function resolveImport(from: string, specifier: string): string {
   return base;
 }
 
-/** Every module a port imports at run time, loaded for real, except `vitest`. */
 async function loadImports(path: string, source: ts.SourceFile): Promise<Map<string, unknown>> {
   const modules = new Map<string, unknown>();
   for (const statement of source.statements) {
@@ -279,7 +219,6 @@ async function runPort(
   const sites: string[] = [];
   const edits: Edit[] = [];
   scopes(source, callees, sites, edits);
-  // A CommonJS function cannot hold `import.meta`; it gets the file's own.
   const visit = (node: ts.Node): void => {
     if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) {
       edits.push({ from: node.getStart(), to: node.end, text: "__importMeta" });
@@ -299,9 +238,6 @@ async function runPort(
     aborted,
     inScope: () => inScope(contexts.getStore()),
   };
-  // The harness, with its recording helpers handing back what the real ones
-  // return, so a body runs on as it does in its own suite, and the case
-  // registration (`upstreamCase`) running the body in its case's context.
   const harnessModule = new Proxy(realHarness, {
     get: (real, key) => {
       if (typeof key !== "string") return undefined;
@@ -312,7 +248,6 @@ async function runPort(
           bug: (_bug: unknown, scope: string, title: string, body: Body) => upstreamCase(scope, title, body),
         });
       }
-      // Sparkdown's own cases, which the real harness would register as tests here.
       if (key === "sparkdownBug") {
         return (_bugs: unknown, title: string, body: Body) => contexts.run({ scope: "" }, () => settle(() => body(), state, title));
       }
@@ -325,7 +260,6 @@ async function runPort(
       return real[key];
     },
   });
-  // Assertions pass; `expect(() => labelsAt(source)).not.toThrow()` hands over a function.
   const expect = new Proxy(
     (value: unknown) => {
       if (typeof value === "function") settle(() => (value as Body)(), state, "a function handed to expect");
@@ -354,7 +288,6 @@ async function runPort(
   } catch (error) {
     capture.aborted.push(`${state.file}: the file did not run: ${error instanceof Error ? error.message : String(error)}`);
   }
-  // A promise can start more work as it settles.
   for (let settled = 0; settled < state.pending.length; ) {
     const batch = state.pending.slice(settled);
     settled = state.pending.length;
@@ -366,10 +299,6 @@ async function runPort(
   });
 }
 
-/**
- * Runs one linter port, given as its file name in the port directory and its
- * text, and adds what it hands its harness to `capture`.
- */
 export async function captureLintPort(
   file: string,
   text: string,
@@ -401,7 +330,6 @@ export async function captureLintPort(
   return capture;
 }
 
-/** Runs every linter and autocomplete port and returns the snippets they hand to their harness. */
 export async function capturePortSnippets(): Promise<PortCapture> {
   const capture: PortCapture = { snippets: [], unreached: [], aborted: [] };
   const contexts = new AsyncLocalStorage<Context>();

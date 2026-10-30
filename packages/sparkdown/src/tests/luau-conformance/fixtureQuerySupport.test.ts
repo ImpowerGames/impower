@@ -151,8 +151,6 @@ describe("faithful fixture and query execution", () => {
       }).toEqual({ type: "number", errors: [[name, "TypeMismatch"]] });
     },
   );
-  // Actual pinned native tracer byte controls preserve repeated/trailing BOM,
-  // distinct normalized spellings and non-BMP paths in both resolver branches.
   test.each(
     [
       ["\\u{feff}\\u{feff}A", String.fromCharCode(0xfeff, 0xfeff) + "A"],
@@ -335,8 +333,6 @@ describe("faithful fixture and query execution", () => {
     expect(cleared.diagnostics.map((d) => d.code)).toEqual(["UnknownRequire"]);
     expect(session.modules.has("game/A")).toBe(false);
   });
-  // Actual pinned Parser + RequireTracer.cpp output, with Fixture.cpp's
-  // resolver model, compared with the actual compiled AST.
   test.each([
     ["local M=require(game.A)\nreturn M", ["0:8|game/A|game/A"]],
     ["local M=require(pick(game.A))\nreturn M", ["0:8|<absent>|"]],
@@ -426,7 +422,6 @@ describe("faithful fixture and query execution", () => {
           "game/A": "export type T=number\nlocal bad:number='bad'\nreturn 1",
         },
       });
-      // These assertions inspect the actual checker.
       expect(result.checked).toBe(true);
       expect(
         result.find({ type: "M" }).is(result.find({ builtin: "error" })),
@@ -459,8 +454,6 @@ describe("faithful fixture and query execution", () => {
       module: "game/Main",
       moduleSources: { "game/A": "export type T=number\nreturn 1" },
     });
-    // Pinned preorder gives the inner-call argument query game/A while the
-    // outer full-call query remains unresolved. This is not call unwrapping.
     expect(
       result.find({ type: "M" }).is(result.find({ builtin: "error" })),
     ).toBe(true);
@@ -486,8 +479,6 @@ describe("faithful fixture and query execution", () => {
     ).toEqual(["TypeMismatch"]);
     expect(result.diagnostics.some((d) => d.module === "game/B")).toBe(false);
   });
-  // Exact pinned Lexer::readNext treats input byte zero as EOF even when
-  // Parser::parse receives the full buffer length. Escaped source NUL differs.
   test.each([
     ["declare foo: number" + String.fromCharCode(0) + "declare bar: )", 0],
     ["declare foo: number declare bar: )", 2],
@@ -542,7 +533,6 @@ describe("faithful fixture and query execution", () => {
           'type MixedTable = {[number]: number, x: number}\nlocal t: MixedTable = {"fail"}\nreturn 1',
       },
     });
-    // Actual checker errors are asserted.
     expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/A", "TypeMismatch"],
       ["game/A", "MissingProperties"],
@@ -593,8 +583,6 @@ describe("faithful fixture and query execution", () => {
     (source, printed) => {
       const result = checkLuau(source);
       expect(result.syntaxDiagnostics).toEqual([]);
-      // This checks emission of the genuine AST despite the current type-function
-      // environment rejecting explicit any. It does not claim error-free checking.
       expect(result.diagnostics.map((d) => [d.code, d.data?.["name"]])).toEqual(
         [
           ["UnknownSymbol", "any"],
@@ -638,8 +626,6 @@ describe("faithful fixture and query execution", () => {
       parseErrors: [],
     };
     const checked = new Frontend().checkSourceModule(unit, Mode.Strict);
-    // This source-backed prepared AST tests the prefix printer independently
-    // of source grammar support. Missing Mod remains an actual checker error.
     expect(checked.errors).toHaveLength(1);
     expect(checked.errors[0]?.data.kind).toBe("UnknownSymbol");
     expect(decorateSource(source, checked.module, unit)).toBe(
@@ -649,9 +635,6 @@ describe("faithful fixture and query execution", () => {
   test("prepared native AST preserves mixed variadic lists", async () => {
     const { decorateSource } = await import("./typecheckDecoration");
     const source = "type T=(number,...string)->(number,...string)";
-    // Exercise the genuine prepared AST and real checker separately from
-    // Sparkdown's grammar, which reads this source too since #876 (#1924),
-    // as the definition setup boundary permits.
     const parse = await loadOfficialLuau("typecheck"),
       parsed = parse(source);
     expect(parsed.errors).toBe(0);
@@ -680,8 +663,6 @@ describe("faithful fixture and query execution", () => {
       "type T=(number,...string)->(number,...string)",
     );
   });
-  // The native probe installs the zero-location singleton AST which pinned
-  // TypeAttach::visitLocal rehydrates; the checker infers the actual cell here.
   test.each([
     ['local x="é" :: "é"; return x,0x10', "local x:'é'='é'::'é';return x,16"],
     [
@@ -749,8 +730,6 @@ describe("faithful fixture and query execution", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.decoratedSource()).toBe("local x:'a\\000b'='a\\000b'");
   });
-  // Exact pinned AST printer with TypeAttach's AstName property attachment.
-  // The native adapter models the attachment; the checker below is real.
   test.each([
     ['local x={["a\\000b"]=1}', "local x:{a:number}={['a\\000b']=1}", "a\0b"],
     ['local x={["\\000b"]=1}', "local x:{:number}={['\\000b']=1}", "\0b"],
@@ -777,8 +756,6 @@ describe("faithful fixture and query execution", () => {
     );
     expect(result.decoratedSource()).toBe(printed);
   });
-  // Measured with the AST-only printer from the exact pinned native source.
-  // Explicit annotations keep native and checker fixtures directly comparable.
   test.each([
     [
       "assign-list",
@@ -1149,8 +1126,6 @@ describe("faithful fixture and query execution", () => {
       expect(r.decoratedSource()).toBe(`local x:number=${printed}`);
     },
   );
-  // Exact outputs measured with the AST-only PrettyPrinter at the same pin.
-  // Its separators are emitted before advancing to the next expression.
   test.each([
     ["return 0x0000000000000001,1e2", "return 1,                 100"],
     ["return .1, 0b10\n", "return 0.10000000000000001,2\n"],
@@ -1168,7 +1143,6 @@ describe("faithful fixture and query execution", () => {
     ["return t[0x10]", "return t[16]  "],
     ["return {[0x10]=1e2}", "return {[16] = 100}"],
     ["return {a=0x10,b=1e2}", "return {a=16,  b=100}"],
-    // TypeAttach.cpp annotates the loop AstLocal before printing these values.
     ["for i=0x10,1e2 do end", "for i:number=16,100 do end"],
     ["return -0x10+ -1e2", "return -16 +  -100"],
   ])(
@@ -1280,8 +1254,6 @@ describe("faithful fixture and query execution", () => {
     expect(checkLuau('local x="it\'s"').decoratedSource()).toBe(
       'local x:string="it\\\'s"',
     );
-    // The root block's final source position remains line1/column2 after the
-    // multiline literal is escaped, as PrettyPrinter::visualizeBlock advances.
     expect(
       checkLuau('local x=[["quote", {value},\t\n]]').decoratedSource(),
     ).toBe("local x:string='\\\"quote\\\", \\123value},\\t\\n'\n  ");
@@ -1339,8 +1311,6 @@ describe("faithful fixture and query execution", () => {
     expect(r.find({ diagnosticType: [0, "givenType"] }).print()).toBe("string");
   });
   test("fresh fixture errors preserve checker insertion order before source sorting", () => {
-    // Pinned TypeInfer.tables.test.cpp:1867. Fixture::check marks this module
-    // dirty; Frontend::check returns raw fresh errors, not cached getCheckResult.
     const result = checkLuau(
       '\n        type MixedTable = {[number]: number, x: number}\n        local t: MixedTable = {"fail"}\n    ',
     );
@@ -1374,7 +1344,6 @@ describe("faithful fixture and query execution", () => {
         "game/Unused": "local unused:number='u'\nreturn 1",
       },
     });
-    // Real prepared module checking.
     expect(first.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/C", "TypeMismatch"],
       ["game/A", "TypeMismatch"],
@@ -1398,15 +1367,12 @@ describe("faithful fixture and query execution", () => {
         },
       },
     );
-    // A require does not hide real module errors.
     expect(result.checked).toBe(true);
     expect(result.diagnostics.map((d) => [d.module, d.code])).toEqual([
       ["game/A", "TypeMismatch"],
       ["game/B", "TypeMismatch"],
     ]);
   });
-  // Exact DenseHashSet header compiled with the attested oracle's wasm32
-  // libc++ target. These constants are native outputs, not JS helper outputs.
   test.each([
     [[], []],
     [["game/A"], ["game/A"]],
@@ -1455,7 +1421,6 @@ describe("faithful fixture and query execution", () => {
     expect(pinnedModuleDependencyOrder(names)).toEqual(
       expected.map((i) => "game/Module" + i),
     );
-    // Duplicate insertion at the threshold must not grow/reorder the set.
     expect(pinnedModuleDependencyOrder([...names, names[0]!])).toEqual(
       expected.map((i) => "game/Module" + i),
     );
@@ -1533,8 +1498,6 @@ describe("faithful fixture and query execution", () => {
     const frontend = new Frontend();
     const realCheck = frontend.checkSourceModule.bind(frontend);
     let original: TypeId | undefined;
-    // Observe the real checker's returned cell before the harness clones it;
-    // this wrapper returns the unmodified real result, with no mock outcome.
     frontend.checkSourceModule = (...args) => {
       const result = realCheck(...args);
       const error = result.module.errors.find(

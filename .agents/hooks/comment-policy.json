@@ -14,6 +14,9 @@
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"], "throughBlock": true },
     { "form": "^referenced-from:\\s*\\S", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
+    { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
+    { "form": "^Luau: [A-Za-z_][\\w.*]*(?: \\(adapted\\))?(?: / [A-Za-z_][\\w.*]*(?: \\(adapted\\))?)*(?: /)?$", "extensions": [".ts"] },
+    { "form": "^Sparkdown-specific$", "extensions": [".ts"] },
     { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [
@@ -28,6 +31,9 @@
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [
     "packages/sparkdown/src/inkjs/",
+    "packages/sparkdown/src/tests/luau-conformance/upstream/",
+    "packages/sparkdown/src/txml/",
+    "packages/sparkdown/vendor/",
     "packages/spark-evaluate/src/_modules/",
     "packages/spec-component/src/idiomorph/",
     "packages/spark-engine/src/game/core/types/",

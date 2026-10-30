@@ -1,6 +1,3 @@
-// What the tests of the binary program share: a compile (#694), the beats of
-// a story, and a root described by content, which is how two compiles' chunks
-// are compared.
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -14,13 +11,7 @@ import { describeRoot, flowRows } from "./describeRoot";
 
 export { describeRoot };
 
-// Every root a test builds is checked against the tables a cold build
-// derives from its sequences (`ChunkStore.verifyBuilds`).
 ChunkStore.verifyBuilds = true;
-// And what the resolver knows from each statement's syntax in place of the
-// walks of the whole story is checked against those walks after every
-// resolve (`ProgramResolver.verifyFacts`), which `programCompiler`'s compile
-// fails on.
 ProgramResolver.verifyFacts = true;
 
 export const MAIN_URI = "inmemory:///main.sd";
@@ -36,8 +27,6 @@ export const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** Throws when a compile made no program and reported no error to say why:
- *  the author would see a preview that does nothing and no clue (#1895). */
 export function assertNoSilentNoProgram(program: SparkProgram): void {
   if (program.chunks) {
     return;
@@ -50,10 +39,6 @@ export function assertNoSilentNoProgram(program: SparkProgram): void {
   }
 }
 
-/** A compiler over `texts`, keyed by uri, and a compile of it: the program,
- *  checked against what the resolver knows from each statement's syntax
- *  (`ProgramResolver.verifyFacts`), and an error reported when it made no
- *  program (`assertNoSilentNoProgram`). */
 export function programCompiler(
   texts: Record<string, string>,
   config: SparkdownCompilerConfig = {},
@@ -79,8 +64,6 @@ export function programCompiler(
   };
 }
 
-/** The errors a compile reported, each as the line it starts on and its
- *  message, in the order reported. */
 export function errorsOf(program: SparkProgram): [number, string][] {
   return Object.values(program.diagnostics ?? {})
     .flat()
@@ -91,8 +74,6 @@ export function errorsOf(program: SparkProgram): [number, string][] {
     ]);
 }
 
-/** `programCompiler` over one script, compiled once: its program and the
- *  compiler. */
 export function compileScript(
   text: string,
   config: SparkdownCompilerConfig = {},
@@ -101,13 +82,6 @@ export function compileScript(
   return { ...c.compile(), compiler: c.compiler };
 }
 
-/** A compiler over one script with statement chunks on, its first
- *  program's root, an edit that replaces one occurrence of `before` with
- *  `after` and compiles again, and a reseed of the compiler's table, which
- *  it makes by growing the table past what it bounds it at, with the last
- *  compile's program and the script's text as the edits left it.
- *  `configure` runs before the first compile. The compiler's console
- *  output is left out. */
 export function programSession(
   text: string,
   configure?: (compiler: SparkdownCompiler) => void,
@@ -181,10 +155,6 @@ const tableEntries = (table: ObjectValue): unknown[] =>
     value instanceof ObjectValue ? tableEntries(value) : value?.valueObject,
   ]);
 
-/** A story's beats from its start, or from `from`, until it can no longer
- *  continue: each continue that showed something, with its text, tags and
- *  display tables, the errors and warnings it reported with their type, and
- *  how many continues it took, those that showed nothing included. */
 export function storyBeats(
   story: Pick<
     ProgramStory,
@@ -221,25 +191,18 @@ export function storyBeats(
   return { beats, errors, continues };
 }
 
-/** A choice as a menu shows it: its text, its tags and its index. */
 export interface MenuChoice {
   text: string;
   tags: string[];
   index: number;
 }
 
-/** A menu the story stopped at: after how many beats, the choices it showed,
- *  and the index of the one taken, or -1 when the run stopped there. */
 export interface Menu {
   afterBeat: number;
   choices: MenuChoice[];
   picked: number;
 }
 
-/** A story's beats, as `storyBeats` gives them, through its menus: at each
- *  menu the choice `picks` names in turn is taken, wrapped to the number of
- *  choices shown, and past the end of `picks` the first one, until
- *  `maxChoices` choices were taken. */
 export function storyRun(
   story: Pick<
     ProgramStory,
@@ -284,9 +247,6 @@ export function storyRun(
   return { beats, errors, continues, menus };
 }
 
-/** Every chunk of a root: its flows' statements, flow by flow in the order
- *  of their names, each block statement before its bodies' statements, then
- *  the declaration chunks in the order they run. */
 export const rootChunks = (root: ProgramRoot): Int32Array[] => [
   ...flowRows(root).flatMap((flow) => sequenceChunks(root, flow)),
   ...root.initialization,

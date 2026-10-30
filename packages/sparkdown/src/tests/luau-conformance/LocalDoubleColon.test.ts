@@ -2,10 +2,6 @@ import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic, inDiagnosticOrder, luauSyntaxErrors } from "./typecheckTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
-// A `local` target annotated with a doubled colon (`local x :: number`) is
-// not an annotation, and Luau rejects it; the editor must say so (#1138),
-// with the errors of Luau's recovery after it (I-1322).
-
 describe("a local target followed by `::`", () => {
   test.each([
     "local x :: number",
@@ -20,7 +16,6 @@ describe("a local target followed by `::`", () => {
     (statement) => {
       const { syntaxDiagnostics, diagnostics } = checkLuau(`${statement}\n`);
       const col = statement.indexOf("::");
-      // Compared without the code, so the expected text holds no error name.
       expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toContainEqual(
         [0, col, 0, col + 2, "Expected identifier when parsing expression, got '::'"],
       );
@@ -28,9 +23,6 @@ describe("a local target followed by `::`", () => {
     },
   );
 
-  // A `const` of Luau's (here a Luau unit's) with no value before its `::`
-  // has no initializer either, which both official parsers report on the
-  // declaration before the `::` (#1319).
   test("\"const x :: number = 1\" reports its missing initializer and the `::`", () => {
     const { syntaxDiagnostics } = checkLuau("const x :: number = 1\n");
     expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toEqual([
@@ -39,8 +31,6 @@ describe("a local target followed by `::`", () => {
     ]);
   });
 
-  // A narrative declaration ends at its line, even when it ends in a type
-  // that a `|` line could go on with in Luau code (#1907).
   test.each(["local x :: number", "local x :: number = 1", "local a, b :: number"])(
     "%j in a narrative body stays one declaration, with no prose after it",
     (statement) => {

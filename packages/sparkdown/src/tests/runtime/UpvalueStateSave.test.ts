@@ -1,12 +1,3 @@
-// #1091 — a closure's captured variables survive a story state save and load.
-//
-// A closure's upvalue is a pointer cell: open while the variable it captured
-// is still bound in a live frame or block scope, closed (holding the value
-// itself) once that binding ends. Every case here runs the script straight
-// through, then again with a save after the first line: a fresh story from the
-// same compiled program loads the save and runs the rest. Both runs have to
-// print the same thing.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -43,8 +34,6 @@ function restored(source: string): {
   return { output: (first ?? "") + rest, errors, savedJson };
 }
 
-// The upvalue cells a save holds: each cell id with whether it is closed, how
-// many times it is written, and whether a call-stack element lists it as open.
 function cellsIn(
   savedJson: string,
 ): Map<number, { closed: boolean; occurrences: number; listed: boolean }> {
@@ -214,8 +203,6 @@ scene start
 end
 `;
     const saved = expectSameAcrossSave(source, "First 6.\nSecond 24.\n");
-    // The closed cell's value is the function that holds the cell, written as
-    // a reference to the function table already being written.
     expect([...cellsIn(saved).values()]).toEqual([
       { closed: true, occurrences: 1, listed: false },
     ]);
@@ -358,8 +345,6 @@ end
   });
 
   test("a saved closure keeps sharing its cell with a closure a define holds from init", () => {
-    // Only `inc` reaches the save (through the scene local); `get` is held
-    // by the define, which init rebuilds and the save does not write.
     const source = `function make()
   local n = 0
   return {
@@ -381,8 +366,6 @@ end
   });
 
   test("a save written without upvalue cells still loads", () => {
-    // A save whose pointers carry no cell id (the form every save had before
-    // cells were written) loads each pointer as its own open cell.
     const source = `store out = ""
 scene start
   & local x = 1

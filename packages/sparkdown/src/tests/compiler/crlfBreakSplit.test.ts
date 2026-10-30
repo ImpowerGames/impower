@@ -1,10 +1,3 @@
-// #368: the line-end `>` BREAK split gated on the character after the break
-// being exactly "\n". On a CRLF-saved document that character is "\r", so the
-// split silently never fired — the chained beats collapsed into one Continue
-// and, per splitBodyRangeAtBreaks' own rationale, every box after the first
-// became unreachable by the preview. `.gitattributes` protects the repo's
-// fixtures, not a user's Windows-authored script.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing, stringCount } from "../programListing";
@@ -42,9 +35,6 @@ describe("line-end > break split on CRLF documents", () => {
   test("a CRLF-saved script splits into the same beats as the LF one", () => {
     const lf = compile(LF_SOURCE);
     const crlf = compile(LF_SOURCE.replace(/\n/g, "\r\n"));
-    // The split's observable artifact is the per-beat `display()` table: one
-    // per beat, each naming its target, so a collapsed (unsplit) compile
-    // carries one fewer.
     const countTables = (program: any) =>
       stringCount(programListing(program.chunks), "target");
     expect(countTables(lf)).toBe(2);

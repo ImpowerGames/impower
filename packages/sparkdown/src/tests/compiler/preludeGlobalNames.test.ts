@@ -7,8 +7,6 @@ import {
 
 const URI = "file:///__builtins__.sd";
 
-/** The builtins prelude compiled as the compiler compiles it once for every
- *  program. */
 const compilePrelude = () => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -34,8 +32,6 @@ describe("the builtins prelude's global names", () => {
     const chunked = compilePrelude();
     expect(chunked.chunks).toBeDefined();
     const names = declaredGlobalNames(chunked.chunks!);
-    // Not vacuous: the type roots are there, and neither a scoped name nor a
-    // name the prelude's context holds that is no runtime global (#437).
     expect(names.size).toBeGreaterThan(10);
     expect(names.has("config")).toBe(true);
     expect(names.has("game")).toBe(true);

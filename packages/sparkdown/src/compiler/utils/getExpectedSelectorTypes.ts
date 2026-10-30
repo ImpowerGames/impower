@@ -13,7 +13,6 @@ export const getExpectedSelectorTypes = (
   const structProperty = declaration?.property;
   if (structType && structProperty) {
     const expectedSelectorTypes = new Set<string>();
-    // Use the default property value specified in $default and $optional to infer main type
     const propertyPath = program.context?.[structType]?.["$default"]?.[
       "$recursive"
     ]
@@ -41,7 +40,6 @@ export const getExpectedSelectorTypes = (
     ) {
       expectedSelectorTypes.add(expectedPropertyValue.$type);
     }
-    // Use the property value array specified in $schema to infer additional possible types
     const schemaPropertyValueArrays = [
       readProperty(
         expectedPropertyPath,

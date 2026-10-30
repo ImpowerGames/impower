@@ -1,9 +1,3 @@
-// A member access with nothing after its last `.` (`t.a.`) is a Luau syntax
-// error. It is reported as Luau reports it, at the token Luau meets instead
-// of the name (#1175), and the rest of the line's statement, the
-// enclosing function and the story after it parse as if the name were there:
-// the function still ends at its own `end`, and the story below it stays in the
-// root flow.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
@@ -68,11 +62,9 @@ end
 
 const START = "scene start\nend\n";
 
-// Sparkdown's own error where Luau would read a name on a later line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
 
-/** Where Luau's parser reports its first error, which must have this message. */
 function luauErrorAt(source: string, message: string): { line: number; character: number } {
   const error = officialSyntaxErrors(source)[0];
   expect(error?.message).toBe(message);
@@ -99,7 +91,6 @@ describe("a dangling member access (#1079)", () => {
     ]);
   });
 
-  // Line 2 of each holds the dangling `.`; the function spans lines 0 to `end`.
   it.each([
     [
       "whitespace before the `.`",
@@ -194,12 +185,6 @@ describe("a dangling member access (#1079)", () => {
   ])("with %s is reported where Luau reports it", (_name, source, message, endLine) => {
     const program = compile(`${source}${START}`);
     const errors = diagnostics(program).filter((d) => d.severity === 1);
-    // Luau reports the token it meets instead of the name, at that token
-    // (#1175). Where the name is on a later line, Luau reads it as the
-    // member, and Sparkdown, whose access path ends with its line, reports
-    // the `.`. The errors of Luau's recovery after it are reported too
-    // (I-1322), each one of Luau's own, but where the tree ends the
-    // statement before a line Luau reads on into (`STATEMENT_BREAKS`).
     const at =
       message === NAME_ON_LATER_LINE
         ? { line: 2, character: source.split("\n")[2]!.lastIndexOf(".") }
@@ -213,7 +198,6 @@ describe("a dangling member access (#1079)", () => {
   });
 
   it("reports both of Luau's errors for a method name with a `.` after it", () => {
-    // `t:a` is missing its call's arguments, and the `.` its name.
     const source = "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n";
     const errors = diagnostics(compile(`${source}${START}`)).filter((d) => d.severity === 1);
     expect(errors).toEqual([
@@ -241,7 +225,6 @@ describe("a dangling member access (#1079)", () => {
     expect(diagnostics(compile(`${source}${START}`))).toEqual([]);
   });
 
-  // Luau skips a comment between the `.` and the name, so these read `t.a.b`.
   it.each([
     ["a block comment", "t.a.--[[note]]b"],
     ["a long-bracket block comment", "t.a.--[==[note]==]b"],
@@ -252,8 +235,6 @@ describe("a dangling member access (#1079)", () => {
     expect(errors.filter((d) => d.message.startsWith("Expected identifier"))).toEqual([]);
   });
 
-  // Luau reports a keyword after the `.` as the name it expected, and then
-  // reads it as that name.
   it("reports a keyword right after the `.` as Luau does", () => {
     const source = "function f()\n  local t = { a = { b = 1 } }\n  return t.a.repeat\nend\n";
     const program = compile(`${source}${START}`);
@@ -263,9 +244,6 @@ describe("a dangling member access (#1079)", () => {
     expect(functionSpans(program)).toEqual([{ path: "f", lines: [0, 0, 3] }]);
   });
 
-  // A function body is Luau (#1158), so a line of words there is a statement
-  // Luau cannot read, reported as Luau reports it, and the function still
-  // ends at its own `end`, so the story after it plays from the top.
   it.each([
     ["words at the start of a line in a function body", "function greet\n  Hello there.\n  Goodbye now.\nend\nscene start\n  After it.\nend\n", 3],
     [
@@ -277,7 +255,6 @@ describe("a dangling member access (#1079)", () => {
   ])("reports %s where Luau does", (_name, source, endLine) => {
     const program = compile(source);
     const errors = diagnostics(program).filter((d) => d.severity === 1);
-    // Luau's first error, which Luau reads as `function greet()`.
     const luau = source.replace("function greet\n", "function greet()\n").replace("scene start\n  After it.\nend\n", "");
     const first = officialSyntaxErrors(luau)[0]!;
     expect(errors).toContainEqual({
@@ -289,7 +266,6 @@ describe("a dangling member access (#1079)", () => {
     expect(functionSpans(program)).toEqual([{ path: "greet", lines: [0, 0, endLine] }]);
   });
 
-  // A story line in story scope never reaches the access-path rules.
   it.each([
     [
       "a story line in a story `if` body",

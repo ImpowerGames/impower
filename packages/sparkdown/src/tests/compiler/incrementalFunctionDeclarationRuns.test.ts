@@ -1,12 +1,3 @@
-// Story lines after a function declaration join the flow declared before the
-// function, so a scene's chunk run can have function declarations inside it.
-// A function closed by its `end` takes nothing from the chunks after it.
-// Each edit below is applied to one persistent compiler and compared with a
-// cold compile of the same text, and the edits that move a story line check
-// which flow the line lands in.
-//
-// The scenes under test sit above a run of filler scenes: an edit re-lowers
-// the chunks near it, and the incremental compile carries the others.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { flowListings, pushesString } from "../programListing";
@@ -15,7 +6,6 @@ import { describeRoot } from "../program/describeRoot";
 const URI = "inmemory:///main.sd";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
-// A scene declares its functions with `local`.
 const LOCAL_LESS = `local ${LESS}`;
 
 const FILLER = [1, 2, 3, 4, 5]
@@ -77,16 +67,12 @@ function posAt(text: string, offset: number) {
 
 interface Edit {
   name: string;
-  /** The text to replace: its first occurrence at or after `after`. */
   find: string;
   replace: string;
   after?: string;
-  /** Lines that must land in a named flow: the top level is `root`. */
   places?: { text: string; in: string }[];
 }
 
-/** The names of the flows whose instructions write the line `text`, with
- *  the top level's as `root`. */
 function flowsHolding(program: any, text: string): string[] {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
   return [...flowListings(program.chunks)]
@@ -94,8 +80,6 @@ function flowsHolding(program: any, text: string): string[] {
     .map(([name]) => name || "root");
 }
 
-/** Applies each edit in turn to one compiler, comparing it with a cold
- *  compile after every edit. */
 function expectIncrementalMatchesCold(base: string, edits: Edit[]) {
   const realWarn = console.warn;
   const realError = console.error;

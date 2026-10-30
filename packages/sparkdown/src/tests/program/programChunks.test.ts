@@ -1,7 +1,3 @@
-// Display beats compiled to statement chunks and run by the program engine
-// (#694, docs/engine/binary-program.md): what the writer emits for a display
-// statement, the beats the engine shows for it, and that a construct the
-// writer does not emit is a compile error at the line of its statement.
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
@@ -14,8 +10,6 @@ import { TOP_LEVEL_STATEMENT_MESSAGE } from "../../compiler/utils/declarationOnl
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";
 
-// An `if` written in a `choose` block's preamble that gates two choices with
-// a label between them, which the writer does not emit.
 const PREAMBLE_THEN =
   "  if true then\n    * [B]\n    label mid\n    * [C]\n  end\n";
 const PREAMBLE_THEN_CONSTRUCT = "a label between choices an if gates";
@@ -66,8 +60,6 @@ describe("the writer", () => {
     ]);
   });
 
-  // A trailing `..` leaves the line open, which the call's open flag says;
-  // the line that begins with `..` continues its beat and names none.
   it("marks a trailing glue open and gives its continuation no line start", () => {
     const lines = listing("You see a ..\n.. red door.\n");
     expect(lines.filter((line) => line.startsWith("CallStd"))).toEqual([
@@ -103,8 +95,6 @@ describe("the writer", () => {
   });
 });
 
-/** A beat a script shows: its text, trimmed, or that with its tags and the
- *  tables of its display calls, each table's entries in order. */
 type Shown = string | { text: string; tags?: string[]; tables?: [string, unknown][][] };
 
 const unjoined = (line: number) =>
@@ -206,12 +196,9 @@ describe("the engine", () => {
       story.Continue();
       steps.push(story.stepCount - before);
     }
-    // Seven instructions a beat, and the step that finds the flow ended.
     expect(steps).toEqual([7, 7, 7, 1]);
   });
 
-  // After its last beat a flow rests past its last statement, until the step
-  // that ends it: a position in no chunk.
   it("restores a state saved after any beat, the last included", () => {
     const { program } = compileScript(inStart("One.\nTwo. > Three.\nFour.\n"), {
     });
@@ -224,7 +211,6 @@ describe("the engine", () => {
       story.Continue();
       saves.push(story.state.toJson());
     }
-    // A save after each beat, and one after the step that ends the flow.
     expect(saves).toHaveLength(whole.length + 1);
     saves.forEach((saved, i) => {
       const resumed = new ProgramStory(root);
@@ -234,8 +220,6 @@ describe("the engine", () => {
     });
   });
 
-  // Engines built from one root share its chunks and nothing they write: a
-  // function one engine evaluates reads that engine's globals.
   it("keeps the globals of engines that share a root apart", () => {
     const { program } = compileScript(
       "store x = 3\nfunction read_x() return x end\n" + inStart("A line.\n"),
@@ -255,10 +239,7 @@ describe("the engine", () => {
   });
 });
 
-// A construct the program has no emit path for is an error at the line of
-// the statement that holds it, and the compile makes no program (#705).
 describe("a construct the program cannot build", () => {
-  // An external function is not carried, and its declaration names it.
   it("is reported at the top level, and makes no program", () => {
     const { program } = compileScript(
       "external message(x)\n\n" + inStart("One.\nTwo.\nThree.\n"),
@@ -268,8 +249,6 @@ describe("a construct the program cannot build", () => {
     expect(errorsOf(program)).toContainEqual([0, unsupportedConstructMessage("external")]);
   });
 
-  // The list builtin stands in the text of the table the display call is
-  // given, in a statement of a scene's body.
   it("is reported nested in a block, at the line of its statement", () => {
     const { program } = compileScript(
       "scene MAIN\n  One.\n  BOB: You were here {LIST_RANDOM(MAIN)} times.\nend\n",
@@ -279,8 +258,6 @@ describe("a construct the program cannot build", () => {
     expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("list")]);
   });
 
-  // Sparkdown has no list type (#1752): a call of any of ink's list
-  // builtins is the list construct, given a table.
   it.each([
     "LIST_ALL(t)",
     "LIST_COUNT(t)",

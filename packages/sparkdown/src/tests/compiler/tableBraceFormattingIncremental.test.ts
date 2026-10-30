@@ -1,8 +1,3 @@
-// #1226: a one-line table's brace spacing marks come from the table node, so
-// they sit at the table's braces, which can lie outside the window an edit
-// re-annotates. After an edit inside the table, the formatting annotations
-// must still equal a cold parse's, including when the edit makes the table
-// span lines or leaves it empty, which removes its marks.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -42,8 +37,6 @@ function snapshot(registry: SparkdownDocumentRegistry) {
   return out;
 }
 
-// Top-level statements before the table put it far enough from the document
-// start that an edit inside it re-annotates a window that does not begin at 0.
 function fixture(table: string) {
   const lines: string[] = [];
   for (let i = 0; i < 40; i++) {
@@ -73,8 +66,6 @@ function expectEditMatchesCold(
     contentChanges: [{ range: { start, end }, text: inserted }],
   });
   text = text.slice(0, offset) + inserted + text.slice(offset + deleteCount);
-  // The edit must take the incremental path, re-annotating a window that
-  // starts after the document's first line, or this compares two cold parses.
   const cached: any = incremental.tree(URI)?.prop(cachedCompilerProp as any);
   expect(cached?.reparsedFrom ?? 0).toBeGreaterThan(0);
   const cold = open(text);

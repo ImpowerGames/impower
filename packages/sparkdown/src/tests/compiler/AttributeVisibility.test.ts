@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterSVG } from "../../compiler/utils/filterSVG";
 
-// This file intentionally imports only the existing entry point: its red run
-// on the pre-feature source must fail an assertion, never a missing import.
 const svg = `<svg><g id="body"/><g id="left" data-name="pupils:eyes.open:look.left"/><g id="camera" data-name="pupils:eyes.open:look.camera:default"/><g id="whites" data-name="whites:eyes.open:default"/></svg>`;
 
 describe("filterSVG attribute visibility regression", () => {

@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// DuplicateCondition rule. Snippets and expected messages are quoted
-// verbatim and placed inside a function body; the upstream test-case name is
-// in the comment above each group. Line numbers are 0-based, as upstream
-// checks them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLints,
@@ -91,9 +85,7 @@ end
   });
 });
 
-// Sparkdown's narrative `if` block around dialogue and actions is a separate
-// construct in the grammar, and the rule does not reach it
-// (docs/compiler/LINTS.md).
+// Sparkdown-specific
 describe("a narrative if block is not checked", () => {
   test("a repeated elseif around actions", () => {
     expect(
@@ -104,7 +96,7 @@ describe("a narrative if block is not checked", () => {
   });
 });
 
-// Sparkdown-specific: chains the rule must leave alone.
+// Sparkdown-specific
 describe("distinct conditions are not reported", () => {
   test.each([
     ["different comparisons", "\nlocal a = 1\nif a == 1 then\nelseif a == 2 then\nend\n"],

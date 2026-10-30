@@ -1,13 +1,3 @@
-// Ported from Luau's parser tests for numeric literals
-// (`luau/tests/Parser.test.cpp`). Snippets and expected messages are quoted
-// verbatim; the upstream test-case name is in the comment above each group.
-//
-// Luau's lexer takes every letter, digit, `_` and `.` after a number into one
-// token and rejects it when it does not convert. The grammar here stops the
-// number at the first character it cannot use (`123x` is the number `123`
-// followed by `x`, `0b123` is `0b1` followed by `23`), so the validator looks
-// at what follows the number and reports the same "Malformed number".
-
 import { describe, expect, test } from "vitest";
 import {
   diagnose,
@@ -37,8 +27,6 @@ describe("malformed numbers", () => {
     expect(diagnoseInFunction(source)).toContain(expected);
   });
 
-  // Luau reads `1..2` as one number token (`.` is a number character), so a
-  // concatenation needs whitespace around `..`.
   test("a number running into `..` is malformed", () => {
     expect(diagnoseInFunction("return 1..2")).toContain(expected);
     expect(diagnoseInFunction("return 1 .. 2")).toEqual([]);
@@ -63,11 +51,6 @@ describe("well-formed numbers are not flagged", () => {
   });
 });
 
-// Where the check applies outside a function body. A `define` or `config`
-// field value is a Luau expression, so a unit-suffixed number there is
-// malformed exactly as it would be in a statement; a `style` or `theme`
-// value is not a Luau number at all, and the inline text command's control
-// argument reuses the number rule without being Luau.
 describe("number contexts", () => {
   test.each([
     ["define field", "define my_thing with\n  version = 1.0.0\nend\n"],
@@ -87,7 +70,6 @@ describe("number contexts", () => {
   });
 
   test("the reported range covers the whole run after the number", () => {
-    // Longer than any fixed read-ahead window.
     const run = "x".repeat(200);
     const found = diagnoseDetailed(`function run()\nreturn 123${run}\nend\n`).find(
       (d) => d.message === "Malformed number",
@@ -99,14 +81,7 @@ describe("number contexts", () => {
   });
 });
 
-// Luau: parse_numbers_error (the `LuauIntegerType2` half)
-// "Malformed integer" / "Integer overflow"
-//
-// N/A: Sparkdown deliberately leaves native 64-bit integers unsupported.
-// Malformed spellings such as `123ii` report "Malformed number"; integer-shaped
-// literals, including oversized spellings, report the unsupported diagnostic.
-// UnsupportedIntegerLiterals1309.test.ts pins that distinction. Upstream
-// "Malformed integer" and "Integer overflow" semantics remain inapplicable.
+// Luau: parse_numbers_error
 describe.skip("integer literals (N/A: no integer literal type)", () => {
   test.each([
     ["return 0x0xABCi", "Malformed integer"],

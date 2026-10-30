@@ -1,12 +1,3 @@
-// Ported from inkjs `src/tests/specs/inkjs/utils/TryGetResult.spec.ts`.
-//
-// `TryGetResult` is the small helper used throughout the runtime for
-// safe map lookups + numeric parsing. Returns `{ result, exists }` so
-// callers can distinguish "missing" from "present but falsy". Used by
-// `CallStack`, `VariablesState` and `Value`
-// — pure unit tests against the helper itself, no Story / compile
-// pipeline involvement.
-
 import { describe, expect, it } from "vitest";
 import {
   tryGetValueFromMap,
@@ -44,10 +35,6 @@ describe("TryGetResult", () => {
     });
 
     it("returns a result if the falsy value is in the map", () => {
-      // Distinguishing falsy values (0, "", false, null) from "missing"
-      // is the whole point of the wrapper — `Map.get` returns `undefined`
-      // for both cases, so the helper checks `Map.has` and threads the
-      // distinction through `exists`.
       const map = new Map();
       map.set("key", 0);
 

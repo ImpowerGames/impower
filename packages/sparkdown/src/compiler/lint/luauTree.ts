@@ -1,7 +1,4 @@
 import { isExplicitRuleName } from "../utils/explicitRuleNames";
-// Reading the syntax tree for the annotators: whether a node is trivia, and
-// the name an access path holds when it is one bare name. The Luau lints read
-// the Luau AST instead (`collectLuauLints.ts`).
 
 import { type SyntaxNode } from "@lezer/common";
 
@@ -30,7 +27,6 @@ export function isTrivia(node: SyntaxNode) {
   );
 }
 
-/** The `LuauVariableName` of an access path that is one bare name. */
 export function soleVariableName(path: SyntaxNode): SyntaxNode | null {
   const parts = [...childrenOf(contentOf(path))].filter((c) => !isTrivia(c));
   if (parts.length !== 1 || !isExplicitRuleName(parts[0]!.name, "LuauAccessPart")) return null;

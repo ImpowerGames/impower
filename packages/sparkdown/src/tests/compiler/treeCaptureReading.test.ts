@@ -3,11 +3,6 @@ import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTr
 import { describe, expect, test } from "vitest";
 import { stripAnsi } from "./grammarSnapshot";
 
-// textmate-grammar-tree reads a rule's captures the way vscode-textmate does
-// (I-1516). The Sparkdown grammar's only begin/end rules with a generic
-// `captures` end zero-width, so these grammars exercise the end capture and
-// a capture's unreadable character directly.
-
 const WORD = { match: "[a-z]+", name: "variable.test" };
 
 function dump(
@@ -36,8 +31,6 @@ describe("tree capture reading", () => {
       "<a>",
     );
     expect(tree).toMatch(/Root_begin_c1 \[0\.\.1\]: "<"/);
-    // One `captures` object serves begin and end, so the end's capture may
-    // share the begin's node type; what matters is that `>` is captured.
     expect(tree).toMatch(/Root_end \[2\.\.3\]\n\s+└─ Root_\w+_c1 \[2\.\.3\]: ">"/);
   });
 
@@ -55,8 +48,6 @@ describe("tree capture reading", () => {
       "<a>",
     );
     expect(tree).toMatch(/Root_begin_c1 \[0\.\.1\]: "<"/);
-    // One `captures` object serves begin and end, so the end's capture may
-    // share the begin's node type; what matters is that `>` is captured.
     expect(tree).toMatch(/Root_end \[2\.\.3\]\n\s+└─ Root_\w+_c1 \[2\.\.3\]: ">"/);
   });
 

@@ -1,8 +1,3 @@
-// The error for a top-level `const` with more than one name or value is
-// reported on the declaration itself: its range spans the statement, starting
-// at `const` rather than at the line's indentation. A `const` inside a
-// function is Luau's (#1319), and Luau's error for more names than values is
-// on the declaration too, from `const` to its last value.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

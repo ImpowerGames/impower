@@ -1,15 +1,3 @@
-// Incremental-versus-cold parity regressions for tickets that no longer
-// reproduce (unit E of #1893): each replays its ticket's edits through one
-// persistent compiler (or, for #1201, one document registry) and compares
-// the result after every edit with a cold compile of the same text: the
-// parse tree, the program's chunks by content (`describeRoot`) and its
-// diagnostics, or for #1201 the `semantics` channel. Where a ticket's
-// divergence needed the parser to restart partway through the document
-// (#1201, #1211, #1249, #1295), the case also checks that the last edit
-// restarted it there, so the incremental parse, not a whole reparse, is what
-// agrees with the cold compile. The scripts of #1613 and #1628 are reparsed
-// whole; their divergence was in the chunks a compile kept from the one
-// before.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it } from "vitest";
 import type { SparkdownAnnotators } from "../../compiler/classes/SparkdownCombinedAnnotator";
@@ -56,11 +44,8 @@ function offsetAt(text: string, line: number, character: number) {
   return offset + character;
 }
 
-/** An edit of the text as it stands: the range it replaces and the text it
- *  puts there. */
 type Edit = (text: string) => { from: number; to: number; insert: string };
 
-/** Replaces the first `find` at or after the first `after` with `replace`. */
 const replaceText =
   (find: string, replace: string, after = ""): Edit =>
   (text) => {
@@ -69,7 +54,6 @@ const replaceText =
     return { from, to: from + find.length, insert: replace };
   };
 
-/** Inserts `insert` right after the first `find`. */
 const insertAfter =
   (find: string, insert: string): Edit =>
   (text) => {
@@ -78,7 +62,6 @@ const insertAfter =
     return { from: at + find.length, to: at + find.length, insert };
   };
 
-/** Replaces the LSP range from `line`:`character`, `length` characters long. */
 const replaceAt =
   (line: number, character: number, length: number, insert: string): Edit =>
   (text) => {
@@ -86,8 +69,6 @@ const replaceAt =
     return { from, to: from + length, insert };
   };
 
-/** Where the parser restarted on the tree's last update: null or 0 when it
- *  reparsed the whole document. */
 function reparsedFrom(registry: SparkdownDocumentRegistry, uri: string): number | null {
   const cached: any = registry.tree(uri)?.prop(cachedCompilerProp as any);
   return cached?.reparsedFrom ?? null;
@@ -98,17 +79,12 @@ const diagnosticsOf = (program: SparkProgram): string[] =>
     .sort()
     .flatMap((uri) => (program.diagnostics![uri] ?? []).map((d) => `${uri} ${stable(d)}`));
 
-/** What an incremental and a cold compile of the same text must agree on. */
 const surface = (compiler: SparkdownCompiler, program: SparkProgram) => ({
   tree: compiler.documents.tree(MAIN_URI)!.toString(),
   chunks: program.chunks ? describeRoot(program.chunks) : null,
   diagnostics: diagnosticsOf(program),
 });
 
-/** Compiles `start`, then applies each edit through `updateDocument` and
- *  compiles again, comparing every compile with a cold compile of the same
- *  text. Returns the last cold program and where the last edit's parse
- *  restarted. */
 function replay(start: string, edits: Edit[]) {
   return quiet(() => {
     const incremental = programCompiler({ [MAIN_URI]: start });
@@ -140,8 +116,6 @@ function replay(start: string, edits: Edit[]) {
   });
 }
 
-/** The errors and hints of a program, each as `sev<severity>
- *  <from>-<to> <message>` with 0-based `line:character` positions. */
 const diagList = (program: SparkProgram): string[] =>
   Object.values(program.diagnostics ?? {})
     .flat()
@@ -197,8 +171,6 @@ describe("#1201: a distant reference's semantic token after a value-list edit", 
       });
       text = text.slice(0, at) + inserted + text.slice(at);
     };
-    // A binding-preserving warm-up edit gives the parser split points inside
-    // the function; without it the second edit reparses the whole document.
     insert(text.indexOf(" + ") + 1, " ");
     insert(text.indexOf("    3"), "=");
 
@@ -210,9 +182,6 @@ describe("#1201: a distant reference's semantic token after a value-list edit", 
 });
 
 describe("#1211: diagnostics of nodes before the reparse window", () => {
-  // The first line only makes the document long enough for the incremental
-  // parse to restart partway through it; a shorter document is reparsed
-  // whole, and then both compiles agree.
   const PADDING = `// ${"a".repeat(117)}`;
 
   it("sizes the unreachable-statement hint of a done by the statements after it", () => {
@@ -305,8 +274,6 @@ describe("#1613: a statement chunk's line table after an incremental edit", () =
 
 describe("#1628: a display line reading a label's name after an edit above it", () => {
   it("compiles {mid} after an incremental edit as a cold compile of the edited text does", () => {
-    // Which resolution `{mid}` should have, a label's visit count or a
-    // variable, is not this test's question; both compiles must give the same.
     replay(
       "  Done looping {FLOW_2.side} {count.turns(-> FLOW_2.side)} {READ_COUNT(-> top)}.\n  end\n    label mid\n    After 2, mid {mid}.",
       [replaceAt(0, 43, 4, "\n  branch extra\n    Extra.\n  end\n")],

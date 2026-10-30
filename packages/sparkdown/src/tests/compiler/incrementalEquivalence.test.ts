@@ -1,40 +1,9 @@
-// Design-agnostic byte-identical oracle for compiler incrementality.
-//
-// For each of many DIVERSE edits, compares two programs compiled from the SAME
-// resulting text:
-//   - INCREMENTAL: one persistent compiler driven by updateDocument + compile
-//     applying a MINIMAL-RANGE edit (a real keystroke-sized change), so the
-//     incremental parser carries forward unchanged chunks and the per-chunk
-//     reuse path is genuinely exercised.
-//   - COLD: a fresh compiler configured from the post-edit text from scratch.
-// They must be identical across the statement chunks by content
-// (`describeRoot`) + every *Locations map + context + diagnostics + ui +
-// colorAnnotations. Any incrementality bug (stale
-// cache, missed cross-flow invalidation — visit counts, divert paths, renames,
-// line shifts) flips this.
-//
-// A name minted from a source offset shows here only when an edit leaves the
-// chunk holding it outside the reparse window; `shiftEquivalence.test.ts`
-// finds such a name directly, by compiling each fixture cold with blank lines
-// above it.
-//
-// This is the gold-standard safety net the incremental work is built against;
-// it uses a screenplay with cross-flow coupling (diverts between scenes,
-// read-counts, defines/tables, chained dialogue) — exactly where naive
-// per-chunk reuse breaks — not the uniform perf fixture.
-//
-// The screenplay ends with the constructs of `constructs()`, and a second copy
-// sits in another script of the project. The seeded edits check by chunk identity that
-// each construct's chunk was carried rather than lowered again, so that a
-// comparison cannot pass over a construct the compile lowered again.
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programListing } from "../programListing";
 import { describeRoot } from "../program/describeRoot";
 import { coupledScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
 
-// Each edit is a single find -> replace applied to the FIRST occurrence, turned
-// into a minimal-range contentChange so only the affected region reparses.
 interface Edit {
   name: string;
   find: string;
@@ -53,13 +22,9 @@ const edits: Edit[] = [
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },
   { name: "delete a whole line above many flows", find: "store visited_count = 0\n", replace: "" },
-  // The layout is the last block of the fixture, so this appends at the end
-  // of the document.
   { name: "append a whole new scene at end", find: 'layout hud with\n  text "{trust} {t.a}"\nend\n', replace: 'layout hud with\n  text "{trust} {t.a}"\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n' },
 ];
 
-// A string that starts each construct of `constructs(p)` and occurs once in
-// the fixture, keyed by the construct.
 const constructMarkers = (p = "") => ({
   "tag line": `# ${p}chapter marker`,
   "tagged scene": `scene ${p}deep_choice # arc`,
@@ -76,11 +41,6 @@ const ALL_CONSTRUCTS = Object.keys(constructMarkers()) as Construct[];
 
 const except = (...left: Construct[]) => ALL_CONSTRUCTS.filter((c) => !left.includes(c));
 
-// An edit far enough from the constructs that the chunks named in `carries`
-// are carried into the incremental compile, not lowered again. `knownBug`
-// names the open Bug the edit's comparison
-// with a cold compile fails on; such a test is expected to fail until that
-// Bug is fixed, and the sequential run leaves out an edit with a `knownBug`.
 interface CarriedEdit extends Edit {
   bugs: string;
   carries: Construct[];
@@ -88,8 +48,6 @@ interface CarriedEdit extends Edit {
 }
 
 const FUNCTION_AT_TOP = "function later()\n  return 7\nend\n\n";
-// `sidekick` makes `thing` a define type name, which the store of that name
-// then shadows.
 const DEFINE_AT_TOP = "define thing with\n  x = 1\nend\n\ndefine sidekick as thing with\n  x = 2\nend\n\n";
 
 const carriedEdits: CarriedEdit[] = [
@@ -101,8 +59,6 @@ const carriedEdits: CarriedEdit[] = [
     carries: ALL_CONSTRUCTS,
   },
   {
-    // The closure in `reckon` calls `later`, which this declares; the fix of
-    // #935 lowers that chunk again, and leaves the others carried.
     name: "insert a top-level function at the top of the file",
     bugs: "#912, #935",
     find: "define hero as character with",
@@ -110,8 +66,6 @@ const carriedEdits: CarriedEdit[] = [
     carries: except("function with assignments, loops and a closure"),
   },
   {
-    // The store `thing` now shadows a define type; the fix of #936 lowers its
-    // chunk again, and leaves the others carried.
     name: "insert a define at the top of the file",
     bugs: "#936",
     find: "define hero as character with",
@@ -162,7 +116,6 @@ const carriedEdits: CarriedEdit[] = [
   },
 ];
 
-// Every compilation chunk of `uri`, with the source range it covers.
 function chunkRanges(c: SparkdownCompiler, uri: string) {
   const out: { from: number; to: number; chunk: object }[] = [];
   const cur = c.documents.annotations(uri).compilations.iter();
@@ -173,14 +126,12 @@ function chunkRanges(c: SparkdownCompiler, uri: string) {
   return out;
 }
 
-// The chunk each construct of `markers` starts in, in `text` as last compiled.
 function constructChunks(c: SparkdownCompiler, uri: string, text: string, markers: Record<string, string>) {
   const ranges = chunkRanges(c, uri);
   const out = new Map<string, object>();
   for (const [construct, marker] of Object.entries(markers)) {
     const start = text.indexOf(marker);
     expect(start, `marker ${JSON.stringify(marker)} present`).toBeGreaterThanOrEqual(0);
-    // A chunk starts at a line's first non-blank character.
     const at = start + marker.length - marker.trimStart().length;
     const found = ranges.find((r) => r.from <= at && at < r.to);
     expect(found, `a chunk holds ${construct}`).toBeDefined();
@@ -189,7 +140,6 @@ function constructChunks(c: SparkdownCompiler, uri: string, text: string, marker
   return out;
 }
 
-// The constructs of `before` whose chunk the compiler still holds for `uri`.
 function carriedConstructs(c: SparkdownCompiler, uri: string, before: Map<string, object>) {
   const now = new Set(chunkRanges(c, uri).map((r) => r.chunk));
   return [...before].filter(([, chunk]) => now.has(chunk)).map(([construct]) => construct);
@@ -236,7 +186,6 @@ function coldCompile(text: string) {
   return pick(c.compile({ textDocument: { uri: URI } }).program);
 }
 
-// Translate an absolute offset into a {line, character} position in `text`.
 function posAt(text: string, offset: number) {
   let line = 0;
   let lineStart = 0;
@@ -249,7 +198,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-// The script files of a project given as texts by URI.
 const filesOf = (texts: Record<string, string>) =>
   Object.entries(texts).map(([uri, text]) => ({
     uri,
@@ -261,23 +209,13 @@ const filesOf = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-// The warm-up edits of `warmed`, each one character of a line of dialogue.
 const WARM_EDITS: [string, string][] = [
   ["Line one of dialogue in scene 3.", "Line one of dialogue in scene 3!"],
   ["Line one of dialogue in scene 4.", "Line one of dialogue in scene 4!"],
 ];
 
-// `text` with the warm-up edits applied.
 const warmText = (text: string) => WARM_EDITS.reduce((t, [find, replace]) => t.replace(find, replace), text);
 
-// Configures `c` with the scripts of `texts`, compiles `URI`, then makes the
-// warm-up edits to the main script, compiling after each, and returns the
-// texts after them. Most edits in an editor session reach a compiler whose
-// chunks were left by earlier incremental compiles,
-// not by a cold one, and these edits put the compiler in that state before
-// the edit under test; the first edit after a cold compile is pinned in
-// `incrementalOutsideFlowReuse.test.ts`. The edits keep the text's length, so
-// offsets into the fixture stay valid.
 function warmed<T extends SparkdownCompiler>(c: T, texts: Record<string, string>): Record<string, string> {
   c.configure({ files: filesOf(texts) });
   c.compile({ textDocument: { uri: URI } });
@@ -297,13 +235,10 @@ function warmed<T extends SparkdownCompiler>(c: T, texts: Record<string, string>
   return { ...texts, [URI]: main };
 }
 
-// The version of the first edit after `warmed`.
 const AFTER_WARM = WARM_EDITS.length + 2;
 
 describe("compiler incremental equivalence", () => {
   it("the fixture's continuations carry a group, one per continuation", () => {
-    // The edits below move and add continuations; this keeps them from
-    // passing on a fixture whose continuations carry no group at all.
     const text = coupledScreenplay();
     const continuations = text.split("Glued in scene").length - 1;
     const c = new SparkdownCompiler();
@@ -311,25 +246,16 @@ describe("compiler incremental equivalence", () => {
       files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
     });
     const listing = programListing(c.compile({ textDocument: { uri: URI } }).program.chunks!);
-    // The string pushed after each display table's `group` key.
     const groups = listing.filter((_, i) => listing[i - 1] === 'Str "group"');
     expect(continuations).toBeGreaterThan(0);
     expect(new Set(groups).size).toBe(continuations);
   });
 
   it("the end-of-document append edit appends at the end of the fixture", () => {
-    // The sequential run below pins a reuse-ahead edit followed by an append
-    // at the end of the document; an append with chunks after it would not.
     const append = edits.find((e) => e.name === "append a whole new scene at end")!;
     expect(coupledScreenplay().endsWith(append.find)).toBe(true);
   });
 
-  // Each diverse edit is applied as a SINGLE minimal-range incremental update
-  // from a freshly-configured compiler (after the warm-up edit of `warmed`),
-  // then compared to a cold compile of the
-  // resulting text. This isolates per-edit-type correctness (exactly what the
-  // per-chunk caching must preserve). The cumulative path (many edits on ONE
-  // persistent compiler) is separately stressed by the sequential + fuzz tests.
   for (const edit of edits) {
     it(`incremental == cold for edit: ${edit.name}`, () => {
       const realWarn = console.warn;
@@ -358,11 +284,6 @@ describe("compiler incremental equivalence", () => {
     });
   }
 
-  // Each edit leaves the chunks it names carried, asserted by chunk identity,
-  // so the comparison with a cold compile covers a construct that the
-  // incremental compile did not lower again. Without that check an edit that
-  // happened to reach a construct's chunk would let the comparison pass
-  // without testing the carried chunk.
   const outcomes = new Map<CarriedEdit, { equal: boolean; carried: string[] }>();
   const outcomeOf = (edit: CarriedEdit) => {
     let outcome = outcomes.get(edit);
@@ -415,10 +336,6 @@ describe("compiler incremental equivalence", () => {
   });
 
   it("incremental == cold across the full diverse edit sequence on ONE compiler", () => {
-    // Drives all diverse edits SEQUENTIALLY through one persistent compiler,
-    // comparing to a cold compile after each. This is the cumulative path that
-    // exposed the `reparsedTo` append-drift bug (any reuse-ahead edit followed
-    // by an end-of-document append diverged); it fails without that fix.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -453,13 +370,6 @@ describe("compiler incremental equivalence", () => {
   });
 
   it("incremental == cold across multi-step sequences that couple flows", () => {
-    // Multi-step sequences where an UNCHANGED flow's statements depend on an
-    // edit elsewhere:
-    //  - read-count removal: the target flow is no longer counted;
-    //  - rename-then-rename-back: a divert's target vanishes and returns;
-    //  - a global `store` declared between two scenes, mid-document;
-    //  - an anonymous fn added MID-DOCUMENT, ahead of the generated names of
-    //    a LATER unchanged flow.
     const SCENARIOS: {
       name: string;
       steps: { find: string; replace: string }[];
@@ -467,8 +377,6 @@ describe("compiler incremental equivalence", () => {
       {
         name: "remove last read-count reference, then edit elsewhere",
         steps: [
-          // scene_2 holds the ONLY read-count of scene_3; removing it must
-          // clear scene_3's visit flag even though scene_3 is carried.
           { find: "read-count {scene_3} here.", replace: "read-count gone." },
           { find: "Not yet in scene 9.", replace: "Not yet in scene 9!" },
         ],
@@ -491,8 +399,6 @@ describe("compiler incremental equivalence", () => {
         ],
       },
       {
-        // A scene's local is a local of the scene's scope (#1674), and a
-        // closure and a local function written after it read it.
         name: "local inside a scene edited, then a branch added after it",
         steps: [
           {
@@ -510,17 +416,12 @@ describe("compiler incremental equivalence", () => {
       },
       {
         name: "anonymous fn added mid-document renumbers later synthetics",
-        // Both inserts land MID-document on purpose, so that the scenes after
-        // them are carried.
         steps: [
-          // Seed a synthetic in a LATE scene first...
           {
             find: "  Action describing room 11 in some detail here.",
             replace:
               "  Action describing room 11 in some detail here.\n& local f11 = function(x) return x + 1 end",
           },
-          // ...then add one EARLIER-BUT-STILL-MID: scenes after it are
-          // unchanged, and come after it.
           {
             find: "  Action describing room 6 in some detail here.",
             replace:
@@ -531,7 +432,6 @@ describe("compiler incremental equivalence", () => {
       },
       {
         name: "anonymous fn inside a stdlib call's arguments renumbered in a reused scene",
-        // The second step adds a function ahead of the carried call's.
         steps: [
           {
             find: "  Action describing room 11 in some detail here.",
@@ -591,13 +491,6 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
-  // A name declared a second time (#979). The fixture ends with one
-  // `define dup` and a scene after it holding a divert to a missing target,
-  // and the edit declares `dup` again at the top. The cold compile refuses the
-  // carried `define dup` below as the duplicate and resolves past it to the
-  // scene, while the incremental compile carries that define and scene from a
-  // compile in which the define was the first declaration. Both compiles
-  // report the duplicate and the missing target, and their diagnostics agree.
   describe("an edit that declares a name a second time", () => {
     const base = () =>
       coupledScreenplay() + "\ndefine dup with\n  x = 1\nend\n\nscene tail\n  Tail line.\n  -> nowhere\nend\n";
@@ -644,9 +537,6 @@ describe("compiler incremental equivalence", () => {
     });
   });
 
-  // A colon call on a standard library table with no such member (#1033),
-  // carried forward below an edit that shifts it down a line. Its warning
-  // names `table.nogetn` across the receiver and the member in both compiles.
   describe("an edit above a colon call on a missing stdlib member", () => {
     const CALL = "  n = table:nogetn()";
     const base = () => coupledScreenplay() + `\nfunction colon_member()\n${CALL}\nend\n`;
@@ -698,11 +588,6 @@ describe("compiler incremental equivalence", () => {
     });
   });
 
-  // A project of three scripts: `main`, `chapter` and `side` (#872).
-  // `chapter` holds a second copy of the constructs below six short scenes, so
-  // an edit at its top, or any edit in `main`, leaves their chunks carried
-  // (#404). A script other than main runs no line outside a scene, so the
-  // copy leaves out the tag line, which only `main` holds.
   describe("across the project's scripts", () => {
     const CHAPTER_URI = "inmemory:///chapter.sd";
     const SIDE_URI = "inmemory:///side.sd";
@@ -711,7 +596,6 @@ describe("compiler incremental equivalence", () => {
       [CHAPTER_URI]: includedChapter().replace(`${constructMarkers("ch_")["tag line"]}\n\n`, ""),
       [SIDE_URI]: "scene side_one\n  Side line.\nend\n",
     });
-    // The constructs of `chapter`'s copy but `left`.
     const chapterExcept = (...left: Construct[]) => except("tag line", ...left);
     const coldProject = (texts: Record<string, string>) => {
       const c = new SparkdownCompiler();
@@ -719,9 +603,6 @@ describe("compiler incremental equivalence", () => {
       return pick(c.compile({ textDocument: { uri: URI } }).program);
     };
 
-    // `carries` names the constructs of the edited script whose chunks the
-    // edit leaves carried, `otherCarries` those of the other script that holds
-    // a copy (`chapter` for an edit to `main`, `main` otherwise).
     const projectEdits: (Edit & {
       uri: string;
       bugs: string;
@@ -804,8 +685,6 @@ describe("compiler incremental equivalence", () => {
           });
           const after = { ...texts, [edit.uri]: base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length) };
           const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
-          // The other scripts are part of the program both compiles build:
-          // their scenes are flows of it.
           const flows = JSON.stringify(incrProg.chunks);
           expect(flows).toContain("chapter_0");
           expect(flows).toContain("side_one");
@@ -825,30 +704,18 @@ describe("compiler incremental equivalence", () => {
   });
 
   it("incremental == cold under randomized structural edits (fuzz, full surface)", () => {
-    // Each random edit (structural inserts AND mid-content deletions) is applied
-    // as a SINGLE incremental update from a freshly configured compiler and
-    // compared on the FULL program surface to a cold compile. This exercises the
-    // incremental parser+annotation+validation and the carried chunks
-    // across a wide variety of edit sites/kinds. The seeded edits include one
-    // that comments out scene 0's `& trust = …`, the first writer of `trust`.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
     console.error = () => {};
     try {
-      // The warm-up edit is the same for every compiler, so its text is the
-      // base every random edit applies to.
       const base = warmText(coupledScreenplay());
       const failures: string[] = [];
-      // Deterministic LCG so the fuzz is reproducible (no Math.random).
       let seed = 0x2f6e2b1;
       const rand = () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      // The last seven write pieces of the fixture's constructs: a tag, a
-      // `then`, a method call, a compound assignment, a binding, a closure
-      // and a `define` header.
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "# t", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", "\ndefine thing with\n"];
       for (let n = 0; n < 120; n++) {
         const insert = inserts[Math.floor(rand() * inserts.length)]!;

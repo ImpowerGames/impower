@@ -1,9 +1,3 @@
-// Ported from inkjs `src/tests/specs/ink/Knots.spec.ts`.
-//
-// "Knots" in ink ↔ "scenes" in sparkdown; "stitches" ↔ "branches"; gathers
-// (the `- (label)` form) carry over by syntax. Divert syntax (`-> knot`,
-// `-> knot.gather`) is shared.
-
 import { describe, expect, test } from "vitest";
 import {
   collectDiagnostics,
@@ -19,21 +13,6 @@ describe("Knots (ported from inkjs)", () => {
   });
 
   test("knot stitch gather counts", () => {
-    // Upstream ink fixture exercises three visit-count semantics:
-    //   - a labeled gather `(loop)` inside a tunnel, re-entered via
-    //     `{cond:->loop}` conditional divert
-    //   - a knot's self-referencing visit count `{knot_count_test}`
-    //     from inside itself
-    //   - a stitch's self-referencing visit count `{stitch}` from
-    //     inside itself
-    //
-    // Sparkdown rewrite uses `label loop` + `if cond then -> loop end`
-    // for the gather-loop, scene-as-knot self-reference (`{knot_count_test}`
-    // resolves to the current scene's visit count), and branch-as-stitch
-    // (`-> scene.branch` for the explicit stitch divert path).
-    //
-    // The program engine keeps the visits of every scene, branch and label,
-    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
     const ctx = makeRuntimeStoryFromFile("knots", "knot-stitch-gather-counts");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(
@@ -42,11 +21,6 @@ describe("Knots (ported from inkjs)", () => {
   });
 
   test("knot thread interaction", () => {
-    // A hub scene threads in an `inventory` scene; the inventory's
-    // own choices merge into hub's menu. One inventory choice
-    // diverts to a third scene (`pack`); picking it should route flow
-    // through that divert. Verifies that thread-merged choices retain
-    // their full target-routing through subsequent scenes.
     const ctx = makeRuntimeStoryFromFile("knots", "knot-thread-interaction");
     expect(ctx.errorMessages).toEqual([]);
 
@@ -59,8 +33,6 @@ describe("Knots (ported from inkjs)", () => {
       '"Leave"',
     ]);
 
-    // Pick "Check pack" — routes through inventory's choice into the
-    // `pack` scene.
     ctx.story.ChooseChoiceIndex(0);
     let after = "";
     while (ctx.story.canContinue) after += ctx.story.Continue();
@@ -68,11 +40,6 @@ describe("Knots (ported from inkjs)", () => {
   });
 
   test("knot thread interaction 2", () => {
-    // A scene threads in `middle`, which itself diverts (non-returning)
-    // into `inner`. The thread's effective contribution comes from
-    // `inner`'s choices, demonstrating that threads can traverse
-    // through intermediate scene-to-scene diverts before settling at
-    // a choice point.
     const ctx = makeRuntimeStoryFromFile(
       "knots",
       "knot-thread-interaction-2",
@@ -94,12 +61,6 @@ describe("Knots (ported from inkjs)", () => {
   });
 
   test("flow-name collides with a variable name", () => {
-    // Ink's stitch is sparkdown's branch — but the underlying check
-    // (a flow name shadowing a `VAR`) fires from inkjs's compile pass
-    // either way. Test that `store x` + `scene x` emits a duplicate-
-    // identifier diagnostic. Inkjs's exact wording differs from
-    // upstream ("A var named ... already exists" vs "name has
-    // already been used for a var"), so match on the common substring.
     const { errorMessages } = collectDiagnostics(
       `store knot = 0\nscene knot\n  -> DONE\n`,
     );
@@ -110,8 +71,5 @@ describe("Knots (ported from inkjs)", () => {
 });
 
 describe.skip("Knots — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
-  // Ink-specific compile warning about a knot containing global-scope
-  // objects that won't survive termination. Sparkdown's scene model
-  // doesn't enforce this rule.
   test("knot termination skips global objects (ink-specific warning)", () => {});
 });

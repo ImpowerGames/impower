@@ -30,16 +30,13 @@ describe("parseTransform", () => {
 
   test("returns null for text outside the grammar", () => {
     for (const text of [
-      // The ticket's probes: a no-break space, a unit and a stray token.
       " translate(5 0)",
       "translate(5px,0)",
       "translate(5 junk 0)",
-      // Other non-XML whitespace, around the list, inside it and between functions.
       "translate(5 0) ",
       "translate(5 0)",
       "translate(5) scale(2)",
       "translate(5\f0)",
-      // Malformed numbers, separators and lists.
       "translate(5.)",
       "translate(1-2)",
       "translate(5,,0)",
@@ -54,7 +51,6 @@ describe("parseTransform", () => {
       "translate(1 2 3)",
       "matrix(1 2 3 4 5)",
       "rotate(1 2)",
-      // A number that overflows a double, or a product that does.
       "translate(1e400)",
       "scale(1e300) scale(1e300)",
     ]) {

@@ -14,44 +14,22 @@ import {
 import { reportReadingErrors } from "../expression/lowerFunction";
 import { readExpressionAst } from "./luauAst";
 
-// Shared lowering for a tag body (`# tag {var}`). The grammar classifies a
-// `TagContent` body into `TagText` literal runs interleaved with
-// `LuauInterpolatedStringExpression` nodes for each `{...}` — so this reads
-// those nodes directly instead of re-scanning the raw text for braces
-// (GRAMMAR.md §5). Behavior matches the previous regex scanner exactly:
-//
-//   - `{ident}` (a single bare identifier) → `VariableReference` with
-//     `outputWhenComplete` so the runtime substitutes the value.
-//   - any other `{expr}` (`{a.b}`, `{math.floor(x)}`, `{a + b}`) → the raw
-//     `{...}` source as literal `Text`, so the author sees the un-resolved
-//     form rather than a silent failure.
-//   - literal text between/around interpolations → `Text`.
-//
-// The overall body is trimmed (leading/trailing whitespace dropped) to match
-// the prior `raw.trim()`; an empty body yields no objects.
-
 export function lowerTagContent(
   tagContent: SyntaxNode,
   ctx: LowerContext,
 ): ParsedObject[] {
-  // Build raw text + reference segments first, then trim the literal text at
-  // the boundaries so the result equals the old `raw.trim()`-then-scan output.
   type Seg =
     | { kind: "text"; raw: string }
     | { kind: "ref"; name: string }
     | { kind: "expr"; expr: Expression };
   const segs: Seg[] = [];
 
-  // `TagContent` (a begin/end rule) exposes its body inside a generated
-  // `TagContent_content` wrapper; descend into it. Fall back to direct
-  // children for safety.
   let child =
     firstContentChild(tagContent, `${tagContent.name}_content`) ??
     tagContent.firstChild;
   let cursor = tagContent.from;
   while (child) {
     if (isExplicitRuleName(child.name, "LuauInterpolatedStringExpression")) {
-      // Literal text between the previous cursor and this interpolation.
       if (child.from > cursor) {
         segs.push({ kind: "text", raw: ctx.read(cursor, child.from) });
       }
@@ -60,19 +38,12 @@ export function lowerTagContent(
       if (variable) {
         segs.push({ kind: "ref", name: ctx.read(variable.from, variable.to) });
       } else {
-        // Non-identifier expression → emit the raw `{...}` as literal text.
-        // A backtick string's own errors in it are still its reading's to
-        // report, as everywhere (I-1435).
         const reading = content ? readExpressionAst(containerValueNodes(child), ctx) : null;
         if (reading) reportReadingErrors(reading.source.errors, child, ctx, "string");
         segs.push({ kind: "text", raw: ctx.read(child.from, child.to) });
       }
       cursor = child.to;
     } else if (FUNCTION_CALL_SHORTHAND_NODES.has(child.name)) {
-      // `{{fn}}` / `{{fn(args)}}` call shorthand (issue #223) — works inside
-      // tag bodies like every other interpolation context. The funnel coerces
-      // the body to a call (and raises the "expected a function name" error
-      // for anything else), so the tag substitutes the call's return value.
       if (child.from > cursor) {
         segs.push({ kind: "text", raw: ctx.read(cursor, child.from) });
       }
@@ -82,14 +53,10 @@ export function lowerTagContent(
     }
     child = child.nextSibling;
   }
-  // Trailing literal text after the last interpolation (or the whole body
-  // when there were none).
   if (tagContent.to > cursor) {
     segs.push({ kind: "text", raw: ctx.read(cursor, tagContent.to) });
   }
 
-  // Trim leading whitespace off the first text seg and trailing whitespace
-  // off the last (mirrors the old whole-string `.trim()`).
   trimBoundaryWhitespace(segs);
 
   const out: ParsedObject[] = [];
@@ -121,9 +88,6 @@ function trimBoundaryWhitespace(
   }
 }
 
-// Access paths wrap even a bare variable. Unwrap only these transparent
-// containers; calls, member/index suffixes, operators and comments keep the
-// interpolation literal instead of being mistaken for a bare reference.
 function loneVariable(container: SyntaxNode): SyntaxNode | null {
   let only: SyntaxNode | null = null;
   for (let node = container.firstChild; node; node = node.nextSibling) {
@@ -142,8 +106,6 @@ function loneVariable(container: SyntaxNode): SyntaxNode | null {
   return isExplicitRuleName(only.name, "LuauAccessPart") ? loneVariable(only) : null;
 }
 
-// Return the FIRST child INSIDE the named generated wrapper (e.g.
-// `TagContent_content`), so the caller can iterate the wrapper's children.
 function firstContentChild(
   parent: SyntaxNode,
   wrapperName: string,

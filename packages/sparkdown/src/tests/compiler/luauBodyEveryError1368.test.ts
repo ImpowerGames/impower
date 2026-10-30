@@ -1,8 +1,3 @@
-// A define's method and a Sparkle handler's closure, which the type checker
-// does not read, report every syntax error Luau reports for the body read
-// alone, once each, in Luau's words at Luau's range, as a function's body
-// does (I-1368, after I-1322). The validator leaves them all to the
-// lowerer's reading there.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -11,7 +6,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -23,8 +17,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-// Lines of a body with syntax errors, each in a statement the grammar reads
-// to its end (no unread token).
 const FORMS = [
   "local t = {1 2}",
   "x = {1, 2 3 4}",
@@ -35,19 +27,14 @@ const FORMS = [
   "local t = { a = 1 b = 2 }",
   "local function g(a: number b) end",
   "while nil:do end",
-  // A nested function's parameters, which the validator checks in a flow
-  // header's (round 1 of the review).
   "local function g(a :: number) end",
   "local function g(:: number) end",
   "local function g(a, : number) end",
-  // A statement after the body's last statement, which closes the
-  // function there (I-1400).
   "return 1 2",
 ];
 
 describe("a define's method reports every error Luau reports for its body (I-1368)", () => {
   for (const line of FORMS) {
-    // The method stands for the function `function f() … end` on its lines.
     const official = officialErrorList(`\n  function f()\n    ${line}\n  end\n`).sort();
     test(`${JSON.stringify(line)} in a method`, () => {
       expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
@@ -58,8 +45,6 @@ describe("a define's method reports every error Luau reports for its body (I-136
     });
   }
 
-  // The validator reports an unfinished string itself, in the words of
-  // Luau's reading, which reports it too: the report is made once.
   for (const line of ['local s = "abc', "local s = `a {"]) {
     test(`${JSON.stringify(line)} is reported once`, () => {
       const errors = sparkdownErrors(`define X with\n  f()\n    ${line}\n  end\nend\n`);
@@ -69,8 +54,6 @@ describe("a define's method reports every error Luau reports for its body (I-136
 });
 
 describe("a Sparkle handler's closure reports every error Luau reports for its body (I-1368)", () => {
-  // The forms whose errors all stand in the body's line: the closure runs
-  // as a function value, `function() … end` on its lines.
   for (const line of ["local t = {1 2}", "x = {1, 2 3 4}", "local x: = 1", "local t = { a = 1 b = 2 }", "print(1 2)", "while nil:do end", "local g = function(a :: number) end", "local g = function(:: number) end"]) {
     test(JSON.stringify(line), () => {
       const official = officialErrorList(`local _ = function()\n    ${line}\nend\n`)
@@ -81,9 +64,6 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
     });
   }
 
-  // A statement after the body's last statement closes the function there,
-  // as Luau reads it; the function the closure stands for begins at its
-  // `{` (I-1400).
   test('"return 1 2" in a closure', () => {
     expect(sparkdownErrors(`layout main with\n  button @click={\n    return 1 2\n  }\nend\n`)).toEqual([
       "2:13-2:14 Expected 'end' (to close 'function' at line 2), got '2'",
@@ -95,10 +75,6 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
     expect(errors.filter((e) => e.endsWith("Malformed string; did you forget to finish it?")), errors.join("\n")).toHaveLength(1);
   });
 
-  // Luau's reading closes the closure with an `end` of its own at the `}`,
-  // which the author did not write: what is missing there is reported
-  // once, at the `}`, naming it (I-1368), and nothing the base reported
-  // there goes unreported.
   const closure = (body: string) =>
     `store a, g, x = 0, 0, 0\nlayout form with\n  button "Go" @click={\n    ${body}\n  }\nend\n`;
   const LAYOUT_OPEN =
@@ -123,8 +99,6 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
     expect(sparkdownErrors(closure(body))).toEqual(expected);
   });
 
-  // On one line, the end of input past the reading's own `end` is no part
-  // of the closure.
   test('"a:" on the closure\'s line names only the `}`', () => {
     expect(sparkdownErrors(`layout main with\n  button @click={ a: }\nend\n`)).toEqual([
       "1:21-1:22 Expected identifier when parsing method name, got '}'",
@@ -132,9 +106,6 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
   });
 });
 
-// An alternator is Sparkdown's own expression, which a body's reading reads
-// as one opaque value: its arms' errors stay Sparkdown's to report, in a
-// method or a closure as in a function (round 2 of the review).
 describe("an alternator's arm in these bodies is reported as in a function (I-1368)", () => {
   const ARM = "local t = cycle 0 | (1 +) end";
   const MISSING = "Expected identifier when parsing expression, got ')'";
@@ -151,8 +122,6 @@ describe("an alternator's arm in these bodies is reported as in a function (I-13
   });
 });
 
-// A block that took the method's `end` leaves the function open at the end
-// of its reading, ranged as in a function (to the next line's start).
 describe("a method left open is ranged as a function is (I-1368)", () => {
   for (const header of ["f()", "function f()"]) {
     test(header, () => {

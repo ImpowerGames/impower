@@ -1,14 +1,3 @@
-// #654: the assembled context is the same for every compile of a project whose
-// definitions, declarations and files are unchanged, so it is assembled once
-// and shared. What an edit to a line of dialogue must not do is rebuild it, and
-// what the sharing must not do is let one compile's speculative entries reach
-// the next one.
-//
-// The base holds the builtins, the project's defines, the structs derived from
-// its files and the `$default` merge over all of them. A compile layers its own
-// implicit definitions over that base copy-on-write, so the shared tables never
-// learn about an entry that belongs to one compile — which is what keeps a
-// preview compile's filtered image out of the canonical compile that follows.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -24,7 +13,6 @@ const image = (name: string) => ({
   data: SVG,
 });
 
-/** A project with defines, a declaration, an image asset and several scenes. */
 function screenplay(
   options: { speed?: number; extraDefine?: boolean; directive?: boolean } = {},
 ): string {
@@ -100,7 +88,6 @@ const posAt = (text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** Apply a minimal-range edit turning the first `find` into `replace`. */
 function edit(
   compiler: SparkdownCompiler,
   text: string,
@@ -163,7 +150,6 @@ describe("the assembled context of an unchanged project (#654)", () => {
 
     expect(builds(compiler)).toBe(buildsAfterFirst);
     expect(second.contextRevision).toBe(first.contextRevision);
-    // The reused context is the one a compile from nothing produces.
     const coldProgram = compile(compilerFor(after));
     expect(stable(second.context)).toBe(stable(coldProgram.context));
     expect(second.context?.["character"]?.["hero"]?.["name"]).toBe("Hero");
@@ -239,7 +225,6 @@ describe("a compile's own implicit definitions (#654)", () => {
     expect(first.context?.["filtered_image"]?.["mia~happy"]).toBeDefined();
     expect(first.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
 
-    // Add a directive implying a new filtered image.
     const withDirective = edit(
       compiler,
       text,
@@ -251,14 +236,10 @@ describe("a compile's own implicit definitions (#654)", () => {
     const added = second.context?.["filtered_image"]?.["mia~sad"];
     expect(added).toBeDefined();
     expect(added?.["attributes"]).toEqual(["sad"]);
-    // The layer carries the type's `$default` the same way the base does.
     expect(added?.["image"]).toBeDefined();
     expect(second.contextRevision).not.toBe(first.contextRevision);
-    // The entry belongs to this compile, not to the shared base: the earlier
-    // program never learns about it.
     expect(first.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
 
-    // Take the directive away again; the entry goes with it.
     edit(compiler, withDirective, "\n[[mia:sad]]", "", 3);
     const third = compile(compiler);
     expect(third.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
@@ -273,8 +254,6 @@ describe("a compile's own implicit definitions (#654)", () => {
     const buildsBefore = builds(compiler);
 
     const offset = text.indexOf("[[mia:happy]]");
-    // The document is still at the version it was configured with; a preview
-    // request naming any other version is refused as outdated.
     const preview = quiet(() =>
       compiler.previewCompile({
         root: { uri: URI },
@@ -296,8 +275,6 @@ describe("a compile's own implicit definitions (#654)", () => {
       preview.program?.context?.["filtered_image"]?.["mia~sad"],
     ).toBeDefined();
 
-    // The canonical compile of the unedited text still does not carry it, and
-    // the preview did not force the shared base to be assembled again.
     const afterPreview = compile(compiler);
     expect(
       afterPreview.context?.["filtered_image"]?.["mia~sad"],

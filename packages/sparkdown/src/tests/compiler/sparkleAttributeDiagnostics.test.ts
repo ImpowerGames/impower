@@ -1,14 +1,3 @@
-// Diagnostics for Sparkle element `@event` / `@handler` attributes plus the
-// source-range of reactive-binding diagnostics. Three guarantees:
-//   E) An unrecognized `@event` name (`@clik`) warns — the event set is closed
-//      (EventMap) and an unknown name silently never fires.
-//   B) An `@event=handler` that names no defined function/scene/knot warns
-//      ("Cannot find function"), whole-program (so a cross-file or scene target
-//      does NOT warn); closures and dotted/method targets are not refs.
-//   C) A compile error inside a Sparkle binding (`for item in player.inventory`)
-//      reports at the binding, not collapsed to line 0.
-// See project_reactive_sparkle_ui.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -74,10 +63,6 @@ describe("Sparkle @event name validation", () => {
     expect(has(ds, "Unrecognized event")).toBe(false);
   });
 
-  // A style SELECTOR is a different vocabulary that happens to share the
-  // grammar's `EventAttributeName` leaf. Warning here told the author that
-  // syntax the docs recommend — and `builtins.sd` uses 90 times — "never
-  // fires", and suggested `@click` in place of `@hovered`.
   const selectors = [
     "@hovered", "@focused", "@pressed", "@first", "@disabled",
     "@theme(dark)", "@has(button)",
@@ -110,12 +95,6 @@ describe("Sparkle #prop name validation", () => {
     ).toBe(false);
   });
 
-  // This assertion is not enough on its own: a line the grammar SWALLOWS also
-  // produces no warning, which is exactly what `#--…` used to do — it matched
-  // no prop-name pattern, `LuauComment` took the rest of the line, and the prop
-  // plus every attribute after it disappeared. The absence of a warning was
-  // reported as success. `domAttributeProps.test.ts` asserts the property
-  // actually reaches the element; keep both.
   test("a --custom property does not warn", () => {
     expect(
       propWarns(`layout main with\n  row #--my-var=4 {\n    text "x"\n  }\nend\n`),
@@ -141,15 +120,12 @@ describe("Sparkle #prop name validation", () => {
     ).toBe(false);
   });
 
-  // The ui reserves `data-widget-control` for the control inside a labelled
-  // widget and never writes it from an author's prop, so it has no effect.
   test("the reserved data-widget-control attribute warns", () => {
     expect(
       propWarns(
         `layout main with\n  row #data-widget-control=1 {\n    text "x"\n  }\nend\n`,
       ),
     ).toBe(true);
-    // HTML attribute names are case-insensitive, so every spelling is reserved.
     expect(
       propWarns(
         `layout main with\n  row #data-Widget-Control=1 {\n    text "x"\n  }\nend\n`,
@@ -166,8 +142,6 @@ describe("Sparkle #prop name validation", () => {
     ).toBe(true);
   });
 
-  // The ui reserves `data-display-target` for the elements the story's
-  // display targets reach (I-1595), so an author's prop never writes it.
   test("the reserved data-display-target attribute warns", () => {
     expect(
       propWarns(
@@ -234,8 +208,6 @@ describe("Sparkle binding diagnostic range", () => {
     const ds = diagnose(src);
     const d = ds.find((x) => x.message.includes("player.inventory"));
     expect(d).toBeDefined();
-    // The `for` line (index 1) — NOT collapsed to line 0 (the old bug) — and the
-    // range slices to exactly `player.inventory`.
     expect(d!.line).toBe(1);
     expect(src.split("\n")[d!.line]!.slice(d!.from, d!.to)).toBe(
       "player.inventory",
@@ -259,8 +231,6 @@ describe("Sparkle binding diagnostic range", () => {
     const d = ds.find((x) => x.message.includes("`cont`"));
     expect(d).toBeDefined();
     expect(d!.line).toBe(2);
-    // The range must slice to exactly `cont` (absolute column, catching the
-    // 1-based/0-based off-by-one) — not the surrounding `{cont}` or whole line.
     const line = src.split("\n")[d!.line]!;
     expect(line.slice(d!.from, d!.to)).toBe("cont");
   });
@@ -272,7 +242,6 @@ describe("Sparkle binding diagnostic range", () => {
     expect(d).toBeDefined();
     expect(d!.line).toBe(2);
     const line = src.split("\n")[d!.line]!;
-    // Exactly `cont` — not the whole `{ … }` closure span.
     expect(line.slice(d!.from, d!.to)).toBe("cont");
   });
 });

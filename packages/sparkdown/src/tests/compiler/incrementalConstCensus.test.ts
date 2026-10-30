@@ -1,17 +1,3 @@
-// Declared-name census oracle for incremental ExportRuntime.
-//
-// Constants and globals are registered in `story.variableDeclarations`, which
-// `Divert.ResolveTargetContent` consults during GENERATION. So a name that
-// enters or leaves that set can change other flows' call-site codegen, and a
-// reused flow (whose generation is skipped) would keep the old shape. The
-// census compares the whole declared-NAME set across compiles to catch it —
-// including DELETIONS, which the per-chunk scan cannot see because a deleted
-// declaration appears in no chunk at all.
-//
-// Since #309 a constant's VALUE is no longer inlined into referencing flows —
-// it is initialized once as an ordinary global — so editing a constant's
-// value no longer has to invalidate anything. The last test pins that
-// distinction, which is the whole point of that change.
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -67,7 +53,7 @@ describe("incremental constant census", () => {
       const steps = [
         { find: "Room 3 limit", replace: "Room 3 Limit" },
         { find: "Room 3 Limit", replace: "Room 3 LIMIT" },
-        { find: "const LIMIT = 5\n", replace: "" },   // DELETE the const
+        { find: "const LIMIT = 5\n", replace: "" },
         { find: "Room 3 LIMIT", replace: "Room 3 limit" },
       ];
       for (const [i, s] of steps.entries()) {
@@ -89,11 +75,6 @@ describe("incremental constant census", () => {
     expect(log.filter((l) => l.includes("DIVERGED"))).toEqual([]);
   });
 
-  // The #309 payoff. A constant's value is initialized once rather than
-  // copied into each referencing flow, so changing it cannot invalidate any
-  // other flow's bytecode and must NOT cost reuse. Its NAME still enters the
-  // census (constants live in `variableDeclarations`, which generation reads
-  // when resolving call targets), so removing one still does.
   it("editing a const's VALUE keeps reuse; removing the const does not", () => {
     const w = console.warn, e = console.error;
     console.warn = () => {}; console.error = () => {};
@@ -104,9 +85,9 @@ describe("incremental constant census", () => {
       incr.compile({ textDocument: { uri: URI } } as any);
       let version = 1;
       const steps = [
-        { find: "Room 3 limit", replace: "Room 3 Limit" }, // warm up reuse
-        { find: "const LIMIT = 5", replace: "const LIMIT = 6" }, // VALUE edit
-        { find: "const LIMIT = 6\n", replace: "" }, // removal
+        { find: "Room 3 limit", replace: "Room 3 Limit" },
+        { find: "const LIMIT = 5", replace: "const LIMIT = 6" },
+        { find: "const LIMIT = 6\n", replace: "" },
       ];
       for (const s of steps) {
         const off = text.indexOf(s.find);
@@ -124,11 +105,8 @@ describe("incremental constant census", () => {
     } finally {
       console.warn = w; console.error = e;
     }
-    // Every step must still match a cold compile.
     expect(seen.map((s) => s.matches)).toEqual([true, true, true]);
-    // Editing the value keeps flows reused (this is what #309 bought)...
     expect(seen[1]!.reused).toBeGreaterThan(0);
-    // ...while removing the declaration still invalidates via the census.
     expect(seen[2]!.reused).toBe(0);
   });
 });
@@ -139,10 +117,6 @@ describe("incremental global-name census", () => {
     console.warn = () => {}; console.error = () => {};
     const log: string[] = [];
     try {
-      // `addup` is variadic, so a knot-call emits PackTuple while a
-      // variable-target call does not. Declaring a global named `addup`
-      // shadows the flow at GENERATION time (Divert.ResolveTargetContent
-      // consults story.variableDeclarations), flipping every call site.
       const L: string[] = [];
       L.push("title: Shadow");
       L.push("store anchor = 1");
@@ -166,10 +140,7 @@ describe("incremental global-name census", () => {
       const SHADOW = "store anchor = 1\nstore addup = 0";
       const steps = [
         { find: "Room 5.", replace: "Room 5!" },
-        // Shadow the function with a global of the same name...
         { find: "store anchor = 1", replace: SHADOW },
-        // ...then remove it again: the program is valid, but any flow
-        // regenerated while shadowed must not keep variable-target codegen.
         { find: SHADOW, replace: "store anchor = 1" },
         { find: "Room 4.", replace: "Room 4!" },
       ];
