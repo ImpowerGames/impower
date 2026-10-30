@@ -61,7 +61,6 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 
 describe("broken tokens", () => {
-  // Luau: broken_string_works
   test("broken_string_works: `[[`", () => {
     const body = "local x = [[";
     expect(diagnoseInFunction(body)).toContain(UNFINISHED_STRING);
@@ -69,7 +68,6 @@ describe("broken tokens", () => {
     expect(string.from).toBe("local x = ".length);
   });
 
-  // Luau: broken_comment
   test("broken_comment: `--[[  `", () => {
     const body = "--[[  ";
     expect(diagnoseInFunction(body)).toContain(UNFINISHED_COMMENT);
@@ -78,13 +76,11 @@ describe("broken tokens", () => {
     expect(comment.text.startsWith("--[[  ")).toBe(true);
   });
 
-  // Luau: broken_comment_kept
   test("broken_comment_kept: `--[[  ` is reported, `--[[  ]]` is not", () => {
     expect(diagnoseInFunction("--[[  ")).toContain(UNFINISHED_COMMENT);
     expect(diagnoseInFunction("--[[  ]]")).toEqual([]);
   });
 
-  // Luau: testBrokenEscapeTolerant
   test("testBrokenEscapeTolerant: `'\\3729472897292378'`", () => {
     const literal = "'\\3729472897292378'";
     const body = `local x = ${literal}`;
@@ -97,7 +93,6 @@ describe("broken tokens", () => {
 });
 
 describe("comments", () => {
-  // Luau: comment_skipped
   test("comment_skipped: `--  `", () => {
     const body = "--  ";
     expect(onlyNode(body, "LuauLineComment").text).toBe("--  ");
@@ -106,7 +101,6 @@ describe("comments", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: multilineCommentWithLexemeInAndAfter
   test("multilineCommentWithLexemeInAndAfter: `--[[ function \\n]] end`", () => {
     const body = "--[[ function \n" + "]] end";
     const source = `${PREFIX}${body}\n`;
@@ -132,7 +126,6 @@ describe("comments", () => {
 });
 
 describe("long brackets", () => {
-  // Luau: testBigDelimiters
   test("testBigDelimiters: `--[===[\\n\\n\\n\\n]===]`", () => {
     const body = "--[===[\n" + "\n" + "\n" + "\n" + "]===]";
     const comment = onlyNode(body, "LuauBlockComment");
@@ -142,7 +135,6 @@ describe("long brackets", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: lexer_determines_string_block_depth_*
   describe("strings", () => {
     test.each([
       ["lexer_determines_string_block_depth_0", "[[ test ]]", 0],
@@ -208,7 +200,6 @@ describe("long brackets", () => {
 });
 
 describe("interpolation", () => {
-  // Luau: string_interpolation_basic
   test('string_interpolation_basic: `foo {"bar"}`', () => {
     const literal = '`foo {"bar"}`';
     const body = `local x = ${literal}`;
@@ -221,7 +212,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_full
   test('string_interpolation_full: `foo {"bar"} {"baz"} end`', () => {
     const literal = '`foo {"bar"} {"baz"} end`';
     const body = `local x = ${literal}`;
@@ -236,7 +226,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_unmatched_brace
   test("string_interpolation_unmatched_brace", () => {
     const body =
       "local x = " +
@@ -250,7 +239,6 @@ describe("interpolation", () => {
     expect(onlyNode(body, "LuauInterpolatedString").text).toBe('`hello {"world"}');
   });
 
-  // Luau: string_interpolation_with_unicode_escape
   test("string_interpolation_with_unicode_escape: `\\u{1F41B}`", () => {
     const body = "local x = `\\u{1F41B}`";
     expect(onlyNode(body, "LuauEscapeUnicode").text).toBe("\\u{1F41B}");
@@ -258,8 +246,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_double_brace
-  // Luau: string_interpolation_double_but_unmatched_brace
   describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => {
     test.each([
       ["string_interpolation_double_brace", "local x = `foo{{bad}}bar`"],

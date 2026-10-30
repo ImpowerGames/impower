@@ -41,7 +41,7 @@ describe("const without an initializer", () => {
   });
 });
 
-// Luau: error_const_not_initialized (multi-name cases)
+// Luau: error_const_not_initialized
 describe("const with several names", () => {
   test.each([
     ["const a, b = nil", "const a, b = nil"],
@@ -133,14 +133,12 @@ describe.skip("incomplete statement (diverges: a bare name is a call)", () => {
     );
   });
 
-  // Luau: statement_error_recovery_expected — exactly one error.
   test("some", () => {
     expect(
       diagnoseInFunction("function a(a, b) return a + b end\nsome\na(2, 5)"),
     ).toHaveLength(1);
   });
 
-  // Luau: statement_error_recovery_unexpected — exactly one error.
   test("+", () => {
     expect(diagnoseInFunction("+")).toHaveLength(1);
   });

@@ -59,5 +59,3 @@ describe("variadic not last (the type cases are N/A)", () => {
     expect(diagnoseInFunction(source)).toContain(expected);
   });
 });
-
-// Luau: extra_token_in_consume / extra_token_in_consume_match are the

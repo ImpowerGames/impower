@@ -13,7 +13,7 @@ describe("parentheses used as a table constructor", () => {
   });
 });
 
-// Luau: parse_error_messages (the table-type half) and
+// Luau: parse_error_messages
 
 describe.skip("unfinished table constructor (diverges: accepted silently)", () => {
   test("local t = { a = 1,", () => {

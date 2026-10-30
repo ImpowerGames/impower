@@ -81,7 +81,7 @@ describe("number contexts", () => {
   });
 });
 
-// Luau: parse_numbers_error (the `LuauIntegerType2` half)
+// Luau: parse_numbers_error
 describe.skip("integer literals (N/A: no integer literal type)", () => {
   test.each([
     ["return 0x0xABCi", "Malformed integer"],

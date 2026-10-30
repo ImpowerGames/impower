@@ -19,7 +19,6 @@ describe("interpolated string without end brace", () => {
     ).toBe(true);
   });
 
-  // Luau: parse_interpolated_string_mid_without_end_brace_in_table.
   test("a closed interpolation followed by an unclosed one", () => {
     const msgs = diagnose('store a = `x {"y"} {z`\n');
     expect(msgs.some((m) => m.includes(MISSING_BRACE))).toBe(true);

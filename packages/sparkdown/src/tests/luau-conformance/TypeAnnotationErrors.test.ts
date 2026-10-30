@@ -121,7 +121,7 @@ describe.skip("table type fields (N/A: only a type that cannot begin is reported
   });
 });
 
-// Luau: extra_table_indexer_recovery — exactly one error.
+// Luau: extra_table_indexer_recovery
 describe.skip("second table indexer (N/A: only a type that cannot begin is reported)", () => {
   test("local a : { [string] : number, [number] : string, count: number }", () => {
     expect(
