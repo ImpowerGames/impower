@@ -8,8 +8,18 @@ export class GrammarStack {
     this.stack = stack?.slice() ?? [];
   }
 
-  push(node: GrammarNode, beginCaptures: string[]) {
-    this.stack.push({ node, beginCaptures });
+  push(
+    node: GrammarNode,
+    beginCaptures: string[],
+    enclosingAnchor = -1,
+    beginCapturedLineBreak = false,
+  ) {
+    this.stack.push({
+      node,
+      beginCaptures,
+      enclosingAnchor,
+      beginCapturedLineBreak,
+    });
   }
 
   pop() {

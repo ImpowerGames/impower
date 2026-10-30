@@ -4,4 +4,8 @@ export interface GrammarStackElement {
   node: GrammarNode;
 
   beginCaptures: string[];
+
+  enclosingAnchor: number;
+
+  beginCapturedLineBreak: boolean;
 }
