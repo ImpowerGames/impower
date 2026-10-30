@@ -72,4 +72,15 @@ describe("a program has no root flow (I-1752)", () => {
     story.ResetState();
     expect(story.variablesState.$("count")).toBe(1);
   });
+
+  it("ends a .luau entry's top level at its return", () => {
+    const { program, errors } = compile(
+      "inmemory:///main.luau",
+      "total = 40 + 2\nreturn total\n",
+    );
+    expect(errors).toEqual([]);
+    const story = testStory(program.chunks);
+    expect(story.variablesState.$("total")).toBe(42);
+    expect(story.canContinue).toBe(false);
+  });
 });

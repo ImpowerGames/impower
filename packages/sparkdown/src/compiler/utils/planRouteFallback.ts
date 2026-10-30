@@ -6,6 +6,7 @@ import { imageDigest } from "../../program/ProgramImages";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { chunkOfAddress } from "../../program/ProgramChunk";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
+import { START_FLOW_NAME } from "../../program/ProgramSymbols";
 import {
   buildRouteSimulator,
   DEFAULT_MAX_NODES,
@@ -806,7 +807,11 @@ const makeStartNode = (
   if (!story.stateIsPristine) {
     resetStory(story);
   }
-  story.ChoosePathString(from);
+  if (from === START_FLOW_NAME) {
+    story.ChooseStart();
+  } else {
+    story.ChoosePathString(from);
+  }
   return {
     state: port.fork().state,
     seq: "",

@@ -3297,6 +3297,11 @@ export class ProgramStory implements StoryEngine {
       state.didSafeExit = true;
       return;
     }
+    if (this._declarationRunning !== null && !callStack.canPop) {
+      state.position = null;
+      state.evaluationStack.length = 0;
+      return;
+    }
     if (element.type != PushPopType.Function || !callStack.canPop) {
       let expected =
         element.type == PushPopType.Function
