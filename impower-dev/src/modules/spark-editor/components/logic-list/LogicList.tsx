@@ -93,7 +93,7 @@ export default function LogicList(_props: LogicListProps) {
               class={`transition-opacity duration-200 ${
                 panel === "scripts"
                   ? "opacity-100 delay-150 [&_button]:pointer-events-auto"
-                  : "opacity-0 [&_button]:pointer-events-none"
+                  : "opacity-0"
               }`}
             >
               <FileAddButton

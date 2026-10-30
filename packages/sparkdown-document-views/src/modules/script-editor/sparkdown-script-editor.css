@@ -14,16 +14,7 @@ sparkdown-script-editor {
 
 .sparkdown-script-editor-root * {
   overscroll-behavior: none;
-  pointer-events: auto;
   touch-action: pan-y;
-}
-
-.sparkdown-script-editor-root .cm-content,
-.sparkdown-script-editor-root .cm-content *,
-.sparkdown-script-editor-root .cm-gutters,
-.sparkdown-script-editor-root .cm-gutters * {
-  user-select: text;
-  -webkit-user-select: text;
 }
 
 .sparkdown-script-editor-root .cm-editor,

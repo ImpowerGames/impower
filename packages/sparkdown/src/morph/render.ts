@@ -77,13 +77,20 @@ const reverseFlat = (flat: number[]): number[] => {
 
 export const APERTURE_REACH = 1;
 
-export const APERTURE_REACH_STROKE: readonly (readonly [string, string])[] = [
-  ["stroke", "#fff"],
+export const apertureSpreadStroke = (spread: number): readonly (readonly [string, string])[] => [
+  ["stroke", spread < 0 ? "#000" : "#fff"],
   ["stroke-opacity", "1"],
-  ["stroke-width", `${APERTURE_REACH * 2}px`],
+  ["stroke-width", `${Math.abs(spread) * 2}px`],
   ["stroke-dasharray", "none"],
   ["stroke-linejoin", "round"],
 ];
+
+export const APERTURE_REACH_STROKE = apertureSpreadStroke(APERTURE_REACH);
+
+export interface MorphApertureReach {
+  spread: number;
+  d?: string;
+}
 
 export const APERTURE_REACH_ID_SUFFIX = "-reach";
 
@@ -249,7 +256,7 @@ export interface MorphFrameState {
   gradients: Map<string, MorphGradientState>;
   opacity: Map<string, number>;
   clips: Map<string, string>;
-  reaches: Map<string, string>;
+  reaches: Map<string, MorphApertureReach>;
 }
 
 export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<string, MorphGroupPose>>): MorphFrameState {
@@ -284,11 +291,17 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     for (const target of artifact.clipTargets) {
       if (target.clip !== clip) continue;
       state.clips.set(target.aperture, d);
-      const reaching = moving ? reachable.find((entry) => entry.aperture === target.aperture)?.loops : undefined;
+      const spread = target.spread ?? APERTURE_REACH;
+      if (!moving || spread === 0) continue;
+      if (spread < 0) {
+        state.reaches.set(target.aperture, { spread });
+        continue;
+      }
+      const reaching = reachable.find((entry) => entry.aperture === target.aperture)?.loops;
       if (!reaching?.length) continue;
       const key = reaching.join(",");
       if (!byLoops.has(key)) byLoops.set(key, apertureReachPathData(samples, edges!, loops, p, reaching));
-      state.reaches.set(target.aperture, byLoops.get(key)!);
+      state.reaches.set(target.aperture, { spread, d: byLoops.get(key)! });
     }
   };
   for (const [group, states] of Object.entries(artifact.visibility)) {
@@ -488,7 +501,7 @@ export function poseLeaf(element: Element, node: string, state: MorphFrameState)
   if (o !== undefined) multiplyOpacity(element, o);
 }
 
-export function poseAperture(aperture: Element, d: string, reach?: string): { id: string; d: string } | undefined {
+export function poseAperture(aperture: Element, d: string, reach?: MorphApertureReach): { id: string; d: string } | undefined {
   const paths = elementsOf(aperture.children).filter((child) => child.tagName === "path");
   if (!paths.length || paths[0]!.attributes["d"] === d) return undefined;
   for (const path of paths) {
@@ -496,19 +509,24 @@ export function poseAperture(aperture: Element, d: string, reach?: string): { id
     setStyleProperty(path, "stroke", "none");
   }
   if (aperture.tagName !== "mask" || reach === undefined) return undefined;
+  const first = paths[0]!;
+  const stroke = apertureSpreadStroke(reach.spread);
+  if (reach.d === undefined) {
+    for (const [name, value] of stroke) setStyleProperty(first, name, value);
+    return undefined;
+  }
   const id = `${aperture.attributes["id"] ?? ""}${APERTURE_REACH_ID_SUFFIX}`;
   const bound: Element = {
     tagName: "clipPath",
     attributes: { id, clipPathUnits: "userSpaceOnUse" },
-    children: [{ tagName: "path", attributes: { style: APERTURE_REACH_CLIP_STYLE, d: reach }, children: [] }],
+    children: [{ tagName: "path", attributes: { style: APERTURE_REACH_CLIP_STYLE, d: reach.d }, children: [] }],
   };
   const at = elementsOf(aperture.children).find((child) => child.tagName === "clipPath" && child.attributes["id"] === id);
   if (at) aperture.children[aperture.children.indexOf(at)] = bound;
   else aperture.children.push(bound);
-  const first = paths[0]!;
-  for (const [name, value] of APERTURE_REACH_STROKE) setStyleProperty(first, name, value);
+  for (const [name, value] of stroke) setStyleProperty(first, name, value);
   setStyleProperty(first, "clip-path", `url(#${id})`);
-  return { id, d: reach };
+  return { id, d: reach.d };
 }
 
 function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): string {

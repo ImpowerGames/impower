@@ -33,6 +33,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   const paused = !!game?.paused;
   const debugging = !!game?.debugging;
   const loading = !!game?.loading;
+  const playRefusal = running ? undefined : game?.playRefusal;
   const animatePortraits = workspace.animatePortraits.value;
 
   const controllingPlayback = useRef<number>(0);
@@ -96,7 +97,8 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
       <RunToggle
         loading={loading}
         running={running}
-        onClick={loading ? undefined : onRunToggle}
+        refusal={playRefusal}
+        onClick={loading || playRefusal ? undefined : onRunToggle}
       />
 
       <span class="flex-1" />
@@ -208,10 +210,12 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 function RunToggle({
   loading,
   running,
+  refusal,
   onClick,
 }: {
   loading: boolean;
   running: boolean;
+  refusal?: string;
   onClick?: () => void;
 }) {
   if (loading) {
@@ -227,8 +231,14 @@ function RunToggle({
     <Button
       variant="ghost"
       aria-label={running ? "Stop Game" : "Play Game"}
+      aria-disabled={refusal ? true : undefined}
+      title={refusal}
       onClick={onClick}
-      class="h-12 w-12 flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/70"
+      class={
+        refusal
+          ? "h-12 w-12 cursor-not-allowed flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/30 hover:bg-transparent hover:text-primary/30"
+          : "h-12 w-12 flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/70"
+      }
     >
       <Icon class="size-[18px]" />
       {label}

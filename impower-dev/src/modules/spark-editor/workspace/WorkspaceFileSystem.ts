@@ -137,7 +137,7 @@ export default class WorkspaceFileSystem {
     if (!files.some((f) => f.name === "main" && f.ext === "sd")) {
       this._files ??= {};
       const mainScriptUri = this.getFileUri(projectId, "main.sd");
-      const text = "";
+      const text = ["scene start", "  ", "end", ""].join("\n");
       const encoder = new TextEncoder();
       const encodedText = encoder.encode(text);
       this._files[mainScriptUri] = {

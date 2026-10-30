@@ -619,6 +619,93 @@ describe("a live morph's aperture masks", () => {
     }
     expect(differing.slice(0, 5), `${differing.length} points differ`).toEqual([]);
   });
+
+  const spreadClip = (spread?: number) => blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread: `${spread}px` }) }] });
+  const restStyles = (spread?: number) => {
+    const baked = bakeMorphArtifact({ source: SVG, selection: {}, recipe: spreadClip(spread), key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    return { baked, styles: masksOf(baked.rest).map(({ path }) => path["style"]) };
+  };
+
+  test("write the default spread's rest mask exactly as a one-pixel reach", () => {
+    const { baked, styles } = restStyles();
+    expect(styles.length).toBeGreaterThan(0);
+    for (const style of styles) {
+      expect(style).toBe(
+        "fill:#fff;fill-opacity:1;fill-rule:nonzero;stroke:#fff;stroke-opacity:1;stroke-width:2px;stroke-dasharray:none;stroke-linejoin:round;visibility:visible;vector-effect:non-scaling-stroke",
+      );
+    }
+    expect(baked.clipTargets.every((target) => target.spread === undefined)).toBe(true);
+  });
+
+  test.each([
+    [3, /stroke:#fff;stroke-opacity:1;stroke-width:6px;/],
+    [0, /stroke:none;/],
+    [-1, /stroke:#000;stroke-opacity:1;stroke-width:2px;/],
+  ] as const)("stroke the rest mask by spread %s", (spread, pattern) => {
+    const { baked, styles } = restStyles(spread);
+    expect(styles.length).toBeGreaterThan(0);
+    for (const style of styles) expect(style).toMatch(pattern);
+    expect(baked.clipTargets.every((target) => target.spread === spread)).toBe(true);
+  });
+
+  test.each([
+    [3, "stroke:#fff;stroke-opacity:1;stroke-width:6px;"],
+    [1, "stroke:#fff;stroke-opacity:1;stroke-width:2px;"],
+    [-1, "stroke:#000;stroke-opacity:1;stroke-width:2px;"],
+    [0, undefined],
+  ] as const)("leave a loop resting closed unstroked at spread %s", (spread, stroke) => {
+    const right = (d: string) => d.replace(/(-?[\d.]+),(-?[\d.]+)/g, (_m, x: string, y: string) => `${Number(x) + 140},${y}`);
+    const wink = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
+<path data-name="face" d="M0,0H280V100H0Z" fill="#c96"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${WHITE}" fill="#fff"/>
+<path data-name="eyelash-left" d="${UPPER}" fill="#111"/>
+<path data-name="eyelash-left" d="${LOWER}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(CLOSED)}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyelash-left" d="${CLOSED}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(UPPER)}" fill="#111"/>
+<path data-name="eyelash-right" d="${right(LOWER)}" fill="#111"/>
+</g>
+<path data-name="eyeball-white-right" d="${right(WHITE)}" fill="#fff"/>
+</svg>`;
+    const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-white-left", "eyeball-white-right"], spread: `${spread}px` }] });
+    const baked = bakeMorphArtifact({ source: wink, selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.status).toBe("live");
+    const doc = parse(baked.rest);
+    const masks: Element[] = [];
+    const collect = (node: Element) => {
+      if (node.tagName === "mask" && /morph-clip-/.test(node.attributes["id"] ?? "")) masks.push(node);
+      elementChildren(node).forEach(collect);
+    };
+    ((Array.isArray(doc) ? doc : [doc]) as Element[]).forEach(collect);
+    expect(masks.length).toBeGreaterThan(0);
+    for (const mask of masks) {
+      const paths = elementChildren(mask).filter((c) => c.tagName === "path");
+      expect(paths[0]!.attributes["style"]).toMatch(/stroke:none;/);
+      expect(rings(paths[0]!.attributes["d"]!)).toHaveLength(2);
+      if (stroke === undefined) {
+        expect(paths).toHaveLength(1);
+      } else {
+        expect(paths).toHaveLength(2);
+        expect(paths[1]!.attributes["style"]).toContain(stroke);
+        expect(rings(paths[1]!.attributes["d"]!)).toHaveLength(1);
+      }
+    }
+  });
+
+  test("warn once that a clip-path aperture ignores the spread its entry sets", () => {
+    const parent: Affine = [1, 1, 1, 1.000001, 0, 0];
+    const source = underParent(`matrix(${parent.join(" ")})`, `matrix(${invert(parent)!.join(" ")})`);
+    const bake = (spread?: number) => bakeMorphArtifact({ source, selection: {}, recipe: spreadClip(spread), key: "k", variant: "bunny" });
+    expect(bake().diagnostics.filter((d) => d.code === "spread-ignored")).toEqual([]);
+    const ignored = bake(2).diagnostics.filter((d) => d.code === "spread-ignored");
+    expect(ignored).toHaveLength(1);
+    expect(ignored[0]!.severity).toBe("warning");
+    expect(ignored[0]!.message).toMatch(/Clip 1/);
+  });
 });
 
 describe("a live morph's baked apertures", () => {
