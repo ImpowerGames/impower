@@ -14,6 +14,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import { isLuauFile } from "@impower/sparkdown/src/compiler/typecheck/LuauUnitNodes";
 import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import {
   hasLuauExtension,
   projectLuauFiles,
@@ -609,15 +610,29 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
+  startSceneMissingIn(
+    uri: string,
+    program: SparkProgram | undefined = this.compiledProgram(uri),
+  ) {
+    return program?.uri === uri && playRefusalOf(program)
+      ? this.tree(uri)?.topNode
+      : undefined;
+  }
+
   protected withDiagnosticActions<
     T extends ReturnType<SparkdownWorkspace["getDiagnostics"]>[number],
-  >(diagnostics: T[], uri: string): T[] {
+  >(diagnostics: T[], uri: string, program: SparkProgram): T[] {
     const document = this.document(uri);
     if (!document || this.clientCapabilities?.textDocument?.codeAction) {
       return diagnostics;
     }
+    const startSceneMissingIn = this.startSceneMissingIn(uri, program);
     return diagnostics.map((diagnostic) => {
-      const actions = getDiagnosticActions(document, diagnostic);
+      const actions = getDiagnosticActions(
+        document,
+        diagnostic,
+        startSceneMissingIn,
+      );
       if (actions.length > 0) {
         return { ...diagnostic, data: actions };
       }
@@ -630,6 +645,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const diagnostics = this.withDiagnosticActions(
       [...super.getDiagnostics(program, uri), ...this.morphDiagnosticsFor(program, uri)],
       uri,
+      program,
     );
     const report = this._runtimeDiagnostics;
     const reported = report?.params.diagnostics?.[uri];

@@ -1,4 +1,5 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
@@ -585,6 +586,20 @@ export class GamePlayerController {
         animations.map((animation) => animation.finished),
       );
       this.refs.playButton.style.display = "none";
+    }
+  }
+
+  protected showPlayRefusal(refusal: string | undefined) {
+    const button = this.refs.playButton;
+    if (!button) {
+      return;
+    }
+    if (refusal) {
+      button.title = refusal;
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.removeAttribute("title");
+      button.removeAttribute("aria-disabled");
     }
   }
 
@@ -1790,16 +1805,20 @@ export class GamePlayerController {
   };
 
   protected handleStartGame = async (message: StartGameMessage.Request) => {
-    this.hidePlayButton();
+    if (!playRefusalOf(this._program)) {
+      this.hidePlayButton();
+    }
     const success = await this.startGameAndApp();
     this.updateLaunchStateIcon();
     return success
       ? StartGameMessage.type.response(message.id, { success })
       : StartGameMessage.type.error(message.id, {
           code: 1,
-          message: !isRunnableProgram(this._program)
-            ? "The program contains errors that prevent it from being compiled"
-            : `The game could not be started`,
+          message:
+            playRefusalOf(this._program) ??
+            (!isRunnableProgram(this._program)
+              ? "The program contains errors that prevent it from being compiled"
+              : `The game could not be started`),
         });
   };
 
@@ -2260,6 +2279,7 @@ export class GamePlayerController {
       this._canonicalInvalid = false;
       const isInitialProgram = !this._program;
       this._program = program;
+      this.showPlayRefusal(playRefusalOf(program));
       if (!this._startingPlay && !this._workerAppBuilding) {
         // The worker keeps each real program the page can still name. PLAY
         // that is starting, and a display waiting for the worker's
@@ -2365,7 +2385,7 @@ export class GamePlayerController {
         return false;
       }
     }
-    if (!this._program) {
+    if (!this._program || playRefusalOf(this._program)) {
       return false;
     }
     const link = workspace?.gameLink;

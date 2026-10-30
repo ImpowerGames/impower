@@ -41,6 +41,7 @@ import type {
 } from "../../compiler/types/ProgramAddress";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { isSameProgram } from "../../compiler/utils/programSummary";
+import { playRefusalOf } from "../../compiler/utils/startScene";
 import { profile } from "../utils/logging/profile";
 import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
@@ -1309,6 +1310,7 @@ export abstract class SparkdownWorkspace {
             scripts: result.program.scripts,
             files: {},
             version: result.program.version,
+            playRefusal: playRefusalOf(result.program),
           },
           diagnosticsSummary: summarizeDiagnostics(result.program.diagnostics),
         }

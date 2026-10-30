@@ -127,4 +127,5 @@ export interface SparkProgram {
   /** On a summary, whether the compile produced a story that runs, which
    *  `compiled` answers on a whole program (`isRunnableProgram`). */
   runnable?: boolean;
+  playRefusal?: string;
 }

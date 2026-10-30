@@ -57,6 +57,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
@@ -410,6 +411,16 @@ export default class WorkspaceWindow {
       debug: {
         ...this.store.debug,
         diagnosticsSummary: summary,
+      },
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: {
+            ...this.store.preview.modes.game,
+            playRefusal: playRefusalOf(program),
+          },
+        },
       },
     });
   };
@@ -1037,7 +1048,7 @@ export default class WorkspaceWindow {
   toggleGameRunning() {
     if (this.store.preview.modes.game.running) {
       this.stopGame();
-    } else {
+    } else if (!this.store.preview.modes.game.playRefusal) {
       this.startGame();
     }
   }

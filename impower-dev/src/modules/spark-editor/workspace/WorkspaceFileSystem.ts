@@ -153,10 +153,9 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
     });
     if (!files.some((f) => f.name === "main" && f.ext === "sd")) {
-      // Create a default empty main script if one doesn't exist
       this._files ??= {};
       const mainScriptUri = this.getFileUri(projectId, "main.sd");
-      const text = "";
+      const text = ["scene start", "  ", "end", ""].join("\n");
       const encoder = new TextEncoder();
       const encodedText = encoder.encode(text);
       this._files[mainScriptUri] = {

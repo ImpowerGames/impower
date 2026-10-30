@@ -62,6 +62,39 @@ export function topLevelStatements(
   return found;
 }
 
+export function runnableTopLevelRuns(
+  top: SyntaxNode,
+  read: (from: number, to: number) => string,
+): { from: number; to: number }[] {
+  const runs: { from: number; to: number }[] = [];
+  let run: { from: number; to: number } | undefined;
+  let depth = 0;
+  for (let node = top.firstChild; node; node = node.nextSibling) {
+    if (FLOWS.has(node.name)) {
+      depth += 1;
+      run = undefined;
+    } else if (node.name === "LuauEndKeyword") {
+      depth = Math.max(0, depth - 1);
+      run = undefined;
+    } else if (
+      depth > 0 ||
+      node.name === "Newline" ||
+      node.name.endsWith("Whitespace") ||
+      node.name.endsWith("Comment")
+    ) {
+      continue;
+    } else if (STRUCTURE.has(node.name) || declares(node, read)) {
+      run = undefined;
+    } else if (run) {
+      run.to = node.to;
+    } else {
+      run = { from: node.from, to: node.to };
+      runs.push(run);
+    }
+  }
+  return runs;
+}
+
 const declares = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,

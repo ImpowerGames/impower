@@ -1,4 +1,5 @@
 import type { SparkProgram } from "../types/SparkProgram";
+import { playRefusalOf } from "./startScene";
 
 /** What a host that leaves a program where it was compiled still reads of it:
  *  its identity (`uri`, `scripts` and `filesEpoch`, see `programIdentity`),
@@ -17,6 +18,7 @@ export const programSummary = (
   startFrom: program.startFrom,
   summary: true,
   runnable,
+  playRefusal: playRefusalOf(program),
 });
 
 /** Whether two programs, whole or summarized, are one compile's: the same

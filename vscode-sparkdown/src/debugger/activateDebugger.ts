@@ -16,6 +16,7 @@ import {
 } from "vscode";
 import { SparkdownDebugManager } from "../managers/SparkdownDebugManager";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
+import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
 import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
@@ -236,6 +237,20 @@ class MockConfigurationProvider implements vscode.DebugConfigurationProvider {
         });
     }
 
+    return config;
+  }
+
+  resolveDebugConfigurationWithSubstitutedVariables(
+    _folder: WorkspaceFolder | undefined,
+    config: DebugConfiguration,
+  ): ProviderResult<DebugConfiguration> {
+    const refusal = SparkProgramManager.instance.playRefusal(
+      pathToUri(config["program"]),
+    );
+    if (refusal) {
+      vscode.window.showErrorMessage(refusal);
+      return undefined;
+    }
     return config;
   }
 }

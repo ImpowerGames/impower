@@ -1,5 +1,6 @@
 import type { SyntaxNode } from "@lezer/common";
 import { START_FLOW_NAME } from "../../program/ProgramSymbols";
+import type { SparkProgram } from "../types/SparkProgram";
 import { findWithin } from "./declarationOnly";
 
 export const NO_START_SCENE_MESSAGE =
@@ -10,6 +11,20 @@ export const START_SCENE_PARAMETERS_MESSAGE =
 
 export const isStartSceneMessage = (message: string): boolean =>
   message === NO_START_SCENE_MESSAGE || message === START_SCENE_PARAMETERS_MESSAGE;
+
+export const playRefusalOf = (
+  program: Pick<SparkProgram, "playRefusal" | "diagnostics"> | undefined | null,
+): string | undefined =>
+  program?.playRefusal ??
+  (Object.values(program?.diagnostics ?? {}).some((diagnostics) =>
+    diagnostics.some(
+      ({ message }) =>
+        (typeof message === "string" ? message : message.value) ===
+        NO_START_SCENE_MESSAGE,
+    ),
+  )
+    ? NO_START_SCENE_MESSAGE
+    : undefined);
 
 export interface StartSceneScript {
   uri: string;
