@@ -1,19 +1,3 @@
-// Baseline support for rules whose findings already exist in the grammar.
-//
-// A baselined rule takes one option, `{ baseline: { [owner]: count } }`,
-// where an owner is a repository rule (`repository.Name`), a variable
-// (`variables.NAME`) or the top-level `patterns` list (see
-// grammar-index.ts). The rule reports nothing for an owner whose findings
-// number no more than its baseline count, and reports every finding of an
-// owner that has more, since it cannot tell which one is new. A count that
-// falls is not reported; `baseline-cli.ts --check` lists those, and
-// `--write` rewrites the file. The recommended configuration passes each
-// rule its section of `baseline.json`; overriding a rule with an empty
-// baseline lists every existing finding.
-//
-// Counting per owner rather than per line keeps the baseline stable while
-// other changes move or edit the grammar around a finding.
-
 import type { AST as ESTreeAST, Rule } from "eslint";
 
 export interface Finding {
@@ -25,8 +9,6 @@ export interface Finding {
 
 export interface BaselinedRule {
   rule: Rule.RuleModule;
-  // The rule's findings before the baseline is applied (used by the
-  // baseline CLI and by tests).
   find(context: Rule.RuleContext): Finding[];
 }
 
@@ -43,7 +25,6 @@ export const BASELINE_SCHEMA = [
   },
 ];
 
-// Every message of a baselined rule ends with this placeholder.
 export const BASELINE_NOTE = "{{baselineNote}}";
 
 export function defineBaselinedRule(

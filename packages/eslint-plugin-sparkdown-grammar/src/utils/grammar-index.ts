@@ -1,14 +1,3 @@
-// A whole-file index of the grammar, shared by the rules that reason
-// across rules (reachability, repeated fragments, rival-rule comments).
-// Built once per linted file from `context.sourceCode` and cached.
-//
-// Owners: every finding these rules report belongs to an *owner*, the
-// unit the baseline counts and the unit a justifying comment sits
-// above. An owner is a repository rule (`repository.Name`, including
-// every inline rule nested in its `patterns:` and capture handlers), a
-// variable (`variables.NAME`), or the top-level `patterns:` list
-// (`patterns`).
-
 import type { Rule } from "eslint";
 import {
   findPair,
@@ -26,29 +15,18 @@ export const PATTERN_KEYS = ["match", "begin", "end"] as const;
 export type PatternKey = (typeof PATTERN_KEYS)[number];
 
 export interface Owner {
-  // Baseline key: `repository.Name`, `variables.NAME` or `patterns`.
   id: string;
-  // Bare rule or variable name (`patterns` for the top-level list).
   name: string;
   kind: "rule" | "variable" | "patterns";
-  // The pair that declares the owner (absent for `patterns`).
   pair?: YAMLPair;
 }
 
-// One regex-bearing scalar: a rule's `match`/`begin`/`end`, a string
-// variable's value, or one entry of an array variable (which the build
-// joins into `\b(?:a|b)\b` verbatim).
 export interface PatternSite {
   owner: Owner;
   key: PatternKey | "value" | "entry";
   scalar: YAMLScalar;
   source: string;
-  // The rule mapping holding the pattern (absent for a variable).
   mapping?: YAMLMapping;
-  // 1-based lines whose comment block above may describe this site,
-  // innermost first: the pattern key's (or array entry's) own line, the
-  // inline rule mapping's first line and its `-` line, then the owner's
-  // key line.
   anchorLines: number[];
 }
 
@@ -56,13 +34,8 @@ export interface GrammarIndex {
   root: YAMLMapping | null;
   rules: Map<string, YAMLPair>;
   variables: Map<string, YAMLPair>;
-  // Every rule mapping (repository and inline) with its owner.
   ruleMappings: { owner: Owner; mapping: YAMLMapping }[];
   patternSites: PatternSite[];
-  // The contiguous whole-line YAML comments directly above a 1-based
-  // line, top to bottom, with the `#` and one following space stripped.
-  // A blank line, a code line or a line inside a scalar (a block scalar's
-  // `# ...` text is not a comment) ends the block.
   commentBlockAbove(line: number): string[];
 }
 
@@ -91,8 +64,6 @@ function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
   const ruleMappings: { owner: Owner; mapping: YAMLMapping }[] = [];
   const patternSites: PatternSite[] = [];
 
-  // Lines holding nothing but a parser-recognised comment, mapped to the
-  // comment's text.
   const commentLines = new Map<number, string>();
   for (const comment of sourceCode.getAllComments()) {
     const line = comment.loc?.start.line;
@@ -112,8 +83,6 @@ function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
     return block;
   };
 
-  // The line of a sequence entry's `-` indicator, when it sits on an
-  // earlier line than the entry itself (`-` alone, then the mapping).
   const dashLine = (node: { range: [number, number]; loc: YAMLScalar["loc"] }) => {
     const text = sourceCode.text;
     let i = node.range[0] - 1;
@@ -145,8 +114,6 @@ function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
     walkNestedRules(owner, mapping);
   };
 
-  // Inline rules sit in `patterns:` sequences, directly or inside a
-  // capture handler (`captures: { 1: { patterns: [...] } }`).
   const walkNestedRules = (owner: Owner, mapping: YAMLMapping): void => {
     for (const pair of mapping.pairs) {
       const key = scalarKey(pair);
@@ -228,10 +195,6 @@ function buildIndex(sourceCode: Rule.RuleContext["sourceCode"]): GrammarIndex {
   };
 }
 
-// The lines of the first comment block above any of `lines` that holds a
-// `marker` line, from the marker line to the end of that block (so a
-// justification may run on over several comment lines). `null` when no
-// block carries the marker.
 export function markedComment(
   index: GrammarIndex,
   lines: number[],
@@ -245,7 +208,6 @@ export function markedComment(
   return null;
 }
 
-// Every `include: "#Name"` target anywhere under `node`.
 export function includesUnder(node: YAMLNode | null): string[] {
   const found: string[] = [];
   const walk = (n: YAMLNode | null): void => {

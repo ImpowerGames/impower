@@ -24,9 +24,6 @@ export const getCssEquivalent = (
   const entries: [string, string][] = [];
 
   const sparklePropName: string = aliases[key] ?? key;
-  // An empty value in a utility is a placeholder for the transformer named
-  // after the utility; without one, the authored value passes through as
-  // written.
   const resolve = styleTransformers[sparklePropName] ?? ((v: string) => v);
   const cssUtility = cssUtilities[sparklePropName];
   if (cssUtility) {
@@ -41,9 +38,6 @@ export const getCssEquivalent = (
         }
       }
     }
-    // When the value IS the empty string, `cssUtility[""]` is both the default
-    // selector and the value selector — emitting both duplicates the
-    // declaration (`content: ""; content: "";`).
     const valueSelector = cssUtility[String(value)];
     if (valueSelector && valueSelector !== defaultSelector) {
       for (let [k, v] of Object.entries(valueSelector)) {

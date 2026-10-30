@@ -1,20 +1,3 @@
-// Rule: every repository rule must be reachable from the grammar's
-// top-level `patterns:`, or from its second root (`luauFile.rule`, the rule
-// a `.luau` document is read from), through `include: "#Name"` references
-// (GRAMMAR.md §7). A rule nothing reaches never matches, but still reads as live to
-// the next author and inflates every count the other rules report. A rule
-// included only by other unreachable rules is unreachable too.
-//
-// A rule that TypeScript reads by name without the parser ever producing
-// it (for example a pattern compiled straight from
-// `GRAMMAR_DEFINITION.repository`) is exempt when the comment block
-// directly above its key carries `# referenced-from: <file>`; that rule's
-// own includes then count as reachable as well.
-//
-// This walk is the same as the `grammarReachability` test in
-// packages/sparkdown/src/tests/compiler/: its known-unreachable list and
-// this rule's baseline name the same rules.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import {
   findPair,
@@ -46,7 +29,6 @@ const { rule, find } = defineBaselinedRule(
     const queue: string[] = [];
     const patterns = findPair(index.root, "patterns");
     if (patterns) queue.push(...includesUnder(patterns.value));
-    // The second root: the rule a `.luau` document is read from.
     const luauFile = findPair(index.root, "luauFile");
     if (luauFile && isMapping(luauFile.value)) {
       const root = getStringValue(luauFile.value, "rule");

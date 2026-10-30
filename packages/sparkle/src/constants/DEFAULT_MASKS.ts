@@ -1,10 +1,5 @@
 import { MaskName } from "../types/maskName";
 
-/**
- * Mask names that are supported by default.
- *
- * @summary MaskName
- */
 export const DEFAULT_MASKS: MaskName[] = [
   "angled-corner",
   "scooped-corner",

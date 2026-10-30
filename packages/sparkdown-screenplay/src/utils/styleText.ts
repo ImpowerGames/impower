@@ -63,20 +63,17 @@ export const styleText = (
         if (char === "\n") {
           divert = false;
         }
-        // Raw
         if (char === "`") {
           i += 1;
           raw = !raw;
           continue;
         }
         if (!logic && !divert && !raw) {
-          // Escape
           if (char === "\\") {
             i += 1;
             escaped = true;
             continue;
           }
-          // Image Tag
           if (char === "[" && nextChar === "[") {
             let closed = false;
             const startIndex = i;
@@ -85,7 +82,6 @@ export const styleText = (
               if (chars[i] === "]" && chars[i + 1] === "]") {
                 closed = true;
                 i += 2;
-                // consume trailing whitespace
                 while (i < chars.length) {
                   if (!isSpace(chars[i])) {
                     break;
@@ -102,7 +98,6 @@ export const styleText = (
             }
             continue;
           }
-          // Audio Tag
           if (char === "(" && nextChar === "(") {
             let closed = false;
             const startIndex = i;
@@ -111,7 +106,6 @@ export const styleText = (
               if (chars[i] === ")" && chars[i + 1] === ")") {
                 closed = true;
                 i += 2;
-                // consume trailing whitespace
                 while (i < chars.length) {
                   if (!isSpace(chars[i])) {
                     break;
@@ -128,7 +122,6 @@ export const styleText = (
             }
             continue;
           }
-          // Text Tag
           if (char === "<" && !isWhitespace(chars[i + 1])) {
             const startIndex = i;
             i += 1;
@@ -150,7 +143,6 @@ export const styleText = (
             }
             continue;
           }
-          // Style Tag
           const styleMarker = MARKERS.find(
             (marker) => marker === chars.slice(i, i + marker.length).join(""),
           );

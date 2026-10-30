@@ -222,9 +222,6 @@ export default class ScreenplayTypesetter {
         );
         if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
-            // Walk back past intervening separators — dual dialogue is
-            // side-by-side, so any blank line between the [<] and [>]
-            // halves shouldn't break the link to the dual span.
             let dualIdx = -1;
             for (let i = spans.length - 1; i >= 0; i--) {
               const s = spans[i]!;
@@ -286,20 +283,16 @@ export default class ScreenplayTypesetter {
     }
 
     while (spans.at(0)?.tag === "page_break") {
-      // trim away leading page breaks
       spans.shift();
     }
     while (spans.at(-1)?.tag === "page_break") {
-      // trim away trailing page breaks
       spans.pop();
     }
 
     while (spans.at(0)?.tag === "separator") {
-      // trim away leading separators
       spans.shift();
     }
     while (spans.at(-1)?.tag === "separator") {
-      // trim away trailing separators
       spans.pop();
     }
 
@@ -329,11 +322,9 @@ export default class ScreenplayTypesetter {
   ): PageLine[] {
     let affixedText = text;
     if (affixOptions.prefix) {
-      // Surround prefix with `` so it is printed as is (ignoring style markers).
       affixedText = "`" + affixOptions.prefix + "`" + affixedText;
     }
     if (affixOptions.suffix) {
-      // Surround suffix with `` so it is printed as is (ignoring style markers).
       affixedText += "`" + affixOptions.suffix + "`";
     }
     const textLines = affixedText.split(/\r\n|\r|\n/);
@@ -405,7 +396,6 @@ export default class ScreenplayTypesetter {
           c.highlight === prev.highlight &&
           c.highlightColor === prev.highlightColor
         ) {
-          // Combine consecutive chunks that have the same style.
           prev.text += c.text;
         } else {
           consolidatedContent.push(c);

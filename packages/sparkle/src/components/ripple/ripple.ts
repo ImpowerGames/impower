@@ -21,10 +21,6 @@ const ANIMATION_FILL = "forwards";
 
 type RippleState = "touch_delay" | "pressing" | "keyboard_press";
 
-/**
- * Delay reacting to touch so that we do not show the ripple for a swipe or
- * scroll interaction.
- */
 const TOUCH_DELAY_MS = 150;
 
 const HOVERED_EVENT = "hovered";
@@ -32,9 +28,6 @@ const UNHOVERED_EVENT = "unhovered";
 const PRESSED_EVENT = "pressed";
 const UNPRESSED_EVENT = "unpressed";
 
-/**
- * A ripple component.
- */
 export default class Ripple extends SparkleComponent(spec) {
   private _hovered = false;
   get hovered(): boolean {
@@ -101,8 +94,6 @@ export default class Ripple extends SparkleComponent(spec) {
 
     this.updateAnimationPosition(event);
 
-    // Wait to determine if this is a press or a drag.
-    // If still touching this element after the delay, this is a press.
     this.rippleState = "touch_delay";
 
     await new Promise((resolve) => {
@@ -129,7 +120,6 @@ export default class Ripple extends SparkleComponent(spec) {
       if (this.pointerInitiated) {
         this.endPressAnimation();
       } else {
-        // keyboard synthesized click event
         this.rippleState = "keyboard_press";
         this.updateAnimationPosition();
         await this.startPressAnimation();
@@ -223,11 +213,9 @@ export default class Ripple extends SparkleComponent(spec) {
       }
     }
 
-    // center around start point
     this.startPointX = pointerPos.x - this.initialSize / 2;
     this.startPointY = pointerPos.y - this.initialSize / 2;
 
-    // end in the center
     this.endPointX = (width - this.initialSize) / 2;
     this.endPointY = (height - this.initialSize) / 2;
   }
@@ -279,8 +267,6 @@ export default class Ripple extends SparkleComponent(spec) {
     });
 
     if (this.growAnimation !== animation) {
-      // A new press animation was started. The old animation was canceled and
-      // should not finish the pressed state.
       return;
     }
 

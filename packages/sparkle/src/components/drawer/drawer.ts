@@ -8,9 +8,6 @@ const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 const REMOVED_EVENT = "removed";
 
-/**
- * Drawers slide in from a container to expose additional options and information.
- */
 export default class Drawer extends SparkleComponent(spec) {
   get dialog(): HTMLDialogElement {
     return this.root as HTMLDialogElement;
@@ -90,25 +87,14 @@ export default class Drawer extends SparkleComponent(spec) {
     return this.handleClose(returnValue);
   };
 
-  /**
-   * Closes the drawer element.
-   *
-   * The argument, if provided, provides a return value.
-   */
   async close(returnValue?: string): Promise<string | undefined> {
     return this.handleClose(returnValue);
   }
 
-  /**
-   * Displays the drawer element.
-   */
   async show(): Promise<void> {
     return this.handleOpen(false);
   }
 
-  /**
-   * Displays the drawer element and prevents the user from interacting with anything behind the element.
-   */
   async showModal(): Promise<void> {
     return this.handleOpen(true);
   }

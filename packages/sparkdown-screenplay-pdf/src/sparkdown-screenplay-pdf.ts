@@ -33,8 +33,6 @@ onmessage = async (e) => {
           });
         };
         if (method === "workspace/exportHTML") {
-          // Runs here (not on the main thread) so fontkit's Buffer shim is
-          // available to embed only the emoji the script uses as inline SVG.
           try {
             const parser = new ScreenplayParser();
             const tokens = parser.parseAll(scripts);
