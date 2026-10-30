@@ -412,7 +412,6 @@ describe("PLAY from the start scene", () => {
 
       const play: any = new Game({
         program: program as any,
-        play: true,
         startFrom: { file: URI, line: 2 },
         now: () => 0,
         setTimeout: ((fn: Function) => {
@@ -435,7 +434,6 @@ describe("PLAY from the start scene", () => {
     const { program } = compileSrc(drawing.join("\n"));
     const play: any = new Game({
       program: program as any,
-      play: true,
       startFrom: { file: URI, line: 2 },
       startingValues: { [START_FLOW_NAME]: { [SEED_KEY]: "9" } },
       now: () => 0,

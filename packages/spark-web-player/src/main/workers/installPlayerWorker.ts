@@ -690,7 +690,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
-      play: true,
     });
     running.setRoutePins(routePins);
     profile("end", compiler.profilerId + " " + "play/create");

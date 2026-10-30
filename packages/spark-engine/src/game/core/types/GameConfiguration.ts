@@ -26,7 +26,6 @@ export interface GameConfiguration {
   functionBreakpoints?: { name: string }[];
   dataBreakpoints?: { dataId: string }[];
   startingValues?: StartingValues;
-  play?: boolean;
   /** Beats between the checkpoints' keyframe images. Default 50. */
   checkpointBaseInterval?: number;
 }

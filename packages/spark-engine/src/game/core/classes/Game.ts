@@ -550,8 +550,6 @@ export class Game<T extends M = {}> {
 
   protected _plannedRouteStart?: string;
 
-  protected _play = false;
-
   protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
 
   protected _startPlansRoot?: ProgramRoot | null;
@@ -619,7 +617,6 @@ export class Game<T extends M = {}> {
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this._startingValues = options?.startingValues ?? {};
-    this._play = options?.play ?? false;
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
