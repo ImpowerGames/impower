@@ -209,6 +209,11 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
         assert.deepEqual(comments(`steps:\n  - run: ${header}\n      # prose\n      echo ok\n`, "w.yml"), ["# prose"], `a run block whose header carries ${header} is scanned in its shell's language`);
       }
       assert.deepEqual(comments("steps:\n  - run: !!str >\n      # prose\n      echo ok\n", "w.yml"), ["# prose\n      echo ok"], "a folded run block with a tag folds its next line into the comment");
+      assert.deepEqual(comments("steps:\n  - run: &script#part |\n      # prose\n      echo ok\n", "w.yml"), ["# prose"], "an anchor name may hold a hash");
+      const splitHeader = "steps:\n  - run: &script\n      |\n      # prose\n      echo ok\n";
+      heuristicLimits.set(splitHeader, "the hand scanner reads a block scalar header only on its key's line");
+      assert.deepEqual(comments(splitHeader, "w.yml"), ["# prose"], "a run block whose indicator sits on the line after its properties");
+      assert.equal(stripComments(splitHeader, "w.yml"), "steps:\n  - run: &script\n      |\n      echo ok\n");
       const withoutYamlComments = (text) => {
         let out = "";
         const control = new Set([yamlLexer.CST.DOCUMENT, yamlLexer.CST.FLOW_END, yamlLexer.CST.SCALAR]);

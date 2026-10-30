@@ -570,11 +570,11 @@ function scanYaml(text) {
   return comments;
 }
 
-function blockScalarComments(text, lineStart, i, code, records) {
-  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?(?:[!&][^\s#]*\s+)*([|>])([-+1-9]*)\s*$/.exec(code);
+function blockScalarComments(text, lineStart, i, code, records, keyLineStart = lineStart) {
+  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?(?:[!&]\S*\s+)*([|>])([-+1-9]*)\s*$/.exec(code);
   if (!header) return null;
   const comments = [];
-  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+(?:[!&][^\s#]*\s+)*[|>]/.test(code) ? 0 : -1);
+  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+(?:[!&]\S*\s+)*[|>]/.test(code) ? 0 : -1);
   const indicator = /[1-9]/.exec(header[3]);
   const indentOf = (line) => /^ */.exec(line)[0].length;
   let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
@@ -588,7 +588,7 @@ function blockScalarComments(text, lineStart, i, code, records) {
     }
     blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
   }
-  const index = records.findIndex((r) => r.start === lineStart);
+  const index = records.findIndex((r) => r.start === keyLineStart);
   const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
   const indent = Number.isFinite(content) ? content : 0;
   if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
@@ -599,21 +599,24 @@ function blockScalarComments(text, lineStart, i, code, records) {
 function scanYamlLexed(yaml, text) {
   const comments = [];
   const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR]);
-  let offset = 0, records = null, keep = null;
+  let offset = 0, records = null, keep = null, keyLine = null;
+  const lineOfOffset = (at) => text.lastIndexOf("\n", at - 1) + 1;
   for (const token of new yaml.Lexer().lex(text)) {
     if (control.has(token)) continue;
     const type = yaml.CST.tokenType(token);
+    if (type === "map-value-ind") keyLine = lineOfOffset(offset);
+    else if (!["space", "newline", "comment", "anchor", "tag", "block-scalar-header"].includes(type)) keyLine = null;
     if (keep === "header" && type === "newline") keep = "content";
     else if (keep === "content") keep = "after";
     else if (keep === "after" && type !== "comment" && type !== "newline" && type !== "space") keep = null;
     if (type === "comment") comments.push({ start: offset, end: offset + token.length, afterKeep: keep === "after" });
     else if (type === "block-scalar-header") {
       keep = token.includes("+") ? "header" : null;
-      const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
+      const lineStart = lineOfOffset(offset);
       const stop = lineEnd(text, offset);
       const next = Math.min(text.indexOf("\n", stop) + 1 || text.length, text.length);
       records ??= yamlRecords(text);
-      const block = blockScalarComments(text, lineStart, next, text.slice(lineStart, offset + token.length), records);
+      const block = blockScalarComments(text, lineStart, next, text.slice(lineStart, offset + token.length), records, keyLine ?? lineStart);
       if (block) comments.push(...block.comments);
     }
     offset += token.length;
