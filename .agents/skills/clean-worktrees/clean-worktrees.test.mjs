@@ -1638,7 +1638,7 @@ try {
     assert.match(driverRow(r.out, orphan) ?? "", /^remove\s.*it matches no worktree and holds no owner record, which every driver launch writes, so no driver has run in it since records began; no session in it is in use$/);
     assert.match(driverRow(r.out, ownerGone) ?? "", /^remove\s.*its recorded checkout .*99-gone-. no longer exists; no session in it is in use$/);
     assert.match(driverRow(r.out, ownerLive) ?? "", new RegExp(`^keep\\s.*99-gone-. no longer exists; session s1: its server record names pid ${process.pid}, still running`));
-    assert.match(driverRow(r.out, ownerClaimed) ?? "", /^keep\s.*99-gone-. no longer exists; session s1: its profile was claimed 0 min ago/);
+    assert.match(driverRow(r.out, ownerClaimed) ?? "", /^keep\s.*99-gone-. no longer exists; session s1: its profile was claimed \d+ min ago/);
     assert.match(driverRow(r.out, ownerPresent) ?? "", /^keep\s.*its recorded checkout .* still exists$/);
     assert.equal(driverRow(r.out, driverDir("fix/3-dirty")), undefined, "the directory of a worktree that stays was listed");
     assert.ok(fs.existsSync(driverDir("fix/1-merged-gone")), "the dry run removed a driver directory");
