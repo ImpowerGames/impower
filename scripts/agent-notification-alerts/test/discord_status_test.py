@@ -65,9 +65,6 @@ class DiscordCredentialsTests(unittest.TestCase):
             previous = os.environ.get('AGENT_ALERT_DISCORD_CLIENT_SECRET')
             os.environ['AGENT_ALERT_DISCORD_CLIENT_SECRET'] = 'env-secret'
             try:
-                # No discord-credentials.json exists yet: a blank secret here
-                # must not silently write an empty one over an env-configured
-                # secret the user already relies on.
                 save_discord_credentials(directory, 'client-a', '')
                 saved = json.loads((Path(directory) / 'discord-credentials.json').read_text())
                 self.assertEqual(saved, {'clientId': 'client-a', 'clientSecret': 'env-secret'})

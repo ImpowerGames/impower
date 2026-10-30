@@ -1,13 +1,4 @@
 // agent-tooling-timeout-ms: 600000
-// Every guard costs a process-identity lookup (a PowerShell call on Windows),
-// so the queue cases below take a few seconds each; the bound leaves room for
-// a slower runner.
-// Admission to the test reservation by measured free memory under a cap of
-// three slots, with a waiting queue that alternates writer and reviewer runs
-// (I-1654): the floor, the cap and the per-pool limit, the foreign-process
-// census, the alternation and dead-waiter recovery, the pool declaration, the
-// expired-wait refusal, the record shape of older checkouts, and the probe
-// cleanup's reads of every slot and waiting row.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -19,15 +10,12 @@ import { removeProbeCheckouts } from "./reviewer-probe-cleanup.mjs";
 import { canonicalPath } from "./test-suite-identity.mjs";
 
 const coordinator = await import("./fixtures/test-suite-coordinator-adapter.mjs");
-// The cases below choose each run's pool themselves; the environment of
-// whoever runs this check must not.
 delete process.env.IMPOWER_TEST_POOL;
 const scratch = canonicalPath(fs.mkdtempSync(path.join(os.tmpdir(), "impower-admission-")));
 console.log(`Admission scratch: ${scratch}`);
 const store = path.join(scratch, "store");
 const owner = processIdentity(process.pid);
 assert.ok(owner, "this process has an identity");
-// A constant identity keeps every lookup cheap; only this process is alive.
 const live = { root: store, identify: pid => pid === owner.pid ? owner : null, census: () => [], memory: () => 8192 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const waitingRows = () => fs.readdirSync(store).filter(name => name.startsWith("waiting-"));
@@ -42,7 +30,6 @@ assert.equal(admissionFloorMb, 4096, "the floor is one run's worst case with hea
 assert.equal(admissionSlots, 3);
 assert.equal(poolSlotLimit, 2);
 
-// Which pool a run belongs to.
 {
   const probeClone = path.join(scratch, "impower.review-jobs", "pr-1", "round-1", "codex", "clone", "packages", "sparkdown");
   assert.equal(runPool({ env: {} }), "writer", "an unmarked run is a writer run");
@@ -56,8 +43,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: a run's pool comes from IMPOWER_TEST_POOL or a review-jobs package path, writer otherwise");
 }
 
-// The foreign-process census: a process descending from a holder's recorded
-// processes is accounted for; any other Vitest process is foreign.
 {
   const rows = [
     { pid: 40, parent: 1, created: 100, command: "node scripts/test-suite.mjs run pkg a.test.ts" },
@@ -67,9 +52,7 @@ assert.equal(poolSlotLimit, 2);
     { pid: 12, parent: 11, created: 140, command: "node tinypool worker" },
     { pid: 20, parent: 2, created: 50, command: "node node_modules/vitest/vitest.mjs run" },
     { pid: 30, parent: 31, created: 60, command: "node tinypool orphan" }, { pid: 31, parent: 30, created: 61, command: "node tinypool orphan" },
-    // Started under a parent that exited; its pid now belongs to the holder's helper, which is younger.
     { pid: 50, parent: 9, created: 105, command: "node node_modules/vitest/vitest.mjs run --stale-parent" },
-    // The same shape with the creation times unknown on one side.
     { pid: 51, parent: 9, created: NaN, command: "node node_modules/vitest/vitest.mjs run --unknown-age" },
   ];
   assert.deepEqual(foreignVitestProcesses(rows, 99, { accounted: new Set([40]) }), [20, 30, 31, 50, 51], "the engine and its forks reach their coordinator through a supervisor that is not Node; a direct Vitest call, a cyclic orphan pair, a process older than its recorded parent and one of unknown age are foreign");
@@ -93,8 +76,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: the census accounts for a holder's own processes through their ancestry and reads the machine otherwise");
 }
 
-// Admission by the cap, the per-pool limit and the memory floor; a holder is
-// never evicted.
 {
   const first = acquire("first", { ...live, pool: "writer" });
   assert.equal(first.slot, 1); assert.equal(first.file, slotFile(store, 1)); assert.equal(path.basename(first.file), "reservation.json");
@@ -116,22 +97,15 @@ assert.equal(poolSlotLimit, 2);
   assert.throws(() => acquire("unreadable", { ...live, pool: "reviewer", memory: () => { throw new Error("CIM query failed"); } }), /CIM query failed/, "a reading that cannot be taken refuses");
   assert.throws(() => acquire("not a number", { ...live, pool: "reviewer", memory: () => NaN }), /Free memory reading unavailable/);
   assert.equal(fs.existsSync(slotFile(store, 2)), false, "nothing was admitted");
-  // The floor gates the next unit only: the holder keeps its slot and goes on
-  // once memory returns.
   const rows = [];
-  // The gate's guard costs a process-identity lookup, so a deadline meant to
-  // show waiting rows lasts seconds.
   await assert.rejects(waitForUnit(first, { ...live, memory: () => 1000, deadline: Date.now() + 3000, pollMs: 20, onWait: row => rows.push(row) }), /1000 MB is below the 4096 MB floor/, "a unit waits while the reading is below the floor and ends at the deadline");
   assert.ok(rows.length > 0 && rows.every(row => row.waiting === "memory" && row.freeMb === 1000 && row.floorMb === 4096), "unit waits report the reading");
   assert.equal(read(first.file).token, first.record.token, "the holder was not evicted");
   assert.deepEqual(await waitForUnit(first, { ...live, deadline: Date.now() + 300 }), { freeMb: 8192 }, "the unit proceeds once memory returns");
-  // The unit gate accounts for the live holders' coordinators, never a
-  // recorded engine pid, which a direct Vitest call could have inherited.
   first.update({ phase: "running", child: { pid: 777, start: "engine" } });
   const seen = [];
   assert.deepEqual(await waitForUnit(third, { ...live, deadline: Date.now() + 100, pollMs: 20, census: ({ accounted }) => { seen.push([...accounted].sort()); return accounted.has(777) ? [777] : []; } }), { freeMb: 8192 });
   assert.ok(seen.length > 0 && seen.every(pids => pids.includes(owner.pid) && !pids.includes(777)), `the holders' coordinators are accounted for and the recorded engine pid is not: ${JSON.stringify(seen)}`);
-  // A peer whose coordinator is gone accounts for nothing: its orphan is foreign.
   fs.writeFileSync(slotFile(store, 2), JSON.stringify({ version: 2, token: "dead-peer", owner: { pid: 4000003, start: "gone" }, run: "dead peer", pool: "reviewer", slot: 2, heldSince: new Date().toISOString(), heldUptime: 1, phase: "running", child: { pid: 4000004, start: "orphan" } }));
   const peers = [];
   await assert.rejects(waitForUnit(third, { ...live, deadline: Date.now() + 1500, pollMs: 20, census: ({ accounted }) => { peers.push([...accounted]); return accounted.has(4000003) ? [] : [4000004]; } }), /still present: 4000004/, "a dead peer's orphan is foreign at the unit gate");
@@ -142,18 +116,12 @@ assert.equal(poolSlotLimit, 2);
   const accountedCensus = acquire("beside the holders' own processes", { ...live, pool: "reviewer", census: ({ accounted }) => accounted.has(owner.pid) ? [] : [owner.pid] });
   assert.equal(accountedCensus.slot, 2, "a holder's own child does not block admission");
   accountedCensus.release();
-  // A live coordinator owns its run directory: a second admission for the
-  // same run waits for it, whatever the pool and however many slots are free.
   assert.throws(() => acquire("first", { ...live, pool: "reviewer" }), error => error.waitable === "reservation" && /Existing suite running for first; inspect/.test(error.message), "the same run directory is refused while its coordinator holds a slot");
-  // A row left by an admission whose unlink failed is swept, not counted.
   fs.writeFileSync(path.join(store, "waiting-left-behind.json"), JSON.stringify({ token: "left-behind", owner, pool: "writer", run: "first", arrivedAt: "2020-01-01T00:00:00.000Z" }));
   const unqueued = acquire("not queued behind a holder's stale row", { ...live, pool: "reviewer" });
   assert.equal(unqueued.slot, 2, "a holder's leftover row holds no place in the queue");
   assert.equal(fs.existsSync(path.join(store, "waiting-left-behind.json")), false, "and is removed");
   unqueued.release();
-  // Another coordinator waiting to resume a run a live holder has keeps its
-  // place but never the turn: it cannot be admitted, so it must not keep a
-  // run that can be admitted out.
   const resumer = { pid: 4000010, start: "resume" };
   const withResumer = { ...live, identify: pid => pid === owner.pid ? owner : pid === resumer.pid ? resumer : null };
   fs.writeFileSync(path.join(store, "waiting-resume-of-first.json"), JSON.stringify({ token: "resume-of-first", owner: resumer, pool: "reviewer", run: "first", arrivedAt: "2020-01-01T00:00:00.000Z" }));
@@ -162,7 +130,6 @@ assert.equal(poolSlotLimit, 2);
   assert.ok(fs.existsSync(path.join(store, "waiting-resume-of-first.json")), "and keeps its row");
   beside.release();
   fs.unlinkSync(path.join(store, "waiting-resume-of-first.json"));
-  // The unit gate's guard wait stays inside the unit's deadline.
   fs.writeFileSync(path.join(store, "guard.json"), JSON.stringify({ owner }));
   const gated = Date.now();
   await assert.rejects(waitForUnit(first, { ...live, deadline: Date.now() + 100, pollMs: 20 }), /Reservation transaction unavailable/, "a held guard past the unit's deadline refuses");
@@ -170,11 +137,6 @@ assert.equal(poolSlotLimit, 2);
   fs.unlinkSync(path.join(store, "guard.json"));
   assert.ok(gateElapsed < 2500, `the unit gate gives up at its deadline, not after a whole guard wait (${gateElapsed} ms)`);
   third.release();
-  // A record still running through its supervisor and engine after its
-  // coordinator died: the dead coordinator's pid, recycled by a direct Vitest
-  // call, is never exempt; the live supervisor and engine are. With a slot
-  // free, both the admission and the unit gate refuse the recycled pid as
-  // foreign.
   const orphanToken = "orphaned-supervised", orphanAttempt = "0f6b1a2c-3d4e-4f50-8a9b-c0d1e2f3a4b5", orphanRun = path.join(scratch, "orphaned-run");
   const supervisorIdentity = { launcher: { pid: 4000020, start: "supervisor" }, helper: { pid: 4000021, start: "supervisor" } };
   fs.writeFileSync(slotFile(store, 2), JSON.stringify({ version: 2, token: orphanToken, owner: { pid: 4000011, start: "dead-coordinator" }, run: orphanRun, pool: "reviewer", slot: 2,
@@ -193,8 +155,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: a second and third run are admitted above the floor, a fourth waits on the cap, one pool keeps one slot free, the floor refuses admission and only delays a holder's next unit");
 }
 
-// The waiting queue: oldest first, alternating between the pools; a dead
-// waiter's row is recovered; a run without a wait never passes a waiter.
 {
   const hold = (name, pool) => acquire(name, { ...live, pool });
   const a = hold("A", "writer"), b = hold("B", "reviewer"), c = hold("C", "writer");
@@ -226,9 +186,6 @@ assert.equal(poolSlotLimit, 2);
   a.release();
   await until(() => order.length === 3, "the third admission");
   assert.deepEqual(order, ["R1", "W1", "R2"], "then the remaining reviewer, as the last admitted run was a writer");
-  // Whether W2 polls between a release and the next admission depends on
-  // timing; when it does, the row names whose turn it is: the older writer
-  // W1, or a reviewer when the last admitted run was a writer.
   const turns = waits.W2.filter(row => row.waiting === "queue");
   assert.ok(turns.every(row => /Queued behind the (?:writer run W1|reviewer run R[12])$/.test(row.detail)), `a waiter told to wait its turn reports whose turn it is: ${JSON.stringify(turns.map(row => row.detail))}`);
   assert.ok(waits.W2.every(row => ["reservation", "queue"].includes(row.waiting)), "a writer behind a full store waits on the store or on its turn");
@@ -239,7 +196,6 @@ assert.equal(poolSlotLimit, 2);
   assert.deepEqual(order, ["R1", "W1", "R2", "W2"]);
   const W2 = await w2;
   assert.deepEqual(waitingRows(), [], "admitted runs removed their rows");
-  // A waiter on a full store is admitted as soon as a slot frees.
   const parked = [];
   const later = acquireWaiting("later waiter", { ...live, pool: "writer", waitMs: 60000, pollMs: 20, onWait: row => parked.push(row) });
   await until(() => parked.length > 0, "the later waiter's first wait");
@@ -249,15 +205,11 @@ assert.equal(poolSlotLimit, 2);
   const admittedLater = await later;
   assert.equal(admittedLater.record.run, "later waiter");
   W2.release();
-  // A dead waiter's row is recovered, not counted.
   fs.writeFileSync(path.join(store, "waiting-dead-row.json"), JSON.stringify({ token: "dead-row", owner: { pid: 4000002, start: "gone" }, pool: "writer", run: "dead waiter", arrivedAt: "2020-01-01T00:00:00.000Z" }));
   const afterDead = acquire("after a dead waiter", { ...live, pool: "writer" });
   assert.equal(afterDead.record.run, "after a dead waiter", "a dead waiter does not hold the queue");
   assert.ok(fs.existsSync(path.join(store, "recovered-waiting-dead-row.json")), "the dead waiter's row is set aside as recovered evidence");
   assert.equal(fs.existsSync(path.join(store, "waiting-dead-row.json")), false);
-  // The expired-wait refusal names the position, the holders, the reading and
-  // the route. The three holders are R2, the later waiter and the run after
-  // the dead waiter.
   assert.deepEqual([R2, admittedLater, afterDead].map(holder => holder.slot).sort(), [1, 2, 3]);
   await assert.rejects(acquireWaiting("late reviewer", { ...live, pool: "reviewer", waitMs: 1500, pollMs: 50 }), error => {
     assert.match(error.message, /^Existing suite running in every slot \(3 of 3\)/);
@@ -272,8 +224,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: waiters are admitted oldest first alternating between pools, a dead waiter's row is recovered, and the expired wait names position, holders, reading and route");
 }
 
-// A record from a checkout at 2f13db40e, which knows only reservation.json,
-// takes the first slot and is honoured.
 {
   const older = { version: 2, token: "older-checkout", owner, run: path.join(scratch, "older-run"), heldSince: new Date().toISOString(), heldUptime: os.uptime(), phase: "reserved" };
   fs.writeFileSync(slotFile(store, 1), JSON.stringify(older, null, 2) + "\n");
@@ -287,7 +237,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: an older checkout's reservation.json is honoured as the first slot of the writer pool");
 }
 
-// The probe cleanup reads every slot and every waiting row under the guard.
 {
   fs.writeFileSync(path.join(store, "waiting-row-one.json"), JSON.stringify({ token: "row-one", owner, pool: "writer", run: "somewhere", arrivedAt: new Date().toISOString() }));
   const seen = withProbeCleanupGuard(files => ({ files, guard: fs.existsSync(path.join(store, "guard.json")) }), { root: store });
@@ -318,10 +267,6 @@ assert.equal(poolSlotLimit, 2);
   console.log("PASS: probe cleanup reads every slot and waiting row and a reservation or row naming the directory preserves it");
 }
 
-// Through the command line: two runs admitted together both complete, the
-// variable selects the pool, a run refused within --wait reports the queue
-// state as a not-run, and a holder stalled by the floor at a unit boundary
-// keeps its completed results.
 {
   const enginePath = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "fixtures", "test-suite-engine-control.mjs");
   const fixture = (directory, files) => {
@@ -395,14 +340,10 @@ assert.equal(poolSlotLimit, 2);
   for (const holder of holders) holder.release();
   console.log("PASS: a run refused within --wait has not run and names the queue position, holders, reading and route");
 
-  // The floor at a unit boundary: admitted above the floor, the first unit
-  // runs, the reading drops, the next unit waits out --wait and the run ends
-  // with its completed unit kept and the rest not run.
   let readings = 0;
   const stalled = [];
   console.log = (...args) => { stalled.push(args.join(" ")); };
   let exit;
-  // Readings: admission, the selection unit, the first file, then the drop.
   try { exit = await main(["run", clone, "a.test.ts", "b.test.ts", "--wait", "1"], dependencies("reviewer", { memory: () => ++readings <= 3 ? 8192 : 1000 })); }
   finally { console.log = log; }
   assert.equal(exit, 1, "the stalled run is an ordinary incomplete failure");

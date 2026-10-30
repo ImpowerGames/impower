@@ -49,8 +49,6 @@ function inspect(files) {
   for (const file of files.keys()) {
     if (file.includes("/references/") && file.endsWith(".md") && !visited.has(file)) errors.push("unreachable: " + file);
   }
-  // These pre-action routes were exercised by forward workflow simulations.
-  // Global reachability alone would miss a caveat accessible only to probe authors.
   for (const mode of ["service-worker", "performance"]) {
     const route = ".agents/skills/drive-web-editor/references/" + mode + ".md -> .agents/skills/drive-web-editor/references/asset-cache.md";
     if (!edges.has(route)) errors.push("missing pre-action route: " + mode);

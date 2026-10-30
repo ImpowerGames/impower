@@ -1,6 +1,6 @@
 import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
-import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
+import { getCssTokenValue } from "./getCssTokenValue";
 
 const readOffset = (keyframe: unknown): number | null => {
   const raw = (keyframe as { offset?: unknown })?.offset;
@@ -61,8 +61,7 @@ export const getAnimationContent = (
             if (k === "offset") {
               continue;
             }
-            const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
-            const cssEntries = getCssEquivalent(cssProp, cssValue);
+            const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
             for (const [k, v] of cssEntries) {
               domKeyframe[k] = v;
             }

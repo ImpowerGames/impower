@@ -1,54 +1,4 @@
 #!/usr/bin/env node
-// Pins seedProject, which `verify --project`, `ui --project` and `seed` use
-// to load a whole project (a directory or an exported zip) into the editor's
-// OPFS storage (#435), `clearProject` behind `seed --clear`, and the wiring
-// of those commands to them. Run:
-//   node .agents/skills/drive-web-editor/seed-project.test.mjs
-//
-// The functions the driver ships into the page close over nothing, so this
-// runs them in Node against a stub of `navigator.storage.getDirectory()` (an
-// in-memory tree with the handle methods the seeder calls, throwing real
-// DOMExceptions as the browser does) through a stub page whose `evaluate`
-// rebuilds the function from its source in a `node:vm` context holding only
-// the page's globals and structured-clones the argument and the result, as
-// Playwright's wire does; a page function that reaches for module scope or a
-// Node global fails here before it fails in the browser. The stub can write
-// a named file short, refuse a named file's write, refuse a named entry's
-// removal or listing, or refuse storage outright, so the read-back check,
-// the cleanup, the prune and the untouched-storage promise are each pinned
-// by a case that fails without them.
-//
-// What is pinned: the walk yields every non-dot file with `/`-separated
-// relative paths, follows links, seeds a tree reachable by two names under
-// both, refuses only a link back into the walk or above it, records an
-// unreadable link in `failed`, refuses `node_modules` and `dist` and the
-// bounds on count and bytes; the batch plan keeps every batch under its
-// budget and an oversize file alone; a seed lands every file byte for byte,
-// removes the previous project's stale entries and keeps its dot entries; a
-// source with no files, or no root `main.sd`, a page that remembers another
-// project, a storage that refuses, or a previous entry whose kind clashes
-// with the source, is a `reason` with storage untouched; a refused or short
-// write is a `reason` that leaves the previous project in place under the
-// files that landed, with the marker set, and the next seed clears it; a
-// refused removal, or a throw after one, is a `reason` whose `removed` lists
-// what really went; the zip rules, and the zip bound refusing on the central
-// directory before inflating, with a refused entry named from the filter
-// itself; a zip's single top-level folder without `main.sd` kept and named
-// with a note; the bound on directories counting each one entered, against
-// a link fan-out; `seed --clear`, and its reason naming the emptied project
-// when a write then fails; a flag with no value refused before the browser
-// on `seed` and `verify`; `withEditor` handing over the launch mode from the
-// state record and same-origin without one; the mount wait's default clock,
-// and the commands passing their own `ensureScriptEditor` into it; the shape
-// of every gated step; and that `verify`, `ui` and `seed` each seed, stop on
-// `reason` without reloading, put the project in before `--sd`, skip the
-// program wait on an unmounted game, reload after a seed that landed whole,
-// keep a thrown `--sd` or `--project` step's report and stop the run on it,
-// and in cross-origin mode stop before loading the page or writing anything.
-// The zip round trip needs fflate, which the workspace install puts under
-// the root node_modules; in a worktree without it those cases report SKIP.
-//
-// Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -79,8 +29,6 @@ import {
   zipProjectEntries,
 } from "./driver.mjs";
 
-// The standalone suite has no installed dependencies in CI. Archive framing
-// is a transport stand-in here; the Playwright test exercises real zip import.
 const pack = async (batch) => Buffer.from(JSON.stringify(batch.map((file) => [file.path, Buffer.from(file.bytes).toString("base64")]))).toString("base64");
 const seedProject = (page, source, options = {}) => realSeedProject(page, source, { ...options, pack });
 
@@ -98,17 +46,8 @@ const check = async (name, fn) => {
   process.exitCode = 0;
 };
 
-// What the browser throws: a DOMException whose message carries no name.
 const domError = (name, message) => new DOMException(message, name);
 
-// An in-memory stand-in for the OPFS root: directories hold a Map of
-// children, files hold a Uint8Array. `refuse` names files whose
-// createWritable throws, `shortWrite` maps a file name to the byte count its
-// close keeps, `refuseRemove` names entries whose removal throws,
-// `refuseList` names directories whose second listing throws (a seed lists a
-// directory once to check kinds and once to prune, so the prune is the
-// listing that fails), and `refuseRoot` makes the root refuse every
-// directory handle.
 function stubStorage({ refuse = [], shortWrite = {}, refuseRemove = [], refuseList = [], refuseRoot = false } = {}) {
   const dir = () => ({ kind: "directory", children: new Map(), listings: 0 });
   const rootNode = dir();
@@ -176,9 +115,6 @@ function stubStorage({ refuse = [], shortWrite = {}, refuseRemove = [], refuseLi
   return { root: dirHandle(rootNode, ""), tree: rootNode, refuse };
 }
 
-// The page's globals a page function or an inline evaluate reaches for, and
-// nothing of Node's. `remembered` is what localStorage answers for the
-// project id.
 function stubGlobals(storage, { remembered = null } = {}) {
   const fileHandle = async (uri, create) => {
     const parts = uri.replace(/^file:\/\//, "").split("/");
@@ -226,11 +162,6 @@ function stubGlobals(storage, { remembered = null } = {}) {
   };
 }
 
-// A page whose `evaluate` rebuilds the function from source in a context
-// holding only the page's globals, as the browser does, and clones the
-// argument and the result, as the wire does. Navigation and screenshots are
-// counted, waits resolve at once, and event listeners are accepted and
-// never called.
 function stubPage(globals) {
   const context = vm.createContext({ ...globals });
   const page = {
@@ -261,7 +192,6 @@ function stubPage(globals) {
   return page;
 }
 
-// Runs `fn` with a stub storage and a page over it.
 async function withStub(opts, fn) {
   const storage = stubStorage(opts);
   const page = stubPage(stubGlobals(storage, opts));
@@ -279,7 +209,6 @@ const entryNames = (tree, ...segments) => {
   return [...node.children.keys()].sort();
 };
 
-// Fixture setup is independent of the writer under test and the loaded project.
 async function previousProject(page, files) {
   const entries = Object.entries(files).map(([p, content]) => ({ path: p, base64: Buffer.from(content).toString("base64") }));
   await page.evaluate(async (entries) => {
@@ -295,8 +224,6 @@ async function previousProject(page, files) {
   }, entries);
 }
 
-// A fixture project on disk: a script, a nested asset, a binary that covers
-// every byte value, a dot file to skip and a dot directory to skip.
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "seed-project-"));
 const fixture = path.join(scratch, "project");
 const allBytes = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
@@ -343,8 +270,6 @@ await check("the seed wire carries one content payload rather than duplicate fil
     };
     const report = await seedProject(page, "fixture", { collect: async () => ({ files: [{ path: "main.sd", bytes }], skipped: 0, failed: [] }) });
     assert.equal(report.storage, "replaced", report.reason);
-    // The test's dependency-free archive stand-in uses nested base64 (16/9).
-    // A duplicate raw-file encoding pushes the actual argument above this bound.
     assert.ok(wireBytes < bytes.length * 2, `wire copied the content twice: ${wireBytes} bytes`);
   });
 });
@@ -395,17 +320,12 @@ await check("independent seed files overlap with bounded concurrency and keep re
   assert.ok(peak > 1 && peak <= 8, `expected bounded parallel imports, observed ${peak}`);
 });
 
-// A directory link is a junction on Windows, which needs no privilege, and a
-// symlink elsewhere; a machine that refuses both reports the case as skipped.
 const linkDir = (target, link) => fs.symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
 {
   const linked = writeTree(path.join(scratch, "linked"), { "main.sd": "x", "shared/art/bunny.webp": "art", "scripts/keep.sd": "k" });
   const outside = writeTree(path.join(scratch, "outside"), { "art/bunny.webp": "art" });
   let links = true;
   try {
-    // Two links to one tree outside the project, a link from one of the
-    // project's directories to another, a dangling link, a link to the
-    // project itself, and a link to its parent.
     linkDir(outside, path.join(linked, "shared-link"));
     linkDir(outside, path.join(linked, "twice"));
     linkDir(path.join(linked, "shared"), path.join(linked, "scripts", "to-shared"));
@@ -449,11 +369,6 @@ const linkDir = (target, link) => fs.symlinkSync(target, link, process.platform 
       });
     });
     await check("the bound on directories counts each one entered, so a link fan-out that reaches six real directories under 180 names is refused by it", () => {
-      // main.sd and five sibling directories a..e; each of a..d holds three
-      // links to the next. None leads back into the walk, so every name is
-      // entered: the root, a, b once from the root and three times from a,
-      // c thirteen times, d forty, e a hundred and twenty-one. A count of
-      // distinct directories would say six and never reach a bound.
       const fanout = writeTree(path.join(scratch, "fanout"), { "main.sd": "x" });
       const names = ["a", "b", "c", "d", "e"];
       for (const name of names) fs.mkdirSync(path.join(fanout, name));
@@ -477,8 +392,6 @@ await check("the walk refuses node_modules and dist, and the bounds on file coun
   assert.throws(() => walkProjectDir(built), /holds out\/dist\/, which a project never does/);
   const loose = { files: 100, dirs: 100, bytes: 1_000_000, fileBytes: 1_000_000 };
   assert.throws(() => walkProjectDir(fixture, { ...loose, files: 3 }), /more than 3 files/);
-  // The fixture is four directories deep in all (the root, assets,
-  // assets/portraits, scripts); the bound counts each one entered.
   assert.throws(() => walkProjectDir(fixture, { ...loose, dirs: 3 }), /the project has more than 3 directories, the bound on a seed \(reached at /);
   assert.equal(walkProjectDir(fixture, { ...loose, dirs: 4 }).files.length, 4);
   assert.throws(() => walkProjectDir(fixture, { ...loose, bytes: 100 }), /over the 100-byte bound on a seed/);
@@ -490,7 +403,6 @@ await check("the batch plan keeps each batch under its byte budget, keeps order,
   const f = (name, n) => ({ path: name, bytes: new Uint8Array(n) });
   const plan = planBatches([f("a", 3), f("b", 3), f("c", 3), f("big", 20), f("d", 1), f("e", 1)], 7);
   assert.deepEqual(plan.map((b) => b.map((x) => x.path)), [["a", "b"], ["c"], ["big"], ["d", "e"]]);
-  // A batch that lands exactly on the budget is under it.
   assert.deepEqual(planBatches([f("a", 3), f("b", 4)], 7).map((b) => b.map((x) => x.path)), [["a", "b"]]);
   assert.deepEqual(planBatches([], 7), []);
   assert.deepEqual(planBatches([f("only", 1)], 7).map((b) => b.map((x) => x.path)), [["only"]]);
@@ -522,8 +434,6 @@ await check("seeding a directory writes every file under local/, each reads back
     assert.equal(report.storage, "replaced");
     assert.equal(report.interruptedBefore, undefined);
     assert.equal(typeof report.ms, "number");
-    // 300 bytes a batch: the 256-byte binary cannot share with the script,
-    // so the four files need more than one round trip.
     assert.ok(report.batches >= 2, `expected the seed to be batched, got ${report.batches} batch(es)`);
     for (const [rel, bytes] of Object.entries(files)) {
       const back = await readBack(page, rel);
@@ -555,8 +465,6 @@ await check("seeding replaces the previous project: stale entries go, nested one
 
 await check("a previous entry whose kind clashes with the source is a reason naming it, with nothing written and nothing removed", async () => {
   await withStub({ refuse: [] }, async ({ page, tree, refuse }) => {
-    // A file where the source has a directory, and a directory where the
-    // source has a file; a write the storage would refuse never runs.
     await previousProject(page, { "assets": "a file", "main.sd/inner.sd": "x", "keep.sd": "k", "scripts/chars.sd": "c" });
     refuse.push("chars.sd");
     const report = await seedProject(page, fixture);
@@ -571,16 +479,12 @@ await check("a previous entry whose kind clashes with the source is a reason nam
     assert.equal(await marked(page), false, "a refused seed left a marker");
   });
   await withStub({}, async ({ page }) => {
-    // A clash in a directory the source does not lead through is stale, not
-    // a clash: the prune takes it after the writes.
     await previousProject(page, { "old/assets": "a file" });
     const report = await seedProject(page, fixture);
     assert.equal(report.reason, undefined, report.reason);
     assert.deepEqual(report.removed, ["old"]);
   });
   await withStub({}, async ({ page, tree }) => {
-    // A clash below the root, in a directory the source leads through, is
-    // found before any write: the check descends.
     await previousProject(page, { "assets/portraits": "a file", "main.sd": "previous" });
     const report = await seedProject(page, fixture);
     assert.match(report.reason, /^the previous project has a file named "assets\/portraits" where the source has a directory, and the seed would have to remove it/);
@@ -611,8 +515,6 @@ await check("a refused write is a reason naming the storage's error that leaves 
     assert.equal(await marked(page), true, "a failed seed left no marker");
   });
   await withStub({ refuse: ["alice.webp"] }, async ({ page }) => {
-    // The file the failed write created is removed again, through its own
-    // parent; its siblings that landed stay.
     await seedProject(page, fixture);
     assert.equal(await readBack(page, "assets/portraits/alice.webp"), null, "the empty file the failed write created was left for the editor");
     assert.equal((await readBack(page, "assets/empty.txt")).toString(), "");
@@ -642,10 +544,6 @@ await check("a write that reads back short is a reason, counts only the bytes th
   });
   const short = {};
   await withStub({ shortWrite: short }, async ({ page }) => {
-    // Over a previous project the short-written file holds neither side's
-    // content, which is what the reason says; the entries the seed did not
-    // reach stand. The short write is switched on after the previous
-    // project has landed whole.
     await previousProject(page, { "scripts/chars.sd": "THE PREVIOUS PROJECT'S CHARACTERS", "stale.sd": "old" });
     short["chars.sd"] = 3;
     const report = await seedProject(page, fixture);
@@ -862,12 +760,6 @@ await check("zip entries: directory, dot and ./ segments dropped, a single wrapp
   const wrapped = zipProjectEntries({ "game/": new Uint8Array(0), "game/main.sd": b("m"), "game/scripts/x.sd": b("s") });
   assert.deepEqual(wrapped.files.map((e) => e.path), ["main.sd", "scripts/x.sd"]);
   assert.equal(wrapped.unwrapped, "game");
-  // A single top-level folder without main.sd is the project's own layout
-  // (an asset bundle, a scripts folder), so it is kept: unwrapping it would
-  // move every path the script references.
-  // A single top-level folder without main.sd is kept and named, since it
-  // cannot be told from the project's own layout: unwrapping it would move
-  // every path the script references.
   const noMain = zipProjectEntries({ "mygame/assets/a.png": b("a"), "mygame/scripts/c.sd": b("c") });
   assert.deepEqual(noMain.files.map((e) => e.path), ["mygame/assets/a.png", "mygame/scripts/c.sd"]);
   assert.equal(noMain.unwrapped, undefined);
@@ -878,12 +770,9 @@ await check("zip entries: directory, dot and ./ segments dropped, a single wrapp
   assert.deepEqual(assetsOnly.files.map((e) => e.path), ["assets/backdrops/room.webp", "assets/portraits/alice.webp"]);
   assert.equal(assetsOnly.unwrapped, undefined);
   assert.equal(assetsOnly.kept, "assets");
-  // main.sd two folders down is not a wrapper either: one level is unwrapped
-  // at most, and only when main.sd is right under it.
   const deep = zipProjectEntries({ "a/b/main.sd": b("m"), "a/b/x/y.png": b("y") });
   assert.deepEqual(deep.files.map((e) => e.path), ["a/b/main.sd", "a/b/x/y.png"]);
   assert.equal(deep.kept, "a");
-  // Two top-level folders, neither the project root: left as they are.
   const two = zipProjectEntries({ "a/main.sd": b("m"), "b/x.sd": b("s") });
   assert.deepEqual(two.files.map((e) => e.path), ["a/main.sd", "b/x.sd"]);
   assert.equal(two.kept, undefined);
@@ -900,7 +789,6 @@ let fflate = null;
 try {
   fflate = await import("fflate");
 } catch {
-  /* not installed here */
 }
 if (fflate) {
   await check("a ZIP path collision leaves existing storage untouched", async () => {
@@ -936,16 +824,12 @@ if (fflate) {
       const report = await seedProject(page, zipPath, { limits: { files: 100, bytes: 1_000_000, fileBytes: 100 } });
       assert.match(report.reason, /alice\.webp is 256 bytes, over the 100-byte bound on one file/);
       assert.equal(report.storage, "untouched");
-      // The archive's own size on disk is checked before it is read at all.
       const onDisk = await seedProject(page, zipPath, { limits: { files: 100, bytes: 10, fileBytes: 1_000_000 } });
       assert.match(onDisk.reason, /^--project .*export\.zip is \d+ bytes, over the 10-byte bound on a seed$/);
     });
     const wrapper = path.join(scratch, "wrapped-no-main.zip");
     fs.writeFileSync(wrapper, fflate.zipSync({ "mygame/assets/portraits/alice.webp": new Uint8Array(allBytes), "mygame/scripts/chars.sd": new Uint8Array(Buffer.from("c")) }, { level: 0 }));
     await withStub({}, async ({ page }) => {
-      // The folder the seed kept is named, with a note, since a zip made by
-      // hand from an asset-only project looks the same as one whose layout
-      // starts with that folder, and the script's paths depend on which.
       const report = await seedProject(page, wrapper, { expectMainSd: false });
       assert.equal(report.reason, undefined, report.reason);
       assert.equal(report.unwrapped, undefined);
@@ -955,7 +839,6 @@ if (fflate) {
       assert.equal(await readBack(page, "assets/portraits/alice.webp"), null);
     });
     await withStub({}, async ({ page }) => {
-      // An export-layout zip has no kept folder.
       const report = await seedProject(page, zipPath);
       assert.equal(report.kept, undefined);
       assert.equal(report.note, undefined);
@@ -982,8 +865,6 @@ if (fflate) {
     const mac = path.join(scratch, "mac.zip");
     fs.writeFileSync(mac, fflate.zipSync({ "main.sd": new Uint8Array(Buffer.from("m")), "__MACOSX/._main.sd": new Uint8Array(500), ".DS_Store": new Uint8Array(500) }, { level: 0 }));
     await withStub({}, async ({ page }) => {
-      // One file and 100 bytes a file: the two 500-byte companions would
-      // trip both bounds if they were counted.
       const report = await seedProject(page, mac, { limits: { files: 1, bytes: 10_000, fileBytes: 100 } });
       assert.equal(report.reason, undefined, report.reason);
       assert.equal(report.files, 1);
@@ -992,11 +873,6 @@ if (fflate) {
     });
   });
   await check("a zip over the bounds is refused on its central directory, before the entry the bound names is inflated", async () => {
-    // The second entry's deflate stream is corrupted after zipping, so
-    // inflating it throws; a bound that speaks on that entry has read the
-    // central directory's sizes, not the data. fflate writes each local
-    // header with its sizes: the name length at 26, the extra length at 28,
-    // the compressed size at 18, the data after the 30-byte header.
     const corrupt = (entry) => {
       const zipped = fflate.zipSync({ "a.sd": new Uint8Array(1000), "b.sd": new Uint8Array(1000) }, { level: 9 });
       const u16 = (at) => zipped[at] | (zipped[at + 1] << 8);
@@ -1023,9 +899,6 @@ if (fflate) {
       assert.match(inflated.reason, /could not be unpacked as a zip \(invalid block type\)$/);
       assert.equal(tree.children.size, 0);
     });
-    // The entries before the one the bound names have been inflated by
-    // then: a corrupt first entry is what the run reports when the bound
-    // trips on the second. What the bound buys is the memory it names.
     const early = corrupt("a.sd");
     await withStub({}, async ({ page }) => {
       const report = await seedProject(page, early, { limits: { files: 1, bytes: 1_000_000, fileBytes: 1_000_000 } });
@@ -1102,11 +975,6 @@ await check("mount waits use one state request plus notifications, dispose subsc
   }
 });
 
-// The commands, in-process: the browser-side waits answer at once, the
-// seed, the clear, the interrupted-seed check and the script write are the
-// driver's own, and the page is the stub whose storage they write to. The
-// editor is handed over as `withEditor` hands it over on a same-origin
-// launch, and a refusal before the browser (`die`) is a throw here.
 function commandDeps(page, overrides = {}) {
   const logs = [];
   const calls = { waitForProgram: 0, withEditor: 0 };
@@ -1276,12 +1144,21 @@ fs.writeFileSync(probe, "return 42;");
 await check("withEditor hands the callback the URL and the mode from how the servers were launched, same-origin when the record has no mode, and closes the browser after the callback", async () => {
   const launches = [];
   const closes = [];
+  const cdpCalls = [];
   const page = stubPage(stubGlobals(stubStorage({})));
   const launch = async (opts) => {
     launches.push(opts);
-    return { pages: () => [page], newPage: async () => assert.fail("a page was opened beside the profile's own"), close: async () => closes.push(1) };
+    return {
+      pages: () => [page],
+      newPage: async () => assert.fail("a page was opened beside the profile's own"),
+      newCDPSession: async (target) => ({
+        send: async (method, params) => cdpCalls.push({ target, method, params }),
+      }),
+      close: async () => closes.push(1),
+    };
   };
   const seen = await withEditor(async (editor) => editor, { launch, state: () => ({ url: "http://stub.test:40072", mode: "cross-origin", pid: 1 }) });
+  assert.deepEqual(cdpCalls, [{ target: page, method: "Browser.grantPermissions", params: { permissions: ["durableStorage"] } }], "the browser was not granted durable storage for the whole run, so the editor's storage warning covers the page");
   assert.equal(seen.page, page);
   assert.equal(seen.url, "http://stub.test:40072");
   assert.equal(seen.mode, "cross-origin");
@@ -1298,10 +1175,6 @@ await check("withEditor hands the callback the URL and the mode from how the ser
 });
 
 await check("verify and a ui --sd step run the real mount wait with the run's own ensureScriptEditor, so switchedToLogic comes from the recovery reload's click", async () => {
-  // The game mounts on the second reload: the first is the command's own
-  // after --sd, the second the recovery. The wait is the real function on a
-  // fake clock; the editor's return is the command's dep, which reports the
-  // click that changed the screen.
   const fresh = () => {
     const globals = stubGlobals(stubStorage({}));
     const page = stubPage(globals);
@@ -1359,8 +1232,6 @@ await check("verify --project seeds, reloads once, screenshots and exits 0; on a
     const { deps } = commandDeps(page);
     const result = await verify(["--project", fixture, "--shot", shot], deps);
     assert.match(result.error, /1 of 4 project files could not be written/);
-    // verify's error is the seed's reason and the one thing the reason cannot
-    // know: that the game was never asked about, so a restart changes nothing.
     assert.equal(result.error, result.seed.reason + ". The game was never asked about, so restarting the servers changes nothing.");
     assert.equal("gameMounted" in result, false, "a seed failure was reported as the game not mounting");
     assert.equal(page.reloads, 0);
@@ -1383,8 +1254,6 @@ await check("verify --project with --sd accepts a project without main.sd and wr
     assert.equal((await readBack(page, "assets/a.png")).toString(), "a");
   });
   await withStub({}, async ({ page }) => {
-    // The project first, the script over it: the fixture's own main.sd is
-    // replaced by the script, not the other way round.
     const { deps } = commandDeps(page);
     const result = await verify(["--project", fixture, "--sd", repro], deps);
     assert.equal(result.error, undefined, result.error);
@@ -1413,9 +1282,6 @@ await check("verify on a game that never mounted skips the program wait and says
     assert.equal(process.exitCode, 1);
   });
   await withStub({}, async ({ page }) => {
-    // The sameOrigin wait timing out on a same-origin launch is the preview
-    // in screenplay mode or a pane that never mounted, and the report says
-    // that rather than naming cross-origin mode.
     page.waitForFunction = async (fn) => {
       if (String(fn).includes("sameOrigin")) throw new Error("Timeout");
       return {};
@@ -1427,8 +1293,6 @@ await check("verify on a game that never mounted skips the program wait and says
     assert.match(result.error, /the game never mounted .*Try `down` then `up`/);
   });
   await withStub({}, async ({ page }) => {
-    // The refusal comes before the page is loaded, the project seeded or
-    // the script written: a run that can capture nothing replaces nothing.
     await previousProject(page, { "main.sd": "previous", "assets/old.webp": "old" });
     let mountWaits = 0;
     let sameOriginWaits = 0;
@@ -1470,10 +1334,6 @@ await check("verify on a game that never mounted skips the program wait and says
 });
 
 await check("the elsewhere scrubWarning opens on the target line and sends the reader to the screenshot; the inconclusive one still reads as neither success nor failure", async () => {
-  // The one string in a verify report a reader acts on directly. SKILL.md
-  // says to open the PNG before concluding an `elsewhere` scrub failed, so
-  // wording that states the failure without that hedge, or that never names
-  // the line asked for, contradicts the doc it is read beside.
   const script = ["ALICE:", "  Line one of the scrub repro.", "", "BOB:", "  Line two of the scrub repro."];
   const renderedText = (name, body) => `${name}\n${name}\n${body}\n${body}\n▼`;
   const scrubDeps = (page, text) =>
@@ -1483,7 +1343,6 @@ await check("the elsewhere scrubWarning opens on the target line and sends the r
       waitForPreviewSettle: async () => ({ settled: true, text }),
     }).deps;
   await withStub({}, async ({ page }) => {
-    // Line 2's text is on screen, line 5's is not.
     const result = await verify(["--sd", repro, "--line", "5"], scrubDeps(page, renderedText("ALICE", "Line one of the scrub repro.")));
     assert.equal(result.scrubCheck.outcome, "elsewhere");
     assert.match(result.scrubWarning, /^The scrub to line 5 is not confirmed by the rendered text: the game is showing line 2, not line 5; if the scrub really did fail, aim at an indented dialogue or action line, since a NAME: line, a heading and a blank line are not playable beats\./);
@@ -1491,7 +1350,6 @@ await check("the elsewhere scrubWarning opens on the target line and sends the r
     assert.match(result.scrubWarning, /The click put the cursor on line 5\./);
   });
   await withStub({}, async ({ page }) => {
-    // Nothing on screen is attributable to any line of the script.
     const result = await verify(["--sd", repro, "--line", "5"], scrubDeps(page, renderedText("NARRATOR", "Something else entirely.")));
     assert.equal(result.scrubCheck.outcome, "inconclusive");
     assert.match(result.scrubWarning, /^Could not confirm the scrub landed:/);
@@ -1529,9 +1387,6 @@ await check("ui on a marked project refuses every step but --probe until a --pro
     assert.deepEqual(page.screenshots, []);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
-    // A refused step reports in the shape it reports when it runs, with the
-    // outcome field saying nothing happened, so a reader finds `matches` on
-    // a --type, `screenshot` on a --shot, `clicked` on a --click.
     for (const [args, shape] of [
       [["--type", "search=Hello"], { field: "search", typed: false, text: "Hello", readBack: null, matches: false }],
       [["--shot", shot], { of: "page", screenshot: null }],
@@ -1552,20 +1407,16 @@ await check("ui on a marked project refuses every step but --probe until a --pro
     }
     assert.equal(page.reloads, 0);
     assert.deepEqual(page.screenshots, []);
-    // A --project step later in the run does not let the steps before it
-    // drive the mix.
     const later = await ui(["--shot", shot, "--project", fixture], deps);
     assert.equal(later.steps.length, 1);
     assert.equal(later.steps[0].gated, true);
     assert.equal(page.reloads, 0);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
-    // A probe is never gated.
     const probed = await ui(["--probe", probe], deps);
     assert.deepEqual(probed.steps, [{ probe, result: 42 }]);
     assert.deepEqual(probed.failed, []);
     assert.equal(process.exitCode, 0);
-    // A --project step that seeds clears the gate for the steps after it.
     const seeded = await ui(["--project", fixture, "--sd", repro], deps);
     assert.deepEqual(seeded.failed, []);
     assert.equal(seeded.steps.length, 2);
@@ -1586,9 +1437,6 @@ await check("ui on a marked project refuses every step but --probe until a --pro
     assert.equal(process.exitCode, 1);
   });
   await withStub({}, async ({ page }) => {
-    // A seed refused before it wrote leaves the previous project, which
-    // this run did not ask for; the steps after it do not run either, so no
-    // screenshot of that project lands.
     await previousProject(page, { "main.sd": "A DIFFERENT PROJECT" });
     const { deps } = commandDeps(page);
     const result = await ui(["--project", assetsOnly2, "--shot", shot, "--probe", probe], deps);
@@ -1607,8 +1455,6 @@ await check("ui on a marked project refuses every step but --probe until a --pro
 
 await check("a ui --project or --sd step that throws keeps what it reported, fails, and closes the gate, so no later step captures a page that was not reloaded onto what storage holds", async () => {
   await withStub({}, async ({ page }) => {
-    // The reload after a seed that landed whole times out: the seed report
-    // stays on the step, and the screenshot after it is refused.
     await previousProject(page, { "main.sd": "A DIFFERENT PROJECT" });
     page.reload = async () => {
       throw new Error("page.reload: Timeout 120000ms exceeded.\n  more");
@@ -1627,7 +1473,6 @@ await check("a ui --project or --sd step that throws keeps what it reported, fai
     assert.equal((await readBack(page, "main.sd")).toString(), files["main.sd"].toString());
   });
   await withStub({}, async ({ page }) => {
-    // The same for --sd: the characters written stay on the step.
     page.reload = async () => {
       throw new Error("net::ERR_ABORTED");
     };
@@ -1639,8 +1484,6 @@ await check("a ui --project or --sd step that throws keeps what it reported, fai
     assert.equal(process.exitCode, 1);
   });
   await withStub({}, async ({ page }) => {
-    // A write that throws before it landed: the step says nothing was
-    // written, and the gate closes all the same.
     const { deps } = commandDeps(page, {
       writeMainSd: async () => {
         throw new Error("Execution context was destroyed");
@@ -1652,7 +1495,6 @@ await check("a ui --project or --sd step that throws keeps what it reported, fai
     assert.equal(process.exitCode, 1);
   });
   await withStub({}, async ({ page }) => {
-    // A step of another kind that throws fails alone; the run goes on.
     const { deps } = commandDeps(page, {
       readSurfaces: async () => ({}),
     });
@@ -1792,9 +1634,6 @@ await check("seed --clear empties the project and reloads; with --project it cle
     assert.equal(page.reloads, 1);
     assert.equal(process.exitCode, 0);
   });
-  // Every refusal the seed makes without storage comes before the clear, so
-  // the previous project stands, unmarked, and the report says nothing was
-  // removed or written.
   const nested = writeTree(path.join(scratch, "nested-main"), { "game/main.sd": "m", "game/assets/a.png": "a" });
   for (const [source, pattern] of [
     [assetsOnly2, /has no main\.sd at its root/],
@@ -1829,7 +1668,6 @@ await check("seed --clear empties the project and reloads; with --project it cle
     assert.equal(page.reloads, 0);
   });
   await withStub({}, async ({ page }) => {
-    // The bounds too: read on disk, before storage is touched.
     await previousProject(page, { "main.sd": "previous" });
     const report = await seedProject(page, fixture, { clear: true, limits: { files: 2, dirs: 100, bytes: 1_000_000, fileBytes: 1_000_000 } });
     assert.match(report.reason, /more than 2 files/);
@@ -1850,8 +1688,6 @@ await check("seed --clear empties the project and reloads; with --project it cle
     assert.equal(process.exitCode, 1);
   });
   await withStub({ refuse: ["chars.sd"] }, async ({ page, tree }) => {
-    // A write refused after the clear: the reason says the previous project
-    // went before the seed, since nothing of it is there to re-run over.
     await previousProject(page, { "main.sd": "previous", "stale.sd": "old", ".name": "My Game" });
     const { deps } = commandDeps(page);
     const result = await seed(["--clear", "--project", fixture], deps);
@@ -1929,8 +1765,6 @@ if (fflate) {
       assert.equal(result.seed.kept, "mygame");
       assert.equal(result.seed.note, "every entry of the zip sits under mygame/, which holds no main.sd, so the folder was kept as part of the project's layout and a script's paths start with mygame/; if the folder is one the compress command added, make the zip from inside it");
       assert.ok(logs[0].includes('"kept": "mygame"'), "the kept folder is not in the printed report");
-      // The previous main.sd goes with the seed and --sd writes the repro
-      // over the project; the previous assets/ goes and nothing replaces it.
       assert.deepEqual(result.seed.removed, ["assets", "main.sd"]);
       assert.equal((await readBack(page, "main.sd")).toString(), reproText);
       assert.equal(await readBack(page, "assets/portraits/alice.webp"), null);

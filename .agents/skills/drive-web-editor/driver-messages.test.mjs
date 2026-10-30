@@ -1,11 +1,3 @@
-// Pins this skill's mechanisms for preventing or reporting mistakes (#497).
-// Run:
-//   node .agents/skills/drive-web-editor/driver-messages.test.mjs
-//
-// Browser-independent mechanisms are called directly; console checks also
-// invoke the registered event listener. Source checks require a symptom and
-// its advice in the same extracted message, and fixtures exercise the scanner.
-
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -31,21 +23,8 @@ const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(SKILL_DIR, "driver.mjs");
 const source = fs.readFileSync(DRIVER, "utf8");
 
-// What the driver prints, read out of its source: every string and template
-// literal, with a run of them joined by `+` read as the one message they
-// concatenate to. Comments and code are not message text and are left out,
-// which is what makes the search below answer the question it asks — a
-// session hitting the error reads the message, never the source around it,
-// so advice sitting in a comment beside the message is advice that is gone.
-//
-// The scan tracks the three literal kinds, comments, and regular expression
-// literals, which it has to know about because one can hold a quote (`/["']/`)
-// that would otherwise open a string and swallow the rest of the file.
 function scanSource(src) {
   const literals = [];
-  // The source with every comment blanked to spaces (newlines kept, so line
-  // numbers and the shape of the code survive), for the checks that read code
-  // rather than message text.
   const bare = src.split("");
   const blank = (from, to) => {
     for (let k = from; k < to; k++) if (bare[k] !== "\n") bare[k] = " ";
@@ -61,9 +40,6 @@ function scanSource(src) {
     blank(start, end);
     return end;
   };
-  // A `/` opens a regular expression where a value cannot stand: after an
-  // operator, a comma, an opening bracket, or a keyword. After a value (a
-  // name, a literal, a closing bracket) it is division.
   const opensRegex = (upto) => {
     const before = upto.replace(/\s+$/, "");
     if (before === "") return true;
@@ -94,14 +70,14 @@ function scanSource(src) {
     while (i < src.length) {
       if (src[i] === "\\") { i += 2; continue; }
       if (src[i] === quote) return i + 1;
-      if (src[i] === "\n") return i; // an unterminated string; give up on it
+      if (src[i] === "\n") return i;
       i++;
     }
     return i;
   };
   const skipTemplate = (i) => {
     const opened = i;
-    i++; // the opening backtick
+    i++;
     while (i < src.length) {
       if (src[i] === "\\") { i += 2; continue; }
       if (src[i] === "`") return i + 1;
@@ -151,9 +127,6 @@ function scanSource(src) {
     i++;
   }
   const code = bare.join("");
-  // Literals joined by nothing but `+` are one message; anything else between
-  // them (a name, a call, a comma) ends the run, because what follows is a
-  // different string than the one this message prints.
   const messages = [];
   let current = null;
   for (const lit of literals) {
@@ -167,9 +140,6 @@ function scanSource(src) {
     current = { text: lit.text, end: lit.end };
   }
   if (current) messages.push(current.text);
-  // Newlines and their indentation collapse to one space, so a message
-  // written across several concatenated lines reads as the one sentence it
-  // prints as.
   return { code, messages: messages.map((m) => m.replace(/\s*\n\s*/g, " ")) };
 }
 
@@ -189,7 +159,6 @@ function check(label, fn) {
   }
 }
 
-/** The symptom and the advice it must carry, inside one printed message. */
 function carriesAdvice(symptom, advice, window = 600, texts = messages) {
   const holding = texts.filter((m) => m.includes(symptom));
   assert.notEqual(holding.length, 0, `the message is gone from the driver modules: ${symptom}`);
@@ -209,8 +178,6 @@ check("worker failure messages retain their recovery advice", () => {
   carriesAdvice("fresh service worker verification failed", "Inspect the worker and page errors");
 });
 
-// ---------------------------------------------------------------- reader ---
-
 check("the message reader reads what the driver prints, and not the source around it", () => {
   const fixture = [
     'const a = () => die(`the panel did not open within 10s; --close it`);',
@@ -221,21 +188,15 @@ check("the message reader reads what the driver prints, and not the source aroun
     'const e = /["\'`]/.test(x) ? die(`the name is quoted; strip the quotes`) : null;',
   ].join("\n");
   const read = scanSource(fixture);
-  // A comment is not a message: the advice in one is advice the session that
-  // hits the error never sees, which is the hole this reader closes.
   assert.ok(!read.messages.some((m) => m.includes("--screen logic")), "a comment was read as message text");
   assert.deepEqual(
     read.messages.filter((m) => m.startsWith("the panel")),
     ["the panel did not open within 10s; --close it", "the panel did not open within 10s"],
     "each message stands on its own",
   );
-  // Literals joined by `+` are the one message they print as; two literals
-  // with anything else between them are two.
   assert.ok(read.messages.includes("the wait ran out and the log names why"), "a message split across a `+` was not joined");
   assert.ok(read.messages.includes("the port was taken"), "a message ending at a `,` was joined to what followed");
   assert.ok(!read.messages.some((m) => m.includes("the port was taken") && m.includes("pick another port")), "two separate literals were read as one message");
-  // A regular expression holding a quote or a backtick must not open a string
-  // and swallow the rest of the file.
   assert.ok(read.messages.includes("the name is quoted; strip the quotes"), "a regex literal derailed the scan");
 
   const inComment = fixture.replace("within 10s; --close it", "within 10s");
@@ -246,8 +207,6 @@ check("the message reader reads what the driver prints, and not the source aroun
   );
   carriesAdvice("the panel did not open within 10s", "--close", 600, read.messages);
 });
-
-// ------------------------------------------------------------ navigation ---
 
 check("division inside an interpolation cannot merge a later message with unrelated advice", () => {
   for (const expression of ["count++ / total", "count-- / total", "object.of / total", "object.in / total", "value /*" + " long comment".repeat(25) + " */ / total"]) {
@@ -288,10 +247,6 @@ check("the editor's navigation options are the long ones a cold load needs", () 
 });
 
 check("openEditorPage and reloadEditorPage are the only navigators in the driver", () => {
-  // Playwright's own default is 30 s and a cold editor load here takes
-  // longer, so an inline `page.goto` dies against a healthy server. The two
-  // helpers are exported for a script of its own; a navigation written
-  // anywhere else in the file is the trap coming back.
   const navigations = [...sourceCode.matchAll(/page\.(goto|reload)\(/g)];
   assert.equal(navigations.length, 2, `expected exactly two navigation calls (the two helpers), found ${navigations.length}`);
   assert.match(source, /async function openEditorPage\(page, url\) \{\s*return page\.goto\(url, EDITOR_NAVIGATION\);/);
@@ -303,24 +258,16 @@ check("a driver run from outside the repo tree says why playwright cannot be fou
   carriesAdvice("playwright could not be resolved from", "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install");
 });
 
-// --------------------------------------------------------------- console ---
-
 check("partitionConsole keeps the lines worth reading and counts the known noise", () => {
   const lines = [
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
-    // The language server's refreshes refused before the editor's client
-    // registers were noise until #1785; one now is that bug back.
     "[pageerror] Unhandled method workspace/semanticTokens/refresh",
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
     "[log] a log line is not an error",
     "[warning] neither is a warning",
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
-    // A 404 the change under test introduced: a wrong asset path, a route
-    // that is not served. The noise entry names the one resource that is
-    // always missing, so this one is left where it can be read.
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
-    // A resource the app is refused rather than one that is absent.
     "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
   ];
   const { errors, noise } = partitionConsole(lines);
@@ -337,18 +284,13 @@ check("partitionConsole keeps the lines worth reading and counts the known noise
 });
 
 check("a captured console line carries the resource a failed request names nowhere else", () => {
-  // Chrome's text says the status and not the URL, which sits in the
-  // message's location; without it every 404 reads the same and the noise
-  // list cannot tell the one that is always there from a new one.
   const message = (type, text, url) => ({ type: () => type, text: () => text, location: () => ({ url }) });
   const failed = "Failed to load resource: the server responded with a status of 404 (Not Found)";
   assert.equal(
     consoleLine(message("error", failed, "http://localhost:1/api/auth/account")),
     `[error] ${failed} (http://localhost:1/api/auth/account)`,
   );
-  // A message that already names its own location is not made to say it twice.
   assert.equal(consoleLine(message("error", "boom at http://localhost:1/x.js", "http://localhost:1/x.js")), "[error] boom at http://localhost:1/x.js");
-  // Only errors carry a location worth reading; a log keeps the text it has.
   assert.equal(consoleLine(message("log", "a log line", "http://localhost:1/x.js")), "[log] a log line");
   assert.equal(consoleLine({ type: () => "error", text: () => "no location here" }), "[error] no location here");
 });
@@ -358,7 +300,12 @@ check("a captured console line carries the resource a failed request names nowhe
   const handlers = new Map();
   const page = { on: (event, handler) => handlers.set(event, handler) };
   let closed = false;
-  const ctx = { pages: () => [page], newPage: async () => page, close: async () => { closed = true; } };
+  const ctx = {
+    pages: () => [page],
+    newPage: async () => page,
+    newCDPSession: async () => ({ send: async () => {} }),
+    close: async () => { closed = true; },
+  };
   try {
     const captured = await withEditor(({ consoleLines }) => {
       for (const resource of ["/api/auth/account", "/missing.png"]) {
@@ -401,8 +348,6 @@ check("only a 404 for the account endpoint is known resource noise", () => {
 });
 
 check("every known-noise entry reports a count even when it did not appear", () => {
-  // A line that stops appearing has to read as zero rather than vanish, or
-  // the partition quietly starts hiding a line that became a real error.
   const { errors, noise } = partitionConsole([]);
   assert.deepEqual(errors, []);
   assert.deepEqual(Object.keys(noise).sort(), KNOWN_CONSOLE_NOISE.map((n) => n.name).sort());
@@ -416,11 +361,6 @@ check("partitionConsole caps what it returns without capping what it counts", ()
   assert.equal(partitionConsole(many, KNOWN_CONSOLE_NOISE, 3).errors.length, 3);
 });
 
-// ---------------------------------------------------------------- script ---
-
-// A page stub that answers `evaluate(readProjectFile, ...)` the way the
-// browser does: the function is rebuilt from its source, as page.evaluate
-// ships it, so a reference to module scope would fail here.
 function stubPage(files) {
   return {
     async evaluate(fn, arg) {
@@ -456,12 +396,9 @@ checkAsync("loadedScript names the script the run is about to drive, and whether
   assert.equal(wrote.chars, text.length);
   assert.equal(wrote.firstLine, "$:");
   assert.match(wrote.sha, /^[0-9a-f]{12}$/);
-  // The trap this replaces: a run without --sd drives whatever the last run
-  // left in storage, and said nothing about it. The report now does.
   const reused = await loadedScript(page, false);
   assert.equal(reused.wroteThisRun, false);
   assert.equal(reused.sha, wrote.sha);
-  // Two different scripts have to be told apart by the report alone.
   const other = await loadedScript(stubPage({ "local/main.sd": "BOB:\n  A different repro.\n" }), false);
   assert.notEqual(other.sha, wrote.sha);
   assert.equal(other.firstLine, "BOB:");
@@ -470,8 +407,6 @@ checkAsync("loadedScript names the script the run is about to drive, and whether
 checkAsync("preflight tells a corrupt install from an absent one, and names the repair for the corrupt one", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "preflight-"));
   try {
-    // No install at all is not a failure: a hooks-only or skills-only change
-    // needs none, and the line says how to get one when the change does.
     const absent = await installHealth(root, async () => assert.fail("nothing should be run without node_modules"));
     assert.equal(absent.ok, true);
     assert.match(absent.detail, /not installed/);
@@ -481,8 +416,6 @@ checkAsync("preflight tells a corrupt install from an absent one, and names the 
     const healthy = await installHealth(root, async () => true);
     assert.deepEqual(healthy, { ok: true, detail: "esbuild and vitest both run" });
 
-    // The trap: a full disk leaves an install that looks complete, and the
-    // damage surfaces much later as a build error nobody connects to it.
     const asked = [];
     const corrupt = await installHealth(root, async (cmd, args) => {
       asked.push(`${cmd} ${args.join(" ")}`);
@@ -511,8 +444,6 @@ checkAsync("loadedScript says so rather than throwing when there is no script or
   assert.equal(failed.read, false);
   assert.equal(failed.reason, "Execution context was destroyed");
 });
-
-// -------------------------------------------------------------- messages ---
 
 check("the readiness timeout names where the build error can be read", () => {
   carriesAdvice("timed out after ${READY_WAIT_MS / 60_000} min waiting for", "npm run web:dev");
@@ -551,8 +482,6 @@ check("the marked-project error names both ways out", () => {
 });
 
 check("preflight --tooling-only skips the browser and install probes and refuses other arguments", () => {
-  // The skipped probes must not run at all: a worktree with no install cannot
-  // resolve playwright, and that is the supported state for tooling-only work.
   const run = (...args) => spawnSync(process.execPath, [DRIVER, "preflight", ...args], { encoding: "utf8", windowsHide: true, timeout: 120000 });
   const tooling = run("--tooling-only");
   assert.match(tooling.stdout, /^SKIP  playwright chromium  — --tooling-only/m);
@@ -561,8 +490,6 @@ check("preflight --tooling-only skips the browser and install probes and refuses
   assert.match(tooling.stdout, /disk headroom/);
   assert.match(tooling.stdout, /gh auth/);
   assert.match(tooling.stdout, /git repo/);
-  // Disk and gh auth legitimately fail on some machines, so the exit status is
-  // pinned to the printed lines: zero exactly when no line is a FAIL.
   assert.equal(tooling.status === 0, !/^FAIL/m.test(tooling.stdout), tooling.stdout);
   const refused = run("--tooling");
   assert.notEqual(refused.status, 0);

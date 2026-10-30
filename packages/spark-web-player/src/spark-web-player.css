@@ -336,6 +336,15 @@ spark-web-player #play-button {
     opacity: 1;
     color: var(--swp-play-button-hover-color);
   }
+
+  spark-web-player #play-button[aria-disabled="true"]:hover {
+    opacity: 0.5;
+    color: var(--swp-play-button-color);
+  }
+}
+
+spark-web-player #play-button[aria-disabled="true"] {
+  cursor: not-allowed;
 }
 
 spark-web-player #play-icon {

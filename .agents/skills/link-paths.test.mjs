@@ -17,14 +17,12 @@ spawnSync("git", ["init", scratch], { windowsHide: true });
 const shared = path.join(scratch, ".agents", "skills");
 fs.mkdirSync(shared, { recursive: true });
 for (const dir of ["drive-web-editor", "drive-vscode-web", "triage-skill-feedback"]) fs.cpSync(path.join(skills, dir), path.join(shared, dir), { recursive: true, filter: (src) => !src.includes(".chrome-profile") && !src.endsWith(".state.json") });
-// Both drivers import the repository's detached launcher.
 fs.mkdirSync(path.join(scratch, "scripts"));
 fs.cpSync(path.join(skills, "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "scripts", "detached-launch.mjs"));
 fs.mkdirSync(path.join(scratch, "vscode-sparkdown"));
 fs.writeFileSync(path.join(scratch, "vscode-sparkdown", "package.json"), '{"publisher":"test","name":"test"}');
 linkAgentSkills(scratch);
 for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
-  // An unreadable state makes the path observable without launching or stopping processes.
   fs.writeFileSync(path.join(shared, driver, ".state.json"), "{");
   const runs = [".agents", ".claude", ".codex", ".github"].map((dir) => spawnSync(process.execPath, [path.join(scratch, dir, "skills", driver, "driver.mjs"), "status"], { cwd: scratch, encoding: "utf8", windowsHide: true }));
   assert.match(runs[0].stdout + runs[0].stderr, /state file unreadable/i);
@@ -61,7 +59,6 @@ for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   assert.ok((run.stdout + run.stderr).includes(path.join(legacy, ".claude", "skills", driver, ".state.json")));
 }
 console.log("PASS: canonical commands retain both drivers' state during an existing-checkout migration");
-// Git has removed the old executable but ignored state still lives there.
 fs.unlinkSync(oldDriver);
 for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
@@ -107,7 +104,7 @@ for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
 for (const driver of ["drive-web-editor", "drive-vscode-web"]) {
   const state = path.join(legacy, ".claude", "skills", driver, ".state.json");
   fs.unlinkSync(state);
-  fs.mkdirSync(state); // Native unlink failure, confined to the printed scratch checkout.
+  fs.mkdirSync(state);
   const run = spawnSync(process.execPath, [path.join(legacy, ".agents", "skills", driver, "driver.mjs"), "down"], { cwd: legacy, encoding: "utf8", windowsHide: true });
   assert.equal(run.status, 1, driver);
   assert.match(run.stdout + run.stderr, /state cleanup failed/);

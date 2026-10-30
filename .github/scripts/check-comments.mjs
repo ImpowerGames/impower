@@ -145,7 +145,7 @@ export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT 
       if (typeof record.patch === "string") {
         const parsed = parsePatch(record.patch);
         added = parsed.added;
-        before = baseFromPatch(text, parsed.hunks);
+        before = mergeBase ? baseText(root, mergeBase, record.previous_filename ?? file, state) : baseFromPatch(text, parsed.hunks);
       } else if ((record.additions ?? 1) > 0) {
         added = new Set(text.split("\n").map((_, k) => k + 1));
         before = baseText(root, mergeBase, record.previous_filename ?? file, state);

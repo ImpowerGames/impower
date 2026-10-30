@@ -4,7 +4,22 @@ import { buildMorphRecipe } from "../../morph/recipe";
 import type { MorphArtifact, MorphRecipe } from "../../morph/types";
 import { aperturePathData, morphFrameState, morphPosesAt, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { parse } from "../../txml/txml";
-import { blink, CLOSED, LOWER_OPEN, MASKED_VARIANTS, maskedBlink, maskedPortrait, partnerPortrait, portrait, shadowedPortrait, UPPER_OPEN } from "./fixtures";
+import {
+  blink,
+  CLOSED,
+  EYEBALL,
+  LOWER_OPEN,
+  MASKED_VARIANTS,
+  maskedBlink,
+  maskedPortrait,
+  partnerPortrait,
+  portrait,
+  PUPIL,
+  shadowedPortrait,
+  SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP,
+  SPLIT_CLOSED_TOP_SHORT_OF_OUTER_TIP,
+  UPPER_OPEN,
+} from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -528,6 +543,60 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
   });
 });
 
+describe("split closed lashes whose tips never meet", () => {
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="140" height="100">
+<path data-name="face" d="M0,0H140V100H0Z" fill="#b76"/>
+<g data-name="eyes.open:default">
+<path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
+<path data-name="eyeball-shadow-left" d="${UPPER_OPEN}" fill="#ccc"/>
+<path data-name="pupil-left" d="${PUPIL}" fill="#000"/>
+<path data-name="eyelash-top-left" d="${UPPER_OPEN}" fill="#111"/>
+<path data-name="eyelash-bottom-left" d="${LOWER_OPEN}" fill="#111"/>
+</g>
+<g data-name="eyes.closed">
+<path data-name="eyelash-top-left" d="${SPLIT_CLOSED_TOP_SHORT_OF_OUTER_TIP}" fill="#111"/>
+<path data-name="eyelash-bottom-left" d="${SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP}" fill="#111"/>
+</g>
+</svg>`;
+  const recipe = buildMorphRecipe("blink", {
+    blend: "morph",
+    method: "bend",
+    fallback: "fade",
+    layers: { "eyeball-shadow-left": { partner: "eyelash-top-left" } },
+    keyframes: [
+      { offset: 0, eyes: { state: "open" } },
+      { offset: 0.3, eyes: { state: "closed" } },
+      { offset: 0.6, eyes: { state: "closed" } },
+      { offset: 1, eyes: { state: "open" } },
+    ],
+    clips: [{ between: ["eyelash-top-left", "eyelash-bottom-left"], targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"] }],
+  });
+  const split = bakeMorphArtifact({ source, selection: {}, recipe, key: "split", variant: "open" });
+  const apertureArea = (svg: string) => {
+    const mask = elements(svg).find((e) => e.tagName === "mask")!;
+    const path = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
+    const points = [...path.attributes["d"]!.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    let sum = 0;
+    for (let i = 0; i < points.length; i++) {
+      const [x1, y1] = points[i]!;
+      const [x2, y2] = points[(i + 1) % points.length]!;
+      sum += x1! * y2! - x2! * y1!;
+    }
+    return Math.abs(sum) / 2;
+  };
+
+  test("the closed keyframe and the closed hold draw an aperture with no area and no reach", () => {
+    expect(split.status).toBe("live");
+    expect(split.diagnostics).toEqual([]);
+    for (const offset of [0.3, 0.45, 0.6]) {
+      const svg = renderMorphAt(split, offset);
+      expect(apertureArea(svg), String(offset)).toBeLessThan(1e-3);
+      expect(elements(svg).some((e) => e.tagName === "clipPath" && e.attributes["id"]?.endsWith("-reach")), String(offset)).toBe(false);
+    }
+    expect(apertureArea(renderMorphAt(split, 0))).toBeGreaterThan(1000);
+  });
+});
+
 describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () => {
   test("the fade's factor multiplies the entry's opacity", () => {
     const source = maskedPortrait().replace(
@@ -576,5 +645,82 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
     for (const offset of [0.3, 0.45, 0.6]) expect(opacityAt(offset), String(offset)).toBe("0");
     expect(Number(opacityAt(0.64))).toBeCloseTo(0.25, 2);
     expect(opacityAt(0.8)).toBeUndefined();
+  });
+});
+
+describe("a clip entry's `spread` between poses", () => {
+  const bake = (spread?: string | number) =>
+    bakeMorphArtifact({
+      source: portrait(),
+      selection: {},
+      recipe: blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread }) }] }),
+      key: "spread",
+      variant: "open",
+    });
+  const MOVING = [0.1, 0.2, 0.5, 0.8];
+  const firstPaths = (svg: string) =>
+    elements(svg)
+      .filter((e) => e.tagName === "mask" && /morph-clip-/.test(e.attributes["id"] ?? ""))
+      .map((mask) => ({
+        style: (mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element).attributes["style"] ?? "",
+        reach: mask.children.some((c) => !!c && typeof c === "object" && (c as Element).tagName === "clipPath"),
+      }));
+  const base = bake();
+
+  test("a positive spread strokes the aperture at twice its value through the default's trimmed reach", () => {
+    expect(base.status).toBe("live");
+    const wide = bake("3px");
+    expect(wide.status).toBe("live");
+    let reached = 0;
+    for (const offset of MOVING) {
+      const a = morphFrameState(base, morphPosesAt(base, offset));
+      const b = morphFrameState(wide, morphPosesAt(wide, offset));
+      expect([...b.reaches.keys()], String(offset)).toEqual([...a.reaches.keys()]);
+      for (const [id, reach] of a.reaches) {
+        reached += 1;
+        expect(reach.spread).toBe(1);
+        expect(b.reaches.get(id)).toEqual({ spread: 3, d: reach.d });
+      }
+      for (const path of firstPaths(renderMorphAt(wide, offset)).filter((p) => p.reach)) expect(path.style).toContain("stroke-width:6px");
+    }
+    expect(reached).toBeGreaterThan(0);
+  });
+
+  test("a negative spread strokes black with no reach clip", () => {
+    const narrow = bake("-1px");
+    let stroked = 0;
+    for (const offset of MOVING) {
+      const state = morphFrameState(narrow, morphPosesAt(narrow, offset));
+      for (const reach of state.reaches.values()) expect(reach).toEqual({ spread: -1 });
+      const paths = firstPaths(renderMorphAt(narrow, offset));
+      for (const path of paths) {
+        expect(path.reach).toBe(false);
+        expect(path.style).toContain("stroke:#000;stroke-opacity:1;stroke-width:2px");
+        stroked += 1;
+      }
+    }
+    expect(stroked).toBeGreaterThan(0);
+  });
+
+  test("a zero spread draws the aperture's area alone", () => {
+    const none = bake(0);
+    for (const offset of MOVING) {
+      expect(morphFrameState(none, morphPosesAt(none, offset)).reaches.size, String(offset)).toBe(0);
+      for (const path of firstPaths(renderMorphAt(none, offset))) {
+        expect(path.reach).toBe(false);
+        expect(path.style).toMatch(/stroke:none/);
+      }
+    }
+  });
+
+  test.each(["3px", "-1px", 0, undefined])("a held pose other than rest draws the area alone at spread %s", (spread) => {
+    const artifact = bake(spread);
+    const state = morphFrameState(artifact, morphPosesAt(artifact, 0.333));
+    expect(state.clips.size).toBeGreaterThan(0);
+    expect(state.reaches.size).toBe(0);
+    for (const path of firstPaths(renderMorphAt(artifact, 0.333))) {
+      expect(path.reach).toBe(false);
+      expect(path.style).toMatch(/stroke:none/);
+    }
   });
 });

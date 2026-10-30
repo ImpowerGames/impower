@@ -166,15 +166,6 @@ const NOT_AN_LHS = nodeNameSet([
   "LuauElseOperator",
 ]);
 
-function isInsideUIAttribute(node: SparkdownSyntaxNodeRef): boolean {
-  for (const ancestor of getContextStack(node.node)) {
-    if (ancestor.name === "LuauUIAttribute") {
-      return true;
-    }
-  }
-  return false;
-}
-
 function followsLeadingGlue(node: SyntaxNode): boolean {
   for (
     let before: SyntaxNode | null = node.resolveInner(node.from, -1);
@@ -587,13 +578,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         (isAfterUnaryOperator(nodeRef) &&
           this.read(nodeRef.to, nodeRef.to + 1) !== "-") ||
         isBetweenLengthAndOperator(nodeRef);
-      const tightUIAttr =
-        isInsideUIAttribute(nodeRef) &&
-        (this.read(nodeRef.to, nodeRef.to + 1) === "=" ||
-          this.read(nodeRef.from - 1, nodeRef.from) === "=");
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
-          tightInline || tightUnary || tightUIAttr ? "extra" : "separator",
+          tightInline || tightUnary ? "extra" : "separator",
         ).range(nodeRef.from, nodeRef.to),
       );
       return annotations;

@@ -1,23 +1,3 @@
-// PreToolUse hook for a runner's shell tool: refuses a command string that
-// contains two consecutive backslashes.
-//
-// A runner's shell tool can collapse every pair of backslashes in the command
-// string to a single backslash before the shell runs it. Single quotes and
-// quoted here-doc delimiters do not prevent the collapse, because it happens
-// before the shell parses anything, and a lone backslash is left alone. The
-// runner notes record which tools do this and which preserve the string.
-//
-// The damage is silent and second-order: source that escapes a backslash,
-// such as the regex `\\b` or the CSS content `\\00b7`, arrives one level less
-// escaped, the language then reads it as a backspace or a NUL, and the file
-// still parses, looks right in an editor and greps clean.
-//
-// So the trigger is exactly two consecutive backslashes anywhere in the
-// command. A here-doc without them passes, and a lone backslash passes.
-// Content that needs doubled backslashes goes into a file through an editor
-// capability, which passes bytes through untouched, or through a shell tool
-// the runner notes list as preserving the string.
-
 import { pathToFileURL } from "node:url";
 
 const REASON =
@@ -28,12 +8,6 @@ const REASON =
   "that file, or use a shell tool the runner notes list as preserving backslashes. A lone backslash is not collapsed " +
   "and is fine.";
 
-/**
- * Returns a deny reason for the command, or null to allow it. The test is
- * deliberately a plain substring match: the collapse applies to the whole
- * command string, inside quotes, here-doc bodies and comments alike, so no
- * tokenizer can carve out a safe region.
- */
 export function decide(command) {
   if (typeof command !== "string" || !command.includes("\\\\")) return null;
   return REASON;
@@ -58,11 +32,6 @@ export async function main() {
   try {
     command = JSON.parse(raw)?.tool_input?.command;
   } catch {
-    // An unparseable payload is refused only when its raw text still carries
-    // the signature: a doubled backslash in the command is encoded as four
-    // backslashes in the JSON the harness sends. Unrelated junk passes, so a
-    // broken harness cannot turn this guard into a blanket refusal, and cannot
-    // let the one thing it guards against through either.
     if (raw.includes("\\\\\\\\")) deny("The doubled-backslash hook could not parse the tool payload, but the payload still contains a doubled backslash. " + REASON);
     return;
   }

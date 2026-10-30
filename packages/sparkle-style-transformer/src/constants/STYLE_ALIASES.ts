@@ -62,4 +62,9 @@ export const STYLE_ALIASES = {
   "bg-repeat": "background-repeat",
   "bg-align": "background-align",
   "bg-fit": "background-fit",
+
+  delay: "animation-delay",
+  duration: "animation-duration",
+  easing: "animation-easing",
+  iterations: "animation-iterations",
 } as const;

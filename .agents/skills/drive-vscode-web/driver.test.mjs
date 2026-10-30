@@ -1,31 +1,4 @@
 #!/usr/bin/env node
-// Pins the decisions in the VS Code web driver that do not need a server or
-// a browser: the stylesheet alias the served build needs, the launch plan
-// `up` runs (the server's whole argument list and where the served project
-// and the log go, relative to the directory the server may delete), the
-// commit pin that keeps a download from deleting a build in use, the guard
-// on `--fresh`, the port each worktree is pinned to, the build rule (which
-// artifacts, which sources, the freshness by time, the stamp that accepts a
-// file touched but not changed and refuses a source set that is not the one
-// stamped, and the steps a refusal names), the word location as the page
-// rebuilds it, the caret and image rules a hover is judged by, the settle
-// rule verify waits on and the failure an unsettled run reports, and the
-// flag parsing that refuses a bad option before anything runs. `up`,
-// `checkBuild`, `status` and `verify` themselves run in-process against
-// stubbed dependencies and a scripted document, so what each refuses and
-// what it calls is pinned, not only the helpers it could have called; the
-// document is shaped as the workbench is (a rendered line split into text
-// nodes at every token, the lines out of order in the DOM, the explorer rows
-// with their depth, an inactive tab before the active one), answers only the
-// exact selectors the driver uses, and every page function is rebuilt from
-// its source before it runs, as `page.evaluate` does. `status`'s line is
-// pinned through clean-worktrees' own parser, since that is who reads it.
-// Run:
-//   node .agents/skills/drive-vscode-web/driver.test.mjs
-//
-// aliasWorkbenchCss, unpackedCommit, buildRule, buildFreshness and
-// checkBuild run on scratch directories laid out like the real ones; the
-// rest are pure or stubbed. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -36,8 +9,6 @@ import vm from "node:vm";
 import { pathToFileURL } from "node:url";
 import { diagnosticFailures, lspHealth, validateScenario, previewRead, classifyRuntimeErrors, hostCrashes, pollUntil, scriptProvenance, stopDesktop, ensurePreviewVisible } from "./desktop.mjs";
 import { serverRows, serversFrom } from "../clean-worktrees/clean-worktrees.mjs";
-// The partition itself belongs to the web editor's driver, which this one
-// calls with its own list of what the served workbench always says.
 import { partitionConsole } from "../drive-web-editor/driver.mjs";
 import {
   DEFAULT_SETTLE_S,
@@ -114,9 +85,6 @@ const check = async (name, fn) => {
   }
 };
 
-// What `deps.die` does in the checks: the refusal is an exception, so a
-// command that refuses is one that rejects with a Refusal, and one that
-// went on to spawn or open a browser is one that did not.
 class Refusal extends Error {}
 const refuses = (promise, re) =>
   assert.rejects(promise, (err) => {
@@ -187,7 +155,7 @@ await check("a directory laid out like a build but not named as one, and a build
   const stray = path.join(scratch, "a-served-project", "out", "vs", "workbench");
   fs.mkdirSync(stray, { recursive: true });
   fs.writeFileSync(path.join(stray, "workbench.web.main.internal.css"), "not a build");
-  build("vscode-web-stable-ccc"); // unpacked far enough to have the directory, no stylesheet yet
+  build("vscode-web-stable-ccc");
   const result = aliasWorkbenchCss(scratch);
   assert.deepEqual(result.aliased, []);
   assert.equal(result.present.length, 3);
@@ -201,7 +169,7 @@ await check("a data directory that does not exist yet aliases nothing and does n
 
 await check("unpackedCommit reads the commit of a build whose download completed, and nothing else", () => {
   const commit = "a".repeat(40);
-  fs.mkdirSync(path.join(scratch, `vscode-web-stable-${"b".repeat(40)}`), { recursive: true }); // no version file: still downloading
+  fs.mkdirSync(path.join(scratch, `vscode-web-stable-${"b".repeat(40)}`), { recursive: true });
   assert.equal(unpackedCommit(scratch), null);
   fs.mkdirSync(path.join(scratch, `vscode-web-stable-${commit}`), { recursive: true });
   fs.writeFileSync(path.join(scratch, `vscode-web-stable-${commit}`, "version"), `vscode-web-stable-${commit}`);
@@ -244,8 +212,6 @@ await check("sharedBuildUsers names the other worktrees' records that still stan
   assert.deepEqual(asked, ["a", "b", "d"], "only a record with a pid on the directory is asked whether it stands");
   assert.deepEqual(await sharedBuildUsers(records, path.join(scratch, "data", "builds"), stands), [], "the parent of a quality directory is not that directory");
 });
-
-// --- the build rule, on a scratch tree laid out like the repository --------
 
 const repo = path.join(scratch, "repo");
 const ext = path.join(repo, "vscode-sparkdown");
@@ -322,14 +288,12 @@ for (const configRelative of [
     const accepted = checkBuild(configDeps);
     const stamped = fs.readFileSync(configStamp, "utf8");
     assert.equal(accepted.artifacts, 7);
-    // A newer timestamp with the same content is a legitimate checkout/restore.
     touch(configFile, T0 + 10000);
     assert.deepEqual(checkBuild(configDeps), accepted);
     assert.equal(fs.readFileSync(configStamp, "utf8"), stamped);
     at(configFile, T0 + 20000, JSON.stringify({ compilerOptions: { useDefineForClassFields: false } }));
     assert.throws(() => checkBuild(configDeps), err => err instanceof Refusal && /older than/.test(err.message), "a consumed tsconfig changed but every runtime artifact is still the accepted old build");
     assert.equal(fs.readFileSync(configStamp, "utf8"), stamped, "refusal must preserve the accepted config/artifact identities");
-    // Rebuilding a different artifact cannot bless the unchanged player bundle.
     at(path.join(configExt, "out/extension.js"), T0 + 30000, "rebuilt extension");
     assert.throws(() => checkBuild(configDeps), err => err instanceof Refusal && /older than/.test(err.message));
     for (const group of groups) at(group.artifact, T0 + 30000, "rebuilt runtime");
@@ -364,8 +328,6 @@ await check("every artifact is fresh when no source is newer, and a copied artif
   assert.deepEqual(staleNames(ruleOf()), []);
   at(path.join(ext, "data", "cheatsheet.css"), T0);
   assert.deepEqual(staleNames(ruleOf()), []);
-  // A copy keeps the source's time to the millisecond and drops what is
-  // below it, so the source reads as a fraction of a millisecond newer.
   fs.utimesSync(path.join(ext, "data", "cheatsheet.css"), T0 / 1000 + 0.0009, T0 / 1000 + 0.0009);
   assert.deepEqual(staleNames(ruleOf()), [], "a source a fraction of a millisecond newer than its copy");
   fs.utimesSync(path.join(ext, "data", "cheatsheet.css"), T0 / 1000 + 0.005, T0 / 1000 + 0.005);
@@ -455,8 +417,6 @@ await check("the stamp covers a build when the artifacts, the source set and the
   assert.deepEqual(stampGap({ artifacts }, artifacts, sources, []), { kind: "artifacts" }, "a stamp without sources");
 });
 
-// checkBuild on the scratch tree: `die` throws, so a refusal is a rejection
-// and the message is what a session reads.
 const buildDeps = { repoRoot: repo, extDir: ext, packagesDir: packages, die: (m) => { throw new Refusal(m); } };
 const stampFile = path.join(ext, "out", STAMP_NAME);
 const refusesBuild = (re) => assert.throws(() => checkBuild(buildDeps), (err) => err instanceof Refusal && re.test(err.message), `no refusal matching ${re}`);
@@ -531,21 +491,17 @@ const stampSources = () => Object.keys(JSON.parse(fs.readFileSync(stampFile, "ut
 const ARTIFACTS = ["out/extension.js", "out/workers/sparkdown-language-server.js", "out/data/cheatsheet.css"];
 
 await check("checkBuild judges the source set before the artifacts: a source deleted after a rebuild is refused with the stamp untouched, and the rebuild the refusal names clears it", () => {
-  // The stamp from before a rebuild: every artifact differs from it.
   const stamp = JSON.parse(fs.readFileSync(stampFile, "utf8"));
   for (const k of Object.keys(stamp.artifacts)) stamp.artifacts[k].mtimeMs -= 1;
   fs.writeFileSync(stampFile, JSON.stringify(stamp));
   const a = path.join(packages, "sparkdown", "src", "a.ts");
-  fs.rmSync(a); // the directory's time is now, after every artifact
+  fs.rmSync(a);
   refusesBuild(new RegExp(`^packages/sparkdown/src/a.ts was removed after the build was stamped, so the served workbench would run a build made from other sources; rebuild: cd vscode-sparkdown && ${LS_BUILD} && ${SELF}$`));
   assert.ok(stampSources().includes("packages/sparkdown/src/a.ts"), "the stamp was rewritten over the gap");
-  // The rebuild: every artifact written after the directory changed.
   const later = Date.now() + 60_000;
   for (const f of ARTIFACTS) at(path.join(ext, f), later, "rebuilt after the deletion");
   assert.equal(checkBuild(buildDeps).artifacts, 3, "a build made after the deletion");
   assert.ok(!stampSources().includes("packages/sparkdown/src/a.ts"), "the new stamp still names the deleted file");
-  // The file comes back with an old time; the directory changed after the
-  // artifacts were written, which is what the system records.
   at(a, T0 - 5000);
   fs.utimesSync(path.dirname(a), new Date(later + 5000), new Date(later + 5000));
   refusesBuild(new RegExp(`^packages/sparkdown/src/a.ts was added after the build was stamped, .*; rebuild: cd vscode-sparkdown && ${LS_BUILD} && ${SELF}$`));
@@ -562,17 +518,12 @@ await check("a stamp from a driver that watched fewer sources is brought up to d
   fs.utimesSync(path.join(packages, "sparkdown", "language"), new Date(T0 - 9000), new Date(T0 - 9000));
   assert.equal(checkBuild(buildDeps).artifacts, 3);
   assert.ok(stampSources().includes("packages/sparkdown/language/sparkdown.language-grammar.json"), "the stamp still lacks the source");
-  // The same stamp, with the directory changed after the build: a source
-  // it cannot vouch for.
   fs.writeFileSync(stampFile, JSON.stringify(stamp));
   fs.utimesSync(path.join(packages, "sparkdown", "language"), new Date(Date.now() + 120_000), new Date(Date.now() + 120_000));
   refusesBuild(/^packages\/sparkdown\/language\/sparkdown.language-grammar.json was added after the build was stamped/);
 });
 
 await check("a source set change that no directory can date is refused, not vouched for", () => {
-  // Every source directory's stat fails, up to the repository root, so no
-  // source is listed (every stamped one reads as removed) and no directory
-  // dates the change.
   const io = {
     ...fs,
     statSync: (p) => {
@@ -662,8 +613,6 @@ await check("the port is a fixed number for a path, differs between paths, and i
   }
 });
 
-// --- up, in-process against stubs -----------------------------------------
-
 const ENTRY = path.join(FIXTURE_ROOT, "repo", "node_modules", "@vscode", "test-web", "out", "server", "index.js");
 const EXT = path.join(FIXTURE_ROOT, "repo", "vscode-sparkdown");
 const DATA = path.join(FIXTURE_ROOT, "data");
@@ -673,9 +622,6 @@ const upDeps = (over = {}) => {
     calls,
     state: null,
     log: (m) => calls.push(["log", m]),
-    // Recorded as well as thrown, because in a real run `die` exits the
-    // process: what has to be true is that the lock was given back before
-    // the call, not that a `finally` an exit never reaches would have.
     die: (m) => {
       calls.push(["die", m]);
       throw new Refusal(m);
@@ -777,8 +723,6 @@ await check("a stale build, or a missing server entry, ends up before anything i
     },
   });
   await refuses(up(["--sd", "repro.sd"], stale), /is older than packages\/sparkdown\/src\/a\.ts/);
-  // checkBuild refuses by throwing rather than through `die`, so no `die`
-  // entry stands here; the missing-entry refusal below goes through `die`.
   assert.deepEqual(names(stale), ["removeState"], "something was written or spawned after the build refused");
   const noEntry = upDeps({ exists: () => false });
   await refuses(up(["--sd", "repro.sd"], noEntry), /index\.js is missing; run PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install/);
@@ -815,10 +759,6 @@ await check("up --fresh is refused while another worktree's standing record serv
   assert.equal(argOf(spawned(insiders)[0].args, "--quality"), "insiders", "a record on the other quality's directory does not block");
 });
 
-// The download lock. The data directory is shared by every worktree, and a
-// download deletes the quality's builds directory before it unpacks, so two
-// first launches at once leave the loser serving a directory the winner
-// emptied. The lock keeps those downloads from running together.
 await check("the download lock sits beside the builds a download deletes, and only one launch holds it", async () => {
   const layout = dataLayout(DATA);
   const lock = downloadLockPath(layout, "stable");
@@ -826,8 +766,6 @@ await check("the download lock sits beside the builds a download deletes, and on
   assert.ok(!lock.startsWith(layout.builds + path.sep), "a lock inside builds would be deleted by the download it guards");
   assert.notEqual(downloadLockPath(layout, "insiders"), lock, "each quality has its own build directory and its own lock");
 
-  // A filesystem in memory, where writeNew refuses to overwrite exactly as
-  // the exclusive flag does.
   const files = new Map();
   const io = {
     mkdirp: () => {},
@@ -854,7 +792,6 @@ await check("the download lock sits beside the builds a download deletes, and on
   assert.deepEqual(second.other, mine, "the refusal knows whose launch to wait for");
   assert.deepEqual(io.readLock(lock), mine, "the standing lock is not overwritten");
 
-  // A launch that died holding the lock must not wedge the machine.
   files.set(lock, JSON.stringify({ ...mine, pid: 404 }));
   const afterCrash = await takeDownloadLock(lock, mine, io, stands);
   assert.deepEqual(afterCrash, { held: true }, "a lock whose launch has exited is dropped and retaken");
@@ -889,8 +826,6 @@ await check("the workbench noise list names the resources it absorbs, so a 404 t
     [
       missing("http://localhost:1/static/devextensions/package.nls.json"),
       missing("http://localhost:1/static/devextensions/out/data/spark.d.ts"),
-      // A resource the change under test moved or misnamed: it belongs in
-      // the list a session reads, not in a count it has to know by heart.
       missing("http://localhost:1/static/extensions/sparkdown/out/data/cheatsheet.css"),
       String.raw`[error] %c  ERR color: #f33 [File Watcher ('FileSystemObserver')] Error: Unavailable (FileSystemError): Error: No file system handle registered (\) (file:///) (http://localhost:1/static/build/out/vs/workbench/workbench.web.main.internal.js)`,
       "[pageerror] Not Found",
@@ -923,13 +858,10 @@ await check("known workbench noise cannot hide other statuses, paths or failure 
 
 await check("up takes the download lock only when it will download, releases it once the server answers, and is refused while another worktree holds it", async () => {
   const lock = downloadLockPath(dataLayout(path.resolve(DATA)), "stable");
-  // A launch with a commit to pin serves what is unpacked and downloads
-  // nothing, so it neither takes nor waits on the lock.
   const pinned = upDeps();
   await up(["--sd", "repro.sd"], pinned);
   assert.ok(!names(pinned).includes("takeDownloadLock"), "a pinned launch does not download, so it does not queue behind one");
 
-  // A first launch of a quality has nothing unpacked and does download.
   const firstEver = upDeps({ unpackedCommit: () => null });
   await up(["--sd", "repro.sd"], firstEver);
   const order = names(firstEver);
@@ -946,9 +878,6 @@ await check("up takes the download lock only when it will download, releases it 
   await refuses(up(["--sd", "repro.sd"], busy), /^(?:[A-Za-z]:)?[\\/]w2 \(pid 7\) is downloading the VS Code build into .*builds.stable; two downloads at once delete each other's build, since the server empties that directory before it unpacks\. Wait for that `up` to print READY, then run this again$/);
   assert.ok(!names(busy).includes("spawn"), "nothing is launched into a directory that is being replaced");
 
-  // A lock that stood for both attempts but whose record could not be read
-  // back names nobody, so the refusal says the state could not be read
-  // instead of telling the session to wait for a launch it cannot name.
   const unreadable = upDeps({
     unpackedCommit: () => null,
     takeDownloadLock: async () => ({ held: false, other: null }),
@@ -956,9 +885,6 @@ await check("up takes the download lock only when it will download, releases it 
   await refuses(up(["--sd", "repro.sd"], unreadable), /^the download lock .*download-stable\.lock was taken both times this launch tried for it and its record could not be read back, so who is downloading the VS Code build into .*builds.stable cannot be said; .*Run this again: a lock that was only changing hands is free by then, and one that is still there names its holder$/);
   assert.ok(!names(unreadable).includes("spawn"), "nothing is launched into a directory that may be being replaced");
 
-  // A launch that dies waiting still gives the lock back, or the next one
-  // waits on a download that is not happening. `die` exits the process in a
-  // real run, so the release has to have happened before it is called.
   const died = upDeps({ unpackedCommit: () => null, waitReady: async () => false });
   await refuses(up(["--sd", "repro.sd"], died), /exited before .* answered; read .*, then `down` and `up` again$/);
   const diedOrder = names(died);
@@ -966,8 +892,6 @@ await check("up takes the download lock only when it will download, releases it 
   assert.ok(diedOrder.indexOf("releaseDownloadLock") < diedOrder.indexOf("die"), "the lock is released before the refusal, which in a real run exits the process without running a finally");
   assert.equal(diedOrder.filter((n) => n === "releaseDownloadLock").length, 1, "the lock is released once, so a release cannot remove a lock another launch has since taken");
 
-  // A throw on the way to the server (a project file that cannot be written)
-  // is the path the `finally` is for.
   const threw = upDeps({
     unpackedCommit: () => null,
     writeProjectSd: () => {
@@ -1007,8 +931,6 @@ await check("while its server is up on a build that has since lost its workbench
   const deps = upDeps({ state: serving(), ...emptied });
   await refuses(up(["--sd", "other.sd"], deps), /^up: the build .*vscode-web-stable-c{40} has a version file but is missing .*workbench\.web\.main\.internal\.js .*; `down`, then run `up --fresh` to download it again$/);
   assert.ok(!names(deps).includes("writeProjectSd"), "the served file was rewritten for a workbench that cannot load");
-  // A record from a launch that downloaded carries no commit; the build it
-  // unpacked is found the way a launch finds it.
   const downloaded = upDeps({ state: serving({ commit: null }), ...emptied });
   await refuses(up(["--sd", "other.sd"], downloaded), /has a version file but is missing/);
   const shared = upDeps({ state: serving(), ...emptied, otherWorktreeRecords: () => [{ worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds: path.join(DATA, "builds", "stable"), url: "http://localhost:7" }] });
@@ -1030,18 +952,10 @@ await check("a record whose pid is not the server it started is removed and a la
   await refuses(up(["--sd", "repro.sd"], unreadable), /state file unreadable/);
 });
 
-// --- the page functions, against a scripted document ----------------------
-
 const CHAR_W = 8;
 const LINE_H = 20;
 const EXT_ID = "impowergames.sparkdown";
-// Monaco splits a rendered line into text nodes at every change of token
-// (line 5 of the repro is eight nodes), so the runs of non-breaking spaces,
-// of identifier characters and of anything else are that split here.
 const monacoNodes = (text) => (text.match(/ +|[A-Za-z0-9_]+|[^ A-Za-z0-9_]+/g) ?? []).map((t) => ({ nodeType: 3, nodeValue: t }));
-// The served folder's explorer rows in DOM order, each with its depth: a
-// subfolder holding a file of the same name, a file whose name extends the
-// one asked for, and the file itself at the top level.
 const DEFAULT_EXPLORER = [
   { name: "assets", level: 1 },
   { name: "main.sd", level: 2 },
@@ -1049,20 +963,8 @@ const DEFAULT_EXPLORER = [
   { name: "main.sd", level: 1 },
   { name: "other.sd", level: 1 },
 ];
-// Runs a page function as `page.evaluate` does: rebuilt from its source, so
-// it has no module scope to reach into, with the argument and the document.
 const inPage = (fn, arg, doc) => new Function(`return ${fn.toString()}`)()(arg, doc);
 
-// A document with the parts of the workbench the page functions read, each
-// under the exact selector the driver uses and nothing else: the rendered
-// lines, kept in the DOM in another order than they are shown (Monaco
-// reuses line nodes) with `style.top` saying where each is, their gutter
-// numbers in yet another order, the status bar items, the extension's own
-// item, the breadcrumbs, the caret and the hover. `problems` and `crumbs`
-// are functions called on every read, so a check scripts the series; the
-// hover appears once Ctrl+K Ctrl+I was pressed, on the `hoverAfterReads`th
-// read after it, as a real one takes time to open. `tabTitle` names the
-// editor that opens when it is not the row clicked.
 function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, splitSuffix = false, suffixLate = false, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
   const lineEls = lines.map((text, i) => ({ style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: monacoNodes(text) }], rect: { x: 100, y: 50 + i * LINE_H } }));
   const domOrder = [...lineEls].reverse();
@@ -1121,8 +1023,6 @@ function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles =
           throw new Error(`the scripted document has no ${sel}`);
       }
     },
-    // A range over text nodes, as the DOM's: an offset is into the node it
-    // is set on, and one past the node's length is an error.
     createRange() {
       let a;
       let b;
@@ -1186,8 +1086,6 @@ await check("--line restricts the search to lines containing the text, matched a
 await check("the page rebuilds locateWord from its source the way wordOnPage does, and the rebuilt function answers as the module's does", () => {
   const sources = pageSources();
   assert.deepEqual(Object.keys(sources).sort(), ["locateSrc", "normSrc", "rebuildSrc"]);
-  // The same expression wordOnPage evaluates in the page: the rebuild helper
-  // itself comes in by source, then rebuilds the two functions.
   const { locateWord: inPage, normalizeMonacoText: normInPage } = new Function(`return ${sources.rebuildSrc}`)()(sources);
   assert.notEqual(inPage, locateWord);
   assert.equal(normInPage("a\u00a0b"), "a b");
@@ -1213,8 +1111,6 @@ await check("wordOnPage places the word through the rebuilt locateWord, across t
   assert.deepEqual(inPage(wordOnPage, { word: "backdrop", sources: pageSources() }, doc).left, 100 + 9 * CHAR_W, "a word that is a whole node of its own, after other nodes");
   assert.deepEqual(inPage(wordOnPage, { word: "show backdrop", sources: pageSources() }, doc).right, 100 + 17 * CHAR_W, "a range that ends in a later node than it starts in");
   assert.equal(inPage(wordOnPage, { word: "missing", sources: pageSources() }, doc), null, "a word inside an identifier is not found in the page either");
-  // The location the page reports is the rebuilt function's answer, not a
-  // fixed one: a locateWord that names another range moves the hit.
   const elsewhere = { ...pageSources(), locateSrc: "() => ({ index: 0, start: 3, end: 8 })" };
   assert.deepEqual(inPage(wordOnPage, { word: "missing_backdrop", sources: elsewhere }, doc), { line: 1, col: 4, left: 100 + 3 * CHAR_W, right: 100 + 8 * CHAR_W, charWidth: CHAR_W, x: 100 + 3 * CHAR_W + CHAR_W * 0.4, y: 50 + LINE_H / 2 });
   assert.equal(inPage(wordOnPage, { word: "missing_backdrop", sources: pageSources() }, fakeDocument({ lines: rendered, numbers: ["1", "2", "3", "4", "•"] })).line, null, "a gutter row without a number places the word on no line");
@@ -1292,8 +1188,6 @@ await check("a hover image counts as loaded only with a src, complete, and a nat
   assert.match(hoverImageFailure({ hasSrc: true, complete: false, naturalWidth: 0, naturalHeight: 0 }), /not finished loading/);
   assert.match(hoverImageFailure({ hasSrc: false, complete: true, naturalWidth: 0, naturalHeight: 0 }), /no src/);
 });
-
-// --- the settle rule ---------------------------------------------------------
 
 const reading = (problems) => ({ problems, squiggles: { error: 0, warning: 0, info: 0 } });
 const same = (n, problems = "0 0") => Array(n).fill(reading(problems));
@@ -1384,8 +1278,6 @@ await check("an unsettled run reports the last reading and a failure naming the 
   assert.equal(DEFAULT_SETTLE_S, 60);
 });
 
-// --- flags --------------------------------------------------------------------
-
 const spec = { "--sd": "value", "--settle": "number", "--headed": "flag" };
 
 await check("flags parse into values, numbers and booleans", () => {
@@ -1418,15 +1310,6 @@ await check("a number flag takes digits with an optional fraction and refuses ev
   }
 });
 
-// --- verify, in-process against the scripted document -----------------------
-
-// A page over the scripted document: `evaluate` runs the page function as
-// the real one does, rebuilt from its source with the document as its
-// second argument, records which function ran with what, and charges the
-// clock `readCost` for it; the locators answer the exact selectors the
-// driver uses (an explorer row locator filtered on a label, with
-// Playwright's `hasText` rule: a string is a substring, a regular expression
-// is tested), and the mouse and keyboard record what verify asked for.
 function fakePage(doc, acts, readCost = () => {}) {
   const s = doc.state;
   const matches = (row, has) => {
@@ -1456,8 +1339,6 @@ function fakePage(doc, acts, readCost = () => {}) {
   const locator = (sel, opts) => {
     if (sel.startsWith(".explorer-folders-view .monaco-list-row")) return rowLocator(sel, null);
     if (sel === ".label-name") return { sel, hasText: opts?.hasText };
-    // With `splitSuffix` the tab renders the extension in a sibling
-    // `.label-suffix`, as stable build 04c0d99f4f does.
     const active = () => s.tabs.find((t) => t.active)?.title ?? null;
     const dot = (t) => (s.splitSuffix && t != null && t.lastIndexOf(".") > 0 ? t.lastIndexOf(".") : -1);
     if (sel === ".tabs-container .tab.active .label-name") {
@@ -1466,7 +1347,6 @@ function fakePage(doc, acts, readCost = () => {}) {
     }
     if (sel === ".tabs-container .tab.active .label-suffix") {
       const t = active();
-      // With `suffixLate` the suffix renders only once something waits for it.
       const shown = () => (dot(t) < 0 || (s.suffixLate && !s.suffixWaited) ? [] : [t.slice(dot(t))]);
       const suffixLocator = {
         first: () => suffixLocator,
@@ -1501,7 +1381,6 @@ function fakePage(doc, acts, readCost = () => {}) {
   };
 }
 
-// The series a scripted counter plays, one value per read, holding the last.
 const script = (values) => {
   let i = 0;
   return () => values[Math.min(i++, values.length - 1)];
@@ -1509,7 +1388,6 @@ const script = (values) => {
 
 const RECORD = { url: "http://localhost:34123", pid: 1, builds: path.join(DATA, "builds", "stable"), project: path.join(DATA, "projects", "34123") };
 const BUILD = { artifacts: 3, oldest: "vscode-sparkdown/out/extension.js", builtAt: "2026-09-08T00:00:00.000Z" };
-// `readCostMs` is what each page evaluation costs on the stub clock.
 const verifyDeps = (doc, over = {}, readCostMs = 0) => {
   let t = 0;
   const acts = [];
@@ -1578,8 +1456,6 @@ await check("verify opens the file, waits for the counter to change and hold, cl
   assert.equal(report.screenshot, path.resolve("after.png"));
   assert.equal(report.hoverScreenshot, path.resolve("hover.png"));
   assert.equal(report.probe, 2);
-  // `[pageerror] Not Found` is one of the lines every run produces, so it is
-  // counted rather than listed; what is left in consoleErrors is worth reading.
   assert.deepEqual(report.consoleErrors, []);
   assert.equal(report.consoleNoise["Not Found page error"], 1);
   assert.equal(report.consoleNoise["package.nls.json 404"], 0);
@@ -1777,8 +1653,6 @@ await check("whatever throws inside the page lands in failed with the report pri
   assert.deepEqual(deps.acts[1], ["workbench", RECORD.url, false]);
   assert.equal(JSON.parse(deps.logs.at(-1)).failed[0], "verify threw: the page went away");
 });
-
-// --- status, and the pieces liveDeps wires in ------------------------------
 
 await check("status prints the one line clean-worktrees reads, which its parser turns into up, launching, down or unknown, and exits 0 only when the URL answers", async () => {
   const lines = [];

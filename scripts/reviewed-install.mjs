@@ -2,11 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The reviewed worktree's install is gitignored, so `git status` cannot see a
-// reviewer that relinks, junctions through or deletes it. This fingerprint is
-// the cheap part that such damage always changes: the top-level entries, the
-// `.bin` shims, and where each `@impower/*` workspace link resolves (null when
-// the link dangles).
 const list = (directory) => {
   try { return fs.readdirSync(directory).sort(); }
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
@@ -24,7 +19,6 @@ export function installFingerprint(root) {
   return { entries, bin: list(path.join(modules, ".bin")), links };
 }
 
-// Names each difference so the coordinator restores exactly those paths.
 export function installChanges(before, after) {
   if (!before && !after) return [];
   if (!before) return ["node_modules created"];
@@ -48,8 +42,6 @@ export function installChanges(before, after) {
   return changes;
 }
 
-// For reviewers the launcher does not start: `snapshot <worktree> <file>` before
-// launch, `compare <worktree> <file>` after exit; compare exits 1 naming changes.
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [command, worktree, file] = process.argv.slice(2);
   if (command === "snapshot" && worktree && file) fs.writeFileSync(file, JSON.stringify(installFingerprint(worktree)));

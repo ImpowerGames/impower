@@ -1,5 +1,4 @@
 // agent-tooling-timeout-ms: 900000
-// Real Windows/Bash controls and complete adapters exceeded 300s locally.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,9 +10,6 @@ import { decide } from "../.agents/hooks/policy.mjs";
 import { relevantFiles } from "../.github/scripts/changed-paths.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// The machine's temp directory: the outside-target cases need a directory
-// outside every checkout, and a run under check-agent-tooling redirects
-// os.tmpdir() into this one.
 const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "filer-1766-"));
 console.log(`Scratch repository: ${scratch}`);
 const main = path.join(scratch, "repo");
@@ -60,8 +56,6 @@ preserved();
 assert.ok(reason, "supported direct worktree removal must be refused before deletion");
 console.log("PASS: direct cleanup refusal preserves external tracked, untracked and ignored sentinels");
 
-// Only explicit Git outside-repository status may select the known-source
-// fallback. Inject discovery failures while preserving both complete adapters.
 const discoveryPreload = path.join(scratch, "discovery-preload.mjs");
 fs.writeFileSync(discoveryPreload, `import cp from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
@@ -185,12 +179,6 @@ for (const command of [`bash -c 'r''m -f ${bashTarget}'`, `'bash' -c "rm -f '${b
   }
 }
 const slashRepro = reproduction.replaceAll(path.sep, "/");
-// A control that asks `git worktree <subcommand> -h` has to reach Git and
-// print its usage. Git answered it with its usage status, 129, through 2.55;
-// Git 2.56.0 on the Windows runner image answers 0. Expect what the Git the
-// controls run answers, asked through the same shell, and only once that
-// answer is Git's usage: a shell that cannot run Git (127, say) must fail
-// here rather than become the status the controls are held to.
 const controlShell = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
 const gitUsage = (subcommand) => new RegExp(`^usage: git worktree ${subcommand}\\b`, "m");
 const gitHelpStatus = (subcommand) => {
@@ -231,7 +219,6 @@ for (const [control, mutation, expectedStatus = 0] of wrapperAndSelectorCases) {
   const executable = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const actual = spawnSync(executable, ["-c", `pwd; ${control}`], { cwd: main, encoding: "utf8", windowsHide: true });
   assert.equal(actual.status, expectedStatus, actual.stderr); preserved();
-  // The help controls spell the subcommand in quotes ('re''move', $'remove').
   const help = control.replace(/[$']/g, "").match(/^git worktree (remove|add) -h$/);
   if (help) assert.match(actual.stdout + actual.stderr, gitUsage(help[1]), `${control} did not reach Git's usage`);
   assert.ok(cleanup(mutation, "bash", main), "supported wrapper or selector literal cannot hide a mutation");
@@ -255,8 +242,6 @@ for (const target of [alias, `${alias}/node_modules/tracked.txt`]) {
   assert.ok(cleanup(`Remove-Item -LiteralPath '${target}' -Recurse -Force`, "powershell", main), "filesystem alias traversal must refuse"); preserved();
 }
 fs.unlinkSync(alias);
-// A direct alias to the borrowed junction must retain its intermediate
-// checkout even when the final external repository is not registered here.
 const chainExternal = path.join(scratch, "independent-chain-external");
 fs.mkdirSync(chainExternal);
 git(["init", "-b", "main"], chainExternal);
@@ -282,8 +267,6 @@ verifyAdapters(parentLocation, "Bash", main, true); chainPreserved();
 if (process.platform !== "win32") {
   const actual = spawnSync("bash", ["-c", `pwd; test '${parentTarget}' -ef '${chainExternal}/tracked.txt'`], { cwd: main, encoding: "utf8", windowsHide: true });
   assert.equal(actual.status, 0, actual.stderr); chainPreserved();
-  // Preserve the raw link destination too: its parent component follows the
-  // borrowed link before reaching an otherwise unregistered external root.
   fs.symlinkSync(`${borrowedLink}/..`, directAlias, "dir");
   const rawDestination = `rm -f '${directAlias}/tracked.txt'`;
   assert.ok(cleanup(rawDestination, "bash", main), "raw link destination retains parent traversal");
@@ -294,8 +277,6 @@ fs.unlinkSync(borrowedLink);
 fs.symlinkSync(chainExternal, borrowedLink, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(`${borrowedLink}//`, directAlias, process.platform === "win32" ? "junction" : "dir");
 fs.symlinkSync(directAlias, secondAlias, process.platform === "win32" ? "junction" : "dir");
-// Native lstat on POSIX follows slash-terminated directory links. Retain the
-// link at both the operand and every lexical ancestor (link//child included).
 const separatorRuns = ["/", "//", "////", ...(process.platform === "win32" ? ["\\", "\\\\", "/\\/"] : [])];
 for (const separators of separatorRuns) {
   for (const target of [`${borrowedLink}${separators}`, `${borrowedLink}${separators}tracked.txt`, `${secondAlias}${separators}`]) {
@@ -342,8 +323,6 @@ fs.symlinkSync(chainExternal, unrelatedAlias, process.platform === "win32" ? "ju
 const unrelatedCommand = `Remove-Item -LiteralPath '${unrelatedAlias}/tracked.txt' -Force`;
 assert.equal(cleanup(unrelatedCommand, "powershell", main), null);
 verifyAdapters(unrelatedCommand, "PowerShell", main, false); chainPreserved();
-// Pre-command inspection cannot see a fresh alias created earlier in the
-// compound. Refuse its registered target before any command is executed.
 const freshLink = path.join(scratch, "fresh-checkout-alias").replaceAll(path.sep, "/");
 const setupTree = reproduction.replaceAll(path.sep, "/"), setupExternal = chainExternal.replaceAll(path.sep, "/");
 for (const alias of [freshLink, directAlias.replaceAll(path.sep, "/")]) {
@@ -395,9 +374,6 @@ for (const [shell, command] of [
 }
 assert.equal(fs.existsSync(freshLink), false, "compound setup/cleanup controls must remain non-destructive decision queries");
 console.log("PASS: direct link setup refuses future/existing checkout aliases through both adapters; literal selector/operand, valid cmd quoting, uncertainty and ordinary setup controls");
-// GNU symbolic-link contents are relative to the destination parent, whereas
-// Windows Junction targets are anchored to the command cwd. Query cleanup;
-// execute only native link creation/read controls, never these compounds.
 const operandDirectory = path.join(scratch, "operand-links"); fs.mkdirSync(operandDirectory);
 const operandDestination = path.join(operandDirectory, "fresh").replaceAll(path.sep, "/");
 const relativeTree = path.relative(operandDirectory, reproduction).replaceAll(path.sep, "/");
@@ -488,7 +464,6 @@ if (process.platform !== "win32") {
       assert.equal(Boolean(cleanup(command, "bash", main)), denied, command);
       verifyAdapters(command, "Bash", main, denied); chainPreserved();
     }
-    // Only native link creation/read is executed. Neither cleanup command runs.
     for (const command of [`ln -sn '${source}' '${gateway}'`, `ln -snT '${source}' '${gateway}${suffix}'`]) {
       const failed = spawnSync("bash", ["-c", command], { cwd: main, encoding: "utf8", windowsHide: true });
       assert.notEqual(failed.status, 0, "Existing no-slash/-T destination must not become a directory link setup");
@@ -628,8 +603,6 @@ for (const dash of ["\u2013", "\u2014", "\u2015"]) {
   }
 }
 console.log("PASS: PowerShell native dash parameter prefixes and quoted literal controls through both adapters");
-// A verified location must retain its lexical link origin for dependent
-// relative mutations, including nested shells and another relative cd.
 fs.mkdirSync(path.join(main, "sub"));
 const locationLink = borrowedLink.replaceAll(path.sep, "/"), locationAlias = secondAlias.replaceAll(path.sep, "/");
 const locationExternal = chainExternal.replaceAll(path.sep, "/"), locationUnrelated = unrelatedAlias.replaceAll(path.sep, "/");
@@ -881,7 +854,6 @@ assert.ok(cleanup(`cd '${reproduction}' && rm -rf node_modules`, "bash", main));
 assert.ok(cleanup(`Set-Location '${reproduction}'; Remove-Item -Recurse node_modules`, "powershell", main)); preserved();
 assert.ok(cleanup("Set-Location '/missing-filer-1766'; Remove-Item -Recurse node_modules", "powershell", main));
 await assert.rejects(checkLinks(reproduction), /outside|External/); preserved();
-// Unlink the scratch link itself, never recursive deletion.
 fs.unlinkSync(path.join(reproduction, "node_modules"));
 const inside = path.join(reproduction, "inside"), scanParent = path.join(reproduction, "scan-parent");
 fs.mkdirSync(inside); fs.mkdirSync(scanParent);
@@ -892,8 +864,6 @@ fs.unlinkSync(path.join(scanParent, "internal")); fs.unlinkSync(path.join(inside
 fs.mkdirSync(path.join(main, "packages", "a"), { recursive: true });
 fs.writeFileSync(path.join(main, "package.json"), JSON.stringify({ name: "scratch-root", private: true, workspaces: ["packages/a"] }));
 fs.writeFileSync(path.join(main, "packages", "a", "package.json"), JSON.stringify({ name: "scratch-workspace", version: "1.0.0" }));
-// Commit only the install inputs. Scratch preservation aliases must not be
-// inherited by the fresh owned reproduction (POSIX Git tracks symlinks).
 git(["add", "package.json", "packages/a/package.json"]); git(["commit", "-m", "local workspace fixture"]);
 git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
 const owner = "test-session-1766";
@@ -902,7 +872,6 @@ const ownedRecord = JSON.parse(fs.readFileSync(owned.record));
 assert.equal(ownedRecord.version, 2);
 assert.equal(path.basename(owned.tree), `filer-${ownedRecord.id.replaceAll("-", "")}`);
 assert.equal(owned.branch, `repro/filer-${ownedRecord.id}`, "branch identity retains the UUID");
-// Construct the original schema directly; never migrate a real owner record.
 const legacyId = randomUUID(), legacyOwner = "legacy-owner", legacyBranch = `repro/filer-${legacyId}`;
 const legacyRoot = ownedRecord.root;
 assert.equal(legacyRoot, fs.realpathSync.native(main), "Legacy records use the helper's canonical root even from a short-path caller");
@@ -1056,7 +1025,6 @@ try {
       fs.writeFileSync(config, source === "user" ? `prefix=${fresh.tree}\n` : ""); fs.writeFileSync(globalConfig, "");
       if (source === "project") fs.writeFileSync(path.join(fresh.tree, ".npmrc"), `prefix=${fresh.tree}\n`);
       Object.assign(process.env, { npm_config_userconfig: config, npm_config_globalconfig: globalConfig, npm_config_cache: path.join(fresh.artifacts, "npm-cache") });
-      // Compact destination values must still refuse local/globalTop equality.
       await assert.rejects(install(fresh.record, freshOwner), /global prefix (?:collides|cannot be verified)/);
       assert.equal(JSON.parse(fs.readFileSync(fresh.record)).installed, false);
       assert.ok(!fs.existsSync(path.join(fresh.tree, "node_modules")));
@@ -1107,7 +1075,6 @@ fs.symlinkSync(external, path.join(owned.tree, "node_modules", "borrowed"), proc
 await assert.rejects(install(owned.record, owner), /outside|External/);
 await assert.rejects(remove(owned.record, owner), /outside|External/); preserved();
 fs.unlinkSync(path.join(owned.tree, "node_modules", "borrowed"));
-await assert.rejects(remove(owned.record, owner), /uncommitted/); preserved();
 fs.unlinkSync(path.join(owned.tree, "package-lock.json"));
 git(["worktree", "lock", owned.tree]);
 await assert.rejects(remove(owned.record, owner), /ownership/); preserved();
@@ -1122,8 +1089,6 @@ for (const [file, args] of [[".agents/hooks/pre-tool-use.mjs", ["codex"]], [".cl
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
 }
-// The unchanged guard runs in the same anchored Git environment. Otherwise
-// inherited overrides can redirect its discovery and dirty/ownership checks.
 const savedGitEnvironment = Object.entries(process.env).filter(([key]) => /^GIT_/i.test(key));
 try {
   process.env.GIT_DIR = path.join(chainExternal, ".git");
@@ -1138,6 +1103,28 @@ assert.ok(!fs.existsSync(owned.tree));
 assert.ok(fs.existsSync(owned.artifacts));
 assert.equal(JSON.parse(fs.readFileSync(owned.record)).state, "removed");
 await assert.rejects(remove(owned.record, owner), /inactive/); preserved();
+{
+  const leftoverOwner = "leftover-session", left = await create({ root: main, owner: leftoverOwner, toolingOnly: true });
+  fs.writeFileSync(path.join(left.tree, "probe.mts"), "console.log('probe');\n");
+  fs.mkdirSync(path.join(left.tree, "repro", "nested"), { recursive: true });
+  fs.writeFileSync(path.join(left.tree, "repro", "nested", "case.sd"), "nested repro\n");
+  fs.appendFileSync(path.join(left.tree, "tracked.txt"), "filer edit\n");
+  fs.writeFileSync(path.join(left.tree, "ignored.txt"), "ignored scratch\n");
+  const report = await remove(left.record, leftoverOwner); preserved();
+  assert.ok(!fs.existsSync(left.tree), "the tree with leftovers stayed");
+  const saved = JSON.parse(fs.readFileSync(left.record));
+  assert.equal(saved.state, "removed");
+  assert.equal(saved.leftovers.length, 1);
+  assert.deepEqual(saved.leftovers[0].files.sort(), ["?? probe.mts", "?? repro/nested/case.sd", " M tracked.txt"].sort());
+  assert.ok(saved.leftovers[0].patch.startsWith(path.join(left.artifacts, "leftovers")), saved.leftovers[0].patch);
+  assert.match(report, /leftover changes saved to /);
+  const patch = fs.readFileSync(saved.leftovers[0].patch, "utf8");
+  for (const name of ["probe.mts", "repro/nested/case.sd", "tracked.txt"]) assert.ok(patch.includes(`b/${name}`), `${name} is missing from the leftover patch`);
+  assert.ok(patch.includes("filer edit"));
+  assert.ok(!patch.includes("ignored scratch"), "an ignored file was captured");
+  assert.notEqual(spawnSync("git", ["rev-parse", "--verify", "-q", `refs/heads/${saved.branch}`], { cwd: main, windowsHide: true }).status, 0, "the owned branch stayed");
+}
+console.log("PASS: leftover changes are saved to the artifacts directory before removal");
 const overrideMain = path.join(scratch, "override-main"); fs.mkdirSync(overrideMain);
 for (const args of [["init", "-b", "main"], ["config", "user.name", "Fixture"], ["config", "user.email", "fixture@example.invalid"]]) git(args, overrideMain);
 fs.writeFileSync(path.join(overrideMain, "tracked.txt"), "main marker control\n");

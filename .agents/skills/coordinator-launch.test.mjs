@@ -1,9 +1,3 @@
-// The Windows recipe for starting the review coordinator recommends
-// scripts/start-coordinator.mjs. Neither file may give Start-Process as a
-// command, and in every sentence about Windows that names a way to start the
-// coordinator, the first such command is start-coordinator.mjs, so a recipe
-// that recommends a direct `node scripts/agent-handoff.mjs <plan>` start fails
-// however the sentence around it is worded.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +8,6 @@ const FILES = [".agents/skills/references/runner-review.md", ".agents/skills/rev
 const START = "`node scripts/start-coordinator.mjs <absolute-plan.json> <absolute-job-dir>`";
 const DIRECT = "`node scripts/agent-handoff.mjs <absolute-plan.json>`";
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-// Sentences, split at a full stop followed by whitespace outside code spans.
 const sentences = (text) => text.replace(/`[^`\n]*`/g, (code) => code.replace(/\. /g, ".\u0000")).split(/(?<=\.)\s+/).map((s) => s.replace(/\u0000/g, " "));
 const codeSpans = (text) => text.match(/`[^`\n]*`/g) ?? [];
 

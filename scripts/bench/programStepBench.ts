@@ -1,15 +1,3 @@
-// The program engine (#694) on the beats scene.
-//
-// Run through engine-bench.mjs, one candidate per process, with the
-// configuration as one JSON argument: { project, candidate, samples, warmup,
-// json }. A candidate is how ProgramStory, running the scene's statement
-// chunks, is driven: `program-step`, one call per step as the route planner
-// drives a story, or `program-line`, one call per line as a game does. Every
-// candidate runs scene MAIN from its top to its end, timed from the first
-// step, and reports a digest of every line's text, tags and display tables;
-// engine-bench.mjs fails the run unless the digests are equal, and unless the
-// steps are the instructions of the scene's chunks and the one step that finds
-// the scene ended, so that every display beat ran once.
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -33,7 +21,6 @@ if (!config?.project) throw new Error("run through scripts/bench/engine-bench.mj
 const SCENE = "MAIN";
 const NOOP = () => {};
 
-// A line as plain data, the same from either drive.
 type Line = [text: string, tags: string[], display: [string, unknown][][]];
 
 interface Run {
@@ -41,7 +28,6 @@ interface Run {
   lines: Line[];
 }
 
-// The members of ProgramStory a run reads.
 interface Engine {
   canContinue: boolean;
   asyncContinueComplete: boolean;
@@ -66,8 +52,6 @@ function candidate(story: Engine, perStep: boolean) {
     ),
   ];
   return {
-    // Untimed: ResetState runs the program's global initializers, which is
-    // engine stepping of its own and no part of the scene.
     prepare() {
       story.ResetState();
       story.ChoosePathString(SCENE);
@@ -91,7 +75,6 @@ function candidate(story: Engine, perStep: boolean) {
   };
 }
 
-// The instructions of the scene's statement chunks.
 const instructionsOf = (root: ProgramRoot): number =>
   root
     .flowNamed(SCENE)!
@@ -118,9 +101,6 @@ function main() {
     const t1 = performance.now();
     if (i >= config.warmup) totals.push(t1 - t0);
   }
-  // A continue returns at its line's newline, so the one after the scene's
-  // last line completes with no text and no table. The game makes no beat of
-  // it, and neither does the digest.
   const plain = last.lines.filter(([text, , display]) => text !== "" || display.length > 0);
   const report = {
     candidate: config.candidate,

@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Pins worktree-temp.mjs and the entry points that call it. Each entry
-// point runs as a command with arguments it refuses, under a preloaded probe
-// that writes the process's temp variables when it exits, so the check sees
-// what every child of that entry point inherits without starting a real run.
-// A scratch root shows what the redirection does: os.tmpdir() in a child
-// lands in <root>/.tmp, git finds no repository from a directory made there,
-// the directory ignores itself, and the machine's temp directory stays named
-// for session-dir.mjs. redgreen's test command runs in the same environment.
-// Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -81,8 +72,6 @@ try {
     "console.log(JSON.stringify({ ...JSON.parse(grandchild.stdout), driverHome: driverHome(env) }));",
     "",
   ].join("\n"));
-  // The scratch root sits in a git repository of its own, so a directory made
-  // under its .tmp would resolve to it without the ceiling.
   spawnSync("git", ["init", "-q", root], { windowsHide: true });
 
   check("a child of a redirected process makes its temp directories under <root>/.tmp, which git sees no repository in and status never lists", () => {

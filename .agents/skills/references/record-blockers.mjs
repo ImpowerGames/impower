@@ -1,30 +1,11 @@
-// Records the blockers a ticket's body states as GitHub issue dependencies.
-// Run from the repository root:
-//   node .agents/skills/references/record-blockers.mjs <issue> [<issue> ...] [--dry-run]
-//
-// A stated blocker is every `#N` inside a sentence that starts with
-// "Blocked by" (for example "Split from #720. Blocked by #721 (a `>` anywhere
-// in a line) and #722."). A soft-wrapped sentence is read as one; fenced code
-// and code spans are skipped. For each ticket the script
-// reads its body and its current blocked-by list, posts the stated blockers
-// that are missing (by the blocker's database id, which the endpoint requires
-// in place of the number), and reads the list back. It exits non-zero when the
-// read-back lacks a stated blocker. Entries the body does not state are
-// reported and left alone. The tickets live in the repository ticketsRepo()
-// reads from .agents/repos.json, and the report names it.
-
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ticketsRepo } from "../../repos.mjs";
 
-/** The issue numbers a body states as blockers, in order, without repeats. */
 export function statedBlockers(body) {
   const numbers = [];
   let fence = null;
-  // Blocks of prose: a soft-wrapped sentence reads as one line, as Markdown
-  // renders it. Fenced code and blank lines separate blocks, and a list item,
-  // heading, quote or table row starts one, with its marker dropped.
   const paragraphs = [[]];
   const blockStart = /^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+|>\s*|\|)/;
   for (const line of body.replace(/\r\n/g, "\n").split("\n")) {
@@ -42,15 +23,10 @@ export function statedBlockers(body) {
     else paragraphs.at(-1).push(line.trim());
   }
   for (const lines of paragraphs) {
-    // Code spans are blanked, so neither a reference nor a full stop inside one counts.
     const text = lines.join(" ").replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, (span) => " ".repeat(span.length));
-    // "Blocked by" counts only where a sentence starts: at the start of the
-    // block, or after a full stop, question mark, exclamation mark or colon.
     const pattern = /(?<=^\s*|[.!?:]\s+)Blocked by\b/g;
     let match;
     while ((match = pattern.exec(text))) {
-      // The sentence runs to the first full stop outside parentheses that is
-      // followed by a space, a capital letter or the end of the paragraph.
       let depth = 0;
       let end = text.length;
       for (let i = match.index; i < text.length; i++) {
@@ -72,10 +48,6 @@ export function statedBlockers(body) {
   return numbers;
 }
 
-/**
- * Brings one ticket's blocked-by list up to its stated blockers.
- * `client` supplies body(n), blockedBy(n) -> [{ number }], id(n) and add(n, id).
- */
 export function recordBlockers(number, client, { dryRun = false } = {}) {
   const stated = statedBlockers(client.body(number));
   if (stated.includes(number)) throw new Error(`#${number} states itself as a blocker; correct the body first`);
@@ -98,7 +70,6 @@ export function describe(result, repo) {
   return lines.join("\n");
 }
 
-/** The client the command line uses; `run` takes the gh arguments and returns its stdout. */
 export function ghClient(repo = ticketsRepo(), run = (args) => execFileSync("gh", args, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
   const gh = (args) => JSON.parse(run(args) || "null");
   return {

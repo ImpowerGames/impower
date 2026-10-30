@@ -19,8 +19,6 @@ function gitEnvironment() {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key) && !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(key)));
   return { ...env, LC_ALL: "C", LANG: "C", LANGUAGE: "C" };
 }
-// Every repository/ownership query and mutation is anchored to its explicit
-// cwd. Ambient Git settings must not redirect a per-worktree admin marker.
 const git = (cwd, args) => run("git", args, cwd, gitEnvironment());
 function noLinks(p) {
   for (let at = path.resolve(p); ; at = path.dirname(at)) {
@@ -100,15 +98,12 @@ export async function install(recordPath, owner) {
 async function installOwned(recordPath, owner) {
   const r = owned(recordPath, owner);
   await checkLinks(r.tree);
-  // Use the npm CLI JS entrypoint so Windows needs neither cmd interpolation nor shell quoting.
   const npm = process.env.npm_execpath || run(process.platform === "win32" ? "where.exe" : "which", ["npm"], r.root).split(/\r?\n/)[0];
   const realNpm = fs.realpathSync(npm);
   const cli = realNpm.endsWith(".js") ? realNpm : path.join(path.dirname(npm), "node_modules", "npm", "bin", "npm-cli.js");
   if (!fs.existsSync(cli)) throw new Error(`npm CLI unavailable at ${cli}; preserve ${recordPath} and repair the independent install route`);
   const manifest = path.join(r.tree, "package.json"); noLinks(manifest);
   if (!fs.statSync(manifest).isFile()) throw new Error("Owned checkout must contain a root package.json before an independent install");
-  // Preserve prefix and config-file inputs: changing them can relocate system
-  // registry/auth configuration. CLI mode flags keep the operation local/real.
   const env = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^npm_config_(?:global|location|dry[-_]run|package[-_]lock[-_]only)$/i.test(key))), PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1" };
   const flags = ["--global=false", "--location=project", "--dry-run=false", "--package-lock-only=false"];
   try {
@@ -123,8 +118,6 @@ async function installOwned(recordPath, owner) {
   if (!path.isAbsolute(globalPrefix)) throw new Error("npm global prefix cannot be verified; repair npm configuration before retrying the supported helper");
   const globalTop = process.platform === "win32" ? globalPrefix : path.join(globalPrefix, "lib");
   const physicalGlobalTop = fs.existsSync(globalTop) ? fs.realpathSync.native(globalTop) : globalTop;
-  // npm install treats local/globalTop equality as a self-install even with
-  // global=false. Refuse it rather than changing config or the root manifest.
   if (same(physicalGlobalTop, r.tree)) throw new Error("npm global prefix collides with the owned local checkout; configure a separate global prefix while preserving registry/auth settings, then retry the supported helper");
   run(process.execPath, [cli, "install", ...flags], r.tree, env);
   await checkLinks(r.tree);
@@ -134,19 +127,42 @@ async function installOwned(recordPath, owner) {
 export async function remove(recordPath, owner) {
   return exclusive(recordPath, owner, () => removeOwned(recordPath, owner));
 }
+function statusLines(tree) {
+  const status = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: tree, env: gitEnvironment(), encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (status.error || status.status !== 0) throw new Error(`git status failed in ${tree}: ${status.error?.message ?? status.stderr}`);
+  return status.stdout.split(/\r?\n/).filter(Boolean);
+}
+function saveLeftovers(r, recordPath) {
+  const changed = statusLines(r.tree);
+  if (!changed.length) return null;
+  const leftovers = path.join(path.dirname(recordPath), "leftovers");
+  fs.mkdirSync(leftovers, { recursive: true });
+  const patch = path.join(leftovers, `${new Date().toISOString().replace(/[:.]/g, "-")}.patch`);
+  git(r.tree, ["add", "-A"]);
+  const diff = spawnSync("git", ["diff", "--cached", "--binary", "HEAD"], { cwd: r.tree, env: gitEnvironment(), windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  if (diff.error || diff.status !== 0) throw new Error(`Leftover changes could not be captured (${diff.error?.message ?? diff.stderr}); preserve owned tree ${r.tree}`);
+  fs.writeFileSync(patch, diff.stdout, { flag: "wx" });
+  git(r.tree, ["reset", "-q", "--hard", "HEAD"]);
+  git(r.tree, ["clean", "-q", "-fd"]);
+  if (statusLines(r.tree).length) throw new Error(`Leftover changes remain after being saved to ${patch}; preserve owned tree ${r.tree}`);
+  const saved = read(recordPath);
+  saved.leftovers = [...(saved.leftovers ?? []), { patch, files: changed }];
+  fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
+  return patch;
+}
 async function removeOwned(recordPath, owner) {
   const r = owned(recordPath, owner);
   if (git(r.tree, ["rev-parse", "HEAD"]) !== r.head) throw new Error("Filer has committed work; preserve it for a person");
   await checkLinks(r.tree);
+  const leftovers = saveLeftovers(r, recordPath);
   const result = spawnSync(process.execPath, [guard, "--apply", "--root", r.root, "--remove", r.tree], { cwd: r.root, env: gitEnvironment(), encoding: "utf8", windowsHide: true });
-  if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts: ${result.error?.message ?? result.stdout + result.stderr}`);
+  if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts${leftovers ? ` (leftover changes were saved to ${leftovers})` : ""}: ${result.error?.message ?? result.stdout + result.stderr}`);
   if (fs.existsSync(r.tree) || entries(r.root).some(e => same(e.path, r.tree))) throw new Error("Cleanup result could not be verified; preserve ownership and artifacts");
-  // Delete only the unchanged owned branch, after verifying no other checkout holds it.
   if (git(r.root, ["rev-parse", `refs/heads/${r.branch}`]) !== r.head) throw new Error("Owned branch moved; preserve it");
   git(r.root, ["branch", "-D", r.branch]);
   const saved = read(recordPath); saved.state = "removed";
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
-  return result.stdout.trim();
+  return leftovers ? `${result.stdout.trim()}\nleftover changes saved to ${leftovers}` : result.stdout.trim();
 }
 export async function main(argv) {
   const command = argv.shift(), options = {};

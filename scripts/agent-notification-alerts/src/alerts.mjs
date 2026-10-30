@@ -87,7 +87,6 @@ export async function readConfig() {
   } catch (e) {
     if (e.code !== "ENOENT") throw e;
   }
-  // A previous message-only prototype used one color for every alert.
   const { color: legacyColor, ...overrides } = local;
   const colors = legacyColor
     ? {
@@ -265,8 +264,6 @@ export async function deliver(
   return { alert, channels: Object.fromEntries(results) };
 }
 
-// A loopback lease serializes separate MCP/CLI processes. The OS releases it
-// on crashes; no stale lock file can permanently silence future alerts.
 export async function withDeviceLease(
   action,
   { port = 39761, waitMs = 120000 } = {},

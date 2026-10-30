@@ -1,4 +1,4 @@
-import { Button } from "@impower/impower-ui/components";
+import { Button, X } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { createPortal } from "preact/compat";
 import { useEffect, useState } from "preact/hooks";
@@ -30,17 +30,31 @@ export default function SnackbarHost() {
           visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
         }`}
       >
-        <span class="min-w-0 truncate">{shown.message}</span>
+        <span class={`min-w-0 flex-1 ${shown.persistent ? "" : "truncate"}`}>
+          {shown.message}
+        </span>
         {shown.actionLabel && (
           <Button
             variant="ghost"
             onClick={() => {
               shown.onAction?.();
-              dismissSnackbar();
+              if (!shown.persistent) {
+                dismissSnackbar(shown);
+              }
             }}
             class="h-7 flex-none rounded px-2 text-sm font-medium text-primary"
           >
             {shown.actionLabel}
+          </Button>
+        )}
+        {shown.persistent && (
+          <Button
+            variant="ghost"
+            aria-label="Dismiss"
+            onClick={() => dismissSnackbar(shown)}
+            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+          >
+            <X class="size-4" />
           </Button>
         )}
       </div>

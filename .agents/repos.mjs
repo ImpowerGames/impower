@@ -1,24 +1,3 @@
-// Reads .agents/repos.json, the one place the repository slugs live:
-//   code            the public repository: code, CI and pull requests
-//   internal        the private repository: tickets, comments and reviews
-//   autolinkPrefix  the prefix the public repository's autolink resolves to
-//                   an internal issue (`I-302`)
-//   cutover         false until the tracker moves to the internal repository;
-//                   while it is false, hooks and scripts keep the single-
-//                   repository behaviour, and the cutover commit flips it
-//   feedbackInbox   the number of the standing skill feedback inbox issue in
-//                   the tickets repository
-//
-// Hooks and scripts call readRepos() rather than spelling a slug,
-// ticketsRepo() for the repository that holds tickets at the switch's
-// position, and reviewThread() for the issue a pull request's review
-// conversation lives on. The file is read relative to this module, so a
-// worktree reads its own copy.
-//
-// Run as a script, it prints one value for commands written by hand:
-//   node .agents/repos.mjs tickets   the tickets repository, as owner/name
-//   node .agents/repos.mjs inbox     the feedback inbox issue number
-
 import { readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -26,7 +5,6 @@ export const REPOS_FILE = fileURLToPath(new URL("./repos.json", import.meta.url)
 
 const SLUG = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
 
-/** Parses and checks a repos file; throws with the file and the field at fault. */
 export function readRepos(file = REPOS_FILE) {
   let data;
   try {
@@ -46,19 +24,10 @@ export function readRepos(file = REPOS_FILE) {
   return Object.freeze({ code: data.code, internal: data.internal, autolinkPrefix: data.autolinkPrefix, cutover: data.cutover, feedbackInbox: data.feedbackInbox });
 }
 
-/** The repository that holds tickets: the code repository until the cutover, the internal one after it. */
 export function ticketsRepo(repos = readRepos()) {
   return repos.cutover ? repos.internal : repos.code;
 }
 
-/**
- * The issue that holds a pull request's review conversation (the round state,
- * reports, adjudications and notes): the pull request itself until the
- * cutover, the internal ticket `ticket` (or the umbrella of several) after it.
- * `ticket` is refused before the cutover, so a plan written for one position
- * never posts on the other. Returns the repository, the issue number and the
- * `issue_url` GitHub gives that issue's comments.
- */
 export function reviewThread({ pr, ticket }, repos = readRepos()) {
   if (!Number.isSafeInteger(pr) || pr < 1) throw new Error("Supply pr, the pull request number, as a positive integer");
   const repo = ticketsRepo(repos);

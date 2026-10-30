@@ -108,7 +108,7 @@ describe("the include line's quick fix", () => {
     documents.add({
       textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text },
     });
-    Object.assign(workspace, { _documents: documents });
+    Object.assign(workspace, { _documents: documents, _watchedFiles: new Map() });
     const published = workspace.getDiagnostics(program, MAIN);
     const include = published.find(
       (d) =>

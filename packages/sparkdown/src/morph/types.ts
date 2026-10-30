@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 20;
+export const MORPH_BAKE_FORMAT = 22;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -20,7 +20,7 @@ export interface MorphRecipe {
   depth?: string;
   layers: Record<string, MorphPolicy>;
   keyframes: { offset: number; states: Record<string, string> }[];
-  clips: { between: string[]; targets: string[] }[];
+  clips: { between: string[]; targets: string[]; spread?: number }[];
   paints?: MorphPaintEntry[];
 }
 
@@ -77,6 +77,7 @@ export type MorphDiagnosticCode =
   | "source-unreadable"
   | "inactive-variant"
   | "depth-ignored"
+  | "spread-ignored"
   | "paint-target-missing"
   | "partner-missing";
 
@@ -191,6 +192,7 @@ export interface MorphClipTarget {
   clip: number;
   aperture: string;
   matrix: number[];
+  spread?: number;
 }
 
 export interface MorphArtifact {

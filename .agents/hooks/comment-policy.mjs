@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
-const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions, throughBlock: d.throughBlock === true }));
+const directives = config.directives.filter((d) => d.form).map((d) => ({ form: new RegExp(d.form), extensions: d.extensions, throughBlock: d.throughBlock === true }));
+const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions, firstLines: d.firstLines, startOfLine: d.startOfLine === true }));
 const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
@@ -624,8 +625,12 @@ function scanYamlLexed(yaml, text) {
   return comments;
 }
 
-function scanPs1(text, indent = 0) {
+function scanPs1(text, indent = 0, literals = null) {
   const comments = [];
+  const literal = (start, end) => {
+    literals?.push({ start, end });
+    return end;
+  };
   const hereClose = (j, quote) => {
     if (text[j] !== "\n") return -1;
     let k = j + 1;
@@ -657,17 +662,17 @@ function scanPs1(text, indent = 0) {
         const end = lineEnd(text, i);
         comments.push({ start: i, end });
         i = end;
-      } else if (c === "`") i += 2;
+      } else if (c === "`") i = literal(i, i + 2);
       else if (c === "@" && text[i + 1] === "'" && /^\r?\n/.test(text.slice(i + 2, i + 4))) {
         let line = text.indexOf("\n", i + 2);
         while (line >= 0 && hereClose(line, "'") < 0) line = text.indexOf("\n", line + 1);
-        i = line < 0 ? text.length : hereClose(line, "'");
-      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = expandable(i + 2, true);
+        i = literal(i, line < 0 ? text.length : hereClose(line, "'"));
+      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = literal(i, expandable(i + 2, true));
       else if (c === "'") {
         let j = i + 1;
         while (j < text.length && !(text[j] === "'" && text[j + 1] !== "'")) j += text[j] === "'" ? 2 : 1;
-        i = j + 1;
-      } else if (c === '"') i = expandable(i + 1, false);
+        i = literal(i, j + 1);
+      } else if (c === '"') i = literal(i, expandable(i + 1, false));
       else if (c === "(") {
         depth++;
         i++;
@@ -831,6 +836,75 @@ function licenceNotice(lines) {
   return licences.some(({ form }) => form.test(body));
 }
 
+const POWERSHELL_HELP_ARGUMENT = new Map([
+  ["SYNOPSIS", false], ["DESCRIPTION", false], ["PARAMETER", true], ["EXAMPLE", false], ["INPUTS", false], ["OUTPUTS", false],
+  ["NOTES", false], ["LINK", false], ["COMPONENT", false], ["ROLE", false], ["FUNCTIONALITY", false],
+  ["FORWARDHELPTARGETNAME", true], ["FORWARDHELPCATEGORY", true], ["REMOTEHELPRUNSPACE", true], ["EXTERNALHELP", true],
+]);
+const POWERSHELL_HELP = "comment-based help Get-Help reads";
+
+function powershellHelp(text) {
+  if (!text.startsWith("<#") || !text.endsWith("#>")) return false;
+  let keywords = 0;
+  for (const raw of text.slice(2, -2).split(/\r?\n/)) {
+    const line = raw.trim();
+    const keyword = /^\.([A-Za-z]+)(?:[ \t]+(\S.*))?$/.exec(line);
+    if (!keyword) {
+      if (line && !keywords) return false;
+      continue;
+    }
+    const argument = POWERSHELL_HELP_ARGUMENT.get(keyword[1].toUpperCase());
+    if (argument === undefined || argument !== Boolean(keyword[2])) return false;
+    keywords++;
+  }
+  return keywords > 0;
+}
+
+function powershellStructure(text) {
+  const literals = [];
+  const chars = text.split("");
+  const blank = (spans, fill) => {
+    for (const { start, end } of spans) for (let i = start; i < end && i < chars.length; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = fill;
+  };
+  blank(scanPs1(text, 0, literals), " ");
+  blank(literals, "_");
+  return chars.join("");
+}
+
+function openingBrace(code, from) {
+  let depth = 0;
+  for (let i = from - 1; i >= 0; i--) {
+    if (code[i] === "}") depth++;
+    else if (code[i] === "{" && depth-- === 0) return i;
+  }
+  return -1;
+}
+
+function opensFunction(code, brace) {
+  let i = brace - 1;
+  while (i >= 0 && /\s/.test(code[i])) i--;
+  if (code[i] === ")") {
+    for (let depth = 0; i >= 0; i--) {
+      if (code[i] === ")") depth++;
+      else if (code[i] === "(" && --depth === 0) break;
+    }
+    if (i < 0) return false;
+    i--;
+    while (i >= 0 && /\s/.test(code[i])) i--;
+  }
+  return /(?:^|[\s;])(?:function|filter|workflow)[ \t]+[^\s{}()]+$/i.test(code.slice(0, i + 1));
+}
+
+function powershellHelpPlaced(code, comment) {
+  const before = code.slice(0, comment.start);
+  const after = code.slice(comment.end);
+  if (!before.trim() || !after.trim()) return true;
+  if (/^[ \t]*(?:\r?\n[ \t]*){1,2}(?:function|filter|workflow)[ \t]/i.test(after)) return true;
+  const open = openingBrace(code, comment.start);
+  if (open < 0 || !opensFunction(code, open)) return false;
+  return !before.slice(open + 1).trim() || /^\s*\}/.test(after);
+}
+
 const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
 
 function jsdocTypescript(file, options) {
@@ -887,6 +961,9 @@ export function classifyComment(text, file, options = {}) {
     const parsed = ts && jsdocTags(ts, text);
     if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
   }
+  if (extension === ".ps1" && powershellHelp(text)) return { kind: "directive", reason: POWERSHELL_HELP };
+  const commentDirective = commentDirectives.find((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text));
+  if (commentDirective) return { kind: "directive", reason: "a directive a tool reads", ...(commentDirective.firstLines && { firstLines: commentDirective.firstLines }), ...(commentDirective.startOfLine && { startOfLine: true }) };
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
 }
@@ -903,9 +980,12 @@ export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
   const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
   const extension = path.posix.extname(posix(file)).toLowerCase();
-  let previous = null, block = null;
+  let previous = null, block = null, structure = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
+    if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced((structure ??= powershellStructure(text)), comment)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
+    if (comment.firstLines && comment.line > comment.firstLines) Object.assign(comment, { kind: "refused", reason: `a directive its tool reads only in a file's first ${comment.firstLines} lines` });
+    if (comment.startOfLine && comment.column !== 0) Object.assign(comment, { kind: "refused", reason: "a directive its tool reads only at the start of a line" });
     if (block && single(comment) && comment.line === previous.endLine + 1) {
       if (comment.kind === "refused") Object.assign(comment, { kind: "directive", reason: `continues the directive on line ${block.line}, whose reader takes the rest of its comment block` });
     } else block = null;

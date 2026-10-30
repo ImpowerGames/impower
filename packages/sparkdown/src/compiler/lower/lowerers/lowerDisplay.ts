@@ -779,74 +779,10 @@ function beginsItsText(node: SyntaxNode, ctx: LowerContext): boolean {
   return /^[ \t]*(?:\|[ \t]*)?$/.test(ctx.read(node.from - column, node.from));
 }
 
-interface LineEndMarks {
-  breaks: SyntaxNode[];
-  glue: boolean;
-  extend: boolean;
-  spaces: string;
-  tags: SyntaxNode[];
-}
-
-function lineEndMarks(
-  node: SyntaxNode,
-  ctx: LowerContext,
-): LineEndMarks | null {
-  if (node.name !== "InlineAction" && node.name !== "ImplicitAction") {
-    return null;
-  }
-  let prev = node.prevSibling;
-  while (prev && ADJACENT_WHITESPACE.has(prev.name)) prev = prev.prevSibling;
-  if (
-    !prev ||
-    (!isExplicitRuleName(prev.name, "LuauInterpolatedStringExpression") &&
-      !isExplicitRuleName(prev.name, "LuauFunctionCallShorthand")) ||
-    startsItsLine(node, ctx)
-  ) {
-    return null;
-  }
-  const marks: LineEndMarks = {
-    breaks: [],
-    glue: false,
-    extend: false,
-    spaces: "",
-    tags: [],
-  };
-  let pos = node.from;
-  let glue = false;
-  for (const injection of collectTopLevelInjections(node, node.from, node.to)) {
-    if (ctx.read(pos, injection.from).trim()) return null;
-    if (injection.kind === "break") {
-      marks.breaks.push(injection.node);
-      marks.extend = glue;
-      glue = false;
-    } else if (injection.kind === "glue" || injection.kind === "leadingGlue") {
-      if (marks.breaks.length === 0) {
-        glue = true;
-        marks.spaces = ctx.read(prev.to, injection.from);
-      }
-    } else if (injection.kind === "tag") {
-      marks.tags.push(injection.node);
-    } else if (injection.kind !== "comment") {
-      return null;
-    }
-    pos = Math.max(pos, injection.to);
-  }
-  if (ctx.read(pos, node.to).trim()) return null;
-  marks.glue = glue && marks.breaks.length === 0;
-  return marks.breaks.length > 0 || marks.glue ? marks : null;
-}
-
 const ACTION_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "ImplicitAction",
   "InlineAction",
   "BlockAction",
-]);
-
-const ADJACENT_WHITESPACE: ReadonlySet<string> = nodeNameSet([
-  "Whitespace",
-  "ExtraWhitespace",
-  "RequiredWhitespace",
-  "OptionalWhitespace",
 ]);
 
 const LOAD_GLUE_MESSAGE =
@@ -1030,7 +966,6 @@ export function lowerImplicitAction(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  if (lineEndMarks(nodeRef.node, ctx)) return {};
   return wrapInWeave(
     buildDisplayCalls(
       nodeRef.node,
@@ -1044,102 +979,12 @@ export function lowerImplicitAction(
   );
 }
 
-export function lowerLuauInterpolatedStringExpression(
-  nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
-): CompiledBlock {
-  if (adjacentInterpolationSibling(nodeRef.node, "prev")) return {};
-  const body: ParsedObject[] = [];
-  let last: SyntaxNode = nodeRef.node;
-  for (
-    let node: SyntaxNode | null = nodeRef.node;
-    node;
-    node = adjacentInterpolationSibling(node, "next")
-  ) {
-    last = node;
-    const alt = tryLowerInlineAlternator(node, ctx);
-    if (alt) {
-      body.push(...alt);
-      continue;
-    }
-    const expr = lowerExpressionFromContainer(node, ctx, "expression");
-    if (expr) {
-      expr.outputWhenComplete = true;
-      body.push(expr);
-    }
-  }
-  if (body.length === 0) return {};
-  let after = last.nextSibling;
-  while (after && ADJACENT_WHITESPACE.has(after.name)) after = after.nextSibling;
-  const marks = after ? lineEndMarks(after, ctx) : null;
-  const tagObjects: ParsedObject[] = [];
-  for (const tagsNode of marks?.tags ?? []) {
-    appendDisplayTags(tagsNode, ctx, tagObjects);
-  }
-  const breaks = marks?.breaks ?? [];
-  const beats = Math.max(breaks.length, 1);
-  const calls: ParsedObject[] = [];
-  for (let i = 0; i < beats; i++) {
-    const beatBody = i === 0 ? body : [];
-    const lastBeat = i === beats - 1;
-    if (lastBeat && marks?.spaces) beatBody.push(new Text(marks.spaces));
-    calls.push(
-      buildDisplayCall(
-        undefined,
-        undefined,
-        beatBody,
-        i === 0
-          ? { from: nodeRef.node.from, to: last.to }
-          : { from: breaks[i]!.from, to: breaks[i]!.to },
-        ctx,
-        lastBeat ? separateTags(tagObjects).tags : [],
-        {
-          pause: i < breaks.length,
-          extend: lastBeat && marks?.extend,
-          glue: lastBeat && marks?.glue,
-        },
-      ),
-    );
-  }
-  return wrapInWeave(calls);
-}
-
-function adjacentInterpolationSibling(
-  node: SyntaxNode,
-  direction: "prev" | "next",
-): SyntaxNode | null {
-  const step = (n: SyntaxNode) =>
-    direction === "next" ? n.nextSibling : n.prevSibling;
-  let cursor: SyntaxNode | null = step(node);
-  while (cursor) {
-    if (cursor.name === "Newline") return null;
-    if (
-      isExplicitRuleName(cursor.name, "LuauInterpolatedStringExpression") ||
-      isExplicitRuleName(cursor.name, "LuauFunctionCallShorthand")
-    ) {
-      return cursor;
-    }
-    if (
-      cursor.name === "Whitespace" ||
-      cursor.name === "ExtraWhitespace" ||
-      cursor.name === "RequiredWhitespace" ||
-      cursor.name === "OptionalWhitespace"
-    ) {
-      cursor = step(cursor);
-      continue;
-    }
-    return null;
-  }
-  return null;
-}
-
 export function lowerInlineAction(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
   let { from, to } = extractInlineBodyRange(nodeRef);
   const glue = leadingGlue(nodeRef.node);
-  if (lineEndMarks(nodeRef.node, ctx)) return {};
   if (glue && beginsItsText(glue, ctx)) {
     if (!hasBodyContent(nodeRef.node, from, to, ctx)) return {};
   } else if (glue) {
