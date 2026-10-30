@@ -22,7 +22,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -651,6 +651,51 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   const none = await playPreview(playPage(() => false).page, "stop", opts);
   assert.equal(none.clicked, false);
   assert.match(none.reason, /Stop Game control is not on screen/);
+});
+
+check("advance takes an optional positive click count", () => {
+  assert.deepEqual(parseUiSteps(["--play", "start", "--advance", "--shot", "a.png", "--advance", "3", "--advance"]), [
+    { play: "start" },
+    { advance: 1 },
+    { shotOf: "page", out: "a.png" },
+    { advance: 3 },
+    { advance: 1 },
+  ]);
+  for (const v of ["0", "-1", "1.5", "x"]) assert.throws(() => parseUiSteps(["--advance", v]), /positive click count/);
+});
+
+await asyncCheck("advance reports each click's text, launch state and game notifications, and refuses a click with no game running", async () => {
+  const beats = [
+    { text: "Goodbye.", launchState: "play", notes: [{ method: "game/didExecute", params: {} }] },
+    { text: "Hello.", launchState: "preview", notes: [{ method: "game/exited", params: { reason: "finished" } }] },
+  ];
+  let state = { launchState: "play" }, pending = [{ method: "game/stale", params: null }], made = 0;
+  const deps = {
+    request: async () => state,
+    click: async () => {
+      const beat = beats[made++];
+      state = { launchState: beat.launchState };
+      pending.push(...beat.notes);
+      return { clicked: true, at: { x: 10, y: 20 } };
+    },
+    settle: async () => ({ settled: true, text: beats[made - 1].text }),
+    notifications: async () => async () => pending.splice(0),
+  };
+  const first = await advanceGame({}, 1, deps);
+  assert.equal(first.reason, undefined);
+  assert.equal(first.clicked, 1);
+  assert.deepEqual(first.clicks, [{ click: 1, at: { x: 10, y: 20 }, settled: true, visible: "Goodbye.", launchState: "play", notifications: [{ method: "game/didExecute", params: {} }] }]);
+  const second = await advanceGame({}, 1, deps);
+  assert.equal(second.launchState, "preview");
+  assert.deepEqual(second.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+  const idle = await advanceGame({}, 2, deps);
+  assert.equal(idle.clicked, 0);
+  assert.equal(made, 2);
+  assert.match(idle.reason, /no game is running \(launch state preview\)/);
+  state = { launchState: "play" };
+  const noFrame = await advanceGame({}, 1, { ...deps, click: async () => ({ clicked: false, reason: "no same-origin player frame is on the page" }) });
+  assert.equal(noFrame.clicked, 0);
+  assert.match(noFrame.reason, /player frame/);
 });
 
 await asyncCheck("insert puts text at the position, reads it back and reports the preview route", async () => {
