@@ -31,7 +31,6 @@ import {
   type Position,
 } from "vscode-languageserver";
 
-// Keys whose value is a container of further lines rather than a scalar.
 const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "paints", "between", "targets"]);
 const KEYFRAME_POSITIONS = ["from", "to"];
 
@@ -50,30 +49,13 @@ const EASING_FUNCTIONS = [
   { label: "linear()", insert: "linear(${1:0}, ${2:1})" },
 ];
 
-/** What the caller read from the brace blocks of a morph's body (#1222). */
 export interface MorphBraceContext {
-  /** The keys of the blocks that hold the cursor, outermost first (`-` for a
-   *  list entry's braces), or null when no block holds it. */
   path: string[] | null;
-  /** The brace entry being written up to the cursor (`braceEntryAt`), or
-   *  null when the cursor is inside a quoted string. */
   entry: string | null;
-  /** Each `state` property written in a block: the innermost key around it
-   *  and its value as written. */
   states: { container: string; state: string }[];
-  /** Whether the morph writes its own root `keyframes` block. */
   keyframes: boolean;
 }
 
-/**
- * Completion inside a `morph` block body. Returns null when the cursor is not
- * somewhere this handler owns, so the caller can fall back to its generic
- * struct completion.
- *
- * In a brace block the cursor's path comes from the blocks around it, and a
- * container (a field, a layer label, a keyframe position or container)
- * inserts a balanced `name { }` block with the cursor inside.
- */
 export function getMorphCompletions(
   getLineText: (line: number) => string,
   block: { startLine: number; endLine: number; name: string },
@@ -92,10 +74,6 @@ export function getMorphCompletions(
 
   const context = program?.context ?? {};
   const images = morphImages(context);
-  // Groups this morph drives: every container with a `state` line, plus the
-  // container the cursor is in. Candidates are images with any of them.
-  // `named` holds the states the keyframes name for each group, which are the
-  // poses a `depth` can name.
   const driven = new Set<string>();
   const named = new Map<string, string[]>();
   const addNamed = (group: string, written: unknown) => {
@@ -115,15 +93,7 @@ export function getMorphCompletions(
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
-  // Groups the morph inherits: every `as` ancestor's keyframes, read from the
-  // compiled program, so a child that only restates policies still completes
-  // from the images its inherited keyframes bind to.
-  // An ancestor is a morph block or a `define`, which may be filed under its
-  // own parent's name; `compiledAncestor` finds it as the compiler does.
   const morphs = (context["morph"] ?? {}) as Record<string, any>;
-  // The struct whose keyframes apply, as compiled: the block's own when it
-  // writes keyframes, else the nearest ancestor's with keyframes. Its first
-  // keyframe names the states the morph starts from.
   let keyframeStruct: Record<string, unknown> | undefined = braces?.keyframes ? morphs[block.name] : undefined;
   const seen = new Set<string>();
   let ancestor: string | undefined = morphs[block.name]?.$extends;
@@ -135,9 +105,6 @@ export function getMorphCompletions(
     for (const group of morphRequirements(struct).groups.keys()) {
       driven.add(group);
     }
-    // Keyframes replace rather than add to an ancestor's, so the poses are
-    // the block's own when it writes keyframes, and otherwise the nearest
-    // ancestor's that has keyframes.
     const keyframes = Array.isArray(struct["keyframes"]) ? struct["keyframes"] : [];
     if (!posesFound && keyframes.length > 0) {
       posesFound = true;
@@ -160,8 +127,6 @@ export function getMorphCompletions(
   const add = (item: CompletionItem) => {
     if (!items.some((existing) => existing.label === item.label)) items.push(item);
   };
-  // A field of a `paints` entry that other places also have is documented
-  // under `paints.NAME`.
   const inPaint = path[0] === "paints";
   const docs = (name: string) => {
     const doc = (inPaint ? MORPH_FIELD_DOCS[`paints.${name}`] : undefined) ?? MORPH_FIELD_DOCS[name];
@@ -172,8 +137,6 @@ export function getMorphCompletions(
     end: position,
   });
 
-  // `key = value` being written: complete the value, separated from a `=`
-  // typed without a following space.
   const scalar = /^\s*([\w-]+)\s*=\s*(\S*)$/.exec(before);
   if (scalar && before.endsWith("=")) {
     const spaced = getMorphCompletions(
@@ -199,9 +162,6 @@ export function getMorphCompletions(
   }
   if (scalar) {
     const [, key, typed] = scalar as unknown as [string, string, string];
-    // Value choices replace the value typed so far, so they are offered only
-    // while it is a plain word (`li`, `eyes.cl`); inside a call such as
-    // `steps(1` they would replace the call itself.
     if (!/^[\w.-]*$/.test(typed)) return [];
     if (key === "state" && container) {
       const dot = typed.lastIndexOf(".");
@@ -221,7 +181,6 @@ export function getMorphCompletions(
           label: state,
           kind: CompletionItemKind.EnumMember,
           detail,
-          // The short form both editors show beside the label.
           labelDetails: {
             description: everywhere
               ? "all images"
@@ -232,10 +191,6 @@ export function getMorphCompletions(
       }
       return items;
     }
-    // A `paints` entry's pose is a state the keyframes name other than the one
-    // its group starts from (the one the first keyframe gives it, as the
-    // compiler reads it); its `when` is a state of a group the morph does not
-    // drive, from the candidate artwork.
     if (inPaint && (key === "state" || key === "when")) {
       const dot = typed.indexOf(".");
       const states = new Map<string, string[]>();
@@ -279,8 +234,6 @@ export function getMorphCompletions(
       return items;
     }
     if (key === "depth" && policyPlace) {
-      // A pose the keyframes name, with its group. After `group.` only that
-      // group's states, replacing the text after the dot, as for `state`.
       const dot = typed.indexOf(".");
       const choices =
         dot >= 0
@@ -326,13 +279,10 @@ export function getMorphCompletions(
     return [];
   }
 
-  // A key or list item being written.
   const keyMatch = /^\s*([\w.%-]*)$/.exec(before);
   if (!keyMatch) return [];
   const typed = keyMatch[1]!;
   const labels = labelsOf(labelImages);
-  // A block's `{ $0 }` is a snippet in both editors: the cursor lands
-  // between the braces.
   const snippet = (suffix: string) =>
     suffix.includes("$0") ? { insertTextFormat: InsertTextFormat.Snippet } : {};
   const addField = (name: string) => {

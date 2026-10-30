@@ -1,1 +1,3 @@
-& opts.theme.bg = "dark"
+scene start
+  & opts.theme.bg = "dark"
+end

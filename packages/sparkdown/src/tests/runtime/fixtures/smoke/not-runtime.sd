@@ -1,2 +1,4 @@
 store x = false
-{not x and "yes" or "no"}
+scene start
+  {not x and "yes" or "no"}
+end

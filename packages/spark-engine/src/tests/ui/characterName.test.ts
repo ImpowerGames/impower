@@ -45,7 +45,7 @@ describe("character name in dialogue", () => {
 end
 
 ${SCREEN}
--> start
+
 
 scene start
   KING: Hail!
@@ -69,7 +69,7 @@ end
 
   test("falls back to the cue text for an undefined character", async () => {
     const story = `${SCREEN}
--> start
+
 
 scene start
   GUARD: Halt!
@@ -93,7 +93,7 @@ end
 end
 
 ${SCREEN}
--> start
+
 
 scene start
   GUARD: Halt!
@@ -114,7 +114,7 @@ end
 end
 
 ${SCREEN}
--> start
+
 
 scene start
   KING: Hail!
@@ -124,7 +124,7 @@ end
 end
 
 ${SCREEN}
--> start
+
 
 scene start
   KING: Hail!

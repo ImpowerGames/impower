@@ -1,6 +1,8 @@
 store has_companion = true
 
--> hub
+scene start
+  -> hub
+end
 scene hub
   At the gates.
   if has_companion then

@@ -15,8 +15,7 @@ import { compileScript, describeRoot, errorsOf, programSession, storyRun } from 
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const lines = (...parts: string[]) => parts.join("\n") + "\n";
-/** The lines as the body of a scene the story diverts to, where a local belongs. */
-const inScene = (...body: string[]) => ["-> start", "scene start", ...body.filter((line) => line).map((line) => `  ${line}`), "end"];
+const inScene = (...body: string[]) => ["scene start", ...body.filter((line) => line).map((line) => `  ${line}`), "end"];
 
 const run = (source: string) => {
   const ctx = makeRuntimeStoryFromSource(source);
@@ -74,34 +73,34 @@ const SEQUENTIAL: [string, (values: string[]) => void][] = [
 
 describe("a sequential alternator used as a value in a function (I-1284)", () => {
   test.each(SEQUENTIAL)("%s, in a local's value, shares one count across calls", (keyword, check) => {
-    const { output, errors } = run(lines("function f()", `  local v = ${keyword} | "a" | "b" | "c" end`, "  return v", "end", ...calls(5)));
+    const { output, errors } = run(lines("function f()", `  local v = ${keyword} | "a" | "b" | "c" end`, "  return v", "end", ...inScene(...calls(5))));
     expect(errors).toEqual([]);
     check(valuesOf(output));
   });
 
   test.each(SEQUENTIAL)("%s, returned", (keyword, check) => {
-    const { output, errors } = run(lines("function f()", `  return ${keyword} | "a" | "b" | "c" end`, "end", ...calls(5)));
+    const { output, errors } = run(lines("function f()", `  return ${keyword} | "a" | "b" | "c" end`, "end", ...inScene(...calls(5))));
     expect(errors).toEqual([]);
     check(valuesOf(output));
   });
 
   test.each(SEQUENTIAL)("%s, nested in an `if` block", (keyword, check) => {
     const { output, errors } = run(
-      lines("function f()", "  if true then", `    return ${keyword} | "a" | "b" | "c" end`, "  end", "  return 0", "end", ...calls(5)),
+      lines("function f()", "  if true then", `    return ${keyword} | "a" | "b" | "c" end`, "  end", "  return 0", "end", ...inScene(...calls(5))),
     );
     expect(errors).toEqual([]);
     check(valuesOf(output));
   });
 
   test("the ticket's function: the arm after the first `|` (a head is no arm, I-1446)", () => {
-    expect(run(lines("function f()", '  local line = cycle "a" | "b" end', "  return line", "end", "Value {f()}."))).toEqual({
+    expect(run(lines("function f()", '  local line = cycle "a" | "b" end', "  return line", "end", ...inScene("Value {f()}.")))).toEqual({
       output: "Value b.\n",
       errors: ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"],
     });
   });
 
   test("a value of any kind, and an argument", () => {
-    const { output, errors } = run(lines("function f()", '  return tostring(cycle | 1 | { 2 } | "x" end) .. "!"', "end", ...calls(3)));
+    const { output, errors } = run(lines("function f()", '  return tostring(cycle | 1 | { 2 } | "x" end) .. "!"', "end", ...inScene(...calls(3))));
     expect(errors).toEqual([]);
     expect(valuesOf(output)).toEqual(["1!", expect.stringMatching(/^table/), "x!"]);
   });
@@ -113,7 +112,7 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     ["match, as a value", '  local v = match "a" | a = local x = 3 x end', "  return tostring(v) .. tostring(x)", "Value 37."],
     ["cycle, as a statement", "  cycle | local x = 3 print(x) end", "  return tostring(x)", "Value 37."],
   ])("%s: an arm's local is gone after the alternator", (_name, alternator, after, output) => {
-    expect(run(lines("function f(x)", alternator, after, "end", "Value {f(7)}."))).toEqual({ output: `${output}\n`, errors: [] });
+    expect(run(lines("function f(x)", alternator, after, "end", ...inScene("Value {f(7)}.")))).toEqual({ output: `${output}\n`, errors: [] });
   });
 
   // Round 3, comment 6350353372.
@@ -121,14 +120,14 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     ["as a value", ["  return cycle |", "    @native function g() return 3 end", "    g()", "  end"]],
     ["as a statement", ["  cycle |", "    @native function g() return 3 end", "    print(g())", "  end", '  return ""']],
   ])("an attributed named function in an arm is declared, %s", (_name, body) => {
-    expect(run(lines("function f()", ...body, "end", "Value {f()}."))).toEqual({ output: "Value 3.\n", errors: [] });
+    expect(run(lines("function f()", ...body, "end", ...inScene("Value {f()}.")))).toEqual({ output: "Value 3.\n", errors: [] });
   });
 
   test.each([
     ["on the until line", ["  return cycle | local n = 0 repeat n = n + 1 until n == 2 n end"]],
     ["on the next line", ["  return cycle | local n = 0 repeat n = n + 1 until n == 2", "    n end"]],
   ])("an arm's last value after a repeat loop, %s, is the arm's value", (_name, body) => {
-    expect(run(lines("function f()", ...body, "end", "Value {f()}."))).toEqual({ output: "Value 2.\n", errors: [] });
+    expect(run(lines("function f()", ...body, "end", ...inScene("Value {f()}.")))).toEqual({ output: "Value 2.\n", errors: [] });
   });
 
   test("an arm that is a function with no name gives that function", () => {
@@ -139,13 +138,13 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
   });
 
   test("an empty arm gives nil", () => {
-    const { output, errors } = run(lines("function f()", '  return cycle | "a" | | "c" end', "end", ...calls(3)));
+    const { output, errors } = run(lines("function f()", '  return cycle | "a" | | "c" end', "end", ...inScene(...calls(3))));
     expect(errors).toEqual([]);
     expect(valuesOf(output)).toEqual(["a", "nil", "c"]);
   });
 
   test("an arm's calls run, and its last value is the value", () => {
-    const { output, errors } = run(lines(...TRAIL, "function f()", '  return cycle | add("a") "A" | add("b") "B" end', "end", ...calls(3), "Log {trail}."));
+    const { output, errors } = run(lines(...TRAIL, "function f()", '  return cycle | add("a") "A" | add("b") "B" end', "end", ...inScene(...calls(3), "Log {trail}.")));
     expect(errors).toEqual([]);
     expect(output).toBe("1 A.\n2 B.\n3 A.\nLog aba.\n");
   });
@@ -158,7 +157,7 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
   });
 
   test("in a Luau string's interpolation, where nil is written as Luau writes it", () => {
-    const { output, errors } = run(lines("function f()", '  return "x{queue | "a" | "b" end}"', "end", ...calls(3)));
+    const { output, errors } = run(lines("function f()", '  return "x{queue | "a" | "b" end}"', "end", ...inScene(...calls(3))));
     expect(errors).toEqual([]);
     expect(valuesOf(output)).toEqual(["xa", "xb", "xnil"]);
   });
@@ -181,18 +180,17 @@ describe("an arm's last call gives one value, as an if expression's arm does (ro
         "function g()",
         `  return select("#", (${none})) .. " " .. select("#", ${none}) .. " " .. tostring(${none})`,
         "end",
-        "Several {f()}.",
-        "None {g()}.",
+        ...inScene("Several {f()}.", "None {g()}."),
       ),
     );
     expect(errors).toEqual([]);
     expect(output).toBe("Several 1 1 a.\nNone 1 1 nil.\n");
-    const all = run(lines(...PAIR, "function f()", `  local a, b, c = ${several}`, "  return tostring(a) .. tostring(b) .. tostring(c)", "end", "Values {f()}."));
+    const all = run(lines(...PAIR, "function f()", `  local a, b, c = ${several}`, "  return tostring(a) .. tostring(b) .. tostring(c)", "end", ...inScene("Values {f()}.")));
     expect(all).toEqual({ output: "Values anilnil.\n", errors: [] });
   });
 
   test("a keyed table field takes one value", () => {
-    expect(run(lines(...PAIR, "function f()", "  local t = { [1] = cycle | pair() end }", "  return tostring(t[1]) .. tostring(t[2])", "end", "Fields {f()}."))).toEqual({
+    expect(run(lines(...PAIR, "function f()", "  local t = { [1] = cycle | pair() end }", "  return tostring(t[1]) .. tostring(t[2])", "end", ...inScene("Fields {f()}.")))).toEqual({
       output: "Fields anil.\n",
       errors: [],
     });
@@ -228,7 +226,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
   });
 
   test("a match's condition reads the captured parameter", () => {
-    expect(run(lines("function make(x)", "  return function()", '    return match x | a = "A" | other = "O" end', "  end", "end", 'Value {make("a")()}.'))).toEqual({
+    expect(run(lines("function make(x)", "  return function()", '    return match x | a = "A" | other = "O" end', "  end", "end", ...inScene('Value {make("a")()}.')))).toEqual({
       output: "Value A.\n",
       errors: [],
     });
@@ -236,7 +234,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
 
   test("an arm reads a local the closure declares before it, not one outside", () => {
     expect(
-      run(lines('store y = "out"', "function make()", "  return function()", '    local y = "in"', "    return cycle | y end", "  end", "end", "Value {make()()} {y}.")),
+      run(lines('store y = "out"', "function make()", "  return function()", '    local y = "in"', "    return cycle | y end", "  end", "end", ...inScene("Value {make()()} {y}."))),
     ).toEqual({ output: "Value in out.\n", errors: [] });
   });
 
@@ -303,7 +301,7 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
   });
 
   test("a local function's arm reads a local of the function around it", () => {
-    expect(run(lines("function outer()", '  local greeting = "hi"', "  local function f()", "    return cycle | greeting end", "  end", "  return f()", "end", "Value {outer()}."))).toEqual({
+    expect(run(lines("function outer()", '  local greeting = "hi"', "  local function f()", "    return cycle | greeting end", "  end", "  return f()", "end", ...inScene("Value {outer()}.")))).toEqual({
       output: "Value hi.\n",
       errors: [],
     });
@@ -313,26 +311,26 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
 describe("a conditional alternator used as a value in a function (I-1284)", () => {
   test("match gives the matching arm's value, and nil where none matches", () => {
     const { output, errors } = run(
-      lines("function f(x)", '  return match x | a = "A" | b = "B" end', "end", '1 {f("a")}.', '2 {f("b")}.', '3 {f("z")}.'),
+      lines("function f(x)", '  return match x | a = "A" | b = "B" end', "end", ...inScene('1 {f("a")}.', '2 {f("b")}.', '3 {f("z")}.')),
     );
     expect(errors).toEqual([]);
     expect(valuesOf(output)).toEqual(["A", "B", "nil"]);
   });
 
   test("match's `other` takes what no arm before it matches", () => {
-    const { output } = run(lines("function f(x)", '  return match x | a = "A" | other = "O" end', "end", '1 {f("a")}.', '2 {f("z")}.'));
+    const { output } = run(lines("function f(x)", '  return match x | a = "A" | other = "O" end', "end", ...inScene('1 {f("a")}.', '2 {f("z")}.')));
     expect(valuesOf(output)).toEqual(["A", "O"]);
   });
 
   test("a keyless arm of a match takes a value that holds", () => {
-    const { output, errors } = run(lines("function f(x)", '  return match x | "K" | z = "Z" end', "end", '1 {f("a")}.', "2 {f(false)}."));
+    const { output, errors } = run(lines("function f(x)", '  return match x | "K" | z = "Z" end', "end", ...inScene('1 {f("a")}.', "2 {f(false)}.")));
     expect(errors).toEqual([]);
     expect(valuesOf(output)).toEqual(["K", "nil"]);
   });
 
   test("plural, keyed and positional", () => {
-    const keyed = run(lines("function f(n)", '  return plural(n) | one = "apple" | other = "apples" end', "end", "1 {f(1)}.", "2 {f(2)}."));
-    const positional = run(lines("function f(n)", '  return plural(n) | "apple" | "apples" end', "end", "1 {f(1)}.", "2 {f(2)}."));
+    const keyed = run(lines("function f(n)", '  return plural(n) | one = "apple" | other = "apples" end', "end", ...inScene("1 {f(1)}.", "2 {f(2)}.")));
+    const positional = run(lines("function f(n)", '  return plural(n) | "apple" | "apples" end', "end", ...inScene("1 {f(1)}.", "2 {f(2)}.")));
     expect(keyed).toEqual({ output: "1 apple.\n2 apples.\n", errors: [] });
     expect(positional).toEqual(keyed);
   });
@@ -345,7 +343,7 @@ describe("a conditional alternator used as a value in a function (I-1284)", () =
   });
 
   test("a match whose condition is another alternator", () => {
-    expect(run(lines("function f()", '  return match match("x") | x = "mage" end | mage = 2 end', "end", "Value {f()}."))).toEqual({
+    expect(run(lines("function f()", '  return match match("x") | x = "mage" end | mage = 2 end', "end", ...inScene("Value {f()}.")))).toEqual({
       output: "Value 2.\n",
       errors: [],
     });
@@ -355,19 +353,19 @@ describe("a conditional alternator used as a value in a function (I-1284)", () =
 describe("an alternator written as a statement in a function (I-1397)", () => {
   test("the ticket's queue statement runs its arm", () => {
     expect(
-      run(lines("function sequential()", "  local n = 0", "  local function touch() n = 7 end", "  queue", "    | touch()", "  end", "  return n", "end", "Queue effect {sequential()}.")),
+      run(lines("function sequential()", "  local n = 0", "  local function touch() n = 7 end", "  queue", "    | touch()", "  end", "  return n", "end", ...inScene("Queue effect {sequential()}."))),
     ).toEqual({ output: "Queue effect 7.\n", errors: [] });
   });
 
   test("the ticket's match statement runs its arm", () => {
     expect(
-      run(lines("function conditional()", "  local n = 0", "  local function touch() n = 8 end", '  match "one"', "    | one = touch()", "  end", "  return n", "end", "Match effect {conditional()}.")),
+      run(lines("function conditional()", "  local n = 0", "  local function touch() n = 8 end", '  match "one"', "    | one = touch()", "  end", "  return n", "end", ...inScene("Match effect {conditional()}."))),
     ).toEqual({ output: "Match effect 8.\n", errors: [] });
   });
 
   test("the ticket's inline queue used as a value runs its arm", () => {
     expect(
-      run(lines("function valued()", "  local n = 0", "  local function touch() n = 9 end", "  local v = queue | touch() end", "  return n", "end", "Value effect {valued()}.")),
+      run(lines("function valued()", "  local n = 0", "  local function touch() n = 9 end", "  local v = queue | touch() end", "  return n", "end", ...inScene("Value effect {valued()}."))),
     ).toEqual({ output: "Value effect 9.\n", errors: [] });
   });
 
@@ -379,12 +377,7 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
         "function f()",
         ...(form === "block" ? [`  ${keyword}`, '    | add("a")', '    | add("b")', '    | add("c")', "  end"] : [`  ${keyword} | add("a") | add("b") | add("c") end`]),
         "end",
-        "& f()",
-        "& f()",
-        "& f()",
-        "& f()",
-        "& f()",
-        "Log {trail}.",
+        ...inScene("& f()", "& f()", "& f()", "& f()", "& f()", "Log {trail}."),
       ),
     );
   const TRAILS: [string, (trail: string) => void][] = SEQUENTIAL.map(([keyword, check]) => [
@@ -405,7 +398,7 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
   });
 
   test("an arm runs each of its calls", () => {
-    expect(run(lines(...TRAIL, "function f()", "  cycle", '    | add("a")', '    | add("b") add("x")', "  end", "end", "& f()", "& f()", "& f()", "Log {trail}."))).toEqual({
+    expect(run(lines(...TRAIL, "function f()", "  cycle", '    | add("a")', '    | add("b") add("x")', "  end", "end", ...inScene("& f()", "& f()", "& f()", "Log {trail}.")))).toEqual({
       output: "Log abxa.\n",
       errors: [],
     });
@@ -413,19 +406,19 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
 
   test("match runs the matching arm, and nothing where none matches", () => {
     expect(
-      run(lines(...TRAIL, "function f(x)", "  match x", '    | a = add("A")', '    | b = add("B")', "  end", "end", '& f("a")', '& f("z")', '& f("b")', "Log {trail}.")),
+      run(lines(...TRAIL, "function f(x)", "  match x", '    | a = add("A")', '    | b = add("B")', "  end", "end", ...inScene('& f("a")', '& f("z")', '& f("b")', "Log {trail}."))),
     ).toEqual({ output: "Log AB.\n", errors: [] });
   });
 
   test("plural runs its category's arm", () => {
     expect(
-      run(lines(...TRAIL, "function f(n)", "  plural(n)", '    | one = add("1")', '    | other = add("n")', "  end", "end", "& f(1)", "& f(3)", "Log {trail}.")),
+      run(lines(...TRAIL, "function f(n)", "  plural(n)", '    | one = add("1")', '    | other = add("n")', "  end", "end", ...inScene("& f(1)", "& f(3)", "Log {trail}."))),
     ).toEqual({ output: "Log 1n.\n", errors: [] });
   });
 
   test("in a loop's body, every pass shares the count", () => {
     expect(
-      run(lines(...TRAIL, "function f()", "  for i = 1, 3 do", "    cycle", '      | add("a")', '      | add("b")', "    end", "  end", "end", "& f()", "& f()", "Log {trail}.")),
+      run(lines(...TRAIL, "function f()", "  for i = 1, 3 do", "    cycle", '      | add("a")', '      | add("b")', "    end", "  end", "end", ...inScene("& f()", "& f()", "Log {trail}."))),
     ).toEqual({ output: "Log ababab.\n", errors: [] });
   });
 
@@ -436,7 +429,7 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
       lines(
         ...TRAIL,
         "store passes = 0",
-        "scene main",
+        "scene start",
         "  label top",
         "  & passes = passes + 1",
         '  & cycle | add("a") | add("b") end',
@@ -448,12 +441,12 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
       ),
     );
     expect(errorsOf(program)).toEqual([]);
-    expect(storyRun(new ProgramStory(program.chunks!), [], { from: "main" }).beats.map((beat) => beat.text)).toEqual(["Log aba.\n"]);
+    expect(storyRun(new ProgramStory(program.chunks!)).beats.map((beat) => beat.text)).toEqual(["Log aba.\n"]);
   });
 
   test("in a `do` block", () => {
     expect(
-      run(lines(...TRAIL, "function f()", "  do", "    chain", '      | add("a")', '      | add("b")', "    end", "  end", "end", "& f()", "& f()", "& f()", "Log {trail}.")),
+      run(lines(...TRAIL, "function f()", "  do", "    chain", '      | add("a")', '      | add("b")', "    end", "  end", "end", ...inScene("& f()", "& f()", "& f()", "Log {trail}."))),
     ).toEqual({ output: "Log abb.\n", errors: [] });
   });
 });
@@ -462,11 +455,11 @@ describe("an unread token in an arm (I-1284)", () => {
   const UNREAD = ["Unexpected '!'; did you mean 'not'?", "Expected identifier when parsing expression, got <eof>"];
 
   test("in a value alternator's arm, reported once", () => {
-    expect(run(lines("function f()", '  local line = cycle | "a" | ! | "b" end', "  return line", "end", "Value {f()}.")).errors).toEqual(UNREAD);
+    expect(run(lines("function f()", '  local line = cycle | "a" | ! | "b" end', "  return line", "end", ...inScene("Value {f()}."))).errors).toEqual(UNREAD);
   });
 
   test("in a statement alternator's arm, reported once", () => {
-    expect(run(lines("function f()", "  cycle", "    | !", "  end", "end", "& f()")).errors).toEqual(UNREAD);
+    expect(run(lines("function f()", "  cycle", "    | !", "  end", "end", ...inScene("& f()"))).errors).toEqual(UNREAD);
   });
 });
 
@@ -494,7 +487,7 @@ describe("an exit in an arm of an alternator used as a value", () => {
   describe.each(["break", "continue", "return"])("`%s`", (keyword) => {
     test.each(CONTEXTS)("in %s is one error at the keyword", (_name, context) => {
       const line = context(ARM(keyword));
-      const source = lines("function f()", "  for i = 1, 2 do", line, "  end", "  return 0", "end", "Value {f()}.");
+      const source = lines("function f()", "  for i = 1, 2 do", line, "  end", "  return 0", "end", ...inScene("Value {f()}."));
       const at = line.indexOf(keyword);
       expect(exitErrors(source)).toEqual([
         `2:${at}-2:${at + keyword.length} \`${keyword}\` cannot leave an arm of an alternator used as a value; write the alternator as a statement`,
@@ -521,7 +514,7 @@ describe("an exit in an arm of an alternator used as a value", () => {
           "  cycle | return 1 | return 2 end",
           "  return 0",
           "end",
-          "Value {f()} {g()} {g()}.",
+          ...inScene("Value {f()} {g()} {g()}."),
         ),
       ),
     ).toEqual({ output: "Value 1 1 2.\n", errors: [] });
@@ -529,12 +522,12 @@ describe("an exit in an arm of an alternator used as a value", () => {
 
   test("a loop written in the arm keeps its own break", () => {
     expect(
-      run(lines("function f()", '  return "p" .. (cycle | local n = 0 while true do n = n + 1 if n == 2 then break end end n end)', "end", "Value {f()}.")),
+      run(lines("function f()", '  return "p" .. (cycle | local n = 0 while true do n = n + 1 if n == 2 then break end end n end)', "end", ...inScene("Value {f()}."))),
     ).toEqual({ output: "Value p2.\n", errors: [] });
   });
 
   test("a return in a function written in the arm returns from that function", () => {
-    expect(run(lines("function f()", '  return "p" .. (cycle | local function g() return 3 end g() end)', "end", "Value {f()}."))).toEqual({
+    expect(run(lines("function f()", '  return "p" .. (cycle | local function g() return 3 end g() end)', "end", ...inScene("Value {f()}.")))).toEqual({
       output: "Value p3.\n",
       errors: [],
     });
@@ -546,7 +539,7 @@ describe("an exit in an arm of an alternator used as a value", () => {
     ["local v = (cycle | break end)"],
     ["local a, b = cycle | break end"],
   ])("the sole value of a local leaves its loop from an arm, with nothing waiting: %s", (declaration) => {
-    expect(run(lines("function f()", "  local n = 0", "  for i = 1, 3 do", "    n = n + 1", `    ${declaration}`, "  end", "  return n", "end", "Value {f()}."))).toEqual({
+    expect(run(lines("function f()", "  local n = 0", "  for i = 1, 3 do", "    n = n + 1", `    ${declaration}`, "  end", "  return n", "end", ...inScene("Value {f()}.")))).toEqual({
       output: "Value 1.\n",
       errors: [],
     });
@@ -555,14 +548,14 @@ describe("an exit in an arm of an alternator used as a value", () => {
 
 describe("a displayed alternator keeps its behaviour", () => {
   test("in story braces and as a story block", () => {
-    expect(run(lines('1 {cycle | "a" | "b" end}.', '2 {queue | "a" end}.', "cycle", "  | A.", "  | B.", "end"))).toEqual({
+    expect(run(lines(...inScene('1 {cycle | "a" | "b" end}.', '2 {queue | "a" end}.', "cycle", "  | A.", "  | B.", "end")))).toEqual({
       output: "1 a.\n2 a.\nA.\n",
       errors: [],
     });
   });
 
   test("a story match with a keyless arm keeps its line", () => {
-    expect(run(lines('Value {match "x" | | x = "m" end}.', 'Then {match "x" | "k" | x = "m" end}.'))).toEqual({
+    expect(run(lines(...inScene('Value {match "x" | | x = "m" end}.', 'Then {match "x" | "k" | x = "m" end}.')))).toEqual({
       output: "Value .\nThen k.\n",
       errors: [],
     });
@@ -571,13 +564,13 @@ describe("a displayed alternator keeps its behaviour", () => {
   // Round 1, comment 6347276089: a value that holds for no arm after a
   // keyless first arm is popped, so the line keeps its text.
   test.each(["false", "nil"])("a story match on %s that no arm takes after a keyless first arm keeps its line", (condition) => {
-    expect(run(lines(`store c = ${condition}`, 'Value {match c | "k" | x = "m" end}.', "After."))).toEqual({ output: "Value .\nAfter.\n", errors: [] });
+    expect(run(lines(`store c = ${condition}`, ...inScene('Value {match c | "k" | x = "m" end}.', "After.")))).toEqual({ output: "Value .\nAfter.\n", errors: [] });
   });
 });
 
 describe("an alternator in Luau code's count is saved and loaded (I-1284)", () => {
   test("a value alternator continues with its second arm after a save taken after the first call", () => {
-    const source = lines("function f()", '  return cycle | "a" | "b" | "c" end', "end", "First {f()}.", "Second {f()}.");
+    const source = lines("function f()", '  return cycle | "a" | "b" | "c" end', "end", ...inScene("First {f()}.", "Second {f()}."));
     const { story, root } = makeRuntimeStoryFromSource(source);
     expect(story.Continue()).toBe("First a.\n");
     const saved = story.state.toJson();
@@ -587,7 +580,7 @@ describe("an alternator in Luau code's count is saved and loaded (I-1284)", () =
   });
 
   test("a statement alternator continues with its second arm after a save taken after the first call", () => {
-    const source = lines(...TRAIL, "function f()", "  cycle", '    | add("a")', '    | add("b")', "  end", "end", "& f()", "One {trail}.", "& f()", "Two {trail}.");
+    const source = lines(...TRAIL, "function f()", "  cycle", '    | add("a")', '    | add("b")', "  end", "end", ...inScene("& f()", "One {trail}.", "& f()", "Two {trail}."));
     const { story, root } = makeRuntimeStoryFromSource(source);
     expect(story.Continue()).toBe("One a.\n");
     const saved = story.state.toJson();
@@ -598,7 +591,7 @@ describe("an alternator in Luau code's count is saved and loaded (I-1284)", () =
 });
 
 describe("an edit to an arm of an alternator in Luau code (I-1284)", () => {
-  const SOURCE = lines("function f()", '  local v = cycle | "a" | "b" end', "  return v", "end", "function g()", "  queue", '    | print("x")', "  end", "end", "1 {f()}.", "2 {f()}.", "& g()");
+  const SOURCE = lines("function f()", '  local v = cycle | "a" | "b" end', "  return v", "end", "function g()", "  queue", '    | print("x")', "  end", "end", ...inScene("1 {f()}.", "2 {f()}.", "& g()"));
 
   test.each([
     ["a value arm's text", '"b" end', '"B" end'],

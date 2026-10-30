@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// #1223 reads brace blocks in `style`, `animation`, `theme` and `morph`
-// bodies, and #1227 formats them by brace depth. The formatter must not
-// change what such a body means.
-
 describe("formatting a body written with brace blocks", () => {
   test("well-formed source round-trips unchanged", () => {
     const source = `style button with
@@ -51,11 +47,6 @@ from { opacity = 0 }
   timing={duration=1;delay = 2,}
 end
 `;
-    // The block's header line sits among the body's indented lines and takes
-    // its level from them; the lines inside it take their depth from its
-    // braces (#1227). `timing` stays a sibling of `keyframes`, and its
-    // one-line block is spaced at its braces, its `=` and its `;`. The comma
-    // and the spacing of a property's own `=` stay as written.
     expect(formatSource(source)).toBe(`animation fade with
   keyframes {
     from { opacity = 0 }

@@ -38,7 +38,7 @@ describe("runtime test harness smoke", () => {
     // `TunnelOnwards` / `ReturnType`. Authors get to skip the trailing
     // `-> DONE` boilerplate on most scenes.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main\nscene main\n  Hello world.\nend\n`,
+      `scene start\n  Hello world.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -49,7 +49,7 @@ describe("runtime test harness smoke", () => {
   test("branches without explicit `-> DONE` auto-terminate cleanly", () => {
     // Same auto-DONE behavior applies to `branch` (stitch) blocks.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main.opener\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
+      `scene start\n  -> main.opener\nend\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -63,7 +63,9 @@ describe("runtime test harness smoke", () => {
     // annotation is informational — sparkdown's runtime accepts any
     // value as a divert-target if used as one (see
     // `tunnel-onwards-variable-target` in `Diverts.test.ts`).
-    const ctx = makeRuntimeStoryFromSource(`-> outer ->
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> outer ->
+end
 
 scene outer
   This is outer
@@ -92,10 +94,12 @@ end
     // path for writes (`& obj.field = X`), this gives luau-idiomatic
     // table access for read+write.
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 10 }
-{t.value}
-& mutate(t)
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & mutate(t)
+  {t.value}
+  -> DONE
+end
 function mutate(x)
   x.value = 99
 end
@@ -109,10 +113,12 @@ end
     // continue after the first line's newline, once, so `5 * 5` lands at `25`;
     // a second run would square it again to `625`.
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 5 }
-{t.value}
-& t.value = t.value * t.value
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & t.value = t.value * t.value
+  {t.value}
+  -> DONE
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("5\n");
@@ -128,8 +134,7 @@ end
     // ParsedObject, not literal `Text("-> X")`. Critical for the
     // flat-weave-style "alternator arm pivots to another path" idiom.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main
-scene main
+      `scene start
   start
   {chain | -> next | second visit end}
   -> DONE
@@ -154,7 +159,9 @@ end
     // through to `FlowBase.ContentWithNameAtLevel` which checks the
     // stitch's `_rootWeave.WeavePointNamed(...)` for both labeled
     // gathers and labeled choices (any IWeavePoint with an identifier).
-    const ctxGather = makeRuntimeStoryFromSource(`-> main.sub.hello_label
+    const ctxGather = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.hello_label
+end
 scene main
   branch sub
     label hello_label
@@ -164,7 +171,9 @@ end
 `);
     expect(ctxGather.errorMessages).toEqual([]);
 
-    const ctxChoice = makeRuntimeStoryFromSource(`-> main.sub.target
+    const ctxChoice = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.target
+end
 scene main
   branch sub
     choose

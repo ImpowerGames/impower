@@ -1,19 +1,3 @@
-// Harness for the port of Luau's type-checker tests, which is the
-// specification for Sparkdown's type checker (#589). The ported cases live in
-// `typecheck/`, one file per upstream file, and `typecheck/README.md` records
-// how a case is ported; this file compiles a case's snippets.
-//
-// `checkLuau` compiles a Luau snippet exactly as written, as a `.luau` file
-// loaded with `run` (the compiler wraps its body in a function, the way
-// `runConformanceSource` wraps a runtime fixture by hand). The snippet is
-// therefore a Luau file in its own right, and a `--!strict`, `--!nonstrict`
-// or `--!nocheck` line in it is Luau's own mode directive for that file. It
-// then type checks the file as the compiler hands it over, with the globals
-// of the upstream fixture the case names.
-//
-// Sparkdown's grammar recovers from Luau it cannot read by reading the rest
-// of the line as narrative text, without a diagnostic, so the parse check
-// looks at the syntax tree as well as at what the validator reports.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { createHash } from "node:crypto";
@@ -328,7 +312,7 @@ function compileSource(source: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text: `run "${SNIPPET_NAME}"\n`,
+        text: `scene start\n  run "${SNIPPET_NAME}"\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

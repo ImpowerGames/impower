@@ -28,7 +28,9 @@ const story = (body: string[]) =>
     '  function foo(n, ...) return n + select("#", ...) end',
     ...body.map((line) => `  ${line}`),
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
   ].join("\n");
 
 describe("a call by name after the block of a local of the name", () => {

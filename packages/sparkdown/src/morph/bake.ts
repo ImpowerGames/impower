@@ -771,8 +771,18 @@ export function* bakeSteps(
       const drawn = leaves.filter(
         (l) => l.live && (l.group === pose.group || l.group === undefined) && visibleAt(l.element, visible) && labelledAny(l.element, entry.targets),
       );
+      const carried = new Map<string, Leaf>();
+      for (const segment of segments) {
+        if (segment.group !== pose.group) continue;
+        const sides = [segment.to.state === pose.state ? segment.carry?.to : undefined, segment.from.state === pose.state ? segment.carry?.from : undefined];
+        for (const side of sides) {
+          for (const [node, leaf] of (side && carriedSources.get(side)) ?? []) {
+            if (labelledAny(leaf.element, entry.targets)) carried.set(node, leaf);
+          }
+        }
+      }
       for (const label of entry.targets) {
-        if (drawn.some((l) => labelledAny(l.element, [label]))) continue;
+        if (drawn.some((l) => labelledAny(l.element, [label])) || [...carried.values()].some((l) => labelledAny(l.element, [label]))) continue;
         report(
           "paint-target-missing",
           "warning",
@@ -780,7 +790,7 @@ export function* bakeSteps(
           { layer: label },
         );
       }
-      if (!drawn.length) continue;
+      if (!drawn.length && !carried.size) continue;
       const colors: ["fill" | "stroke", MorphColor][] = [];
       for (const name of ["fill", "stroke"] as const) {
         const color = entry[name] === undefined ? undefined : readEntryColor(entry[name]);
@@ -802,25 +812,41 @@ export function* bakeSteps(
         if (entry.opacity !== undefined && opacity !== undefined) base.opacity = opacity;
         nodes[leaf.node] = base;
       }
+      for (const [node, leaf] of carried) {
+        const base: MorphPaintBase = {};
+        for (const [name, color] of colors) {
+          const value = ownColor(paintOf(leaf), name, color);
+          if (value) base[name] = value;
+        }
+        const opacity = paintOf(leaf).opacity;
+        if (entry.opacity !== undefined && opacity !== undefined) base.opacity = opacity;
+        nodes[node] = base;
+      }
       const tracks: MorphPaintPose["tracks"] = [];
       segments.forEach((segment, s) => {
         if (segment.group !== pose.group) return;
         const arriving = segment.to.state === pose.state;
         const leaving = segment.from.state === pose.state;
         for (const t of segment.transitions) {
-          if (t.kind !== "morph" || t.partner || !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
+          if (t.kind !== "morph") continue;
+          const carriedHere = (side: Record<string, string> | undefined) => {
+            const leaf = side && carriedSources.get(side)?.get(t.draw);
+            return leaf && labelledAny(leaf.element, entry.targets) ? leaf : undefined;
+          };
+          const source = t.partner ? (arriving ? carriedHere(segment.carry?.to) : undefined) ?? (leaving ? carriedHere(segment.carry?.from) : undefined) : undefined;
+          if (t.partner ? !source : !((arriving && t.to in nodes) || (leaving && t.from in nodes))) continue;
           // The paint the track shows without the entry: the blend its ends
           // record, else the paint its ends and the node it draws on share.
           const ends: MorphPaintPose["tracks"][number]["ends"] = {};
           for (const [name, color] of colors) {
             const recorded = t.paint?.[name];
-            const a = recorded?.[0] ?? ownColor(paintOf(leafByNode.get(t.from)!), name, color);
-            const b = recorded?.[1] ?? ownColor(paintOf(leafByNode.get(t.to)!), name, color);
+            const a = recorded?.[0] ?? ownColor(paintOf(source ?? leafByNode.get(t.from)!), name, color);
+            const b = recorded?.[1] ?? ownColor(paintOf(source ?? leafByNode.get(t.to)!), name, color);
             if (a && b) ends[name] = [a, b];
           }
           if (entry.opacity !== undefined) {
-            const a = t.paint?.opacity?.[0] ?? paintOf(leafByNode.get(t.from)!).opacity;
-            const b = t.paint?.opacity?.[1] ?? paintOf(leafByNode.get(t.to)!).opacity;
+            const a = t.paint?.opacity?.[0] ?? paintOf(source ?? leafByNode.get(t.from)!).opacity;
+            const b = t.paint?.opacity?.[1] ?? paintOf(source ?? leafByNode.get(t.to)!).opacity;
             if (a !== undefined && b !== undefined) ends.opacity = [a, b];
           }
           tracks.push({ segment: s, draw: t.draw, ends });
@@ -984,6 +1010,7 @@ export function* bakeSteps(
   };
 
   const segments: MorphSegment[] = [];
+  const carriedSources = new WeakMap<Record<string, string>, Map<string, Leaf>>();
   const apertures: number[][][][] = [];
   const apertureEdges: number[][][][][] = [];
   /** Per aperture table entry, the pairs (cache keys) of the two edges around each loop. */
@@ -1264,7 +1291,10 @@ export function* bakeSteps(
         const drawingAt = (end: Exclude<PartnerEnd, undefined>) => ("own" in end ? end.own : end.shape);
         const nodeAt = (end: Exclude<PartnerEnd, undefined>) => nodeOf(drawingAt(end));
         const carry = (end: PartnerEnd, node: string, side: Record<string, string>) => {
-          if (end && "shape" in end && end.held) side[node] = shapeIn(leaf, end.shape);
+          if (!end || !("shape" in end) || !end.held) return;
+          side[node] = shapeIn(leaf, end.shape);
+          const sources = carriedSources.get(side) ?? new Map<string, Leaf>();
+          carriedSources.set(side, sources.set(node, leaf));
         };
         const onCarrier = (end: { shape: Leaf; held: boolean }, side: Record<string, string>) => {
           const node = slot(leaf, false);

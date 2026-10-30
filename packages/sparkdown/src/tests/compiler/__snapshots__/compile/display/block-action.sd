@@ -1,3 +1,5 @@
-:
-  They walk forward.
-  They look at the sky.
+scene start
+  :
+    They walk forward.
+    They look at the sky.
+end

@@ -1,5 +1,7 @@
-if happy then
-  N: I trust you.
-else
-  N: Stay a while.
+scene start
+  if happy then
+    N: I trust you.
+  else
+    N: Stay a while.
+  end
 end

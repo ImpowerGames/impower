@@ -10,7 +10,7 @@ import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarn
 
 const SOURCE = `store mood = 0
 
--> start
+
 
 scene start
   HERO:

@@ -1,14 +1,16 @@
-HERO: Hi. > Bye.
-HERO: Hi. >
->
-> Hello
-[[cg_sunset]] >
-A \> B
-^: C > D
-$: E > F
-%: G > H
-@ portrait: I > J
-HERO:
-  One. > Two.
+scene start
+  HERO: Hi. > Bye.
+  HERO: Hi. >
   >
-  Three.
+  > Hello
+  [[cg_sunset]] >
+  A \> B
+  ^: C > D
+  $: E > F
+  %: G > H
+  @ portrait: I > J
+  HERO:
+    One. > Two.
+    >
+    Three.
+end

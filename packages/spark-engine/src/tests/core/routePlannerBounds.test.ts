@@ -74,7 +74,7 @@ const newGame = (program: unknown) =>
 /** A single scene of `beats` display lines. Its last beat is on line
  *  `beats + 2`, counting from zero. */
 function longScene(beats: number): string {
-  const lines = ["-> start", "", "scene start"];
+  const lines = ["", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
     lines.push(`  Beat number ${i} of the long scene.`);
   }
@@ -214,7 +214,7 @@ describe("a story that never terminates still gives up", () => {
   // Nothing the planner can be clever about saves it here: the story really
   // does run forever, so only a ceiling on work ends the search. Both shapes
   // below revisit the same position endlessly.
-  const DIVERT_LOOP = `-> start
+  const DIVERT_LOOP = `
 
 scene start
   Going round.
@@ -222,7 +222,7 @@ scene start
 end
 `;
 
-  const CHOICE_LOOP = `-> start
+  const CHOICE_LOOP = `
 
 scene start
   Before the loop.
@@ -274,7 +274,7 @@ describe("a position already expanded is not expanded again", () => {
   // unreachable, with no error anywhere.
   const BRANCH_IN_LOOP = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.
@@ -288,7 +288,7 @@ end
 `;
 
   // Same loop, no decision in it, so no fork site can ever repeat.
-  const PLAIN_LOOP = `-> start
+  const PLAIN_LOOP = `
 
 scene start
   Going round.
@@ -339,7 +339,7 @@ describe("every branch of a decision stays reachable", () => {
   // Forks are queued true-first, so the false side is the sibling at risk.
   const TWO_BRANCHES = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.

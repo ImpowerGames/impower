@@ -42,8 +42,10 @@ function compileAndCapture(source: string): {
 describe("math.noise", () => {
   test("deterministic — same input gives same output", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0.5))
@@ -61,8 +63,10 @@ end
   test("integer inputs return 0 at the lattice corners", () => {
     // Perlin noise is 0 at integer lattice points (gradient * 0 = 0).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0, 0, 0))
@@ -79,8 +83,10 @@ end
 
   test("output stays within ~[-1, 1]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0.1, 0.2, 0.3))
@@ -105,8 +111,10 @@ end
 describe("debug.traceback", () => {
   test("returns a string containing 'stack traceback:'", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = debug.traceback()
@@ -119,8 +127,10 @@ end
 
   test("prepends the optional message", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = debug.traceback("oh no")
@@ -135,8 +145,10 @@ end
 describe("debug.info", () => {
   test("level 1 returns the current frame's path with `s` option", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local src = debug.info(1, "s")
@@ -149,8 +161,10 @@ end
 
   test("multi-letter opts return multi-value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, l = debug.info(1, "sl")
@@ -165,8 +179,10 @@ end
 
   test("out-of-range level returns nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local v = debug.info(999, "s")

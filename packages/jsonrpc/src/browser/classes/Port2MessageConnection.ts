@@ -58,19 +58,15 @@ export class Port2MessageConnection extends MessageConnection {
     }
     if (event.ports[0]) {
       if (this._port2) {
-        // Remove listeners from old port
         for (const listener of this._events.message) {
           this._port2.removeEventListener("message", listener);
         }
       }
-      // Start new port
       this._port2 = event.ports[0];
       this._port2.start();
-      // Add event listeners to new port
       for (const listener of this._events.message) {
         this._port2.addEventListener("message", listener);
       }
-      // Send any messages that were queued before a port was connected
       for (const e of this._messageBuffer) {
         this._port2.postMessage(e.message, { transfer: e.transfer });
       }

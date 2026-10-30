@@ -27,7 +27,7 @@ import {
   untilShown,
 } from "./domTestHarness";
 
-const SOURCE = `-> start
+const SOURCE = `
 
 scene start
   HERO: Do you understand?
@@ -421,7 +421,7 @@ layout hud with
   }
 end
 
--> start
+
 
 scene start
   HERO:
@@ -516,7 +516,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   HERO: Second.
@@ -556,7 +556,7 @@ end
   }
 end
 
--> start
+
 
 scene start
   Nothing to say.
@@ -613,7 +613,7 @@ layout hud with
   }
 end
 
--> start
+
 
 scene start
   HERO:

@@ -7,7 +7,6 @@ import { GrammarStack } from "./GrammarStack";
 
 type CallFrame = { ruleId: string; position: number };
 
-/** Internal state for a {@link Grammar}. */
 export class GrammarState {
   stack: GrammarStack = new GrammarStack([
     {
@@ -26,16 +25,12 @@ export class GrammarState {
 
   protected _matchDepth: number = 0;
 
-  /** Start of the cached line in `str` (see {@link line}). */
   protected _lineStart = 0;
 
-  /** End of the cached line in `str`, after its line break. */
   protected _lineEnd = -1;
 
-  /** Text of the cached line, its line break included. */
   protected _lineText = "";
 
-  /** Length of `str` when the cached line was read. */
   protected _lineStrLength = -1;
 
   constructor(
@@ -48,11 +43,6 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
-  /**
-   * A state over `str`, which is part of one line, with no line break but at
-   * its end, so {@link line} reads it as that line without searching for
-   * where it starts.
-   */
   static ofLine(str: string) {
     const state = new GrammarState(str);
     state._lineStart = 0;
@@ -70,13 +60,6 @@ export class GrammarState {
     this.str += next;
   }
 
-  /**
-   * Reads the line of `str` that holds `from`, with its line break (`\r\n`,
-   * `\r` or `\n`), into {@link lineStart} and {@link lineText}. Rules match each regex against this text only, as
-   * vscode-textmate does, so no match, lookahead or lookbehind sees or
-   * consumes another line, however much of the document `str` holds.
-   * A position just after a line break starts the next line.
-   */
   line(from: number) {
     const str = this.str;
     if (
@@ -84,7 +67,6 @@ export class GrammarState {
       (from < this._lineEnd ||
         (from === this._lineEnd &&
           (this._lineEnd === this._lineStart ||
-            // The end of `str`, on a line no break has ended yet.
             (this._lineEnd === str.length && !endsWithBreak(this._lineText))))) &&
       str.length === this._lineStrLength
     ) {
@@ -93,10 +75,10 @@ export class GrammarState {
     let start = from;
     while (start > 0) {
       const c = str.charCodeAt(start - 1);
-      if (c === 10 /* \n */) {
+      if (c === 10) {
         break;
       }
-      if (c === 13 /* \r */ && str.charCodeAt(start) !== 10) {
+      if (c === 13 && str.charCodeAt(start) !== 10) {
         break;
       }
       start--;
@@ -105,10 +87,10 @@ export class GrammarState {
     while (end < str.length) {
       const c = str.charCodeAt(end);
       end++;
-      if (c === 10 /* \n */) {
+      if (c === 10) {
         break;
       }
-      if (c === 13 /* \r */ && str.charCodeAt(end) !== 10) {
+      if (c === 13 && str.charCodeAt(end) !== 10) {
         break;
       }
     }
@@ -118,12 +100,10 @@ export class GrammarState {
     this._lineStrLength = str.length;
   }
 
-  /** Start in `str` of the line last read by {@link line}. */
   get lineStart() {
     return this._lineStart;
   }
 
-  /** Text of the line last read by {@link line}, its line break included. */
   get lineText() {
     return this._lineText;
   }
@@ -156,5 +136,5 @@ export class GrammarState {
 
 const endsWithBreak = (text: string) => {
   const c = text.charCodeAt(text.length - 1);
-  return c === 10 /* \n */ || c === 13 /* \r */;
+  return c === 10 || c === 13;
 };

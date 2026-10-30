@@ -1,4 +1,6 @@
-do
-  store x = 1
-  store y = x + 1
+scene start
+  do
+    store x = 1
+    store y = x + 1
+  end
 end

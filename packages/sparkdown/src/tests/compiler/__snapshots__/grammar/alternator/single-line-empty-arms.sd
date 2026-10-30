@@ -1,1 +1,3 @@
-chain | a | | b end
+scene start
+  chain | a | | b end
+end

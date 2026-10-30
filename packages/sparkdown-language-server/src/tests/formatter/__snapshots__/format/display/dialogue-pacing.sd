@@ -1,3 +1,5 @@
-N: Hello.  There is a short pause.    And a long one.
-N: Glued line ..
-N: Broken line >
+scene start
+  N: Hello.  There is a short pause.    And a long one.
+  N: Glued line ..
+  N: Broken line >
+end

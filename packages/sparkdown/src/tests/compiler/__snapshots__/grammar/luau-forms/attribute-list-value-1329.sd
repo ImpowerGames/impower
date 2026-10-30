@@ -2,4 +2,6 @@ function run()
   local f = @[native] function() return 7 end
   return f()
 end
-Value {run()}.
+scene start
+  Value {run()}.
+end

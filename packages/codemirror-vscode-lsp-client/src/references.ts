@@ -35,10 +35,6 @@ export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-file": {
     padding: "4px 8px",
     display: "flex",
-    // Explicit: a host may normalize `flex-direction` across its subtree
-    // (spark-editor forces `column` on every descendant of the editor root),
-    // and a direction-less flex container silently stacks when it does. This
-    // one is `[collapse icon][file name]`.
     flexDirection: "row",
     alignItems: "center",
     position: "sticky",
@@ -57,8 +53,6 @@ export const referencesTheme = EditorView.baseTheme({
     overflow: "clip",
     textOverflow: "ellipsis",
     display: "flex",
-    // Same reason as `.cm-lsp-reference-file` above; this one is
-    // `[line number][code snippet]`.
     flexDirection: "row",
     gap: "8px",
     "&[aria-selected]": {
@@ -292,9 +286,7 @@ export class ReferencePanel implements Panel {
     this.render(this.currentData);
   }
 
-  // Internal function to render the list content
   render(data: ReferenceState) {
-    // Only clear the list container, not the whole panel
     this.listContainer.innerHTML = "";
     this.currentData = data;
 
@@ -353,15 +345,12 @@ export class ReferencePanel implements Panel {
       matchSpan.textContent = matchText;
       snippet.appendChild(document.createTextNode(textAfter));
 
-      // Simple selection logic for the update
       entry.onclick = (e) => {
-        // Handle selection and navigation here
         this.showReference(this.view, i, e.detail === 2);
       };
 
       if (this.currentData.initiallySelected === i) {
         entry.setAttribute("aria-selected", "true");
-        // Ensure parent is expanded if initially selected
         let header = currentGroup!.previousElementSibling as HTMLElement;
         if (header?.classList.contains("cm-lsp-file-collapsed")) {
           header.classList.remove("cm-lsp-file-collapsed");
@@ -380,7 +369,6 @@ export class ReferencePanel implements Panel {
     );
     const step = index > prevIdx ? 1 : -1;
 
-    // Skip collapsed items
     while (
       this.options[targetIndex] &&
       this.options[targetIndex]!.offsetParent === null
@@ -411,7 +399,6 @@ export class ReferencePanel implements Panel {
 
   update(update: ViewUpdate) {
     let nextData = update.state.field(referencesState);
-    // Only re-render if the locations or mapping actually changed
     if (nextData && nextData !== this.currentData) {
       this.render(nextData);
     }
@@ -463,12 +450,6 @@ function showReference(
   if (takeFocus) closeReferencePanel(view);
 }
 
-/**
- * Iterates over the references currently displayed in the reference panel.
- * @param state The EditorState to inspect.
- * @param f Callback invoked for each reference.
- * 'from' and 'to' are document-local offsets if the reference is in the current file.
- */
 export function forEachReference(
   state: EditorState,
   f: (ref: ReferenceLocation, from: number | null, to: number | null) => void,
@@ -480,7 +461,6 @@ export function forEachReference(
     let from: number | null = null;
     let to: number | null = null;
 
-    // If the reference is in the current file, map it to local offsets
     if (refState.uri && loc.file.uri === refState.uri) {
       from = refState.mapping.mapPosition(loc.file.uri, loc.range.start, 1);
       to = refState.mapping.mapPosition(loc.file.uri, loc.range.end, -1);
@@ -500,7 +480,6 @@ export function updateDocumentReferences(client: LSPClient) {
     const view = file.getView();
     if (view) {
       const refState = view.state.field(referencesState, false);
-      // Only trigger if the panel is open; use the mapped original position
       if (refState) {
         requestReferences(view, refState.pos);
       }

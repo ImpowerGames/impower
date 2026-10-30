@@ -1,10 +1,3 @@
-// Accepting a language-server completion replaces the range the server's edit
-// names (I-1338). The client used to start the replaced range where its own
-// trigger-character pattern stopped matching before the cursor and end it at
-// the cursor, so a label holding a trigger character (`-`, `.`) was inserted
-// after the text it should have replaced, and an accept in the middle of a
-// token left the token's tail behind. The highlighted option's preview must
-// report the same edit acceptance makes.
 import {
   acceptCompletion,
   completionStatus,
@@ -21,9 +14,6 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import type * as lsp from "vscode-languageserver-protocol";
 
-// The editors here live long enough for CodeMirror's measure frame, which asks
-// jsdom for text rectangles it does not implement. An empty list is what a
-// layout engine that does no layout would answer, and CodeMirror handles it.
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () =>
     Object.assign([], { item: () => null }) as unknown as DOMRectList;
@@ -32,13 +22,10 @@ if (!Range.prototype.getClientRects) {
 
 const URI = "file:///main.sd";
 
-// The trigger characters the Sparkdown language server declares, in part:
-// enough that `-`, `.` and `:` each restart the client's own word.
 const TRIGGERS = [".", ",", " ", "-", "[", "]", ":", '"', "{", "}"];
 
 type Answer = lsp.CompletionList | lsp.CompletionItem[];
 
-/** A server that answers every completion request with `answer`. */
 class StandInServer {
   handler?: (value: object) => void;
   completions: lsp.CompletionParams[] = [];
@@ -91,7 +78,6 @@ function mount(doc: string, cursor: number | EditorSelection, answer: Answer) {
   return { view, server };
 }
 
-/** Open the list and wait until it shows options. */
 async function open(view: EditorView) {
   startCompletion(view);
   await settle(view);
@@ -108,12 +94,9 @@ async function settle(view: EditorView) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
   expect(completionStatus(view.state)).toBe("active");
-  // CodeMirror ignores accepting for its interaction delay (75ms) after the
-  // list opens.
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
-/** Type `text` at every cursor the way a keystroke does. */
 function type(view: EditorView, text: string) {
   view.dispatch(
     view.state.changeByRange((r) => ({
@@ -129,8 +112,6 @@ const range = (line: number, start: number, end: number): lsp.Range => ({
   end: { line, character: end },
 });
 
-/** The document after accepting the highlighted option, and the document its
- *  preview reported just before. */
 function accept(view: EditorView) {
   const highlighted = currentCompletions(view.state)[0];
   expect(highlighted).toBeDefined();
@@ -143,8 +124,6 @@ function accept(view: EditorView) {
 
 describe("accepting a language-server completion", () => {
   it("replaces the server's range when the label holds a trigger character", async () => {
-    // `[[mia:far-|]]`: the server's edit covers `far-`, from just after the
-    // colon. The client's own word restarts after the hyphen.
     const doc = "[[mia:far-]]\n";
     const cursor = "[[mia:far-".length;
     const { view } = mount(doc, cursor, [
@@ -163,7 +142,6 @@ describe("accepting a language-server completion", () => {
   });
 
   it("replaces the whole token when accepted mid-token", async () => {
-    // `"ne|ar"`: the server's edit covers the whole token inside the quotes.
     const doc = 'x = { "hat", "near" }\n';
     const cursor = 'x = { "hat", "ne'.length;
     const { view } = mount(doc, cursor, [
@@ -193,9 +171,6 @@ describe("accepting a language-server completion", () => {
   });
 
   it("keeps the server's range while typing narrows the list", async () => {
-    // The list opened on `far` and the author typed `-l` before accepting:
-    // the replaced range grows with what was typed, and a label holding the
-    // typed hyphen still matches.
     const doc = "[[mia:far]]\n";
     const cursor = "[[mia:far".length;
     const { view, server } = mount(doc, cursor, [
@@ -206,8 +181,6 @@ describe("accepting a language-server completion", () => {
       { label: "near", textEdit: { newText: "near", range: range(0, 6, 9) } },
     ]);
     await open(view);
-    // The server answers the request typing the hyphen makes with the range
-    // as it now stands.
     server.answer = [
       {
         label: "far-left",
@@ -253,9 +226,6 @@ describe("accepting a language-server completion", () => {
   });
 
   it("filters on the text before the cursor, not the suffix it will replace", async () => {
-    // `[[mia:far-|right]]`: the server offers `far-left` for the prefix
-    // `far-` and replaces the whole `far-right` token. The old suffix must
-    // not hide the offered choice.
     const doc = "[[mia:far-right]]\n";
     const cursor = "[[mia:far-".length;
     const { view } = mount(doc, cursor, [
@@ -273,10 +243,6 @@ describe("accepting a language-server completion", () => {
     expect(preview).toBe(accepted);
   });
 
-  // Typing at a second cursor moves the main cursor's range without moving
-  // the list's anchors, so the list is asked for again with the server's
-  // ranges for the document as it then stands, and the preview and
-  // acceptance agree on them.
   for (const c of [
     {
       name: "on another line",
@@ -322,10 +288,6 @@ describe("accepting a language-server completion", () => {
     });
   }
 
-  // An edit that is not typing at the end of the list's word, such as one a
-  // host or a collaborator dispatches, would move an item's range without
-  // moving the list's anchors: the list closes rather than replace the wrong
-  // text.
   for (const c of [
     {
       name: "the suffix an item replaces",
@@ -359,9 +321,6 @@ describe("accepting a language-server completion", () => {
   }
 
   it("replaces the list's word for an item without a range beside items with one", async () => {
-    // The list filters on the server's word `look.ha`, so an item without a
-    // range is shown only when its label continues that word, and it
-    // replaces that word rather than the text after the dot.
     const doc = "[[mia:look.ha]]\n";
     const cursor = "[[mia:look.ha".length;
     const { view } = mount(doc, cursor, [
@@ -378,7 +337,6 @@ describe("accepting a language-server completion", () => {
   });
 
   it("closes the list when backspacing deletes across an item's start", async () => {
-    // `foobar|`: one item replaces the whole word, the other only `bar`.
     const doc = "foobar\n";
     const cursor = "foobar".length;
     const { view } = mount(doc, cursor, [
@@ -400,8 +358,6 @@ describe("accepting a language-server completion", () => {
         userEvent: "delete.backward",
       });
     };
-    // Back to `foo|`, the narrower item's start: the list holds and the item
-    // still replaces from its own start.
     for (let i = 0; i < 3; i++) backspace();
     expect(completionStatus(view.state)).toBe("active");
     const narrow = currentCompletions(view.state).find(
@@ -411,8 +367,6 @@ describe("accepting a language-server completion", () => {
     expect(
       completionChanges(view.state, narrow!)?.apply(view.state.doc).toString(),
     ).toBe("foobarz\n");
-    // One more deletes the item's start, which would leave its range ending
-    // before it starts: the list closes instead.
     backspace();
     expect(view.state.doc.toString()).toBe("fo\n");
     expect(completionStatus(view.state)).toBeNull();
@@ -421,9 +375,6 @@ describe("accepting a language-server completion", () => {
   });
 
   it("applies each item's own range when items name different ranges", async () => {
-    // One item replaces `far-` after the colon; the other replaces only the
-    // text after the hyphen, as the server may send for a different kind of
-    // item.
     const doc = "[[mia:far-]]\n";
     const cursor = "[[mia:far-".length;
     const answer = (first: string): lsp.CompletionItem[] => {

@@ -7,11 +7,6 @@ import {
   sparkdownBug,
 } from "./completionHarness";
 
-// Completion surfaces sparkdown has and Luau does not: divert targets, scene,
-// branch and label names, `define` fields and values, asset names in `[[ ]]`
-// and `(( ))` commands, Sparkle `#prop` and `@event` attributes, and names
-// inside a narrative line's interpolation.
-
 const STORY = [
   "scene intro",
   "  Hello.",
@@ -103,7 +98,6 @@ describe("autocomplete · sparkdown surfaces", () => {
   });
 
   describe("define fields and values", () => {
-    // The type slot after `as` is defineCompletions.test.ts's.
     const program = compileProject("");
 
     sparkdownBug(BUG.defineFields, "a define body offers its type's fields", () => {
@@ -117,7 +111,6 @@ describe("autocomplete · sparkdown surfaces", () => {
     });
 
     sparkdownBug(BUG.defineFields, "a struct-reference field's value offers the structs of that type", () => {
-      // The builtin animation's `target` defaults to `layer.self`.
       const labels = labelsAt("define fade as animation with\n  target = @1\nend\n", { program });
       expect(labels).toContain("self");
     });
@@ -129,8 +122,6 @@ describe("autocomplete · sparkdown surfaces", () => {
     });
 
     test("identifier completion works in a script that declares a layout", () => {
-      // A structural declaration names its struct through the same node as a
-      // `define`, so a script with only a `layout` crashes the same way.
       const source =
         'layout main with\n  column {\n    text "hi"\n  }\nend\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
       expect(labelsAt(source, { program })).toContain("hp");
@@ -196,7 +187,6 @@ describe("autocomplete · sparkdown surfaces", () => {
     const program = compileProject("");
 
     sparkdownBug(BUG.sparkleAttributes, "a `#` after an element offers its props", () => {
-      // `child-gap` is the row prop the Sparkle control-flow guide uses.
       const labels = labelsAt("layout hud with\n  row #@1\nend\n", { program });
       expect(labels).toContain("child-gap");
     });

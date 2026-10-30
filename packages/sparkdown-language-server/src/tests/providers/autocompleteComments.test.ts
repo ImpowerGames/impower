@@ -2,16 +2,8 @@ import { describe, expect } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { labelsAt, upstreamCase } from "./completionHarness";
 
-// Comment, string and broken-input cases from Luau's Autocomplete.test.cpp.
-// Luau's comments (`--`, `--[[ ]]`) are comments inside Luau code, so those
-// cases sit in a function body. At the top level `--` is prose and the
-// comment is `//`, so the top-level adaptations use `//`.
-
 describe("autocomplete · comments, strings and broken input", () => {
   upstreamCase("dont_offer_any_suggestions_from_within_a_comment", "a member access inside a block comment in Luau code offers nothing", () => {
-    // While member completion offers nothing anywhere (#867), this cannot
-    // tell a comment from code. Comment suppression in Luau code is pinned by
-    // the skipped #866 cases below, which fail today.
     const labels = labelsAt(
       "store foo = {}\nfunction foo:bar() end\n\nfunction main()\n  --[[\n    foo:@1\n  ]]\nend\n",
     );
@@ -31,9 +23,6 @@ describe("autocomplete · comments, strings and broken input", () => {
   });
 
   upstreamCase("dont_offer_any_suggestions_from_within_a_comment", "a top-level comment offers nothing", () => {
-    // `foo.` offers nothing outside a comment too while #867 is open. A word
-    // that starts a keyword is the check that can fail today: outside a
-    // comment, `f` offers `function` and `for`.
     expect(labelsAt("store foo = {}\n// foo.@1\n")).toEqual([]);
     expect(labelsAt("// @1")).toEqual([]);
     expect(labelsAt("// f@1")).toEqual([]);
@@ -41,7 +30,6 @@ describe("autocomplete · comments, strings and broken input", () => {
   });
 
   upstreamCase("comments", "a top-level comment at the end of the file offers nothing", () => {
-    // Upstream: `--foo` with the cursor at its end.
     expect(labelsAt("//foo@1")).toEqual([]);
   });
 
@@ -59,8 +47,6 @@ describe("autocomplete · comments, strings and broken input", () => {
   });
 
   upstreamCase.bug(BUG.comments, "autocomplete_interpolated_string_constant", "a word in a quoted string offers nothing", () => {
-    // Upstream checks backtick strings; a sparkdown double-quoted string also
-    // interpolates, and its text offers keywords for a typed word.
     expect(labelsAt('function main()\n  return "g@1"\nend\n')).toEqual([]);
   });
 

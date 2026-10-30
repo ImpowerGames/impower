@@ -55,7 +55,6 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
     if (initializeResult.textDocuments) {
       for (const file of initializeResult.textDocuments) {
         if (!this._fileRegistry.get(file.uri)) {
-          // Add unopened workspace file to registry
           const text = file.text;
           this._fileRegistry.set(file.uri, {
             uri: file.uri,
@@ -128,7 +127,6 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
   }
 
   override refreshFileContent(uri: string, text: string) {
-    // Update existing file or create one if it doesn't exist
     const existingFile = this._fileRegistry.get(uri);
     if (!existingFile) {
       this._fileRegistry.set(uri, {

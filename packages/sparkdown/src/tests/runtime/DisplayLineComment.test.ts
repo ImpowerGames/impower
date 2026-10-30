@@ -54,9 +54,7 @@ const run = (compiled: any): string => {
 
 describe("`//` display line comments", () => {
   test("whole-line `//` comments are removed (scene + dialogue), newline swallowed", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   // a whole-line scene comment
   Action line one.
   RAFFLES
@@ -79,9 +77,7 @@ end
   });
 
   test("end-of-line `//` comment is stripped but the newline is preserved", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   Action before. // trailing note
   Action after.
   done
@@ -99,9 +95,7 @@ end
   });
 
   test("`//` not followed by whitespace (a URL) is NOT a comment", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   Visit http://example.com today.
   done
 end

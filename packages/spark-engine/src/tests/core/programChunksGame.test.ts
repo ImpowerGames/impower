@@ -321,8 +321,8 @@ describe("a game started at a line", () => {
   ][] = [
     [
       "a line that a break splits",
-      "Intro.\nFirst > Second.\nAfter.\n",
-      1,
+      "scene start\n  Intro.\n  First > Second.\n  After.\nend\n",
+      2,
       {
         flushed: [{ action: "First" }, { action: "Second." }, { action: "After." }],
         errors: [],
@@ -331,8 +331,8 @@ describe("a game started at a line", () => {
     ],
     [
       "a continuation followed by tags",
-      "Intro.\nYou see a ..\n.. door# t\nAfter.\n",
-      2,
+      "scene start\n  Intro.\n  You see a ..\n  .. door# t\n  After.\nend\n",
+      3,
       { flushed: [{ action: "door" }, { action: "After." }], errors: [UNJOINED] },
       { first: ["door\n", "After.\n"], last: ["door\n", "After.\n"] },
     ],
@@ -385,7 +385,7 @@ describe("a game started at a line", () => {
 // compile makes no chunks, which a game refuses to run.
 describe("a compile that holds a construct the program cannot compile", () => {
   it("reports it at its statement's line and makes no chunks", () => {
-    const text = "scene MAIN\n  One.\n  Two.\nend\nexternal message(x)\n";
+    const text = "scene start\n  One.\n  Two.\nend\nexternal message(x)\n";
     const { program } = compile({ [MAIN]: text });
     const errors = Object.values(program.diagnostics ?? {})
       .flat()
@@ -396,7 +396,7 @@ describe("a compile that holds a construct the program cannot compile", () => {
       ]);
     expect(errors).toEqual([[4, unsupportedConstructMessage("external")]]);
     expect(program.chunks).toBeUndefined();
-    const game = createGame(compile({ [MAIN]: "scene MAIN\n  One.\n  Two.\nend\n" }).program, {
+    const game = createGame(compile({ [MAIN]: "scene start\n  One.\n  Two.\nend\n" }).program, {
       file: MAIN,
       line: 1,
     });
@@ -440,7 +440,7 @@ describe("an error that stops a route search on the program engine", () => {
       "",
     ].join("\n");
     const texts = {
-      [MAIN]: ["-> C", ""].join("\n"),
+      [MAIN]: ["scene start", "  -> C", "end", ""].join("\n"),
       [CHAPTER]: chapter,
     };
     const lines = chapter.split("\n");

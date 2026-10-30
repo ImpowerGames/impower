@@ -1,4 +1,4 @@
-text.source.sparkdown [0..402]
+text.source.sparkdown [0..420]
  ├─ meta.function.luau [0..17]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -260,9 +260,16 @@ text.source.sparkdown [0..402]
  ├─ meta.function.luau [388..391]
  │   └─ keyword.control.end.luau [388..391]: "end"
  ├─ Newline [391..392]: "\n"
- ├─ string.display.text.chunk.sd [392..401]
- │   ├─ markup.raw.text.sd [392..397]: "After"
- │   ├─ markup.raw.space.sd [397..398]: " "
- │   ├─ markup.raw.text.sd [398..400]: "it"
- │   └─ markup.raw.punctuation.sd [400..401]: "."
- └─ Newline [401..402]: "\n"
+ ├─ keyword.control.scene.sd [392..397]: "scene"
+ ├─ punctuation.whitespace.required.sd [397..398]: " "
+ ├─ keyword.control.section.sd [398..403]: "start"
+ ├─ Newline [403..404]: "\n"
+ ├─ punctuation.whitespace.optional.sd [404..406]: "  "
+ ├─ string.display.text.chunk.sd [406..415]
+ │   ├─ markup.raw.text.sd [406..411]: "After"
+ │   ├─ markup.raw.space.sd [411..412]: " "
+ │   ├─ markup.raw.text.sd [412..414]: "it"
+ │   └─ markup.raw.punctuation.sd [414..415]: "."
+ ├─ Newline [415..416]: "\n"
+ ├─ keyword.control.end.luau [416..419]: "end"
+ └─ Newline [419..420]: "\n"

@@ -1,13 +1,9 @@
-// A structural word whose rule holds no arms names a value (I-1310), so the
-// locals declared after its call on the same line are in scope where any
-// other call's would be.
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { describe, expect, test } from "vitest";
 import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScopes";
 
 const URI = "file:///main.sd";
 
-/** The names of every kind in scope at the cursor, written `@`, outside any section. */
 function namesAt(source: string): string[] {
   const offset = source.indexOf("@");
   const text = source.slice(0, offset) + source.slice(offset + 1);

@@ -48,12 +48,15 @@ const places = {
   "in a scene": (header: string) => ({
     text: [
       "store n = 0", // 0
-      "-> s", // 1
+      "", // 1
       "scene s", // 2
       `  ${header}`, // 3
       "    & n = n + 1", // 4
       "  end", // 5
       "  n is {n}.", // 6
+      "end",
+      "scene start",
+      "  -> s",
       "end",
       "",
     ].join("\n"),

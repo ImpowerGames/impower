@@ -46,8 +46,11 @@ function compileAndCapture(source: string): {
 describe("string.find — plain substring (no patterns)", () => {
   test("finds a literal substring and returns 1-indexed [start, end]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("hello world", "world", 1, true)
@@ -63,8 +66,11 @@ end
     // Without plain=true, `.+` would be a pattern; with it, we want
     // the literal three chars `.`, `+`, `?`.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("a.+? then", ".+?", 1, true)
@@ -78,8 +84,11 @@ end
 
   test("returns nil when no match", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.find("abc", "xyz", 1, true)
@@ -96,8 +105,11 @@ end
 describe("string.find — character classes", () => {
   test("%d+ matches a digit run", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("abc 12345 def", "%d+")
@@ -111,8 +123,11 @@ end
 
   test("%a+ matches a letter run", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("123 abc 456", "%a+")
@@ -126,8 +141,11 @@ end
 
   test("anchored ^%a+ requires letter at start", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.find("123abc", "^%a+") == nil)
@@ -142,8 +160,11 @@ end
 
   test("$ anchor matches at end only", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("file.txt", "%.txt$")
@@ -159,8 +180,11 @@ end
 describe("string.find — captures", () => {
   test("single capture returned after [start, end]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e, name = string.find("hello world", "(%a+) world")
@@ -175,8 +199,11 @@ end
 
   test("multiple captures returned in order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e, year, month, day = string.find("date: 2026-05-20!", "(%d+)-(%d+)-(%d+)")
@@ -193,8 +220,11 @@ end
 describe("string.find — init / negative init", () => {
   test("init skips past earlier matches", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("aaa aaa aaa", "%a+", 5)
@@ -208,8 +238,11 @@ end
 
   test("negative init counts from end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, e = string.find("aaa aaa aaa", "%a+", -3)
@@ -225,8 +258,11 @@ end
 describe("string.match", () => {
   test("returns the whole match when there are no captures", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("hello 42 world", "%d+"))
@@ -238,8 +274,11 @@ end
 
   test("returns captures when present", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local year, month, day = string.match("2026-05-20", "(%d+)-(%d+)-(%d+)")
@@ -254,8 +293,11 @@ end
 
   test("returns nil on no match", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("hello", "%d+") == nil)
@@ -269,8 +311,11 @@ end
 describe("string patterns — quantifier behaviour", () => {
   test("lazy `-` matches minimally", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("<a><b>", "<(.-)>"))
@@ -282,8 +327,11 @@ end
 
   test("greedy `*` matches maximally", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("<a><b>", "<(.*)>"))
@@ -295,8 +343,11 @@ end
 
   test("? optional quantifier", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("color", "colou?r"))
@@ -311,8 +362,11 @@ end
 describe("string.gmatch — iterator over matches", () => {
   test("yields each whole match in turn (no captures)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for w in string.gmatch("hello world from sparkdown", "%a+") do
@@ -326,8 +380,11 @@ end
 
   test("yields N captures as N loop variables", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for k, v in string.gmatch("from=here, to=there, who=we", "(%a+)=(%a+)") do
@@ -349,8 +406,11 @@ end
 
   test("zero matches — body never runs", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for w in string.gmatch("no digits here", "%d+") do
@@ -365,8 +425,11 @@ end
 
   test("break exits the loop on a sentinel value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for w in string.gmatch("a b STOP d e", "%a+") do
@@ -385,8 +448,11 @@ end
   test("invalid pattern errors at the gmatch call site", () => {
     // `%b` without delimiters is malformed.
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for w in string.gmatch("hello", "%b") do
@@ -402,8 +468,11 @@ end
 describe("string.gsub — string replacement", () => {
   test("replaces every match with the template", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result, count = string.gsub("hello world", "o", "0")
@@ -417,8 +486,11 @@ end
 
   test("`%0` references the whole match", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("abc", "%a", "[%0]")
@@ -431,8 +503,11 @@ end
 
   test("`%1` and `%2` reference captures", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("year=2026, month=05", "(%a+)=(%d+)", "%2 %1")
@@ -445,8 +520,11 @@ end
 
   test("`%%` produces a literal percent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("abc", "b", "%%%%")
@@ -459,8 +537,11 @@ end
 
   test("max-replacement count `n` caps substitutions", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result, count = string.gsub("aaaaaa", "a", "X", 3)
@@ -474,8 +555,11 @@ end
 
   test("no matches — returns input unchanged, count 0", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result, count = string.gsub("hello", "%d+", "X")
@@ -491,8 +575,11 @@ end
 describe("string.gsub — table replacement", () => {
   test("looks up replacements in the table by capture", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local replacements = { name = "Anonymous", who = "stranger" }
@@ -506,8 +593,11 @@ end
 
   test("missing keys keep the original match", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local replacements = { x = "ONE" }
@@ -524,8 +614,11 @@ end
 
   test("numeric values stringify into the result", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local counts = { apples = 3, oranges = 7 }
@@ -542,8 +635,11 @@ end
 describe("string.gsub — function replacement", () => {
   test("replaces each match using the function's return value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("hello", "%a", function(c) return c .. c end)
@@ -556,8 +652,11 @@ end
 
   test("captures are passed as separate args", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("k=v", "(%a+)=(%a+)", function(k, v) return v .. "=" .. k end)
@@ -570,8 +669,11 @@ end
 
   test("returning nil keeps the original match", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result, count = string.gsub("abc", "%a", function(c)
@@ -589,8 +691,11 @@ end
 
   test("function-form returning a number stringifies", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.gsub("ab", "%a", function(c) return 42 end)
@@ -605,8 +710,11 @@ end
 describe("string.gsub — error paths", () => {
   test("invalid capture-index escape in replacement", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local r = string.gsub("hello", "(%a)", "%2")
@@ -620,8 +728,11 @@ end
 describe("string patterns — %b balanced match", () => {
   test("`%b()` matches a balanced parenthesis group", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local result = string.match("before (a (b c) d) after", "%b()")
@@ -634,8 +745,11 @@ end
 
   test("`%b()` returns nil when unbalanced", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.match("(unbalanced", "%b()") == nil)
@@ -647,8 +761,11 @@ end
 
   test("`%b{}` matches braced blocks too", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 -- Single quotes keep the subject raw; double quotes would interpolate it.
@@ -664,8 +781,11 @@ end
 describe("string patterns — () position capture", () => {
   test("`()` yields the 1-indexed position", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local pos = string.match("hello world", "()")
@@ -678,8 +798,11 @@ end
 
   test("mixed string + position captures in order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local word, pos, next_word = string.match("hello world", "(%a+)() (%a+)")

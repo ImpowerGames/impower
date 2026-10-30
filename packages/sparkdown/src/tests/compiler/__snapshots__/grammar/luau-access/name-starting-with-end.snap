@@ -1,4 +1,4 @@
-sparkdown [0..153]
+sparkdown [0..171]
  ├─ LuauFunctionDefinition [0..134]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -264,44 +264,61 @@ sparkdown [0..153]
  │       ├─ LuauFunctionDefinition_end_c3 134
  │       └─ LuauFunctionDefinition_end_c5 134
  ├─ Newline [134..135]: "\n"
- ├─ LuauSparkdownExplicitStatement [135..152]
- │   ├─ LuauSparkdownExplicitStatement_begin [135..137]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 135
+ ├─ Scene [135..146]
+ │   ├─ Scene_begin [135..141]
+ │   │   ├─ Scene_begin_c1 135
  │   │   │   └─ OptionalWhitespace 135
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [135..136]
- │   │   │   └─ LuauExplicitStatementMark [135..136]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [136..137]
- │   │       └─ RequiredWhitespace [136..137]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [137..152]
- │   │   └─ LuauSparkdownExplicitAccessPath [137..152]
- │   │       ├─ LuauSparkdownExplicitAccessPath_begin 137
- │   │       ├─ LuauSparkdownExplicitAccessPath_content [137..152]
- │   │       │   └─ LuauSparkdownExplicitAccessPart [137..152]
- │   │       │       └─ LuauSparkdownExplicitFunctionCall [137..152]
- │   │       │           ├─ LuauSparkdownExplicitFunctionCall_begin [137..142]
- │   │       │           │   ├─ LuauSparkdownExplicitFunctionCall_begin_c1 [137..142]
- │   │       │           │   │   └─ LuauStdLibFunctions [137..142]: "print"
- │   │       │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 142
- │   │       │           ├─ LuauSparkdownExplicitFunctionCall_content [142..152]
- │   │       │           │   └─ LuauFunctionCallParameters [142..152]
- │   │       │           │       ├─ LuauFunctionCallParameters_begin [142..143]
- │   │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [142..143]
- │   │       │           │       │       └─ PunctuationParenOpen [142..143]: "("
- │   │       │           │       ├─ LuauFunctionCallParameters_content [143..151]
- │   │       │           │       │   └─ LuauAccessPath [143..151]
- │   │       │           │       │       ├─ LuauAccessPath_begin 143
- │   │       │           │       │       ├─ LuauAccessPath_content [143..151]
- │   │       │           │       │       │   └─ LuauAccessPart [143..151]
- │   │       │           │       │       │       └─ LuauVariable [143..151]
- │   │       │           │       │       │           └─ LuauVariable_c1 [143..151]
- │   │       │           │       │       │               └─ LuauVariableName [143..151]: "endpoint"
- │   │       │           │       │       └─ LuauAccessPath_end 151
- │   │       │           │       │           └─ LuauAccessPath_end_c1 151
- │   │       │           │       └─ LuauFunctionCallParameters_end [151..152]
- │   │       │           │           └─ LuauFunctionCallParameters_end_c1 [151..152]
- │   │       │           │               └─ PunctuationParenClose [151..152]: ")"
- │   │       │           └─ LuauSparkdownExplicitFunctionCall_end 152
- │   │       └─ LuauSparkdownExplicitAccessPath_end 152
- │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 152
- │   └─ LuauSparkdownExplicitStatement_end 152
- └─ Newline [152..153]: "\n"
+ │   │   ├─ Scene_begin_c2 [135..140]
+ │   │   │   └─ SceneKeyword [135..140]: "scene"
+ │   │   └─ Scene_begin_c3 [140..141]
+ │   │       └─ RequiredWhitespace [140..141]: " "
+ │   ├─ Scene_content [141..146]
+ │   │   └─ SceneWithoutParametersDeclaration [141..146]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [141..146]
+ │   │       │   └─ SceneDeclarationName [141..146]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 146
+ │   └─ Scene_end 146
+ ├─ Newline [146..147]: "\n"
+ ├─ LuauSparkdownExplicitStatement [147..166]
+ │   ├─ LuauSparkdownExplicitStatement_begin [147..151]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [147..149]
+ │   │   │   └─ OptionalWhitespace [147..149]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [149..150]
+ │   │   │   └─ LuauExplicitStatementMark [149..150]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [150..151]
+ │   │       └─ RequiredWhitespace [150..151]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [151..166]
+ │   │   └─ LuauSparkdownExplicitAccessPath [151..166]
+ │   │       ├─ LuauSparkdownExplicitAccessPath_begin 151
+ │   │       ├─ LuauSparkdownExplicitAccessPath_content [151..166]
+ │   │       │   └─ LuauSparkdownExplicitAccessPart [151..166]
+ │   │       │       └─ LuauSparkdownExplicitFunctionCall [151..166]
+ │   │       │           ├─ LuauSparkdownExplicitFunctionCall_begin [151..156]
+ │   │       │           │   ├─ LuauSparkdownExplicitFunctionCall_begin_c1 [151..156]
+ │   │       │           │   │   └─ LuauStdLibFunctions [151..156]: "print"
+ │   │       │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 156
+ │   │       │           ├─ LuauSparkdownExplicitFunctionCall_content [156..166]
+ │   │       │           │   └─ LuauFunctionCallParameters [156..166]
+ │   │       │           │       ├─ LuauFunctionCallParameters_begin [156..157]
+ │   │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [156..157]
+ │   │       │           │       │       └─ PunctuationParenOpen [156..157]: "("
+ │   │       │           │       ├─ LuauFunctionCallParameters_content [157..165]
+ │   │       │           │       │   └─ LuauAccessPath [157..165]
+ │   │       │           │       │       ├─ LuauAccessPath_begin 157
+ │   │       │           │       │       ├─ LuauAccessPath_content [157..165]
+ │   │       │           │       │       │   └─ LuauAccessPart [157..165]
+ │   │       │           │       │       │       └─ LuauVariable [157..165]
+ │   │       │           │       │       │           └─ LuauVariable_c1 [157..165]
+ │   │       │           │       │       │               └─ LuauVariableName [157..165]: "endpoint"
+ │   │       │           │       │       └─ LuauAccessPath_end 165
+ │   │       │           │       │           └─ LuauAccessPath_end_c1 165
+ │   │       │           │       └─ LuauFunctionCallParameters_end [165..166]
+ │   │       │           │           └─ LuauFunctionCallParameters_end_c1 [165..166]
+ │   │       │           │               └─ PunctuationParenClose [165..166]: ")"
+ │   │       │           └─ LuauSparkdownExplicitFunctionCall_end 166
+ │   │       └─ LuauSparkdownExplicitAccessPath_end 166
+ │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 166
+ │   └─ LuauSparkdownExplicitStatement_end 166
+ ├─ Newline [166..167]: "\n"
+ ├─ LuauEndKeyword [167..170]: "end"
+ └─ Newline [170..171]: "\n"

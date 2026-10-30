@@ -1,9 +1,3 @@
-// A `run` statement's operand in the language server (#1389): the quick fixes
-// of its diagnostics (quote a path, pick one of a shared name's files, take a
-// file's spelling when the operand differs from it only by case, #1334), the
-// completion of Luau names and of paths relative to the script, renaming the
-// file it names, and the link that opens it.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -22,12 +16,11 @@ const NEWLINE = String.fromCharCode(10);
 
 const lines = (...text: string[]) => text.join(NEWLINE);
 
-/** The project's files besides main.sd, by path below its folder. */
 const LUAU = {
   "lib/helpers.luau": "local a = 1",
   "lib/util.luau": "local b = 2",
   "scripts/util.luau": "local c = 3",
-  "other/main.sd": "done",
+  "other/main.sd": lines("scene start", "  done", "end"),
   "other/elsewhere.luau": "local d = 4",
 };
 
@@ -65,12 +58,9 @@ const compile = (main: string, files: Record<string, string> = LUAU): SparkProgr
 const errorsOf = (program: SparkProgram, uri = MAIN) =>
   (program.diagnostics?.[uri] ?? []).filter((d) => d.severity === 1);
 
-/** The quick fixes main's errors offer, each with main's text after it. */
 const fixesOf = (text: string, files?: Record<string, string>) =>
   fixesIn(MAIN, text, compile(text, files));
 
-/** The quick fixes the errors of the script `uri`, holding `text`, offer in
- *  `program`, each with the script's text after it. */
 const fixesIn = (uri: string, text: string, program: SparkProgram) => {
   const document = TextDocument.create(uri, "sparkdown", 1, text);
   return getCodeActions(document, errorsOf(program, uri)).map((action) => ({
@@ -82,18 +72,18 @@ const fixesIn = (uri: string, text: string, program: SparkProgram) => {
 
 describe("the run operand's quick fixes", () => {
   test("quotes an unquoted path, and the quoted path runs the file", () => {
-    const fixes = fixesOf(lines("run lib/helpers", "done", ""));
+    const fixes = fixesOf(lines("run lib/helpers", "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: "Quote the path", preferred: true, text: lines('run "lib/helpers"', "done", "") },
+      { title: "Quote the path", preferred: true, text: lines('run "lib/helpers"', "scene start", "  done", "end", "") },
     ]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
 
   test("offers the quoted path of each file a shared name names, none preferred", () => {
-    const fixes = fixesOf(lines("run util  # tag", "done", ""));
+    const fixes = fixesOf(lines("run util  # tag", "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: 'Use "lib/util"', preferred: false, text: lines('run "lib/util"  # tag', "done", "") },
-      { title: 'Use "scripts/util"', preferred: false, text: lines('run "scripts/util"  # tag', "done", "") },
+      { title: 'Use "lib/util"', preferred: false, text: lines('run "lib/util"  # tag', "scene start", "  done", "end", "") },
+      { title: 'Use "scripts/util"', preferred: false, text: lines('run "scripts/util"  # tag', "scene start", "  done", "end", "") },
     ]);
     for (const fix of fixes) {
       expect(errorsOf(compile(fix.text))).toEqual([]);
@@ -106,8 +96,8 @@ describe("the run operand's quick fixes", () => {
     ['"Lib/Helpers"', "Change to 'lib/helpers'", 'run "lib/helpers"'],
     ["'./lib/helpers.LUAU'", "Change to './lib/helpers.luau'", "run './lib/helpers.luau'"],
   ])("corrects an operand that differs only by case in its own form: run %s", (operand, title, fixed) => {
-    const fixes = fixesOf(lines(`run ${operand}`, "done", ""));
-    expect(fixes).toEqual([{ title, preferred: true, text: lines(fixed, "done", "") }]);
+    const fixes = fixesOf(lines(`run ${operand}`, "scene start", "  done", "end", ""));
+    expect(fixes).toEqual([{ title, preferred: true, text: lines(fixed, "scene start", "  done", "end", "") }]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
 
@@ -115,16 +105,13 @@ describe("the run operand's quick fixes", () => {
     ['run "./lib/helpers', 'run "./lib/helpers"'],
     ["run 'lib/helpers", "run 'lib/helpers'"],
   ])("closes a quote the line never closes: %s", (line, fixed) => {
-    const fixes = fixesOf(lines(line, "done", ""));
+    const fixes = fixesOf(lines(line, "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: "Close the quote", preferred: true, text: lines(fixed, "done", "") },
+      { title: "Close the quote", preferred: true, text: lines(fixed, "scene start", "  done", "end", "") },
     ]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
 
-  // Round 1 of PR #2124's review: the fixes of a run in another script's
-  // scene are paths relative to that script, and a path holding an
-  // apostrophe comes through whole.
   test("offers paths relative to the script the run is in, apostrophes and all", () => {
     const CHAPTER = `${ROOT}chapters/chapter.sd`;
     const chapter = (operand: string) =>
@@ -134,7 +121,7 @@ describe("the run operand's quick fixes", () => {
       "lib/O'Brien/util.luau": "local a = 1",
       "scripts/util.luau": "local b = 2",
     };
-    const fixes = fixesIn(CHAPTER, chapter("util"), compile("-> chapter", files));
+    const fixes = fixesIn(CHAPTER, chapter("util"), compile(lines("scene start", "  -> chapter", "end", ""), files));
     expect(fixes).toEqual([
       {
         title: `Use "../lib/O'Brien/util"`,
@@ -144,18 +131,17 @@ describe("the run operand's quick fixes", () => {
       { title: 'Use "../scripts/util"', preferred: false, text: chapter('"../scripts/util"') },
     ]);
     for (const fix of fixes) {
-      const program = compile("-> chapter", { ...files, "chapters/chapter.sd": fix.text });
+      const program = compile(lines("scene start", "  -> chapter", "end", ""), { ...files, "chapters/chapter.sd": fix.text });
       expect(errorsOf(program, CHAPTER)).toEqual([]);
     }
   });
 
   test("offers nothing for an operand no file is near", () => {
-    expect(fixesOf(lines("run missing", "done", ""))).toEqual([]);
-    expect(fixesOf(lines('run "missing"', "done", ""))).toEqual([]);
+    expect(fixesOf(lines("run missing", "scene start", "  done", "end", ""))).toEqual([]);
+    expect(fixesOf(lines('run "missing"', "scene start", "  done", "end", ""))).toEqual([]);
   });
 });
 
-/** A program of main.sd and the project's files, as completion reads it. */
 const program = {
   uri: MAIN,
   files: Object.fromEntries(
@@ -201,9 +187,6 @@ describe("the run operand's completions", () => {
   });
 });
 
-/** A language server workspace holding main.sd and the `scripts` given by
- *  URI, and knowing the project's files, as the language server registers
- *  them. */
 const workspaceWith = (main: string, scripts: Record<string, string> = {}) => {
   const documents = new SparkdownDocumentRegistry(["links", "references", "declarations"]);
   for (const [uri, text] of Object.entries({ [MAIN]: main, ...scripts })) {
@@ -232,7 +215,7 @@ describe("the run operand's rename and link", () => {
     ['run "lib/helpers"', 'run "lib/tools"'],
     ["run './lib/helpers.luau'  # tag", "run './lib/tools.luau'  # tag"],
   ])("renames the file it names with it: %s", (line, renamed) => {
-    const text = lines(line, "done", "");
+    const text = lines(line, "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     const edit = getRenameEdits(
       undefined,
@@ -253,14 +236,12 @@ describe("the run operand's rename and link", () => {
         TextDocument.create(MAIN, "sparkdown", 1, text),
         edit!.changes![MAIN]!,
       ),
-    ).toBe(lines(renamed, "done", ""));
+    ).toBe(lines(renamed, "scene start", "  done", "end", ""));
   });
 
-  // Round 1 of PR #2124's review: every run operand that names the file, in
-  // any script and in either form, is renamed with it.
   test("renames every run operand that names the file, and none that does not", () => {
     const CHAPTER = `${ROOT}chapters/chapter.sd`;
-    const main = lines("run helpers", 'run "./lib/helpers.luau"', "run util", "done", "");
+    const main = lines("run helpers", 'run "./lib/helpers.luau"', "run util", "scene start", "  done", "end", "");
     const chapter = lines("scene chapter", '  run "../lib/helpers"', "  run helpers", "end", "");
     const { workspace, documents, document } = workspaceWith(main, { [CHAPTER]: chapter });
     const edit = getRenameEdits(
@@ -278,7 +259,7 @@ describe("the run operand's rename and link", () => {
         edit!.changes![uri] ?? [],
       );
     expect(applied(MAIN, main)).toBe(
-      lines("run tools", 'run "./lib/tools.luau"', "run util", "done", ""),
+      lines("run tools", 'run "./lib/tools.luau"', "run util", "scene start", "  done", "end", ""),
     );
     expect(applied(CHAPTER, chapter)).toBe(
       lines("scene chapter", '  run "../lib/tools"', "  run tools", "end", ""),
@@ -296,7 +277,7 @@ describe("the run operand's rename and link", () => {
     ["run util", "util", undefined],
     ["run elsewhere", "elsewhere", undefined],
   ])("links the operand to the file it names: %s", (line, operand, target) => {
-    const text = lines(line, "done", "");
+    const text = lines(line, "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     const links = getDocumentLinks(
       document,
@@ -316,14 +297,11 @@ describe("the run operand's rename and link", () => {
     ]);
   });
 
-  // Round 1 of PR #2124's review: the web editor spells a URI as the file
-  // name is written, so a quoted path through a folder whose name holds a
-  // space resolves to that very URI there, and to its encoding elsewhere.
   test.each([
     [true, `${ROOT}lib space/helpers.luau`],
     [false, `${ROOT}lib%20space/helpers.luau`],
   ])("links a quoted path through a folder with a space (as written: %s)", (asWritten, target) => {
-    const text = lines('run "lib space/helpers"', "done", "");
+    const text = lines('run "lib space/helpers"', "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     Object.assign(workspace, {
       _compilerConfig: { uriPathsAsWritten: asWritten },
@@ -339,12 +317,9 @@ describe("the run operand's rename and link", () => {
   });
 });
 
-// Round 1 of PR #2124's review: an edit to an open Luau file recompiles the
-// story that runs it, rather than answering with the program compiled before
-// the edit, and never compiles the Luau file as a story of its own.
 describe("an edit to a Luau file a run reads", () => {
   test("compiles its project's main script", async () => {
-    const { workspace } = workspaceWith(lines("run helpers", "done", ""));
+    const { workspace } = workspaceWith(lines("run helpers", "scene start", "  done", "end", ""));
     const compiled: [string, boolean][] = [];
     const base = Object.getPrototypeOf(SparkdownLanguageServerWorkspace.prototype);
     const spy = vi
@@ -365,12 +340,8 @@ describe("an edit to a Luau file a run reads", () => {
     ]);
   });
 
-  // Round 2 of PR #2124's review: a quoted path can read a file of another
-  // project, so the entries to compile are those whose programs read the
-  // file, and each that read an older version is forced, since the first
-  // compile leaves the file counting as compiled for the rest.
   test("compiles every entry whose program read the file", async () => {
-    const { workspace } = workspaceWith(lines('run "other/elsewhere"', "done", ""));
+    const { workspace } = workspaceWith(lines('run "other/elsewhere"', "scene start", "  done", "end", ""));
     const LUAU_URI = `${ROOT}other/elsewhere.luau`;
     const OTHER = `${ROOT}other/main.sd`;
     const program = (uri: string, read: number) =>

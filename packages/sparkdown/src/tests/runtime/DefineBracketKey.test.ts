@@ -60,6 +60,9 @@ end
     const result = compile(`define text as style with
   [">> *"] = { display = "inline" }
 end
+
+scene start
+end
 `);
     const diags = result.program.diagnostics?.["inmemory:///main.sd"] ?? [];
     const errors = diags.filter((d: any) => d?.severity === 1);

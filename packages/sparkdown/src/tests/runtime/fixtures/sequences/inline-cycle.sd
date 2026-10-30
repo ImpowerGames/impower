@@ -1,10 +1,12 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   {cycle|"A"|"B"|"C"}
   & i = i + 1
   if i < 7 then
-    -> start
+    -> again
   end
   fin
 

@@ -22,6 +22,10 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
+function startScene(eol: string, ...lines: string[]): string {
+  return `scene start${eol}${lines.map((l) => `  ${l}${eol}`).join("")}end${eol}`;
+}
+
 // The error diagnostics of a compile, with their zero-based start positions.
 function errorStarts(src: string): string[] {
   const { program } = compileScript(src);
@@ -41,10 +45,10 @@ describe("an unfinished `store` value", () => {
     ["\n", "LF"],
     ["\r\n", "CRLF"],
   ] as const) {
-    const tail = TAIL.replace(/\n/g, eol);
+    const tailLines = TAIL.trimEnd().split("\n");
 
     test(`followed by story lines reports one error at the end of its line and runs (${name})`, () => {
-      const src = `store y =${eol}${tail}`;
+      const src = `store y =${eol}${startScene(eol, ...tailLines)}`;
       expect(errorStarts(src)).toEqual(["0:9"]);
       const { story, errorMessages } = makeRuntimeStoryFromSource(src);
       expect(errorMessages).toHaveLength(1);
@@ -53,15 +57,16 @@ describe("an unfinished `store` value", () => {
 
     test(`declares the store nil, and a later assignment assigns it (${name})`, () => {
       const src =
-        `store y =${eol}y is {y == nil}.${eol}& y = 2${eol}y is {y}.${eol}`;
+        `store y =${eol}` +
+        startScene(eol, "y is {y == nil}.", "& y = 2", "y is {y}.");
       const { story, errorMessages } = makeRuntimeStoryFromSource(src);
       expect(errorMessages).toHaveLength(1);
       expect(runSavingEachStep(story)).toBe("y is true.\ny is 2.\n");
     });
 
     test(`at the end of the file reports one error at the end of its line and compiles (${name})`, () => {
-      const src = `${tail}store y =${eol}`;
-      expect(errorStarts(src)).toEqual(["2:9"]);
+      const src = `${startScene(eol, ...tailLines)}store y =${eol}`;
+      expect(errorStarts(src)).toEqual(["4:9"]);
       const { story, errorMessages } = makeRuntimeStoryFromSource(src);
       expect(errorMessages).toHaveLength(1);
       expect(runSavingEachStep(story)).toBe(TAIL);
@@ -69,14 +74,23 @@ describe("an unfinished `store` value", () => {
   }
 
   test("`store p, q =` declares both stores nil and runs", () => {
-    const src = `store p, q =\n& q = 3\np is {p == nil}, q is {q}.\n${TAIL}`;
+    const src =
+      "store p, q =\n" +
+      startScene(
+        "\n",
+        "& q = 3",
+        "p is {p == nil}, q is {q}.",
+        ...TAIL.trimEnd().split("\n"),
+      );
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe(`p is true, q is 3.\n${TAIL}`);
   });
 
   test("`store p, q = 1` leaves the missing slot nil", () => {
-    const src = `store p, q = 1\np is {p}, q is {q == nil}.\n`;
+    const src =
+      "store p, q = 1\n" +
+      startScene("\n", "p is {p}, q is {q == nil}.");
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toEqual([]);
     expect(runSavingEachStep(story)).toBe("p is 1, q is true.\n");

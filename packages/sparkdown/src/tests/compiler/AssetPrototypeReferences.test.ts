@@ -38,23 +38,23 @@ const playerAssets = (program: ReturnType<typeof compile>) =>
 
 describe("prototype asset names at author reference boundaries (#1762)", () => {
   it.each(names)("warns when the referenced image %s is missing", name => {
-    const program = compile(`[[show backdrop ${name}]]\nMissing image.\n`);
+    const program = compile(`scene start\n  [[show backdrop ${name}]]\n  Missing image.\nend\n`);
     const diagnostic = program.diagnostics?.[uri]?.find(d =>
       (typeof d.message === "string" ? d.message : d.message.value) === `Cannot find image named \`${name}\``,
     );
     expect(diagnostic).toBeDefined();
-    expect(diagnostic?.range).toEqual({ start: { line: 0, character: 16 }, end: { line: 0, character: 16 + name.length } });
+    expect(diagnostic?.range).toEqual({ start: { line: 1, character: 18 }, end: { line: 1, character: 18 + name.length } });
   });
 
   it.each(names)("finds the existing image %s without a missing-reference warning", name => {
-    const program = compile(`[[show backdrop ${name}]]`, [asset(`${name}.png`)]);
+    const program = compile(`scene start\n  [[show backdrop ${name}]]\nend`, [asset(`${name}.png`)]);
     expect(messages(program).filter(m => m.startsWith("Cannot find"))).toEqual([]);
     const image = resolveImageReference(program.assets, { $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual([`/file:/local/assets/${name}.png`]);
   });
 
   it.each(names)("creates the default filtered SVG look for %s", name => {
-    const program = compile(`[[${name}]]`, [asset(`${name}.svg`, svg)]);
+    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}.svg`, svg)]);
     expect(Object.hasOwn(program.context!["filtered_image"]!, name)).toBe(true);
     const image = resolveImageReference(program.assets, { $name: name });
     const source = decodeURIComponent(resolveImageLayers(program.assets, image)[0]?.src ?? "");
@@ -63,12 +63,12 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
   });
 
   it.each(names)("warns about an unavailable attribute on %s", name => {
-    const program = compile(`[[${name}:face.nowhere]]`, [asset(`${name}.svg`, svg)]);
+    const program = compile(`scene start\n  [[${name}:face.nowhere]]\nend`, [asset(`${name}.svg`, svg)]);
     expect(messages(program).some(m => m.includes('no attribute "face.nowhere"'))).toBe(true);
   });
 
   it.each(names)("constructs the raster portrait folder %s", name => {
-    const program = compile(`[[${name}]]`, [asset(`${name}/90_body.png`), asset(`${name}/30_face.happy~default.png`)]);
+    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), asset(`${name}/30_face.happy~default.png`)]);
     expect(Object.hasOwn(program.context!["layered_image"]!, name)).toBe(true);
     expect(Object.hasOwn(program.context!["filtered_image"]!, name)).toBe(true);
     const image = resolveImageReference(program.assets, { $name: name });
@@ -80,23 +80,23 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
 
   it.each(names)("reports an omitted raster layer in folder %s", name => {
     const omitted = asset(`${name}/extra.png`);
-    const program = compile(`[[${name}]]`, [asset(`${name}/90_body.png`), omitted]);
+    const program = compile(`scene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), omitted]);
     expect(messages(program, omitted.uri).some(m => m.includes("no numeric ordering prefix"))).toBe(true);
   });
 
   it.each(names)("keeps an explicit layered-image override named %s", name => {
-    const program = compile(`define ${name} as layered_image with\n  assets = { background }\nend\n[[${name}]]`, [asset(`${name}/90_body.png`), asset("background.png")]);
+    const program = compile(`define ${name} as layered_image with\n  assets = { background }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), asset("background.png")]);
     const image = resolveImageReference(program.assets, { $type: "layered_image", $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual(["/file:/local/assets/background.png"]);
   });
 
   it.each(names)("accepts the authored image definition named %s", name => {
-    const program = compile(`define ${name} as image with\n  src = "override.png"\nend\n[[show backdrop ${name}]]\nA beat.`);
+    const program = compile(`define ${name} as image with\n  src = "override.png"\nend\nscene start\n  [[show backdrop ${name}]]\n  A beat.\nend`);
     expect(messages(program)).toEqual([]);
   });
 
   it("still rejects a definition named after a registered builtin", () => {
-    const program = compile('define next as image with\n  src = "override.png"\nend\nA beat.');
+    const program = compile('define next as image with\n  src = "override.png"\nend\nscene start\n  A beat.\nend');
     expect(messages(program)).toContain("`next` cannot be used for the name of a define because it's a built in function");
   });
 
@@ -127,7 +127,7 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
   it.each(names.flatMap(name => [false, true].map(seed => ({ name, seed }))))(
     "keeps the authored source for $name when builtins are seeded: $seed",
     ({ name, seed }) => {
-      const program = compile(`define ${name} as image with\n  src = "override.png"\nend\n[[show backdrop ${name}]]\nA beat.`, [asset(`${name}.png`)], seed);
+      const program = compile(`define ${name} as image with\n  src = "override.png"\nend\nscene start\n  [[show backdrop ${name}]]\n  A beat.\nend`, [asset(`${name}.png`)], seed);
       const assets = playerAssets(program);
       const image = resolveImageReference(assets, { $name: name });
       expect(resolveImageLayers(assets, image).map(layer => layer.src)).toEqual(["override.png"]);
@@ -139,14 +139,14 @@ describe("prototype asset names at author reference boundaries (#1762)", () => {
     ({ type, name }) => {
       const ext = { audio: "mp3", font: "ttf", video: "mp4" }[type];
       const file = { ...asset(`${name}.${ext}`), type };
-      const program = compile(`define ${name} as ${type} with\n  src = "override.${ext}"\nend\nA beat.`, [file]);
+      const program = compile(`define ${name} as ${type} with\n  src = "override.${ext}"\nend\nscene start\n  A beat.\nend`, [file]);
       expect(playerAssets(program)[type]?.[name].src).toBe(`override.${ext}`);
     },
   );
 
   it.each(names)("does not warn that an explicitly included layer in %s was omitted", name => {
     const extra = asset(`${name}/extra.png`);
-    const program = compile(`define ${name} as layered_image with\n  assets = { extra }\nend\n[[${name}]]`, [asset(`${name}/90_body.png`), extra]);
+    const program = compile(`define ${name} as layered_image with\n  assets = { extra }\nend\nscene start\n  [[${name}]]\nend`, [asset(`${name}/90_body.png`), extra]);
     const image = resolveImageReference(program.assets, { $name: name });
     expect(resolveImageLayers(program.assets, image).map(layer => layer.src)).toEqual([extra.src]);
     expect(messages(program, extra.uri).filter(m => m.includes("no numeric ordering prefix"))).toEqual([]);

@@ -1,9 +1,6 @@
 import { type CompletionItem } from "vscode-languageserver";
 import { complete } from "./completionHarness";
 
-// Completion at a `|` cursor in a brace body, and the document an accepted
-// item leaves, for the brace-body completion tests (#1228).
-
 export function cursorAt(source: string) {
   const idx = source.indexOf("|");
   const text = source.replace("|", "");
@@ -26,7 +23,6 @@ export function completeAt(
   }).items;
 }
 
-/** The text an item inserts, with its snippet's final tab stop removed. */
 export function insertedText(item: CompletionItem): string {
   const text =
     item.textEdit && "newText" in item.textEdit
@@ -35,12 +31,6 @@ export function insertedText(item: CompletionItem): string {
   return text.replace(/\$0/g, "");
 }
 
-/**
- * The document after accepting `item` at the cursor, and where the snippet's
- * `$0` leaves the cursor. An item with a `textEdit` replaces its range; an item
- * with only `insertText` replaces the word before the cursor, as both editors
- * do.
- */
 export function accept(source: string, item: CompletionItem) {
   const { text, offset } = cursorAt(source);
   const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
@@ -62,12 +52,10 @@ export function accept(source: string, item: CompletionItem) {
   return {
     text: text.slice(0, from) + inserted + text.slice(to),
     cursor: from + (stop >= 0 ? stop : inserted.length),
-    /** The document text the item replaces. */
     replaced: text.slice(from, to),
   };
 }
 
-/** Whether every `{` in `text` has its `}`, in order (quotes skipped). */
 export function bracesBalanced(text: string): boolean {
   let depth = 0;
   let quote = "";
@@ -86,7 +74,6 @@ export function bracesBalanced(text: string): boolean {
   return depth === 0;
 }
 
-/** Whether `offset` lies between a `{` and its `}` on the same line. */
 export function insideBraces(text: string, offset: number): boolean {
   const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
   let lineEnd = text.indexOf("\n", offset);

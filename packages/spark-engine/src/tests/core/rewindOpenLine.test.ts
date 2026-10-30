@@ -61,7 +61,7 @@ function compileSrc(src: string) {
  *  counts completed lines or bounded stretches of execution, so this is the
  *  one shape that slips past them all. */
 const UNFINISHABLE_LINE = [
-  "-> a",
+  "",
   "",
   "scene a",
   "  -> b",
@@ -71,11 +71,15 @@ const UNFINISHABLE_LINE = [
   "  -> a",
   "end",
   "",
+  "scene start",
+  "  -> a",
+  "end",
+  "",
 ].join("\n");
 
 /** Ordinary content, for the cases that must be unaffected. */
 const ORDINARY = [
-  "-> start",
+  "",
   "",
   "scene start",
   "  The first thing that happens.",

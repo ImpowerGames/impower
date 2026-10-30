@@ -16,7 +16,7 @@ const URI = "inmemory:///main.sd";
 
 const SOURCE = `store trust = 0
 
-scene interrogation
+scene start
   choose
     * [Tell the truth.]
       trust += 2
@@ -39,7 +39,7 @@ end
 const TWO_MENUS = `store trust = 0
 store go = true
 
-scene s
+scene start
   choose
     * [Start.]
       HERO:
@@ -67,7 +67,7 @@ end
 // A pinned option whose loop outruns the pin's share of a small search.
 const LONG_LOOP = `store counter = 0
 
-scene s
+scene start
   choose
     * [Long.]
       HERO:

@@ -3,10 +3,6 @@ import { describe, expect, test } from "vitest";
 import { getAnnotatedScripts } from "../../utils/annotations/getAnnotatedScripts";
 import { getCompletions } from "../../utils/providers/getCompletions";
 
-// Completion in one script offers the names another script in the program
-// declares. Each script's declaration and character ranges are offsets into
-// that script's own text, so they are read through that script's document.
-
 const MAIN = "file:///main.sd";
 const CHAPTER = "file:///chapter.sd";
 

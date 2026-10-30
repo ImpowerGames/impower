@@ -1,13 +1,3 @@
-/**
- * Performs a binary search through an array.
- *
- * The comparator function should return -1 if undershooting the desired
- * value, +1 if overshooting, and 0 if the value was found.
- *
- * The comparator can also short-circuit the search by returning true or
- * false. Returning true is like returning a 0 (target found), but
- * returning false induces a null return.
- */
 export function search<T, TR>(
   haystack: T[],
   target: TR,
@@ -17,14 +7,8 @@ export function search<T, TR>(
     max = haystack.length - 1,
     precise = true,
   }: {
-    /** Starting minimum index for the search. */
     min?: number;
-    /** Starting maximum index for the search. */
     max?: number;
-    /**
-     * If false, the search will return the closest index to the desired value
-     * on failure.
-     */
     precise?: boolean;
   } = {},
 ) {

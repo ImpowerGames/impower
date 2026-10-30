@@ -46,7 +46,7 @@ assert(f(false) == "after")`);
 
   test("the returning function still returns nothing", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `Value {g()}.\nfunction g()\n  local function f() return end\n  f()\n  return 1\nend\n`,
+      `scene start\n  Value {g()}.\nend\nfunction g()\n  local function f() return end\n  f()\n  return 1\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Value 1.\n");

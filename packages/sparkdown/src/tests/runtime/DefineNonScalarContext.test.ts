@@ -86,16 +86,14 @@ end
     // since nothing inherits from `audio`) and throw — unsetting
     // `program.compiled`. The runtime `__def` table must instead hold inert
     // `{ $type, $name }` literals. Guards that the story is runnable.
-    const result = compile(`-> main
-
-define mus_a_group as layered_audio with
+    const result = compile(`define mus_a_group as layered_audio with
   assets = {
     audio.mus_a_bass,
     audio.mus_a_flute,
   }
 end
 
-scene main
+scene start
   Hello.
   done
 end

@@ -16,10 +16,6 @@ import { Matched } from "../Matched";
 import { RegExpMatcher, type RegExpMatchResult } from "../RegExpMatcher";
 import { SwitchRule } from "./SwitchRule";
 
-/**
- * A {@link Rule} subclass that uses {@link RegExpMatcher} or
- * {@link StringMatcher} instances for the underlying pattern.
- */
 export class MatchRule implements Rule {
   repo: GrammarRepository;
 
@@ -65,20 +61,14 @@ export class MatchRule implements Rule {
     return this.matchGroups(state, from)?.matched ?? null;
   }
 
-  /**
-   * Matches as {@link match} does, and also returns the text of each of the
-   * regex's groups (group 0 being the whole match), which a scoped rule's
-   * `end` reads as its back-references.
-   */
   matchGroups(
     state: GrammarState,
     from: number,
   ): { matched: Matched; groups: RegExpMatchResult } | null {
     if (state.possibleStackOverflow(this.id, from)) {
-      return null; // Detected infinite recursion
+      return null;
     }
     state.enter(this.id, from);
-    // Match against the current line only, as vscode-textmate does.
     state.line(from);
     const lineStart = state.lineStart;
     const lineText = state.lineText;
@@ -103,7 +93,6 @@ export class MatchRule implements Rule {
           lineText,
         );
       } else {
-        // The groups follow one another through the whole match.
         let pos = from;
         let uncovered = false;
         result.forEach((resultStr, resultIndex) => {
@@ -117,12 +106,10 @@ export class MatchRule implements Rule {
             uncovered = true;
           }
           if (resultIndex > 0) {
-            // First capture is always the total match so it's length shouldn't count
             pos += resultStr?.length ?? 0;
           }
         });
         if (uncovered && !this.captures[0]) {
-          // A group with no capture leaves its text to the match itself.
           fillGaps(matched);
         }
       }
@@ -132,16 +119,6 @@ export class MatchRule implements Rule {
     return { matched, groups: result };
   }
 
-  /**
-   * Places each capture at its group's own position in the match, nesting
-   * them as vscode-textmate does: a capture that begins before the latest
-   * open capture ends is inside it, and one inside a capture read with
-   * patterns is left to those patterns. A group in a lookaround is placed
-   * the same way when its text lies within the match; text outside the match
-   * cannot be a node inside it, so such a group is not placed. Text of the
-   * match or of a capture that no capture covers stays in it as a node-less
-   * span.
-   */
   private placeFromIndices(
     matched: Matched,
     result: RegExpMatchResult,
@@ -152,12 +129,8 @@ export class MatchRule implements Rule {
     const parents = this.matcher.groupParents;
     const captures = this.captures;
     const end = matched.from + matched.length;
-    // The captures still open at the current group, innermost last, with
-    // whether each is read with patterns.
     const open: { matched: Matched; patterns: boolean }[] = [];
     const hosts = new Set<Matched>([matched]);
-    // Where the next group of the match itself begins: an unmatched one is
-    // placed there, as when the groups are placed by their lengths.
     let pos = matched.from;
     for (let i = 0; i < result.length; i++) {
       const parent = i === 0 ? 0 : (parents[i] ?? 0);
@@ -184,7 +157,6 @@ export class MatchRule implements Rule {
       }
       const host = owner?.matched ?? matched;
       if (stop > endOf(host) || start < host.from) {
-        // Overlapping its host without nesting in it: no node can hold it.
         continue;
       }
       const captureMatched = this.capture(
@@ -205,15 +177,6 @@ export class MatchRule implements Rule {
     }
   }
 
-  /**
-   * Makes the node of one capture, whose text begins at `pos` in the line
-   * `lineText` that begins at `lineStart`.
-   *
-   * A capture read with patterns is tokenized as vscode-textmate's
-   * `handleCaptures` does: on the line up to the capture's end, from the
-   * capture's start, so a lookbehind, `^` or `\b` in its patterns sees the
-   * text before the capture, and nothing reads past its end.
-   */
   private capture(
     capture: GrammarNode | SwitchRule,
     resultStr: string | undefined,
@@ -230,14 +193,6 @@ export class MatchRule implements Rule {
       lineText.slice(0, start + resultStrLength),
     );
     const children: Matched[] = [];
-    // Zero-width capture: try to match the inner patterns
-    // once against the empty string. Patterns that can match
-    // zero-width (e.g. `OptionalWhitespace` with `*`) emit a
-    // node here, so downstream formatters can detect every
-    // capture boundary even when the source has no
-    // whitespace there. Patterns that can't match
-    // zero-width (e.g. `RequiredWhitespace` with `+`) return
-    // null and nothing is pushed.
     if (resultStr != null && resultStr.length === 0) {
       const matched = capture.match(state, start);
       if (matched) {
@@ -253,10 +208,6 @@ export class MatchRule implements Rule {
         children.push(matched);
         i += matched.length;
       } else {
-        // Like vscode-textmate, scan on past a character the
-        // capture's patterns cannot read, leaving it in the
-        // capture's scope. The capture's extent is fixed by the
-        // outer match, so no incomplete-close signal is lost.
         const noneMatched = Matched.create(
           GrammarNode.Unrecognized,
           pos + i,
@@ -277,10 +228,6 @@ export class MatchRule implements Rule {
 
 const endOf = (matched: Matched) => matched.from + matched.length;
 
-/**
- * Covers the text of a match or capture that its child captures leave with
- * node-less spans, so the node still spans all of its text.
- */
 const fillGaps = (matched: Matched) => {
   const children = matched.children;
   if (!children?.length) {

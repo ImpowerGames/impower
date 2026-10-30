@@ -9,6 +9,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
+const START = "\nscene start\nend\n";
 
 function compile(text: string) {
   const c = new SparkdownCompiler();
@@ -66,15 +67,15 @@ describe("an assignment after an if expression's else value (#1205)", () => {
   ])("%s, is Luau's error at Luau's range", (_name, text) => {
     const expected = luauErrors(text);
     expect(expected).toHaveLength(1);
-    expect(errors(text)).toEqual(expected);
+    expect(errors(text + START)).toEqual(expected);
   });
 
   // A story declaration ends at its line (#1907), so its else value is
   // missing at the line's end and the next line is not read into it.
   it("after a scene's `local` declaration, is the missing else value at the line's end", () => {
     expect(
-      errors("-> start\nscene start\n  local a = false\n  local y = 0\n  local x = if a then 1 else\n    y = 6\nend\n"),
-    ).toEqual(["4:28-5:0 Expected identifier when parsing expression, got <eof>"]);
+      errors("scene start\n  local a = false\n  local y = 0\n  local x = if a then 1 else\n    y = 6\nend\n"),
+    ).toEqual(["3:28-4:0 Expected identifier when parsing expression, got <eof>"]);
   });
 });
 
@@ -86,12 +87,12 @@ describe("a table type annotation with a field written as an assignment (#1261)"
     expect(expected[0]).toBe(
       "3:4-3:7 Expected '}' (to close '{' at line 2), got 'baz'",
     );
-    expect(errors(TEXT)).toContain(expected[0]);
+    expect(errors(TEXT + START)).toContain(expected[0]);
   });
 
   it("reports only errors Luau reports, each at Luau's range", () => {
     const expected = luauErrors(TEXT);
-    for (const error of errors(TEXT)) {
+    for (const error of errors(TEXT + START)) {
       expect(expected).toContain(error);
     }
   });

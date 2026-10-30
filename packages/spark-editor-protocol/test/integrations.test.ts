@@ -34,7 +34,6 @@ describe("shared entry points and integrations", () => {
     };
     expect(core.isProgressResponse(progress)).toBe(true);
     expect(core.isProgressResponse(progress, "other")).toBe(false);
-    // Envelope classification must not cause relays to drop malformed peer errors.
     for (const error of [
       new Error("failed"),
       { message: "failed" },

@@ -1,32 +1,3 @@
-// User-reported regression (2026-06-12):
-//   "Still having instances where dual dialogue is not displaying in
-//    the screenplay preview." Fixture:
-//
-//      BUNNY:                     <- single dialogue
-//        [[directive]]
-//        ((sfx))
-//        I can do crime!
-//
-//      RAFFLES [<]:               <- dual LEFT
-//        B--
-//
-//      BUNNY [>]:                 <- dual RIGHT (multi-line, directives interleaved)
-//        [[directive]]
-//        ((sfx))
-//        Would'ya QUIT Bunny-ing me??
-//        [[directive]]
-//        ((sfx))
-//        I REFUSE TO BE 'BUNNY'-ED!
-//
-//      RAFFLES:                   <- single dialogue
-//        Bunny, I asked ...
-//
-// Suspected culprits:
-//   1. Single-dialogue → dual-dialogue transition leaves stale state in
-//      prevDialogueSpec.
-//   2. Multi-content-line RIGHT half with directive lines between
-//      content lines causes findBlockContentEnd / reveal to miss content.
-
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
 import { renderPreview } from "./helpers/renderPreview";
@@ -56,7 +27,6 @@ describe("dual dialogue after single dialogue (user fixture)", () => {
     const pdf = extractPdfText(FIXTURE);
     const r = renderPreview(FIXTURE);
 
-    // Sanity: PDF must contain all the visible cues and content.
     expect(pdf).toContain("BUNNY");
     expect(pdf).toContain("RAFFLES");
     expect(pdf).toContain("I can do crime!");
@@ -65,18 +35,10 @@ describe("dual dialogue after single dialogue (user fixture)", () => {
     expect(pdf).toContain("I REFUSE TO BE 'BUNNY'-ED!");
     expect(pdf).toContain("you wanted to movie hop");
 
-    // The dual-dialogue widget must place BOTH cues + their content
-    // somewhere in the rendered DOM. Apostrophes inside <span> text
-    // are NOT entity-encoded — span text content is raw text. (Attributes
-    // are encoded, hence the `[&lt;]` / `[&gt;]` we see in the cue chips.)
     expect(r.contentHTML).toContain("B--");
     expect(r.contentHTML).toContain("Would'ya QUIT Bunny-ing me??");
     expect(r.contentHTML).toContain("I REFUSE TO BE 'BUNNY'-ED!");
 
-    // The dual-dialogue widget is a BLOCK widget (Decoration.replace
-    // with block: true) — it renders as a sibling of cm-line elements,
-    // not inside one. Verify the widget div lives directly under
-    // cm-content with the expected grid layout.
     expect(r.contentHTML).toMatch(
       /<div style="[^"]*display: grid[^"]*">[^]*?Would'ya QUIT/,
     );

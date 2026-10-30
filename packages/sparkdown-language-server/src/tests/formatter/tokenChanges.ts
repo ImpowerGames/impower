@@ -1,22 +1,7 @@
-// Whether formatting `before` into `after` lost, added, split or joined a
-// token. Whitespace between tokens may change freely. A string, as the
-// grammar reads it, is compared whole, its whitespace included, except for
-// the code its interpolations hold; a comment is compared whole with its
-// whitespace collapsed. The formatter's own rewrites
-// are allowed where they apply: a closed single-quoted string written with
-// double quotes, a parsed table's trailing comma before its own `}`, and an
-// `else` whose body is one `if` folded to `elseif`, dropping that `if`'s own
-// `end`. Two characters a space kept apart must
-// not be written together (`-> two then` → `-> twothen`, `- -x` → `--x`), a
-// token of the parse must not be written apart (`12` → `1 2`, `==` →
-// `= =`), and a line break may go or come only inside Luau code (two story
-// lines joined are one beat).
-
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import type { SyntaxNode, Tree } from "@lezer/common";
 
-// Character pairs that read as one longer token when nothing separates them.
 const JOINING_PAIRS = new Set([
   "--",
   "..",
@@ -40,7 +25,6 @@ const JOINING_PAIRS = new Set([
 
 const NAME_CHAR = /[\p{L}\p{N}_]/u;
 
-// The nodes whose text is the author's, whitespace included.
 const LITERALS = new Set([
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
@@ -68,8 +52,6 @@ const LITERALS = new Set([
   "SparkleTrailingLineComment",
 ]);
 
-// The code inside a literal: an interpolation's expression, and a value's
-// `{{call}}` shorthand.
 const HOLES = new Set([
   "LuauBacktickStringInterpolation",
   "LuauDoubleQuotedStringInterpolation",
@@ -81,32 +63,22 @@ const HOLES = new Set([
 
 let parser: TextmateGrammarParser | undefined;
 
-// One token of the comparison: a stretch of literal text whole, or any other
-// character on its own, whether whitespace came before it, and whether that
-// whitespace held a line break.
 interface Unit {
   text: string;
   literal: boolean;
   spaced: boolean;
   broken: boolean;
-  // Where the unit begins, and whether a token of the parse begins there.
   from: number;
   boundary: boolean;
-  // A table's trailing comma: a `,` the table's own `}` follows.
   trailingComma?: boolean;
-  // The node a literal unit is read from.
   node?: string;
 }
 
-// The units of a text and its parse.
 interface Units {
   list: Unit[];
   tree: Tree;
 }
 
-// The constructs that hold only Luau, where a line break is a space: the
-// formatter joins a block's header (`if t` then `[2] then`) and compacts an
-// empty body there. Anywhere else a line can be a beat of the story.
 const LUAU_CODE = new Set([
   "LuauFunctionDefinition",
   "LuauMethodDefinition",
@@ -114,7 +86,6 @@ const LUAU_CODE = new Set([
   "LuauFunctionTypeDeclaration",
 ]);
 
-// Where the outermost Luau-only construct around `pos` begins, or -1.
 function luauCode(tree: Tree, pos: number): number {
   let from = -1;
   for (let n: SyntaxNode | null = tree.resolveInner(pos, 1); n; n = n.parent) {
@@ -123,10 +94,6 @@ function luauCode(tree: Tree, pos: number): number {
   return from;
 }
 
-// A stretch of literal text: where it ends, whether it begins and ends at
-// its literal's own edges, where the node may hold whitespace around it (a
-// string holds the space after its closing quote), rather than at an
-// interpolation, and the literal's node.
 interface LiteralRange {
   to: number;
   atStart: boolean;
@@ -134,13 +101,10 @@ interface LiteralRange {
   node: string;
 }
 
-// The literal the walk is in, and where its current stretch began, or an
-// interpolation in it.
 type Frame =
   | { kind: "literal"; start: number; atStart: boolean; node: string }
   | { kind: "hole"; literal: { start: number; atStart: boolean } };
 
-// The literal text of the parse, by where each stretch begins.
 function literalRanges(tree: Tree): Map<number, LiteralRange> {
   const ranges = new Map<number, LiteralRange>();
   const stack: Frame[] = [];
@@ -181,7 +145,6 @@ function literalRanges(tree: Tree): Map<number, LiteralRange> {
         stack.pop();
       } else if (top?.kind === "hole" && HOLES.has(node.name)) {
         stack.pop();
-        // The literal's text goes on after the interpolation.
         top.literal.start = node.to;
         top.literal.atStart = false;
       }
@@ -211,8 +174,6 @@ function units(text: string): Units {
         held = literal.slice(trimmed.length);
         literal = trimmed;
       }
-      // A comment may be re-indented, but text it gains or loses counts
-      // (`if s -- note` with `then` joined onto it).
       if (range.node.includes("Comment")) literal = literal.replace(/\s+/g, " ");
       list.push({
         text: literal,
@@ -224,7 +185,6 @@ function units(text: string): Units {
         node: range.node,
       });
       i = range.to;
-      // Whitespace the literal's node held after it.
       gap = held;
       continue;
     }
@@ -250,9 +210,6 @@ function units(text: string): Units {
   return { list, tree };
 }
 
-// The double-quoted form the formatter writes a closed single-quoted Luau
-// string in, or the text itself. Only a Luau string unescapes `\'`; a quoted
-// `run` path keeps its backslash.
 function quoted(unit: Unit): string {
   const { text } = unit;
   if (
@@ -267,16 +224,12 @@ function quoted(unit: Unit): string {
   return text;
 }
 
-// The units without a table's trailing comma: a `,` before a `}`.
 function withoutTrailingCommas(list: Unit[]): Unit[] {
   return list.filter((unit) => !unit.trailingComma);
 }
 
 const TABLE = /^Luau(?:SparkdownExplicit)?Table$/;
 
-// Whether the `,` at `at` is a table's trailing comma: a field comes before
-// it, and the next character after whitespace is the `}` that closes a table
-// around the comma.
 function isTrailingComma(tree: Tree, text: string, at: number): boolean {
   let before = at - 1;
   while (before >= 0 && /\s/.test(text[before]!)) before--;
@@ -304,9 +257,6 @@ const INSIGNIFICANT = new Set([
   "TrailingWhitespace",
 ]);
 
-// The else blocks the formatter may fold into `elseif`: an `else` whose body
-// is one `if` and nothing else, by where that `if` keyword begins, each with
-// where the inner `if`'s own `end` begins, the one the fold drops.
 function foldableElses(tree: Tree): Map<number, number> {
   const folds = new Map<number, number>();
   tree.iterate({
@@ -336,7 +286,6 @@ function foldableElses(tree: Tree): Map<number, number> {
   return folds;
 }
 
-// Whether the units from `i` spell the whole word `word`.
 function wordAt(list: Unit[], i: number, word: string): boolean {
   const chars = [...word];
   for (let k = 0; k < chars.length; k++) {
@@ -352,9 +301,6 @@ function wordAt(list: Unit[], i: number, word: string): boolean {
   return bounded(before, first.spaced) && bounded(after, after?.spaced ?? true);
 }
 
-// Whether `prev` and `next` read as one token once nothing separates them:
-// two name characters, a name after a closing bracket, a joining pair, or a
-// number and the point next to it (`1 .5` → `1.5`).
 function joins(prev: string, next: string): boolean {
   if (NAME_CHAR.test(next) && (NAME_CHAR.test(prev) || prev === ")" || prev === "]")) {
     return true;
@@ -365,15 +311,10 @@ function joins(prev: string, next: string): boolean {
   return JOINING_PAIRS.has(prev + next);
 }
 
-/** The first token change from `before` to `after`, or undefined. */
 export function tokenChange(before: string, after: string): string | undefined {
   const source = units(before);
   const a = withoutTrailingCommas(source.list);
   const b = withoutTrailingCommas(units(after).list);
-  // `else if` folded to `elseif` where the source's else holds only that if.
-  // Each fold drops the inner if's `end`, which reads like the `end`s after
-  // it, so the folds a comparison finds are taken out of the source and the
-  // comparison runs again, until it finds no new one.
   const foldable = foldableElses(source.tree);
   const dropped = new Set<number>();
   for (;;) {
@@ -387,8 +328,6 @@ export function tokenChange(before: string, after: string): string | undefined {
   }
 }
 
-// The first token change from the units `a` to `b`, and the inner `end`s of
-// the else-if folds it met.
 function compare(
   a: Unit[],
   b: Unit[],
@@ -423,8 +362,6 @@ function compare(
       if (fold) {
         folds.push(foldable.get(x.from)!);
       } else if (x.broken !== y.broken) {
-        // A line break goes or comes only inside Luau code, where it is a
-        // space; elsewhere a line is a beat of the story.
         const code = luauCode(tree, prev.from);
         if (code < 0 || code !== luauCode(tree, x.from)) {
           return changed(
@@ -436,8 +373,6 @@ function compare(
         if (x.spaced && !y.spaced && joins(prev.text, x.text)) {
           return changed(`tokens joined: ${context(a, i)} → ${context(b, j)}`);
         }
-        // Written apart where the parse reads one token (`==`, `1.5`, a
-        // name).
         if (!x.spaced && y.spaced && !x.boundary) {
           return changed(`token split: ${context(a, i)} → ${context(b, j)}`);
         }

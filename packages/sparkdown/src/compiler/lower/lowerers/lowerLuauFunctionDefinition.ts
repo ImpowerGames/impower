@@ -1,4 +1,5 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { hasLuauExtension } from "../../utils/projectMembership";
 import { type SyntaxNode } from "@lezer/common";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -110,13 +111,11 @@ export function lowerLuauFunctionDefinition(
     return lowerNestedNamedFunction(func, node, identifier, ctx, enclosingScope, isLocal);
   }
 
-  // A `local function` in a scene's or a branch's body is a local of the
-  // flow's scope bound to a closure, as one inside a function is: it reads
-  // and writes the flow's locals as upvalues and is bound from the line
-  // after its own, as Luau's `local function` is. A top-level function and
-  // a define's method are functions of the story, which read no flow's
-  // locals.
-  if (stat instanceof AstStatLocalFunction && ctx.hoistedKnots) {
+  if (
+    stat instanceof AstStatLocalFunction &&
+    ctx.hoistedKnots &&
+    (!stat.isConst || hasLuauExtension(ctx.filePath ?? ""))
+  ) {
     return lowerNestedNamedFunction(func, node, identifier, ctx, ctx.hoistedKnots, true);
   }
 

@@ -1,1 +1,3 @@
-opts[key]
+scene start
+  opts[key]
+end

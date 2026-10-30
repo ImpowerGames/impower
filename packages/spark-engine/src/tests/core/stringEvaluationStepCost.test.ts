@@ -22,11 +22,13 @@ const SRC = `function spin()
   return n
 end
 
-BOB:
-  Before the loop.
+scene start
+  BOB:
+    Before the loop.
 
-BOB:
-  Spinning {spin()}.
+  BOB:
+    Spinning {spin()}.
+end
 `;
 
 const program = compileProgram(SRC);

@@ -43,7 +43,6 @@ export const drawSoundWaveform = (
 
   canvasContext.clearRect(0, 0, 500, 500);
 
-  // Axis
   canvasContext.lineWidth = 1;
   canvasContext.strokeStyle = xAxisColor;
   canvasContext.beginPath();
@@ -52,7 +51,6 @@ export const drawSoundWaveform = (
   canvasContext.stroke();
 
   if (pitchBuffer) {
-    // Frequency
     canvasContext.lineWidth = 1;
     canvasContext.fillStyle = frequencyFillColor;
     canvasContext.beginPath();
@@ -76,7 +74,6 @@ export const drawSoundWaveform = (
   }
 
   if (volumeBuffer) {
-    // Volume
     canvasContext.lineWidth = 1;
     canvasContext.fillStyle = volumeFillColor;
     canvasContext.beginPath();
@@ -96,7 +93,6 @@ export const drawSoundWaveform = (
   }
 
   if (referenceBuffer && referenceVisible) {
-    // Reference Wave
     canvasContext.lineWidth = 1;
     canvasContext.strokeStyle = referenceColor;
     canvasContext.beginPath();
@@ -114,7 +110,6 @@ export const drawSoundWaveform = (
   }
 
   if (soundBuffer && soundVisible) {
-    // Wave
     canvasContext.lineWidth = 1;
     canvasContext.strokeStyle = waveColor;
     canvasContext.beginPath();

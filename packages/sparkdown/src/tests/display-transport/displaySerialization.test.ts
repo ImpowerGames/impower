@@ -43,8 +43,10 @@ function field(obj: ObjectValue, key: string): unknown {
 describe("display() output-stream serialization", () => {
   test("a checkpoint on a display beat round-trips the instruction table", () => {
     const compiled = compile(`store score = 7
-& display({ target = "action", text = "Hi.", value = score })
-done
+scene start
+  & display({ target = "action", text = "Hi.", value = score })
+  done
+end
 `);
 
     const storyA = testStory(compiled);

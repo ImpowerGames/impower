@@ -3,9 +3,6 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type ReadFileMethod = typeof ReadFileMessage.method;
 
 export interface ReadFileParams {
-  /**
-   * The file that should be read.
-   */
   file: { uri: string };
 }
 

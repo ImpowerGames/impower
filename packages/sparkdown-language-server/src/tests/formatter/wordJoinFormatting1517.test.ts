@@ -1,14 +1,11 @@
 import { expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// Formatting gives `expected`, and formatting that result changes nothing.
 function expectFormatsTo(source: string, expected: string) {
   expect(formatSource(source)).toBe(expected);
   expect(formatSource(expected)).toBe(expected);
 }
 
-// I-788: the whitespace between two statements on one line is kept, so the
-// second statement is not glued to the first one's last token.
 test("formatting keeps the space between a number and the next statement", () => {
   const source = `function f()
   local v = 5 print(3)
@@ -98,7 +95,6 @@ end
   );
 });
 
-// I-1494: an alternator used as a Luau value keeps its words apart.
 test("formatting keeps a match alternator's word apart from the next word", () => {
   const expected = `function f()
   local v = match match("x")|x="mage"end|mage="yes"end
@@ -147,9 +143,6 @@ test("formatting keeps nested alternator words apart in an interpolation", () =>
   );
 });
 
-// I-874's `-> two then`: a divert target stays apart from the keyword after
-// it. (A divert before `==`, as in `-> one == -> two`, still loses its space
-// on the first pass; I-874 owns that.)
 test("formatting keeps a divert target apart from then", () => {
   const source = `function f()
   if to_one == -> two then
@@ -160,8 +153,6 @@ end
   expectFormatsTo(source, source);
 });
 
-// Round 2 of review: a name whose letter lies outside the BMP is read
-// whole, not as half of a surrogate pair.
 test("formatting keeps a divert target outside the BMP apart from then", () => {
   const source = `function f()
   if to_one == -> 𐐀 then
@@ -172,8 +163,6 @@ end
   expectFormatsTo(source, source);
 });
 
-// Round 2 of review: a UI name that ends in a digit is not a number, so a
-// class still glues to it.
 test("formatting glues a class to a hyphenated or long name ending in a digit", () => {
   const long = "text" + "1".repeat(65);
   expectFormatsTo(

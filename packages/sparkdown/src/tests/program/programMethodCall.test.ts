@@ -14,7 +14,8 @@ import type { ProgramChunk } from "../../program/ProgramChunk";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript } from "./programHarness";
 
-const SCRIPT = "local t = {}\n& t:add(1)\n& t.add(1)\nlocal v = t:add(2, 3)\n";
+const SCRIPT =
+  "scene start\n  local t = {}\n  & t:add(1)\n  & t.add(1)\n  local v = t:add(2, 3)\nend\n";
 
 const compiled = (text: string): ProgramRoot => {
   const { program } = compileScript(text);
@@ -24,7 +25,7 @@ const compiled = (text: string): ProgramRoot => {
 
 const code = (root: ProgramRoot): string[][] =>
   root
-    .flowNamed("")!
+    .flowNamed("start")!
     .arrays.chunks.map((chunk: ProgramChunk) =>
       [...new BinaryProgramReader(root).instructions(chunk)].map(({ offset }) =>
         describeInstruction(chunk, offset, root.table),
@@ -61,6 +62,7 @@ describe("a method call", () => {
         'CallValue 3 method "add"',
         "SetVar v flags 1",
       ],
+      ["Done"],
     ]);
   });
 
@@ -77,8 +79,6 @@ describe("a save written before colon calls named their method", () => {
   const SAVED_SCRIPT = [
     "store x = 0",
     "store o = nil",
-    "",
-    "-> start",
     "",
     "scene start",
     "  & o = { left = 2, m = function(self, v) return show(v) end, more = function(self) self.left = self.left - 1 return self.left >= 0 end }",

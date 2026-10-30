@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   -> first -> second -> third
   Back at start.

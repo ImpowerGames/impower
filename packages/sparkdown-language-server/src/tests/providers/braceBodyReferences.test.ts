@@ -3,10 +3,6 @@ import { describe, expect, test } from "vitest";
 import { getReferences } from "../../utils/providers/getReferences";
 import { getRenameEdits } from "../../utils/providers/getRenameEdits";
 
-// Rename and find references inside brace bodies (#1228), in the manner of
-// `defineReferences.test.ts`: a key's symbol id comes from the blocks around
-// it, and a dotted class links to the style of its name.
-
 const URI = "file:///provider.sd";
 
 function makeWorkspace(source: string) {
@@ -28,7 +24,6 @@ function makeWorkspace(source: string) {
   return { documents, workspace };
 }
 
-// The Nth (1-based) occurrence of `needle`, nudged inside the token.
 function posAt(source: string, needle: string, occurrence = 1) {
   let idx = -1;
   for (let i = 0; i < occurrence; i++) {
@@ -43,7 +38,6 @@ function posAt(source: string, needle: string, occurrence = 1) {
   };
 }
 
-// Where each occurrence of `needle` starts, as `line:character`.
 function spotsOf(source: string, needle: string): string[] {
   const spots: string[] = [];
   for (let idx = source.indexOf(needle); idx >= 0; idx = source.indexOf(needle, idx + 1)) {
@@ -95,7 +89,6 @@ function renameAt(source: string, needle: string, occurrence: number, newName: s
   }));
 }
 
-// The struct-path symbol ids the annotator records, in source order.
 function structIds(source: string, type: string): string[] {
   const { documents } = makeWorkspace(source);
   const ids: string[] = [];
@@ -133,8 +126,6 @@ end
     ]);
   });
 
-  // `text-color` stands at the same path in the first and last blocks, and
-  // at another path under `@hovered`.
   const style = `style card with
   > text {
     text-color = white
@@ -176,7 +167,6 @@ end
       "layout.hud.column panel",
       "layout.hud.column panel.row item x",
       "layout.hud.column panel.row item x.text",
-      // A component call adds no key, as its indented line adds none.
       "layout.hud.column panel.b",
     ]);
   });
@@ -241,7 +231,6 @@ end
   });
 
   test("go to definition on a dotted class reaches the style", () => {
-    // The options the server's definition handler passes.
     const { documents, workspace } = makeWorkspace(source);
     for (const occurrence of [1, 3]) {
       const { references } = getReferences(

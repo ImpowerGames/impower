@@ -16,7 +16,6 @@ const UPPER = "M0,50 C30,5 70,5 100,50 C70,25 30,25 0,50Z";
 const LOWER = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
 const CLOSED = "M0,50 C30,44 70,44 100,50 C70,50 30,50 0,50Z";
 const EYEBALL = "M-5,50 C-5,20 105,20 105,50 C105,80 -5,80 -5,50Z";
-/** An eye whose upper lash points at a gradient the file never defines. */
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="eyes.open:default">
 <path data-name="eyeball-white-left" d="${EYEBALL}" fill="#fff"/>
@@ -60,7 +59,6 @@ end
 [[bunny]]
 `;
 
-/** The web editor's compile: the program carries no SVG source. */
 function compileServed(script = SCRIPT): any {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -73,10 +71,6 @@ function compileServed(script = SCRIPT): any {
   return compiler.compile({ textDocument: { uri: main } }).program;
 }
 
-/**
- * VS Code's compile: the art is inline, so two files holding the same SVG
- * give their variants one artifact key.
- */
 function compileInlineTwins(script: string): any {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -89,7 +83,6 @@ function compileInlineTwins(script: string): any {
   return compiler.compile({ textDocument: { uri: main } }).program;
 }
 
-/** The decoded image an LSP preview's markup shows. */
 const previewImage = (markup: string | undefined) => {
   const src = /<img src="([^"]*)"/.exec(markup ?? "")?.[1] ?? "";
   return decodeURIComponent(src);
@@ -104,7 +97,6 @@ function setup() {
     _documentVersions: new Map([[main, 1]]),
     _lastPublishedDiagnostics: new Map(),
     _lastFormattedText: new Map(),
-    // The server keeps every watched file's text, served program or not.
     _watchedFiles: new Map<string, any>([[main, {}], [asset, { uri: asset, text: SVG }]]),
     _programStates: new Map(),
     _entryPrograms: new Map(),
@@ -140,7 +132,6 @@ describe("morph bake diagnostics", () => {
         message: expect.stringContaining("Morph `blink` on `bunny`"),
       }),
     ]);
-    // Nothing about the art lands on the script.
     expect(publishes().filter((p) => p.uri === main).flatMap((p) => p.diagnostics).filter((d: any) => String(d.code).startsWith("morph-"))).toEqual([]);
   }, 60_000);
 
@@ -177,7 +168,6 @@ describe("morph bake diagnostics", () => {
     await until(() => publishes().some((p) => p.uri === asset));
     const count = publishes().length;
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: compileServed() });
-    // Unchanged, so nothing new is sent, and nothing was cleared in between.
     expect(publishes().filter((p) => p.uri === asset)).toHaveLength(1);
     expect(publishes().length).toBe(count);
   });
@@ -209,7 +199,6 @@ describe("morph previews through the providers", () => {
     const hover = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, createImageCompositeOptions(workspace));
     const shown = previewImage((hover?.contents as any)?.value);
     expect(shown).toContain("<mask");
-    // Without the morph hook the same hover shows the plain static image.
     const plain = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, {});
     expect(previewImage((plain?.contents as any)?.value)).not.toContain("<mask");
   });
@@ -218,13 +207,11 @@ describe("morph previews through the providers", () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
-    // The layers a composition hands the compositor, bottom first.
     const composed = { $type: "layered_image", $name: "bunny+bunny~eyes.closed", assets: [{ $name: "bunny" }, { $name: "bunny~eyes.closed" }] };
     program.context.filtered_image["bunny~eyes.closed"] ??= { $type: "filtered_image", $name: "bunny~eyes.closed", image: { $name: "bunny" }, attributes: ["eyes.closed"] };
     const layers = await resolvePreviewLayers(program.context, composed, createImageCompositeOptions(workspace));
     expect(layers).toHaveLength(2);
     expect(decodeURIComponent(layers[0]!.src)).toContain("<mask");
-    // The closed-eyes layer is dormant for the blink, so it stays as filtered.
     expect(layers[1]!.src).toContain("attributes=");
   });
 
@@ -236,7 +223,6 @@ describe("morph previews through the providers", () => {
     const item = { label: "open", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.open"] } } };
     const resolved = await resolveCompletion({ ...item }, program, createImageCompositeOptions(workspace));
     expect(previewImage((resolved.documentation as any)?.value)).toContain("<mask");
-    // A candidate the morph does not play on keeps its static preview.
     const closed = { label: "closed", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.closed"] } } };
     const still = await resolveCompletion(closed, program, createImageCompositeOptions(workspace));
     expect(previewImage((still.documentation as any)?.value)).not.toContain("<mask");

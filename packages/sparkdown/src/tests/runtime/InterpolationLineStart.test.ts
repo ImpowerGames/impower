@@ -9,7 +9,13 @@ import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "../program/programHarness";
 
 const script = (lines: string[]) =>
-  ['store x = "Hi"', ...lines, "After.", ""].join("\n");
+  [
+    'store x = "Hi"',
+    "scene start",
+    ...[...lines, "After."].map((line) => `  ${line}`),
+    "end",
+    "",
+  ].join("\n");
 
 // Each beat's text and the tags it carries.
 const beats = (lines: string[]) => {

@@ -1,1 +1,3 @@
-'hi'
+scene start
+  'hi'
+end

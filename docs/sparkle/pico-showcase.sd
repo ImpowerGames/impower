@@ -589,3 +589,7 @@ layout main with
     }
   }
 end
+
+// The story starts here; the `main` layout above shows on its own.
+scene start
+end

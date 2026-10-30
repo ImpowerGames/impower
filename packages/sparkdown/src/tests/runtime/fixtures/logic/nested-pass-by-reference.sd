@@ -1,8 +1,10 @@
 store globalVal = { value = 5 }
-{globalVal.value}
-& squaresquare(globalVal)
-{globalVal.value}
-done
+scene start
+  {globalVal.value}
+  & squaresquare(globalVal)
+  {globalVal.value}
+  done
+end
 
 function squaresquare(x)
   square(x)

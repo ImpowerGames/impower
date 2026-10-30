@@ -6,13 +6,6 @@ import { getParentPath } from "../src/utils/getParentPath";
 import { getPathFromUri } from "../src/utils/getPathFromUri";
 import { getUriFromPath } from "../src/utils/getUriFromPath";
 
-// BEHAVIORAL SPEC for the opfs-workspace path utilities. These assert the
-// DESIRED behavior derived from how the utilities are consumed (flat
-// `file://<projectId>/<path>` URIs, nested OPFS directories, multi-dot asset
-// filenames). Where `main` gets it wrong, the test is named to make the gap
-// obvious and is allowed to fail — it documents a bug/oracle, not a goal to
-// force green.
-
 describe("getFileName", () => {
   it("returns the basename for a nested path", () => {
     expect(getFileName("a/b/c.png")).toBe("c.png");
@@ -58,9 +51,6 @@ describe("getName (basename without extension)", () => {
     expect(getName("README")).toBe("README");
   });
 
-  // DESIRED: for `a.b.c.png` the display name is everything before the FINAL
-  // extension, i.e. `a.b.c`. main's getName uses split(".")[0] and returns
-  // only `a`, dropping the rest of a multi-dot name.
   it("keeps interior dots in a multi-dot name (drops only the final extension)", () => {
     expect(getName("images/a.b.c.png")).toBe("a.b.c");
   });
@@ -79,8 +69,6 @@ describe("getFileExtension", () => {
     expect(getFileExtension("file://proj/images/logo.png")).toBe("png");
   });
 
-  // DESIRED: the extension is the segment AFTER THE FINAL dot. main uses
-  // split(".")[1], so for `a.b.c.png` it returns `b` instead of `png`.
   it("returns the LAST dotted segment for a multi-dot filename", () => {
     expect(getFileExtension("a.b.c.png")).toBe("png");
   });

@@ -1,1 +1,3 @@
-: A   wave   of   energy   rolls   across   the   crowd.
+scene start
+  : A   wave   of   energy   rolls   across   the   crowd.
+end

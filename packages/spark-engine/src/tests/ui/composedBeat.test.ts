@@ -33,7 +33,7 @@ end
 `;
 
 const STORY = `${LAYOUT}
--> start
+
 
 scene start
   HERO: The first line.
@@ -63,7 +63,7 @@ layout hud with
 end
 
 ${LAYOUT}
--> start
+
 
 scene start
   HERO:

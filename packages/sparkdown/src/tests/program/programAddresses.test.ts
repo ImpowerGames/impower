@@ -424,7 +424,7 @@ describe("two scripts with a statement on the same line", () => {
 // tunnel into A, so while D runs, A's return is one the story comes back to.
 describe("the addresses a story will come back to", () => {
   const TEXT = [
-    "-> A",
+    "",
     "",
     "scene A",
     "  Before the tunnel.",
@@ -447,6 +447,10 @@ describe("the addresses a story will come back to", () => {
     "scene D",
     "  In D.",
     "  done",
+    "end",
+    "",
+    "scene start",
+    "  -> A",
     "end",
     "",
   ].join("\n");

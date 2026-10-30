@@ -1,8 +1,3 @@
-// A `..` glue mark is not a word of the script: the screenplay export prints
-// no `..` where it marks a join, whether it ends a line, begins one (after a
-// cue's colon too) or stands on either side of a `>` break. A `..` right after
-// a top-level interpolation is text the player shows, so it is printed.
-
 import { describe, expect, it } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";

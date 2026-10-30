@@ -18,7 +18,6 @@ import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { getSymbol } from "./getSymbol";
 import { getSymbolIds } from "./getSymbolIds";
 
-// Recursively get all keys in this object
 const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
   if (obj && typeof obj === "object") {
     for (const key of Object.keys(obj)) {
@@ -32,16 +31,11 @@ const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
 };
 
 export interface ReferenceTarget {
-  /** The bare name token that references write in the document text. */
   symbolName: string | undefined;
-  /** Candidate symbol ids for the target (e.g. `["image.forest"]`). */
   symbolIds: string[] | undefined;
   interdependentIds?: string[] | undefined;
-  /** Scope context of the SEED reference — only used for scoped symbols
-   *  (knots/stitches/vars); undefined for flat/global symbols like assets. */
   symbolReference?: Reference | undefined;
   symbolScopePath?: string | undefined;
-  /** When `searchOtherFiles` is false, restrict the search to this uri. */
   seedUri?: string | undefined;
 }
 
@@ -50,19 +44,9 @@ export type ReferenceSearchContext = ReferenceContext & {
   excludeUses?: boolean;
   includeInterdependent: boolean;
   includeLinks: boolean;
-  /** Include the asset FILE itself (at range 0,0) in the result. Off by default
-   *  — callers that rewrite reference text (rename) must NOT text-edit a binary
-   *  asset, and find-usages wants only the script locations. */
   addAssetFiles?: boolean;
 };
 
-/**
- * The position-less core of reference resolution: given a fully-formed
- * {@link ReferenceTarget} (a name + candidate symbol ids, plus optional scope
- * for scoped symbols), find every matching reference across the workspace.
- * {@link getReferences} is the cursor-driven wrapper; the file-rename /
- * find-usages providers build the target from a file's (name, type) instead.
- */
 export const collectReferencesForTarget = (
   program: SparkProgram | undefined,
   workspace: SparkdownLanguageServerWorkspace,

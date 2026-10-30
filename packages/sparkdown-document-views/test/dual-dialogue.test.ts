@@ -1,8 +1,3 @@
-// Back-to-back dual dialogue: two consecutive left/right pairs.
-// Reported bug: only the first pair renders; the second pair vanishes
-// from the preview. We dump pdf + preview text + rendered DOM so the
-// failure mode is visible.
-
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
 import { renderPreview } from "./helpers/renderPreview";
@@ -22,11 +17,6 @@ const FIXTURE =
   `  (cutting him off)\n` +
   `  Ehp, ehp, ehp!\n`;
 
-// Same content but with TRAILING WHITESPACE on the inter-pair blank
-// lines, matching what an editor leaves behind when the user indents
-// into a dialogue block and deletes back to nothing. The single-block
-// squish fix (ScreenplayParser + screenplayFormatting) handles this
-// shape for plain dialogue; verifying the dual-dialogue path here.
 const FIXTURE_WS =
   `RAFFLES [<]:\n` +
   `  You mean--\n` +
@@ -47,7 +37,6 @@ describe("back-to-back dual dialogue", () => {
     const pdf = extractPdfText(FIXTURE);
     const r = renderPreview(FIXTURE);
 
-    // Sanity: PDF must contain all four character cues and their content.
     expect(pdf).toContain("RAFFLES");
     expect(pdf).toContain("JACK");
     expect(pdf).toContain("You mean--");
@@ -56,9 +45,6 @@ describe("back-to-back dual dialogue", () => {
     expect(pdf).toContain("Ehp, ehp, ehp!");
     expect(pdf).toContain("(cutting him off)");
 
-    // Dual widget is rendered as a block decoration — a sibling of
-    // cm-lines under .cm-content, not inside one. Verify both pairs'
-    // grid containers are present with the expected content.
     const gridMatches = r.contentHTML.match(/<div style="[^"]*display: grid[^"]*">/g);
     expect(gridMatches?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(r.contentHTML).toContain("You mean--");
@@ -78,8 +64,6 @@ describe("back-to-back dual dialogue", () => {
     const pdf = extractPdfText(source);
     const r = renderPreview(source);
 
-    // The action line must be separated from the dual-dialogue pair by
-    // a blank line in both the PDF token stream and the preview text.
     const pdfLines = pdf.split("\n");
     const yupIdx = pdfLines.findIndex((l) => l.includes("YUP"));
     const actionIdx = pdfLines.findIndex((l) =>
@@ -92,10 +76,6 @@ describe("back-to-back dual dialogue", () => {
       `pdf: expected blank line between YUP (idx ${yupIdx}) and action (idx ${actionIdx}); got ${JSON.stringify(pdfLines.slice(yupIdx + 1, actionIdx))}`,
     ).toBe(true);
 
-    // Preview rendering: the dual widget is a BLOCK widget rendered
-    // as a sibling of cm-lines. The action line is in its own cm-line.
-    // There must be at least one empty cm-line between them — visual
-    // blank that prevents the widget and action from squishing together.
     expect(r.contentHTML).toContain("YUP");
     expect(r.contentHTML).toContain("The crew scatters.");
     const yupIdxCH = r.contentHTML.indexOf("YUP");
@@ -103,8 +83,6 @@ describe("back-to-back dual dialogue", () => {
     expect(yupIdxCH).toBeGreaterThan(-1);
     expect(actionIdxCH).toBeGreaterThan(yupIdxCH);
     const between = r.contentHTML.slice(yupIdxCH, actionIdxCH);
-    // Match an empty cm-line (with only widgetBuffer markers / spans,
-    // no actual text content beyond &nbsp;-like whitespace).
     const emptyCmLineMatches = between.match(
       /<div class="cm-line[^"]*"[^>]*>(?:<img[^>]*>|<span[^>]*><\/span>|\s)*<\/div>/g,
     );
@@ -118,10 +96,6 @@ describe("back-to-back dual dialogue", () => {
     const pdf = extractPdfText(FIXTURE_WS);
     const r = renderPreview(FIXTURE_WS);
 
-    // PDF: separators must appear between consecutive dual-dialogue
-    // pairs. Each pair is "<character dual=l>...<character dual=r>...".
-    // We look for the gap between a dual=r block and the next dual=l
-    // block, and require at least one blank line in between.
     const pdfLines = pdf.split("\n");
     let lastRightIdx = -1;
     for (let i = 0; i < pdfLines.length; i++) {
@@ -136,10 +110,6 @@ describe("back-to-back dual dialogue", () => {
       }
     }
 
-    // Preview: render must still show both pairs — the squish bug here
-    // is "separator missing", but verify the second pair is still
-    // visible too (regression check on the prior fix). Dual widgets
-    // are blocks; check both grid containers render with content.
     const gridMatches2 = r.contentHTML.match(/<div style="[^"]*display: grid[^"]*">/g);
     expect(gridMatches2?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(r.contentHTML).toContain("You mean--");

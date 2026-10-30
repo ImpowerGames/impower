@@ -1,4 +1,6 @@
 store x = "Hello world 1"
-{x}
-Hello {"world"} 2.
-done
+scene start
+  {x}
+  Hello {"world"} 2.
+  done
+end

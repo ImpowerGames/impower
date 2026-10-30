@@ -1,3 +1,5 @@
-N:
-  Hello   there.
-  How   are   you?
+scene start
+  N:
+    Hello   there.
+    How   are   you?
+end

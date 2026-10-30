@@ -1,11 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { complete, labelsAt } from "./completionHarness";
 
-// Smoke + behavior coverage for the de-staled define/struct completion paths.
-// These lock the verifiable pieces: it must not throw on representative
-// define/struct/access sources, and
-// it must offer engine type names after `as` (the inverted-model type slot).
-
 const program = {
   context: {
     character: { $default: {} },

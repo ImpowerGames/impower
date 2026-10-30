@@ -1,5 +1,7 @@
-A {if f() then "B"}
-X
-done
+scene start
+  A {if f() then "B"}
+  X
+  done
+end
 
 function f() return false end

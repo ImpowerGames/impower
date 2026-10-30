@@ -1,14 +1,3 @@
-// Reduce the PDF export pipeline (ScreenplayParser -> generateScreenplayPrintData
-// -> DocumentSpan[]) to the normalized LogicalDoc.
-//
-// This is the *source of truth*: whatever the PDF would render is, by
-// definition, correct. The preview is graded against this.
-//
-// We bypass actual PDFKit rendering — DocumentSpan[] already contains the
-// fully-resolved sequence of lines with style runs. Page wrapping is done
-// further downstream by ScreenplayPrinter; we ignore it because logical
-// equivalence doesn't depend on where the page actually breaks.
-
 import ScreenplayParser from "../../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayPrintData } from "../../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import type {
@@ -30,7 +19,6 @@ import {
   emptyDoc,
 } from "./LogicalDoc";
 
-// Map the typesetter's tag to our LogicalDoc kind.
 const tagToKind = (tag: string): BlockKind | undefined => {
   switch (tag) {
     case "heading":
@@ -115,7 +103,6 @@ const fromMetaLayout = (span: MetaLayout): TitlePageEntry[] => {
   for (const [pos, lines] of Object.entries(span.positions)) {
     if (!isTitlePagePosition(pos) || !lines) continue;
     for (const l of lines) {
-      // meta lines carry their key in `tag` like "meta:title"
       const tag = l.tag;
       if (typeof tag !== "string" || !tag.startsWith("meta:")) continue;
       const key = tag.slice("meta:".length);

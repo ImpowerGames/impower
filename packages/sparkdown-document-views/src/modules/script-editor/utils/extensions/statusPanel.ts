@@ -96,7 +96,6 @@ export class StatusPanel implements Panel {
 
   activeDiagnosticIcon: HTMLSpanElement;
 
-  // Track which sub-index is active when multiple diagnostics are at the same location
   private lastActiveIndex: number = -1;
 
   constructor(readonly view: EditorView) {
@@ -248,7 +247,6 @@ export class StatusPanel implements Panel {
   private getSortedDiagnostics(): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     forEachDiagnostic(this.view.state, (d) => diagnostics.push(d));
-    // Sort primarily by location, then by message to keep duplicates stable
     diagnostics.sort(
       (a, b) =>
         a.from - b.from || a.to - b.to || a.message.localeCompare(b.message),
@@ -262,7 +260,6 @@ export class StatusPanel implements Panel {
 
     const cursorPos = this.view.state.selection.main.head;
 
-    // Check if cursor is already on the diagnostic we last displayed
     const currentMatches = diagnostics.filter(
       (d) => cursorPos >= d.from && cursorPos <= d.to,
     );
@@ -270,15 +267,12 @@ export class StatusPanel implements Panel {
     let targetIndex = 0;
 
     if (currentMatches.length > 0) {
-      // Find the absolute index of the current active diagnostic in the full list
       const firstMatchIndex = diagnostics.indexOf(currentMatches[0]!);
-      // If we are currently in a "stack", navigate within or past it
       const relativeIndex =
         this.lastActiveIndex !== -1 ? this.lastActiveIndex : firstMatchIndex;
       targetIndex =
         (relativeIndex + direction + diagnostics.length) % diagnostics.length;
     } else {
-      // Not on a diagnostic, find nearest
       if (direction === 1) {
         targetIndex = diagnostics.findIndex((d) => d.from > cursorPos);
         if (targetIndex === -1) targetIndex = 0;
@@ -294,7 +288,7 @@ export class StatusPanel implements Panel {
     }
 
     const target = diagnostics[targetIndex]!;
-    this.lastActiveIndex = targetIndex; // Update tracker
+    this.lastActiveIndex = targetIndex;
 
     if (takeFocus) this.view.focus();
     this.view.dispatch({
@@ -511,11 +505,6 @@ const statusPanelTheme = EditorView.baseTheme({
     color: EDITOR_COLORS.statusLabel,
     backgroundColor: EDITOR_COLORS.panel,
     display: "flex",
-    // Every flex row in this panel states its direction explicitly rather than
-    // leaning on the browser's `row` default. Hosts are free to normalize
-    // `flex-direction` across a subtree — spark-editor forces `column` on all
-    // descendants of the editor root — and a direction-less flex container
-    // silently stacks when they do.
     flexDirection: "row",
     justifyContent: "space-between",
     "& .cm-diagnosticContext": {
@@ -604,11 +593,6 @@ const statusPanelTheme = EditorView.baseTheme({
     alignItems: "center",
     gap: "4px",
     position: "relative",
-    // Same reason as the explicit directions above: hosts may normalize
-    // `flex-shrink` across the subtree (spark-editor sets `0` globally), which
-    // stops a long diagnostic message from ever giving ground and pushes the
-    // prev/next navigation outside the bar's `overflow: hidden`. Shrinking is
-    // what lets `.cm-activeDiagnosticMessage` ellipsize instead.
     flexShrink: 1,
     minWidth: 0,
   },

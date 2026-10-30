@@ -1,5 +1,7 @@
-if 1 == 2 then
-  {"x"}
-elseif 1 == 3 then
-  {"y"}
+scene start
+  if 1 == 2 then
+    {"x"}
+  elseif 1 == 3 then
+    {"y"}
+  end
 end

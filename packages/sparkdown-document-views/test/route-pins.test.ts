@@ -1,7 +1,3 @@
-// #1657 — a pin on the option the Game Preview takes at a menu is kept on its
-// option's line through edits, the way a breakpoint is: lines inserted above
-// it move it with its line, and deleting the line deletes the pin.
-
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import {
@@ -21,8 +17,6 @@ const script = [
   "end",
 ].join("\n");
 
-/** A state of `script` with a pin on "Tell the truth." (line 3) at its
- *  first offer and one on "Lie." (line 5) at its second. */
 const pinned = () =>
   EditorState.create({
     doc: script,

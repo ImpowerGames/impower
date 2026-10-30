@@ -40,7 +40,6 @@ define ui as config with
   [k] = "mine"
 end
 
--> start
 scene start
   {config.ui.layouts_element_name}
   fin
@@ -66,7 +65,6 @@ define foo as thing with
   [k .. "1"] = "mine"
 end
 
--> start
 scene start
   {thing.foo.z1}
   fin
@@ -86,7 +84,6 @@ end
   breakpoints = { xs = 1 }
 end
 
--> start
 scene start
   [{config.ui.breakpoints.xs}] [{config.ui.breakpoints.sm}]
   fin
@@ -110,7 +107,6 @@ end
   breakpoints = { xs = 1 }
 end
 
--> start
 scene start
   [{config.ui.breakpoints.xs}]
   fin

@@ -7,39 +7,17 @@ export interface DeclarationHeading {
   type: "scene" | "branch" | "function" | "label";
   name: string;
   nameRange: Range;
-  /**
-   * Where the declaration's extent ends: at a scene's or branch's `end`, at a
-   * function's own closing `end`, or at the name itself for a label.
-   */
   end: Position;
   children: DeclarationHeading[];
 }
 
-/**
- * The scenes, branches, functions and labels a script declares, nested by
- * what encloses them, for the outline and heading folds.
- *
- * Scenes and branches come from the declarations channel. A root-level `end`
- * closes the innermost open one; a new scene closes every open one and a new
- * branch closes an open branch, since neither nests inside its own kind. One
- * closed that way ends on the line before the declaration that closed it, and
- * one still open at the end of the script runs to its last line.
- *
- * A function's extent is its `LuauFunctionDefinition` node in the tree, which
- * spans the function up to its own `end` however its body is indented. An
- * `external` declaration has no body and ends at its name. A function goes
- * inside the innermost enclosing function, or else the innermost open scene or
- * branch; a function body holds no labels, branches or scenes.
- */
 export const getDeclarationHeadings = (
   document: SparkdownDocument,
   annotations: SparkdownAnnotations,
   tree: Tree | undefined,
 ): DeclarationHeading[] => {
   const top: DeclarationHeading[] = [];
-  // Scenes and branches not yet closed, outermost first.
   const open: DeclarationHeading[] = [];
-  // Functions whose definition has not ended yet, outermost first.
   const functions: { heading: DeclarationHeading; to: number }[] = [];
   const lineEnd = (line: number): Position => ({
     line,

@@ -1,6 +1,5 @@
 import type { ParserAction } from "./ParserAction";
 
-/** Token emitted by a {@link Matched} when compiled. */
 export type GrammarToken = [
   id: number | null,
   from: number,

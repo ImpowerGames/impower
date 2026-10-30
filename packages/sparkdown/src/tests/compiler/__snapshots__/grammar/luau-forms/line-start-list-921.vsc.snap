@@ -1,4 +1,4 @@
-text.source.sparkdown [0..49]
+text.source.sparkdown [0..67]
  ├─ keyword.operator.attribute.luau [0..1]: "@"
  ├─ punctuation.definition.template-expression.begin.sd [1..2]: "["
  ├─ storage.type.attribute.luau [2..8]: "native"
@@ -20,16 +20,23 @@ text.source.sparkdown [0..49]
  │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
  │   └─ keyword.control.end.luau [32..35]: "end"
  ├─ Newline [35..36]: "\n"
- ├─ string.display.text.chunk.sd [36..48]
- │   ├─ markup.raw.text.sd [36..41]: "Value"
- │   ├─ markup.raw.space.sd [41..42]: " "
- │   ├─ meta.template.expression.luau [42..47]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [42..43]: "{"
- │   │   ├─ meta.embedded.line.luau [43..46]
- │   │   │   ├─ entity.name.function.luau [43..44]: "f"
- │   │   │   └─ meta.parameter.luau [44..46]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [44..45]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [45..46]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [46..47]: "}"
- │   └─ markup.raw.punctuation.sd [47..48]: "."
- └─ Newline [48..49]: "\n"
+ ├─ keyword.control.scene.sd [36..41]: "scene"
+ ├─ punctuation.whitespace.required.sd [41..42]: " "
+ ├─ keyword.control.section.sd [42..47]: "start"
+ ├─ Newline [47..48]: "\n"
+ ├─ punctuation.whitespace.optional.sd [48..50]: "  "
+ ├─ string.display.text.chunk.sd [50..62]
+ │   ├─ markup.raw.text.sd [50..55]: "Value"
+ │   ├─ markup.raw.space.sd [55..56]: " "
+ │   ├─ meta.template.expression.luau [56..61]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [56..57]: "{"
+ │   │   ├─ meta.embedded.line.luau [57..60]
+ │   │   │   ├─ entity.name.function.luau [57..58]: "f"
+ │   │   │   └─ meta.parameter.luau [58..60]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [58..59]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [59..60]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [60..61]: "}"
+ │   └─ markup.raw.punctuation.sd [61..62]: "."
+ ├─ Newline [62..63]: "\n"
+ ├─ keyword.control.end.luau [63..66]: "end"
+ └─ Newline [66..67]: "\n"

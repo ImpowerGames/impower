@@ -118,7 +118,7 @@ const USER_SRC = `define my_anim as animation with
   }
 end
 
--> start
+
 scene start
   Hello.
 end

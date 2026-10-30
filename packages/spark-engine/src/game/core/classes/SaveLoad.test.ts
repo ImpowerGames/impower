@@ -17,23 +17,27 @@ import { RuntimeState } from "./RuntimeState";
  */
 
 const SOURCE = [
-  "First beat here.",
-  "Second beat here.",
-  "Third beat here.",
-  "Fourth beat here.",
-  "Fifth beat here.",
+  "scene start",
+  "  First beat here.",
+  "  Second beat here.",
+  "  Third beat here.",
+  "  Fourth beat here.",
+  "  Fifth beat here.",
+  "end",
   "",
 ].join("\n");
 
 const CHOICE_SOURCE = [
-  "choose",
-  "  Pick a path.",
-  "  * Left path",
-  "    You went left.",
-  "  * Right path",
-  "    You went right.",
+  "scene start",
+  "  choose",
+  "    Pick a path.",
+  "    * Left path",
+  "      You went left.",
+  "    * Right path",
+  "      You went right.",
+  "  end",
+  "  Done here.",
   "end",
-  "Done here.",
   "",
 ].join("\n");
 

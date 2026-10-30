@@ -39,7 +39,6 @@ let longPressTimer: any = undefined;
 let startX = 0;
 let startY = 0;
 
-// Momentum variables
 let velocityTracker: { y: number; time: number }[] = [];
 let velocityY = 0;
 let lastTouchY = 0;
@@ -49,31 +48,24 @@ let stoppedMomentum = false;
 
 const LONG_PRESS_DURATION = 500;
 const SCROLL_THRESHOLD = 10;
-const FRICTION = 0.95; // Applied per 60fps frame (16.66ms)
+const FRICTION = 0.95;
 const VELOCITY_LIMIT = 0.5;
 const VELOCITY_BOOST = 1.2;
 const TRACKING_WINDOW_MS = 100;
-const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
+const MS_PER_FRAME = 16.66;
 
 const DOUBLE_TAP_INTERVAL = 300;
 const DOUBLE_TAP_SLOP = 24;
 
-// The previous tap, for recognising a double tap.
 let lastTap: { time: number; x: number; y: number; focused: boolean } | null =
   null;
 
-/** Whether the on-screen keyboard is showing: it shrinks the visual viewport
- *  below the window's height. */
 const isKeyboardOpen = () => {
   const vv = window.visualViewport;
   return vv != null && window.innerHeight - vv.height > 0;
 };
 
-/**
- * Focuses the editor so that the on-screen keyboard shows. Focusing an editor
- * that already has focus does not bring back a keyboard the user dismissed
- * with Back, so that case refocuses it.
- */
+// workaround(android): focusing an already-focused field does not reopen an on-screen keyboard dismissed with Back, so blur then refocus
 const focusWithKeyboard = (view: EditorView) => {
   if (!view.hasFocus) {
     view.focus();
@@ -83,20 +75,6 @@ const focusWithKeyboard = (view: EditorView) => {
   }
 };
 
-/**
- * The word under the client point (x, y), where `pos` is the position
- * `posAtCoords` found for it, or null when the point is on blank space: above
- * or below the text, past the end of a line, on an empty line, or between
- * words. `wordAt` alone also returns a word that merely starts or ends at
- * `pos`.
- *
- * Vertically, the point must be inside the line's own box. That box is the
- * whole line, every wrapped row and the space between its glyphs and the next
- * line, so a press just below a word's glyphs is still on the word; outside
- * the text, `posAtCoords` returns the document's start or end, whose line box
- * the point is not in. Horizontally, only the word's edges are checked, on
- * the row where each edge is drawn: a point inside a word is over it.
- */
 const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   const line = view.lineBlockAt(pos);
   const lineTop = view.documentTop + line.top;
@@ -114,11 +92,6 @@ const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   return word;
 };
 
-/**
- * Selects the word under the point, or places the caret when there is none,
- * and opens the menu for the result: the full menu for a word, the insertion
- * menu for a caret.
- */
 const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   const config = view.state.facet(touchInputHandlerConfig);
   const word = wordAtPoint(view, pos, x, y);
@@ -135,7 +108,6 @@ const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   return selection;
 };
 
-// A scroll brings back only the menu it hid.
 const finishScroll = (view: EditorView) => {
   if (wasShowingContextMenuBeforeScroll) {
     wasShowingContextMenuBeforeScroll = false;
@@ -162,7 +134,7 @@ const applyMomentum = (time: DOMHighResTimeStamp, view: EditorView) => {
   lastFrameTime = time;
 
   if (Math.abs(velocityY) < VELOCITY_LIMIT) {
-    rafId = null; // Done scrolling
+    rafId = null;
     finishScroll(view);
     return;
   }
@@ -170,16 +142,12 @@ const applyMomentum = (time: DOMHighResTimeStamp, view: EditorView) => {
   const prevScrollTop = view.scrollDOM.scrollTop;
   view.scrollDOM.scrollTop += velocityY;
 
-  // If we hit the top or bottom, the browser clamps scrollTop.
-  // If it didn't change, we hit a wall and should stop animating.
   if (view.scrollDOM.scrollTop === prevScrollTop) {
     rafId = null;
     finishScroll(view);
     return;
   }
 
-  // Apply time-based friction (frame-rate independent)
-  // 16.66ms is roughly 1 frame at 60fps.
   velocityY *= Math.pow(FRICTION, dt / MS_PER_FRAME);
 
   rafId = requestAnimationFrame((time) => applyMomentum(time, view));
@@ -195,7 +163,6 @@ const selectionHandleTheme = EditorView.baseTheme({
     zIndex: 100,
     pointerEvents: "auto",
     transition: "opacity 0.05s linear",
-    /* Invisible Touch Target */
     "&::after": {
       pointerEvents: "auto",
       content: "''",
@@ -220,7 +187,6 @@ const selectionHandleTheme = EditorView.baseTheme({
     },
   },
   ".cm-touch-selection-handle-cursor": {
-    /* Android-style cursor handle: balanced teardrop pointing up */
     borderTopLeftRadius: "0",
     transform: "translate(-50%, 0) rotate(45deg)",
     "&::after": {
@@ -235,14 +201,6 @@ const selectionHandleTheme = EditorView.baseTheme({
   },
 });
 
-/**
- * Makes the selection handles transparent to touch while a touch that began
- * in the text is down. A long-press can draw a handle under the finger, and
- * Chrome's own long-press gesture, which still runs on a touch whose
- * touchstart was prevented, hit-tests what is under the finger when it fires:
- * on a handle, which is not editable, it takes focus from the editor and the
- * keyboard closes.
- */
 const setHandlesInert = (view: EditorView, inert: boolean) => {
   for (const handle of view.dom.querySelectorAll(
     ".cm-touch-selection-handle",
@@ -258,17 +216,11 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     cursorHandle: HTMLElement;
     view: EditorView;
     isSelecting = false;
-    // Whether the current selection shows handles. A selection made by touch
-    // (a `select.touch` user event, which the touch menu's items also use)
-    // does; one made any other way does not.
-    // Scrolling keeps the choice, so a handle that scrolled out of view comes
-    // back with its text.
     showsHandles = false;
 
     constructor(view: EditorView) {
       this.view = view;
 
-      // Create DOM elements for handles
       this.startHandle = document.createElement("div");
       this.startHandle.className =
         "cm-touch-selection-handle cm-touch-selection-handle-start";
@@ -281,7 +233,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
       this.cursorHandle.className =
         "cm-touch-selection-handle cm-touch-selection-handle-cursor";
 
-      // Append to the main editor DOM
       this.view.dom.appendChild(this.startHandle);
       this.view.dom.appendChild(this.endHandle);
       this.view.dom.appendChild(this.cursorHandle);
@@ -297,7 +248,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
       let selectionHandleAnchor: number | null = null;
       let selectionHandleHead: number | null = null;
 
-      // Prevent default to stop scrolling
       handle.addEventListener("touchstart", (e) => {
         this.isSelecting = true;
         e.preventDefault();
@@ -346,7 +296,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
         this.isSelecting = false;
         e.preventDefault();
         e.stopPropagation();
-        // Wait for dispatch to finish, then show menu
         setTimeout(() => {
           const from = this.view.state.selection.main.from;
           const to = this.view.state.selection.main.to;
@@ -365,8 +314,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     }
 
     attachCursorHandleListeners(handle: HTMLElement) {
-      // A tap on the caret handle toggles the insertion menu, as on Android;
-      // a drag moves the caret.
       let menuWasOpen = false;
       let moved = false;
       let handleStartX = 0;
@@ -450,7 +397,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     scheduleUpdate(state: EditorState, update?: ViewUpdate) {
       this.view.requestMeasure({
         read: (view) => {
-          // Don't show handles if not focused
           if (!view.hasFocus) {
             return null;
           }
@@ -465,14 +411,12 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
           const sel = state.selection.main;
           const editorRect = view.dom.getBoundingClientRect();
 
-          // We need to know if the handle is actually within the visible scroller area
           const scrollRect = view.scrollDOM.getBoundingClientRect();
 
           const getHandleInfo = (pos: number) => {
             const coords = view.coordsAtPos(pos);
             if (!coords) return null;
 
-            // Check if pos is vertically within the scroller's visible area
             const isVisible =
               coords.bottom > scrollRect.top && coords.top < scrollRect.bottom;
 
@@ -543,7 +487,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     }
   },
   {
-    /* Listen to scroll events specifically to re-measure handle positions */
     eventHandlers: {
       scroll(_, view) {
         this.scheduleUpdate(view.state);
@@ -561,9 +504,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       this.bind();
     }
 
-    // Closing the keyboard (Back, or a swipe) leaves focus and the selection
-    // alone, as it does natively; the next tap in the text brings the
-    // keyboard back through focusWithKeyboard.
     bind() {
       this.view.scrollDOM.addEventListener("touchstart", this.onTouchStart, {
         passive: false,
@@ -604,13 +544,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       this.view.contentDOM.removeEventListener("focusout", this.onFocusOut);
     }
 
-    // Chrome still runs its own long-press gesture on a touch whose
-    // touchstart was prevented, on whatever is under the finger when it
-    // fires. Once the keyboard has opened and shrunk the editor, that can be
-    // the page below it, the menu or a selection handle, and what the gesture
-    // does there takes focus from the editor and closes the keyboard. While a
-    // touch that began in the text is down, text selection elsewhere is
-    // cancelled and the handles let the gesture through to the text.
     isTouching = false;
 
     setTouching(touching: boolean) {
@@ -624,11 +557,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       }
     };
 
-    // The same gesture also fires on a press-and-hold that begins on a
-    // selection handle or the menu, which have their own touch listeners
-    // outside the text. Nothing a touch on the editor does is meant to take
-    // focus to nowhere, so while such a touch is down, an editor that had
-    // focus when it began takes focus back.
     touchesOnView = 0;
     focusedAtTouch = false;
 
@@ -676,7 +604,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       isScrolling = false;
       isLongPressing = false;
 
-      // Reset velocity tracking
       velocityTracker = [{ y: startY, time: performance.now() }];
       velocityY = 0;
 
@@ -730,7 +657,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         ) {
           isScrolling = true;
           clearTimeout(longPressTimer);
-          // A drag between two taps makes them two single taps.
           lastTap = null;
         }
 
@@ -743,10 +669,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
           const deltaY = lastTouchY - touch.clientY;
           this.view.scrollDOM.scrollTop += deltaY;
 
-          // Track movement for velocity calculation
           velocityTracker.push({ y: touch.clientY, time: now });
 
-          // Prune old tracking points (keep only the last 100ms)
           velocityTracker = velocityTracker.filter(
             (p) => now - p.time <= TRACKING_WINDOW_MS,
           );
@@ -795,7 +719,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       if (isScrolling) {
         const now = performance.now();
 
-        // Clean up points that are older than our window just before releasing
         velocityTracker = velocityTracker.filter(
           (p) => now - p.time <= TRACKING_WINDOW_MS,
         );
@@ -806,20 +729,14 @@ const touchEventsPlugin = ViewPlugin.fromClass(
           const dt = newest.time - oldest.time;
 
           if (dt > 0) {
-            // Calculate velocity normalized to a 60fps frame
             const rawVelocity = ((oldest.y - newest.y) / dt) * MS_PER_FRAME;
-            // Apply non-linear scaling to amplify fast flicks and dampen slow ones.
-            // Squaring the velocity magnitude creates a more expressive curve.
             const magnitude = Math.abs(rawVelocity);
             const direction = Math.sign(rawVelocity);
 
-            // Using Math.pow(magnitude, 1.2) for a subtle curve,
-            // or magnitude * magnitude for a very aggressive one.
             velocityY = direction * Math.pow(magnitude, VELOCITY_BOOST);
           }
         }
 
-        // If there is enough velocity, start the momentum loop
         if (Math.abs(velocityY) > VELOCITY_LIMIT) {
           lastFrameTime = performance.now();
           rafId = requestAnimationFrame((time) =>
@@ -846,9 +763,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         config.hideContextMenu?.(this.view);
         const tapPos = touchStartPos;
         if (tapPos != null) {
-          // A second tap on a word selects it, as a long-press does, when the
-          // editor had focus for the first tap. A double tap that focuses the
-          // editor only places the caret.
           const now = performance.now();
           const isDoubleTap =
             lastTap != null &&
@@ -904,8 +818,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       selectionHead = null;
     };
 
-    // An edit the user makes closes the menu; one hidden by a scroll that is
-    // still coasting stays closed when the scroll stops.
     update(update: ViewUpdate) {
       if (
         update.docChanged &&
@@ -915,9 +827,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       }
     }
 
-    // The gesture state lives at module scope. Destroying the view stops the
-    // pending long-press timer and momentum frame, and clears the state a
-    // later view could read before its own first touch overwrites it.
     destroy() {
       this.unbind();
       clearTimeout(longPressTimer);
@@ -962,11 +871,6 @@ const touchInputHandlerConfig = Facet.define<
   },
 });
 
-/**
- * A custom CodeMirror 6 extension to handle mobile touch interactions
- * without triggering the "scroll-to-input" browser behavior,
- * (includes manual context menu management and drag handles)
- */
 export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
   const config: TouchInputHandlerConfig = {
     isTouchEnvironment,

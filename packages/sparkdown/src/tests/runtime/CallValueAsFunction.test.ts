@@ -20,7 +20,9 @@ describe("calling a value as a function", () => {
         "  local f = double",
         "  return f(5)",
         "end",
-        "{run()}",
+        "scene start",
+        "  {run()}",
+        "end",
         "",
       ].join("\n"),
     );
@@ -35,11 +37,13 @@ describe("calling a value as a function", () => {
         '  local f = "not a target"',
         "  return f()",
         "end",
-        "{run()}",
+        "scene start",
+        "  {run()}",
+        "end",
         "",
       ].join("\n"),
     );
     expect(errorMessages).toEqual([]);
-    expect(() => story.ContinueMaximally()).toThrow(/attempt to call a \w+ value/);
+    expect(()=> story.ContinueMaximally()).toThrow(/attempt to call a \w+ value/);
   });
 });

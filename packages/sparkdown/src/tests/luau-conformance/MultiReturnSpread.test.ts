@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("Lua-fidelity multi-return spread", () => {
   test("f(g()) where g returns N spreads into f's N regular params", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function g() return 1, 2, 3 end
@@ -55,8 +58,11 @@ end
 
   test("f(g()) where g returns N spreads into f's variadic slot", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function g() return 1, 2, 3 end
@@ -70,8 +76,11 @@ end
 
   test("non-last multi-return truncates to first value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function g() return 1, 2, 3 end
@@ -85,8 +94,11 @@ end
 
   test("f(x, g()) spreads g's return values into the remaining params", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function g() return 2, 3 end
@@ -100,8 +112,11 @@ end
 
   test("table.unpack spreads into a non-variadic receiving function", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 4, 5, 6 }

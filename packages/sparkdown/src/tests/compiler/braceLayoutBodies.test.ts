@@ -61,7 +61,6 @@ interface Found {
   text: string;
 }
 
-/** Every diagnostic a full compile reports, with the text it underlines. */
 function diagnosticsOf(text: string): Found[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -71,7 +70,7 @@ function diagnosticsOf(text: string): Found[] {
         type: "script",
         name: "main",
         ext: "sd",
-        text,
+        text: `${text}scene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

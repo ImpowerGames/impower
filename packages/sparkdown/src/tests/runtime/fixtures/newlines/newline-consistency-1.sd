@@ -1,4 +1,6 @@
-hello -> there
+scene start
+  hello -> there
+end
 scene there
   world
   done

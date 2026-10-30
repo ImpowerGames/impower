@@ -62,6 +62,34 @@ function flags(story: RuntimeStory, flag: string): boolean[] {
   );
 }
 
+function inStart(source: string): string {
+  const body: string[] = [];
+  const declarations: string[] = [];
+  let inDeclaration = false;
+  for (const line of source.split("\n")) {
+    if (inDeclaration) {
+      declarations.push(line);
+      inDeclaration = line !== "end";
+    } else if (/^(function|scene|define)\b/.test(line)) {
+      declarations.push(line);
+      inDeclaration = true;
+    } else if (/^(store|const|external|type)\b/.test(line)) {
+      declarations.push(line);
+    } else {
+      body.push(line);
+    }
+  }
+  const text = (lines: string[]) => lines.join("\n");
+  const indented = text(body)
+    .replace(/^(?=.)/gm, "  ")
+    .replace(/\n*$/, "\n");
+  return `scene start\n${indented}end\n${text(declarations)}`;
+}
+
+function makeStory(source: string) {
+  return makeRuntimeStoryFromSource(inStart(source));
+}
+
 const BASE = "inmemory:///";
 const URI = `${BASE}main.sd`;
 
@@ -76,7 +104,7 @@ function compile(text: string, others: Record<string, string> = {}) {
         type: "script" as const,
         name: path.replace(/\.sd$/, ""),
         ext: "sd",
-        text: source,
+        text: path === "main.sd" ? inStart(source) : source,
         version: 1,
         languageId: "sparkdown",
       }),
@@ -105,7 +133,7 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
 // chunks push (`programListing`). The program's instruction set has no
 // instruction for ink's glue or a `line` marker, so no join can emit either.
 function programShape(text: string) {
-  const ctx = makeRuntimeStoryFromSource(text);
+  const ctx = makeStory(text);
   expect(ctx.errorMessages).toEqual([]);
   const all = programListing(ctx.root);
   return {
@@ -166,7 +194,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
     const own = label === "action" ? {} : routing;
     for (const { first, joined } of SPACINGS) {
       test(`${label}: ${JSON.stringify(first)} then .. B`, () => {
-        const ctx = makeRuntimeStoryFromSource(
+        const ctx = makeStory(
           `${inline}${first}\n${inline}.. B\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
@@ -174,7 +202,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       });
 
       test(`${label} block: ${JSON.stringify(first)} then .. B`, () => {
-        const ctx = makeRuntimeStoryFromSource(
+        const ctx = makeStory(
           `${block}\n  ${first}\n  .. B\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
@@ -183,7 +211,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
     }
 
     test(`${label}: a chain of three`, () => {
-      const ctx = makeRuntimeStoryFromSource(
+      const ctx = makeStory(
         `${inline}a ..\n${inline}.. b..\n${inline}..c.\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
@@ -195,7 +223,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
         ["true", "door."],
         ["false", "wall."],
       ]) {
-        const ctx = makeRuntimeStoryFromSource(
+        const ctx = makeStory(
           `store c = ${value}\n${inline}You see a ..\nif c then\n  .. door.\nelse\n  .. wall.\nend\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
@@ -211,7 +239,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
         `if true then\n  if true then\n    .. B > C\n  end\nend`,
         `queue\n  | .. B > C\nend`,
       ]) {
-        const ctx = makeRuntimeStoryFromSource(`${inline}A ..\n${block}\n`);
+        const ctx = makeStory(`${inline}A ..\n${block}\n`);
         expect(ctx.errorMessages).toEqual([]);
         expect(steps(ctx.story)).toEqual([
           ["A B\n", [routing, {}]],
@@ -221,7 +249,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
     });
 
     test(`${label}: a join after a divert`, () => {
-      const ctx = makeRuntimeStoryFromSource(
+      const ctx = makeStory(
         `${inline}You go -> outdoors\n\nscene outdoors\n  outside.\nend\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
@@ -230,7 +258,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
   }
 
   test("an interpolation line that ends with `..`", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `store n = 3\nYou have ..\n.. {n} ..\n.. coins.\nAfter.\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -242,10 +270,10 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       [`{3} .. # tag\n.. B\n`, "3 B\n"],
       [`{3} .. // note\n.. B\n`, "3 B\n"],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual([joined]);
-      const again = makeRuntimeStoryFromSource(source);
+      const again = makeStory(source);
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([false, false]);
     }
@@ -256,10 +284,10 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       [`{3} .. >\n.. B\n`, "3 \n"],
       [`{3} .. > # tag\n.. B\n`, "3 \n"],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual([before, "B\n"]);
-      const again = makeRuntimeStoryFromSource(source);
+      const again = makeStory(source);
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([true]);
       expect(flags(again.story, "extend")).toEqual([true]);
@@ -287,7 +315,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
         ],
       ],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(
         stepsWith(ctx.story, (story) => flags(story, "pause")),
@@ -300,7 +328,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       [`{3} .. and more.\n`, "3 .. and more.\n"],
       [`{3}..and more.\n`, "3..and more.\n"],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       // The line is one display line, as `3 .. and more.` would be (#1746).
       expect(texts(ctx.story)).toEqual([shown]);
@@ -312,7 +340,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       ["A .. # marker", ["A B\n"]],
       ["A .. > # marker", ["A \n", "B\n"]],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(`ALICE:\n  ${first}\n.. B\n`);
+      const ctx = makeStory(`ALICE:\n  ${first}\n.. B\n`);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual(joined);
     }
@@ -324,7 +352,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       `HERO: A .. // note\n.. B > C\n`,
       `A .. # note\n.. B\n`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       const out = steps(ctx.story);
       expect(out[0]![1][1]).toEqual({});
@@ -339,14 +367,14 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
 
   test("a tag after the mark keeps a block body's join", () => {
     for (const block of [`ALICE:`, `:`]) {
-      const ctx = makeRuntimeStoryFromSource(
+      const ctx = makeStory(
         `${block}\n  Hello .. # marker\n  .. world.\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual(["Hello world.\n"]);
       // Without the second mark the line break stays, without the spaces
       // before the lone mark.
-      const lone = makeRuntimeStoryFromSource(
+      const lone = makeStory(
         `${block}\n  Hello .. # marker\n  world.\n`,
       );
       expect(texts(lone.story)).toEqual(["Hello\nworld.\n"]);
@@ -355,18 +383,18 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
 
   test("a tag or comment after `.. >` keeps the break", () => {
     for (const source of [`A .. > # tag\n.. B\n`, `A .. > // note\n.. B\n`]) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       ctx.story.Continue();
       expect(flags(ctx.story, "pause")).toEqual([true]);
       expect(flags(ctx.story, "extend")).toEqual([true]);
-      const again = makeRuntimeStoryFromSource(source);
+      const again = makeStory(source);
       expect(texts(again.story)).toEqual(["A \n", "B\n"]);
     }
   });
 
   test("a `load` line after a line that ends with `..` stays a directive", () => {
-    const ctx = makeRuntimeStoryFromSource(`A ..\nload overworld\nB\n`);
+    const ctx = makeStory(`A ..\nload overworld\nB\n`);
     expect(ctx.errorMessages).toEqual([]);
     const loads = () =>
       ctx.story.currentDisplayInstructions.map(
@@ -381,7 +409,7 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
   });
 
   test("an ellipsis and a mid-line `..` stay text", () => {
-    const ctx = makeRuntimeStoryFromSource(`Wait...\na..b\nHi ...\nB\n`);
+    const ctx = makeStory(`Wait...\na..b\nHi ...\nB\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(texts(ctx.story)).toEqual(["Wait...\n", "a..b\n", "Hi ...\n", "B\n"]);
   });
@@ -396,10 +424,10 @@ describe("a `..` before a `>` that ends a line offers the break's box", () => {
     test(JSON.stringify(first), () => {
       const second = first.startsWith("Abso") ? "lutely." : "B";
       const source = `${first}\n..${second}\n`;
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual([`${before}\n`, `${second}\n`]);
-      const again = makeRuntimeStoryFromSource(source);
+      const again = makeStory(source);
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([true]);
       expect(flags(again.story, "extend")).toEqual([true]);
@@ -414,7 +442,7 @@ describe("a bare `..` line", () => {
   test("shows nothing and reports nothing", () => {
     const source = `A\n  ..\nB\n`;
     expect(errorsOf(source)).toEqual([]);
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(texts(ctx.story)).toEqual(["A\n", "B\n"]);
   });
 });
@@ -426,11 +454,11 @@ describe("a `load` line that ends with `..`", () => {
       {
         message:
           "A `load` line cannot end with `..`. Name every asset it loads on the line.",
-        start: { line: 0, character: 15 },
-        end: { line: 0, character: 17 },
+        start: { line: 1, character: 17 },
+        end: { line: 1, character: 19 },
       },
     ]);
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     ctx.story.Continue();
     expect(
       ctx.story.currentDisplayInstructions.map((table) =>
@@ -445,7 +473,7 @@ describe("a `load` line that ends with `..`", () => {
 
 describe("a choose block's caption", () => {
   test("shows with its choices from one continue", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `store x = 0
 choose
   ALICE: Pick one.
@@ -469,7 +497,7 @@ end
   // the caption running on, the caption would complete a step of its own and
   // the choices would come from the next continue.
   test("runs through an external call to its choices", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `external ring()
 
 choose
@@ -491,7 +519,7 @@ end
   });
 
   test("runs through a conditional that only runs logic", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `external ring()\n\nchoose\n  Pick.\n  if true then\n    & ring()\n  end\n  * One\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -531,7 +559,7 @@ end
   });
 
   test("runs through a pure stdlib call", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `store x = -2\nchoose\n  Pick.\n  & x = math.abs(x)\n  * One\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -550,7 +578,7 @@ end
       `& pcall(aside)`,
       `if false then\n    Also.\n  end`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(
+      const ctx = makeStory(
         `choose\n  Pick.\n  ${between}\n  * One\nend\n\nfunction quiet()\n  local x = 1\nend\n\nfunction aside()\n  print("Aside.")\nend\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
@@ -560,7 +588,7 @@ end
   });
 
   test("runs through to a first choice inside a conditional", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose\n  Pick.\n  if true then\n    * One\n  end\n  * Two\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -569,7 +597,7 @@ end
   });
 
   test("runs through to choices that are all inside a conditional", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `external ring()\n\nchoose\n  Pick.\n  & ring()\n  if true then\n    * One\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -583,7 +611,7 @@ end
   });
 
   test("ends its step before a stdlib function pcall calls directly", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose\n  Pick.\n  & pcall(print, "Aside.")\n  * One\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -594,7 +622,7 @@ end
   });
 
   test("ends its step where something shows, and the next continue starts with it", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  print("Aside.")\n  print("More.")\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -612,14 +640,14 @@ end
   // continue, once: its output is carried, not produced again by the next.
   test("runs the step that shows after it once, before the next continue", () => {
     const source = `store count = 0\nchoose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  count = count + 1\n  print("Aside.")\nend\n`;
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Pick.\n");
     expect(ctx.story.variablesState.$("count")).toBe(1);
     const saved = ctx.story.state.ToJson();
     expect(ctx.story.Continue()?.trim()).toBe("Aside.");
     expect(ctx.story.variablesState.$("count")).toBe(1);
-    const again = makeRuntimeStoryFromSource(source);
+    const again = makeStory(source);
     again.story.state.LoadJson(saved);
     expect(again.story.Continue()?.trim()).toBe("Aside.");
     expect(again.story.variablesState.$("count")).toBe(1);
@@ -635,7 +663,7 @@ end
   // (`beatLog`), through a session's state and a durable save.
   test("reports the lines the carried step ran in the continue that shows them", () => {
     const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
     const lines = (addresses: number[]) => [
       ...new Set(addresses.map((a) => ctx.root.locationOf(a)?.startLine)),
@@ -652,29 +680,29 @@ end
     };
     expect(run(ctx.story)).toEqual({
       text: "Pick.\n",
-      ran: [1, 2, 3],
-      beat: [1],
+      ran: [2, 3, 4],
+      beat: [2],
     });
     const saved = ctx.story.state.ToJson();
     const durable = ctx.story.toSave();
     expect(run(ctx.story)).toEqual({
       text: "Something shows first.\n",
       ran: [],
-      beat: [2, 3],
+      beat: [3, 4],
     });
     const again = testStory(ctx.root);
     again.state.LoadJson(saved);
     expect(run(again)).toEqual({
       text: "Something shows first.\n",
       ran: [],
-      beat: [2, 3],
+      beat: [3, 4],
     });
     const loaded = testStory(ctx.root);
     loaded.loadSave(durable);
     expect(run(loaded)).toEqual({
       text: "Something shows first.\n",
       ran: [],
-      beat: [2, 3],
+      beat: [3, 4],
     });
   });
 
@@ -684,7 +712,7 @@ end
   // waiting of its own.
   test("logs a joined line with the beat it joins", () => {
     const beats = (source: string) => {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       const out: [string | null, (number | undefined)[]][] = [];
       while (ctx.story.canContinue) {
@@ -700,22 +728,22 @@ end
       return out;
     };
     expect(beats(`A ..\n.. B..\nC.\n`)).toEqual([
-      ["A B\n", [0, 1]],
-      ["C.\n", [2]],
-      ["", []],
+      ["A B\n", [1, 2]],
+      ["C.\n", [3]],
+      ["", [4]],
     ]);
     expect(beats(`A ..\n.. B..\n.. C.\nD.\n`)).toEqual([
-      ["A BC.\n", [0, 1, 2]],
-      ["D.\n", [3]],
-      ["", []],
+      ["A BC.\n", [1, 2, 3]],
+      ["D.\n", [4]],
+      ["", [5]],
     ]);
     expect(
       beats(
         `choose\n  Pick ..\n  .. more.\n  if true then\n    Shown.\n  end\n  * One\nend\n`,
       ).slice(0, 2),
     ).toEqual([
-      ["Pick more.\n", [1, 2]],
-      ["Shown.\n", [3, 4]],
+      ["Pick more.\n", [2, 3]],
+      ["Shown.\n", [4, 5]],
     ]);
   });
 
@@ -730,7 +758,7 @@ end
       `A ..\nif true then\n  .. B\nend\nC.\n`,
       `Line one. #mood\nLine two.\n`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
       const executed: number[] = [];
       const beat: number[] = [];
@@ -751,7 +779,7 @@ end
   // save too.
   test("carries a caption's own waiting line end", () => {
     const source = `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`;
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
     // The last step raises the choices, with no table, so it reads as a
     // lone newline here.
@@ -761,9 +789,9 @@ end
       "Aside.\n",
       "\n",
     ]);
-    const first = makeRuntimeStoryFromSource(source);
+    const first = makeStory(source);
     expect(first.story.Continue()).toBe("Outer.\n");
-    const again = makeRuntimeStoryFromSource(source);
+    const again = makeStory(source);
     again.story.state.LoadJson(first.story.state.ToJson());
     expect(again.story.Continue()).toBe("Inner.\n");
     expect(again.story.Continue()).toBe("Aside.\n");
@@ -771,20 +799,20 @@ end
 
   test("drops what it carries when the host jumps elsewhere", () => {
     const source = `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n\nscene other\n  Elsewhere.\nend\n`;
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Pick.\n");
     const saved = ctx.story.state.ToJson();
     ctx.story.ChoosePathString("other");
     expect(ctx.story.Continue()).toBe("Elsewhere.\n");
-    const again = makeRuntimeStoryFromSource(source);
+    const again = makeStory(source);
     again.story.state.LoadJson(saved);
     again.story.ChoosePathString("other");
     expect(again.story.Continue()).toBe("Elsewhere.\n");
   });
 
   test("keeps what it carries through a host's function call", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n\nfunction quiet()\n  return 1\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -797,11 +825,11 @@ end
 
   test("carries what showed after it through a save", () => {
     const source = `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n`;
-    const ctx = makeRuntimeStoryFromSource(source);
+    const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Pick.\n");
     const saved = ctx.story.state.ToJson();
-    const again = makeRuntimeStoryFromSource(source);
+    const again = makeStory(source);
     again.story.state.LoadJson(saved);
     expect(again.story.Continue()).toBe("Aside.\n");
     expect(again.story.Continue()).toBe("");
@@ -814,7 +842,7 @@ end
       `if true then\n    & print("Aside.")\n  end`,
       `& aside()`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(
+      const ctx = makeStory(
         `choose\n  Pick.\n  ${between}\n  * One\nend\n\nfunction aside()\n  print("Aside.")\nend\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
@@ -827,7 +855,7 @@ end
   });
 
   test("a caption line followed by a conditional closes its own line", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose\n  Pick.\n  if true then\n    Also.\n  end\n  * One\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -836,7 +864,7 @@ end
   });
 
   test("only the last display statement before the first choice runs on", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = makeStory(
       `choose
   First.
   Pick one.

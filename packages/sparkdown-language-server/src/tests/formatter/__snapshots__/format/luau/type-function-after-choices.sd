@@ -1,5 +1,7 @@
-* Go left.
-* Go right.
+scene start
+  * Go left.
+  * Go right.
+end
 
 type function F(t)
 return t

@@ -6,14 +6,6 @@ import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScop
 import { getParentSectionPath } from "../../utils/syntax/getParentSectionPath";
 import { labelsAt } from "./completionHarness";
 
-// The scope path a completion is resolved against is the enclosing scene and
-// branch, which is how getDeclarationScopes files scene and branch
-// parameters, labels and branches. A function body inside a scene resolves to
-// that scene's path, so identifier completion there offers the enclosing
-// scene's branches. A function's own parameters are scoped to its body, so a
-// parameter of a function under another scene is not offered. A function at
-// the top of the file resolves to the global path.
-
 const URI = "file:///scope.sd";
 
 function setup(source: string) {
@@ -50,9 +42,6 @@ function scopePathAt(source: string) {
 const completionLabelsAt = (source: string) =>
   labelsAt(source.replace("|", "@0"));
 
-// `@@` marks the completion point inside `helper`; `##` the one inside
-// `other`. The unused marker's whole line is dropped so no whitespace-only
-// line is left behind in the other function's body.
 const SCRIPT = `scene intro
   (start)
   Hello.
@@ -116,10 +105,6 @@ describe("provider · scope path", () => {
   });
 });
 
-// Each `choose` closes with its own `end`. A branch's `end` closes the branch,
-// so a label after it belongs to the scene again, and a scene's `end` returns
-// to the global scope. `|` marks the completion point; `@@` in CLOSED_BRANCH
-// is the one inside the branch, and `##` the one after the scene's `end`.
 const CLOSED_BRANCH = `scene A
   choose
     * Go
@@ -145,8 +130,6 @@ end
 ##
 `;
 
-// Keeps `marker` as the `|` completion point and removes the other markers;
-// `"none"` removes all three.
 const atMarker = (marker: "|" | "@@" | "##" | "none") =>
   ["|", "@@", "##"].reduce(
     (script, m) => script.replace(m, m === marker ? "|" : ""),
@@ -229,7 +212,6 @@ end
   });
 
   test("a scope left open by one script does not reach into the next", () => {
-    // `unclosed.sd` is missing both of its `end`s.
     const documents = new SparkdownDocumentRegistry(["declarations"]);
     const scripts = new Map(
       Object.entries({
@@ -318,9 +300,6 @@ end
   });
 });
 
-// A type at the end of a line takes in the line breaks after it, since the
-// next line may continue it as a union, so the declaration's node ends lines
-// after its text. `@@` marks the cursor, since `|` is a union's operator.
 describe("provider · scope after a type that ends its line", () => {
   const namesAt = (source: string, type: "var" | "param") => {
     const { text, offset } = positionAt(source, "@@");

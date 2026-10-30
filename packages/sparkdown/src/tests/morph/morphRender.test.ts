@@ -511,6 +511,66 @@ describe("a drawing carried in its partner's shape", () => {
   });
 });
 
+describe("a `paints` entry on a drawing carried in its partner's shape", () => {
+  const bakeWith = (fill: string, layer: Record<string, unknown> = {}) =>
+    bakeMorphArtifact({
+      source: partnerPortrait(),
+      selection: {},
+      recipe: buildMorphRecipe("blink", {
+        blend: "morph",
+        method: "bend",
+        fallback: "fade",
+        layers: { "eyeball-shadow-left": { partner: "eyelash-left", ...layer } },
+        keyframes: [
+          { offset: 0, eyes: { state: "open" } },
+          { offset: 0.3, eyes: { state: "closed" } },
+          { offset: 0.6, eyes: { state: "closed" } },
+          { offset: 1, eyes: { state: "open" } },
+        ],
+        paints: [{ targets: ["eyeball-shadow-left"], state: "eyes.closed", fill, span: "40%" }],
+      }),
+      key: "carried-paints",
+      variant: "open",
+    });
+  const shadowOf = (artifact: MorphArtifact) =>
+    elements(artifact.parts.filter((p) => p.kind === "live").map((p) => p.svg).join("")).find((e) => e.attributes["data-name"] === "eyeball-shadow-left")!.attributes["data-morph"]!;
+  const fillAt = (artifact: MorphArtifact, offset: number) => morphFrameState(artifact, morphPosesAt(artifact, offset)).paint.get(shadowOf(artifact))?.["fill"];
+  const alpha = (value: string | undefined) => (value === undefined ? undefined : Number(/rgba\(.*,([^,]+)\)/.exec(value)![1]));
+
+  test("a transparent entry fades the shadow out over the closing's last 40%, holds it transparent while closed and mirrors it while opening", () => {
+    const artifact = bakeWith("transparent");
+    expect(artifact.diagnostics).toEqual([]);
+    expect(fillAt(artifact, 0)).toBeUndefined();
+    expect(fillAt(artifact, 0.15)).toBeUndefined();
+    expect(alpha(fillAt(artifact, 0.27))).toBeCloseTo(0.25, 2);
+    for (const offset of [0.3, 0.45, 0.6]) expect(alpha(fillAt(artifact, offset)), String(offset)).toBe(0);
+    expect(alpha(fillAt(artifact, 0.64))).toBeCloseTo(0.25, 2);
+    expect(fillAt(artifact, 0.8)).toBeUndefined();
+    expect(fillAt(artifact, 1)).toBeUndefined();
+  });
+
+  test("an rgba() entry shows its colour on the held arrival frame", () => {
+    const artifact = bakeWith("rgba(10, 20, 30, 0.5)");
+    expect(artifact.diagnostics).toEqual([]);
+    expect(fillAt(artifact, 0.45)).toBe("rgba(10,20,30,0.5)");
+  });
+
+  test.each(["scale", "fade"])("a carried arrival frame that blends in and out by %s takes the colour over the span, not at once", (blend) => {
+    const artifact = bakeWith("transparent", { blend });
+    expect(artifact.diagnostics).toEqual([]);
+    const [arrival] = Object.keys(artifact.segments[0]!.carry!.to!);
+    expect(Object.keys(artifact.segments[1]!.carry!.from!)).toEqual([arrival]);
+    expect(artifact.segments[0]!.transitions).toContainEqual(expect.objectContaining(blend === "scale" ? { kind: "scale", node: arrival, draw: arrival, direction: "grow" } : { kind: "fade", to: arrival }));
+    const carriedFill = (offset: number) => morphFrameState(artifact, morphPosesAt(artifact, offset)).paint.get(arrival!)?.["fill"];
+    expect(carriedFill(0.15)).toBeUndefined();
+    expect(alpha(carriedFill(0.21))).toBeCloseTo(0.75, 2);
+    expect(alpha(carriedFill(0.27))).toBeCloseTo(0.25, 2);
+    expect(alpha(carriedFill(0.45))).toBe(0);
+    expect(alpha(carriedFill(0.64))).toBeCloseTo(0.25, 2);
+    expect(carriedFill(0.8)).toBeUndefined();
+  });
+});
+
 describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () => {
   test("the fade's factor multiplies the entry's opacity", () => {
     const source = maskedPortrait().replace(
@@ -529,5 +589,35 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
       shown(elements(renderMorphFrame(faded, { segment: 0, progress }))).filter((e) => e.attributes["data-name"] === "eyeshadow").map((e) => /opacity:([^;!]+)/.exec(e.attributes["style"] ?? "")?.[1]?.trim());
     expect(opacityAt(0.5)).toEqual(["0.25"]);
     expect(opacityAt(1)).toEqual(["0.5"]);
+  });
+
+  test.each(["morph", "scale"])("an `opacity` entry fades a drawing its partner carries over the span, blending in by %s", (blend) => {
+    const artifact = bakeMorphArtifact({
+      source: partnerPortrait(),
+      selection: {},
+      recipe: buildMorphRecipe("blink", {
+        blend: "morph",
+        method: "bend",
+        fallback: "fade",
+        layers: { "eyeball-shadow-left": { partner: "eyelash-left", ...(blend === "scale" ? { blend } : {}) } },
+        keyframes: [
+          { offset: 0, eyes: { state: "open" } },
+          { offset: 0.3, eyes: { state: "closed" } },
+          { offset: 0.6, eyes: { state: "closed" } },
+          { offset: 1, eyes: { state: "open" } },
+        ],
+        paints: [{ targets: ["eyeball-shadow-left"], state: "eyes.closed", opacity: 0, span: "40%" }],
+      }),
+      key: `carried-opacity-${blend}`,
+      variant: "open",
+    });
+    expect(artifact.diagnostics).toEqual([]);
+    const [arrival] = Object.keys(artifact.segments[0]!.carry!.to!);
+    const opacityAt = (offset: number) => morphFrameState(artifact, morphPosesAt(artifact, offset)).paint.get(arrival!)?.["opacity"];
+    expect(opacityAt(0.15)).toBeUndefined();
+    expect(Number(opacityAt(0.27))).toBeCloseTo(0.25, 2);
+    for (const offset of [0.3, 0.45, 0.6]) expect(opacityAt(offset), String(offset)).toBe("0");
+    expect(Number(opacityAt(0.64))).toBeCloseTo(0.25, 2);
+    expect(opacityAt(0.8)).toBeUndefined();
   });
 });

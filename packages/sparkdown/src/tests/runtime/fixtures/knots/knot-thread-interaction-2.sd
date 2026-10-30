@@ -1,4 +1,6 @@
--> outer
+scene start
+  -> outer
+end
 scene outer
   <- middle
   choose

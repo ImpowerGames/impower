@@ -1,4 +1,4 @@
-text.source.sparkdown [0..93]
+text.source.sparkdown [0..111]
  ├─ meta.function.luau [0..14]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -49,16 +49,23 @@ text.source.sparkdown [0..93]
  ├─ meta.function.luau [74..77]
  │   └─ keyword.control.end.luau [74..77]: "end"
  ├─ Newline [77..78]: "\n"
- ├─ string.display.text.chunk.sd [78..92]
- │   ├─ markup.raw.text.sd [78..83]: "Value"
- │   ├─ markup.raw.space.sd [83..84]: " "
- │   ├─ meta.template.expression.luau [84..91]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [84..85]: "{"
- │   │   ├─ meta.embedded.line.luau [85..90]
- │   │   │   ├─ entity.name.function.luau [85..88]: "run"
- │   │   │   └─ meta.parameter.luau [88..90]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [88..89]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [89..90]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [90..91]: "}"
- │   └─ markup.raw.punctuation.sd [91..92]: "."
- └─ Newline [92..93]: "\n"
+ ├─ keyword.control.scene.sd [78..83]: "scene"
+ ├─ punctuation.whitespace.required.sd [83..84]: " "
+ ├─ keyword.control.section.sd [84..89]: "start"
+ ├─ Newline [89..90]: "\n"
+ ├─ punctuation.whitespace.optional.sd [90..92]: "  "
+ ├─ string.display.text.chunk.sd [92..106]
+ │   ├─ markup.raw.text.sd [92..97]: "Value"
+ │   ├─ markup.raw.space.sd [97..98]: " "
+ │   ├─ meta.template.expression.luau [98..105]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [98..99]: "{"
+ │   │   ├─ meta.embedded.line.luau [99..104]
+ │   │   │   ├─ entity.name.function.luau [99..102]: "run"
+ │   │   │   └─ meta.parameter.luau [102..104]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [102..103]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [103..104]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [104..105]: "}"
+ │   └─ markup.raw.punctuation.sd [105..106]: "."
+ ├─ Newline [106..107]: "\n"
+ ├─ keyword.control.end.luau [107..110]: "end"
+ └─ Newline [110..111]: "\n"

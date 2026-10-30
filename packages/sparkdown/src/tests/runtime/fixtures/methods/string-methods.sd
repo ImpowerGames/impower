@@ -3,7 +3,9 @@ store whitespace = "  hi  "
 store ab = "ab"
 store x = "x"
 store n = "42"
--> main
+scene start
+  -> main
+end
 scene main
   {s:upper()}
   {s:lower()}

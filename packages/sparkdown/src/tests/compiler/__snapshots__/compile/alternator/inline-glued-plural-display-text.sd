@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   You have {n} .. plural(n)|one=apple|other=apples .. in the basket.
   fin

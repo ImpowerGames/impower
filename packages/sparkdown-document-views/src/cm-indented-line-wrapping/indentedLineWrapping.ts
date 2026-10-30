@@ -1,8 +1,3 @@
-/**
- * Based on awesome-line-wrapping.js by dralletje
- * <https://gist.github.com/dralletje/058fe51415fe7dbac4709a65c615b52e>
- */
-
 import { Extension, Facet, combineConfig } from "@codemirror/state";
 import {
   Decoration,
@@ -14,9 +9,6 @@ import {
 } from "@codemirror/view";
 
 export interface IndentedLineWrappingConfig {
-  /**
-   * The amount of padding before the line.
-   */
   padding?: string;
 }
 
@@ -50,8 +42,6 @@ class IndentedLineWrappingPluginValue implements PluginValue {
 
     const tabSize = view.state.tabSize;
 
-    // Decorations only take effect inside the rendered (visible) ranges, so
-    // only build them there instead of for every line in the document.
     let lastLineFrom = -1;
     for (const range of view.visibleRanges) {
       for (let pos = range.from; pos <= range.to; ) {
