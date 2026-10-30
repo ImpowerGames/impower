@@ -1,7 +1,7 @@
 import { normalizeSVGAttributeNames, type AttributeSelection } from "../attributes";
 import { filterSVG } from "../compiler/utils/filterSVG";
 
-export const FILTER_VERSION = 3;
+export const FILTER_VERSION = 4;
 export type ImageFilter = AttributeSelection;
 
 const ATTRIBUTE_WORD = /^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/;
