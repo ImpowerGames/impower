@@ -1,6 +1,3 @@
-// Pure validation of authored inputs to pinned Vitest's native blob merge.
-// Native blobs expose file/projectName; projectRoot/pool remain configured
-// selection metadata and are not represented as stronger blob identities.
 import fs from "node:fs";
 import path from "node:path";
 import {createHash} from "node:crypto";

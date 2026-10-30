@@ -1,18 +1,3 @@
-// Regression tests for first-class VARIADIC functions (vararg.luau
-// lines 29-50):
-//   - A variadic nested function referenced as a VALUE lowers to a
-//     DivertTarget (variadic nested fns stay knot-form subflows — no
-//     local closure binding exists), so `type(c12)`, `local h = c12`,
-//     and passing it as an argument all work.
-//   - Value-calls of variadic targets pack surplus args into one
-//     MultiValue for the `...` slot at RUNTIME (no static PackTuple
-//     ran): bare DivertTargets, closure values, and the JS-driven
-//     CallLuauFunction path all normalize.
-//   - Callable-name resolution is scope-aware (resolveCallableBinding):
-//     a lambda param `f` shadows an outer variadic `function f(...)`;
-//     an inner variadic subflow still shadows an outer local.
-//   - First-class stdlib markers returning nothing (`call(print, ...)`)
-//     push the Void sentinel so `a = call(print, {'+'})` reads nil.
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -55,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("variadic functions as first-class values", () => {
   test("value references, local aliasing, and param calls", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local function c12(...) local x = {...} return x[1] + x[2] end
@@ -74,8 +62,11 @@ end
 
   test("param shadows an outer variadic subflow of the same name", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(a, ...) return select('#', ...) end
@@ -91,8 +82,11 @@ end
 
   test("variadic value-calls spread trailing multi-returns and pad fixed params", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local function two() return 5, 6 end
@@ -109,8 +103,11 @@ end
 
   test("variadic method definitions bind self correctly", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {1, 10}
@@ -127,12 +124,12 @@ end
   });
 
   test("redefined variadic function routes per lexical position", () => {
-    // Lua's `function f` is sugar for a global assignment: calls
-    // before a redefinition hit the first body, calls after hit the
-    // second, and a later plain `f = <expr>` rebinds again.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...) return "first" end
@@ -151,8 +148,11 @@ end
 
   test("variadic natives spread an unpacked last arg; pure fns unwrap through markers", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.max(table.unpack({3, 9, 4})))
@@ -170,8 +170,11 @@ end
 
   test("void stdlib marker through a param reads as nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local call = function (g, args) return g(table.unpack(args)) end

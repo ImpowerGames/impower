@@ -1,16 +1,17 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): the cases
-// sparkdown already has a warning (or a clean result) for. Snippets are
-// quoted verbatim inside a function body unless marked adapted; the upstream
-// test-case name is in the comment above each group. Where sparkdown's
-// wording differs, the test pins sparkdown's, since changing the wording of
-// existing warnings is out of scope here.
-
 import { describe, expect, test } from "vitest";
 import {
   diagnoseWithLints,
   diagnoseDetailed,
   diagnoseWithLintsInFunction,
 } from "./diagnosticTestHarness";
+
+describe("an unknown global read in a scene", () => {
+  test("& print(foo)", () => {
+    expect(diagnoseWithLints("scene start\n  & print(foo)\nend\n")).toEqual([
+      "Cannot find variable named `foo`",
+    ]);
+  });
+});
 
 // Luau: CleanCode
 describe("clean code has no warnings", () => {
@@ -26,9 +27,6 @@ end
 });
 
 // Luau: type_function_fully_reduces
-// Upstream checks that the type solver reduces this without a warning. The
-// lint helpers leave the type checker's warnings out (its own ports cover
-// them), so here it pins only that the snippet is lint-clean.
 describe("an and/or return that mixes types has no warnings", () => {
   test("return n < 2 or fib(n-2)", () => {
     expect(
@@ -42,10 +40,6 @@ end
 });
 
 // Luau: UnknownGlobal
-// "Unknown global 'foo'; consider assigning to it first"
-//
-// Sparkdown reports the read with its own wording, inside a function and at
-// the top level (adapted below).
 describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
     expect(diagnoseWithLintsInFunction("return foo")).toEqual([
@@ -54,20 +48,7 @@ describe("an unknown global read inside a function (adapted)", () => {
   });
 });
 
-describe("an unknown global read at the top level (adapted)", () => {
-  test("& print(foo)", () => {
-    expect(diagnoseWithLints("& print(foo)\n")).toEqual([
-      "Cannot find variable named `foo`",
-    ]);
-  });
-});
-
 // Luau: DeprecatedGlobal (adapted)
-// "Global 'Wait' is deprecated, use 'wait' instead"
-//
-// Upstream registers a host global as deprecated. Sparkdown's deprecated
-// globals are Luau's own stdlib entries; each reports an Information
-// diagnostic tagged Deprecated, naming the replacement.
 describe("a deprecated stdlib global (adapted)", () => {
   test("unpack", () => {
     const [d, ...rest] = diagnoseDetailed(
@@ -82,9 +63,6 @@ describe("a deprecated stdlib global (adapted)", () => {
 });
 
 // Luau: DeprecatedApiUntyped
-// Upstream expects exactly two warnings. Sparkdown's wording for the two
-// deprecated members is its own; the member that does not exist is covered
-// separately below.
 describe("deprecated table members (adapted wording)", () => {
   test("table.getn and table.foreach", () => {
     const messages = diagnoseWithLintsInFunction(`
@@ -101,9 +79,6 @@ end
   });
 });
 
-// The third line of the same upstream case: a member `table` does not have
-// is not a deprecation, so Luau's linter says nothing about it. Sparkdown
-// reports the missing member with its dotted-path warning.
 describe("a missing stdlib member (diverges: reported as a missing path)", () => {
   test("table.nogetn()", () => {
     expect(
@@ -136,7 +111,6 @@ type InputData = {
 });
 
 // Luau: TestStringInterpolation
-// The unknown global inside the interpolation warns.
 describe("an unknown global inside interpolation", () => {
   test("local _ = `unknown {foo}`", () => {
     expect(diagnoseWithLintsInFunction("local _ = `unknown {foo}`")).toEqual([
@@ -146,8 +120,6 @@ describe("an unknown global inside interpolation", () => {
 });
 
 // Luau: no_spurious_warning_after_a_function_type_alias (adapted)
-// `export` is a module keyword, which sparkdown does not have; the alias is
-// written without it.
 describe("a function type alias between statements has no warnings (adapted)", () => {
   test("exports table with a function type alias", () => {
     expect(
@@ -162,8 +134,6 @@ describe("a function type alias between statements has no warnings (adapted)", (
 });
 
 // Luau: type_instantiation_lints
-// Upstream checks explicit type instantiation. Type annotations are parsed
-// but ignored, so here it pins only that the snippet is clean.
 describe("explicit type instantiation has no warnings", () => {
   test('a<<"hi">>("hi")', () => {
     expect(

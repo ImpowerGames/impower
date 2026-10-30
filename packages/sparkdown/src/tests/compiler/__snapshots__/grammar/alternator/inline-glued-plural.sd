@@ -1,1 +1,3 @@
-x .. plural(n)|one=apple|other=apples ..
+scene start
+  x .. plural(n)|one=apple|other=apples ..
+end

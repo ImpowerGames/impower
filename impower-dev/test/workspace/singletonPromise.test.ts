@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import SingletonPromise from "../../src/modules/spark-editor/workspace/SingletonPromise";
 
-/** A deferred whose settlement we drive by hand, so races are deterministic. */
 const deferred = <V>() => {
   let resolve!: (v: V) => void;
   let reject!: (e: unknown) => void;
@@ -42,7 +41,6 @@ describe("SingletonPromise", () => {
       const ref = new SingletonPromise(func);
 
       expect(await ref.get("x", 1)).toBe("x:1");
-      // Later args are ignored — that is the point of memoizing.
       expect(await ref.get("y", 2)).toBe("x:1");
       expect(func).toHaveBeenCalledTimes(1);
       expect(func).toHaveBeenCalledWith("x", 1);
@@ -59,9 +57,6 @@ describe("SingletonPromise", () => {
 
   describe("rejection recovery (#224)", () => {
     it("retries after a failure instead of caching the rejection forever", async () => {
-      // The bug: `_promise` stayed pointed at the rejected promise, so every
-      // later `get()` re-awaited the same rejection and the memoized thing was
-      // permanently dead for the session.
       const func = vi
         .fn<() => Promise<string>>()
         .mockRejectedValueOnce(new Error("transient"))
@@ -126,11 +121,9 @@ describe("SingletonPromise", () => {
       first.reject(new Error("first"));
       await expect(firstGet).rejects.toThrow("first");
 
-      // Second attempt starts and is still pending.
       const secondGet = ref.get();
       expect(func).toHaveBeenCalledTimes(2);
 
-      // A third caller must join the pending second attempt, not start a third.
       const thirdGet = ref.get();
       expect(func).toHaveBeenCalledTimes(2);
 
@@ -140,11 +133,6 @@ describe("SingletonPromise", () => {
     });
 
     it("a stale rejection does not evict the attempt that replaced it", async () => {
-      // Covers the `this._promise === attempt` identity check. `reset()` is
-      // the one way an attempt can be replaced while it is still in flight;
-      // when that abandoned attempt later fails, it must not clear the
-      // *current* one, or the retry already running gets orphaned and a
-      // redundant duplicate is fired off behind it.
       const first = deferred<string>();
       const second = deferred<string>();
       const func = vi
@@ -154,15 +142,13 @@ describe("SingletonPromise", () => {
       const ref = new SingletonPromise(func);
 
       const firstGet = ref.get();
-      ref.reset(); // abandon the in-flight attempt
+      ref.reset();
       const secondGet = ref.get();
       expect(func).toHaveBeenCalledTimes(2);
 
-      // The abandoned attempt fails, late — after its replacement is cached.
       first.reject(new Error("stale"));
       await expect(firstGet).rejects.toThrow("stale");
 
-      // The second attempt must still be cached, so a new caller joins it.
       const thirdGet = ref.get();
       expect(func).toHaveBeenCalledTimes(2);
 

@@ -1,20 +1,3 @@
-// #1657 — the author pins the option the Game Preview takes at a menu. A pin
-// names an option's line and which time the route is offered that option.
-//
-// What must hold:
-//   - at a pinned meeting the route takes the pinned option wherever the
-//     target line can be reached through it, forcing `if` verdicts if it
-//     must, even when another option reaches the line forcing none;
-//   - it leaves the pin when the line cannot be reached through it (a target
-//     inside another option), and the report says the pin was not followed;
-//   - a pinned gated option (`* if cond`) is offered by forcing its gate;
-//   - a once-only option the route already took cannot be offered again, so
-//     a pin on a later offer of it is left there;
-//   - a hub is pinned meeting by meeting;
-//   - when an edit leaves two pins on one stop, the option listed first wins
-//     and the other is not followed, its gate left as the program has it;
-//   - a pin whose line holds no option is unresolved, ignored and reported.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -57,12 +40,8 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** A pin on the 1-based `line` at its `offer`-th offer. */
 const pin = (line: number, offer = 1) => ({ uri: URI, line: line - 1, offer });
 
-/** The route the preview takes to the 1-based `line` of `lines` with `pins`,
- *  as the preview reports it, and the value of the store `counted` once the
- *  replay has reached the line. */
 function preview(
   lines: string[],
   line: number,
@@ -85,14 +64,13 @@ function preview(
   };
 }
 
-/** Each decision as its kind and 1-based line. */
 const kindsAndLines = (route: PreviewRoute) =>
   route.decisions.map((d) => [d.kind, d.location.range.start.line + 1]);
 
 const interrogation = [
   "store trust = 0",
   "",
-  "scene interrogation",
+  "scene start",
   "  choose",
   "    * [Tell the truth.]",
   "      trust += 2",
@@ -109,12 +87,11 @@ const interrogation = [
   "",
 ];
 
-/** The example script of #1655. */
 const example = [
   "store trust = 0",
   "store clues = 0",
   "",
-  "scene interrogation",
+  "scene start",
   "  INSPECTOR:",
   "    Where were you at nine?",
   "  choose",
@@ -177,7 +154,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * [Wait.]",
       "      Waited.",
@@ -197,14 +174,10 @@ describe("the preview's route keeps the author's pins", () => {
   }, 120_000);
 
   test("a pinned gated option wins its menu once a pinned once-only option listed before it is spent", () => {
-    // First. is pinned at both offers and Second. at its first: First. wins
-    // the first meeting, and at the second, where the menu no longer offers
-    // it, Second.'s gate is forced to offer it. Each meeting leaves the
-    // other pin unoffered, so both are reported not followed.
     const lines = [
       "store asked = 0",
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    choose",
@@ -234,7 +207,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * if key [Show the key.]",
       "      Shown.",
@@ -260,7 +233,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * if key [Show the key.]",
       "      Shown.",
@@ -285,7 +258,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a choice entry names its stop's pin on an option the menu did not offer when a thread adds the option the menu lists first", () => {
     const lines = [
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  <- side",
       "  choose",
@@ -318,7 +291,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a line inside a thread's scene starts its route there, so a pin on the menu the thread joins is not at its stop", () => {
     const lines = [
       "store key = false",
-      "-> start",
+      "",
       "scene start",
       "  <- side",
       "  choose",
@@ -346,8 +319,6 @@ describe("the preview's route keeps the author's pins", () => {
   }, 120_000);
 
   test("a menu that presents nothing gives none of its pins to the next menu", () => {
-    // Hidden. leads away from the line, so its gate stays false and its menu
-    // presents nothing; Continue.'s menu owns no pin.
     const lines = [
       "store key = false",
       "scene start",
@@ -376,7 +347,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a once-only option already taken leaves the pin on its later offer", () => {
     const lines = [
       "store asked = 0",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    choose",
@@ -399,12 +370,9 @@ describe("the preview's route keeps the author's pins", () => {
   }, 120_000);
 
   test("a pin the target cannot be reached through leaves the route the search takes without it, never a forced dodge of its menu", () => {
-    // Taking the threaded key ends the story, so the line after the hub
-    // cannot be reached through its pins; forcing the loop's test false
-    // would skip the menu, which no pin asks for.
     const lines = [
       "store asked = 0",
-      "-> start",
+      "",
       "scene start",
       "  while asked < 2 do",
       "    <- side",
@@ -435,7 +403,7 @@ describe("the preview's route keeps the author's pins", () => {
       "store trust = 0",
       "store go = true",
       "",
-      "scene s",
+      "scene start",
       "  if go then",
       "    choose",
       "      * [Tell the truth.]",
@@ -464,7 +432,7 @@ describe("the preview's route keeps the author's pins", () => {
   test("a hub is pinned meeting by meeting", () => {
     const lines = [
       "store stage = 0",
-      "-> start",
+      "",
       "scene start",
       "  while stage < 1 do",
       "    choose",
@@ -500,7 +468,7 @@ describe("the preview's route keeps the author's pins", () => {
     const lines = [
       "store key = false",
       "",
-      "scene s",
+      "scene start",
       "  choose",
       "    * [First.]",
       "      Took first.",
@@ -527,8 +495,6 @@ describe("the preview's route keeps the author's pins", () => {
   }, 120_000);
 
   test("the example of #1655 at line 11 with Lie. pinned takes Show the photograph., the pin not followed", () => {
-    // Every route through Lie. runs the loop of 40,000 passes, which the
-    // tier's share ends before the search's budget does.
     const { route, count } = preview(example, 11, [pin(12)], "trust");
     expect(kindsAndLines(route)).toEqual([["auto", 10]]);
     expect(route.decisions[0]!.text).toBe("Show the photograph.");

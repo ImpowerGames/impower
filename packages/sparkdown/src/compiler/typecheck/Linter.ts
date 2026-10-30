@@ -10,13 +10,11 @@ import type { Location } from "./Location";
 import type { HotComment } from "./Module";
 import { editDistance } from "./StringUtils";
 
-/** A lint warning (Luau's `LintWarning`, without its code). */
 export interface LintWarning {
   location: Location;
   text: string;
 }
 
-// Luau's `FInt::LuauSuggestionDistance`.
 const SUGGESTION_DISTANCE = 4;
 
 function fuzzyMatch(str: string, array: readonly string[]): string | undefined {
@@ -34,20 +32,16 @@ function fuzzyMatch(str: string, array: readonly string[]): string | undefined {
 
 const HOT_COMMENTS = ["nolint", "nocheck", "nonstrict", "strict", "optimize", "native"];
 
-// A leading U+FEFF is part of the text, not a byte order mark to drop.
 const utf8Decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
-/** Text held as one character per UTF-8 byte, as a hot comment's or a string literal's is, decoded for a message. */
 export function decodeBytes(bytes: string): string {
   return utf8Decoder.decode(Uint8Array.from(bytes, (c) => c.charCodeAt(0)));
 }
 
-/** Luau's `lintComments`, for the checks that concern a module's mode (see above). */
 export function lintComments(hotcomments: readonly HotComment[]): LintWarning[] {
   const warnings: LintWarning[] = [];
   let seenMode = false;
   for (const hc of hotcomments) {
-    // We reserve --!<space> for various informational (non-directive) comments
     if (hc.content.length === 0 || hc.content[0] === " " || hc.content[0] === "\t") continue;
 
     if (!hc.header) {

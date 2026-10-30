@@ -4,7 +4,6 @@ import { type LoadAssetsResult } from "../../types/LoadAssetsResult";
 
 export type LoadAssetsMethod = typeof LoadAssetsMessage.method;
 
-/** Make these items resident and answer once every one has loaded or failed. */
 export class LoadAssetsMessage {
   static readonly method = "assets/load";
   static readonly type = new MessageProtocolRequestType<

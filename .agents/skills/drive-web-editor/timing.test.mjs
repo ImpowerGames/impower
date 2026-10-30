@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-// Pins `timing`'s arguments, its statistics, how it pairs a click with the
-// command the click caused, and how it turns one metronome beat's clock
-// readings into the figures the report gives (#683). Run:
-//   node .agents/skills/drive-web-editor/timing.test.mjs
-//
-// The figures are only as good as the pairing: a message the game was
-// already sending must not be timed as the answer to a click, and a beat
-// whose sound never started has to be a failure rather than a missing row,
-// because dropping it would leave only the good beats in the jitter.
-//
-// Pure functions, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { attributeInputSample, metronomeRow, metronomeSamples, pairMetronome, parseTimingArgs, runMetronome, stats, summarizeInput, summarizeMetronome, timingFailed } from "./timing.mjs";
@@ -58,8 +47,6 @@ await check("statistics are nearest-rank quantiles with the spread between the e
   assert.equal(stats([undefined, null, Number.NaN]), null);
 });
 
-// A page record around one click on the choice: a pointerdown, then the
-// click, then the game's answer.
 const record = (answerAt, overrides = {}) => ({
   clicks: [
     { type: "pointerdown", t: 100, timeStamp: 99, trusted: true },
@@ -92,8 +79,6 @@ await check("a click with no answer, or no click at all, is a failure", () => {
 });
 
 await check("with the game in the worker, the time divides at the worker posting its answer", () => {
-  // The page posted the click at shared 1,000,104.2, the worker answered at
-  // 1,000,104.3, and the page took the answer at 1,000,112.
   const sent = [
     { at: 1_000_050, method: "ui/batch" },
     { at: 1_000_104.3, method: "ui/batch" },
@@ -119,7 +104,6 @@ await check("with the game in the worker, an answer the worker probe never saw f
   const sample = attributeInputSample(record(112, { posted: [{ at: 1_000_104.2, type: "click" }], sent: [] }), { requireWorker: true });
   assert.match(sample.failure, /recorded no post of the answer/);
   assert.equal(sample.postedToAnswered, undefined);
-  // On the page there is no worker, and nothing is required of it.
   assert.equal(attributeInputSample(record(112, { sent: [] })).failure, undefined);
 });
 
@@ -131,11 +115,6 @@ await check("an input summary leaves failed samples out of the figures and count
   assert.equal(summary.postedToAnswered, null);
 });
 
-// One beat at 48 kHz: the output timestamp says context time 10 s is heard at
-// page time 5,000 ms; the page's time origin is 1,000,000 ms since the epoch.
-// So context time t is heard at 1,005,000 + (t - 10) * 1000, and a sound due
-// at 10.46 s is heard at 1,005,460: its stamp, 1,005,420, plus the 40 ms of
-// output latency.
 const timeOrigin = 1_000_000;
 const beat = (overrides = {}) => ({
   stamp: 1_005_420,
@@ -174,7 +153,6 @@ await check("a sound handled after it was due starts then, and the row says how 
   assert.equal(row.lateBy, 12.5);
   assert.equal(row.scheduledMinusStamp, 52.5);
   assert.equal(row.onsetMinusStamp, 52.5);
-  // The flash still starts at the stamp's time, so it leads the late sound.
   assert.equal(row.flashMinusOnset, -12.5);
   assert.equal(row.onsetMinusScheduled, 0);
 });
@@ -196,10 +174,6 @@ await check("with the game in the worker, a beat's time divides at the worker po
   assert.match(metronomeRow(beat(), onsetAt(10.46), timeOrigin, { requireWorker: true }).failure, /recorded no post/);
 });
 
-// A played beat k of a run at `interval` ms: its key at 5,000 + k * interval,
-// its sound's update 50 ms after the key, due 40 ms after that on the context
-// clock, and its image write just after the update. `pairMetronome` takes
-// beats without their flash, which it pairs itself.
 const played = (k, interval = 500) => {
   const key = 5_000 + k * interval;
   const { flash, ...rest } = beat({
@@ -222,7 +196,6 @@ await check("every key gets a row, and a key that started no beat is a failure, 
   assert.match(rows[1].failure, /started no beat/);
   assert.equal(rows[2].failure, undefined);
   assert.equal(summarizeMetronome(rows).failures, 1);
-  // A run whose keys all started nothing is all failures.
   const none = pairMetronome({ keys: [5_000, 5_500], beats: [], writes: [], anims: [], onsets: [], timeOrigin });
   assert.deepEqual(summarizeMetronome(none).failures, 2);
 });
@@ -244,16 +217,12 @@ await check("a missing flash fails its beat instead of borrowing the next beat's
 
 await check("the flash is the new layer's enter animation, not the exit of the layer before it", () => {
   const b = played(0);
-  // The previous layer's exit and the wrapper animate elements that were
-  // animated before, and are set first.
   const exit = { setAt: b.arrivedAt + 1.5, startTime: b.stamp - timeOrigin + 40 + 200, fresh: false };
   const rows = pairMetronome({ keys: [5_000], beats: [b], writes: [writeOf(b)], anims: [exit, enterOf(b)], onsets: [onsetOf(b)], timeOrigin });
   assert.equal(rows[0].flashMinusStamp, 40);
 });
 
 await check("a missing click never takes its neighbour's onset", () => {
-  // 240 BPM: beats 250 ms apart, so the 250 ms search after a beat reaches
-  // the next beat's click, here 10 ms early. The first beat's click is missing.
   const beats = [played(0, 250), played(1, 250)];
   const early = onsetAt(beats[1].due - 0.01);
   const rows = pairMetronome({ keys: [5_000, 5_250], beats, writes: beats.map(writeOf), anims: beats.map(enterOf), onsets: [early], timeOrigin });
@@ -301,8 +270,6 @@ await check("a metronome summary counts late arrivals and failures and reads the
 });
 
 await check("a phase that pressed fewer keys than it asked for fails the run, even inside its warm-up", () => {
-  // The defaults ask for 4 warm-up keys and 100 measured ones; the page
-  // pressed 3, all of which fall in the warm-up.
   const beats = [played(0), played(1), played(2)];
   const rows = pairMetronome({ keys: [5_000, 5_500, 6_000], beats, writes: beats.map(writeOf), anims: beats.map(enterOf), onsets: beats.map(onsetOf), timeOrigin });
   const samples = metronomeSamples(rows, 104, 4);
@@ -319,15 +286,10 @@ await check("a phase that pressed fewer keys than it asked for fails the run, ev
   const summary = summarizeMetronome(samples.filter((s) => !s.warmup));
   assert.equal(summary.failures, 1);
   assert.equal(timingFailed({ phases: [{ summary }] }), true);
-  // A phase that pressed every key it asked for adds nothing.
   assert.equal(metronomeSamples(rows, 3, 1).length, 3);
 });
 
 await check("the metronome command itself fails a shortfall, and counts no click for it", async () => {
-  // A stand-in page and player frame for one phase of `runMetronome`: the
-  // frame answers its three evaluations (the marks before the run, the keys
-  // on the grid, and the readback), and the page's readback holds only the
-  // three keys the stand-in says it pressed, against the defaults' 104.
   const beats = [played(0), played(1), played(2)];
   const readback = { keys: [5_000, 5_500, 6_000], beats, anims: beats.map(enterOf), onsets: beats.map(onsetOf), writes: beats.map(writeOf), timeOrigin };
   const answers = [{ keys: 0, beats: 0, anims: 0, at: 0 }, true, readback];

@@ -1,25 +1,3 @@
-// Review checkpoints for orchestrate-issues. After round 3's verified fixes,
-// and after every later round's, the coordinator records one decision for a
-// writer's PR: finish through ordinary readiness, direct a root-cause repair,
-// authorize the next bounded round, accept the final verified corrections
-// without another independent round, or ask the maintainer. This helper reads
-// the round state from the review launcher's journals and the PR, refuses a
-// decision whose checkable preconditions do not hold, and builds the comment
-// that records it on the PR's review thread: the PR itself, or the slice's
-// ticket once the run's tickets live apart from its code (repositoriesOf in
-// issue-run.mjs). The review thread is that decision's authority: a later
-// coordinator, on any account or machine, restores every decision from its
-// comments alone.
-//
-// The helper checks structure, never judgement: an assessment field that is
-// filled in says nothing about whether its reasoning is sound. That is read
-// in the published decision.
-//
-//   node .agents/skills/orchestrate-issues/review-checkpoint.mjs <command> --option value ...
-//
-// Commands: evidence, decide, published, abandon, trust-predecessor, restore,
-// acceptance-check.
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -35,30 +13,17 @@ import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositorie
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
 export const KINDS = ["finish", "repair", "extend", "accept-unreviewed", "maintainer"];
-// Every assessment answers these, in the published decision's order.
 export const ASSESSMENT_FIELDS = ["mechanisms", "regressions", "repairOptions", "residualRisk", "coverage", "nextRoundValue", "rationale", "next"];
 export const DISPOSITIONS = ["accepted", "rejected", "covered", "deferred", "none", "open"];
 const PASSED = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 const PENDING = new Set(["PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING", "REQUESTED"]);
 const MARK = "orchestrate-issues-checkpoint";
-// GitHub refuses a comment body longer than this.
 const MAX_COMMENT = 65536;
 const BLOCK = new RegExp(`<!-- ${MARK}\\r?\\n([\\s\\S]*?)\\r?\\n-->`, "g");
 const SHA = /^[0-9a-f]{40}$/;
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 const byTime = (a, b) => Date.parse(a.time) - Date.parse(b.time);
 
-// --- Round state from the launcher's journals -------------------------------
-
-// Every launch journal of the PR's review jobs, whatever its name or place
-// in the job directory outside reviewer workspaces (the launcher accepts any
-// journal and plan path inside it), each with the plan that names it as its
-// journal. A journal is a file whose first row is the launcher's coordinator
-// row; a plan is a JSON file naming its journal and steps. A journal no plan names keeps a null
-// plan, and its count-form rounds stay unknown. The walk reads only where
-// the review workflow writes plans and journals (reviewJobFiles), so a
-// fixture journal inside a reviewer's workspace is never counted, and a file
-// removed while it runs is skipped.
 function firstLine(file) {
   const fd = fs.openSync(file, "r");
   try { const buffer = Buffer.alloc(4096); const n = fs.readSync(fd, buffer, 0, buffer.length, 0); return buffer.subarray(0, n).toString("utf8").split("\n")[0]; }
@@ -71,8 +36,6 @@ export function readJournals(jobDir) {
     let head;
     try { head = JSON.parse(firstLine(file)); } catch { head = null; }
     if (head?.event === "coordinator") { journalFiles.push(file); continue; }
-    // The launcher reads a plan from any path, so a plan is recognized by
-    // its content, whatever its name.
     if (size > 4 * 2 ** 20) continue;
     let plan;
     try { plan = readJson(file); } catch { continue; }
@@ -85,14 +48,6 @@ export function readJournals(jobDir) {
   });
 }
 
-// The review state the journals record, read through the launcher's own
-// round accounting (reviewAccounting in scripts/agent-handoff.mjs), plus what
-// keeps a checkpoint from being due. A journal that has not reached a
-// terminal row belongs to a launcher that may still run. A launch has ended
-// when its exit is recorded (and, with a delegated execution service, the
-// service drained), when its child was confirmed absent, or when its
-// launcher finished without ever reserving a slot for it; a launch that
-// reserved a slot but recorded no start may have spawned its reviewer.
 export function roundState(journals) {
   const accounting = reviewAccounting(journals);
   const blockers = [];
@@ -125,35 +80,8 @@ export function roundState(journals) {
   };
 }
 
-// --- Decisions published on the review thread -----------------------------
-
-// Every checkpoint block in the review thread's comments, each with its exact head and
-// range, and the decisions in effect, in order. Writers and coordinators post
-// under the same GitHub account, so neither a comment's author nor the name
-// in a block proves who decided, and the order of comments proves nothing
-// about what withdrew what.
-//
-// With a run record, the record is the authority on order: the decisions in
-// effect are the record's own decisions for this PR (its own, and those of
-// the coordinators it took over from), published or recorded but not yet
-// read back, in the order the record made them, together with any decision
-// of a predecessor the record names for the ticket and does not hold. A
-// recorded decision is verified only when its recorded comment still
-// carries exactly its recorded content; the comments otherwise only report
-// what was posted, and no block edited, damaged, removed, copied or forged
-// in a comment changes what is in effect. Without a record, the decisions in
-// effect are the trusted blocks in comment order, and serve round accounting
-// only, since none is verified.
-//
-// Only a verified acceptance ever applies. A decision is trusted, and counts
-// for round accounting, when it is verified, or when it names a coordinator
-// the caller trusts and the record holds no version of it. Every parsed block
-// is returned, untrusted ones with the reason, and a malformed block is
-// reported, never thrown; `effective` marks the decisions in effect.
 export const blockHash = (decision) => sha256(JSON.stringify(decision));
 const HASH = /^[0-9a-f]{64}$/;
-// Fields of an untrusted block are tested only once they are strings, so no
-// value can throw while the block is judged.
 const isSha = (v) => typeof v === "string" && SHA.test(v);
 const isHash = (v) => typeof v === "string" && HASH.test(v);
 function malformed(d) {
@@ -185,21 +113,11 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
         : record && d.coordinator === record.coordinator.session ? `the run record never published decision ${d.id}, which names its own coordinator`
         : !trusted.includes(d.coordinator) ? `coordinator ${d.coordinator} is not one this restoration trusts`
         : null;
-      // Without a record a trusted block is in effect; with one, only a
-      // predecessor's block the record does not hold is, alongside the
-      // record's own decisions below.
-      // A block's own times prove nothing, so a decision outside the record
-      // takes effect, and is published, when its comment was posted.
       parsed.push({ ...d, comment: c.id, postedAt: c.created_at, decidedAt: c.created_at, publishedAt: c.created_at, trusted: !untrusted, verified: !untrusted && verified, effective: !untrusted && !verified && !mine, ...(untrusted && { untrusted }) });
     }
   }
   parsed.sort(byPosted);
   if (!record) return parsed;
-  // The record's decisions, in the order of the record's own lists (each
-  // ticket's decisions as the record appended them), never re-sorted by a
-  // clock. Each takes effect when the record made it, and is published when
-  // its recorded comment was posted, so a hold recorded before a launch
-  // withdraws from then whatever later happens to its comment.
   const recorded = [];
   for (const ticket of Object.values(record.tickets)) {
     for (const h of ticket.checkpoints ?? []) {
@@ -213,28 +131,15 @@ export function restore(comments, { trusted = [], record = null, pr = null } = {
         untrusted: h.state === "intent" ? `decision ${h.id} is recorded but not read back as published` : `comment ${h.published.comment} ${at ? "no longer carries exactly" : "is gone, with"} published decision ${h.id}` });
     }
   }
-  // A predecessor's decision the record does not hold came before the
-  // record's own, so it, and every other block, precede them by posting.
   return [...parsed.filter((d) => !recorded.includes(d)), ...recorded];
 }
 const byPosted = (a, b) => Date.parse(a.postedAt ?? 0) - Date.parse(b.postedAt ?? 0);
 const inEffect = (decisions) => decisions.filter((d) => d.effective);
 
-// Rounds the journals show against the extensions the PR records. Each round
-// after the third needs a published extension decided at the checkpoint
-// after the round before it, covering it and recorded before its first
-// launch. A count never goes back, a round's reviewers stay the ones it was
-// planned with, and a plan's extended limit carries an extension's limit and
-// authority.
 export function audit(state, decisions) {
   const violations = [];
   const effective = inEffect(decisions);
   const extensions = effective.filter((d) => d.trusted && d.kind === "extend");
-  // The decision in force when a round after the third first launched is the
-  // last decision in effect, in order, made before that launch; it must be a
-  // trusted extension decided after the round before and published before the
-  // launch, so a later question, repair or stop withdraws an earlier
-  // extension from when it was made.
   for (let r = FIRST_CHECKPOINT_ROUND + 1; r <= state.startedRound; r++) {
     const first = state.launches.find((l) => l.round === r);
     if (!first) continue;
@@ -247,9 +152,6 @@ export function audit(state, decisions) {
   }
   for (const c of state.changedPlans ?? []) violations.push(`${c.file} declares round ${c.round}'s planned reviewers as ${c.declared}, but the round was planned with ${c.planned}; a round's planned reviewers never change`);
   const events = [...state.completions.map((c) => ({ ...c, kind: "completed" })), ...state.launches.map((l) => ({ ...l, kind: "launching" }))].sort(byTime);
-  // Once a round is complete, a reviewer of that round may launch again only
-  // on the head its completion recorded; on a corrected head it is a new
-  // round, whatever attempt or plan it claims.
   let highest = 0;
   const completeOn = new Map();
   for (const e of events) {
@@ -268,9 +170,6 @@ export function audit(state, decisions) {
   return violations;
 }
 
-// The latest trusted acceptance in effect applies only when a run record
-// verified it, only to the head it names, and only while no later decision
-// in effect replaced it, verified or not.
 export function acceptanceApplies(decisions, head) {
   const effective = inEffect(decisions);
   const at = effective.findLastIndex((d) => d.trusted && d.kind === "accept-unreviewed");
@@ -282,22 +181,12 @@ export function acceptanceApplies(decisions, head) {
   return { applies: true, decision: d, reason: `acceptance ${d.id} applies to head ${head}, with ${d.range.from}..${d.range.to} unreviewed` };
 }
 
-// --- Evidence ---------------------------------------------------------------
-
 const checkResult = (state) => { const s = String(state ?? "").toUpperCase(); return PASSED.has(s) ? "passed" : PENDING.has(s) ? "pending" : "failed"; };
 
-// Gathers what a checkpoint decides on: the round state, each report and its
-// adjudication, CI on the head, the unreviewed range and its diff, the
-// decisions already published, and every reason no checkpoint is due yet.
-// The merge gate reads the same review state from round 1 on and judges CI
-// itself, so it passes `firstRound` 1 and `ci` false. `comments` are the
-// review thread's, which `where` names.
 export const threadName = (thread) => `review thread ${thread.repo}#${thread.number}`;
 export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null, firstRound = FIRST_CHECKPOINT_ROUND, ci = true, where = `PR #${pr}` }) {
   const blockers = [...state.blockers];
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
-  // Every round the PR posts a round state for needs its journals here: a
-  // missing one would drop that round's reports and findings unseen.
   const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
   const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
   if (missing.length) blockers.push(`${where === `PR #${pr}` ? "the PR" : where} posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
@@ -305,8 +194,6 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
   const reports = state.reports.map((r) => {
     const report = comments.find((c) => c.id === r.comment);
     if (!report) { blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) is not on ${where}`); return r; }
-    // An adjudication is a later comment headed as one that names the report;
-    // a checkpoint decision lists reports too, and is not an adjudication.
     const adjudication = comments.find((c) => c.id !== r.comment && Date.parse(c.created_at) >= Date.parse(report.created_at) && /adjudicat/i.test((c.body ?? "").split("\n")[0]) && !(c.body ?? "").includes(MARK) && (c.body ?? "").includes(String(r.comment)));
     if (!adjudication) blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) has no adjudication comment naming it`);
     return { ...r, adjudication: adjudication?.id ?? null, adjudicatedAt: adjudication?.created_at ?? null };
@@ -328,8 +215,6 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
     audit: violations, blockers, due: !blockers.length && !violations.length,
   };
 }
-
-// --- Decide, publish, restore ----------------------------------------------
 
 const present = (value) => typeof value === "string" && value.trim().length > 0;
 const line = (text) => String(text).replace(/\s*\r?\n\s*/g, " ").trim();
@@ -459,29 +344,12 @@ export function abandon(record, { ticket: number, id, evidence }) {
   record.log.push({ time: d.abandoned.time, event: "checkpoint-abandoned", ticket: number, id });
 }
 
-// A coordinator resuming without its predecessor's run record names that
-// predecessor for a ticket, with the place the parent issue names it (its status
-// comment). The predecessor's published decisions then count for the
-// ticket's round accounting, trusted but never verified: a block copied
-// from GitHub proves nothing about who decided, so none of them makes an
-// acceptance apply, and the successor decides and publishes its own after
-// reading the PR. Neither this coordinator's own session nor any session
-// that wrote for the ticket is ever a trusted predecessor.
-// Every session that wrote for a ticket: its owner, its released or ended
-// writers, and a pending start. A writer held by its process is known by its
-// session, recorded on the owner or named by its stream, under that id and
-// as the app shows it once opened. A session that is neither recorded nor
-// readable here is unknown, never absent: this throws, so an action that
-// depends on who wrote waits until the session is recorded.
 export const writersOf = (ticket, number) => [ticket.owner, ...(ticket.history ?? []).map((h) => h.owner), ticket.pending].flatMap((o) => {
   if (!o) return [];
   const session = o.sessionId ?? o.opened?.sessionId ?? processSession(o, o === ticket.pending, number);
   return [o.handle?.id, o.opened?.session, ...(session ? [session, `local_${session}`] : [])];
 }).filter(Boolean);
 
-// The session a process-held writer's stream names, or null when its stream
-// was read and shows that none started. A stream that exists but cannot be
-// read leaves the session unknown, as a missing one does.
 function processSession(o, pending, number) {
   if (pending ? o.route !== "claude-cli" || !o.artifactParent : o.handle?.kind !== "process") return null;
   const dir = pending ? launchDirOf(o, number) : o.handle.launchDir;
@@ -489,15 +357,13 @@ function processSession(o, pending, number) {
   let unreadable = null;
   if (out && fs.existsSync(out)) {
     try { return initSession(fs.readFileSync(out, "utf8")); } catch (error) { unreadable = `its stream ${out} cannot be read here (${error.code ?? error.message})`; }
-  } else if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null; // a start claimed on this host whose launch directory was never made never ran
+  } else if (pending && !fs.existsSync(dir) && (!o.host || o.host === os.hostname())) return null;
   const which = pending ? `pending start ${o.launchId}` : `writer ${o.launchId ?? `process ${o.handle.pid}`}`;
   const where = unreadable ?? (out ? `its stream ${out} cannot be read here` : "no stream was recorded for it");
   const fix = pending ? `settle the start with issue-run.mjs reconcile or withdraw on ${o.host ?? "its host"}` : `record its session with issue-run.mjs writer-session --ticket ${number} --writer ${o.launchId ?? o.handle.pid} --session <id> --evidence <where it was read>`;
   throw new Error(`#${number}'s ${which} has no recorded session and ${where}, so whether its session wrote for the ticket is unknown; ${fix} first`);
 }
 
-// The session a stream's init line names; null when the stream has no init
-// line, so no session started. A malformed init line is an error.
 function initSession(text) {
   for (const line of text.split(/\r?\n/)) {
     let row;
@@ -519,21 +385,12 @@ export function trustPredecessor(record, { ticket: number, session, source }) {
   record.log.push({ time: new Date().toISOString(), event: "checkpoint-predecessor", ticket: number, session, source });
 }
 
-// The coordinators a run record trusts for a ticket: its own, every
-// previous one, and the predecessors it named for that ticket, never a
-// session that wrote for it. Predecessors named for other tickets are not
-// trusted here.
 export const trustedCoordinators = (record, number = null) => {
   const ticket = number === null ? null : record.tickets[number];
   const writers = ticket ? writersOf(ticket, number) : [];
   return [record.coordinator.session, ...(record.previousCoordinators ?? []).map((c) => c.session), ...(ticket?.trustedPredecessors ?? []).map((p) => p.session)].filter((s) => !writers.includes(s));
 };
 
-// --- GitHub and Git ---------------------------------------------------------
-
-// The pull request on the code repository, and the comments of its review
-// thread for ticket `ticket`, given the record (or a repository and its
-// tickets repository).
 export function checkpointClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 }) } = {}) {
   const { code, thread } = repositoriesOf(names);
   return {
@@ -545,14 +402,6 @@ export function checkpointClient(names, checkout, { run = (cmd, args) => execFil
   };
 }
 
-// The unreviewed range from the reviewed head to the PR's head, read from
-// the checkout's object store once the PR head and the base are fetched. The
-// range is the branch's first-parent commits. A merge whose other parents are
-// all on the base counts as one commit, and its diff is what the merge itself
-// changed beyond a clean merge of its parents (git's remerge diff), since the
-// base's commits were reviewed in their own PRs. Any other merge brings in
-// commits no review saw: they are listed after it, and its diff is
-// everything it changed against its first parent.
 const defaultFetch = (checkout) => (pr) => execFileSync("git", ["fetch", "-q", "origin", `refs/pull/${pr}/head`, "main"], { cwd: checkout, windowsHide: true });
 export function localGit(checkout, { fetch = defaultFetch(checkout), base = () => execFileSync("git", ["rev-parse", "origin/main"], { cwd: checkout, encoding: "utf8", windowsHide: true }).trim() } = {}) {
   const git = (...args) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
@@ -566,8 +415,6 @@ export function localGit(checkout, { fetch = defaultFetch(checkout), base = () =
       const commits = [], parts = [];
       for (const c of log("--first-parent", `${from}..${to}`)) {
         const merge = c.parents.length > 1;
-        // Git gives no remerge diff for a merge of more than two parents, so
-        // only a two-parent merge of the base is shown that way.
         const baseMerge = c.parents.length === 2 && isAncestor(c.parents[1], baseSha);
         commits.push({ sha: c.sha, subject: c.subject, ...(merge && { merge: baseMerge ? "base" : "other" }) });
         if (merge && !baseMerge) {
@@ -590,8 +437,6 @@ export function gatherEvidence({ record, ticket, pr, client, git }) {
   return checkpointEvidence({ pr, state, pull, comments: client.comments(pr, ticket), git, trusted: trustedCoordinators(record, ticket), record, ...(names.split && { where: threadName(names.thread(pr, ticket)) }) });
 }
 
-// --- Command line -----------------------------------------------------------
-
 function parse(argv) {
   const [command, ...rest] = argv, o = { trust: [] };
   for (let i = 0; i < rest.length; i++) {
@@ -606,9 +451,6 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-// How to post a decision on the PR's review thread: the PR itself in one
-// repository, the ticket once the run's tickets live apart, when nothing is
-// posted on the public PR.
 export function postCommand(record, pr, ticket, file) {
   const names = repositoriesOf(record), thread = names.thread(pr, ticket);
   return names.split ? `gh issue comment ${thread.number} -R ${thread.repo} --body-file ${file}` : `gh pr comment ${pr} --body-file ${file}`;
@@ -650,8 +492,6 @@ export function main(argv, { clientFor = checkpointClient, gitFor = localGit, re
       if (o.record) { const r = withRecord(); client = r.client; record = r.record; trusted = [...trusted, ...trustedCoordinators(record, ticket ?? null)]; }
       else abs(o.checkout, "checkout");
       if (!trusted.length) throw new Error("Name the trusted coordinators with --record or --trust <session> (the parent issue's status names them)");
-      // Without a record, the cutover switch says where the review thread is;
-      // once it is on, --ticket names it.
       client ??= clientFor({ repository: o.repo, ...startRepositories(o.repo, repos ?? readRepos()) }, abs(o.checkout, "checkout"));
       const pr = int(o.pr, "pr"), decisions = restore(client.comments(pr, ticket), { trusted, record, pr });
       return command === "restore" ? { pr, decisions } : { pr, ...acceptanceApplies(decisions, client.pull(pr).head) };

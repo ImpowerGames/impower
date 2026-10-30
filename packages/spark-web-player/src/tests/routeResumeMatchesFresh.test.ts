@@ -1,11 +1,3 @@
-// A search resumed inside an earlier route shows a line after a loop with the
-// same value as a search from the top (#637).
-//
-// A search resumed part way along an earlier route starts with what the
-// search from the top had recorded at the step it resumes on, Luau callbacks
-// included, so it runs out of each bound where that search would, and the
-// value the preview shows does not depend on whether a checkpoint was
-// reusable.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, test } from "vitest";
@@ -54,9 +46,6 @@ function target(game: Game, text: string, label: string) {
   return game.startAddress!;
 }
 
-/** The value of `total` a preview of the line holding `second` shows, once
- *  resumed from the route to the line holding `first` after a recompile,
- *  and once searched from the top. */
 function resumedAndFresh(text: string, first: string, second: string) {
   const { compiler, program } = compile(text);
   const kept = gameOf(program);
@@ -85,7 +74,7 @@ describe("a search resumed inside an earlier route", () => {
   test("shows a loop of menus as a search from the top does", () => {
     const text = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 600 do",
       "    choose",
@@ -106,12 +95,10 @@ describe("a search resumed inside an earlier route", () => {
     });
   }, 120_000);
 
-  // A loop with nothing shown, about twenty steps of work a pass, between two
-  // beats and the line after it.
   const longLoop = (passes: number) =>
     [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  Opening beat.",
       "  Second beat.",
@@ -124,9 +111,6 @@ describe("a search resumed inside an earlier route", () => {
     ].join("\n");
 
   test("runs every pass of a long loop with no beat in it within the budget, as a search from the top does", () => {
-    // About 80,000 steps, within `faithfulBudget`: the loop has nothing to
-    // resume from inside it, and the line after it is reached by resuming
-    // before it (#1636).
     expect(resumedAndFresh(longLoop(4000), "Second beat", "Target total")).toEqual({
       resumed: 4000,
       fresh: 4000,
@@ -134,9 +118,6 @@ describe("a search resumed inside an earlier route", () => {
   }, 120_000);
 
   test("shows origin/main's value past the budget, as a search from the top does", () => {
-    // About 500,000 steps: the resumed search runs out of the budget where
-    // the search from the top does, and both routes are origin/main's
-    // (#1636).
     expect(resumedAndFresh(longLoop(25000), "Second beat", "Target total")).toEqual({
       resumed: 0,
       fresh: 0,
@@ -144,12 +125,10 @@ describe("a search resumed inside an earlier route", () => {
   }, 120_000);
 
   test("is charged the work of a long call before it, as a search from the top is", () => {
-    // The call's instructions are not steps of the route, but they are work
-    // the search from the top spent before the step this one resumes on.
     const text = [
       "store total = 0",
       "store work = 0",
-      "-> start",
+      "",
       "scene start",
       "  & table.foreachi(table.create(150000, 1), function(k, v) work += v end)",
       "  Opening beat.",

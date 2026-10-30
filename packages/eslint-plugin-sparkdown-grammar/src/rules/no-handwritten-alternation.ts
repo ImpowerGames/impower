@@ -1,14 +1,3 @@
-// Rule: flag inline keyword alternations like `(?:show|hide|animate)`
-// or `(show|hide|wait)`. They should be extracted to a variable list
-// (`IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]`) which the
-// build auto-wraps to `\b(?:show|hide|animate)\b` — single source of
-// truth, mentioned at every call site, and visible in the
-// `variables:` block alongside related lists.
-//
-// Heuristic: a group whose body is `\w+(\|\w+){2,}` — three or more
-// bare-word branches separated by `|`. Three is the threshold; two-
-// branch alternations are usually meaningful disjuncts, not lists.
-
 import type { Rule } from "eslint";
 import {
   findPair,

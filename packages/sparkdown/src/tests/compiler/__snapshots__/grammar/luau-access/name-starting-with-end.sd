@@ -4,4 +4,6 @@ function f()
   print(endpoint, ending)
   return endpoint, ends[1], endless:go()
 end
-& print(endpoint)
+scene start
+  & print(endpoint)
+end

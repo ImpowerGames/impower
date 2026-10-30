@@ -1,14 +1,3 @@
-// The text the type checker read a document's Luau as before it read the
-// syntax tree's AST (#1286), kept as the oracle tests' view of a unit:
-// `luauTreeAst.test.ts` and `luauSyntaxAgreement.test.ts` give Luau's parser
-// this text and compare its reading with `readLuauAst.ts`'s reading of the
-// tree.
-//
-// A unit keeps the whole source lines of its statements, with narrative
-// left out, the parts of a line that are Sparkdown's own blanked and
-// Sparkdown's own expressions written as a call of an `any` value (`_G()`),
-// together with the document line of each of its lines.
-
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type { Json } from "./officialLuau";
 import { loadOfficialLuau, officialLuauAvailable } from "./officialLuau";
@@ -17,8 +6,6 @@ import { opensAlternator } from "../../compiler/utils/alternatorDecision";
 import { scopeOf } from "../../compiler/utils/declarationOnly";
 import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "../../compiler/typecheck/LuauUnitNodes";
 
-// Derive counterpart identities from the grammar being parsed, independently
-// of the converter's production alias table. Capture suffixes keep that identity.
 const grammarNames = new Set(Object.keys(GRAMMAR_DEFINITION.repository));
 const ordinaryNames = new Map<string, string>();
 for (const name of grammarNames) {
@@ -33,25 +20,16 @@ function oracleName(name: string): string {
   return (ordinaryNames.get(root) ?? root) + (at < 0 ? "" : name.slice(at));
 }
 
-/** Some of a document's Luau, as the checker's text read it. */
 export interface LuauTextUnit {
-  /** A whole Luau file, a `.sd` file's prelude, or one of its flows. */
   kind: "file" | "prelude" | "flow";
-  /** The unit's Luau: one document line per line, except the lines that wrap a flow in a function. */
   text: string;
-  /** The document line of each of the text's lines. */
   lines: number[];
-  /** True only when a flow has no closing token and extraction appends its own `end`. */
   syntheticEnd?: boolean;
-  /** Only the do/end scopes inserted around narrative returns. */
   returnScopes?: { begin: { line: number; character: number }; end: { line: number; character: number } }[];
-  /** Inserted columns in the projected text, measured in UTF-16. */
   insertions?: { line: number; column: number; length: number }[];
-  /** Written enclosing blocks checked before synthetic flow/return wrappers. */
   rawIslands?: { text: string; lines: number[] }[];
 }
 
-/** Native errors of a written island, distinct from synthetic full-flow errors. */
 export function rawIslandSyntaxErrors(unit: LuauTextUnit) {
   if (!parseOfficial) throw new Error("Official Luau parser artifact is unavailable");
   return (unit.rawIslands ?? []).flatMap((island) => {
@@ -66,14 +44,8 @@ export function rawIslandSyntaxErrors(unit: LuauTextUnit) {
   });
 }
 
-// Each unit's text split into lines, once, for turning Luau's columns into the document's.
 const unitTextLines = new WeakMap<LuauTextUnit, string[]>();
 
-/**
- * The document position of a position in a unit's text. Luau counts a column
- * in UTF-8 bytes and the document in UTF-16 code units; a unit's line holds
- * each of its characters at the character's document column.
- */
 export function textDocumentPosition(unit: LuauTextUnit, position: { line: number; column: number }): { line: number; character: number } {
   const index = Math.min(Math.max(position.line, 0), unit.lines.length - 1);
   let lines = unitTextLines.get(unit);
@@ -87,7 +59,6 @@ export function textDocumentPosition(unit: LuauTextUnit, position: { line: numbe
   return { line: unit.lines[index] ?? 0, character: column - inserted };
 }
 
-/** Remove only the official parser's blocks at recorded synthetic do/end spans. */
 export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): Json {
   const scopes = unit.returnScopes ?? [];
   if (!scopes.length) return root;
@@ -126,19 +97,14 @@ export function normalizeNarrativeReturnScopes(root: Json, unit: LuauTextUnit): 
   return normalized;
 }
 
-/** Project narrative returns as isolated blocks without introducing bindings. */
 function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to: number; close: number; writtenCloser: boolean; islandFrom: number }[], markers: { from: number; to: number }[], index: LineIndex): void {
   const original = unit.text.split("\n");
-  // Recovery may classify a same-line follower as prose. It still belongs
-  // to this Luau island: keep the complete suffix for the official parser.
   for (const returned of returns) {
     const line = index.lineAt(Math.max(returned.from, returned.to - 1));
     const projected = unit.lines.indexOf(line);
     if (projected < 0) continue;
     const column = returned.to - index.starts[line]!;
     original[projected] = original[projected]!.slice(0, column).padEnd(column) + index.text.slice(returned.to, index.lineEnd(line));
-    // A recovery suffix can include a complete long comment whose later
-    // lines were classified as prose. Retain those source lines too.
     let previous = projected;
     const last = index.lineAt(Math.max(returned.to - 1, returned.close - 1));
     for (let continued = line + 1; continued <= last; continued++) {
@@ -152,9 +118,6 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
       previous = at;
     }
   }
-  // Restoring a recovery suffix can also restore later, valid explicit
-  // markers. Blank only the grammar's recorded marker spans, preserving
-  // all other suffix tokens and their document columns.
   for (const marker of markers) {
     const line = index.lineAt(marker.from);
     const projected = unit.lines.indexOf(line);
@@ -164,9 +127,6 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
     const text = original[projected]!;
     original[projected] = text.slice(0, from) + " ".repeat(to - from) + text.slice(to);
   }
-  // A later independent Luau line cannot supply a missing until condition
-  // or closer in a written story island. Check its complete written suffix
-  // before adding wrappers, retaining the existing Sparkdown projections.
   const islands = new Map<number, { text: string; lines: number[] }>();
   for (const returned of returns) {
     if (!returned.writtenCloser) continue;
@@ -187,8 +147,6 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
   for (let i = 0; i < original.length - 1; i++) starts.push(starts[i]! + original[i]!.length + 1);
   const edits: { at: number; text: string; id: number; opening: boolean }[] = [];
   for (const returned of returns) {
-    // A same-line written do/end already ends the return's real block.
-    // Inserting another block there would steal its closer.
     if (returned.writtenCloser) continue;
     const firstLine = index.lineAt(returned.from);
     const lastLine = index.lineAt(Math.max(returned.from, returned.to - 1, returned.close - 1));
@@ -228,7 +186,6 @@ function projectNarrativeReturns(unit: LuauTextUnit, returns: { from: number; to
   unit.insertions = inserted.map((i) => ({ line: position(i.from).line, column: position(i.from).character, length: i.length }));
 }
 
-/** The UTF-16 column of the character a UTF-8 byte column points at. */
 function utf16Column(text: string, byteColumn: number): number {
   let bytes = 0;
   let column = 0;
@@ -241,20 +198,12 @@ function utf16Column(text: string, byteColumn: number): number {
 }
 
 
-// Nodes whose text is Luau as it stands: strings and comments. A backtick
-// string's interpolations are the exception (see `keepInterpolations`).
 const ATOMIC = /^Luau(?!.*TargetTypeCastAfterComment$)\w*(String|Comment)$/;
 
-// Comments, which may stand anywhere in a parameter list, `...` and its annotation included.
 const COMMENT = /^Luau(?!.*TargetTypeCastAfterComment$)\w*Comment$/;
 
-// The names the checker writes its own `any` values with, in the order it
-// tries them: Luau's `_G`, which is typed `any`, then short names Luau does
-// not define. A document gets the first it never writes itself, since a name
-// the author writes may be bound to something else.
 const ANY_NAMES = ["_G", "_H", "_J", "_K", "_Q", "_V", "_W", "_X", "_Y", "_Z"];
 
-/** Whether a text holds a name as a whole identifier. */
 function namesIdentifier(text: string, name: string): boolean {
   for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
     if (!/\w/.test(text[at - 1] ?? "") && !/\w/.test(text[at + name.length] ?? "")) return true;
@@ -262,13 +211,9 @@ function namesIdentifier(text: string, name: string): boolean {
   return false;
 }
 
-// Whether a parameter list's text parses as Luau's, by its text.
 const wholeLists = new Map<string, boolean>();
-// An unavailable artifact must still let the official suite collect its
-// visible skip; calling the default oracle without it is a test setup error.
 const parseOfficial = officialLuauAvailable ? await loadOfficialLuau() : undefined;
 
-/** Whether a parameter list's text, brackets included, is a Luau parameter list as written. */
 function parsesAsParameters(text: string): boolean {
   let whole = wholeLists.get(text);
   if (whole === undefined) {
@@ -280,16 +225,12 @@ function parsesAsParameters(text: string): boolean {
   return whole;
 }
 
-/** The Luau a `.sd` file holds, as units. */
 export interface CheckerTextUnits {
   prelude: LuauTextUnit;
-  /** One unit per scene or branch that holds Luau statements. */
   flows: LuauTextUnit[];
-  /** The name the units write the checker's own `any` values with (see `ANY_NAMES`); one other than `_G` must be bound to `any` for them. */
   anyName: string;
 }
 
-/** The line starts of a text, for finding the line an offset is on. */
 class LineIndex {
   readonly starts: number[] = [0];
 
@@ -314,24 +255,13 @@ class LineIndex {
   }
 }
 
-/**
- * Builds a unit's lines: whole document lines, holding only the characters
- * kept, each at its column. A line left with nothing but whitespace is left
- * out, so narrative added inside a Luau block does not change the unit;
- * the lines of a string or comment that spans lines are kept as written,
- * since their text is the string's value.
- */
 class UnitLines {
-  // Each line's kept columns, as sorted, disjoint `[from, to)` pairs laid end to end.
   private readonly spans = new Map<number, number[]>();
-  // Text written over each line's columns, in the order written.
   private readonly writes = new Map<number, { column: number; text: string }[]>();
-  // The lines of strings and comments that span lines.
   private readonly verbatim = new Set<number>();
 
   constructor(private readonly index: LineIndex) {}
 
-  /** Keeps the lines of a string or comment that spans lines as written, blank lines and trailing spaces included. */
   keepVerbatim(from: number, to: number): void {
     const first = this.index.lineAt(from);
     const last = this.index.lineAt(Math.max(from, to - 1));
@@ -339,7 +269,6 @@ class UnitLines {
     for (let line = first; line <= last; line++) this.verbatim.add(line);
   }
 
-  /** Keeps the characters of a range, or blanks them. */
   mark(from: number, to: number, keep: boolean): void {
     if (to <= from) return;
     const last = this.index.lineAt(to - 1);
@@ -354,7 +283,6 @@ class UnitLines {
     }
   }
 
-  /** Writes text over the characters from an offset, as far as its line goes, or past its end when `pastEnd` says so. */
   write(offset: number, text: string, pastEnd = false): void {
     const line = this.index.lineAt(offset);
     const column = offset - this.index.starts[line]!;
@@ -363,7 +291,6 @@ class UnitLines {
     writes.push({ column, text: pastEnd ? text : text.slice(0, Math.max(room, 0)) });
   }
 
-  /** The lines that kept something, in document order, with their line numbers. */
   build(): { text: string[]; lines: number[] } {
     const numbers = [...new Set([...this.spans.keys(), ...this.writes.keys(), ...this.verbatim])].sort((a, b) => a - b);
     const text: string[] = [];
@@ -389,7 +316,6 @@ class UnitLines {
   }
 }
 
-/** Adds `[from, to)` to sorted, disjoint spans, merging the spans it meets. */
 function addSpan(spans: number[], from: number, to: number): number[] {
   const out: number[] = [];
   let placed = false;
@@ -411,38 +337,26 @@ function addSpan(spans: number[], from: number, to: number): number[] {
   return out;
 }
 
-/** A `...` parameter, with its annotation and the type that writes ("" for none). */
 interface Vararg {
   dots: SyntaxNode;
   annotation: SyntaxNode | undefined;
   type: string;
 }
 
-/**
- * How a header's parameter list is read: whole, as written, or, where the
- * grammar ends it early, as the names the runtime binds for it, typed `any`.
- */
 type ParameterReading =
   | { node: SyntaxNode; whole: true; vararg: Vararg | undefined }
   | { node: SyntaxNode; whole: false; names: string[]; vararg: Vararg | undefined };
 
-/** A scene, or a branch outside any scene, with the branches in it. */
 interface Flow {
   header: SyntaxNode;
   parameters: ParameterReading | undefined;
   body: UnitLines;
-  /** The `...` parameters of the flow and of the branches in it, in document order. */
   varargs: Vararg[];
-  /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
   variadic: boolean;
-  /** The `end` that closes the flow, if one does. */
   end?: SyntaxNode;
-  /** For a branch in a variadic scene that takes a `...` of its own, the
-   *  scene's `...`, which the branch's replaces in its function. */
   sceneVararg?: Vararg;
 }
 
-/** Removes `[from, to)` from sorted, disjoint spans. */
 function removeSpan(spans: number[], from: number, to: number): number[] {
   const out: number[] = [];
   for (let i = 0; i < spans.length; i += 2) {
@@ -458,18 +372,8 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
   return out;
 }
 
-/**
- * A `.sd` file's Luau as units: its prelude, with the Luau statements
- * outside any flow and every function definition but a `local function`
- * written in a flow, and a unit per scene (its
- * branches included) or branch outside any scene that holds Luau statements.
- */
 export function checkerTextUnits(tree: Tree, documentText: string, validParameters: (text: string) => boolean = parsesAsParameters): CheckerTextUnits {
   const index = new LineIndex(documentText);
-  // Grammar/source ownership is independent of the converter being checked.
-  // A real function body keeps Luau's final-return rule. Narrative returns
-  // instead stand in their own islands, including a return after another
-  // statement on the same marked line.
   const narrativeReturns: { from: number; to: number; close: number; writtenCloser: boolean; islandFrom: number }[] = [];
   const explicitMarkers: { from: number; to: number }[] = [];
   const cursor = tree.cursor();
@@ -493,9 +397,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     };
     lastToken(cursor.node);
     const line = index.lineAt(Math.max(from, to - 1));
-    // Comments after a semicolon may also be classified as prose. Scan
-    // only suffix trivia so a line comment cannot swallow our closer;
-    // a block comment followed by a statement remains inside the scope.
     let lineEnd = index.lineEnd(line);
     let suffix = to;
     let semicolon = false;
@@ -511,9 +412,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       lineEnd = index.lineEnd(index.lineAt(Math.max(suffix - 1, 0)));
     }
     let writtenCloser = false;
-    // A direct explicit repeat currently has keyword/return/until siblings,
-    // rather than a repeat-block wrapper. Require those actual grammar
-    // tokens in the same explicit content; arbitrary until text is prose.
     const content = cursor.node.parent;
     if (content?.name === "LuauSparkdownExplicitStatement_content") {
       let first = content.firstChild;
@@ -526,17 +424,12 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     for (let parent = cursor.node.parent; parent; parent = parent.parent) {
       if (writtenCloser) break;
       if (["LuauRepeatLoop", "LuauSparkdownRepeatLoop", "LuauSparkdownExplicitRepeatLoop"].includes(parent.name)) {
-        // The loop's end holds its written `until`; prose, string and
-        // comment occurrences are not there.
         const end = parent.getChild(`${parent.name}_end`);
         const until = end ? findDescendant(end, "LuauUntilKeyword") : undefined;
         writtenCloser = !!until && until.from >= to && index.lineAt(until.from) === line;
         break;
       }
       if (!["LuauSparkdownDoBlock", "LuauDoBlock", "LuauSparkdownExplicitDoBlock", "LuauIfBlock", "LuauSparkdownIfBlock", "LuauSparkdownExplicitIfBlock"].includes(parent.name)) continue;
-      // The block's end holds its written `end` and any comments after it
-      // on the line (I-1321); prose, string and comment occurrences are not
-      // there.
       const end = parent.getChild(`${parent.name}_end`);
       const keyword = end ? findDescendant(end, "LuauEndKeyword") : undefined;
       if (keyword && keyword.from >= to && index.lineAt(keyword.from) === line) writtenCloser = true;
@@ -571,9 +464,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
         else blankWithin(child);
       }
     };
-    // A backtick string is Luau as it stands, but for its interpolations,
-    // which may hold Sparkdown's own expressions, and Sparkdown's `{{f}}` (the
-    // text `f()` returns), which is not Luau.
     const keepInterpolations = (n: SyntaxNode) => {
       for (let child = n.firstChild; child; child = child.nextSibling) {
         if (child.name === "LuauBacktickFunctionCallShorthand") lines.mark(child.from, child.to, false);
@@ -583,24 +473,17 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     };
     const replaceWithAny = (expression: SyntaxNode) => {
       lines.mark(expression.from, expression.to, false);
-      // The node's text can begin with the whitespace before the expression.
       const text = documentText.slice(expression.from, expression.to);
       const at = expression.from + text.length - text.trimStart().length;
       const room = Math.min(expression.to, index.lineEnd(index.lineAt(at))) - at;
       lines.write(at, room >= 4 ? `${anyName}()` : room >= 2 ? anyName : "");
     };
     blankWithin(node);
-    // A function Sparkdown declares with no parameter list (`function greet`
-    // with its body on the lines after) is Luau's `function greet()`: the
-    // list is written past the end of the header's line, so every column
-    // stays where it is, or in place of a comment that ends the line
-    // (`function greet -- note`), which the check does not need.
     const addParameterLists = (n: SyntaxNode) => {
       if (n.name === "LuauFunctionDefinition") {
         const content = n.getChild("LuauFunctionDefinition_content");
         const body = content?.getChild("LuauFunctionBody");
         if (content && body && !content.getChild("LuauFunctionParameters")) {
-          // The last part of the header: its name, or a comment after it.
           let last = body.prevSibling;
           while (last && NEUTRAL.test(last.name)) last = last.prevSibling;
           if (last) {
@@ -621,12 +504,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     addParameterLists(node);
   };
 
-  // A header's parameter list. The grammar can end a list early, as a `...`
-  // inside a parameter's function type makes it do, and then the list's text
-  // is not a Luau parameter list; the runtime binds the names the list holds,
-  // and `...` if one is in it (`lowerArguments`), so such a list is read the
-  // same way, each name typed `any`. A list whose text is Luau's is kept as
-  // written, whatever follows it in the header.
   const readParameters = (header: SyntaxNode): ParameterReading | undefined => {
     const node = findDescendant(header, "LuauFunctionParameters");
     if (!node) return undefined;
@@ -636,11 +513,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     return { node, whole: false, names, vararg: dots ? { dots, annotation: undefined, type: "" } : undefined };
   };
 
-  // The `...` a whole parameter list takes, if it takes one: an entry of the
-  // list itself, not of a parameter's annotation, with the annotation that
-  // follows it (past any comment) and that annotation's type as written. Two
-  // spellings of one type then count as two types, which leaves `...` untyped
-  // (see below), where rewriting them could count two types as one.
   const varargOf = (parameters: SyntaxNode): Vararg | undefined => {
     const dots = findAll(parameters, "LuauVariadicParameter", true)[0];
     if (!dots) return undefined;
@@ -650,10 +522,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     return { dots, annotation, type: documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").trim() };
   };
 
-  // A branch's named parameters, as a `local` on its header line with each
-  // parameter at its column, holding the checker's `any` value as an argument
-  // does: `branch inner(k: number, m)` reads as
-  // `local        k: number, m = _G, _G`. Its `...` is the flow's (see below).
   const declareParameters = (flow: Flow, header: SyntaxNode) => {
     const parameters = readParameters(header);
     if (!parameters) return;
@@ -661,11 +529,9 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     const text = documentText.slice(header.from, header.to);
     const start = header.from + text.length - text.trimStart().length;
     if (!parameters.whole) {
-      // Each typed `any`, as an argument the runtime binds is; untyped, a `local` would be `nil`.
       if (parameters.names.length) flow.body.write(start, `local ${parameters.names.map((name) => `${name}: any`).join(", ")}`, true);
       return;
     }
-    // The named parameters end at the comma before the `...`.
     let end = parameters.node.to - 1;
     if (parameters.vararg) {
       let separator = parameters.vararg.dots.prevSibling;
@@ -676,12 +542,9 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (!named.length) return;
     flow.body.mark(parameters.node.from + 1, end, true);
     flow.body.write(start, "local");
-    // Without a value, a `local` with no annotation would be `nil`.
     flow.body.write(end, ` = ${named.map(() => anyName).join(", ")}`, true);
   };
 
-  // A flow runs from its header to the `end` that closes it; a branch sits
-  // inside a scene, so the flows open at a point form a stack.
   const prelude = new UnitLines(index);
   const flows: Flow[] = [];
   const open: Flow[] = [];
@@ -689,11 +552,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
       if (enclosing && node.name === "Branch") {
-        // A branch in a scene is checked as a unit of its own, whose function
-        // takes the scene's parameters: it runs in a scope of its own beside
-        // the scene's lines, where the scene's parameters are bound and none
-        // of the scene's locals or another branch's.
-        // Its `...` is its own, or where it takes none, the scene's.
         const scene = enclosing;
         const own = scene.variadic ? scene.varargs[0] : undefined;
         const branchVararg = readParameters(node)?.vararg;
@@ -716,11 +574,9 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
         open.push(flow);
       }
     } else if (node.name === "LuauEndKeyword") {
-      // A branch's `end` closes the branch, not the flow it is checked in.
       const closed = open.pop();
       if (closed && !open.includes(closed)) closed.end = node;
     } else if (node.name === "LuauFunctionDefinition" && (open.length === 0 || scopeOf(node, (from, to) => documentText.slice(from, to)) !== "local")) {
-      // A `local function` written in a flow is a statement of that flow.
       keepLuau(prelude, node);
     } else if (LUAU_STATEMENTS.has(oracleName(node.name)) || node.name === "LuauFunctionDefinition") {
       keepLuau(open[open.length - 1]?.body ?? prelude, node);
@@ -735,20 +591,12 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
   };
   for (const flow of flows) {
     const bodyLines = flow.body.build();
-    // A flow whose statements are all Sparkdown's own has no Luau to check.
     if (bodyLines.text.length === 0) continue;
     const headerLine = index.lineAt(flow.header.from);
     const text: string[] = ["local function __flow"];
     const lines: number[] = [headerLine];
-    // At runtime `...` reads the arguments of whichever of the flow and its
-    // branches took a `...` last. Here they are one function, whose `...` has
-    // the type they all give theirs, or no type where they differ.
     const agreed = new Set(flow.varargs.map((vararg) => vararg.type)).size === 1;
-    // The flow's parameters: a whole list at its columns in the header line,
-    // one the grammar ends early as the runtime reads it.
     const parameters = flow.parameters;
-    // Where the scene's `...` a branch's own replaces begins: at the comma
-    // before it, or at it.
     let cut = Number.POSITIVE_INFINITY;
     if (flow.sceneVararg) {
       let separator = flow.sceneVararg.dots.prevSibling;
@@ -769,8 +617,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
     } else {
       text[0] += "()";
     }
-    // A branch's `...` where the flow has none, written at its columns in the
-    // branch's header line, as the function's last parameter.
     const branchVararg = flow.variadic ? undefined : flow.varargs[0];
     if (branchVararg) {
       const named =
@@ -787,8 +633,6 @@ export function checkerTextUnits(tree: Tree, documentText: string, validParamete
       text.push(...built.text);
       lines.push(...built.lines);
     }
-    // The function ends at the flow's own `end`, at its column, so an error
-    // Luau reports at the `end` (a type missing before it) is placed there.
     if (flow.end) {
       const endText = documentText.slice(flow.end.from, flow.end.to);
       const at = flow.end.from + endText.length - endText.trimStart().length;
@@ -814,7 +658,6 @@ function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined 
   return undefined;
 }
 
-/** Every node of a kind under a node, in document order, outside parameters' annotations when `outsideAnnotations` says so. */
 function findAll(node: SyntaxNode, name: string, outsideAnnotations = false, found: SyntaxNode[] = []): SyntaxNode[] {
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (oracleName(child.name) === name) found.push(child);

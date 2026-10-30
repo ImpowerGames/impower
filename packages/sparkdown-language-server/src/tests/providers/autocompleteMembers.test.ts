@@ -2,19 +2,8 @@ import { describe, expect } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { type CompleteOptions, labelsAt, upstreamCase } from "./completionHarness";
 
-// Member-access cases from Luau's Autocomplete.test.cpp, ported against
-// sparkdown tables and `define` structs. Luau's fixture adds `table` and `math`
-// as untyped globals and its builtins fixture loads the standard library; the
-// sparkdown equivalents are the runtime's own `table`, `math` and `string`
-// libraries.
-
 const TRIGGERS = new Set([".", ":", '"']);
 
-/**
- * The labels offered where the author has just typed the character before the
- * cursor: when that character is one of the server's trigger characters, the
- * request carries it, as the editor's own request does.
- */
 const labelsTypedAt = (source: string, options: Omit<CompleteOptions, "trigger"> = {}) => {
   const marker = options.at ? `@${options.at}` : /@\d/.exec(source)![0];
   const typed = source[source.indexOf(marker) - 1] ?? "";
@@ -32,8 +21,6 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase("get_member_completions#2", "a decimal point inside a number offers nothing", () => {
-    // Member completion offers nothing anywhere while #867 is open, so this
-    // starts guarding numbers once that is fixed.
     expect(labelsTypedAt("function main()\n  local a = 12.@13\nend\n")).toEqual([]);
   });
 
@@ -99,18 +86,14 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase.bug(BUG.members, "do_compatible_self_calls", "a colon offers a method declared with a colon", () => {
-    // Upstream also checks wrongIndexType, a type-checker judgment (#589).
     expect(labelsTypedAt("function main()\n  local t = {}\n  function t:m() end\n  t:@1\nend\n")).toContain("m");
   });
 
   upstreamCase.bug(BUG.members, "no_incompatible_self_calls", "a colon offers a function declared with a dot", () => {
-    // Upstream also checks wrongIndexType, a type-checker judgment (#589).
     expect(labelsTypedAt("function main()\n  local t = {}\n  function t.m() end\n  t:@1\nend\n")).toContain("m");
   });
 
   upstreamCase.bug(BUG.globals, "library_non_self_calls_are_fine","the string and table libraries offer their functions after a dot", () => {
-    // Upstream also checks wrongIndexType and indexedWithSelf flags, which
-    // sparkdown's completion items do not carry.
     expect(labelsTypedAt("function main()\n  string.@1\nend\n")).toEqual(
       expect.arrayContaining(["byte", "char", "sub"]),
     );
@@ -144,7 +127,6 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase.bug(BUG.members, "autocomplete_implicit_named_index_index_expr_without_annotation", "a quoted index offers the table's string keys", () => {
-    // Upstream also checks each entry's inferred value type (#589).
     const labels = labelsTypedAt(
       'function main()\n  local foo = {\n    ["Item/Foo"] = 42,\n    ["Item/Bar"] = "it\'s true",\n    ["Item/Baz"] = true,\n  }\n  foo["@1"]\nend\n',
     );
@@ -152,8 +134,6 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase.bug(BUG.members, "we_know_the_fields_of_a_class_instance", "a define's fields are offered after a dot", () => {
-    // Upstream uses a `class`, which sparkdown does not implement; a `define`
-    // declares the sparkdown struct with the same fields.
     const labels = labelsTypedAt(
       "define Point2d with\n  x = 3\n  y = 4\nend\n\nfunction main()\n  local q = Point2d.@1\nend\n",
     );
@@ -163,7 +143,6 @@ describe("autocomplete · member access", () => {
   });
 
   upstreamCase.bug(BUG.members, "ac_static_method_autocomplete", "a define's method is offered after a dot", () => {
-    // Upstream uses a `class`; a `define` with a method is the sparkdown form.
     const labels = labelsTypedAt(
       "define Bar with\n  value = 0\n  function new()\n    return Bar\n  end\nend\n\nfunction main()\n  Bar.@1\nend\n",
     );

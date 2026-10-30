@@ -1,1 +1,3 @@
-`hello {name}, score = {count + 1}`
+scene start
+  `hello {name}, score = {count + 1}`
+end

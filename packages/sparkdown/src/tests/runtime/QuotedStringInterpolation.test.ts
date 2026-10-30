@@ -1,23 +1,10 @@
-// `"..."` interpolates `{expr}` like `` `...` ``. `'...'` deliberately does
-// NOT — it is the literal single-line form.
-//
-// That split is the whole point: a brace inside a plain string is ordinary Lua
-// (`'return {'`, a `%b{}` subject, JSON, code generation), so there has to be a
-// single-line quote that leaves braces alone. Making BOTH quote forms
-// interpolate broke two upstream conformance fixtures; making only `"..."`
-// interpolate leaves `'...'` as the escape hatch.
-//
-// These run the story rather than inspecting the tree, because a string that
-// failed to interpolate produces a silently literal `hi {who}` rather than an
-// error.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(literal: string): { out: string; errors: string[] } {
   const src =
     `store who = "world"\nstore n = 2\n` +
-    `-> start\nscene start\n  {${literal}}\nend\n`;
+    `scene start\n  {${literal}}\nend\n`;
   const ctx = makeRuntimeStoryFromSource(src);
   let out = "";
   while (ctx.story.canContinue) out += ctx.story.Continue() ?? "";
@@ -44,8 +31,6 @@ describe("double-quoted strings interpolate", () => {
   });
 });
 
-// The escape hatches. Without these, a string holding code or a pattern has no
-// way to survive.
 describe("single-quoted and `[[...]]` stay literal", () => {
   test.each([
     ["'hi {who}'", "hi {who}"],

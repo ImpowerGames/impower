@@ -7,7 +7,6 @@ export class ContextServiceManager implements IDisposable {
   private readonly contextServices: Array<AbsContextService> = [];
 
   public constructor() {
-    // push context services
     this.contextServices.push(new ContextServiceEditorInTextSymbol());
   }
 
@@ -15,7 +14,6 @@ export class ContextServiceManager implements IDisposable {
     for (const service of this.contextServices) {
       service.onActivate(context);
     }
-    // subscribe update handler for context
     context.subscriptions.push(
       window.onDidChangeActiveTextEditor(() =>
         this.onDidChangeActiveTextEditor(),
@@ -24,7 +22,6 @@ export class ContextServiceManager implements IDisposable {
         this.onDidChangeTextEditorSelection(),
       ),
     );
-    // initialize context state
     this.onDidChangeActiveTextEditor();
   }
 

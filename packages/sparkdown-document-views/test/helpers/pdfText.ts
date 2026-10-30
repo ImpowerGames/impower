@@ -1,11 +1,3 @@
-// Reduce the PDF export to a normalized "visible text" string.
-// Each non-empty line of rendered text becomes one output line, in order.
-// Title-page positions are listed first under a TITLE PAGE heading.
-//
-// We don't model page breaks here (DocumentSpan emits them, but they're
-// invisible to the reader of the rendered text). Block "kind" is included
-// as a prefix so the diff against the preview is informative.
-
 import ScreenplayParser from "../../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayPrintData } from "../../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import type { DocumentSpan } from "../../../sparkdown-screenplay/src/types/DocumentSpan";
@@ -78,8 +70,6 @@ const spansToText = (spans: DocumentSpan[]): string => {
         break;
       }
       case "page_break":
-        // Page breaks don't show as text content in the reader's eye.
-        // Tracked separately if/when we test the page-break toggle.
         break;
       case "separator":
         out.push("");
@@ -105,7 +95,6 @@ const spansToText = (spans: DocumentSpan[]): string => {
       }
     }
   }
-  // Collapse multiple consecutive blank separator lines.
   const collapsed: string[] = [];
   for (const line of out) {
     if (line === "" && collapsed[collapsed.length - 1] === "") continue;

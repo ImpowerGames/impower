@@ -1,5 +1,7 @@
-chain
-  | -> A
-  | -> B
-  | -> C
+scene start
+  chain
+    | -> A
+    | -> B
+    | -> C
+  end
 end

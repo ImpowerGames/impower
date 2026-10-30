@@ -1,1 +1,3 @@
-x .. queue|a|b|c ..
+scene start
+  x .. queue|a|b|c ..
+end

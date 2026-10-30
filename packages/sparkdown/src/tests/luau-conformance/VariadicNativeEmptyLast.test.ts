@@ -1,11 +1,3 @@
-// I-811: a direct call of a pure builtin that takes any number of
-// numbers gives no argument for a last call that returned nothing
-// (`math.max(2, g0())` is 2, as in Luau), and one that needs an
-// argument raises `missing argument #1` when called with none
-// (`math.max()` no longer returns -Infinity). A no-value result before
-// the last argument still reads as a missing argument, a last multiple
-// value still spreads, and a builtin with no minimum (`bit32.band()`)
-// still accepts none.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -19,7 +11,9 @@ function run(expr: string): { text: string; errors: string[] } {
     "function run()",
     `  return ${expr}`,
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
   ].join("\n");
   const ctx = makeRuntimeStoryFromSource(source);
   const errors: string[] = [];
@@ -56,8 +50,6 @@ describe("variadic pure builtin with a no-value last argument", () => {
     expect(errors[0]).toContain(message);
   });
 
-  // A first-class call (a local alias, `pcall`) keeps the direct call's
-  // minimum.
   test.each([
     [
       "(function() local f = math.max; return f() end)()",
@@ -81,8 +73,6 @@ describe("variadic pure builtin with a no-value last argument", () => {
     expect(text).toBe("Got false.\n");
   });
 
-  // Its message names the function without its library, as the direct
-  // call's does.
   test.each([
     ["math.max", "max"],
     ["math.abs", "abs"],

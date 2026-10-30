@@ -87,7 +87,6 @@
   display: none;
 }
 
-/* Filled */
 :host(:not([variant])),
 :host([variant="filled"]) {
   --_spacing: 8px;
@@ -115,7 +114,6 @@
   box-shadow: var(--_shadow);
 }
 
-/* Option */
 :host([variant="option"]) {
   --_spacing: 12px;
   --_corner: 0;
@@ -145,7 +143,6 @@
   --_padding-lr: 24px;
 }
 
-/* Tonal */
 :host([variant="tonal"]) {
   --_spacing: 8px;
   --_corner: 4px;
@@ -171,7 +168,6 @@
   background-color: rgba(0, 0, 0, var(--theme-opacity-overlay));
 }
 
-/* Outlined */
 :host([variant="outlined"]) {
   --_spacing: 8px;
   --_corner: 4px;
@@ -204,7 +200,6 @@
   }
 }
 
-/* Text */
 :host([variant="text"]) {
   --_spacing: 8px;
   --_corner: 4px;
@@ -219,7 +214,6 @@
   background-color: var(--_background-color);
 }
 
-/* Icon */
 :host([variant="icon"]) {
   --_corner: 50%;
   --_shadow: none;

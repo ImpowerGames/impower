@@ -1,3 +1,5 @@
-@ target:
-  some content
-  more content
+scene start
+  @ target:
+    some content
+    more content
+end

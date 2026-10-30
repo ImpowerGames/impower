@@ -8,7 +8,6 @@ export interface ProtocolBridge {
   subscribe(listener: (message: Message) => void): () => void;
 }
 
-/** Transport only: handlers and message vocabulary belong to the editor. */
 export function createProtocolBridge(target: EventTarget): ProtocolBridge & { dispose(): void } {
   const pending = new Map<string | number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
   const subscribers = new Set<(message: Message) => void>();
@@ -17,7 +16,6 @@ export function createProtocolBridge(target: EventTarget): ProtocolBridge & { di
   const receive = (event: Event) => {
     const message = (event as CustomEvent).detail;
     if (!message || message.jsonrpc !== "2.0") return;
-    // A request echoes on the same bus. Only responses can settle a request.
     if ("result" in message || "error" in message) {
       const request = pending.get(message.id);
       if (!request) return;
@@ -26,8 +24,6 @@ export function createProtocolBridge(target: EventTarget): ProtocolBridge & { di
       if (message.error) request.reject(Object.assign(new Error(message.error.message), message.error));
       else request.resolve(message.result);
     } else if (typeof message.method === "string" && !("id" in message)) {
-      // Suppress only our injected object, never a derived editor event that
-      // a handler publishes synchronously while processing that notification.
       if (injectedNotifications.has(message)) return;
       for (const subscriber of subscribers) subscriber(message);
     }
@@ -87,8 +83,6 @@ export function installProtocolBridge() {
   let disposed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let delay = 250;
-  // The server sends the union of its clients' subscriptions; until then, and
-  // after every disconnect, nothing is wanted, so nothing is serialized.
   let wanted = new Set<string>();
   const unsubscribe = bridge.subscribe((message) => {
     if (socket.readyState !== WebSocket.OPEN) return;

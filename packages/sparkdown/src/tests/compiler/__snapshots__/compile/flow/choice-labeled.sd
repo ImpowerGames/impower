@@ -1,3 +1,5 @@
-choose
-  * (firstChoice) [Hi] -> Foo
+scene start
+  choose
+    * (firstChoice) [Hi] -> Foo
+  end
 end

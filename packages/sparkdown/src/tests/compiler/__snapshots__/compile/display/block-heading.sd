@@ -1,2 +1,4 @@
-$:
-  A MOONLIT ROOFTOP
+scene start
+  $:
+    A MOONLIT ROOFTOP
+end

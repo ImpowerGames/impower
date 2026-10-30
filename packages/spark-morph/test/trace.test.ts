@@ -21,9 +21,6 @@ import {
   triangle,
 } from "./fixtures";
 
-// Rest-pose frames are the authored anchors plus dissolved nodes that lie
-// on the outline; the check samples the outline at 720 points, so its own
-// resolution is a fraction of a unit on these hundred-unit fixtures.
 const ENDPOINT_TOLERANCE = 0.5;
 
 const reversed = (d: string) => {
@@ -69,17 +66,13 @@ describe("traceTrack", () => {
         const r = traceTrack(loop(from), loop(to));
         expect(r.ok).toBe(true);
         if (!r.ok) return;
-        // Every frame is a polygon: no segment ever bows.
         for (const t of runtimeProgress) {
           const fr = r.track.frame(t);
           expect(allStraight(fr), `straight at ${t}`).toBe(true);
           expect(selfIntersects(fr), `simple at ${t}`).toBe(false);
         }
-        // The rest poses show exactly the authored corners; extra nodes are
-        // dissolved (collinear) there.
         expect(sharpCorners(r.track.frame(0))).toBe(corners[0]);
         expect(sharpCorners(r.track.frame(1))).toBe(corners[1]);
-        // Node count is the larger of the two, so nothing is resampled.
         expect(r.track.from.length).toBe(Math.max(corners[0], corners[1]));
       });
     }
@@ -112,8 +105,6 @@ describe("traceTrack", () => {
   });
 
   test("a correspondence that self-intersects at a checked progress is a reported failure", () => {
-    // A square to a bow tie: the target crosses itself, so every pairing
-    // crosses before it arrives, whichever rotation or winding is tried.
     const bowTie = "M0,0L100,100L100,0L0,100Z";
     const r = traceTrack(loop(square), loop(bowTie));
     expect(r.ok).toBe(false);
@@ -125,10 +116,6 @@ describe("traceTrack", () => {
   });
 
   test("the hook pair morphs simply at every runtime sample under the default checks", () => {
-    // Some corner-to-corner alignments of this pair cross between the
-    // quarter points (at 0.3) or collapse onto themselves mid-way; the
-    // default checks reject those and the search settles on one that stays
-    // simple at every runtime sample.
     const r = traceTrack(loop(hook), loop(hookMirrored));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -136,9 +123,6 @@ describe("traceTrack", () => {
       expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
       expect(allStraight(r.track.frame(t))).toBe(true);
     }
-    // A single-alignment search with only the mid point checked can still
-    // return a pairing that crosses elsewhere, which is what the default
-    // eleven points exist to catch.
     const narrow = traceTrack(loop(hook), loop(hookMirrored), { alignments: 1, checkProgress: [0.5] });
     if (narrow.ok) expect(runtimeProgress.some((t) => selfIntersects(narrow.track.frame(t)))).toBe(true);
   });
@@ -156,7 +140,6 @@ describe("traceTrack", () => {
     if (!r.ok) return;
     for (const t of runtimeProgress) {
       const fr = r.track.frame(t);
-      // Every segment starts where the previous one ended.
       fr.forEach((s, i) => {
         const prev = fr[(i - 1 + fr.length) % fr.length]!;
         expect(Math.hypot(s.p0[0] - prev.p1[0], s.p0[1] - prev.p1[1]), `continuity at ${t}`).toBeLessThan(1e-9);
@@ -167,8 +150,6 @@ describe("traceTrack", () => {
   });
 
   test("two adjacent curves that cross away from their shared anchors are reported", () => {
-    // Both endpoints are simple two-curve loops; the pairing crosses itself
-    // at progress 0.4. A checker that skipped adjacent curves missed it.
     const from = "M0,0 C0,125 150,25 100,0 C25,150 0,-25 0,0Z";
     const to = "M0,0 C75,-50 0,75 100,0 C150,-25 25,-50 0,0Z";
     const r = traceTrack(loop(from), loop(to));
@@ -178,8 +159,6 @@ describe("traceTrack", () => {
   });
 
   test("a knot inside a single curve and a retraced edge are both self-intersections", () => {
-    // A two-segment loop whose curve loops through itself near its middle:
-    // eight chords per curve missed it, sixteen catch it.
     const knotted: Cubic[] = [
       { p0: [-1, 0], c1: [23.812413197010756, -24.03780784457922], c2: [6.782939601689577, -8.574059829115868], p1: [1, 0] },
       { p0: [1, 0], c1: [1, 0], c2: [-1, 0], p1: [-1, 0] },
@@ -192,7 +171,6 @@ describe("traceTrack", () => {
     const r = matchTrack(simple, knotted, { handles: "linear", checkProgress: [1] });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.failure.code).toBe("self-intersection");
-    // A loop that retraces its own first edge overlaps itself.
     const retraced = "M0,0L100,0L100,100L0,100L0,0L100,0Z";
     expect(selfIntersects(loop(retraced))).toBe(true);
     expect(traceTrack(loop(square), loop(retraced)).ok).toBe(false);

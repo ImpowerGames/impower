@@ -9,8 +9,6 @@ export type StartingValueSet = Record<string, string>;
 
 export type StartingValues = Record<string, StartingValueSet>;
 
-export const TOP_LEVEL_FLOW = "0";
-
 export const SEED_KEY = "seed";
 
 export const paramKey = (name: string) => `param:${name}`;

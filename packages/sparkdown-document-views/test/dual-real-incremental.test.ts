@@ -1,6 +1,3 @@
-// Keep incremental dual-dialogue rendering consistent with a fresh render,
-// using a pinned large screenplay. See fixtures/README.md for provenance.
-
 import { language } from "@codemirror/language";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -33,7 +30,6 @@ const mount = (source: string) => {
 };
 
 const scrollTo = (view: EditorView, offset: number) => {
-  // Settle and commit the parse before sampling the dual region.
   settleParse(view);
   view.dispatch({
     selection: EditorSelection.single(offset),
@@ -65,8 +61,6 @@ describe("large screenplay — incremental edits in/around the dual dialogue reg
       const incremental = mount(original);
       scrollTo(incremental.view, anchorOffset);
 
-      // Edit the right side's content: insert " ABSOLUTELY" into the middle
-      // of the "I REFUSE TO BE..." line.
       const target = "I REFUSE TO BE 'BUNNY'-ED!";
       const targetOffset = original.indexOf(target);
       expect(targetOffset).toBeGreaterThan(-1);
@@ -77,8 +71,6 @@ describe("large screenplay — incremental edits in/around the dual dialogue reg
           changes: { from: insertAt + i, insert: insertion[i]! },
         });
       }
-      // After the edit, the dual region may have shifted in the
-      // viewport; re-scroll to where the anchor now lives.
       const nowAnchorOffset = incremental.view.state.doc
         .toString()
         .indexOf(ANCHOR);
@@ -111,11 +103,9 @@ describe("large screenplay — incremental edits in/around the dual dialogue reg
       const anchorOffset = original.indexOf(ANCHOR);
       scrollTo(incremental.view, anchorOffset);
 
-      // Insert a new directive line right before the "I REFUSE..." line.
       const target = "    I REFUSE TO BE 'BUNNY'-ED!";
       const targetOffset = original.indexOf(target);
       expect(targetOffset).toBeGreaterThan(-1);
-      // Insertion text — full new line + its newline.
       const insertion = "    [[show backdrop new_one]]\n";
       for (let i = 0; i < insertion.length; i++) {
         incremental.view.dispatch({
@@ -152,11 +142,9 @@ describe("large screenplay — incremental edits in/around the dual dialogue reg
       const original = LARGE_SCREENPLAY;
 
       const incremental = mount(original);
-      // Render the dual region first so it's in the viewport.
       const anchorOffset = original.indexOf(ANCHOR);
       scrollTo(incremental.view, anchorOffset);
 
-      // Now make a far-away edit: append " extra" to the title.
       const titleAnchor = "Episode 01-A";
       const titleOffset = original.indexOf(titleAnchor);
       expect(titleOffset).toBeGreaterThan(-1);
@@ -167,7 +155,6 @@ describe("large screenplay — incremental edits in/around the dual dialogue reg
           changes: { from: insertAt + i, insert: insertion[i]! },
         });
       }
-      // The title edit precedes the dialogue; follow its shifted position.
       scrollTo(incremental.view, anchorOffset + insertion.length);
       const incHTML = contentHTML(incremental.view);
 

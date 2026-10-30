@@ -130,8 +130,6 @@ ContradictedBeat:
 });
 
 test("the grammar's own BEAT is probed as written", () => {
-  // `repository:` is the grammar's last section, so rules appended to the
-  // file join it and see the real variables.
   const source =
     readFileSync(
       new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
@@ -153,8 +151,6 @@ test("the grammar's own BEAT is probed as written", () => {
   const names = lintRule(source, "scoped-end-has-bailout")
     .map((m) => m.message.match(/`end:` of (\w+)/)?.[1] ?? m.message)
     .filter((name) => name.startsWith("Probe"));
-  // The grammar's BEAT allows indentation, so `\b` before it cannot match
-  // at an indented beat's line start.
   assert.deepEqual(names, [
     "ProbeMissesIndentedBeats",
     "ProbeExcludesEveryBeat",

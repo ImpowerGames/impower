@@ -38,9 +38,7 @@ import {
 export interface RouteButtonProps {
   state: RouteViewState;
   nameOf: ScriptName;
-  /** The author asked for the route list. */
   onOpen: () => void;
-  /** The author asked to close it. */
   onClose: () => void;
 }
 
@@ -59,7 +57,6 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
       aria-expanded={state.open}
       aria-label={`${label}. ${title}`}
       title={title}
-      // A press on the button is not a drag of whatever bar holds it.
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => (state.open ? onClose() : onOpen())}
     >
@@ -80,20 +77,14 @@ export interface RouteListProps {
   state: RouteViewState;
   nameOf: ScriptName;
   onClose: () => void;
-  /** The author showed or hid a kind. */
   onToggle: (kind: RouteKind, shown: boolean) => void;
-  /** The author asked to see a line. */
   onShowLine: (location: DocumentLocation) => void;
   onTab?: (tab: RouteTab) => void;
   values?: StartingValuesEvents;
-  /** The author pinned, unpinned or removed pins. */
   onChangePins: (change: RoutePinChange) => void;
   onPinLastRun: () => void;
 }
 
-/** A choice entry's pin control: what the preview did at the stop, the
- *  options offered there in script order with the one taken marked, each
- *  with Pin or Pinned, and Unpin when the stop has a pin. */
 function PinControl({
   decision,
   target,
@@ -163,7 +154,6 @@ export function RouteList({
   onChangePins,
   onPinLastRun,
 }: RouteListProps) {
-  // Which entries the author expanded or collapsed, by stop.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   if (!state.open) {
     return null;
@@ -181,10 +171,6 @@ export function RouteList({
   const hidden = decisions.length - shown.length;
   const unresolved = route?.unresolvedPins ?? [];
   const lastRun = state.lastRun ?? 0;
-  // An entry is known by its stop: the menu it met, by where it is met, and
-  // which meeting of that menu it is. A pin that changes the option taken
-  // there, or the options a gate lets it offer, leaves it as it was, so the
-  // control the author pressed stays open.
   const keys = new Map<PreviewRouteDecision, string>();
   const meetings = new Map<string, number>();
   for (const decision of decisions) {

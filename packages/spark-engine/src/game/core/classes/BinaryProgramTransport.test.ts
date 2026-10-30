@@ -2,12 +2,6 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { describe, expect, it } from "vitest";
 import { Game } from "./Game";
 
-/**
- * A game runs the statement chunks a compile builds (`program.chunks`), and
- * refuses a program that holds none, which a readiness gate that missed it
- * would otherwise let through as a program that silently does nothing.
- */
-
 const SOURCE = [
   "title: Transport",
   "",
@@ -46,7 +40,6 @@ const compile = (source: string) => {
   return compiler.compile({ textDocument: { uri } } as never).program;
 };
 
-/** Same system wiring the other engine suites use; Game requires it to run. */
 const makeGame = (program: unknown) =>
   new Game({
     program,

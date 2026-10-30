@@ -1,8 +1,3 @@
-// A video name shown on a layer (I-1380): the interpreter carries `loop`,
-// `once` and `mute` onto the image instruction, and `Image.write` puts a
-// `video` entry on the layer's write instead of a background image, so the
-// page can build a `<video>` for it.
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
@@ -36,13 +31,11 @@ end
 const story = (body: string) =>
   `${DEFS}\n-> start\n\nscene start\n${body}\nend\n`;
 
-/** Every `ui/write-image` the game sent to `target`, in order. */
 const writes = (messages: any[], target: string) =>
   messages.filter(
     (m) => m?.method === "ui/write-image" && m.params?.target === target,
   );
 
-/** The content of the last write to `target` that carried one. */
 const lastContent = (messages: any[], target: string) =>
   writes(messages, target)
     .flatMap((m) => m.params.instructions)
@@ -107,8 +100,6 @@ describe("a video on a layer: Image.write", () => {
       mixer: "movie",
       mixerGain: 1,
     });
-    // No background image stands in for the movie, and its file is what the
-    // page keeps resident while the layer shows it.
     expect(content?.background).toBe("none");
     expect(content?.src).toBeUndefined();
     expect(content?.srcs).toEqual(["/file:/proj/bunny_wave.webm?v=1"]);
@@ -180,8 +171,6 @@ describe("a video on a layer: Image.write", () => {
   });
 
   test("a restore replays the movie with its clauses", async () => {
-    // The builtin layout's backdrop stays up across a connect; an empty
-    // `image` leaf, like the portrait's, clears on it.
     const source = `-> start\n\nscene start\n  A line.\nend\n`;
     const recorder = createHarness(source, 0, { assets: ASSETS });
     await recorder.ready;

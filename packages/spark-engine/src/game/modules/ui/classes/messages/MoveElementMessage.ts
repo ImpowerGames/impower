@@ -3,11 +3,7 @@ import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/
 export type MoveElementMethod = typeof MoveElementMessage.method;
 
 export interface MoveElementParams {
-  /** The element to move among its current siblings. */
   element: string;
-  /** Insert `element` immediately before this sibling; `null` → append to the
-   *  end of the parent's children. Used by keyed `for` reconciliation to move a
-   *  retained item's subtree into its new position instead of rebuilding it. */
   before: string | null;
 }
 

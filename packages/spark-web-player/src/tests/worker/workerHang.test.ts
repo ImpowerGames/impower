@@ -1,14 +1,3 @@
-// #679 — a script that never yields keeps the player's worker from answering
-// anything, STOP included. The worker says so while it runs (a notice for a
-// story that has run without a break), the page restarts it once that has
-// gone on for longer than it waits, and the page carries on: STOP ends PLAY,
-// a stopped preview gives up the point that would run the loop again, the
-// author is told the line, and the preview returns from the new worker.
-//
-// These tests run the worker in the test's own thread, where a loop that never
-// yields would never yield to the test either. So the stuck worker is one
-// that stops answering (`stall`), and its notices are the watch's own,
-// called as a running story calls it.
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { executionWatch } from "@impower/sparkdown/src/runtime/ExecutionWatch";
@@ -46,7 +35,6 @@ const lineOf = (text: string) =>
 const FIRST = lineOf("The first beat.");
 const LOOPS = lineOf("The beat that loops.");
 const LAST = lineOf("The last beat.");
-/** The scene's own line, which no route or selection here asks for. */
 const START = lineOf("scene start");
 
 const at = (line: number) => ({
@@ -57,14 +45,12 @@ const at = (line: number) => ({
   },
 });
 
-/** STOP waits a frame between its steps, which this page does not draw. */
 const framesForStop = (h: { overlay: HTMLElement }) => {
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) =>
     setTimeout(callback, 0);
 };
 
-/** Whether `work` settles within `ms`. */
 const settlesWithin = async (work: Promise<unknown>, ms: number) =>
   Promise.race([
     work.then(
@@ -74,7 +60,6 @@ const settlesWithin = async (work: Promise<unknown>, ms: number) =>
     new Promise((resolve) => setTimeout(() => resolve("waiting"), ms)),
   ]);
 
-/** Every display the page asks of the worker from now on, by line. */
 const recordDisplays = (h: any) => {
   const lines: number[] = [];
   const request = h.link.request.bind(h.link);
@@ -99,12 +84,10 @@ describe("timing a stretch of story execution", () => {
     });
     const story = { state: { previousPointer: { path: null } } };
     return {
-      /** A watch call `ms` after the last. */
       step(ms: number) {
         now += ms;
         listener(story);
       },
-      /** The thread yields. */
       yieldThread() {
         for (const callback of yields.splice(0)) callback();
       },
@@ -205,7 +188,6 @@ describe("the page's watchdog", () => {
 });
 
 describe("the worker's notices", () => {
-  /** Two watch calls on `story` in one run, `busyMs` apart. */
   const runFor = (story: any, busyMs: number) => {
     const now = vi.spyOn(performance, "now");
     try {
@@ -278,7 +260,6 @@ describe("the page, when the worker is restarted", () => {
       await settle();
       expect(h.controller.playing).toBe(true);
 
-      // The game runs into a loop; STOP gets no answer.
       h.stall();
       const stopped = h.controller.stopGame("quit");
       expect(await settlesWithin(stopped, 200)).toBe("waiting");
@@ -299,10 +280,8 @@ describe("the page, when the worker is restarted", () => {
       expect(
         h.toEditor.some((m) => m.method === GameExitedMessage.method),
       ).toBe(true);
-      // The line PLAY stopped on is not selected: it may be the loop.
       expect(h.workspace.selections).toEqual([]);
 
-      // The new worker compiles, and the preview shows the author's line.
       await h.compile();
       expect(h.overlay.textContent).toContain("The first beat.");
     } finally {
@@ -350,7 +329,6 @@ describe("the page, when the worker is restarted", () => {
       await h.select(FIRST);
       expect(h.overlay.textContent).toContain("The first beat.");
 
-      // The author moves to a line whose route runs into a loop.
       h.stall();
       const program = h.controller._program!;
       h.controller._options!.startFrom = { file: MAIN_URI, line: LOOPS };
@@ -367,8 +345,6 @@ describe("the page, when the worker is restarted", () => {
       );
       expect(restarted?.params.during).toBe("preview");
 
-      // The new worker compiles; the page does not display the point that
-      // stopped the worker, although it is still the author's line.
       const displays = recordDisplays(h);
       await h.compile();
       expect(displays).not.toContain(LOOPS);
@@ -381,12 +357,10 @@ describe("the page, when the worker is restarted", () => {
       ).toBe(false);
       expect(displays).not.toContain(LOOPS);
 
-      // Any other line displays.
       await h.select(LAST);
       expect(displays).toContain(LAST);
       expect(h.overlay.textContent).toContain("The last beat.");
 
-      // Once the project changes, the point is the preview's again.
       h.workspace.filesRevision += 1;
       expect(h.workspace.isSetAside({ file: MAIN_URI, line: LOOPS })).toBe(
         false,
@@ -419,8 +393,6 @@ describe("the page, when the worker is restarted", () => {
       expect(messages[0]).toContain("will not show the line you were on");
       expect(messages[1]).toContain("paused until the script changes");
 
-      // No line displays, not even one before the loop that nothing set
-      // aside on its own.
       const displays = recordDisplays(h);
       expect(h.workspace.isSetAside({ file: MAIN_URI, line: START })).toBe(
         true,
@@ -434,7 +406,6 @@ describe("the page, when the worker is restarted", () => {
       ).toBe(false);
       expect(displays).toEqual([]);
 
-      // Until the script changes.
       h.workspace.documentsRevision += 1;
       await h.select(FIRST);
       expect(displays).toContain(FIRST);
@@ -459,7 +430,6 @@ describe("the page, when the worker is restarted", () => {
         location: at(LOOPS),
         routingTo: { file: MAIN_URI, line: LOOPS },
       });
-      // The restarted worker has compiled nothing yet, and holds no program.
       const played = h.controller.startGameAndApp();
       expect(await settlesWithin(played, 200)).toBe("waiting");
       await h.compile();
@@ -487,12 +457,10 @@ describe("the page, when the worker is restarted", () => {
         location: at(LOOPS),
         routingTo: { file: MAIN_URI, line: LOOPS },
       });
-      // The restarted worker never compiles: PLAY waits out the bound.
       const first = h.controller.startGameAndApp();
       expect(await settlesWithin(first, 50)).toBe("waiting");
       expect(await settlesWithin(first, 2000)).toBe("settled");
       expect(h.controller._programAfterRestart).toBeUndefined();
-      // The next PLAY does not wait again.
       h.controller._programAfterRestartWaitMs = 60_000;
       expect(
         await settlesWithin(h.controller.startGameAndApp(), 2000),

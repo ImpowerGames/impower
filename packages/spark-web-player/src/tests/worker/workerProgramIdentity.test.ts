@@ -1,7 +1,3 @@
-// What the page names when it asks the worker to display a program, or hands
-// PLAY, has to name one program. A file the author replaces recompiles the
-// same scripts into a different program, so the identity carries the
-// compiler's file-registry epoch as well as the script versions (#680).
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
@@ -14,7 +10,7 @@ const SOURCE = `define BG as image with
   src = "https://example.com/bg.png"
 end
 
--> start
+
 
 scene start
   HERO:
@@ -37,8 +33,6 @@ describe("the program the page names", () => {
       const beforeId = programIdentity(before.program)!;
       expect(beforeId).toBeTruthy();
 
-      // The author replaces an image. No script changes, so every script
-      // version the identity is built from stays where it was.
       await h.page.sendRequest(AddCompilerFileMessage.type, {
         file: {
           uri: "file:///local/images/bg.png",
@@ -49,8 +43,6 @@ describe("the program the page names", () => {
           version: 2,
         },
       } as any);
-      // The worker compiles it while the page still holds the program it
-      // shows, as it does while a compile is ahead of the page.
       const after = await h.page.sendRequest(CompileProgramMessage.type, {
         textDocument: { uri: MAIN_URI },
         startFrom: { file: MAIN_URI, line: FIRST },
@@ -60,9 +52,6 @@ describe("the program the page names", () => {
       expect(after.program.scripts).toEqual(before.program.scripts);
       expect(afterId).not.toBe(beforeId);
 
-      // And the worker keeps them apart, so PLAY is handed the program the
-      // page named — the one it was showing — rather than the one compiled
-      // after it under what used to be the same name.
       const built = await h.link.request(PlayMessage.type, {
         program: beforeId,
         startFrom: { file: MAIN_URI, line: FIRST },

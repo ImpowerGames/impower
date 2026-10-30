@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// A generated project that is slow to preview for the same reasons the real
-// projects the preview latency work targets are (#646, #647), so the browser
-// measurement (`driver.mjs measure --fixture`) and the worker benchmark
-// (`preview-bench.mjs --fixture`) run anywhere, with no private project.
-//
-// What makes a real project slow, and what this reproduces:
-// - one flat scene of more than 2,000 lines, so the route search from the top
-//   of the scene to the cursor walks thousands of story steps;
-// - a `choose ... then ... end` whose `then` clause holds the last 1,000+
-//   lines, so an edit near the end re-lowers one huge block;
-// - portraits written with attributes (`[[hero_calm:gloves]]`) over SVG files
-//   whose layers carry a condition vocabulary (`hair-top:hat.off`,
-//   `torso:clothes.jacket:default`), so every directive filters layers.
-//
-// Everything is deterministic: the same call produces the same bytes, so a
-// before and after measured on two checkouts measure the same project.
-//
-//   node scripts/bench/preview-fixture.mjs <empty-or-missing-dir>
-//
-// prints the target line and word as JSON.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -28,11 +8,11 @@ const CHARACTERS = [
   { id: "hero", name: "HERO" },
   { id: "rival", name: "RIVAL" },
 ];
+const START = "scene start\n  -> MAIN\nend\n";
+
 const EXPRESSIONS = ["calm", "concerned", "confident", "confused", "shy", "unsure", "frustrated", "smug", "sad", "happy", "angry", "tired"];
-// Attributes a directive may ask for; each is a condition some layer names.
 const ATTRIBUTES = ["gloves", "hat", "bandage", "young", "cushion", "coat", "robe", "school", "mouth.closed", "mouth.teeth", "eyes.closed", "look.left", "look.right"];
 
-// Park-Miller, so the output never depends on Math.random.
 function generator(seed) {
   let state = seed;
   const next = () => (state = (state * 48271) % 2147483647) / 2147483647;
@@ -45,9 +25,6 @@ function pathData(rand, points) {
   return d + "Z";
 }
 
-// One portrait: every layer name that the real portraits use a form of, with
-// shapes inside, so the file is both a realistic vocabulary and a realistic
-// size (tens of kilobytes).
 function portraitSvg(character, expression, seed) {
   const rand = generator(seed);
   const shape = () => `<path fill="#${rand.int(0, 0xffffff).toString(16).padStart(6, "0")}" d="${pathData(rand, 12)}"/>`;
@@ -115,8 +92,6 @@ const LINES = [
 ];
 const PARENTHETICALS = ["(quietly)", "(searching his face)", "(without looking up)", "(a beat)", "(too quickly)"];
 
-// A run of beats at one indentation: an action line, then a dialogue block
-// with a portrait directive, repeated until `count` lines are written.
 function beats(rand, indent, count, directives) {
   const out = [];
   const pad = " ".repeat(indent);
@@ -135,24 +110,19 @@ function beats(rand, indent, count, directives) {
   return out;
 }
 
-// The project as relative path -> text, and the line the measurement targets:
-// the last portrait directive of the `then` clause, whose expression word
-// (`concerned`) is the one the measurement deletes.
 export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {}) {
   const rand = generator(647);
   const header = ["scene MAIN"];
   const before = beats(rand, 2, beforeLines, []);
   const choose = ["  choose", "    + [Success!]", "      The bag lands safely on the pile.", "", "    + [Fail...]", "      Everything clatters to the floor.", "  then", ""];
-  // The clause ends on a fixed exchange whose directive is the target, shaped
-  // like the real one: an expression file plus an attribute.
   const then = [...beats(rand, 4, thenLines, []), "    HERO turns to face him.", "", "    HERO:", "      [[hero_concerned:gloves]]", "      (searching his face)", "      _Do you understand_?", "", "    A CRASH of thunder.", ""];
   const lines = [...header, ...before, ...choose, ...then, "  end", "end", ""];
   const line = lines.indexOf("      [[hero_concerned:gloves]]") + 1;
   const lineText = lines[line - 1];
   const files = new Map();
   files.set("main.sd", lines.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
-  // Named looks over the layered files, as a real project writes them.
   files.set(
     "scripts/portraits.sd",
     CHARACTERS.flatMap((c) => EXPRESSIONS.slice(0, 4).map((e) => `define ${c.id}_${e}_gloved as filtered_image with\n  image = image.${c.id}_${e}\n  attributes = { "gloves" }\nend\n`)).join("\n"),
@@ -165,11 +135,6 @@ export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {
   };
 }
 
-// The fixture with a loop that shows nothing at the top of its scene, `passes`
-// passes of an `if` in its body (about 26 steps of work a pass), and the
-// exchange holding the target wrapped in a branch the program skips, so the
-// route runs every pass and then forces that branch (#1636). The target line
-// and word are the fixture's own.
 export function buildLoopFixture({ passes = 20000 } = {}) {
   const fixture = buildPreviewFixture();
   const lines = fixture.files.get("main.sd").split("\n");
@@ -189,7 +154,6 @@ export function buildLoopFixture({ passes = 20000 } = {}) {
       ...fixture.target,
       line,
       lineText: lines[line - 1],
-      // The scene grows by the loop, and its `then` clause by the branch.
       sceneLines: fixture.target.sceneLines + loop.length + 2,
       thenLines: fixture.target.thenLines + 2,
       passes,
@@ -197,31 +161,19 @@ export function buildLoopFixture({ passes = 20000 } = {}) {
   };
 }
 
-// The fixture's scene reduced to its beats, with no `choose`: one scene of
-// action and dialogue lines and nothing else, so that a stepping loop covering
-// only the content kinds a beat compiles to can run it from top to bottom
-// (engine-bench.mjs, #664). The target is its last line of dialogue.
 export function buildBeatsFixture({ lines = 2400 } = {}) {
   const rand = generator(664);
   const scene = ["scene MAIN", ...beats(rand, 2, lines, []), "end", ""];
   const files = new Map();
   files.set("main.sd", scene.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
   return { files, target: { line: scene.length - 3, sceneLines: scene.length } };
 }
 
-// The comparison scene of #693: the beats of the fixture with the other kinds a
-// statement can be mixed in at the rate a real route meets them, so that the
-// chunk prototype (chunkStepper.ts) and the story engine can run the same
-// script from top to bottom. It holds stored variables and reassignments,
-// `if ... else ... end` blocks, a line that interpolates a variable, scenes
-// reached by `-> NAME` so that every scene change is a divert through a symbol,
-// and one `choose` whose `then` clause holds the rest of its scene, as the real
-// projects write it. Nothing here needs a function call, a loop, glue or a tag.
 export function buildChunksFixture({ scenes = 8, linesPerScene = 150, thenLines = 1100 } = {}) {
   const rand = generator(693);
   const out = ["store trust = 0", "store heat = 0", ""];
-  // A run of beats broken up by the other statement kinds.
   const mixed = (indent, count) => {
     const pad = " ".repeat(indent);
     const lines = [];
@@ -247,12 +199,11 @@ export function buildChunksFixture({ scenes = 8, linesPerScene = 150, thenLines 
   }
   const files = new Map();
   files.set("main.sd", out.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
   return { files, target: { line: out.length - 3, scenes, sceneLines: out.length } };
 }
 
-// Writes the fixture into `dir`, which must be missing or empty, so it can
-// never overwrite a real project.
 export function writePreviewFixture(dir, { files, target } = buildPreviewFixture()) {
   if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) throw new Error(`refusing to write the fixture into non-empty ${dir}`);
   for (const [rel, text] of files) {

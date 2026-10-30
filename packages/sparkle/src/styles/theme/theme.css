@@ -1,9 +1,7 @@
 :is(:root, :host, [theme], .theme-dark, .theme-light) > * {
-  /* General */
   --theme-color-black: rgb(0 0 0);
   --theme-color-white: rgb(255 255 255);
 
-  /* Primary */
   --theme-color-primary-10: var(--theme-color-sky-10);
   --theme-color-primary-20: var(--theme-color-sky-20);
   --theme-color-primary-30: var(--theme-color-sky-30);
@@ -17,7 +15,6 @@
   --theme-color-primary-99: var(--theme-color-sky-99);
   --theme-color-primary: var(--theme-color-primary-50);
 
-  /* Success */
   --theme-color-success-10: var(--theme-color-green-10);
   --theme-color-success-20: var(--theme-color-green-20);
   --theme-color-success-30: var(--theme-color-green-30);
@@ -31,7 +28,6 @@
   --theme-color-success-99: var(--theme-color-green-99);
   --theme-color-success: var(--theme-color-success-50);
 
-  /* Warning */
   --theme-color-warning-10: var(--theme-color-amber-10);
   --theme-color-warning-20: var(--theme-color-amber-20);
   --theme-color-warning-30: var(--theme-color-amber-30);
@@ -45,7 +41,6 @@
   --theme-color-warning-99: var(--theme-color-amber-99);
   --theme-color-warning: var(--theme-color-warning-50);
 
-  /* Danger */
   --theme-color-danger-10: var(--theme-color-red-10);
   --theme-color-danger-20: var(--theme-color-red-20);
   --theme-color-danger-30: var(--theme-color-red-30);
@@ -59,7 +54,6 @@
   --theme-color-danger-99: var(--theme-color-red-99);
   --theme-color-danger: var(--theme-color-danger-50);
 
-  /* General */
   --theme-color-border-focus: var(--theme-color-primary-70);
   --theme-color-border-hover: var(--theme-color-neutral-80);
   --theme-color-border-active: var(--theme-color-neutral-70);
@@ -69,21 +63,12 @@
   --theme-color-background-selected: var(--theme-color-neutral-50);
   --theme-color-background-checked: var(--theme-color-primary-60);
 
-  /*
-   * Breakpoints
-   */
-
   --theme-breakpoint-xs: 400px;
   --theme-breakpoint-sm: 600px;
   --theme-breakpoint-md: 960px;
   --theme-breakpoint-lg: 1280px;
   --theme-breakpoint-xl: 1920px;
 
-  /*
-   * Typography
-   */
-
-  /* Fonts */
   --theme-font-mono:
     "Courier Prime Sans", SFMono-Regular, Consolas, "Liberation Mono", Menlo,
     monospace;
@@ -94,7 +79,6 @@
   --theme-font-serif: Georgia, "Times New Roman", serif;
   --theme-font-icon: "icon";
 
-  /* Type Scales */
   --theme-text-2xs-font-size: 0.6875rem;
   --theme-text-2xs-line-height: 1rem;
 
@@ -137,7 +121,6 @@
   --theme-text-9xl-font-size: 8rem;
   --theme-text-9xl-line-height: 1;
 
-  /* Text Leading */
   --theme-text-leading-none: 1;
   --theme-text-leading-xs: 1.25;
   --theme-text-leading-sm: 1.375;
@@ -146,18 +129,10 @@
   --theme-text-leading-xl: 2;
   --theme-text-leading-2xl: 4;
 
-  /*
-   * Opacities
-   */
-
   --theme-opacity-drag: 0.16;
   --theme-opacity-press: 0.12;
   --theme-opacity-focus: 0.12;
   --theme-opacity-hover: 0.05;
-
-  /*
-   * Z-indexes
-   */
 
   --theme-z-index-drawer: 700;
   --theme-z-index-dialog: 800;
@@ -165,16 +140,9 @@
   --theme-z-index-toast: 950;
   --theme-z-index-tooltip: 1000;
 
-  /*
-   * Scrollbars
-   */
-
   --theme-scrollbar-size: 8px;
   --theme-scrollbar-thickness: thin;
 
-  /*
-   * Ratios
-   */
   --theme-ratio-square: 1;
   --theme-ratio-landscape: 4/3;
   --theme-ratio-portrait: 3/4;
@@ -198,9 +166,6 @@
   --theme-ratio-major-seventh: 1.875;
   --theme-ratio-octave: 2;
 
-  /*
-   * Spacing
-   */
   --theme-spacing-3xs: 2px;
   --theme-spacing-2xs: 4px;
   --theme-spacing-xs: 8px;
@@ -212,51 +177,30 @@
   --theme-spacing-3xl: 48px;
   --theme-spacing-4xl: 72px;
 
-  /*
-   * Transitions
-   */
   --theme-transition-x-slow: 1000ms;
   --theme-transition-slow: 500ms;
   --theme-transition-medium: 250ms;
   --theme-transition-fast: 150ms;
   --theme-transition-x-fast: 50ms;
 
-  /* 
-   * Focus rings 
-   */
   --theme-focus-ring-color: var(--theme-color-primary-20);
   --theme-focus-ring-style: solid;
   --theme-focus-ring-width: 3px;
   --theme-focus-ring-offset: 2px;
 
-  /* 
-   * Radius
-   */
   --theme-radius-sm: 4px;
   --theme-radius-md: 6px;
   --theme-radius-lg: 8px;
 
-  /* 
-   * Padding
-   */
   --theme-padding-button: var(--theme-spacing-xs) var(--theme-spacing-lg);
   --theme-padding-input: var(--theme-spacing-xs) var(--theme-spacing-sm);
   --theme-padding-option: var(--theme-spacing-2xs) 10px;
 
-  /* 
-   * Sizes
-   */
   --theme-size-thumb: 16px;
   --theme-size-checkbox: 16px;
 
-  /*
-   * Borders
-   */
   --theme-border-width-control: 1px;
 
-  /*
-  * Icons
-  */
   --theme-icon-check: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9 20.42l-6.21-6.21l2.83-2.83L9 14.77l9.88-9.89l2.83 2.83z"/></svg>');
   --theme-icon-arrow-down: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor"  d="M7 10l5 5 5-5z"/></svg>');
 }

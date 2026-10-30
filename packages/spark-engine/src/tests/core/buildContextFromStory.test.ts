@@ -1,13 +1,3 @@
-// Unit tests for the runtime `__def` → JS context converter.
-//
-// `createHarness` seeds the builtins prelude into the runtime story (the engine
-// sources defines from there now), so authored defines inherit their type's
-// builtin `$default` — e.g. `pan_right` inherits the animation `timing`/`target`,
-// `companion` inherits the character defaults. These tests therefore assert the
-// AUTHORED props convert correctly (and meta/methods are stripped) with
-// `toMatchObject`, tolerating the inherited builtin props deep-merged in.
-// Equivalence with the engine is ultimately proven by the UI golden-master.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "../ui/harness/uiTestHarness";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
@@ -39,7 +29,7 @@ define stack as layered_image with
   assets = { pan_right, O }
 end
 
--> start
+
 scene start
   Hello.
 end
@@ -51,18 +41,12 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     await harness.ready;
     const ctx = buildDefinesContext(story);
 
-    // animation instance: own keyframes preserved (object form), PLUS the
-    // builtin animation `$default` (timing/target) deep-merged in via the seeded
-    // runtime __index chain.
     expect(ctx["animation"]?.["pan_right"]).toMatchObject({
       keyframes: { background_position: "right" },
       $type: "animation",
       $name: "pan_right",
     });
 
-    // character with a store prop + a method: store prop copied in, method
-    // (closure) skipped, hidden __storeProps/__readProps meta stripped. (A
-    // method mid-list must NOT halt the defines after it — `O`/`stack` below.)
     expect(ctx["character"]?.["companion"]).toMatchObject({
       trust: 0,
       $type: "character",
@@ -78,13 +62,11 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     const ctx = buildDefinesContext(story);
 
     const expected = {
-      trust: 0, // inherited store default from companion
-      name: "Orion", // own
+      trust: 0,
+      name: "Orion",
       $type: "companion",
       $name: "O",
     };
-    // Registered under the immediate parent AND the grandparent type. (Also
-    // carries the inherited builtin character defaults — toMatchObject tolerates.)
     expect(ctx["companion"]?.["O"]).toMatchObject(expected);
     expect(ctx["character"]?.["O"]).toMatchObject(expected);
   });
@@ -98,7 +80,6 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     expect(stack?.$name).toBe("stack");
     expect(Array.isArray(stack?.assets)).toBe(true);
     expect(stack.assets).toHaveLength(2);
-    // Bare refs lower to inert { $type:"", $name } literals.
     expect(stack.assets[0]).toMatchObject({ $name: "pan_right" });
     expect(stack.assets[1]).toMatchObject({ $name: "O" });
   });
@@ -107,7 +88,6 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     const { harness, story } = defines(SRC);
     await harness.ready;
     const ctx = buildDefinesContext(story);
-    // `animation`/`character` are type namespaces, never entries under "".
     expect(ctx[""]).toBeUndefined();
     expect(ctx["animation"]).not.toHaveProperty("animation");
     expect(ctx["character"]).not.toHaveProperty("character");
@@ -118,11 +98,6 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     await harness.ready;
     const ctx = buildDefinesContext(story);
 
-    // `lookupContextValue`'s terminal fallback is `context[type]["$default"]`.
-    // Without these entries every by-name miss silently fell to inline zeros:
-    // typewriter pacing collapsed 5-16x for `choice N` targets, and
-    // `prosody`/`inflection` — root-only types with NO instances — vanished
-    // entirely, muting all dialogue inflection.
     const tw = ctx["typewriter"]?.["$default"] as any;
     expect(tw).toBeDefined();
     expect(tw.$name).toBe("$default");
@@ -138,8 +113,6 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     expect(inflection).toBeDefined();
     expect(Array.isArray(inflection.question)).toBe(true);
 
-    // An EMPTY root (e.g. `color`) must NOT mint a truthy-but-empty
-    // `$default` that would shadow a caller's own fallback chain.
     expect(ctx["color"]?.["$default"]).toBeUndefined();
   });
 });

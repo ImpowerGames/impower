@@ -1,4 +1,4 @@
-text.source.sparkdown [0..141]
+text.source.sparkdown [0..159]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -94,7 +94,13 @@ text.source.sparkdown [0..141]
  ├─ constant.numeric.decimal.luau [134..135]: "1"
  ├─ keyword.operator.comma.luau [135..136]: ","
  ├─ Newline [136..137]: "\n"
- ├─ punctuation.whitespace.optional.sd [137..139]: "  "
- ├─ string.display.text.chunk.sd [139..140]
- │   └─ markup.raw.text.sd [139..140]: "2"
- └─ Newline [140..141]: "\n"
+ ├─ keyword.control.scene.sd [137..142]: "scene"
+ ├─ punctuation.whitespace.required.sd [142..143]: " "
+ ├─ keyword.control.section.sd [143..148]: "start"
+ ├─ Newline [148..149]: "\n"
+ ├─ punctuation.whitespace.optional.sd [149..153]: "    "
+ ├─ string.display.text.chunk.sd [153..154]
+ │   └─ markup.raw.text.sd [153..154]: "2"
+ ├─ Newline [154..155]: "\n"
+ ├─ keyword.control.end.luau [155..158]: "end"
+ └─ Newline [158..159]: "\n"

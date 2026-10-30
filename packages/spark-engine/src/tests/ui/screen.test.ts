@@ -1,12 +1,3 @@
-// Golden-master: screen construction (the structural element tree) and
-// screen show / hide.
-//
-// `connect()`'s onConnected calls `constructLayouts()`, which walks
-// `context.screen.<name>` and emits the `ui/create` tree (named structural
-// elements as nested divs; `text`/`stroke` → span content; `image`/`mask` →
-// background spans). `showLayout`/`hideLayout` toggle the `hidden` attribute.
-// This locks the full creation stream + the visibility toggles.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -44,7 +35,6 @@ describe("screen", () => {
   test("screen tree construction (full ui/create stream at connect)", async () => {
     const harness = createHarness(STORY);
     await harness.ready;
-    // The whole captured stream IS the construction (styles + screen tree).
     expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 

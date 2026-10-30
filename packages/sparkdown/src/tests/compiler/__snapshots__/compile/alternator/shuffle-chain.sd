@@ -1,5 +1,7 @@
-shuffle chain
-  | -> A
-  | -> B
-  | -> C
+scene start
+  shuffle chain
+    | -> A
+    | -> B
+    | -> C
+  end
 end

@@ -14,36 +14,10 @@ export interface SelectedCompilerDocumentParams {
   docChanged: boolean;
   userEvent?: boolean;
   checkpoint?: string;
-  /** Why no checkpoint could be simulated, when there is none. Mirrors the
-   *  field of the same name on `CompiledProgramParams`. */
   simulationFailure?: SimulationFailure;
-  /**
-   * The address a route search reached a DEFINITE answer about for this
-   * selection: present with a `checkpoint` means the route was found and
-   * replayed to this address and the checkpoint is the story state there; present
-   * with no `checkpoint` means no route to this address exists; absent means
-   * nothing definite is known and a client must run its own search.
-   *
-   * Mirrors the field of the same name on `CompiledProgramParams`, where the
-   * reasoning is spelled out.
-   */
   simulatedAddress?: ProgramAddress | null;
-  /**
-   * Identity of the program the route search ran against, sent with — and only
-   * with — `simulatedAddress`, and required to match before the answer is reused.
-   * Mirrors the field of the same name on `CompiledProgramParams`, where the
-   * reasoning is spelled out.
-   */
   simulatedProgramId?: string;
-  /** The runtime errors and warnings the replay of the route raised. Mirrors
-   *  the field of the same name on `CompiledProgramParams`. */
   simulationErrors?: SimulationError[];
-  /**
-   * A script the compiled program was built from has been edited since that
-   * compile, so its locations describe where this document's lines used
-   * to be and this selection cannot be resolved against it. The compile the
-   * edit scheduled starts from this selection and answers it when it lands.
-   */
   programOutdated?: boolean;
 }
 

@@ -1,9 +1,11 @@
-// A screenplay made of the constructs the writer emits for display: scenes
-// and a branch, action and dialogue lines inline and in blocks,
-// parentheticals and directives, trailing and leading glue, breaks, tags,
-// load lines, comments, and `done`.
 export function displayScreenplay(): string {
-  const L: string[] = ["# opening tag", "Before any scene.", ""];
+  const L: string[] = [
+    "scene start",
+    "  # opening tag",
+    "  Before any scene.",
+    "end",
+    "",
+  ];
   for (let s = 0; s < 6; s++) {
     L.push(`scene SCENE_${s}`);
     L.push(`  The room ${s} is quiet.`);

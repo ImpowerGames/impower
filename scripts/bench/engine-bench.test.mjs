@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Pins the story engine measurements of #664, #693 and #694: the benchmark's
-// arguments, the comparisons that make the program engine's timing mean
-// something, the profile arithmetic, that the prototypes stay out of
-// everything that ships, and that no benchmark reaches for the engine #705
-// deleted. Run:
-//   node scripts/bench/engine-bench.test.mjs
-//
-// No dependencies; the end-to-end run needs the workspace install and says so
-// when it skips.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -39,7 +30,6 @@ await check("arguments: a project needs a line, modes are checked, all means eve
   assert.deepEqual(parseEngineBenchArgs(["--project", "p", "--line", "3515", "--mode", "program,search", "--samples", "10", "--warmup", "0", "--cpu-prof", "out"]), { modes: ["program", "search"], samples: 10, warmup: 0, project: "p", line: 3515, cpuProf: "out" });
   assert.throws(() => parseEngineBenchArgs(["--project", "p"]), /--project needs --line/);
   assert.throws(() => parseEngineBenchArgs(["--fixture", "--mode", "fast"]), /--mode is any of/);
-  // The modes that ran the engine #705 deleted went with it.
   for (const mode of ["kinds", "step", "proto", "chunks", "emit", "ready"]) assert.throws(() => parseEngineBenchArgs(["--fixture", "--mode", mode]), /--mode is any of/);
   assert.throws(() => parseEngineBenchArgs(["--fixture", "--project", "p", "--line", "1"]), /exclusive/);
   assert.throws(() => parseEngineBenchArgs([]), /--project <dir> or --fixture/);
@@ -89,10 +79,6 @@ await check("the beats scene is one scene of beats with nothing to choose, the s
   assert.notEqual(lines[target.line - 1].trim(), "");
 });
 
-// root -> run -> (Step -> [Resolve, emit]) and root -> other, shaped as V8
-// writes a profile: as many deltas as samples, the first being the gap before
-// the first sample. A sample is charged the delta that follows it, so the last
-// one (run) is charged nothing: 70 microseconds in all, 50 under Step.
 const PROFILE = {
   nodes: [
     { id: 1, callFrame: { functionName: "(root)" }, children: [2, 6, 7] },
@@ -133,8 +119,6 @@ await check("profile shares: only time under the named function counts, and grou
   );
   assert.equal(profileShares(PROFILE, { under: ["run"], groups: [], nameOf: (frame) => frame.functionName }).functions[0].group, "(unassigned)");
   assert.deepEqual(parseShareArgs(["a.cpuprofile", "b.cpuprofile", "--under", "Step"]).profiles, ["a.cpuprofile", "b.cpuprofile"]);
-  // Over several profiles: the middle of three, and a group one profile never
-  // sampled counts as zero there.
   const shares = (hierarchy, engine, collector) => ({ groups: [{ group: "hierarchy", share: hierarchy }, ...(engine == null ? [] : [{ group: "engine", share: engine }])], inclusive: [{ function: "Resolve", share: hierarchy / 2 }], collectorShareOfProfile: collector });
   assert.deepEqual(summarizeShares([shares(0.5, 0.5, 0.04), shares(0.7, 0.3, 0.06), shares(1, undefined, 0.05)]), [
     { label: "hierarchy", min: 0.5, median: 0.7, max: 1 },
@@ -146,9 +130,6 @@ await check("profile shares: only time under the named function counts, and grou
   assert.throws(() => parseShareArgs(["--under", "Step"]), /\.cpuprofile/);
 });
 
-// The object-hierarchy engine, its compiled JSON and #314's encoding are gone
-// (#705), and no benchmark measures against them. The words are joined here so
-// that this file does not name them itself.
 await check("nothing under scripts/bench reaches for the deleted engine, its compiled JSON or #314's encoding", () => {
   const pattern = [["inkjs", "engine"].join("/"), ["src", "binary"].join("/"), ["program", "compiled"].join("[.]")].join("|");
   const run = spawnSync("git", ["grep", "-n", "-E", pattern, "--", "scripts/bench"], { cwd: ROOT, encoding: "utf8", windowsHide: true });
@@ -156,8 +137,6 @@ await check("nothing under scripts/bench reaches for the deleted engine, its com
   assert.equal(run.stdout.trim(), "");
 });
 
-// The prototypes are measured, never shipped. The tooling workflow checks out
-// no packages, so there it says it skipped rather than passing on nothing.
 if (!fs.existsSync(path.join(ROOT, "packages", "sparkdown", "src"))) {
   console.log("SKIP: nothing under packages/*/src imports a prototype (this checkout has no packages)");
 } else await check("nothing under packages/*/src imports a prototype or anything else in scripts/bench", () => {
@@ -181,8 +160,6 @@ if (!esbuildInstalled) {
     const run = spawnSync(process.execPath, [path.join(HERE, "engine-bench.mjs"), "--fixture", "--samples", "1", "--warmup", "0"], { encoding: "utf8", timeout: 480_000, windowsHide: true });
     assert.equal(run.status, 0, run.stdout + run.stderr);
     assert.match(run.stdout, /program: the 2 candidates produced identical lines \(\d{3,} lines, \d{3,} display tables\); the program engine ran each of the scene's \d{4,} instructions once \(\d{4,} steps\)/);
-    // The symbol table is the size the design gives the fixture, its hundreds
-    // of globals included, and not the handful of flows the ring is made of.
     assert.match(run.stdout, /candidate symbol: a ring of [0-9]+ flows spread through a symbol table of [0-9]{3,}, /);
     assert.match(run.stdout, /symbols: in a table of [0-9]{3,} symbols, a divert through the symbol table costs /);
     assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);

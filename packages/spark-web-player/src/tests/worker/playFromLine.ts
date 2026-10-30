@@ -1,10 +1,8 @@
-// PLAY and the preview from one line of a script, as the worker tests of
-// where PLAY starts read them (I-1606, I-1618).
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
-/** Branches only a divert from outside their scene enters, each with
- *  parameters (dotted-divert-targets-with-arguments.sd). */
-export const BRANCHES = `-> outer.inner(1)
+export const BRANCHES = `scene start
+  -> outer.inner(1)
+end
 scene outer
   branch inner(a)
     Inner {a}.
@@ -38,17 +36,12 @@ scene outer
 end
 `;
 
-/** PLAY `source` from `line` (zero-based) and a second of frames; answers
- *  what the run showed and how the game stood afterwards, with the story's
- *  `score` when it has one. */
 export const playFrom = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line },
     manualClock: true,
   });
-  // A run that ends stops the game, which waits a frame this page does not
-  // draw.
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   try {
@@ -80,7 +73,6 @@ export const playFrom = async (source: string, line: number) => {
   }
 };
 
-/** The text the first preview of `source` at `line` (zero-based) writes. */
 export const previewAt = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],

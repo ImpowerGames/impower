@@ -1,13 +1,3 @@
-// A preview after a route origin/main's search found (#637).
-//
-// The search that follows the program runs within a budget, and a line it
-// cannot reach within it is reached by origin/main's search, whose route is
-// marked a fallback. A scrub that resumes from a fallback route resumes it as
-// origin/main's preview does, by origin/main's search alone, so it shows the
-// value origin/main's preview shows for the same scrubs. A scrub that cannot
-// resume from it searches from the top, which follows the program wherever
-// its budget allows. The budget is lowered here so that scripts small enough
-// to run fall back.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { faithfulBudget } from "@impower/sparkdown/src/compiler/utils/planRoute";
@@ -19,7 +9,7 @@ const URI = "inmemory:///main.sd";
 
 const TEXT = [
   "store total = 0",
-  "-> start",
+  "",
   "scene start",
   "  Opening beat.",
   "  for i = 1, 3 do",
@@ -83,24 +73,18 @@ function target(game: Game, text: string, label: string) {
   return game.startAddress!;
 }
 
-/** Preview the line holding `label` and return the value of `total` it
- *  shows. */
 function scrub(game: Game, text: string, label: string) {
   searchRouteTo(game, target(game, text, label), new RouteSearchLog(), {});
   expect(game.simulation).toBe("success");
   return game.story.variablesState["total"] as number;
 }
 
-/** Recompile the program unchanged and hand it to `game`, as an edit
- *  elsewhere does, so that the next scrub may resume from its route. */
 function recompile(game: Game, compiler: SparkdownCompiler) {
   const program = compile(compiler);
   expect(program.changes).toBeDefined();
   game.updateProgram(program);
 }
 
-/** Scrub the line holding `first`, then, after a recompile, the line holding
- *  `second`, and return what each showed and whether the second resumed. */
 function scrubTwice(first: string, second: string) {
   const compiler = configure(TEXT);
   const game = gameOf(compile(compiler));
@@ -128,12 +112,10 @@ function scrubFresh(label: string) {
 
 describe("a scrub after a route origin/main's search found", () => {
   test("resumes by origin/main's search and shows the value origin/main's preview shows", () => {
-    // Every search falls back: origin/main's preview of the same two scrubs.
     faithfulBudget.nodes = 0;
     const main = scrubTwice("Skipped line", "Target total");
     expect(main).toMatchObject({ before: 0, firstFellBack: true, after: 0 });
 
-    // The skipped line needs more than this budget; the target does not.
     faithfulBudget.nodes = 4;
     const resumed = scrubTwice("Skipped line", "Target total");
     expect(resumed).toEqual({
@@ -144,7 +126,6 @@ describe("a scrub after a route origin/main's search found", () => {
       after: main.after,
       secondFellBack: true,
     });
-    // Searched from the top, the target is reached by the program's own way.
     expect(scrubFresh("Target total")).toEqual({ value: 6, fellBack: false });
   }, 120_000);
 
@@ -182,7 +163,6 @@ describe("a scrub after a route origin/main's search found", () => {
     game.updateProgram(edited);
     const text = TEXT.replace("  Opening beat.", "  The Opening beat.");
     const to = target(game, text, "Target total");
-    // The premise: nothing of the route is left to resume from.
     expect(game.routeResumption(game.routeStartOf(to), to).resumeFrom).toBe(
       undefined,
     );
@@ -192,8 +172,6 @@ describe("a scrub after a route origin/main's search found", () => {
 });
 
 describe("a scrub resumed from a route the program's own search found", () => {
-  // Nine nodes reach the skipped line by the program's own way; eight do
-  // not.
   test.each([
     [9, 6, false],
     [8, 0, true],

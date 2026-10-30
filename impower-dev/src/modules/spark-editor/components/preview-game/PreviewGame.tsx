@@ -7,20 +7,10 @@ import { installPreviewInspector } from "./previewInspect";
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
-// DEV-ONLY same-origin preview. When VITE_SAME_ORIGIN_PREVIEW is set, the editor
-// dev server proxies the player under our own origin at /__player/ (see
-// impower-dev/build.ts), so we embed it as a SAME-ORIGIN iframe and address it
-// via our own origin. This makes the live game DOM reachable from this page
-// (document.querySelector('#iframe').contentDocument) and devtools. Defaults
-// OFF: the player stays a cross-origin iframe at VITE_SPARKDOWN_PLAYER_ORIGIN.
 const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
 const PLAYER_SRC = SAME_ORIGIN_PREVIEW
   ? "/__player/"
   : `${SPARKDOWN_PLAYER_ORIGIN}/`;
-// Guard `window`: this module is also evaluated during the editor's SSG render
-// (server-side, no `window`). The target origin is only needed at runtime in the
-// browser. Same-origin posts match the iframe's origin with or without an
-// explicit targetOrigin, so an SSR-time "" is harmless.
 const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
   ? typeof window !== "undefined"
     ? window.location.origin
@@ -30,10 +20,6 @@ const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
 export const propDefaults = {};
 export type PreviewGameProps = Partial<typeof propDefaults>;
 
-// Iframe wrap styling lives here so the iframe can fill the available
-// vertical space — Tailwind can't trivially express the `pointer-events:
-// auto` opt-in over sparkle's universal `* { pointer-events: none }`
-// reset without re-declaring it as an inlined rule.
 const STYLE = `
   .pg-iframe-wrap {
     position: relative;
@@ -48,18 +34,10 @@ const STYLE = `
   }
 `;
 
-// Previous/next beat lookup for PageUp/PageDown now lives in the language
-// server (`sparkdown/offsetSourceLocation`) — it owns the program, and its
-// locations are far too large to mirror on the main thread.
-
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
-  // Channel lifecycle: a MessageChannel + Port1MessageConnection bound to
-  // the iframe's window. Stored in a ref so cleanup can tear it down and
-  // so the `protocol` and load handlers can reach the same instance
-  // without re-creating it across renders.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const iframeChannelRef = useRef<any>(null);
   const initializedRef = useRef(false);
@@ -70,22 +48,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
     }),
   );
 
-  // onLoad handler shared between the JSX `onLoad` (which can fire
-  // before our useEffect attaches a listener — iframe loads fast) and
-  // the useEffect itself. Stored in a ref so the JSX handler always
-  // calls the latest version after lazy imports complete.
   const onLoadRef = useRef<(() => void) | null>(null);
-  // Track if load fired before our effect set up the handler. If so,
-  // we trigger it once the handler becomes available.
   const loadedBeforeReadyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
 
-    // DEV-ONLY: when the preview is same-origin, expose `window.__preview` so the
-    // live game DOM is inspectable from the console / automation. No-op (and not
-    // installed) when embedding cross-origin, where frame access would be blocked.
     const uninstallInspector = SAME_ORIGIN_PREVIEW
       ? installPreviewInspector()
       : undefined;
@@ -169,8 +138,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
             return;
           }
           if (ChangeRoutePinsMessage.type.isRequest(message)) {
-            // The pins are the workspace's, which saves the change and sends
-            // every pin back to the player and the script editors.
             iframeChannelRef.current?.sendResponse(message, () => ({
               pins: Workspace.window.changeRoutePins(message.params),
             }));
@@ -181,8 +148,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
             iframeChannelRef.current?.sendResponse(message, result);
           }
           if (RuntimeDiagnosticsMessage.type.isNotification(message)) {
-            // The language server shows the run's errors and warnings beside
-            // the compile's.
             Workspace.ls.connection.sendNotification(
               RuntimeDiagnosticsMessage.method,
               message.params,
@@ -198,7 +163,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
               [buffer],
             );
           }
-          // Forward messages from iframe → editor's global event stream.
           sendProtocolMessage(message);
         };
 
@@ -206,10 +170,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         const onLoad = async () => {
           const iframe = iframeRef.current;
           if (!iframe) return;
-          // Idempotent — the JSX onLoad and the addEventListener will both
-          // fire for the same iframe load, but we only want one channel.
-          // Also covers the rare case where load fires twice (iframe.src
-          // reset, etc.) by tearing down the previous channel first.
           if (setupInFlight) return;
           setupInFlight = true;
           if (iframeChannelRef.current) {
@@ -245,20 +205,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
               settings: Workspace.configuration.settings,
               files: Object.values(files),
               definitions: {
-                // builtins now come from the implicitly-imported builtins
-                // prelude (useBuiltinsPrelude is the compiler default).
                 optionals: DEFAULT_OPTIONAL_DEFINITIONS,
                 schemas: DEFAULT_SCHEMA_DEFINITIONS,
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
               },
               skipValidation: true,
-              // Filtered images resolve through the service worker's
-              // on-demand `?filters=` route in this host (#299); the player's
-              // own compiler doesn't need the inlined SVG source either.
               stripImageData: true,
-              // This host's URIs are `file://` and the OPFS path as written
-              // (`getUriFromPath`), so a `%` in one is part of a file name;
-              // the player orders the scripts as the language server does.
               uriPathsAsWritten: true,
               uri,
               workspace: projectPath,
@@ -273,20 +225,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
           setupInFlight = false;
         };
 
-        // Stays a raw bus listener (not the typed `onProtocolMessage` helper): its
-        // primary job is a generic method-prefix relay — forward ANY
-        // game/preview/workspace/textDocument message to the iframe — which
-        // a type-keyed handler can't express. The specific lifecycle checks
-        // below share this one handler so they stay sequenced after the
-        // (awaited) forward.
         const onProtocol = async (e: Event) => {
           if (!(e instanceof CustomEvent)) return;
           const message = e.detail;
 
-          // Forward editor → iframe for game/preview/workspace/textDocument.
-          // (Except didSave: nothing in the player consumes it, and it carries
-          // the entire document text on every change -- a 200KB+ clone per
-          // keystroke on a large script.)
           if (
             typeof message.method === "string" &&
             !("result" in message) && !("error" in message) &&
@@ -340,15 +282,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
-            // The player has already stopped -- when the story runs out it
-            // stops itself -- so sync the toolbar back to its stopped state
-            // rather than leaving it showing STOP for a game that is gone.
             Workspace.window.endGame();
           }
           if (GameWorkerRestartedMessage.type.isNotification(message)) {
-            // The player restarted its worker because the script did not
-            // yield (#679). The line is marked in the problems list too, but
-            // the author did not ask for anything, so say what happened.
             const { location } = message.params;
             showSnackbar({
               message: message.params.message,
@@ -367,10 +303,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
             });
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
-            // TODO: forward breakpoints to player
           }
           if (ChangedEditorPinpointsMessage.type.is(message)) {
-            // TODO: forward pinpoints to player
           }
         };
 
@@ -395,9 +329,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (e.key !== "PageUp" && e.key !== "PageDown") return;
           const { uri, selectedRange } = editor;
           const currLine = selectedRange?.start.line ?? 0;
-          // Resolved by the language server on demand — the program's
-          // locations are far too large to ship to the main thread on
-          // every compile just to answer this occasional keypress.
           const target = await Workspace.ls.getOffsetSourceLocation(
             uri,
             currLine,
@@ -419,9 +350,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         window.addEventListener("keydown", onKeyDown);
         document.addEventListener("fullscreenchange", onFullscreenChange);
 
-        // Wire the onLoad handler. Also catch the case where the
-        // iframe loaded BEFORE this effect ran (likely — iframe loads
-        // fast, useEffect is async) by triggering onLoad once.
         onLoadRef.current = onLoad;
         iframeRef.current?.addEventListener("load", onLoad);
         if (loadedBeforeReadyRef.current) {
@@ -462,14 +390,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"
-          // Hide iframe until its document loads so we don't briefly see
-          // the sparkdown-player's pre-init flash.
           style={{ visibility: "hidden" }}
           onLoad={(e) => {
             (e.currentTarget as HTMLIFrameElement).style.visibility = "visible";
-            // If useEffect already set up the channel handler, call it
-            // now. Otherwise mark that load fired before we were ready —
-            // the effect will trigger it once it runs.
             if (onLoadRef.current) {
               onLoadRef.current();
             } else {

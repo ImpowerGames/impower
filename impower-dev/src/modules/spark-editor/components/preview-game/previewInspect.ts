@@ -1,54 +1,14 @@
-// DEV-ONLY live game-DOM inspector.
-//
-// When the game preview is embedded SAME-ORIGIN (VITE_SAME_ORIGIN_PREVIEW=1, see
-// impower-dev/docs/architecture.md), the editor page can reach into the preview
-// iframe's document directly. This installs a small `window.__preview` helper so
-// devs (in the devtools console) and automation (Claude-in-Chrome / Puppeteer /
-// etc.) can drill into the live game DOM and read its performance entries
-// without hand-rolling `document.querySelector('#iframe').contentDocument` every
-// time.
-//
-// `PreviewGame` only installs it in same-origin mode, but every accessor is still
-// guarded against cross-origin frame access (which throws) so a dev who calls
-// `installPreviewInspector()` directly gets null/[] + a one-time hint rather than
-// an exception. The iframe is resolved lazily on each call, so the helper keeps
-// working across preview reloads and component re-renders.
-
 export interface PreviewInspector {
-  /** The preview `<iframe>` element, or null if not mounted yet. */
   readonly frame: HTMLIFrameElement | null;
-  /** The iframe's document, or null if not loaded / not same-origin. */
   readonly doc: Document | null;
-  /** The iframe's window, or null if not loaded / not same-origin. */
   readonly win: Window | null;
-  /** querySelector inside the game document. */
   $(selector: string): Element | null;
-  /** querySelectorAll inside the game document, as an array. */
   $$(selector: string): Element[];
-  /**
-   * querySelectorAll that also descends into open shadow roots — useful for
-   * games/UI that render into shadow DOM.
-   */
   deep(selector: string): Element[];
-  /** The game root container (`#game`), or null. */
   game(): Element | null;
-  /** outerHTML of the matched element, or the whole document if no selector. */
   html(selector?: string): string | null;
-  /**
-   * Performance entries from inside the iframe (optionally filtered by type).
-   *
-   * `"mark"` and `"measure"` come back empty: the profiler clears each entry as
-   * soon as it emits it, because user timing has no buffer cap and the player
-   * runs with profiling permanently on. Read those live with a
-   * `PerformanceObserver` in the iframe, which still receives every entry.
-   */
   perf(type?: string): PerformanceEntry[];
-  /**
-   * Resolves once the iframe document is loaded and the `#game` scaffold exists
-   * (or rejects after `timeoutMs`). Handy before automated assertions.
-   */
   ready(timeoutMs?: number): Promise<Document>;
-  /** A quick one-call snapshot for logging / automation. */
   summary(): {
     mounted: boolean;
     sameOrigin: boolean;
@@ -67,16 +27,11 @@ export function installPreviewInspector(): () => void {
   }
 
   let warnedCrossOrigin = false;
-  // Outstanding ready() poll timers, cleared on uninstall so a self-rescheduling
-  // poll can't outlive the component.
   const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
 
   const getFrame = (): HTMLIFrameElement | null =>
     document.querySelector<HTMLIFrameElement>("#iframe");
 
-  // Reading contentDocument/contentWindow on a cross-origin frame throws a
-  // SecurityError. Funnel every access through this so the helper degrades to
-  // null instead of blowing up, and nudges the dev toward the flag once.
   const safe = <T>(read: () => T): T | null => {
     try {
       return read();
@@ -160,8 +115,6 @@ export function installPreviewInspector(): () => void {
       return new Promise<Document>((resolve, reject) => {
         const start = performance.now();
         const poll = () => {
-          // The iframe was swapped out (preview reloaded / component unmounted) —
-          // stop polling a detached node.
           const current = getFrame();
           if (frame0 && current && current !== frame0) {
             reject(

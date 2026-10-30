@@ -1,1 +1,3 @@
-Here is some text .. queue|a|b|c .. and more after.
+scene start
+  Here is some text .. queue|a|b|c .. and more after.
+end

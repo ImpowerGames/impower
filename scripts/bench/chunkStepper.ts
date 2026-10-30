@@ -1,17 +1,3 @@
-// A throwaway stepping loop over the chunk layout of chunkProgram.ts (#693). It
-// exists to be measured, and nothing that ships imports it.
-//
-// The position is a sequence, an entry in it and a word offset into that
-// entry's chunk. Values are the engine's own value classes and operators are
-// the engine's own native calls, so an expression costs here what it would cost
-// a real engine that keeps the value model. A line ends at its newline, where
-// the engine returns, so nothing that runs is taken back.
-//
-// Left out: function calls and call frames, tunnels, threads, labels and
-// diverts into a block (`resumeAt` rebuilds the block stack for a position
-// handed to it, as one would), loops, glue, tags, every builtin but `display`,
-// choice conditions, once-only and fallback choices, errors and warnings, the
-// save format.
 import type { InkObject } from "../../packages/sparkdown/src/runtime/Object";
 import { NullValue, ObjectValue, StringValue, type AbstractValue } from "../../packages/sparkdown/src/runtime/Value";
 import { B_RESUME, B_SEQUENCE, BLOCK_ROW, CHOICE_HAS_CHOICE_ONLY_CONTENT, CHOICE_HAS_START_CONTENT, FLAG_DISCARD, H_BLOCKS, H_CODE_WORDS, H_ID, HEADER, Op, position, type ProgramRoot, type Sequence } from "./chunkProgram";
@@ -47,8 +33,6 @@ export class ChunkStepper {
   private chunk: Int32Array = new Int32Array(HEADER);
   private pc = HEADER;
   private end = HEADER;
-  // Entered blocks, three numbers each: the owner's sequence id, its entry and
-  // the position to resume at.
   private blockStack: number[] = [];
   private evalStack: InkObject[] = [];
   private output: unknown[] = [];
@@ -80,11 +64,6 @@ export class ChunkStepper {
     this.jump(symbol);
   }
 
-  /** Starts at an address, as a position restored from an image does and as a
-   *  divert into a block would: the root says which sequence holds the chunk
-   *  and where, and the owners above it give the block stack, each through the
-   *  root too, so that what is resumed when a block runs out is the sequence
-   *  this root holds and not one the block was first built under. */
   resumeAt(chunkId: number, pc: number, globals: Iterable<[string, InkObject]>) {
     this.reset(globals);
     const root = this.root;
@@ -104,8 +83,6 @@ export class ChunkStepper {
     this.enter(at.sequence, at.entry, pc);
   }
 
-  /** Where the engine is: the chunk and the offset of an address, and the
-   *  sequence that holds the chunk. */
   get cursor(): { sequence: number; chunk: number; pc: number } | null {
     return this.seq && { sequence: this.seq.id, chunk: this.chunk[H_ID]!, pc: this.pc };
   }
@@ -128,9 +105,6 @@ export class ChunkStepper {
     this.turns[symbol] = this.turnIndex;
   }
 
-  // A divert through a symbol: the root says which sequence, entry and position
-  // define it. The symbols of this scene are flows, so the target has no owner
-  // and the block stack is empty once there.
   private jump(symbol: number) {
     const root = this.root;
     const s = root.symSeq[symbol]!;
@@ -142,8 +116,6 @@ export class ChunkStepper {
     this.enter(seq, root.symIndex[symbol]!, root.symPc[symbol]!);
   }
 
-  // The end of a chunk: the next statement of the sequence, or the owner of a
-  // block that has run out, or nothing.
   private advance() {
     const seq = this.seq!;
     if (this.index + 1 < seq.chunks.length) {
@@ -164,12 +136,10 @@ export class ChunkStepper {
     return this.output.length > 0 && this.output[this.output.length - 1] === NEWLINE;
   }
 
-  // A newline is not repeated and does not open a line.
   private newline() {
     if (this.output.length > 0 && !this.endsInNewline) this.output.push(NEWLINE);
   }
 
-  /** Executes one instruction. True when the line is over. */
   step(): boolean {
     while (this.pc >= this.end) {
       this.advance();
@@ -235,8 +205,6 @@ export class ChunkStepper {
         break;
       }
       case Op.CallStd: {
-        // `display`, the one builtin here: its table rides the output and a
-        // newline closes the line.
         const payload = stack.pop();
         if (payload) this.output.push(payload);
         this.newline();
@@ -263,8 +231,6 @@ export class ChunkStepper {
         break;
       }
       case Op.EnterBlock: {
-        // The chunk names its block's sequence by id, and the root the engine
-        // runs on says what that sequence holds.
         const child = root.sequences[chunk[this.end + arg * BLOCK_ROW + B_SEQUENCE]!]!;
         if (child.chunks.length === 0) break;
         this.blockStack.push(this.seq!.id, this.index, this.pc);
@@ -273,14 +239,11 @@ export class ChunkStepper {
       }
       case Op.BeginScope:
       case Op.EndScope:
-        // The scene declares no local, so a scope holds nothing here.
         break;
       case Op.Choice: {
         const flags = (word >>> 8) & 0xff;
         const only = flags & CHOICE_HAS_CHOICE_ONLY_CONTENT ? (stack.pop() as StringValue).value! : "";
         const start = flags & CHOICE_HAS_START_CONTENT ? (stack.pop() as StringValue).value! : "";
-        // The target is the entry code of the choice, which opens with the
-        // `Visit` of the choice's count symbol.
         this.choices.push({ text: (start + only).trim(), seq: this.seq!, index: this.index, pc: this.pc + arg, blockStack: this.blockStack.slice() });
         break;
       }
@@ -294,7 +257,6 @@ export class ChunkStepper {
       default:
         throw new Error(`instruction ${word & 0xff} at ${this.pc - 2} is not one the prototype executes`);
     }
-    // A newline outside a string ends the line, and the engine returns there.
     return this.stringMarks.length === 0 && this.endsInNewline;
   }
 
@@ -307,13 +269,11 @@ export class ChunkStepper {
     this.enter(choice.seq, choice.index, choice.pc);
   }
 
-  /** Steps to the end of the line and hands its output over. */
   continueLine(): ChunkLine {
     while (this.seq !== null && !this.step());
     return this.takeLine();
   }
 
-  /** The finished line's output, which also clears it for the next line. */
   takeLine(): ChunkLine {
     const line: ChunkLine = { text: "", tags: [], display: [] };
     for (const content of this.output) {
@@ -321,8 +281,6 @@ export class ChunkStepper {
         line.text += content;
         continue;
       }
-      // A table's `text` is part of the line's text, where the engine's
-      // `currentText` reads it.
       const table = content as ObjectValue;
       const text = table.value?.get("text");
       if (text instanceof StringValue && text.value) line.text += text.value;

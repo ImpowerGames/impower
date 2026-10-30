@@ -1,7 +1,3 @@
-// Whether a `const` is the story's published constant or a function's Luau
-// local is decided while it is lowered, from the functions around it (#1319).
-// An edit that changes that answer, or changes a const in one function, has
-// to leave the incremental compile reading as a cold compile of the same text.
 import { describe, expect, it } from "vitest";
 import { File } from "../../compiler/types/File";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -44,8 +40,6 @@ function coldCompile(text: string) {
   });
 }
 
-// Compiles `base`, replaces `find` with `replace` through `updateDocument`,
-// and compiles again.
 function incrementalAfterEdit(base: string, find: string, replace: string) {
   const from = base.indexOf(find);
   if (from < 0) throw new Error(`${find} is not in the script`);
@@ -81,35 +75,35 @@ describe("an edit to a const inside a function reads as a cold compile", () => {
   it.each([
     [
       "a local becomes a const with several names",
-      "Go {f()}.\nfunction f()\n  local a = 2\n  return a\nend\n",
+      "scene start\n  Go {f()}.\nend\nfunction f()\n  local a = 2\n  return a\nend\n",
       "local a = 2",
       "const a, b = 2, 3",
       "Go 2.\n",
     ],
     [
       "one function's const changes, the other's stays",
-      "Go {a()} {b()}.\nfunction a()\n  const X = 1\n  return X\nend\nfunction b()\n  const X = 2\n  return X\nend\n",
+      "scene start\n  Go {a()} {b()}.\nend\nfunction a()\n  const X = 1\n  return X\nend\nfunction b()\n  const X = 2\n  return X\nend\n",
       "const X = 1",
       "const X = 5",
       "Go 5 2.\n",
     ],
     [
       "a story const and a function const of one name",
-      "const X = 1\nGo {f()} {X}.\nfunction f()\n  local y = 0\n  return y\nend\n",
+      "const X = 1\nscene start\n  Go {f()} {X}.\nend\nfunction f()\n  local y = 0\n  return y\nend\n",
       "local y = 0",
       "const X = 7\n  local y = X",
       "Go 7 1.\n",
     ],
     [
       "a const moves from the story into a function",
-      "const X = 3\nGo {f()}.\nfunction f()\n  return 4\nend\n",
-      "const X = 3\nGo {f()}.\nfunction f()\n  return 4",
-      "Go {f()}.\nfunction f()\n  const X, Y = 3, 4\n  return X + Y",
+      "const X = 3\nscene start\n  Go {f()}.\nend\nfunction f()\n  return 4\nend\n",
+      "const X = 3\nscene start\n  Go {f()}.\nend\nfunction f()\n  return 4",
+      "scene start\n  Go {f()}.\nend\nfunction f()\n  const X, Y = 3, 4\n  return X + Y",
       "Go 7.\n",
     ],
     [
       "a function around a const is removed",
-      "Go {X}.\nfunction f()\n  const X = 3\nend\n",
+      "scene start\n  Go {X}.\nend\nfunction f()\n  const X = 3\nend\n",
       "function f()\n  const X = 3\nend",
       "const X = 3",
       "Go 3.\n",

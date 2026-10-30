@@ -31,10 +31,9 @@ import type { ProgramRoot } from "./ProgramRoot";
 import { entryParameters } from "./ProgramSave";
 import { ProgramStory } from "./ProgramStory";
 import { flowScopesOf } from "./ProgramStoryState";
-import { SymbolKind, countIdOf } from "./ProgramSymbols";
+import { START_FLOW_NAME, SymbolKind, countIdOf } from "./ProgramSymbols";
 import {
   SEED_KEY,
-  TOP_LEVEL_FLOW,
   formatLiteral,
   isLiteralTable,
   literalTableFields,
@@ -333,7 +332,7 @@ export const carryStoreListing = (
 };
 
 const parametersOf = (root: ProgramRoot, from: string): string[] => {
-  const flow = from === TOP_LEVEL_FLOW ? undefined : root.flowNamed(from);
+  const flow = root.flowNamed(from);
   return (flow ? entryParameters(root, flow) : [])
     .filter((param) => !param.vararg)
     .map((param) => param.name);
@@ -653,6 +652,10 @@ export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
     story.ResetState();
   }
   applyStartValues(story, plan);
+  if (plan.from === START_FLOW_NAME) {
+    story.ChooseStart();
+    return;
+  }
   story.ChoosePathString(
     plan.from,
     true,

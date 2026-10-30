@@ -1,25 +1,9 @@
 @import "tailwindcss";
-/* Tailwind v4 successor to tailwindcss-animate: `animate-in`/`animate-out` plus
-   `fade-*`, `zoom-*`, `slide-in-from-*`, and animation-aware `duration`/`ease`
-   utilities. Drives the Radix dropdown/popover enter+exit (data-state). */
 @import "tw-animate-css";
 @plugin 'tailwind-scrollbar';
 @source ".";
 
-/* ----------------------------------------------------------------------------
- * Tailwind theme tokens.
- *
- * The editor is DARK-ONLY (`<html class="theme-dark">`, `color-scheme: dark`),
- * so colors are defined as flat dark literals directly in `@theme` — no
- * `--theme-color-*` runtime layer and no `.theme-light`/`.theme-dark` switch.
- * If runtime light/dark theming is ever needed, reintroduce the canonical
- * Tailwind v4 pattern: per-theme `--token` vars in `:root`/`.dark` selectors
- * aliased here via `var()` (you can't switch a `@theme` token directly — it's
- * emitted once to `:root` at build time).
- * --------------------------------------------------------------------------*/
-
 @theme {
-  /* Fonts */
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
@@ -29,54 +13,30 @@
     monospace;
   --font-serif: Georgia, "Times New Roman", serif;
 
-  /* Radius (matches Tailwind v4's stock sm/md/lg; kept explicit for intent).
-     Ported components use stock numeric spacing/sizing/duration/z utilities
-     (`p-4`, `size-5`, `duration-150`, `z-50`) — see
-     [[feedback_full_tailwind_token_direction]] — so the old named
-     `--spacing-*`/`--size-*`/`--duration-*`/`--z-index-*` scales were dropped. */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
-  /* Surface colors (dark-only literals). shadcn-style naming
-     (`bg-background`, `text-foreground`) so the utility prefix and color name
-     don't collide visually like `bg-bg`. */
   --color-background: rgb(0 0 0);
   --color-foreground: rgb(255 255 255);
-  --color-surface: rgb(37 37 37); /* neutral-950 */
+  --color-surface: rgb(37 37 37);
   --color-surface-border: rgb(255 255 255 / 0.12);
   --color-divider: rgb(255 255 255 / 0.12);
-  /* Floating-panel surface (dropdowns, popovers, modal cards) — a fixed dark
-     neutral, distinct from `engine-*`. Use `bg-popup`. */
   --color-popup: rgb(18 18 18);
-  /* Tab-active foreground — slightly muted off-white (not pure white) so tab
-     labels read softer than the pure-white header title at large sizes. */
   --color-tab-foreground: rgb(242 242 242);
 
-  /* Opacity variants use Tailwind v4's slash modifier — no opacity ladder:
-       text-foreground/60   →  color-mix(in oklab, var(--color-foreground) 60%, transparent)
-       bg-background/10     →  same pattern for backgrounds */
-
-  /* Engine palette — the deep navy/slate ramp the editor chrome and
-     bottom-nav use. Consolidates sparkle's scattered editor theme tokens
-     (--theme-color-primary-bg, --theme-color-panel, --theme-color-editor-bg,
-     --theme-color-tab-inactive-text, etc.) into one named scale so
-     components can write `bg-engine-800` instead of arbitrary-value
-     lookups. Uses Tailwind v4's stock 50..950 convention. */
   --color-engine-50: hsl(210.6 20% 96%);
   --color-engine-100: hsl(210.6 22% 90%);
   --color-engine-200: hsl(210.6 24% 80%);
   --color-engine-300: hsl(210.6 25% 70%);
   --color-engine-400: hsl(210.6 25% 60%);
-  --color-engine-500: hsl(211 26% 48%);      /* sparkle: tab-inactive-text */
+  --color-engine-500: hsl(211 26% 48%);
   --color-engine-600: hsl(210.7 35% 41%);
-  --color-engine-700: hsl(210.8 44.9% 34.9%); /* sparkle: fab-bg / secondary-bg */
-  --color-engine-800: hsl(210.7 89.1% 18%);  /* sparkle: primary-bg */
-  --color-engine-900: hsl(210.6 100% 10%);   /* sparkle: panel */
-  --color-engine-950: hsl(210.6 100% 7%);    /* sparkle: editor-bg */
+  --color-engine-700: hsl(210.8 44.9% 34.9%);
+  --color-engine-800: hsl(210.7 89.1% 18%);
+  --color-engine-900: hsl(210.6 100% 10%);
+  --color-engine-950: hsl(210.6 100% 7%);
 
-  /* Semantic color aliases — use Tailwind's stock 50..950 palette scale
-     directly. `bg-primary-500` instead of the legacy `bg-primary-60`. */
   --color-primary-50: var(--color-sky-50);
   --color-primary-100: var(--color-sky-100);
   --color-primary-200: var(--color-sky-200);
@@ -130,23 +90,11 @@
   --color-danger: var(--color-red-400);
 }
 
-/* ----------------------------------------------------------------------------
- * Animation keyframes for shimmer-style placeholders.
- * --------------------------------------------------------------------------*/
-
 @keyframes s-sheen {
   0% { background-position-x: 200%; }
   100% { background-position-x: -200%; }
 }
 
-/* Loading-placeholder shimmer (the old `<s-skeleton>` sheen). Drives a
-   4-stop foreground-tinted gradient sliding under the element via the
-   `s-sheen` keyframe. The stops derive from `--color-foreground` at 5% /
-   15% — `color-mix(... transparent)` is the same mechanism Tailwind's
-   `/opacity` modifier uses, so for the editor's pure-white foreground it's
-   bit-identical to the legacy `rgb(255 255 255 / 0.15)` tokens it replaces.
-   Pair with `text-transparent` + a shape (`rounded-full`, sized text) — the
-   consumer just sizes the box; this paints the animated sheen. */
 @utility skeleton-sheen {
   background-image: linear-gradient(
     270deg,
@@ -159,11 +107,6 @@
   animation: s-sheen 8s ease-in-out infinite;
 }
 
-/* Desktop popover open/close (MUI `Grow`): opacity + an asymmetric scale
-   (0.75, 0.5625) from the trigger corner (Radix sets the transform-origin), on
-   MUI's standard easing. Played as a keyframe on Radix's `data-state` — Radix
-   DropdownMenu's Presence handles this fine. (The mobile bottom sheet uses CSS
-   transitions in the Dropdown component instead — see Dropdown.tsx.) */
 @keyframes menu-grow-in {
   from { opacity: 0; transform: scale(0.75, 0.5625); }
   to   { opacity: 1; transform: none; }
@@ -175,19 +118,8 @@
 @utility anim-menu-in  { animation: menu-grow-in 200ms cubic-bezier(0.4, 0, 0.2, 1); }
 @utility anim-menu-out { animation: menu-grow-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 
-/* Mobile bottom sheet (MUI Drawer anchor="bottom"): paper slides up on enter,
-   down on exit; backdrop fades. Played as keyframe ANIMATIONS (not transitions)
-   so they fire reliably on mount / on the open→closed class swap — driven by
-   the Dropdown component's own `open` state, with `forwards` holding the closed
-   frame until useMountTransition unmounts. */
 @keyframes menu-sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes menu-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
 @keyframes menu-fade-in    { from { opacity: 0; } to { opacity: 1; } }
 @keyframes menu-fade-out   { from { opacity: 1; } to { opacity: 0; } }
-
-/* Material-design ripple animation is driven imperatively by the
-   <Ripple /> component via element.animate() (Web Animations API) — see
-   `components/ripple/Ripple.tsx`. The translate + scale interpolation
-   needs runtime pointer coordinates so it doesn't live as a static
-   keyframe here. */
 

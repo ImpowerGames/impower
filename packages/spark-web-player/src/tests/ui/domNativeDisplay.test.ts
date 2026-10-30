@@ -1,15 +1,3 @@
-// The overlay lays every element out as FLEX. That default silently defeats the
-// native layout of the semantic tags: a flex <table>/<tr>/<td> does no table
-// layout (columns stop aligning), a flex <li> renders no marker, and a flex
-// <summary> loses its disclosure triangle. Each builtin therefore has to state
-// its native display explicitly — browser defaults never get a chance to apply.
-//
-// The table case is asserted through COMPUTED style (jsdom implements table
-// display); the rest are asserted on the emitted CSS, because jsdom's cascade
-// does not resolve `list-item` or `inline`. Their visual result was verified in
-// a real browser: table columns align across rows, list markers appear, and the
-// inline elements flow on one line inside `prose`.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -31,7 +19,6 @@ const sheet = (h: any) =>
     .map((s: Element) => s.textContent ?? "")
     .join("\n");
 
-/** The declarations inside one top-level rule block. */
 function ruleBlock(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) return "";
@@ -74,7 +61,6 @@ end
 `),
     );
     expect(ruleBlock(css, ".list")).toContain("display: block;");
-    // A flex <li> renders NO marker; list-item is what draws it.
     expect(ruleBlock(css, ".item")).toContain("display: list-item;");
     expect(ruleBlock(css, ".foldout")).toContain("display: block;");
     expect(ruleBlock(css, ".foldout_label")).toContain(
@@ -82,11 +68,6 @@ end
     );
   });
 
-  // `prose` is a non-flex box. It mattered when inline text elements existed
-  // (CSS blockifies the children of a flex container, so they stacked). Inline
-  // styling is now done with rich-text tags, whose runs are spans inside the
-  // text element's own inline span — but `prose` is still the container for
-  // flowing a real ELEMENT, such as a link, inside running text.
   test("`prose` is a non-flex box so children can flow inline", async () => {
     const h = await render(`layout main with
   box.prose {

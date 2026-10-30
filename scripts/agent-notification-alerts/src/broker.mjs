@@ -15,7 +15,6 @@ import { readDiscordCredentials, startDiscordVoiceWatcher } from './discord-voic
 
 const stateDir = process.env.AGENT_ALERT_STATE_DIR || join(homedir(), '.agent-notification-alerts');
 const hash = createHash('sha256').update(stateDir).digest('hex').slice(0, 20);
-// Linux abstract sockets disappear even after a crash; no stale path to unlink.
 const endpoint = process.platform === 'win32' ? '\\\\.\\pipe\\agent-alerts-' + hash
   : process.platform === 'linux' ? '\0agent-alerts-' + hash
   : join(tmpdir(), 'agent-alerts-' + hash + '.sock');
@@ -76,11 +75,6 @@ export async function runBroker() {
   await mkdir(stateDir, { recursive: true });
   let pending = new PendingAlerts();
   const status = { keyboard: config.keyboard ? 'starting' : 'disabled', speech: config.speech ? 'idle' : 'disabled', shortcuts: 'disabled' };
-  // Discord voice-call detection is entirely optional: without configured
-  // credentials nothing here starts, and no teammate without Discord is
-  // affected. Credentials can arrive after this process has already started
-  // (the desktop app's Discord card saves them at any time), so this is
-  // re-checked on every heartbeat tick rather than only once at startup.
   let discord, discordCredentialSignature;
   const syncDiscordWatcher = async () => {
     if (process.platform !== 'win32') return;
@@ -151,8 +145,6 @@ export async function runBroker() {
       bridge?.stdin.end();
       await discord?.stop();
       if (config.keyboard) await post('stop_game', { game: 'AGENT_NOTIFICATION_ALERTS' }).catch(() => {});
-      // Closing unlinks filesystem sockets on platforms that use them. Respond
-      // before waiting for connected clients to disconnect.
       server.close(() => process.exit(0));
       return { stopped: true, pendingRetained: true };
     }
@@ -161,7 +153,6 @@ export async function runBroker() {
     if (request.type === 'notify') entry = pending.add(request.alert, request.app);
     else acknowledged = pending.acknowledge(request.notificationId, request.app);
     try { await persist(); } catch (error) { pending.entries = previous; throw error; }
-    // Delivery is asynchronous: acknowledging must never wait for speech to finish.
     if (entry && config.speech && !voiceMuted()) {
       speechQueue = speechQueue.then(async () => {
         status.speech = 'speaking';
@@ -189,7 +180,6 @@ export async function runBroker() {
     });
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(endpoint, resolve); });
-  // Only the process that owns the endpoint reads or mutates persistent state.
   try { pending = new PendingAlerts(z.array(entrySchema).parse(JSON.parse(await readFile(stateFile, 'utf8')))); }
   catch (error) { if (error.code !== 'ENOENT') { server.close(); throw error; } }
   if (process.platform === 'win32' && process.env.AGENT_ALERT_PYTHON) {
@@ -212,7 +202,6 @@ export async function runBroker() {
   }
   markReady();
   process.send?.({ type: 'ready' });
-  // Do not accumulate heartbeat jobs while a device is offline.
   const tick = () => { timer = setTimeout(() => enqueue(refresh).finally(tick), 1000); };
   tick();
 }

@@ -2,10 +2,6 @@ import { ScreenplayToken } from "../types/ScreenplayToken";
 
 const MARKERS = ["^", "*", "_", "~~", "::"];
 
-// Body lines under a header mark (`^:`, `RAFFLES:`, …) get this indent
-// so the structure is visually obvious in the reading copy. Action and
-// single-line headers/transitionals aren't bodies under a header so they
-// stay flush-left.
 const INDENT = "  ";
 
 const stripProductionTags = (raw: string): string => {
@@ -111,18 +107,9 @@ const stripProductionTags = (raw: string): string => {
   return out;
 };
 
-// Collapse pitch-stacked emphasis runs to base semantic length.
-// `_` and `^` have base 1; `*` has base 3 (preserve italic/bold/bold-italic).
-// `~~` and `::` are left alone — their pitch semantics on two-char markers
-// aren't confirmed here.
 const collapseEmphasisRuns = (s: string): string =>
   s.replace(/_{2,}/g, "_").replace(/\*{4,}/g, "***").replace(/\^{2,}/g, "^");
 
-// Trim whitespace immediately inside an emphasis run so the markers remain
-// valid delimiters: `** X **` -> `**X**`. Uses a stack-based scanner that
-// tracks active marks (mirroring styleText) so it can tell an opening marker
-// from a closing one — a regex pass cannot, and would incorrectly eat the
-// space after a closing marker (e.g. `5 YEARS AGO:_  A hand` -> `:_A hand`).
 const EMPHASIS_MARKERS_LONG_FIRST = ["***", "**", "~~", "::", "*", "_", "^"];
 const trimInsideEmphasis = (line: string): string => {
   let out = "";
@@ -186,9 +173,6 @@ const trimInsideEmphasis = (line: string): string => {
   return out;
 };
 
-// The parser already strips source-structural indent from token text;
-// leading whitespace we see is intentional (display indent from `\    `
-// escapes). Middle and trailing whitespace is preserved by design.
 const cleanLine = (line: string): string =>
   trimInsideEmphasis(collapseEmphasisRuns(stripProductionTags(line)));
 

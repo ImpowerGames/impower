@@ -1,1 +1,3 @@
-N: Do you see it?
+scene start
+  N: Do you see it?
+end

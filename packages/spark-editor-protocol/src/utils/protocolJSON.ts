@@ -1,4 +1,3 @@
-/** JSON encoding for protocol messages whose existing fields carry binary data. */
 export function stringifyProtocolJSON(value: unknown): string {
   return JSON.stringify(value, (_key, item) => {
     if (!(item instanceof ArrayBuffer)) return item;

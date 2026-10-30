@@ -1,3 +1,5 @@
-if false then
-  {"beep"}
+scene start
+  if false then
+    {"beep"}
+  end
 end

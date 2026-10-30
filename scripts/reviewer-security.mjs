@@ -6,16 +6,9 @@ import {fileURLToPath} from 'node:url';
 import {checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 import {systemTemp} from '../.agents/skills/drive-web-editor/worktree-temp.mjs';
 
-// The native Codex route's sandbox guarantees were first observed on this
-// build. Later releases are accepted; the doctor check below still requires
-// complete elevated provisioning on whatever build is installed.
 export const minimumCodexVersion='0.154.0';
-// The full-access route depends on user-level hooks.json loading under
-// --ignore-user-config with --dangerously-bypass-hook-trust, first observed here.
 export const minimumFullAccessCodexVersion='0.159.0';
 
-// A plain release version at or above the minimum. Prereleases are refused,
-// since a prerelease of the minimum predates the build that was observed.
 export function isSupportedCodexVersion(version,minimumVersion=minimumCodexVersion) {
   const parse=value=>/^(\d+)\.(\d+)\.(\d+)$/.exec(String(value??'').trim())?.slice(1).map(Number);
   const actual=parse(version),minimum=parse(minimumVersion);
@@ -39,17 +32,12 @@ export function validateCodexSandboxStorage(permission,privateDirectory,worktree
   return sourceHome;
 }
 
-// A native Codex step either runs in the elevated sandbox or, selected by
-// `--sandbox danger-full-access`, as the user under the repository hooks.
 export function codexReviewMode(step) {
   const args=step?.args??[];
   for(let index=1;index<args.length-1;index++)if(['--sandbox','-s'].includes(args[index])&&args[index+1]==='danger-full-access')return 'full-access';
   return 'sandboxed';
 }
 
-// A container has no Codex home on disk, so it receives the contents of
-// auth.json as an environment secret instead. The plan names only the variable;
-// its value is never echoed, not even in a parse error.
 const codexAuthVariable=/^[A-Z][A-Z0-9_]{0,63}$/;
 export function readCodexAuthSecret(permission,source=process.env) {
   const name=permission?.codexAuthEnv;
@@ -60,23 +48,14 @@ export function readCodexAuthSecret(permission,source=process.env) {
   let parsed;try{parsed=JSON.parse(value);}catch{parsed=undefined;}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error(`Codex authentication secret ${name} must hold the JSON object from auth.json`);
   if(permission.codexAuthProxied!==true)return Buffer.from(value);
-  // The proxy adds the real token, so the variable holds only a template, and
-  // a fresh refresh time keeps Codex from trying to refresh the placeholders.
   checkProxyAuthTemplate(parsed);
   return Buffer.from(JSON.stringify({...parsed,last_refresh:new Date().toISOString()}));
 }
 
-// The secret route's home is a fresh directory under the system temporary
-// directory, outside the retained job directory; the whole of it goes once the
-// reviewer's exit is confirmed (or its launch is refused), so neither the
-// authentication copy nor the session state Codex wrote beside it outlives the
-// reviewer in the container. Only a home this launcher created is removed.
 const secretHomePrefix='impower-codex-home-';
 export function removeSecretCodexHome(home) {
   const resolved=typeof home==='string'?path.resolve(home):'';
   const name=path.basename(resolved);
-  // Canonicalize both sides: Windows reports the temporary directory by its
-  // 8.3 short name, which only matches its long name after realpath.
   let parent='';
   try {parent=resolved?fs.realpathSync.native(path.dirname(resolved)):'';} catch {parent='';}
   if(!resolved||!parent||parent!==fs.realpathSync.native(systemTemp())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
@@ -87,7 +66,6 @@ export function discardCodexAuthCopy(step,env) {
   removeSecretCodexHome(env.CODEX_HOME);
 }
 
-// The full-access route copies only the authentication file into its fresh home.
 export function validateCodexAuthHome(permission,worktree) {
   if(!path.isAbsolute(permission?.codexHome??''))throw new Error('Existing Codex home with auth.json required as step permissions.codexHome');
   const sourceHome=fs.realpathSync.native(permission.codexHome);
@@ -97,20 +75,10 @@ export function validateCodexAuthHome(permission,worktree) {
   return sourceHome;
 }
 
-// The shared hook entry point of the checkout running this launcher. Run from
-// the reviewed worktree, that is the reviewed head's policy, which is no less
-// trusted than the launcher code the same checkout already supplies.
 export const reviewerHookEntry=path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))),'.agents','hooks','pre-tool-use.mjs');
 
-// Codex loads $CODEX_HOME/hooks.json even with --ignore-user-config, and the
-// reviewer's working directory is outside any checkout, so project hooks never
-// apply. A hook command that fails without exit 2 lets the tool call through,
-// so every failure of the wrapper is converted to exit 2.
 export function installReviewerHooks(home,{node=process.execPath,entry=reviewerHookEntry}={}) {
   if(!fs.statSync(entry,{throwIfNoEntry:false})?.isFile())throw new Error(`Repository hook entry point missing at ${entry}; reviewer not launched`);
-  // Single-quoted literals: neither shell expands `$` inside them, so a path
-  // holding `$name` cannot resolve to a different policy file. PowerShell also
-  // ends a literal at the typographic single quotes, so those are doubled too.
   const posix=value=>"'"+value.replaceAll("'","'\"'\"'")+"'",powershell=value=>"'"+value.replace(/['‘’‚‛]/g,'$&$&')+"'";
   const hook={type:'command',timeout:10,
     command:`${posix(node)} ${posix(entry)} codex || { printf "%s\\n" "Repository hook: Node policy check failed." >&2; exit 2; }`,
@@ -120,7 +88,6 @@ export function installReviewerHooks(home,{node=process.execPath,entry=reviewerH
   return file;
 }
 
-// A secret's home written before a later refusal is removed with the refusal.
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,options={}) {
   const secrets=[];
   try{return buildNativeReviewerEnvironment(step,privateDirectory,source,options,secrets);}
@@ -130,16 +97,12 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
 function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},secrets) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
-  // Every Vitest run the reviewer makes queues in the reviewer pool of the
-  // test reservation (scripts/test-suite-process.mjs, runPool).
   env.IMPOWER_TEST_POOL='reviewer';
   const codexReview=step.nativeResult==='codex-jsonl'||(step.model?.startsWith('gpt-')&&step.args?.[0]==='exec');
   if(!codexReview)return env;
   if(step.nativeResult==='codex-jsonl'&&codexReviewMode(step)==='full-access') {
     const secret=step.permissions?.codexAuthEnv!==undefined;
     const auth=secret?readCodexAuthSecret(step.permissions,source):fs.readFileSync(path.join(validateCodexAuthHome(step.permissions,worktree),'auth.json'));
-    // The secret's home lies outside the job directory, which is retained as
-    // review evidence after the reviewer exits.
     const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(systemTemp(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
     protectPrivatePath(home);
     if(secret)secrets.push(home);
@@ -171,13 +134,8 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
     if(!isSupportedCodexVersion(report.codexVersion)||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   }
   for(const key of Object.keys(env))if(/^GH_|^GITHUB_TOKEN$/i.test(key))delete env[key];
-  // A reviewer whose report the coordinator posts receives no GitHub access.
   if(reportPosting==='coordinator')return env;
-  // Codex review environments receive report access in memory; never copy its
-  // configuration or token to disk.
   let token;
-  // The helper reads the user's GitHub login from the source environment, but
-  // never the Codex secret the source carries for the authentication file.
   const helperSource={...source};
   if(step.permissions?.codexAuthEnv!==undefined)delete helperSource[step.permissions.codexAuthEnv];
   try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:helperSource,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
@@ -188,8 +146,6 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
   return env;
 }
 
-// Windows packaged hosts can expose logical paths that native sandbox children
-// cannot resolve. Preserve the validated directory identity, using its physical path.
 export function nativeCodexArgs(step,writable) {
   const root=fs.realpathSync.native(step.permissions.cwd),args=[...step.args];
   for(let index=1;index<args.length-1;index++) {
@@ -205,7 +161,6 @@ export function nativeCodexArgs(step,writable) {
   return [...args.slice(0,-1),'--add-dir',fs.realpathSync.native(writable),args.at(-1)];
 }
 
-// Protect before writing a bearer token. POSIX mode is not a Windows ACL.
 export function protectPrivatePath(file,{verifyOnly=false}={}) {
   if(process.platform!=='win32') {
     if(!verifyOnly)fs.chmodSync(file,fs.statSync(file).isDirectory()?0o700:0o600);

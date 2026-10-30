@@ -1,20 +1,3 @@
-// `//` line comments are sparkdown's end-of-line comment form for DISPLAY
-// (non-Luau) contexts. Luau `--` comments are NOT allowed outside Luau bodies
-// (the script uses `--` for em-dashes and `---` for front-matter), so `//`
-// fills that gap for scene/dialogue text.
-//
-// A comment marker is `//` FOLLOWED BY whitespace or end-of-line (mirroring
-// the `#` tag convention). This keeps a URL like `http://x` — where a host
-// char follows `//` — from reading as a comment.
-//
-// Behaviors guarded here:
-//   1. A whole-line `// ` comment (only indent before it) is removed AND its
-//      trailing newline is swallowed, so the line vanishes cleanly.
-//   2. An end-of-line `// ` comment with text before it removes the comment
-//      but KEEPS the newline, so the following line does not merge up.
-//   3. `//` NOT followed by whitespace (e.g. `http://x`) stays as display
-//      text — it is not a comment.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -54,9 +37,7 @@ const run = (compiled: any): string => {
 
 describe("`//` display line comments", () => {
   test("whole-line `//` comments are removed (scene + dialogue), newline swallowed", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   // a whole-line scene comment
   Action line one.
   RAFFLES
@@ -74,14 +55,11 @@ end
     expect(out).toContain("Action line one.");
     expect(out).toContain("Real dialogue.");
     expect(out).toContain("Action line two.");
-    // No blank line left where the comment was removed.
     expect(out).not.toContain("\n\nReal dialogue.");
   });
 
   test("end-of-line `//` comment is stripped but the newline is preserved", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   Action before. // trailing note
   Action after.
   done
@@ -93,15 +71,12 @@ end
     expect(out).not.toContain("trailing note");
     expect(out).toContain("Action before.");
     expect(out).toContain("Action after.");
-    // The two lines must stay separate — the newline before the comment is kept.
     expect(out).not.toContain("Action before.Action after.");
     expect(out).not.toContain("Action before. Action after.");
   });
 
   test("`//` not followed by whitespace (a URL) is NOT a comment", () => {
-    const SRC = `-> main
-
-scene main
+    const SRC = `scene start
   Visit http://example.com today.
   done
 end
@@ -109,7 +84,6 @@ end
     const { result, errors } = compile(SRC);
     expect(errors).toBe(0);
     const out = run(result.program.chunks);
-    // The whole URL survives — `//` inside it is not a comment.
     expect(out).toContain("http://example.com");
     expect(out).toContain("Visit http://example.com today.");
   });

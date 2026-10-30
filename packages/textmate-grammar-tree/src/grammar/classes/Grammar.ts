@@ -11,52 +11,24 @@ import { GrammarRepository } from "./GrammarRepository";
 import { GrammarState } from "./GrammarState";
 
 export class Grammar {
-  /**
-   * The definition used to create this grammar.
-   */
   public definition: GrammarDefinition;
 
-  /**
-   * Used to declare additional props when creating a new {@link GrammarNode}.
-   */
   declarator?: (
     typeIndex: number,
     typeId: string,
     def: RuleDefinition,
   ) => Record<string, any>;
 
-  /**
-   * {@link GrammarRepository} of rules and nodes used by this grammar.
-   */
   declare repository: GrammarRepository;
 
-  /**
-   * The root {@link Rule}s to begin tokenizing with.
-   */
   declare rules: Rule[];
 
-  /**
-   * All {@link GrammarNode}s in this grammar, ordered by type index
-   */
   declare nodes: GrammarNode[];
 
-  /**
-   * Names of all {@link GrammarNode}s in this grammar, ordered by type index
-   */
   declare nodeNames: string[];
 
   constructor(
-    /**
-     * The definition used to create this grammar.
-     */
     definition: GrammarDefinition,
-    /**
-     * Used to declare additional props when creating a new {@link GrammarNode}.
-     *
-     * If you have data that you'd like to associate with a grammar node
-     * and that data cannot be statically declared in the {@link GrammarDefinition},
-     * you can use this method to attach the data to the node at runtime.
-     */
     declarator?: (
       typeIndex: number,
       typeId: string,
@@ -66,7 +38,6 @@ export class Grammar {
     this.definition = definition;
     this.declarator = declarator;
 
-    // Populate repository
     this.repository = new GrammarRepository(this);
     if (definition?.repository) {
       for (const name in definition.repository) {
@@ -77,16 +48,12 @@ export class Grammar {
       }
     }
 
-    // Populate rules
     if (definition?.patterns) {
       this.rules = this.repository.getRules(definition.patterns, "");
     }
 
-    // Resolve every pattern list now, so rules written inline in them have
-    // their nodes in the node set below.
     this.repository.resolveAll();
 
-    // Cache ordered Nodes
     const noneNode = new GrammarNode(
       NodeID.none,
       { id: "none" },
@@ -119,15 +86,6 @@ export class Grammar {
     this.nodeNames = this.nodes.map((n) => n.typeId);
   }
 
-  /**
-   * Runs a match against a string (starting from a given position).
-   *
-   * @param state - The {@link GrammarState} to run the match with.
-   * @param str - The string to match.
-   * @param relativePos - The position to start matching at relative to the start of the provided str.
-   * @param absolutePos - The position to start matching at relative to the start of the document.
-   *   `from` position.
-   */
   match(
     str: string,
     next: (pos: number) => string,

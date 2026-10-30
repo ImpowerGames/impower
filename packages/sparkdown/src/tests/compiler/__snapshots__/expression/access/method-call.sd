@@ -1,1 +1,3 @@
-obj:greet("hi")
+scene start
+  obj:greet("hi")
+end

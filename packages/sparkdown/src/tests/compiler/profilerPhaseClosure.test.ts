@@ -6,11 +6,6 @@ const perf = globalThis.performance;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Entries are cleared as soon as they are emitted (#321), so the buffer cannot
-// be read back — an observer is the only way to see what was measured.
-// Observer delivery is asynchronous and the callback can be delayed well past
-// a fixed sleep when the suite runs under load, so wait for the entries rather
-// than for the clock.
 const observeMeasures = async (
   run: () => void | Promise<void>,
   minCount = 1,
@@ -87,19 +82,14 @@ describe("compiler profiler phases close on every exit path", () => {
     }
   });
 
-  // `compile` catches a mid-parse throw, logs it and keeps serving, so the
-  // trailing `profile("end", …)` was never reached and the compile that failed
-  // — the one worth looking at — contributed no measurement at all.
   it("emits an ink/parse measure even when parsing throws", async () => {
     try {
       const compiler = newCompiler();
-      // Stub after configure(), which parses once itself.
       (compiler as unknown as Record<string, unknown>)["parseIncrementally"] =
         () => {
           throw new Error("boom");
         };
       const seen = await observeMeasures(() => {
-        // The compiler swallows the throw by design; this must not reject.
         compiler.compile({ textDocument: { uri: URI } });
       });
       expect(seen.some((name) => name.includes("ink/parse"))).toBe(true);
@@ -108,9 +98,6 @@ describe("compiler profiler phases close on every exit path", () => {
     }
   });
 
-  // `ink/parse` is only the first of the phases under that same swallowing
-  // catch. A throw in a later one has to close its phase too: here
-  // `program/chunks`, which `maybeReseedBinaryTable` runs inside.
   it("emits a measure for a later phase when that phase throws", async () => {
     try {
       const compiler = newCompiler();

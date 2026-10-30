@@ -7,11 +7,6 @@ import { compileSource, formatLoweredEntry } from "./compileSnapshot";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOTS_DIR = join(__dirname, "__snapshots__/compile");
 
-// Fixtures live as `.sd` source files inside `__snapshots__/compile/<category>/`
-// and are paired with `<name>.snap` snapshots in the same folder. Adding a
-// fixture is as simple as dropping a new `.sd` file in the appropriate
-// category folder — no JS array maintenance.
-
 interface Fixture {
   category: string;
   name: string;

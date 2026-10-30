@@ -1,9 +1,3 @@
-// `pcall` and `xpcall` — protected call. The protected-call trap
-// (`story.CallLuauFunctionProtected`) catches StoryExceptions and
-// runtime errors added to `state.currentErrors` during the inner
-// call, returning them as `(false, msg)` instead of letting them
-// abort the story.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -46,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("pcall — success path", () => {
   test("returns (true, ...returns) when the call succeeds", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, result = pcall(function() return 42 end)
@@ -61,8 +57,10 @@ end
 
   test("passes args through to the callee", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, sum = pcall(function(a, b) return a + b end, 10, 32)
@@ -76,8 +74,10 @@ end
 
   test("accepts bare-named function targets", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(n)
 return n * 2
@@ -97,8 +97,10 @@ end
 describe("pcall — failure path", () => {
   test("traps a story.Error and returns (false, msg)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, err = pcall(function()
@@ -115,21 +117,24 @@ end
 
   test("does not surface trapped errors to the host", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 pcall(function() assert(false, "should be swallowed") end)
 end
 `);
-    // No errors should escape — host's onError stays empty.
     expect(errors).toEqual([]);
   });
 
   test("execution continues after a trapped error", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 pcall(function() assert(false, "boom") end)
@@ -144,8 +149,10 @@ end
 describe("xpcall — message handler", () => {
   test("calls msgh with the error and returns (false, msgh(err))", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, msg = xpcall(
@@ -163,8 +170,10 @@ end
 
   test("success path bypasses the handler", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, result = xpcall(

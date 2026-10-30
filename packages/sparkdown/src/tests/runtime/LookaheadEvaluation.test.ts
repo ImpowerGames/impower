@@ -1,12 +1,10 @@
-// A continue returns at the newline that ends its line, so each display
-// line's argument is evaluated once, by the continue that shows it. A host
-// function called from an interpolation is how an author sees that.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function countingStory(source: string) {
-  const ctx = makeRuntimeStoryFromSource(`external tick()\n${source}`);
+  const ctx = makeRuntimeStoryFromSource(
+    `external tick()\n\nscene start\n${source.replace(/^(?=.)/gm, "  ")}end\n`,
+  );
   expect(ctx.errorMessages).toEqual([]);
   let calls = 0;
   ctx.story.BindExternalFunction("tick", () => ++calls);

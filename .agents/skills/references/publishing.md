@@ -50,6 +50,23 @@ Keep every heading, write "None", "Unknown", or "Not applicable" with a short re
 
 A pull request that resolves an issue must carry a closing reference in its body (the template's line under Summary): `Closes #N` while the cutover switch is off, and `Closes <tickets>#N` once it is on, since a bare `#N` in the code repository then names a pull request. GitHub closes the issue on merge only when a closing keyword and the reference appear together in the body; the issue number in the title is a mention and closes nothing. The "Check Linked Issue" workflow reads the switch and fails any pull request whose body has neither a closing reference (once the switch is on, at least one to the tickets repository; a bare `#N` passes only beside one) nor the sentence "No linked issue."; the check is `.github/scripts/check-linked-issue.mjs`, runnable locally with `PR_BODY="$(cat pr-body.md)" node .github/scripts/check-linked-issue.mjs`.
 
+## Place a filed ticket
+
+A Bug or Task is fully filed only when it has a parent whose Scope covers it, carries that parent's milestone, and both are read back from the tracker. Every filing route finishes this step before it reports the ticket filed; a reused open issue that already has a parent keeps it. Pick the parent from the tracker: the Feature or umbrella that owns the area, or the standing umbrellas for tooling defects (#1243), tooling maintenance (#1259), missing checks (#1260) and skill-process feedback (`<inbox>`). An orchestrate-issues coordinator that files or triages during its run places the ticket through its [triage](../orchestrate-issues/references/writer-reports.md#tickets-filed-during-the-run), which ends in the same read-back.
+
+```sh
+gh api repos/<tickets>/issues/<N> --jq .id                                                # the database id, not the #number
+gh api -X POST repos/<tickets>/issues/<parent>/sub_issues -F sub_issue_id=<id>          # attach
+gh api repos/<tickets>/issues/<parent> --jq .milestone.number                            # the parent's milestone
+gh api -X PATCH repos/<tickets>/issues/<N> -F milestone=<number>                         # copy it
+gh api repos/<tickets>/issues/<N>/parent --jq .number                                    # read back the parent
+gh api repos/<tickets>/issues/<N> --jq .milestone.number                                 # read back the milestone
+```
+
+The parent read-back answers `No parent issue found (HTTP 404)` when the attach did not land. Then append a line to the parent's Scope, `Added on <date> from <where it was found>: #<N> (<summary>)`, through an editor-authored body file, and read the parent's body back. A parent with no milestone gives none to copy; say so in the report. When no open issue's Scope covers the ticket, a closed umbrella whose Scope fits is reopened with a comment naming the ticket and used; when none exists, report the ticket as filed without a parent and name the missing placement for the maintainer rather than claiming it fully filed.
+
+A root Feature filed by `file-feature` has no parent: it needs a milestone, set with the same PATCH call and read back, and the maintainer adds it to the project board because the `gh` token cannot. Project membership follows the parent link, so a sub-issue never has a project field written for it.
+
 ## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
 
 Allocate a private attempt directory before authoring publication files. Resolve-issue writers use its [initial allocator](../resolve-issue/SKILL.md#0-preflight) and returned absolute `commitMessage` and `prBody` paths, including for the first commit and draft PR before a PR number exists. Other filing routes use their own exclusive per-agent allocation. A coordinating session's scratch directory may be shared by subagents; generic example names below belong inside the allocated directory. Each retry gets a fresh directory, including retries for the same issue. Logs, reproductions and image attachments use that same private directory.

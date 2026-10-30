@@ -1,6 +1,3 @@
-// What the deletion guards share (`objectEngineGone.test.ts`,
-// `inkListGone.test.ts`): the source files a scan reads, and a repository of
-// a test's own to hold a scan to.
 import {
   existsSync,
   mkdirSync,
@@ -13,8 +10,6 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-/** Every `.ts`, `.mts`, `.js` and `.mjs` file under `dir`, at any depth,
- *  outside `node_modules`, declaration files aside. */
 export const sourcesUnder = (dir: string): string[] =>
   existsSync(dir)
     ? readdirSync(dir).flatMap((name) => {
@@ -25,9 +20,6 @@ export const sourcesUnder = (dir: string): string[] =>
       })
     : [];
 
-/** What `scan` finds in a repository written to a temporary directory with
- *  `files` (each path relative to the repository), which is removed
- *  afterwards. */
 export const scanOf = <T>(
   prefix: string,
   files: Record<string, string>,

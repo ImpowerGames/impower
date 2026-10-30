@@ -17,27 +17,16 @@ import type { LowerContext } from "../context";
 import { buildDisplayCall } from "./displayCall";
 import { divertPartIdentifier, lowerDivertPath } from "./lowerDivertPath";
 
-// Each set also holds its rules' `LuauSparkdownExplicit` counterparts.
 const CALL_NAMES = nodeNameSet(["LuauFunctionCall"]);
 const PARAMETER_NAMES = nodeNameSet([
   "DivertArguments",
   "LuauFunctionCallParameters",
 ]);
 
-/** The nodes a begin/content/end node holds (`containerValueNodes`), less
- *  any that hold no text. */
 function contentChildren(node: SyntaxNode): SyntaxNode[] {
   return containerValueNodes(node).filter((child) => child.to > child.from);
 }
 
-/** What a `DivertTarget` names and passes, read from its own children so
- *  that a call or a divert path inside an argument (`-> a.b(f(x), -> c)`)
- *  is never taken for the target's. A relative call (`-> b(x)`) is a
- *  `LuauFunctionCall`; a dotted one (`-> a.b(x)`) is a `DivertPath`
- *  followed by its argument list. `extra` is whatever follows the one
- *  argument list the divert passes: a second list (`-> a.b(x)(y)`), a
- *  call's string or table argument (`-> b"x"`), or a path after a call
- *  (`-> b(x).c`). */
 function readDivertTarget(targetNode: SyntaxNode): {
   nameNode: SyntaxNode | null;
   pathNode: SyntaxNode | null;
@@ -80,9 +69,6 @@ function readDivertTarget(targetNode: SyntaxNode): {
   return { nameNode, pathNode, params, extra };
 }
 
-/** Lower an argument list's expressions, grouping the nodes between
- *  commas into one argument each. Mirrors how function-call arguments are
- *  lowered elsewhere (e.g. `lowerTable`). */
 function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression[] {
   const args: Expression[] = [];
   const content = getDescendent(
@@ -105,8 +91,6 @@ function lowerDivertArguments(params: SyntaxNode, ctx: LowerContext): Expression
     if (arg.name === "LuauCommaSeparator") {
       flush();
     } else if (arg.name === "DivertArgumentsUnknown") {
-      // A run of characters no argument rule reads (`(1; 2)`) is reported
-      // once and ends the argument before it.
       flush();
       const from = arg.from;
       while (arg.nextSibling?.name === "DivertArgumentsUnknown") {
@@ -147,14 +131,10 @@ function reportTargetError(
   });
 }
 
-/** Where an argument list's text starts: its `(`, after any space its
- *  `DivertArguments` begin took. */
 function argumentListStart(params: SyntaxNode): number {
   return getDescendent("PunctuationParenOpen", params)?.from ?? params.from;
 }
 
-/** Report the text a divert target holds after the one argument list it
- *  passes, which the divert would otherwise drop without a word. */
 function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
   if (extra.length === 0) {
     return;
@@ -175,8 +155,6 @@ function reportExtraTargetText(extra: SyntaxNode[], ctx: LowerContext): void {
   );
 }
 
-// Lower a `DivertTarget`, relative (`-> X(arg)`) or dotted
-// (`-> X.Y(arg)`). Returns the path identifiers and any lowered args.
 function lowerTargetWithArgs(
   targetNode: SyntaxNode,
   ctx: LowerContext,
@@ -197,18 +175,6 @@ export interface BuildDivertOptions {
 
 export type DivertLike = Divert | TunnelOnwards;
 
-/**
- * The `load` keyword on an arrow (`-> load X`, `-> load X ->`, `<- load X`)
- * makes the story preload X's scene (and world) behind the loading layout
- * before following the arrow. It lowers to the `[[load X]]` directive on its
- * own line ahead of the arrow's objects, so the runtime treats every spelling
- * alike: a load beat, then the divert.
- *
- * Returns the objects with the directive prepended, or the objects unchanged
- * when the arrow carries no `load`. A tunnel-onwards or a multi-target chain
- * with `load` is left to the caller to diagnose; the directive still lowers so
- * the author's intent survives.
- */
 export function withDivertLoad(
   divertNode: SyntaxNode,
   objects: DivertLike[],
@@ -223,12 +189,7 @@ export function withDivertLoad(
   if (!name) {
     return objects;
   }
-  // An arrow that shares its line with display text (a choice, a mid-line
-  // divert) ends that line first, so the load runs as its own beat rather
-  // than opening the loading layout over the line before it.
   const lead = options.ownLine === false ? [new Text("\n")] : [];
-  // The directive is the text of its own `display({ text })` call on the
-  // default target, whose closing newline ends its step.
   const directive = buildDisplayCall(
     undefined,
     undefined,
@@ -239,9 +200,6 @@ export function withDivertLoad(
   return [...lead, directive, ...objects];
 }
 
-/** Why a `load` on this arrow cannot mean what it says, or null when it can.
- *  `load` applies to the first target of a divert, a tunnel call, or a
- *  thread; a tunnel-onwards has no target to load, and a chain has several. */
 export function divertLoadShapeProblem(divertNode: SyntaxNode): string | null {
   if (!getDescendent("DivertLoadKeyword", divertNode)) {
     return null;
@@ -255,8 +213,6 @@ export function divertLoadShapeProblem(divertNode: SyntaxNode): string | null {
   return null;
 }
 
-/** The flow a `load` arrow names: the first component of its target path
- *  (`-> load Chapter2.intro` loads Chapter2), or a called flow's name. */
 function loadTargetName(targetNode: SyntaxNode, ctx: LowerContext): string {
   const { nameNode, pathNode } = readDivertTarget(targetNode);
   if (nameNode) {
@@ -266,35 +222,11 @@ function loadTargetName(targetNode: SyntaxNode, ctx: LowerContext): string {
   return first ? ctx.read(first.from, first.to) : "";
 }
 
-// Lowers a `Divert` syntax node into one or more ParsedObjects.
-// Supports all of ink's divert/tunnel shapes:
-//
-//   `-> X`              → [ Divert(X) ]
-//   `-> X ->`           → [ Divert(X, isTunnel=true) ]
-//   `-> X -> Y`         → [ Divert(X, isTunnel=true), Divert(Y) ]
-//   `-> X -> Y ->`      → [ Divert(X, isTunnel=true), Divert(Y, isTunnel=true) ]
-//   `-> X -> Y -> Z`    → [ Divert(X, isTunnel=true), Divert(Y, isTunnel=true), Divert(Z) ]
-//   `->->`              → [ TunnelOnwards() ]
-//   `->-> X`            → [ TunnelOnwards(divertAfter=Divert(X)) ]
-//   `-> X ->->`         → [ Divert(X, isTunnel=true), TunnelOnwards() ]
-//
-// Multi-target tunnels are chains of tunnel calls. Each non-final
-// target is a tunnel (pushes a return frame), and the final target is
-// either a tunnel (if there's a trailing `->`) or a plain divert. The
-// runtime executes the diverts sequentially: each tunnel pushes a
-// frame, the callee's `->->` pops it and continues with the next
-// sibling, and so on. Mirrors upstream inkjs ink-parsing behavior.
-//
-// Returns an empty array if no valid form was found.
 export function buildDivert(
   divertNode: SyntaxNode,
   ctx: LowerContext,
   options: BuildDivertOptions = {},
 ): DivertLike[] {
-  // Tunnel-onwards form: the grammar's Divert begin captures `->->` as
-  // a `TunnelMark` (vs the single-arrow `DivertMark`). Optional
-  // trailing `DivertTarget` becomes `divertAfter` and may carry args
-  // (`->-> X(5)`).
   if (getDescendent("TunnelMark", divertNode) && !options.isThread) {
     const onwards = new TunnelOnwards();
     const afterTarget = getDescendent("DivertTarget", divertNode);
@@ -307,7 +239,6 @@ export function buildDivert(
     return [onwards];
   }
 
-  // Threads (`<- X`) — single-target only; no tunnel chaining.
   if (options.isThread) {
     const target = getDescendent("DivertTarget", divertNode);
     if (!target) return [];
@@ -318,15 +249,6 @@ export function buildDivert(
     return [divert];
   }
 
-  // Collect the chain of targets plus the count of trailing `->`
-  // arrows after the last target. The chain shape determines how
-  // each target is lowered:
-  //   targets=[X], trailing=0 → [Divert(X)]
-  //   targets=[X], trailing=1 → [Divert(X, isTunnel=true)]
-  //   targets=[X], trailing=2 → [Divert(X, isTunnel=true), TunnelOnwards()]
-  //   targets=[X,Y], trailing=0 → [Divert(X, isTunnel=true), Divert(Y)]
-  //   targets=[X,Y], trailing=1 → [Divert(X, isTunnel=true), Divert(Y, isTunnel=true)]
-  //   targets=[X,Y], trailing=2 → [Divert(X, …), Divert(Y, …), TunnelOnwards()]
   const chain = collectDivertChain(divertNode);
   if (chain.targets.length === 0) {
     return [];
@@ -338,18 +260,12 @@ export function buildDivert(
     const { path, args } = lowerTargetWithArgs(target, ctx);
     if (path.length === 0) continue;
     const divert = new Divert(path, args);
-    // A non-final target is always a tunnel (control returns here to
-    // proceed to the next target). The final target is a tunnel iff
-    // there's at least one trailing arrow.
     const isLastTarget = i === chain.targets.length - 1;
     if (!isLastTarget || chain.trailingArrows >= 1) {
       divert.isTunnel = true;
     }
     results.push(divert);
   }
-  // Two trailing arrows means the line ends with `->->` after the
-  // last tunnel call — emit a `TunnelOnwards` so the runtime pops the
-  // outer caller's frame too after the last target returns.
   if (chain.trailingArrows >= 2) {
     results.push(new TunnelOnwards());
   }
@@ -358,21 +274,9 @@ export function buildDivert(
 
 interface DivertChain {
   targets: SyntaxNode[];
-  // Number of trailing `->` arrows after the last target. The grammar
-  // captures each `->` as a separate (possibly target-less) Tunnel
-  // node, so a `->->` after `X` shows up as two nested target-less
-  // Tunnels. The counts that matter:
-  //   0: plain divert (no trailing arrow)
-  //   1: tunnel call (single trailing arrow)
-  //   2: tunnel call + tunnel-onwards (`->->` after the last target)
   trailingArrows: number;
 }
 
-// Walks the Divert / nested-Tunnel chain in source order, collecting
-// each `DivertTarget` node encountered, then counts how many further
-// target-less Tunnels follow as trailing arrows. Resets the count to
-// zero whenever a new target is encountered — those earlier arrows
-// were internal (between targets), not trailing.
 function collectDivertChain(divertNode: SyntaxNode): DivertChain {
   const targets: SyntaxNode[] = [];
   let trailingArrows = 0;
@@ -384,12 +288,9 @@ function collectDivertChain(divertNode: SyntaxNode): DivertChain {
       targets.push(target);
       trailingArrows = 0;
     } else if (pastInitialMark) {
-      // A nested Tunnel with no DivertTarget after the initial
-      // Divert mark — this is a trailing arrow.
       trailingArrows++;
     }
     pastInitialMark = true;
-    // An alternator arm's divert chains `ArmTunnel` nodes instead.
     const nextTunnel: SyntaxNode | null =
       directChild(cursor, "Tunnel") ?? directChild(cursor, "ArmTunnel");
     if (!nextTunnel) break;
@@ -399,9 +300,6 @@ function collectDivertChain(divertNode: SyntaxNode): DivertChain {
 }
 
 function directChild(parent: SyntaxNode, name: string): SyntaxNode | null {
-  // Search through `_content` wrappers (begin/content/end shape) and
-  // direct children. The Divert and Tunnel rules' DivertTarget /
-  // Tunnel children live in their `_content` wrapper.
   const contentName = `${parent.name}_content`;
   let scan = parent.firstChild;
   while (scan) {

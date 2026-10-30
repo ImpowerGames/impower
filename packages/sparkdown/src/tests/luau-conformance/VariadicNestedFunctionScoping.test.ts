@@ -1,17 +1,3 @@
-// A function declared with `...` inside another function is a closure
-// assigned to the variable its name resolves to, as a function without
-// `...` is (`lowerNestedNamedFunction`, I-1422). Before I-1360 it lowered as
-// a subflow registered by name in lexical order, whose calls passed the
-// locals it closes over as pointers named where the call was written. These
-// cases hold it to Luau's scoping:
-//
-// - a closure written before the function statement calls the function once
-//   the statement has run (I-1360);
-// - a multiple assignment over the function's name rebinds it, as a single
-//   one does (I-1355);
-// - a call passes the locals the function closes over, not the caller's
-//   locals or parameters of the same names (I-1361).
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -38,7 +24,9 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  end",
       "  return bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 10.\n", errors: [] });
   });
@@ -57,15 +45,14 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  bar(2)",
       "  return base",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 13.\n", errors: [] });
   });
 
   test("a call before the statement runs fails as Luau's does", () => {
-    // `foo` is a declared local of `run`, which the statement assigns, so
-    // the call reads a nil local. The call message of a nil global, or of a
-    // nil top-level local, is I-1559's.
     const source = lines(
       "function run()",
       "  local foo",
@@ -78,7 +65,9 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  end",
       "  return tostring(ok) .. \" \" .. tostring(string.find(err, \"attempt to call a nil value\", 1, true) ~= nil) .. \" \" .. bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got false true 1.\n", errors: [] });
   });
@@ -86,7 +75,6 @@ describe("a closure written before a variadic function statement (I-1360)", () =
 
 describe("a variadic function statement in a function (I-1360)", () => {
   test("defined twice in one body, a call before the second reaches the first", () => {
-    // vararg.luau lines 9 and 64.
     const source = lines(
       "function run()",
       "  function f(a, ...)",
@@ -98,7 +86,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return first .. \" \" .. f(2, 1)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12 200.\n", errors: [] });
   });
@@ -116,7 +106,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return concat(1, 2, 3)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 1,2,3.\n", errors: [] });
   });
@@ -134,7 +126,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return foo(2)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got function.\n", errors: [] });
   });
@@ -145,7 +139,6 @@ describe("a variadic function statement in a function (I-1360)", () => {
     ["local function foo(...)"],
     ["local function foo()"],
   ])("`%s` is named foo in debug.info and a traceback", (header) => {
-    // upstream/conformance/debug.luau line 63 names a variadic function.
     const source = lines(
       "function run()",
       `  ${header}`,
@@ -153,7 +146,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     const { text, errors } = run(source);
     expect(errors).toEqual([]);
@@ -171,7 +166,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       ...block.map((l) => `  ${l}`),
       "  return foo(1, 2)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12.\n", errors: [] });
   });
@@ -189,7 +186,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       ...assign.map((l) => `  ${l}`),
       "  return foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 100.\n", errors: [] });
   });
@@ -203,7 +202,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       "  a, foo = 1, function() return 100 end",
       "  return before + foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 102.\n", errors: [] });
   });
@@ -218,7 +219,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       "  function foo(...) return 3 end",
       "  return mid + foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 103.\n", errors: [] });
   });
@@ -234,7 +237,9 @@ describe("a call to a variadic function from a scope with a local of a name it c
       "  end",
       ...body.map((l) => `  ${l}`),
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
 
   test.each([
@@ -269,7 +274,9 @@ describe("a call to a variadic function from a scope with a local of a name it c
       "  bar(0)",
       "  return read()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12.\n", errors: [] });
   });

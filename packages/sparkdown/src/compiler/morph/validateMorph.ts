@@ -8,8 +8,8 @@ import {
   MORPH_CONTAINER_FIELDS,
   MORPH_DIRECTIONS,
   MORPH_FALLBACKS,
+  MORPH_LAYER_FIELDS,
   MORPH_LAYER_PROPERTIES,
-  MORPH_LITERAL_LIST_KEYS,
   MORPH_METHODS,
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
@@ -17,6 +17,7 @@ import {
   MORPH_TIMING_FIELDS,
   easingProblem,
   parseMorphDepth,
+  parseMorphPartner,
   parseMorphQualifiedState,
   parseMorphSpan,
 } from "./morphSchema";
@@ -41,11 +42,11 @@ const quoteList = (list: readonly string[]): string =>
 const describeValue = (value: unknown): string =>
   typeof value === "string" ? `\`${value}\`` : `\`${JSON.stringify(value)}\``;
 
-// Where a field that is written in the wrong place belongs.
 const HOME: Record<string, string> = {};
 for (const f of MORPH_TIMING_FIELDS) HOME[f] = "in `timing { … }`";
 for (const f of MORPH_POLICY_FIELDS)
   HOME[f] = "at the morph root or under a label in `layers { … }`";
+for (const f of MORPH_LAYER_FIELDS) HOME[f] = "under a label in `layers { … }`";
 for (const f of MORPH_CONTAINER_FIELDS)
   HOME[f] = "in a keyframe container such as `eyes { … }`";
 for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips { … }` entry";
@@ -58,15 +59,13 @@ HOME["offset"] = "directly in a keyframe";
 const ALLOWED: Record<Where, readonly string[]> = {
   root: MORPH_ROOT_FIELDS,
   timing: MORPH_TIMING_FIELDS,
-  layer: MORPH_POLICY_FIELDS,
+  layer: [...MORPH_POLICY_FIELDS, ...MORPH_LAYER_FIELDS],
   keyframe: ["offset"],
   container: MORPH_CONTAINER_FIELDS,
   clip: MORPH_CLIP_FIELDS,
   paint: MORPH_PAINT_FIELDS,
 };
 
-// A layer property value's space-separated components, ignoring spaces inside
-// parentheses (`calc(1px + 2px) 3px` is two components).
 function components(value: unknown): string[] {
   if (typeof value === "number") return [String(value)];
   if (typeof value !== "string") return [];
@@ -87,8 +86,6 @@ function components(value: unknown): string[] {
   return parts;
 }
 
-// The enumerated policy fields and the values each accepts. `depth` names a
-// pose and is checked against the keyframes instead.
 const POLICY_VOCABULARY: Record<string, readonly string[]> = {
   blend: MORPH_BLENDS,
   method: MORPH_METHODS,
@@ -98,14 +95,12 @@ const POLICY_VOCABULARY: Record<string, readonly string[]> = {
 const DEPTH_FORMS =
   "Use `rest` or a state the keyframes name, written with its group, such as `eyes.closed`.";
 
-/** Why a `depth` value has the wrong form, or null when it is `rest` or `group.state`. */
 function depthFormProblem(value: unknown): string | null {
   return parseMorphDepth(value)
     ? null
     : `${describeValue(value)} is not a \`depth\`. ${DEPTH_FORMS}`;
 }
 
-/** Each group the keyframes drive, with the states they name for it. */
 function keyframeStates(keyframes: unknown): Map<string, string[]> {
   const states = new Map<string, string[]>();
   if (!Array.isArray(keyframes)) return states;
@@ -123,11 +118,6 @@ function keyframeStates(keyframes: unknown): Map<string, string[]> {
   return states;
 }
 
-/**
- * Why a `depth` value names no pose the morph shows, or null when it is
- * `rest` or a state its keyframes name. A bare state is pointed at the
- * qualified forms of the driven groups that name it.
- */
 function depthProblem(value: unknown, driven: Map<string, string[]>): string | null {
   const parsed = parseMorphDepth(value);
   const qualified = [...driven].flatMap(([group, states]) => states.map((s) => `${group}.${s}`));
@@ -150,14 +140,32 @@ function depthProblem(value: unknown, driven: Map<string, string[]>): string | n
   return null;
 }
 
-const PAINT_ENTRY =
-  "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
+const PARTNER_FORMS = "such as `partner = eyelash-left` or `partner = { eyeball-shadow-left; eyelash-left }`";
 
-/**
- * Why a `paints` entry's `state` names no pose that can take a colour, or
- * null when it is a state the keyframes name for a driven group other than
- * the one that group starts from. `start` holds each group's starting state.
- */
+function partnerFormProblem(value: unknown): { item?: number; message: string } | null {
+  if (parseMorphPartner(value)) return null;
+  const empty = (Array.isArray(value) && value.length === 0) || (isRecord(value) && Object.keys(value).length === 0) || value === "";
+  if (empty) return { message: `\`partner\` needs at least one label, ${PARTNER_FORMS}.` };
+  const item = Array.isArray(value) ? value.findIndex((label) => typeof label !== "string" || label.trim() === "") : -1;
+  return { ...(item >= 0 ? { item } : {}), message: `\`partner\` names a label or a list of labels, ${PARTNER_FORMS}.` };
+}
+
+function edgeLabels(morph: Record<string, unknown> | null): Set<string> {
+  const edges = new Set<string>();
+  const clips = morph?.["clips"];
+  for (const clip of Array.isArray(clips) ? clips : []) {
+    const between = isRecord(clip) ? clip["between"] : undefined;
+    for (const label of Array.isArray(between) ? between : []) if (typeof label === "string") edges.add(label);
+  }
+  return edges;
+}
+
+const partnerEdgeProblem = (label: string) =>
+  `\`${label}\` forms an aperture in \`clips\`, so it cannot take a partner: an aperture edge pairs by its own label.`;
+
+const PAINT_ENTRY =
+  "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and at least one of `fill`, `stroke` and `opacity`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
+
 function paintStateProblem(value: unknown, driven: Map<string, string[]>, start: Map<string, string>): string | null {
   const poses = [...driven].flatMap(([group, states]) => states.filter((s) => s !== start.get(group)).map((s) => `${group}.${s}`));
   const choices = poses.length ? ` Use ${quoteList(poses)}.` : "";
@@ -182,7 +190,6 @@ function paintStateProblem(value: unknown, driven: Map<string, string[]>, start:
   return null;
 }
 
-/** Why a `paints` entry's `when` is not a state of a group the morph leaves alone, or null. */
 function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string | null {
   const parsed = parseMorphQualifiedState(value);
   if (!parsed) return `\`when\` names a state with its group, such as \`when = mask.on\`.`;
@@ -192,7 +199,6 @@ function paintWhenProblem(value: unknown, driven: Map<string, string[]>): string
   return null;
 }
 
-/** Why a `paints` entry's `fill` or `stroke` is not a colour, or null. */
 function paintColorProblem(field: string, value: unknown): string | null {
   return readEntryColor(value)
     ? null
@@ -200,11 +206,8 @@ function paintColorProblem(field: string, value: unknown): string | null {
 }
 
 const SPAN_PROBLEM = "`span` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `span = 40%`.";
+const OPACITY_PROBLEM = "A `paints` entry's `opacity` is a number from 0 to 1 or a percentage from `0%` to `100%`, such as `opacity = 0`.";
 
-/**
- * The problems in one `paints` entry's values that do not depend on the
- * keyframes, by the field each is about (`""` for the entry as a whole).
- */
 function paintFormProblems(entry: Record<string, unknown>): { field: string; message: string }[] {
   const problems: { field: string; message: string }[] = [];
   if (!("state" in entry)) {
@@ -213,9 +216,10 @@ function paintFormProblems(entry: Record<string, unknown>): { field: string; mes
   if ("when" in entry && !parseMorphQualifiedState(entry["when"])) {
     problems.push({ field: "when", message: paintWhenProblem(entry["when"], new Map())! });
   }
-  if (!("fill" in entry) && !("stroke" in entry)) {
-    problems.push({ field: "", message: "This `paints` entry needs a `fill` or a `stroke` colour, such as `fill = #c9c9c9`." });
+  if (!("fill" in entry) && !("stroke" in entry) && !("opacity" in entry)) {
+    problems.push({ field: "", message: "This `paints` entry needs a `fill` or `stroke` colour or an `opacity`, such as `fill = #c9c9c9` or `opacity = 0`." });
   }
+  if ("opacity" in entry && parseMorphSpan(entry["opacity"]) === undefined) problems.push({ field: "opacity", message: OPACITY_PROBLEM });
   for (const field of ["fill", "stroke"]) {
     const problem = field in entry ? paintColorProblem(field, entry[field]) : null;
     if (problem) problems.push({ field, message: problem });
@@ -227,7 +231,6 @@ function paintFormProblems(entry: Record<string, unknown>): { field: string; mes
 const THREE_D_FUNCTION_RE =
   /\b(?:matrix3d|translate3d|translateZ|scale3d|scaleZ|rotate3d|rotateX|rotateY|perspective)\s*\(/i;
 
-/** Why a layer property value is unsupported, or null. */
 function layerPropertyProblem(key: string, value: unknown): string | null {
   if (key === "opacity") {
     if (typeof value === "number") {
@@ -262,31 +265,15 @@ function layerPropertyProblem(key: string, value: unknown): string | null {
 }
 
 export interface MorphDeclaration {
-  /** The morph's name node, where whole-declaration problems are reported. */
   name: Span;
-  /** The `as PARENT` name, where problems in inherited values are reported. */
   parent: Span | null;
-  /** The morph block, used when the name is missing. */
   block: Span;
-  /** The `with` keyword, or null when the author left it out. */
   withKeyword: Span | null;
-  /** The body as written in this declaration. */
   own: MorphBody;
-  /** The declaration after `$default` and every `as PARENT` are merged in. */
   effective: Record<string, unknown>;
-  /**
-   * The parent's own effective morph when the parent is a morph block, which
-   * reports the problems of its own values; null when it is not.
-   */
   parentEffective: Record<string, unknown> | null;
 }
 
-/**
- * Check a morph declaration: the body as written, then the concrete morph
- * after inheritance. Issues about written text are placed on that text; a
- * problem that only exists after inheritance (a required `method` that nothing
- * supplies) is placed on the morph's name.
- */
 export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const issues: MorphIssue[] = [...decl.own.issues];
   const { sources } = decl.own;
@@ -306,23 +293,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
   const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
 
-  // A block whose lines set fields with `:` reads as a list of text. Each
-  // such line naming one of the block's fields is reported where it is
-  // written, with its `=` form (a label list's block form); false when the
-  // block has none.
-  const colonFields = (block: unknown, fields: readonly string[]): boolean => {
-    if (!Array.isArray(block)) return false;
-    let found = false;
-    block.forEach((item, i) => {
-      const match = typeof item === "string" ? /^([A-Za-z_][\w-]*)[ \t]*:[ \t]*(.*)$/.exec(item.trim()) : null;
-      if (!match || !fields.includes(match[1]!)) return;
-      const written = MORPH_LITERAL_LIST_KEYS.has(match[1]!) ? `${match[1]} { ${match[2]} }` : `${match[1]} = ${match[2]}`;
-      push(src(block)?.items[i], `\`${match[1]}:\` does not set a field: write \`${written}\`.`);
-      found = true;
-    });
-    return found;
-  };
-
   if (!decl.withKeyword) {
     push(
       decl.name,
@@ -330,7 +300,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     );
   }
 
-  // Report fields that do not belong where they are written.
   const checkFields = (
     obj: Record<string, unknown>,
     where: Where,
@@ -349,8 +318,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
-  // A `depth` names a pose of the morph after inheritance, so a child that
-  // writes its own keyframes is checked against them.
   const driven = keyframeStates(decl.effective["keyframes"]);
   const checkPolicy = (obj: Record<string, unknown>) => {
     for (const field of MORPH_POLICY_FIELDS) {
@@ -366,11 +333,33 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   };
 
+  const edges = edgeLabels(decl.effective);
+  const checkPartner = (label: string, policy: Record<string, unknown>) => {
+    const value = policy["partner"];
+    const list = Array.isArray(value) ? value : undefined;
+    const itemSpan = (i: number) => (list ? (src(list)?.itemValues[i] ?? src(list)?.items[i]) : valueSpan(policy, "partner"));
+    const problem = partnerFormProblem(value);
+    if (problem) {
+      push(problem.item === undefined ? keySpan(policy, "partner") : itemSpan(problem.item), problem.message);
+      return;
+    }
+    if (edges.has(label)) {
+      push(keySpan(policy, "partner"), partnerEdgeProblem(label));
+      return;
+    }
+    const labels = parseMorphPartner(value)!;
+    if (labels.every((l) => l === label)) {
+      push(itemSpan(0), `\`partner\` names only \`${label}\` itself, which pairs by name just as leaving \`partner\` out does.`, "warning");
+    }
+    labels.forEach((l, i) => {
+      if (labels.indexOf(l) < i) push(itemSpan(i), `\`${l}\` is listed twice in \`partner\`; its first mention sets its rank.`, "warning");
+    });
+  };
+
   const own = decl.own.struct;
   checkFields(own, "root");
   checkPolicy(own);
 
-  // layers: label → policy overrides.
   const layers = own["layers"];
   if (layers !== undefined) {
     if (!isRecord(layers)) {
@@ -381,7 +370,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
-          if (colonFields(policy, MORPH_POLICY_FIELDS)) continue;
           push(
             src(layers)?.lines.get(label),
             `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
@@ -390,15 +378,15 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         }
         checkFields(policy, "layer");
         checkPolicy(policy);
+        if ("partner" in policy) checkPartner(label, policy);
       }
     }
   }
 
-  // timing
   const timing = own["timing"];
   if (timing !== undefined) {
     if (!isRecord(timing)) {
-      if (!colonFields(timing, MORPH_TIMING_FIELDS)) push(valueSpan(own, "timing"), "`timing` is a block of fields: `timing { duration = 0.25 }`.");
+      push(valueSpan(own, "timing"), "`timing` is a block of fields: `timing { duration = 0.25 }`.");
     } else {
       checkFields(timing, "timing");
       checkTiming(timing, (field, message) =>
@@ -407,7 +395,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // keyframes
   const keyframes = own["keyframes"];
   if (keyframes !== undefined) {
     if (!Array.isArray(keyframes)) {
@@ -449,11 +436,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         for (const [key, container] of Object.entries(keyframe)) {
           if (key === "offset") continue;
           if (!isRecord(container)) {
-            // A container whose fields are reported here still poses its group.
-            if (colonFields(container, MORPH_CONTAINER_FIELDS)) {
-              poses += 1;
-              continue;
-            }
             const line = src(keyframe)?.lines.get(key);
             if (HOME[key] && !(MORPH_CONTAINER_FIELDS as readonly string[]).includes(key)) {
               push(keySpan(keyframe, key), `\`${key}\` belongs ${HOME[key]}.`);
@@ -508,7 +490,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // clips
   const clips = own["clips"];
   if (clips !== undefined) {
     if (!Array.isArray(clips)) {
@@ -520,7 +501,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       clips.forEach((clip, index) => {
         const itemLine = src(clips)?.items[index];
         if (!isRecord(clip)) {
-          if (colonFields(clip, MORPH_CLIP_FIELDS)) return;
           push(itemLine, "A clip entry is a `{ … }` entry with `between { … }` and `targets { … }` label lists.");
           return;
         }
@@ -559,8 +539,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // paints: a pose's colour for the drawings of some labels. A `state` names a
-  // pose of the morph after inheritance, as `depth` does.
   const start = morphRequirements(decl.effective).rest;
   const paints = own["paints"];
   if (paints !== undefined) {
@@ -570,7 +548,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       paints.forEach((entry, index) => {
         const itemLine = src(paints)?.items[index];
         if (!isRecord(entry)) {
-          if (!colonFields(entry, MORPH_PAINT_FIELDS)) push(itemLine, PAINT_ENTRY);
+          push(itemLine, PAINT_ENTRY);
           return;
         }
         checkFields(entry, "paint");
@@ -602,7 +580,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
 
-  // The concrete morph after inheritance.
   const effective = decl.effective;
   const effectiveKeyframes = effective["keyframes"];
   const poseCount = Array.isArray(effectiveKeyframes)
@@ -637,9 +614,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
-  // An inherited `depth` has to name a pose this morph shows, which its own
-  // keyframes or a `define` ancestor's can change. A problem the parent
-  // block has too is reported there, and a value's form where it is written.
   const parentDriven = decl.parentEffective && keyframeStates(decl.parentEffective["keyframes"]);
   const valueAt = (morph: Record<string, unknown> | null, field: string): unknown => {
     let current: unknown = morph;
@@ -657,6 +631,15 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
   }
+  const parentEdges = edgeLabels(decl.parentEffective);
+  if (isRecord(effectiveLayers)) {
+    for (const [label, policy] of Object.entries(effectiveLayers)) {
+      const written = ownLayers[label];
+      if (!isRecord(policy) || !("partner" in policy) || !edges.has(label) || (isRecord(written) && "partner" in written)) continue;
+      if (parentEdges.has(label) && valueAt(decl.parentEffective, `layers.${label}.partner`) !== undefined) continue;
+      push(decl.parent, `\`layers.${label}.partner\`, inherited: ${partnerEdgeProblem(label)}`);
+    }
+  }
   for (const field of inherited) {
     const value = valueAt(effective, field);
     if (value === undefined || depthFormProblem(value)) continue;
@@ -665,8 +648,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (parentDriven && valueAt(decl.parentEffective, field) === value && depthProblem(value, parentDriven)) continue;
     push(decl.parent, `\`${field}\`, inherited: ${problem}`);
   }
-  // Inherited `paints` entries name poses and groups of this morph too. An
-  // entry's form is checked where it is written.
   const effectivePaints = effective["paints"];
   if (!("paints" in own) && Array.isArray(effectivePaints)) {
     const parentStart = decl.parentEffective && morphRequirements(decl.parentEffective).rest;
@@ -690,8 +671,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     const min = effectiveTiming["iteration_delay_min"];
     const max = effectiveTiming["iteration_delay_max"];
     const ownTiming = isRecord(timing) ? timing : undefined;
-    // A bound written here is underlined where it is written; an inherited
-    // one on the `as PARENT` that brings it in.
     const spanOf = (field: string) =>
       (ownTiming && keySpan(ownTiming, field)) || decl.parent || decl.name;
     if ((min === undefined) !== (max === undefined)) {
@@ -717,11 +696,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   return issues;
 }
 
-/**
- * The problems with a morph struct's policy, timing and `paints` values, for a parent
- * that no morph block wrote (`define base as morph with … end`) and that is
- * therefore not checked where it is written. Each message names the field.
- */
 export function morphValueProblems(
   struct: Record<string, unknown>,
 ): { field: string; message: string }[] {
@@ -742,7 +716,10 @@ export function morphValueProblems(
   const layers = struct["layers"];
   if (isRecord(layers)) {
     for (const [label, value] of Object.entries(layers)) {
-      if (isRecord(value)) policy(value, `layers.${label}.`);
+      if (!isRecord(value)) continue;
+      policy(value, `layers.${label}.`);
+      const problem = "partner" in value ? partnerFormProblem(value["partner"]) : null;
+      if (problem) problems.push({ field: `layers.${label}.partner`, message: problem.message });
     }
   }
   const timing = struct["timing"];
@@ -751,8 +728,6 @@ export function morphValueProblems(
       problems.push({ field: `timing.${field}`, message }),
     );
   }
-  // A `paints` entry's form; its pose and condition are checked against the
-  // keyframes of the morph that inherits it.
   const paints = struct["paints"];
   if (paints !== undefined && !Array.isArray(paints) && !(isRecord(paints) && Object.keys(paints).length === 0)) {
     problems.push({ field: "paints", message: `\`paints\` is a list of \`{ … }\` entries. ${PAINT_ENTRY}` });
@@ -783,7 +758,6 @@ export function morphValueProblems(
   return problems;
 }
 
-/** Check the timing values written in one `timing` container. */
 function checkTiming(
   timing: Record<string, unknown>,
   report: (field: string, message: string) => void,

@@ -22,22 +22,17 @@ export const convertMidiToToneSequences = (
   midi.tracks.forEach((track) => {
     let absTicks = 0;
     track.forEach((event) => {
-      // Convert "delta ticks since previous event" to "absolute ticks from track start"
       absTicks += event.ticks;
       event.ticks = absTicks;
-      // Normalize all velocity values
       if (event.statusType === MIDI_STATUS_TYPE.voice_note_off) {
         event.noteOffVelocity = normalize(event.noteOffVelocity, 0, 127);
       }
       if (event.statusType === MIDI_STATUS_TYPE.voice_note_on) {
         event.noteOnVelocity = normalize(event.noteOnVelocity, 0, 127);
       }
-      // Normalize pitch bend values
       if (event.statusType === MIDI_STATUS_TYPE.voice_pitch_bend) {
-        // Typical range is +/- 2 semitones
         event.pitchBend = normalize(event.pitchBend, 8192, 8192 * 2) * 2;
       }
-      // Normalize controller values
       if (event.statusType === MIDI_STATUS_TYPE.voice_controller_change) {
         if (
           event.controllerNumber === MIDI_CONTROLLER.sustain_pedal ||
@@ -47,28 +42,22 @@ export const convertMidiToToneSequences = (
           event.controllerNumber === MIDI_CONTROLLER.legato_pedal ||
           event.controllerNumber === MIDI_CONTROLLER.hold_pedal
         ) {
-          // Normalize so that 0 = off and 1 = on
           event.controllerValue = event.controllerValue <= 63 ? 0 : 1;
         } else if (event.controllerNumber === MIDI_CONTROLLER.local_keyboard) {
-          // Normalize so that 0 = off and 1 = on
           event.controllerValue = event.controllerValue === 0 ? 0 : 1;
         } else if (event.controllerNumber === MIDI_CONTROLLER.mono_operation) {
-          // Number of max simultaneous midi channels. 0 = infinite
           event.controllerValue = event.controllerValue;
         } else {
-          // Normalize to be value between 0 and 1
           event.controllerValue = normalize(event.controllerValue, 0, 127);
         }
       }
     });
   });
 
-  // Process absolutely timed and normalized events
   midi.tracks.forEach((track, trackIndex) => {
     const conductorTrack =
       midi.format === 1 && midi.tracks[0] ? midi.tracks[0] : [];
     if (conductorTrack.length > 0 && trackIndex === 0) {
-      // Skip conductor track since its events will be concatenated into the rhythm tracks
       return;
     }
     const midiChannels: Map<number, ToneSequence> = new Map();
@@ -150,8 +139,6 @@ export const convertMidiToToneSequences = (
           pitchBend,
         );
         const mono = channelNumber === 9;
-        // TODO: Calculate start and end volume from channel volume
-        // TODO: Handle startVolume and endVolume in synthesizeSound
         const tone: Tone = {
           time: time,
           note: noteNumber,

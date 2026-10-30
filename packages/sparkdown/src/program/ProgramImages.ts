@@ -15,28 +15,6 @@ import type {
   ProgramStoryState,
 } from "./ProgramStoryState";
 
-/**
- * Images of the program engine's state (docs/engine/binary-program.md,
- * section 7, Images). Positional state (the position, the frames, the
- * threads, the eval stack, the output, the choices waiting) is small at the
- * end of a line and an image copies it whole. Keyed state (the counts, the
- * globals, the tables and the closed upvalue cells) is large and changes
- * little: a keyframe copies it whole, and a delta holds what the write
- * barrier marked since the image before it.
- *
- * A table or a cell is copied as it was before its first write, its pristine
- * copy, the first time the barrier hears of it, so that restoring an image
- * taken before that write can put it back. Restoring an image restores in
- * place: each table and cell ever written is given its content as the image
- * has it, from the newest copy on the image's chain back to its keyframe, or
- * from its pristine copy, so identity is kept and nothing is relinked; a
- * table that was never written has held its content since it was made.
- *
- * `ProgramImages` holds the pristine copies and is shared by the engines of
- * one game, one per program, so that an image one engine took restores into
- * the engine built on the next root (`ProgramStory.restore`). The pristine
- * copies are held weakly: a table no image and no engine holds is dropped.
- */
 export class ProgramImages {
   protected _tables = new WeakMap<ObjectValue, TableCopy>();
   protected _tableRefs: WeakRef<ObjectValue>[] = [];
@@ -44,28 +22,18 @@ export class ProgramImages {
   protected _cellRefs: WeakRef<VariablePointerValue>[] = [];
   protected _nextId = 0;
 
-  /** What the images taken so far copied, which the tests and the bench
-   *  read: a fork's image must copy no whole state. */
   readonly stats = {
     keyframes: 0,
     deltas: 0,
     restores: 0,
-    /** Count ids an image copied: every one in a keyframe, the changed
-     *  ones in a delta. */
     counts: 0,
-    /** Globals an image copied. */
     globals: 0,
-    /** Tables and cells an image copied, and pristine copies made. */
     tables: 0,
     cells: 0,
     pristineTables: 0,
     pristineCells: 0,
-    /** Call frames and output objects a positional copy held. */
     frames: 0,
     outputs: 0,
-    /** Restores that set every written table and cell and every global,
-     *  for an image that shares no keyframe with the state, and the keys
-     *  the other restores set. */
     wholeRestores: 0,
     restoredKeys: 0,
   };
@@ -73,8 +41,6 @@ export class ProgramImages {
   protected _identities = new WeakMap<object, number>();
   protected _nextIdentity = 0;
 
-  /** A number that names a table or a cell for as long as it lives, which
-   *  a digest reads it by. */
   identityOf(obj: object): number {
     let id = this._identities.get(obj);
     if (id === undefined) {
@@ -88,11 +54,6 @@ export class ProgramImages {
     return this._nextId++;
   }
 
-  /** Keeps `table`'s pristine copy unless it has one. A table the engine
-   *  made since the last image it took or restored is not kept when it is
-   *  written (`ImageTracker.isFresh`): no image before it reaches it, and the
-   *  next image holds what was written to it, so its pristine copy would
-   *  never be what a restore reads (#700). */
   keepTable(table: ObjectValue): void {
     if (!this._tables.has(table)) {
       this._tables.set(table, copyTable(table));
@@ -101,7 +62,6 @@ export class ProgramImages {
     }
   }
 
-  /** Keeps `cell`'s pristine copy unless it has one. */
   keepCell(cell: VariablePointerValue): void {
     if (!this._cells.has(cell)) {
       this._cells.set(cell, copyCell(cell));
@@ -118,19 +78,15 @@ export class ProgramImages {
     return this._cells.get(cell);
   }
 
-  /** Every table ever written that something still holds. */
   writtenTables(): ObjectValue[] {
     return live(this._tableRefs);
   }
 
-  /** Every cell ever written that something still holds. */
   writtenCells(): VariablePointerValue[] {
     return live(this._cellRefs);
   }
 }
 
-// The objects a list of weak references still reaches, dropping the rest
-// from the list.
 const live = <T extends object>(refs: WeakRef<T>[]): T[] => {
   const out: T[] = [];
   let kept = 0;
@@ -145,8 +101,6 @@ const live = <T extends object>(refs: WeakRef<T>[]): T[] => {
   return out;
 };
 
-/** A table as an image holds it: its entries, its metatable, its frozen
- *  flag and the two length hints that decide what `#` answers. */
 export interface TableCopy {
   readonly entries: ReadonlyMap<string, AbstractValue> | null;
   readonly metatable: ObjectValue | null;
@@ -155,8 +109,6 @@ export interface TableCopy {
   readonly boundary: number | undefined;
 }
 
-/** An upvalue cell as an image holds it: whether it is closed, the value a
- *  closed cell holds, and the frame and scope an open one reads. */
 export interface CellCopy {
   readonly closed: boolean;
   readonly value: InkObject | null;
@@ -180,7 +132,6 @@ interface Hints {
   __luauBoundary?: number;
 }
 
-/** Gives `table` the content `copy` holds, in place. */
 export const putTable = (table: ObjectValue, copy: TableCopy): void => {
   const map = table.value as (Map<string, AbstractValue> & Hints) | null;
   if (map && copy.entries) {
@@ -214,67 +165,31 @@ export const putCell = (cell: VariablePointerValue, copy: CellCopy): void => {
   cell.scopeIndex = copy.scopeIndex;
 };
 
-/**
- * An image of an engine's state: a keyframe, which holds the keyed state
- * whole, or a delta on the image it follows (`parent`), which holds what was
- * written since. Images form a tree: the images a route search takes at its
- * forks share the image their run started from. An image never changes
- * after it is taken.
- */
 export interface ProgramImage {
   readonly id: number;
   readonly images: ProgramImages;
   readonly parent: ProgramImage | null;
-  /** The keyframe the image's chain starts at: itself for a keyframe. */
   readonly keyframe: ProgramImage;
-  /** How many deltas the chain holds from its keyframe to the image. */
   readonly depth: number;
-  /** A keyframe's: every table and cell its state reached, which a digest
-   *  reads by identity. */
   readonly reached: WeakSet<object> | null;
-  /** A keyframe taken on top of an image (a checkpoint's slot, or a chain
-   *  that reached `MAX_DELTA_DEPTH`): that image, held weakly, and the keys
-   *  written between it and the keyframe, so that a restore of an image
-   *  before the keyframe that something still holds costs the changes
-   *  along the path between them. */
   readonly previous: WeakRef<ProgramImage> | null;
   readonly bridge: Keys | null;
-  /** The table and generation the count ids are of. */
   readonly table: ProgramTable;
   readonly generation: number;
-  /** The engine that took it, whose compiled constants it holds. */
   readonly engine: object;
   readonly positional: PositionalCopy;
-  /** A keyframe's counts, whole. */
   readonly visits: Uint32Array | null;
   readonly turns: Int32Array | null;
-  /** A delta's changed counts: the ids, and each one's visits and turn. */
   readonly countIds: Int32Array | null;
   readonly countVisits: Uint32Array | null;
   readonly countTurns: Int32Array | null;
-  /** The globals: every one in a keyframe, those assigned since the image
-   *  before in a delta. */
   readonly globals: ReadonlyMap<string, InkObject | undefined>;
-  /** The tables and cells: every one ever written in a keyframe, those
-   *  written since the image before in a delta. */
   readonly tables: ReadonlyMap<ObjectValue, TableCopy>;
   readonly cells: ReadonlyMap<VariablePointerValue, CellCopy>;
-  /** For the image of a beat the story passed, the beat's flags and the
-   *  decisions taken at it (docs/engine/binary-program.md, section 7,
-   *  Rewind and roll forward), which the story's history keeps
-   *  (`BeatHistory`) and a save writes beside it. */
   beat?: { flags: number; readonly decisions: number[] };
-  /** For an image of the state just after a choice was taken, the image of
-   *  the beat before its menu and the address of the `Choice` taken, which a
-   *  durable save of the image writes in its place (section 7). */
   afterChoice?: { readonly menu: ProgramImage; readonly address: number };
 }
 
-/**
- * What one engine's write barrier marked since its last capture or restore
- * (`base`), which its next capture holds as a delta. A capture with no base
- * (a reset, a load from a save) is a keyframe.
- */
 export class ImageTracker implements ImageBarrier {
   base: ProgramImage | null = null;
   readonly tables = new Set<ObjectValue>();
@@ -282,13 +197,10 @@ export class ImageTracker implements ImageBarrier {
   readonly globals = new Set<string>();
   readonly counts = new Set<number>();
 
-  /** The tables the engine made since `base`, which no image taken or
-   *  restored before them reaches (`made`). */
   protected _fresh = new WeakSet<ObjectValue>();
 
   constructor(readonly images: ProgramImages) {}
 
-  /** Notes a table the engine just made (`MakeTable`). */
   made(table: ObjectValue): void {
     this._fresh.add(table);
   }
@@ -306,10 +218,6 @@ export class ImageTracker implements ImageBarrier {
     }
   }
 
-  /** Whether the engine made `table` since `base`: a table no image taken
-   *  or restored before it reaches, which the next image holds whole when
-   *  it was written, and which is registered as written only once it is
-   *  written after an image (`ProgramImages.keepTable`). */
   isFresh(table: ObjectValue): boolean {
     return this._fresh.has(table);
   }
@@ -327,7 +235,6 @@ export class ImageTracker implements ImageBarrier {
     this.counts.add(id);
   }
 
-  /** Forgets the marks, with `base` as what the state now is. */
   reset(base: ProgramImage | null): void {
     this.base = base;
     this.tables.clear();
@@ -338,14 +245,8 @@ export class ImageTracker implements ImageBarrier {
   }
 }
 
-/** The deltas a chain holds at most: the capture after them is a keyframe,
- *  so that restoring an image, and reading its digest, walks no longer a
- *  chain than this however long a game or a search runs on. */
 export const MAX_DELTA_DEPTH = 64;
 
-/** Takes an image of `state`: a keyframe when `keyframe` is set, when the
- *  tracker has no base, or when the base's chain holds `MAX_DELTA_DEPTH`
- *  deltas, and otherwise a delta on the base. */
 export const captureImage = (
   state: ProgramStoryState,
   tracker: ImageTracker,
@@ -366,14 +267,9 @@ export const captureImage = (
     const globals = new Map<string, InkObject | undefined>(
       state.variablesState.globalEntries,
     );
-    // Every table and cell the state reaches that was ever written: one that
-    // was never written holds what it was made with, and one the state does
-    // not reach is no part of it, nor of any image taken after it.
     const reached = reachedFrom(state, positional);
     const tables = new Map<ObjectValue, TableCopy>();
     for (const table of reached.tables) {
-      // Written: kept as written before, or made and written since the base,
-      // which is not kept (`ImageTracker.isFresh`).
       if (images.pristineTable(table) || tracker.tables.has(table)) {
         tables.set(table, copyTable(table));
       }
@@ -393,8 +289,6 @@ export const captureImage = (
     const self: { -readonly [K in keyof ProgramImage]: ProgramImage[K] } = {
       id: images.nextId(),
       images,
-      // A keyframe holds what it needs, so nothing before it is kept for
-      // it: an image a caller let go of is collected.
       parent: null,
       keyframe: null!,
       depth: 0,
@@ -476,10 +370,6 @@ export const captureImage = (
   return image;
 };
 
-/** The tables and cells the state reaches: from its globals, its eval stack
- *  and output, and the temporaries and cells of every frame of every thread
- *  and of every waiting choice's thread, through every table's entries and
- *  metatable and every closed cell's value. */
 const reachedFrom = (
   state: ProgramStoryState,
   positional: PositionalCopy,
@@ -525,12 +415,8 @@ const reachedFrom = (
   return { tables, cells };
 };
 
-/** The turn a count id that was never visited holds
- *  (`ProgramStoryState`). */
 export const NEVER_VISITED = -0x80000000;
 
-/** The images from `image`'s keyframe to `image`, in the order they were
- *  taken. */
 export const chainOf = (image: ProgramImage): ProgramImage[] => {
   const chain: ProgramImage[] = [];
   for (let at: ProgramImage | null = image; at; at = at.parent) {
@@ -542,7 +428,6 @@ export const chainOf = (image: ProgramImage): ProgramImage[] => {
   return chain.reverse();
 };
 
-/** The keyed state an image holds, put together from its chain. */
 export interface KeyedState {
   visits: Uint32Array;
   turns: Int32Array;
@@ -582,15 +467,6 @@ export const keyedStateOf = (image: ProgramImage): KeyedState => {
   return { visits, turns, globals, tables, cells };
 };
 
-/**
- * Restores `image` into `state` in place, or returns false and changes
- * nothing when a position the image holds cannot be placed in the root
- * `state` runs on: a chunk the root no longer holds, or a sequence it no
- * longer has, which `translate`, when given, places through the position's
- * saved form (docs/engine/binary-program.md, section 8). An image taken in
- * an older table generation has its counts taken through the reseeds since
- * (section 2, Reseed).
- */
 export const restoreImage = (
   state: ProgramStoryState,
   tracker: ImageTracker,
@@ -613,9 +489,6 @@ export const restoreImage = (
       ? keysBetween(tracker, image)
       : null;
   if (keys) {
-    // The state and the image descend from one keyframe: only what the
-    // images between them wrote and what was marked since goes back, which
-    // costs the changes along that path.
     restoreKeys(state, images, image, keys);
     state.installPositional(placed);
     tracker.reset(image);
@@ -633,8 +506,6 @@ export const restoreImage = (
   }
   const variables = state.variablesState;
   if (image.engine !== engine) {
-    // Another program's engine took the image: its compiled constants are
-    // this program's, as a load keeps them (`VariablesState.SetJsonToken`).
     for (const name of variables.constantNames) {
       const value = variables.DefaultGlobal(name);
       if (value !== undefined) keyed.globals.set(name, value);
@@ -651,10 +522,6 @@ export const restoreImage = (
     state.turns = counts.turns;
   }
   state.installPositional(placed);
-  // An image of this engine and generation is the state's base. One of
-  // another engine (whose compiled constants the restore replaced) or of an
-  // older table generation (whose count ids it remapped) holds keyed state
-  // the state does not, so the next capture is a keyframe.
   tracker.reset(
     image.engine === engine && image.generation === root.generation
       ? image
@@ -663,9 +530,6 @@ export const restoreImage = (
   return true;
 };
 
-// The images an image's view of a key is read from: itself first, then each
-// image before it back to its keyframe, which holds the counts and globals
-// whole.
 const viewChain = (image: ProgramImage): ProgramImage[] =>
   chainOf(image).reverse();
 
@@ -690,9 +554,6 @@ const globalIn = (
   return undefined;
 };
 
-// A table's content as the chain holds it, or its pristine copy: a table
-// the chain never copied was not written before the image, or was not
-// reached by its keyframe's state, and is no part of the image.
 const tableIn = (
   chain: readonly ProgramImage[],
   table: ObjectValue,
@@ -717,7 +578,6 @@ const cellIn = (
   return images.pristineCell(cell);
 };
 
-/** The keys a set of deltas holds. */
 interface Keys {
   counts: Set<number>;
   globals: Set<string>;
@@ -741,22 +601,10 @@ const keysOf = (deltas: readonly ProgramImage[], into?: Keys): Keys => {
   return keys;
 };
 
-/**
- * The keys that can differ between the state, which is the tracker's base
- * with what was marked since, and `image`, when both descend from one
- * keyframe: what the deltas from the base back to the image's chain wrote,
- * what the deltas from there down to the image wrote, and what was marked.
- * Nothing when they do not share a keyframe, which a restore then takes
- * whole.
- */
 const keysBetween = (tracker: ImageTracker, image: ProgramImage): Keys | null => {
   if (!tracker.base) {
     return null;
   }
-  // Each side's ancestry, up through its deltas, and across each keyframe
-  // to the image it was taken on, while something holds it, walked a step
-  // at a time on both sides until one reaches an image the other passed,
-  // so that the walk costs the path between them.
   const sides = [tracker.base, image].map((start) => ({
     at: start as ProgramImage | null,
     steps: [] as ProgramImage[],
@@ -794,8 +642,6 @@ const keysBetween = (tracker: ImageTracker, image: ProgramImage): Keys | null =>
   return keys;
 };
 
-// The image before `image` on its ancestry: a delta's parent, or the image a
-// keyframe was taken on while something holds it.
 const stepBefore = (image: ProgramImage): ProgramImage | null =>
   image.keyframe === image
     ? image.bridge
@@ -811,7 +657,6 @@ const addKeys = (into: Keys, keys: Keys | null): void => {
   for (const cell of keys.cells) into.cells.add(cell);
 };
 
-// Gives `keys` the values `image` holds for them.
 const restoreKeys = (
   state: ProgramStoryState,
   images: ProgramImages,
@@ -839,10 +684,6 @@ const restoreKeys = (
     keys.counts.size + keys.globals.size + keys.tables.size + keys.cells.size;
 };
 
-// The counts of an image of another table generation, by the count ids of
-// `root`'s: each count id's symbol in the image's table, taken through the
-// reseeds since, and that symbol's count id now. A count whose symbol a
-// reseed dropped is dropped.
 const remapCounts = (
   keyed: KeyedState,
   image: ProgramImage,
@@ -870,23 +711,6 @@ const remapCounts = (
   return { visits, turns };
 };
 
-/**
- * A digest of the state an image holds, equal for two images of equal states
- * however each was reached from one keyframe: a route search claims a fork
- * site by it, as it claimed one by the hash of the state's JSON (`planRoute`,
- * `claimForkSite`). It costs what the image's chain changed, not the size of
- * the state: the positional state, and of the keyed state only what differs
- * from the chain's keyframe. A table or a cell the keyframe's state reached
- * is read by its identity, so two arrivals that changed two different tables
- * to the same content read apart, and its content enters the digest only when
- * it changed since the keyframe; one made since is read by its content, as
- * the image holds it, with a second reference to it read as a reference, as
- * the JSON's `objref` did. What it reads is read in an order that does not
- * depend on the order of the writes or of the allocations that made it: the
- * positional state, the changed globals by name, then the changed tables
- * and cells the keyframe reached by identity, each reading the new tables it
- * reaches where it first reaches them.
- */
 export const imageDigest = (image: ProgramImage): string => {
   const out = new DigestStream();
   const keyframe = image.keyframe;
@@ -941,8 +765,6 @@ export const imageDigest = (image: ProgramImage): string => {
     position(choice.target);
     thread(choice.thread);
   }
-  // The keyed state the chain changed, where it differs from the
-  // keyframe's, each key read once, from the newest image that holds it.
   const keys = keysOf(chainOf(image).slice(1));
   for (const id of [...keys.counts].sort((a, b) => a - b)) {
     const [visits, turn] = countIn(chain, id);
@@ -960,10 +782,6 @@ export const imageDigest = (image: ProgramImage): string => {
       out.add(`g${name}=${values.hash(now)}`);
     }
   }
-  // The tables and cells the keyframe reached, by identity, which is the
-  // same object on every arrival from the keyframe: a table made since is
-  // not read here but where the state reaches it, so that neither its
-  // identity nor which write reached it first reads.
   const reached = keyframe.reached;
   const byIdentity = <T extends object>(objects: Iterable<T>): T[] =>
     [...objects]
@@ -995,9 +813,6 @@ export const imageDigest = (image: ProgramImage): string => {
   return out.digest();
 };
 
-// Whether two values are the same: the same object, or two that read the
-// same, each read by a hasher of its own so that neither's references
-// change how the other reads.
 const sameValue = (
   a: InkObject | null | undefined,
   b: InkObject | null | undefined,
@@ -1008,9 +823,6 @@ const sameValue = (
   new ValueHasher(image.images, image.keyframe.reached, chain).hash(a) ===
     new ValueHasher(image.images, image.keyframe.reached, chain).hash(b);
 
-// Whether two copies of a table hold the same, in the same order: `next`
-// and `pairs` read a table's keys in the order they were set, so a key
-// removed and set again makes another table.
 const sameTable = (
   a: TableCopy,
   b: TableCopy,
@@ -1039,12 +851,6 @@ const sameTable = (
   return true;
 };
 
-// Hashes values: a table or a cell the keyframe's state reached by its
-// identity, and one made since by what it holds as the image's chain holds
-// it (a table's content, length hints, frozen flag and metatable, a cell's
-// state), each once, with a second reference read as a reference. Every
-// value reads as text that ends where it says it ends, so that no two
-// values, or lists of values, read as one.
 class ValueHasher {
   protected _seen = new Map<object, string>();
   protected _next = 0;
@@ -1063,10 +869,6 @@ class ValueHasher {
       if (this._stable?.has(obj)) {
         return `#${this._images.identityOf(obj)}`;
       }
-      // The first reference reads as the reference and what it holds, and
-      // every later one as the reference, as `objid` and `objref` read in
-      // the JSON: one table two variables hold reads apart from two tables
-      // that hold the same.
       const seen = this._seen.get(obj);
       if (seen !== undefined) {
         return seen;
@@ -1095,7 +897,6 @@ class ValueHasher {
     return `${obj.constructor.name}:${text.length}:${text}`;
   }
 
-  /** The hash of what a copy of a table holds. */
   copy(copy: TableCopy): string {
     const out = new DigestStream();
     out.add(`T${copy.frozen}:${copy.capacity}:${copy.boundary}`);
@@ -1108,15 +909,11 @@ class ValueHasher {
   }
 }
 
-// Folds strings into a 64-bit hash in two lanes, as `extendSeq` folds a
-// route's paths.
 class DigestStream {
   protected _h1 = 0xdeadbeef;
   protected _h2 = 0x41c6ce57;
 
   add(text: string): void {
-    // The length first, so that the strings a stream reads are read apart
-    // whatever characters they hold.
     let h1 = Math.imul(this._h1 ^ text.length, 2654435761);
     let h2 = Math.imul(this._h2 ^ text.length, 1597334677);
     for (let i = 0; i < text.length; i += 1) {
@@ -1124,7 +921,6 @@ class DigestStream {
       h1 = Math.imul(h1 ^ ch, 2654435761);
       h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    // A separator, so that two strings do not read as one.
     this._h1 = Math.imul(h1 ^ 0x1f, 2654435761);
     this._h2 = Math.imul(h2 ^ 0x1f, 1597334677);
   }

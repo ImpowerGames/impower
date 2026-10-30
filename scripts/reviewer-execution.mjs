@@ -1,6 +1,3 @@
-// Coordinator-owned execution of a finite, caller-authored operation list.
-// Tests/benchmarks accept IDs only; editor IDs accept bounded UI data, never
-// coordinator code, paths, flags or environment supplied by the reviewer.
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
@@ -71,8 +68,6 @@ export function executionCommands(operations, root) {
         if (!inside(packageRoot, target)) throw new Error("Execution test escapes package");
         return path.relative(packageRoot, target);
       });
-      // The reservation wait is its own budget, so queueing behind another
-      // worktree's suite never consumes the run's timeoutSeconds.
       waitSeconds = op.waitSeconds ?? op.timeoutSeconds ?? 600;
       args = [trackedFile(path.join(root, "scripts/test-suite.mjs")), "run", packageRoot, ...files, "--wait", String(waitSeconds)];
     } else {
@@ -82,24 +77,17 @@ export function executionCommands(operations, root) {
   });
 }
 
-// Do not give repository commands the coordinator's report tokens, CLI account
-// credentials, Node preload options, Git overrides or reviewer service token.
-// A delegated run is made for the reviewer, so it queues in the reviewer pool
-// of the test reservation.
 export function executionEnvironment(source = process.env) {
   const allowed = /^(?:path|pathext|systemroot|windir|comspec|programdata|programfiles|programfiles\(x86\)|temp|tmp|tmpdir|impower_system_tmpdir|git_ceiling_directories|home|userprofile|appdata|localappdata|psmodulepath|lang|lc_all)$/i;
   return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allowed.test(key))), NODE_OPTIONS: "--max-old-space-size=1024", IMPOWER_TEST_POOL: "reviewer" };
 }
 
-// test-suite.mjs exits 75 and prints this line when it could not take the
-// reservation, so no test ran. Either signal alone makes the run a not-run.
 export function vitestNotRun(result) {
   if (result.exit === 75) return true;
   if (!result.log) return false;
   try { return /^test-suite: not run:/m.test(fs.readFileSync(result.log, "utf8")); } catch { return false; }
 }
 
-// The line test-suite.mjs prints once it holds the reservation.
 const reservationAcquired = /^\{"status":"acquired"\}$/m;
 const queueStartupGraceSeconds = 30;
 
@@ -119,13 +107,7 @@ function execute(command, root, directory) {
         else if (process.platform === "win32") execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "pipe", timeout: 10000 });
         else process.kill(-child.pid, "SIGKILL");
       } catch (error) { stopError = error.message; }
-      // Keep awaiting actual close. Unconfirmed exit cannot release the review
-      // freeze or start another operation, even if termination was requested.
     };
-    // A command that queues for the machine-wide reservation has two budgets:
-    // the wait, which the runner enforces itself with exit 75 (the grace only
-    // covers its startup), and the run, which starts when the runner reports
-    // that it holds the reservation. Unused wait never extends the run.
     let timer, poll;
     if (command.waitSeconds === undefined) timer = setTimeout(stop, command.timeoutSeconds * 1000);
     else {
@@ -172,8 +154,6 @@ export async function startExecutionService({ operations, root, directory, head 
     if (git(root, ["rev-parse", "HEAD"]) !== head || git(root, ["status", "--porcelain"])) throw new Error("Execution refused: reviewed head or worktree changed");
   };
   frozen();
-  // Process-identity probes can block the event loop on a busy Windows host.
-  // Do not let polling reuse a socket whose idle timeout elapsed meanwhile.
   const reply = (res, status, value) => { res.writeHead(status, { "content-type": "application/json", connection: "close" }); res.end(JSON.stringify(value)); };
   const handle = async (req, res) => {
     const supplied = Buffer.from(req.headers.authorization ?? "");
@@ -203,7 +183,6 @@ export async function startExecutionService({ operations, root, directory, head 
         if (requests.has(key) && requests.get(key) !== JSON.stringify(request)) throw new Error("Editor requestId already used with different content");
       } catch (error) { return reply(res, 400, { error: error.message }); }
     }
-    // Admission is checked again after reading an asynchronous request body.
     if (!accepting) return reply(res, 410, { error: "Reviewer has exited" });
     if (req.method === "POST" && !results.has(key)) {
       if (failure) return reply(res, 409, { error: failure });

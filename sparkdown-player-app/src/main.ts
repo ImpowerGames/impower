@@ -18,31 +18,14 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
-// The driver's timing measurements read audio onsets through this tap (#683).
 if (import.meta.env.DEV) {
   enableOnsetTap();
 }
 
-// Are we running on a local dev host? The editor's dev port varies per worktree,
-// so the build-time `VITE_SPARKDOWN_EDITOR_ORIGIN` is fragile in dev: if it's
-// unset or drifts from the editor's real port, EVERY handshake reply below posts
-// to the wrong (or `undefined` → throwing) targetOrigin and the Game Preview
-// silently stays BLACK — the editor never completes its connect/Initialize. On
-// localhost there's no cross-site security boundary to protect, so we relax:
-// accept the editor's connect from ANY origin and reply to the origin it
-// actually contacted us from (`replyTargetOrigin`, captured below), defaulting
-// to "*". Production (any non-localhost host) keeps the strict, build-time origin
-// so a hostile cross-site framer can never drive the player.
 const IS_LOCALHOST = ["localhost", "127.0.0.1", "[::1]"].includes(
   window.location.hostname,
 );
 
-// The targetOrigin our postMessage replies go to. In prod it's the pinned
-// build-time origin. On localhost it starts permissive ("*") and is upgraded to
-// the editor's REAL origin as soon as the editor's first message arrives — so
-// even a missing/wrong VITE_SPARKDOWN_EDITOR_ORIGIN can't black-screen the
-// preview. The capture listener is registered BEFORE `connection.listen()` so the
-// value is resolved before the connection sends any reply.
 let replyTargetOrigin: string | undefined = IS_LOCALHOST
   ? SPARKDOWN_EDITOR_ORIGIN || "*"
   : SPARKDOWN_EDITOR_ORIGIN;
@@ -59,32 +42,13 @@ if (IS_LOCALHOST) {
   });
 }
 
-// DEV-ONLY same-origin preview: when the editor proxies this app under its own
-// origin (see impower-dev/build.ts + vite base "/__player/"), our origin equals
-// the editor's. The postMessage handshake then matches exactly with no origin
-// relaxation needed.
 const SAME_ORIGIN = window.location.origin === SPARKDOWN_EDITOR_ORIGIN;
 
-// Whether the editor is proxying us same-origin under "/__player/". Derived from
-// the BUILD BASE (vite.config sets base "/__player/" iff same-origin preview is
-// on), NOT the port-fragile baked VITE_SPARKDOWN_EDITOR_ORIGIN: that env can
-// drift from the editor's real port (per-worktree dev ports), and when it does
-// the origin compare above goes wrongly false. We use this robust signal ONLY to
-// gate service-worker registration (below): registering our own /sw.js while the
-// editor already controls this origin mints a SECOND, competing root-scoped SW
-// at the editor's scope, whose install→claim fires `controllerchange` in the
-// editor top frame → its reload handler → endless reload loop. The editor's
-// root-scoped SW already intercepts /file:/ and serves game assets from its OPFS,
-// so under the proxy we must NOT register our own.
 const SAME_ORIGIN_PROXY = import.meta.env.BASE_URL.startsWith("/__player");
 
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
-    // `replyTargetOrigin || "*"` guards against an unset value ever reaching
-    // postMessage as `undefined` (which throws "Invalid target origin").
     window.parent.postMessage(message, replyTargetOrigin || "*", transfer),
-  // Incoming-origin filter (Port2MessageConnection.canConnect): strict in prod,
-  // permissive on localhost dev so a drifted editor port can't reject connects.
   IS_LOCALHOST ? undefined : SPARKDOWN_EDITOR_ORIGIN,
 );
 connection.listen();
@@ -97,14 +61,7 @@ console.log(
 connection.addEventListener("message", async (e) => {
   const message = e.data;
   if (isMessage(message)) {
-    // Forward protocol messages from editor to player
     sendProtocolMessage(message);
-    // Forward protocol RESPONSES to our own service worker. The SW only ever
-    // awaits responses (to the FetchGameAsset requests it sends while serving
-    // /file:/ assets), so notifications -- including the editor's
-    // per-keystroke textDocument traffic -- would just be cloned into it and
-    // dropped. Same-origin/proxied preview never registers this SW at all;
-    // the editor's own root-scoped SW serves /file:/ there.
     if (
       !SAME_ORIGIN &&
       !SAME_ORIGIN_PROXY &&
@@ -122,15 +79,10 @@ connection.addEventListener("message", async (e) => {
 
 const workspaceState = installWorkspaceWorker(connection);
 
-// Stays a raw bus listener (not the typed `onProtocolMessage` helper): it's a
-// generic relay that forwards EVERY message bubbling up from the player
-// (`e.target !== window`) to the editor, discriminating on target rather than
-// message type — which a type-keyed handler can't express.
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
     if (e.target !== window) {
-      // Forward responses and notifications from player to editor
       connection.postMessage(
         message,
         message.result?.transfer || message.params?.transfer,
@@ -138,12 +90,6 @@ window.addEventListener(MessageProtocol.event, (e) => {
     }
   }
 });
-// Drags over this iframe never reach the embedding editor -- the events go to
-// this document instead -- so relay them, or the editor's drop overlay simply
-// never appears while the pointer is over the game preview.
-//
-// Only relay drags that actually carry files: an in-game text or element drag
-// is not an import, and announcing it would flash the editor's overlay.
 const carriesFiles = (e: DragEvent) =>
   Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
@@ -184,11 +130,6 @@ window.addEventListener("drop", async (e) => {
   );
 });
 
-// Register our own SW only when we are genuinely a SEPARATE origin from the
-// editor: neither the (prod-correct) origin compare nor the (dev-proxy-robust)
-// build-base signal says same-origin. Skipping when EITHER is true keeps the
-// production same-origin behavior intact while fixing the dev case where a
-// stale baked editor origin made `SAME_ORIGIN` wrongly false.
 if (!SAME_ORIGIN && !SAME_ORIGIN_PROXY && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
@@ -196,7 +137,6 @@ if (!SAME_ORIGIN && !SAME_ORIGIN_PROXY && "serviceWorker" in navigator) {
 
   navigator.serviceWorker.addEventListener("message", (e) => {
     const message = e.data;
-    // Forward protocol messages from service worker to editor
     connection.postMessage(
       message,
       message.result?.transfer || message.params?.transfer,
@@ -205,7 +145,6 @@ if (!SAME_ORIGIN && !SAME_ORIGIN_PROXY && "serviceWorker" in navigator) {
 }
 
 const load = async () => {
-  // Workspace singleton must be set before the controller instantiates.
   setWorkspace(workspaceState.workspace);
   await Promise.allSettled([SparkWebPlayerElement.register()]);
 };

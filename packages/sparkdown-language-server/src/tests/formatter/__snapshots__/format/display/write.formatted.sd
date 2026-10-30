@@ -1,1 +1,3 @@
-@ target: some  written  content
+scene start
+  @ target: some  written  content
+end

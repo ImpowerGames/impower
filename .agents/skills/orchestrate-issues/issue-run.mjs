@@ -1,23 +1,3 @@
-// Coordinates the ticket writers of one parent issue. It reads the parent issue's
-// sub-issues, blockers, Effort values, PRs and worktrees, decides which
-// tickets may be dispatched, and keeps the coordinator's compact run record:
-// who owns each ticket, which launch is pending, the reports and disk
-// recoveries the coordinator recorded, and the tickets filed during the run
-// with their triage outcomes. GitHub stays the authority for issue
-// state, PR heads, review rounds and CI, so every plan reads them afresh and
-// the record never copies them as current facts.
-//
-//   node .agents/skills/orchestrate-issues/issue-run.mjs <command> --option value ...
-//
-// Commands: init, snapshot, plan, claim, launch, launched, acknowledged,
-// deliver, delivered, request, relay, answer, answered, adopt, reconcile,
-// withdraw, verify, release, result, open, opened, resume, contact, contacted,
-// schedule, check-in, checked-in, disk-recovery, filed, dismiss, triage,
-// interim, brief, recover-lock.
-// Every command that changes the record takes --record, --coordinator and
-// --expect-revision, prints the new record revision, and refuses a stale
-// revision or another coordinator's session.
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -35,9 +15,6 @@ import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-// Version 2 keys the run by `issue`; version 1 records, checkpoints and state
-// branches belong to runs started under the skill's previous name, and the
-// helpers that read them are the ones at the last commit before the rename.
 export const RECORD_VERSION = 2;
 export const BEFORE_RENAME = {
   skill: "orchestrate-feature",
@@ -46,12 +23,9 @@ export const BEFORE_RENAME = {
   get how() { return `continue that run from a checkout of commit ${this.commit}, the last commit before the rename, with its .agents/skills/${this.skill} helpers; this version does not read it`; },
 };
 
-// Writer models, routes and each route's self-check live in runner
-// configuration beside the reviewer defaults.
 export const readWriterDefaults = (repo = repoRoot) => JSON.parse(fs.readFileSync(path.join(repo, ".claude", "writer-defaults.json"), "utf8"));
 
 export function resolveWriterModel(harness, override, defaults) {
-  // Agents launch Opus and below only; a Fable writer is never dispatched.
   if (typeof override === "string" && /fable/i.test(override)) throw new Error(`Writer model ${override} is refused: agents launch Opus and below only`);
   if (override !== undefined) {
     if (typeof override !== "string" || !routeVendor(override) || !defaults.routes[routeVendor(override)]) throw new Error(`Writer model ${override} has no supported writer route`);
@@ -62,9 +36,6 @@ export function resolveWriterModel(harness, override, defaults) {
   return { model: entry.model, source: `${harness} orchestrator default` };
 }
 
-// The dispatch routes for a model in preference order. A coordinator runs
-// unattended, so a route that needs a user-begun turn, an approval card or the
-// coordinator's own session is retired and never dispatched.
 export function routeOptions(model, defaults) {
   const routes = defaults.routes[routeVendor(model)];
   if (!routes) throw new Error(`No writer routes for ${model}`);
@@ -76,16 +47,10 @@ export function routeOptions(model, defaults) {
 }
 export const retiredReason = (route, defaults) => (defaults.retiredRoutes?.[route] ? `${route} is retired as a dispatch route: ${defaults.retiredRoutes[route]}` : null);
 
-// The permission modes a Claude session reports. Writers launch in the
-// coordinator's own mode, and writers on agent-launch tooling need bypass
-// permissions, so dispatch waits until the coordinator runs in it.
 export const PERMISSION_MODES = ["default", "acceptEdits", "plan", "auto", "bypassPermissions"];
 export const BYPASS = "bypassPermissions";
 const modeBlock = (record) => (record.coordinator.permissionMode === BYPASS ? null : `the coordinator runs in ${record.coordinator.permissionMode ?? "an unrecorded"} permission mode, not ${BYPASS}: writers launch in the coordinator's own mode, and writers on agent-launch tooling need bypass because auto mode's classifier refuses their edits; switch this session to bypass permissions, then record it with init --coordinator-mode ${BYPASS}`);
 
-// Writers message the coordinator by its session id, so init accepts only an
-// id of the coordinator's own runner: a path, a directory name or a
-// scratchpad id reaches no session.
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const COORDINATOR_IDS = { claude: [new RegExp(`^local_${UUID}$`, "i"), "the desktop app's session id, local_<uuid>"], codex: [new RegExp(`^${UUID}$`, "i"), "the Codex thread id, a bare <uuid>"] };
 export function checkCoordinatorId(harness, id) {
@@ -94,41 +59,25 @@ export function checkCoordinatorId(harness, id) {
   if (!shape.test(id ?? "")) throw new Error(`--coordinator must be this session's own id, ${name}, which its writers message; ${JSON.stringify(id ?? "")} is not one, and a path, a directory name or a scratchpad id reaches no session`);
 }
 
-// The coordinator's session title, like a writer's, comes from a slug of two
-// to four lowercase words; the title hook reads it from the run record.
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){1,3}$/;
 export function orchestrationTitle(issue, slug) {
   if (!SLUG.test(slug ?? "")) throw new Error(`--slug must be two to four lowercase words from the parent issue's title joined by hyphens, such as resumable-feature-orchestration; ${JSON.stringify(slug ?? "")} is not`);
   return `ORCH #${issue}: ${slug.replaceAll("-", " ")}`;
 }
 
-// Ticket Effort is an organization issue field; its option names map onto the
-// writer effort of the same name.
 export const writerEffortOf = (name) => ({ Low: "low", Medium: "medium", High: "high" })[name] ?? null;
 
-// A writer may install dependencies into a fresh worktree (about 6 GB of
-// disk). Its memory goes mostly to its reviewer processes (about 4 GB with
-// the writer's own tools); test suites take the machine-wide reservation one
-// at a time, so they do not add per writer. Three writers keep their
-// reviewers inside the machine-wide pool of eight reviewer slots.
 export const WRITER_DISK = 6 * 2 ** 30;
 export const WRITER_MEMORY = 4 * 2 ** 30;
 export const MAX_WRITERS = 3;
-// The run's bound comes from what does not change during a run: memory and
-// the reviewer slots. Free disk changes, notably with the bounded disk
-// recovery, so each plan admits writers against the disk free at that moment.
 export function defaultConcurrency({ totalMemory }) {
   const byMemory = Math.floor(totalMemory / WRITER_MEMORY);
   return { limit: Math.max(0, Math.min(MAX_WRITERS, byMemory)), basis: `the smaller of ${MAX_WRITERS} (reviewer slots) and ${byMemory} by memory at 4 GB per writer; each plan also admits only as many writers as free disk allows at 6 GB per writer` };
 }
 export const freeBytesAt = (dir) => { const s = fs.statfsSync(dir); return s.bavail * s.bsize; };
 
-// --- Run record -----------------------------------------------------------
-
 export function readRecord(file) {
   const record = readJson(file);
-  // A version 1 record keys its run by `feature`; it belongs to a run started
-  // before the skill was renamed, which only the helpers of that time read.
   if (record?.version === 1 && Number.isSafeInteger(record.revision) && typeof record.coordinator?.session === "string") throw new Error(`${file} is a version 1 run record of ${BEFORE_RENAME.skill}: ${BEFORE_RENAME.how}`);
   if (record?.version !== RECORD_VERSION || !Number.isSafeInteger(record.revision) || typeof record.coordinator?.session !== "string") throw new Error(`${file} is not a version ${RECORD_VERSION} issue run record`);
   return record;
@@ -140,11 +89,6 @@ function writeAtomic(file, value) {
   fs.renameSync(temp, file);
 }
 
-// An exclusive lock beside a file, held for one synchronous step. A lock whose
-// helper process is confirmed gone is reported, never silently taken:
-// recover-lock removes it after the same check. A lock taken while a recovery
-// marker exists is given back, since that recovery may be judging an older
-// holder.
 function acquire(file, identify) {
   const lock = `${file}.lock`, token = randomUUID();
   try { writeExclusive(lock, { token, identity: currentIdentity() }); }
@@ -161,15 +105,12 @@ function acquire(file, identify) {
   return release;
 }
 
-// One synchronous mutation of the run record under its lock.
 export function updateRecord(file, { expectRevision, coordinator }, mutate, { identify = processIdentity } = {}) {
   const release = acquire(file, identify);
   try {
     const record = readRecord(file);
     if (record.revision !== expectRevision) throw new Error(`The run record is at revision ${record.revision}, not ${expectRevision}; plan again from the current record`);
     if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session} on ${record.coordinator.host}; ${coordinator} may not change its run record`);
-    // After a takeover the pointer names the new record, so the previous
-    // coordinator's record stops accepting changes.
     let pointer;
     try { pointer = readJson(pointerFile(record.checkout, repositoriesOf(record).tickets, record.issue)); } catch { pointer = null; }
     if (!pointer || path.resolve(pointer.record) !== path.resolve(file)) throw new Error(`The coordinator pointer for issue #${record.issue} ${pointer ? `names ${pointer.record} (coordinator ${pointer.coordinator})` : "is missing or unreadable"}; this record no longer coordinates the parent issue`);
@@ -191,8 +132,6 @@ function lockState(file, identify) {
   return running ? `Process ${owner.identity.pid} holds ${lock}; retry after it exits` : `The lock ${lock} was left by process ${owner.identity.pid}, which has exited; run recover-lock --record ${file}`;
 }
 
-// Removes a lock whose holder is confirmed gone. One recovery runs at a time,
-// and the lock is removed only if it is still the generation that was judged.
 export function recoverLock(file, { identify = processIdentity } = {}) {
   const lock = `${file}.lock`, marker = `${lock}.recovery`;
   try { writeExclusive(marker, { identity: currentIdentity() }); }
@@ -210,40 +149,16 @@ export function recoverLock(file, { identify = processIdentity } = {}) {
 const log = (record, event, details) => record.log.push({ time: new Date().toISOString(), event, ...details });
 const ticketOf = (record, number) => (record.tickets[number] ??= { owner: null, pending: null, history: [], results: [] });
 
-// One coordinator per parent issue on this machine: a pointer in the checkout's
-// shared Git directory names the coordinator and its record. A second
-// coordinator is refused; it takes over only after the first is observed to
-// have ended, carrying the ownership forward unchanged. The pointer is keyed
-// by the repository that holds the parent issue, the tickets repository, so an
-// internal issue never meets a code repository issue of the same number;
-// with one repository that is the code repository, as it always was.
 export function pointerFile(checkout, repository, issue) {
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: checkout, encoding: "utf8", windowsHide: true }).trim();
   return path.join(common, "orchestrate-issues", `${repository.replace(/[^A-Za-z0-9.-]+/g, "_")}-${issue}.json`);
 }
 
-// --- Repositories -----------------------------------------------------------
-
-// A run spans the repositories .agents/repos.json names, at the position of
-// its cutover switch when the run starts (init, or resume's takeover). Pull
-// requests, CI, protection, merges and the writers' branches stay on the
-// run's own repository, the code repository. Its tickets (the parent issue and its
-// slices with their sub-issues, dependencies, field values and comments, the
-// review threads, the status comment, checkpoint decisions and the final
-// report) and its state branch live in the tickets repository, ticketsRepo().
-// While the switch is off those are one repository and the record names no
-// second one, as no record from before the switch does; once it is on, the
-// record keeps the tickets repository it started with. A repository the file
-// does not name as its code repository keeps its own tickets.
 export function startRepositories(repository, repos = readRepos()) {
   const tickets = ticketsRepo(repos);
   return tickets !== repos.code && sameRepository(repository, repos.code) ? { ticketsRepository: tickets } : {};
 }
 
-// The repositories a record or a checkpoint names, with the review thread of
-// a slice's pull request as reviewThread in .agents/repos.mjs resolves it:
-// the pull request itself in one repository, the slice's ticket once tickets
-// live apart.
 export function repositoriesOf({ repository, ticketsRepository }) {
   const tickets = ticketsRepository ?? repository, split = tickets !== repository;
   const repos = { code: repository, internal: tickets, cutover: split };
@@ -253,45 +168,20 @@ export function repositoriesOf({ repository, ticketsRepository }) {
     commentUrl: (thread, comment) => `https://github.com/${thread.repo}/${split ? "issues" : "pull"}/${thread.number}#issuecomment-${comment}`,
   });
 }
-// GitHub names a repository case-insensitively.
 export const sameRepository = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 
-// A pull request's closing references in the tickets repository. GitHub names
-// each reference's repository, so a ticket is matched by repository and
-// number; a reference without one names the pull request's own repository.
 export const closingIn = (refs, tickets, code) => (refs ?? []).filter((r) => sameRepository(r.repository?.name ? `${r.repository.owner?.login}/${r.repository.name}` : code, tickets));
 
-// A pull request as text posted on the tickets repository (the status
-// comment, the final report). Once tickets live apart a bare #N there names a
-// ticket, so the code repository qualifies the pull request; qualifyPrs does
-// so for every "PR #N" and "PRs #N, #M" in a text.
 export const prRef = (names, pr) => (names.split ? `${names.code}#${pr}` : `#${pr}`);
 export const qualifyPrs = (names, text) => (names.split ? String(text).replace(/\b(PRs?) (#\d+(?:(?:, |,? and )#\d+)*)/g, (_, word, list) => `${word} ${list.replace(/#(\d+)/g, `${names.code}#$1`)}`) : text);
 
-// Once tickets live apart, a ticket's number says nothing about the code
-// repository's pull requests, so its pull requests are found by the shared
-// account as author and a head branch <type>/<N>-, with or without a prefix,
-// searched for each branch type a claim or an adoption uses.
 export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor", "ci", "chore"];
 
-// What an invocation authorizes; a takeover starts from it again rather than
-// inheriting the previous coordinator's grant. Who merges is the coordinator's
-// recorded reading of the request it quotes: `coordinator` for an explicit
-// request to orchestrate the parent issue, `maintainer` when the request stops at
-// ready PRs. Without that decision the maintainer merges.
 export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, on blocked disk headroom or after a confirmed merge, plus worktrees and safely deletable branches this run created and no longer needs, each recorded here" };
 export const MERGE_GRANT = "the coordinator merges this parent issue's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
 export const MERGING = ["coordinator", "maintainer"];
-// A request that asks to stop at ready PRs, or not to merge, never grants the
-// coordinator the merge, whatever decision is recorded beside it.
-// Hyphens and underscores read as spaces, so an option-like spelling such as
-// stop-at-ready is the same request.
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
 export const stopsAtReady = (text) => STOP_AT_READY.test(String(text ?? "").replace(/[-_]+/g, " "));
-// Git Bash rewrites an argument that begins with a slash, such as a slash
-// command, into a path under its install root before the program starts. A
-// request that begins with a drive letter is that rewrite, and the typed text
-// cannot be recovered from it, so it is refused rather than guessed at.
 export const SHELL_REWRITTEN = /^[A-Za-z]:[\\/]/;
 export function mergingFor(invocation, merging = "maintainer") {
   if (SHELL_REWRITTEN.test(String(invocation ?? ""))) throw new Error(`The request "${invocation}" was rewritten by the shell: Git Bash turns a leading slash into its install path. Pass it intact with MSYS_NO_PATHCONV=1 before the command, or run the command through PowerShell`);
@@ -300,12 +190,7 @@ export function mergingFor(invocation, merging = "maintainer") {
   return merging;
 }
 export const authorityFor = (merging = "maintainer") => (merging === "coordinator" ? { ...AUTHORITY, merge: MERGE_GRANT } : AUTHORITY);
-// Only a run whose own recorded decision granted the merge, in this grant's
-// words, merges; any other record leaves merging to the maintainer.
 export const coordinatorMerges = (record) => record.invocation?.merging === "coordinator" && record.authority?.merge === MERGE_GRANT && !stopsAtReady(record.invocation?.text);
-// A later request in the coordinator's own session replaces the recorded one
-// with who merges and the authority it grants, so a request that stops at
-// ready PRs takes the merge back; the replaced request stays in the log.
 export function applyInvocation(file, { coordinator, invocation, merging }) {
   const record = readRecord(file);
   if (record.invocation?.text === invocation && record.invocation?.merging === merging) return { record, changed: false };
@@ -317,9 +202,6 @@ export function applyInvocation(file, { coordinator, invocation, merging }) {
   return { record: next, changed: true };
 }
 
-// The coordinator's permission mode as it reads it now, and a title for a
-// record that has none; running init again in the same session records a
-// switch of mode, and a record's title, once set, stays the parent issue's.
 export function applyCoordinatorMode(file, { coordinator, permissionMode, title }) {
   const record = readRecord(file);
   const switched = permissionMode !== undefined && record.coordinator.permissionMode !== permissionMode, titled = title !== undefined && !record.title;
@@ -331,24 +213,11 @@ export function applyCoordinatorMode(file, { coordinator, permissionMode, title 
   }).record;
 }
 
-// --- Periodic check-in ------------------------------------------------------
-
-// The coordinator checks in every 30 minutes: its prompt cache lasts an hour,
-// and the scheduler fires a recurring job up to 10 percent late, so an hourly
-// job can miss the cache and re-read the whole context at full price, which
-// costs more than the two cheaper check-ins it replaces. The job is a fallback
-// for a lost message or a dead writer; writers still message at every
-// decision point.
 export const CHECK_IN_MINUTES = 30;
-// The record path is single-quoted, which both shells a runner offers (POSIX
-// and PowerShell) read literally, so a path with spaces or `$` stays one
-// argument; a path holding a single quote cannot be written that way.
 export const scheduleCommand = (file) => {
   if (file.includes("'")) throw new Error(`The run record path ${file} holds a single quote, which the recorded schedule command cannot carry; keep the record under a path without one`);
   return `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${file}'`;
 };
-// The job to create with the runner's scheduling capability. Its minutes are
-// spread by parent issue number, so several coordinators do not all wake at once.
 export function scheduleSpec(record, file, defaults) {
   const capability = defaults.orchestrators[record.coordinator.harness]?.checkIn ?? null;
   const minute = record.issue % CHECK_IN_MINUTES;
@@ -358,11 +227,6 @@ export function scheduleSpec(record, file, defaults) {
     command: scheduleCommand(file), capability: capability?.capability ?? null, expiresAfterDays: capability?.expiresAfterDays ?? null,
   };
 }
-// A runner may stop protecting a job its process still fires: the runner
-// configuration names the environment variable holding the runner process's
-// id, whose start time identifies the process instance that armed the job.
-// null means the runner offers no way to tell its instances apart; a runner
-// that offers one but cannot be observed now yields { unknown: <why> }.
 export function runnerInstance(capability, { env = process.env, identify = processIdentity } = {}) {
   const name = capability?.instance?.pidEnv;
   if (!name) return null;
@@ -371,9 +235,6 @@ export function runnerInstance(capability, { env = process.env, identify = proce
   try { return identify(pid) ?? { unknown: `runner process ${pid} from ${name} is not running` }; } catch (error) { return { unknown: `runner process ${pid} from ${name} could not be probed: ${error.message}` }; }
 }
 const sameInstance = (a, b) => Boolean(a?.start && b?.start && a.pid === b.pid && a.start === b.start);
-// Whether the runner tracks the job: "confirmed" or "unconfirmed" from the
-// runner's own logs (the current one and its rotated predecessors), or
-// "unavailable" where the runner offers no such signal.
 export function trackingOf(capability, { job, session, env = process.env }) {
   const confirm = capability?.confirm;
   if (!confirm || (confirm.where && env[confirm.where.env] !== confirm.where.equals)) return "unavailable";
@@ -394,18 +255,14 @@ export function recordCheckIn(record, { job, none, file, defaults, env = process
   record.checkIn = { interval: spec.interval, cron: spec.cron, prompt: spec.prompt, command: spec.command, job: job ?? null, none: none ?? null, state: job ? "scheduled" : "none", since: since.toISOString(), expires: days ? new Date(since.getTime() + days * 86400000).toISOString() : null, instance, tracked };
   log(record, "check-in-scheduled", { job: job ?? null, none: none ?? null, instance, tracked });
 }
-// A check-in whose sweep found nothing to act on records that too.
 export function checkedIn(record, { outcome }) {
   if (!outcome) throw new Error("--outcome must say what the check-in did, or \"no change\"");
   log(record, "check-in", { outcome });
 }
-// What the next plan says about the check-in job.
 function checkInStatus(record, now, { defaults, env, identify }) {
   const c = record.checkIn;
   const status = baseCheckInStatus(c, now);
   if (status.state !== "scheduled") return status;
-  // A scheduled job the runner may no longer protect is removed and created
-  // again from the current process, which the runner then tracks.
   const capability = checkInCapability(record, defaults);
   const rearm = (why, state = "rearm") => ({ state, job: c.job, next: `job ${c.job} ${why}; remove it with ${capability.remove}, create it again with ${c.command}, and record the new job with check-in --job <id>` });
   const current = runnerInstance(capability, { env, identify });
@@ -424,9 +281,6 @@ function baseCheckInStatus(c, now) {
   return { state: "scheduled", job: c.job, interval: c.interval };
 }
 
-// What a takeover carries of the check-in and the title: the job ended with
-// the previous coordinator's session, so it is recreated for the new record;
-// the title stays the parent issue's.
 export function carriedRun(prev, { file, record, defaults }) {
   const spec = scheduleSpec(record, file, defaults);
   return {
@@ -440,7 +294,6 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   for (const [name, value] of Object.entries({ record: file, checkout })) if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`);
   scheduleCommand(file);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository ?? "")) throw new Error("--repo must be owner/name");
-  // Set only once tickets live apart from the code (startRepositories).
   if (ticketsRepository !== undefined && (!/^[\w.-]+\/[\w.-]+$/.test(ticketsRepository) || sameRepository(ticketsRepository, repository))) throw new Error("The tickets repository must be another owner/name than --repo");
   if (!Number.isSafeInteger(issue) || issue <= 0) throw new Error("--issue must be the parent issue's issue number");
   if (!coordinator) throw new Error("--coordinator must name the coordinator's session");
@@ -467,9 +320,6 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     log: [{ time: self.since, event: carried.tickets ? "takeover" : "init", coordinator, writer: writer.model, concurrency: concurrency.limit }],
   });
   fs.mkdirSync(path.dirname(pointer), { recursive: true });
-  // The pointer is read and replaced under its own lock, so two coordinators
-  // starting or taking over at once are serialized, and the second sees the
-  // first one's pointer.
   const releasePointer = acquire(pointer, identify);
   try {
     let existing;
@@ -486,8 +336,6 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
     if (!options.takeover) throw new Error(`Issue #${issue} already has coordinator ${existing.coordinator} on ${existing.host} (record ${existing.record}); a second coordinator would duplicate writers. Continue in that session, or confirm it ended and run init --takeover with an observation of it`);
     const prior = ownerStatus({ handle: { kind: "session", id: existing.coordinator } }, options.observations ?? {}, { host, identify });
     if (prior.status !== "exited") throw new Error(`Takeover refused: the previous coordinator ${existing.coordinator} is ${prior.status} (${prior.reason})`);
-    // The previous record stays locked from the copy to the pointer switch,
-    // so no change to it falls between them.
     const releaseOld = acquire(existing.record, identify);
     try {
       const old = readRecord(existing.record);
@@ -499,19 +347,6 @@ export function initRecord(options, { defaults = readWriterDefaults(), freeBytes
   } finally { releasePointer(); }
 }
 
-// --- Owner observation ----------------------------------------------------
-
-// A desktop session or native task is observed by the coordinator through its
-// own tools and passed in. A detached writer on this host is live while its
-// recorded wrapper process runs or while any process names its launch
-// directory: the writer carries that directory on its own command line, so it
-// is found even after its wrapper ended. Absent evidence, a failed census, a
-// cancellation request or a foreign host leaves the owner unknown, which
-// blocks any replacement.
-//
-// A writer on another host is judged only by an observation that names that
-// host, made there by its coordinator or the maintainer: this host's own view
-// of it (an absent PID, a session its app does not list) proves nothing.
 const EXITED = new Set(["archived", "absent", "completed", "failed", "stopped"]);
 const processCensus = () => { const r = liveDeps.processes(); return r.ok ? r.list : null; };
 export function ownerStatus(owner, observations = {}, { host = os.hostname(), identify = processIdentity, census = processCensus } = {}) {
@@ -520,9 +355,6 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
   if (handle.kind === "process") {
     if (handle.host !== host) {
       const seen = observations.processes?.[handle.pid];
-      // The recorded process is the writer's wrapper; the writer itself is
-      // found by its launch directory, as on its own host, so the observation
-      // must also have found no process naming that directory.
       const writerGone = !handle.launchDir || seen?.launchDirUnused === true;
       if (seen?.host === handle.host && seen.start === handle.start && (seen.state === "exited" || EXITED.has(seen.state))) return writerGone ? { status: "exited", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state} there${handle.launchDir ? ", with no process naming its launch directory" : ""}${seen.source ? ` (${seen.source})` : ""}` } : { status: "unknown", reason: `process ${handle.pid} on ${handle.host} was observed ${seen.state}, but not that no process there still names its launch directory ${handle.launchDir}; observe that on ${handle.host} (launchDirUnused)` };
       if (seen?.host === handle.host && seen.start === handle.start && seen.state === "running") return { status: "live", reason: `process ${handle.pid} on ${handle.host} was observed running there` };
@@ -550,23 +382,7 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
   return { status: "unknown", reason: `${handle.kind} ${handle.id} is ${seen.state}, which does not prove it stopped` };
 }
 
-// --- GitHub and worktree snapshot -----------------------------------------
-
-// The ticket a branch named <kind>/<N>-<slug> works on, the convention that
-// discovery, review checkpoints and the merge gate all read.
 export const branchTicket = (branch) => Number(/(?:^|\/)[a-z]+\/(\d+)-[^/]*$/.exec(branch ?? "")?.[1]) || null;
-// Whether a PR, its closing references already kept to the tickets
-// repository, is ticket n's. In one repository a PR that closes n or names it
-// in its branch is. Once tickets live apart, a pre-cutover PR's branch names
-// its old public number while its closing reference was rewritten to the
-// internal one, so the references decide: a PR with none (a fresh draft) is
-// its branch's ticket's; one whose branch ticket is among them is that
-// ticket's only, so a sibling's PR that closes a Bug is seen from the
-// sibling's side; and one whose branch ticket is not among them belongs to
-// the tickets it closes, whatever its branch says. A PR with none that was
-// opened before ticket n was created (ticketCreated, its created_at) is a
-// pre-cutover PR whose old branch number collides with n, so it is no
-// ticket's; an unknown time on either side keeps the branch match.
 export const ownsPull = (p, n, split, ticketCreated = null) => {
   const refs = p.closingIssuesReferences ?? [], branch = branchTicket(p.headRefName);
   const closes = (k) => refs.some((r) => r.number === k);
@@ -579,20 +395,11 @@ export function parseWorktrees(text) {
   return text.split(/\r?\n\r?\n/).map((block) => Object.fromEntries(block.split(/\r?\n/).filter(Boolean).map((line) => { const i = line.indexOf(" "); return i < 0 ? [line, true] : [line.slice(0, i), line.slice(i + 1)]; }))).filter((w) => w.worktree).map((w) => ({ path: w.worktree, head: w.HEAD ?? null, branch: typeof w.branch === "string" ? w.branch.replace(/^refs\/heads\//, "") : null }));
 }
 
-// The run's GitHub reads, given the record (or its repository and tickets
-// repository): tickets through REST on the tickets repository, pull requests
-// and their checks on the code repository, and a pull request's comments on
-// its review thread, `comments(pr, ticket)`.
 export function githubClient(names, checkout, { run = (cmd, args) => execFileSync(cmd, args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 }) } = {}) {
   const { code, tickets, split, thread } = repositoriesOf(names);
   const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
   let account;
-  // GitHub's head: qualifier matches a branch name's start, so a branch with a
-  // prefix a claim allows (codex/fix/<N>-) is found by the second query, the
-  // shared account's PRs whose text names the number, as its closing
-  // reference does. Either query only narrows the list: a PR is the ticket's
-  // by its author and ownsPull.
   const accountPulls = (n) => {
     account ??= run("gh", ["api", "user", "--jq", ".login"]).trim();
     const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
@@ -617,20 +424,12 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   };
 }
 
-// The rounds a PR's review has started, from the round-state comments the
-// review workflow posts on its review thread.
-// GitHub nests sub-issues at most eight levels deep, counting the parent issue.
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
 
-// GitHub's closing keywords, as a slice's body names the tickets its PR closes,
-// with the repository a reference qualifies: #N, owner/repo#N, or the issue's
-// URL, the forms the linked-issue check reads too.
 const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)|(?:([\w.-]+\/[\w.-]+))?#(\d+))/gi;
 export function closingReferences(body) {
   const seen = new Map();
-  // Text inside an HTML comment is invisible to GitHub's linker, as the
-  // linked-issue check treats it.
   const visible = String(body ?? "").replace(/<!--[\s\S]*?-->/g, "");
   for (const m of visible.matchAll(CLOSING_REFERENCE)) {
     const repository = m[1] ?? m[3] ?? null, number = Number(m[2] ?? m[4]);
@@ -641,27 +440,8 @@ export function closingReferences(body) {
 }
 const PR_PREFERENCE = { MERGED: 0, OPEN: 1 };
 const byPreference = (a, b) => (PR_PREFERENCE[a.state] ?? 2) - (PR_PREFERENCE[b.state] ?? 2);
-// A closed, unmerged PR delivers nothing.
 const viablePr = (p) => p.state === "MERGED" || p.state === "OPEN";
 
-// The parent's sub-issue tree, read once to GitHub's own nesting limit, with
-// each node's place in the plan and what delivers it. A ticket is claimed by
-// another listed ticket when that ticket's open or merged PR on its own branch
-// closes it, or when that ticket's body names it with a closing keyword (a
-// reference qualified with another repository than the tickets repository
-// names nothing here); a PR claim outranks a body claim, and two claimants at
-// the winning rank are a conflict the maintainer settles. A ticket with an
-// open or merged PR of its own is always its own slice. A node with sub-issues
-// is a container, planned through them, unless it is a slice that delivers
-// them: a Task or Feature whose sub-issues are all Bugs, none of which resolves
-// to a claimant other than itself or to a conflict, stays a ticket of its own,
-// and each of those Bugs is delivered by its PR rather than dispatched (a Bug
-// with a PR of its own is its own slice beside it). An umbrella whose Bugs
-// other slices claim is therefore a container, never dispatched for them. A
-// container below the nesting limit is one the walk could not see into, so it
-// is marked truncated rather than treated as a ticket. The snapshot and the
-// final gate's scope read share this walk and its PR reads, so both see the
-// same slices.
 export function walkSubIssues(issue, client, { tickets = null, split = false, pullsOf = pullsFilter(client, tickets, split) } = {}) {
   const nodes = [];
   const isBug = (c) => (c.type?.name ?? null) === "Bug";
@@ -682,9 +462,6 @@ export function walkSubIssues(issue, client, { tickets = null, split = false, pu
     for (const p of s.ownPrs) for (const r of p.closingIssuesReferences ?? []) if (r.number !== s.number && listed.has(r.number)) claimOf(r.number).pr.push({ ticket: s.number, pr: p.number, state: p.state });
     for (const n of s.closes) if (n !== s.number && listed.has(n) && !claimOf(n).body.includes(s.number)) claimOf(n).body.push(s.number);
   }
-  // What each node resolves to before the tree is consulted: its own PR, one
-  // PR claimant, a conflict, one body claimant (a parent's own body claiming
-  // its sub-issue is the sub-issue relation, not a claim), or nothing.
   const distinct = (xs) => [...new Set(xs)].sort((a, b) => a - b);
   const resolved = new Map(nodes.map((node) => {
     if (node.ownPrs.length) return [node.number, { kind: "own" }];
@@ -700,23 +477,15 @@ export function walkSubIssues(issue, client, { tickets = null, split = false, pu
   for (const node of nodes) {
     const claimedElsewhere = (c) => { const r = resolved.get(c.number); return Boolean(r && (r.kind === "conflict" || ((r.kind === "pr" || r.kind === "body") && r.ticket !== node.number))); };
     const allBugs = node.children.length > 0 && node.type !== null && node.type !== "Bug" && node.children.every((c) => c.bug);
-    // A ticket another ticket claims, or two contest, has no PR of its own to
-    // carry its sub-issues, so it delivers none of them.
     const ownResolution = resolved.get(node.number);
     node.delivers = allBugs && !(ownResolution && ownResolution.kind !== "own") && node.children.every((c) => !claimedElsewhere(c));
     node.container = node.children.length > 0 && !node.delivers;
     if (node.container && node.depth >= MAX_SUB_ISSUE_DEPTH) node.truncated = true;
   }
-  // A claimant delivers only as a slice of its own: a container is planned
-  // through its sub-issues and never merges, and a ticket that is itself
-  // delivered or contested has no PR of its own to carry the claim. Such a
-  // claim is reported for the maintainer rather than taken as a delivery.
   const deliveredItself = (c) => { const r = resolved.get(c.number); return Boolean((r && r.kind !== "own") || (!r && c.type === "Bug" && listed.get(c.parent)?.delivers)); };
   const cannotDeliver = (ticket) => { const c = listed.get(ticket); return c.container ? "a container, planned through its own sub-issues" : deliveredItself(c) ? "itself delivered by another slice or contested" : null; };
   return nodes.map(({ children, closes, depth, delivers, ownPrs, ...node }) => {
     const r = resolved.get(node.number);
-    // A container is planned through its sub-issues; a claim on it, or a
-    // contest over it, is reported rather than taken as a delivery.
     if (node.container) return r && r.kind !== "own" ? { ...node, claimedContainer: r.kind === "conflict" ? { tickets: r.tickets } : { ticket: r.ticket, via: r.kind } } : node;
     if (r?.kind === "own") return node;
     if (r?.kind === "conflict") return { ...node, deliveryConflict: r.tickets };
@@ -730,16 +499,8 @@ export function walkSubIssues(issue, client, { tickets = null, split = false, pu
   });
 }
 
-// When the run began: its first coordinator's start, which a takeover keeps
-// in the previous coordinators it carries.
 export const runStartedAt = (record) => [...(record.previousCoordinators ?? []), record.coordinator].map((c) => c?.since).filter(Boolean).sort()[0] ?? null;
 
-// A sub-issue closed as completed before the run began, with no open or
-// merged PR of its own and nothing the record holds for it, is history: it
-// was delivered outside the run, holds no writer place, is never dispatched,
-// and does not count against the parent's completion. One the run saw close,
-// or one closed as not planned, is not. GitHub's closed_at has one-second
-// precision, so a closure in the start's own second counts as during the run.
 export const HISTORY = "closed before the run, delivered outside it";
 export function closedBeforeRun(record, t) {
   const start = runStartedAt(record), own = record.tickets?.[t.number] ?? {};
@@ -748,17 +509,8 @@ export function closedBeforeRun(record, t) {
   return !(t.prs ?? []).some((p) => branchTicket(p.branch) === t.number && (p.state === "OPEN" || p.state === "MERGED"));
 }
 
-// The slices a container's walk plans: every node that is not a container,
-// and a container the walk could not see into.
 const plannedNodes = (nodes) => nodes.filter((t) => !t.container || t.truncated);
 
-// A ticket's PRs: those that close it and those on its own branch, with each
-// PR's closing references kept to the tickets repository (an unqualified
-// reference names it; a reference to another repository names nothing). The
-// client that reads PRs once tickets live apart already keeps only those, and
-// in one repository the code repository is the tickets repository. Once
-// tickets live apart, a PR with no references on n's branch reads n's
-// creation time, once per ticket, to tell a pre-cutover PR from a fresh draft.
 const pullsFilter = (client, tickets = null, split = false) => {
   const cache = new Map(), created = new Map();
   const refsOf = (p) => (tickets === null ? (p.closingIssuesReferences ?? []).filter((r) => !r.repository?.name) : closingIn(p.closingIssuesReferences, tickets, tickets));
@@ -775,10 +527,6 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const worktrees = client.worktrees();
   const pullsOf = pullsFilter(client, ticketsRepository, repositoriesOf({ repository, ticketsRepository }).split);
   const delivered = (n) => pullsOf(n).some((p) => p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
-  // The parent's body is read before its tree, so a criterion added while the
-  // tree is walked shows up in the final gate's later scope read, not here;
-  // its type is the one GitHub reports (Feature, Task or Bug, or none), and
-  // the brief names the parent by it.
   const parent = client.issue(issue);
   const tickets = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf }).map((node) => {
     const n = node.number;
@@ -790,10 +538,6 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
   });
-  // A delivered ticket carries its deliverer's PR once that exists (a Bug a
-  // slice delivers as its sub-issue gets the slice's PR), whether that PR's
-  // merge is on origin/main, and the delivery itself once GitHub closed it;
-  // its own PR list may lack the deliverer's PR once tickets live apart.
   const byNumber = new Map(tickets.map((t) => [t.number, t]));
   for (const t of tickets) {
     if (!t.deliveredBy) continue;
@@ -801,38 +545,20 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     if (t.deliveredBy.pr === null) t.deliveredBy.pr = s.prs.filter((p) => branchTicket(p.branch) === s.number && viablePr(p)).sort(byPreference)[0]?.number ?? null;
     const pr = t.deliveredBy.pr === null ? null : s.prs.find((p) => p.number === t.deliveredBy.pr);
     t.deliveredBy.merged = Boolean(pr && pr.state === "MERGED" && pr.mergeCommit && client.onMain(pr.mergeCommit));
-    // Only the deliverer's merge delivers it; another merged PR that happens to
-    // name it does not.
     t.delivered = t.state === "closed" && t.deliveredBy.merged;
   }
-  // A blocker that is a delivered ticket of this tree is delivered exactly
-  // when its slice's merge delivered it.
   for (const t of tickets) for (const b of t.blockers) { const x = byNumber.get(b.number); if (x?.deliveredBy) b.delivered = x.delivered; }
   return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
 }
 
-// A slice's line in the scope: a closed one names how and when it closed,
-// which decides whether it is history, so a reopen and close while the gate
-// runs changes the scope.
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
 
-// The parent issue's slices, each with its state, and its acceptance section, read
-// on their own: the sub-issue tree, then the body last. The final gate reads
-// it after every premise and compares it with the snapshot those premises
-// were judged on, so a slice that left, joined or reopened, or a criterion
-// that changed, while the slower reads ran stops the call.
 export function readIssueScope({ issue, tickets = null, split = false }, client) {
   const slices = plannedNodes(walkSubIssues(issue, client, { tickets, split })).map(scopeLine);
   return { slices: slices.sort(), acceptanceSha256: acceptanceHash(client.issue(issue).body) };
 }
-// The same scope as a snapshot holds it.
 export const snapshotScope = (snapshot) => ({ slices: plannedNodes(snapshot.tickets).map(scopeLine).sort(), acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null });
 
-// --- Admission plan -------------------------------------------------------
-
-// An open of an idle CLI writer whose outcome is not yet settled from the
-// app's session list; null once it is confirmed, or when it failed and nothing
-// was handed over.
 function openPending(owner) {
   const o = owner.opened, last = o?.steps?.at(-1);
   if (!o || o.session || !last || last.state === "failed") return null;
@@ -841,29 +567,16 @@ function openPending(owner) {
   return `the open of session ${o.sessionId} has ${last.state === "intent" ? "no recorded outcome" : `an uncertain outcome (${last.reason})`}; look for ${app} in the app's session list and record it with opened if it is there, and never run open again`;
 }
 
-// Where the coordinator reads a writer's own record of what it said.
 function transcriptOf(owner) {
   const handle = owner.handle;
   if (handle.kind === "process") return handle.launchDir ? path.join(handle.launchDir, "out.jsonl") : `process ${handle.pid}'s output`;
   return `${handle.kind} ${handle.id}`;
 }
 
-// Reviewer launches that died before their journal existed: a plan whose
-// launcher logs exist, so start-coordinator ran, with no journal and no
-// process naming the plan. A launcher refused at validation writes its error
-// only to the plan's .coordinator.err.log, so nothing else would show it.
-// start-coordinator writes those logs into the job directory it is given,
-// which the review workflow makes the plan's own directory or its journal's
-// launch-state directory, so both are searched. The walk reads only where the
-// review workflow writes plans (reviewJobFiles), never a reviewer's workspace,
-// and a file removed while it runs is skipped. A failed process census proves
-// no launch dead.
 const launcherLogs = (plan, journal, kind) => [...new Set([path.dirname(plan), path.dirname(journal)])].map((dir) => path.join(dir, `${path.basename(plan, path.extname(plan))}.coordinator.${kind}.log`));
 function launchPlans(files) {
   const plans = [];
   for (const { file, size } of files) {
-    // The launcher takes a plan from any path, so a plan is recognized by its
-    // content, as the review-checkpoint scanner does.
     if (size === 0 || size > 4 * 2 ** 20) continue;
     let plan;
     try { plan = readJson(file); } catch { continue; }
@@ -879,8 +592,6 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
     const sizes = new Map(files.map(({ file, size }) => [file, size]));
     for (const { file, journal } of launchPlans(files)) {
       const started = ["out", "err"].some((kind) => launcherLogs(file, journal, kind).some((log) => fs.existsSync(log)));
-      // A journal the walk saw empty is read again: its launcher may have
-      // written its first rows since.
       if (!started || (sizes.get(journal) || fs.statSync(journal, { throwIfNoEntry: false })?.size) > 0) continue;
       if (list === undefined) { try { list = census(); } catch { list = null; } }
       if (!Array.isArray(list)) return [];
@@ -895,14 +606,7 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
   return dead;
 }
 
-// The parent issue's "Acceptance criteria" section: every line under that heading
-// up to the next heading of the same or a higher level, so nested headings
-// stay inside it. A line inside a fenced code block is never a heading. Null
-// when the parent issue has no such heading.
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
-// Each line's place relative to fenced code and HTML comments: true for a
-// fence or comment and every line inside one, so neither a heading nor a
-// checkbox there counts.
 function fencedLines(lines) {
   let fence = null, comment = false;
   return lines.map((l) => {
@@ -921,20 +625,10 @@ export function acceptanceSection(body) {
   const end = levels.findIndex((level, i) => i > start && level > 0 && level <= levels[start]);
   return lines.slice(start + 1, end < 0 ? undefined : end);
 }
-// The section's text with line endings and trailing spaces normalized; a
-// verification is bound to its hash, so any edit of the section, whether to a
-// checkbox, its continuation or the prose around it, needs a new
-// verification.
 export const acceptanceHash = (body) => { const s = acceptanceSection(body); return s === null ? null : createHash("sha256").update(s.map((l) => l.trimEnd()).join("\n").trim()).digest("hex"); };
-// GitHub's list markers: `-`, `+` and `*` bullets and ordered `1.` or `1)`
-// items, inside any blockquote. A task item is a list item that opens with a
-// checkbox.
 const LIST_MARKER = String.raw`^\s*(?:>\s*)*(?:[-+*]|\d{1,9}[.)])`;
 const LIST_ITEM = new RegExp(String.raw`${LIST_MARKER}\s`);
 const TASK_ITEM = new RegExp(String.raw`${LIST_MARKER}\s+\[[ xX]\]\s+(.*\S)\s*$`);
-// Each checkbox in the section, with its indented continuation lines joined
-// to it, under any nested heading; a checkbox inside fenced code is an
-// example, not a criterion.
 export function parseCriteria(body) {
   const items = [];
   let open = false;
@@ -950,13 +644,6 @@ export function parseCriteria(body) {
 }
 const sameCriteria = (a, b) => JSON.stringify(a.map((c) => c.text ?? c.criterion)) === JSON.stringify(b.map((c) => c.text ?? c.criterion));
 
-// The latest complete verification still describes the parent issue only while
-// every premise it was made on holds in a fresh snapshot: main is the commit
-// it verified, the parent issue lists the criteria it checked and the slices it
-// covered, each of those slices is still closed with its deliverable on main,
-// and no operation is unsettled, a parent issue closure included. Each premise
-// that changed is named; any change needs a new verification. `running` is
-// the one operation being carried out, whose own intent is not a gap.
 export function verificationGaps(record, snapshot, { running = null } = {}) {
   const v = (record.verifications ?? []).at(-1);
   if (v?.verdict !== "complete") return ["the latest verification is not complete"];
@@ -969,12 +656,11 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   for (const t of slices) if (!(t.state === "closed" && t.delivered) && !closedBeforeRun(record, t)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
   const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
   if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing issue #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
-  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it, or dismiss it with GitHub's evidence`}`));
+  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.unplaced ? "was triaged separate with no umbrella it was attached under; triage it again with issue-run.mjs triage --under, or record maintainer" : f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it, or dismiss it with GitHub's evidence`}`));
   return gaps;
 }
 export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
 
-// Remaining work the coordinator reports beside every plan.
 export function remainingFor(record, complete) {
   if (complete) return ["Every slice is merged and the parent issue's acceptance criteria were verified on main; close the parent issue with integration.mjs close-issue if it is still open, and give the final report."];
   return [
@@ -989,9 +675,6 @@ export function remainingFor(record, complete) {
   ];
 }
 
-// The action for a ready PR: settle an unconfirmed merge or readiness change
-// first, then merge through the gate, or wait for the maintainer when the
-// invocation stops at ready.
 const OPEN_OPERATION = new Set(["intent", "uncertain"]);
 function readyAction(record, pr, why = "") {
   const op = (record.operations ?? []).find((o) => o.pr === pr.number && o.kind !== "close" && OPEN_OPERATION.has(o.state));
@@ -1000,12 +683,8 @@ function readyAction(record, pr, why = "") {
   return ["await-maintainer", `PR #${pr.number} is ready at ${pr.head}${why}; the invocation stops at ready, so the maintainer merges it`];
 }
 
-// A report recorded since the writer last started, by launch or resume.
 const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.at(-1)?.time ?? own.owner.since); return (own.results ?? []).some((r) => Date.parse(r.time) >= started); };
 
-// The record holds no writer for the ticket, and its last one was released
-// after an observed end, settled by a census that found no process, or was a
-// continuation whose claim recorded the previous writer's end and never ran.
 const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
 export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus, env = process.env }) {
@@ -1017,9 +696,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   const interval = (record.checkIn?.interval ?? CHECK_IN_MINUTES) * 60000;
   let active = 0;
   const add = (ticket, action, reason, extra = {}) => { const entry = { number: ticket.number, title: ticket.title, effort: writerEffortOf(ticket.effort), action, reason, ...extra }; tickets.push(entry); return entry; };
-  // The first route that runs the writer model at the ticket's effort, with
-  // the reasons the others, and any retired route a preflight was run for,
-  // were passed over.
   const chooseRoute = (t) => {
     const effort = writerEffortOf(t.effort);
     const verdictOf = (route) => preflights.filter((p) => p.route === route && p.model === model).flatMap((p) => p.verdicts).find((v) => v.ticket === t.number && v.effort === effort);
@@ -1035,25 +711,18 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   };
   const startWith = (choice) => ({ route: choice.chosen.route, model, effort: choice.effort, ...(choice.chosen.launch && { launch: choice.chosen.launch }) });
   const unlaunchable = modeBlock(record);
-  // How a start with no recorded outcome is settled.
   const pendingNext = (p) => {
     if (p.host && p.host !== host) return `${p.operation} ${p.launchId} on ${p.route} was claimed on ${p.host} and has no recorded outcome; settle it on that host (reconcile there, or withdraw --observed-on ${p.host} with what was observed there) before any retry`;
     const retired = retiredReason(p.route, defaults);
     return `launch ${p.launchId} on ${p.route} has no confirmed outcome; ${p.route === "claude-cli" ? "run reconcile" : `find the started writer and record it with launched, or withdraw with evidence that none started${retired ? `, and never retry it there, since ${retired}` : ""}`} before any retry`;
   };
-  // A blocker that is history counts as delivered outside the run.
   const historic = new Set(snapshot.tickets.filter((t) => closedBeforeRun(record, t)).map((t) => t.number));
   const met = (b) => b.delivered || historic.has(b.number);
   const undelivered = (t) => t.blockers.filter((b) => !met(b));
   const waitingFor = (blockers) => `waiting for ${blockers.map((b) => `#${b.number} (${b.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join(", ")}`;
-  // Sub-issues of a container whose own writer is still held wait until that
-  // writer is settled; the snapshot lists a container before its sub-issues.
   const parentOf = new Map(snapshot.tickets.map((t) => [t.number, t.parent]));
   const heldContainers = new Set();
   const heldAncestor = (t) => { for (let p = t.parent; p !== undefined && p !== snapshot.issue.number; p = parentOf.get(p)) if (heldContainers.has(p)) return p; return null; };
-  // A delivered ticket that holds a writer, a pending start or a worktree of
-  // its own holds the slice that delivers it, so no second writer starts on
-  // work that may already be under way.
   const heldDeliverers = new Map();
   for (const t of snapshot.tickets) {
     if (!t.deliveredBy) continue;
@@ -1064,14 +733,9 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
   }
   const heldDelivery = (n) => heldDeliverers.get(n) ?? null;
-  // A delivered ticket's own dependencies are its deliverer's: a blocker that
-  // is not delivered, and is neither the deliverer nor delivered by it, holds
-  // the deliverer, since its PR carries the blocked work.
   const blockedDeliverers = new Map();
   const deliveredBySlice = new Map(snapshot.tickets.filter((t) => t.deliveredBy).map((t) => [t.number, t.deliveredBy.ticket]));
   for (const t of snapshot.tickets) {
-    // A closed issue alone is not delivery: until its deliverer's merge
-    // delivers it, its unmet blockers keep holding the deliverer.
     if (!t.deliveredBy || t.delivered || historic.has(t.number)) continue;
     const s = t.deliveredBy.ticket;
     for (const b of t.blockers) {
@@ -1081,13 +745,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
   }
   const blockedDelivery = (n) => blockedDeliverers.get(n) ?? null;
-  // A ticket filed during the run waits on its triage, for a new writer and
-  // for one continuing its existing work alike. One raised with the
-  // maintainer waits on their answer. One that completes a slice's fix waits
-  // until that slice is delivered: the slice's PR takes the proper fix with a
-  // closing reference, or, under the maintainer's interim, the ticket removes
-  // the narrow fix once that PR has merged. A slice the tree no longer lists
-  // gives no evidence of either, so the ticket waits on the coordinator.
   const triageHold = (t) => {
     const triaged = record.filed?.[t.number]?.outcome;
     if (triaged?.kind === "maintainer") return { action: "decision-needed", reason: `filed during the run and raised with the maintainer: "${triaged.question}"; no writer starts on it until their answer is recorded with triage or interim` };
@@ -1098,16 +755,11 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     return { action: "wait-dependency", waitingFor: [fixOf.number], reason: `it completes #${fixOf.number}'s fix (${triaged.reason}); ${triaged.interim ? `the maintainer accepted #${fixOf.number}'s narrow fix as an interim, so this ticket removes it once #${fixOf.number}'s PR has merged` : `#${fixOf.number}'s writer makes the proper fix in its PR with a closing reference to #${t.number}, which delivers it`}` };
   };
   const blockedText = (list) => list.map((x) => `#${x.ticket}, which its PR delivers, waits for #${x.blocker.number} (${x.blocker.state === "closed" ? "closed, but no merged deliverable is on origin/main" : "open"})`).join("; ");
-  // Each owner is observed once per plan; the sweep below reuses it.
   const statuses = new Map();
   const statusOf = (n, owner) => { if (!statuses.has(n)) statuses.set(n, ownerStatus(owner, observations, { host, identify })); return statuses.get(n); };
   for (const t of snapshot.tickets) {
     const own = record.tickets[t.number] ?? {};
     const open = t.prs.filter((p) => p.state === "OPEN");
-    // A ticket another slice's PR delivers is never dispatched and holds no
-    // writer place: it is done once that PR's merge commit is on origin/main
-    // and GitHub has closed it, and a writer the record holds for it is a
-    // mistake to settle.
     if (t.deliveryConflict) {
       const reserves = Boolean(own.owner || own.pending || (t.worktrees.length && !writerKnownEnded(own)));
       if (reserves) active++;
@@ -1133,9 +785,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     }
     if (t.container && t.claimedContainer) {
       const c = t.claimedContainer;
-      // The claim settles nothing about the container's own work: a writer,
-      // pending start, or existing PR or worktree whose writer is not known to
-      // have ended keeps its place and holds the sub-issues, as below.
       const existing = !own.owner && !own.pending && (open.length || t.worktrees.length) && !writerKnownEnded(own);
       const holds = Boolean(own.owner || own.pending || existing);
       if (holds) { heldContainers.add(t.number); active++; }
@@ -1150,8 +799,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         const held = own.owner ? `writer ${own.owner.handle.id ?? own.owner.handle.pid} (${statusOf(t.number, own.owner).status})` : `pending ${own.pending.operation} ${own.pending.launchId}`;
         add(t, "decision-needed", `the ticket gained sub-issues while ${held} holds it; settle that writer before its sub-issues are dispatched`);
       } else if (open.length || t.worktrees.length) {
-        // Existing work on a ticket that became a container may still have a
-        // writer: it keeps its place and holds the sub-issues until settled.
         const reserves = !writerKnownEnded(own);
         if (reserves) { active++; heldContainers.add(t.number); }
         const action = open.length ? "adopt-pr" : "adopt-worktree";
@@ -1163,18 +810,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (t.state === "closed" && !t.delivered && closedBeforeRun(record, t)) { add(t, "done", HISTORY, { history: true }); continue; }
     if (t.state === "closed") {
       if (own.owner || own.pending) active++;
-      // A start with no recorded outcome may have a writer that ran; it is
-      // settled before the ticket counts as done, whatever its state.
       if (own.pending) { add(t, "reconcile-pending", `closed, but ${pendingNext(own.pending)}`, { pending: own.pending }); continue; }
-      // A merge or a closed issue does not show the writer ended: one whose
-      // worktree remains on this host, and whom the record has not settled,
-      // keeps its place until it is adopted and released, or until the merged
-      // worktree is removed through the guarded cleanup.
       const lingering = !own.owner && !own.pending && t.worktrees.length > 0 && !writerKnownEnded(own);
       if (lingering) active++;
       const base = t.delivered ? "closed with its merged deliverable on origin/main" : `closed${t.stateReason === "not_planned" ? " as not planned" : ""} without a merged deliverable on origin/main; confirm whether the ticket is complete`;
-      // A writer still held on a closed ticket keeps its place until it is
-      // released; once it has ended, its last report is read and it is let go.
       if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
       if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
       add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
@@ -1194,28 +833,15 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       if (own.owner.mismatch) { active++; add(t, "stop-writer", `the writer does not run the requested route: ${own.owner.mismatch}; stop it and keep its evidence, never substitute`, extra); continue; }
       const opening = openPending(own.owner) ?? (own.owner.resuming && `resume ${own.owner.resuming.id} of session ${own.owner.sessionId} has no recorded outcome (${own.owner.resuming.reason ?? "it may have started"}); run reconcile, which looks for a process naming ${own.owner.resuming.launchDir}, and never resume again before it`);
       if (opening) { active++; add(t, "reconcile-pending", opening, extra); continue; }
-      // A detached CLI writer's process ends with its turn, so a request it
-      // left is answered by resuming its session with the answer as the
-      // prompt; any other writer that ended has nobody left to answer.
       const asked = openRequests(own);
       const resumable = s.status === "exited" && own.owner.route === "claude-cli" && own.owner.handle.kind === "process";
       if (asked.length && (s.status !== "exited" || resumable)) { active++; add(t, "answer-request", `${asked.map((r) => requestNext(r, ["waiting", "exited"].includes(s.status))).join("; ")}${resumable ? `; its turn has ended, so deliver the answer by resuming its session: record answer, write the message it prints to a file, run resume with that file as the prompt, then record answered` : ""}`, { ...extra, requests: asked }); continue; }
-      // A writer briefed by an earlier coordinator still reports there: tell
-      // it this coordinator's id before anything else reaches it, a brief
-      // resend included, since a writer that already has its assignment
-      // ignores a resent copy.
       if (own.owner.coordinator && own.owner.coordinator !== record.coordinator.session && s.status !== "exited") {
         active++;
         const c = own.owner.contact;
         add(t, c?.state === "intent" ? "reconcile-pending" : "update-contact", c?.state === "intent" ? `contact notice ${c.deliveryId} to the writer has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if its transcript shows it, record contacted with that evidence; otherwise " : ""}wait, or resend with contact --retry` : `the writer was briefed to report to ${own.owner.coordinator}, not this coordinator ${record.coordinator.session}; record contact, send the notice it prints, then record contacted`, extra);
         continue;
       }
-      // A brief sent with the writer's start is acknowledged by the writer's
-      // first message; without one after a check-in interval, the delivery
-      // failed or the coordinator id was wrong, so it is settled now rather
-      // than waited out. A resend with no recorded outcome is settled first.
-      // A running writer's transcript is never read, so only one whose turn
-      // ended is checked there before a resend.
       const brief = own.owner.brief;
       if (brief && !own.owner.acknowledged && s.status !== "exited") {
         if (brief.state === "intent") { active++; add(t, "reconcile-pending", `brief delivery ${brief.deliveryId} of assignment ${own.owner.launchId} has no recorded outcome and may still be queued; ${s.status === "waiting" ? "if the writer's transcript shows the assignment, record delivered with that evidence; otherwise " : ""}wait, or resend with deliver --retry, which the brief tells the writer to ignore once a copy has arrived`, extra); continue; }
@@ -1227,10 +853,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
         }
       }
       if (s.status === "exited" && open.length === 1 && !open[0].isDraft) { const [action, reason] = readyAction(record, open[0], `; ${s.reason}`); add(t, action, reason, extra); continue; }
-      // A CLI writer's turn can end without its final report: on a request
-      // (handled above), or stalled on a wait it should have run in the
-      // foreground. Until a report since its last start is recorded, the turn
-      // is read rather than taken as the end of the work.
       if (resumable && !reportedSince(own)) { active++; add(t, "collect-report", `${s.reason}; its turn ended with no final report recorded since its last start: read its transcript at ${transcriptOf(own.owner)}, then record its report with result and release it, record its request and answer it by resume, or, when it stopped with work left (a wait on a background task), resume it with a prompt to continue`, extra); continue; }
       active++;
       const action = { live: "observe", waiting: "collect-report", unknown: "blocked-owner-unknown", exited: "release" }[s.status];
@@ -1242,8 +864,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (open.length === 1) {
       const pr = open[0];
       if (!pr.isDraft) {
-        // A ready PR does not show its writer ended; until the record settles
-        // that writer, it keeps its place.
         const reserves = !writerKnownEnded(own);
         if (reserves) active++;
         const [action, reason] = readyAction(record, pr, ` after ${pr.rounds} review rounds`);
@@ -1270,8 +890,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (blockedBy) { add(t, "wait-dependency", blockedText(blockedBy), { waitingFor: [...new Set(blockedBy.map((x) => x.blocker.number))] }); continue; }
     eligible.push(t);
   }
-  // A writer the record still holds for a ticket the parent issue no longer lists
-  // keeps its capacity until the coordinator settles it.
   const listed = new Set(snapshot.tickets.map((t) => t.number));
   for (const [n, own] of Object.entries(record.tickets)) {
     if (listed.has(Number(n)) || (!own.owner && !own.pending)) continue;
@@ -1280,11 +898,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   }
   const free = freeBytes ?? Infinity;
   const room = Math.min(record.concurrency.limit, Math.floor(free / WRITER_DISK));
-  // Existing work is continued by a new writer only under the same admission
-  // as new work: every blocker delivered, a route available, and room in the
-  // limit. Each piece of existing work reserves a place, since its writer may
-  // run, until the record shows that writer released after an observed exit;
-  // a continuation gives up only its own ticket's place, never another's.
   for (const { t, entry, reserves } of existingWork.sort((a, b) => a.t.number - b.t.number)) {
     const waiting = undelivered(t);
     if (!writerEffortOf(t.effort)) { entry.continueBlocked = t.effort ? `Effort ${t.effort} has no writer effort` : "the ticket has no Effort value; assign one through the issue-fields procedure and plan again"; continue; }
@@ -1310,8 +923,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     capacity--;
     add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
   }
-  // A planned handoff admits no new work: nothing starts and existing work is
-  // not continued until the next coordinator plans.
   if (record.handoff) {
     const why = `a planned handoff stopped new dispatch at ${record.handoff.since}`;
     for (const t of tickets) {
@@ -1319,10 +930,6 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       if (t.continueWith) { delete t.continueWith; t.continueBlocked = why; }
     }
   }
-  // The sweep covers every writer the record holds and every open PR,
-  // whatever the ticket's action. A transcript is read only when its
-  // writer's turn has ended: a running writer cannot be waiting on the
-  // coordinator.
   for (const [n, own] of Object.entries(record.tickets)) {
     if (!own.owner) continue;
     const s = statusOf(Number(n), own.owner);
@@ -1332,14 +939,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   for (const t of snapshot.tickets) reviewed.push(...t.prs.filter((p) => p.state === "OPEN").map((p) => ({ ticket: t.number, pr: p.number })));
   sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
   tickets.sort((a, b) => a.number - b.number);
-  // A slice's entry names the tickets its PR delivers, so its brief asks the
-  // writer for their closing references.
   for (const entry of tickets) {
     const delivers = snapshot.tickets.filter((x) => x.deliveredBy?.ticket === entry.number).map((x) => x.number);
     if (delivers.length) entry.delivers = delivers;
   }
-  // The parent issue is complete only once its acceptance criteria were verified
-  // on main and every ticket is still delivered.
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
     repository: record.repository, issue: record.issue, parent: { type: snapshot.issue.type ?? null, title: snapshot.issue.title ?? null }, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
@@ -1348,14 +951,10 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   };
 }
 
-// --- Ownership transitions ------------------------------------------------
-
 const BRANCH = /^(?:[a-z]+\/)?(?:fix|feat|perf|docs|test|refactor|ci)\/(\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function planEntry(planFile, record, number, actions) {
   const plan = readJson(planFile);
-  // A plan admits work only for the run and revision it was made from; a
-  // takeover starts a new run, so an earlier coordinator's plan never applies.
   if (plan.runId !== record.runId || plan.repository !== record.repository || plan.issue !== record.issue) throw new Error(`The plan was made for another run (${plan.runId ?? "none"}, coordinator ${plan.coordinator}); plan again from this run's record`);
   if (plan.revision !== record.revision) throw new Error(`The plan was made at revision ${plan.revision}; plan again from revision ${record.revision}`);
   const entry = plan.tickets.find((t) => t.number === number);
@@ -1368,12 +967,6 @@ function assertFree(ticket, number) {
   if (ticket.pending) throw new Error(`#${number} already has pending ${ticket.pending.operation} ${ticket.pending.launchId}; reconcile it first`);
 }
 
-// A claim records the intent to start a writer before anything starts. A
-// continuation claims existing work (a draft PR or a found worktree) for a new
-// writer once the coordinator has evidence that the previous one ended; it
-// keeps the branch, worktree and the PR's started review rounds. A Claude
-// writer is claimed in the coordinator's own permission mode, which its
-// launch must name.
 const CLAIM_ACTIONS = { dispatch: ["dispatch"], continue: ["adopt-pr", "adopt-worktree"] };
 export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence, host = os.hostname(), defaults = readWriterDefaults() }) {
   if (!Object.hasOwn(CLAIM_ACTIONS, operation)) throw new Error(`--operation must be ${Object.keys(CLAIM_ACTIONS).join(", ")}`);
@@ -1405,28 +998,17 @@ export function claim(record, { plan, ticket: number, worktree, branch, artifact
   return ticket.pending;
 }
 
-// A pending start that ends without a writer keeps what its claim
-// established: a continuation's evidence that the previous writer ended.
 const settledStart = (pending, fields) => ({ pending, ...fields, ...(pending.continues && { priorEnded: pending.continues.evidence }) });
 
-// A started writer has its brief already: it went with the start. The brief
-// counts as delivered from then, and the writer's acknowledgement confirms it.
-// The coordinator a writer was told: the one its sent brief names, or, for a
-// start that kept no copy, the one that claimed it.
 const BRIEFED = /coordinated by coordinator session (\S+?) on /;
 const toldCoordinator = (pending, text, record) => (typeof text === "string" && BRIEFED.exec(text)?.[1]) || pending.coordinator || record.coordinator.session;
 const sentBrief = (via, text) => ({ state: "delivered", via, ...(text !== undefined && { text }), deliveryId: randomUUID().slice(0, 8), attempts: 1, time: new Date().toISOString() });
 const ownerFrom = (pending, handle, brief, coordinator) => ({ route: pending.route, model: pending.model, effort: pending.effort, coordinator, ...(pending.permissionMode && { permissionMode: pending.permissionMode }), worktree: pending.worktree, branch: pending.branch, artifactParent: pending.artifactParent, launchId: pending.launchId, ...(pending.reportFields && { reportFields: pending.reportFields }), handle, verified: false, ...(brief && { brief: { ...brief, coordinator } }), ...(pending.continues && { continues: pending.continues }), since: new Date().toISOString() });
 
-// A start runs only on the host that claimed it, and only while the run admits
-// work: another host's start is run or settled there, and a planned handoff
-// starts nothing.
 function assertStartable(record, pending, host) {
   if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; nothing was started`);
   if (pending.host && pending.host !== host) throw new Error(`This start was claimed on ${pending.host}; it runs, or is settled, only on that host`);
 }
-// Evidence that settles a start claimed on another host must have been
-// observed there.
 function assertObservedOn(pending, number, host, observedOn, action) {
   const claimedOn = pending.host;
   if (claimedOn && claimedOn !== host && observedOn !== claimedOn) throw new Error(`#${number}'s start was claimed on ${claimedOn}; ${action} it only with evidence observed there, naming that host with --observed-on ${claimedOn}`);
@@ -1438,15 +1020,12 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
   assertObservedOn(ticket.pending, number, host, observedOn, "confirm");
   if (ticket.pending.route === "claude-cli") throw new Error("A detached CLI writer is started with launch and confirmed with reconcile");
   if (!["session", "task"].includes(handleKind) || !handle) throw new Error("--handle-kind must be session or task, with --handle naming it");
-  // The writer runs where its start was claimed.
   ticket.owner = ownerFrom(ticket.pending, { kind: handleKind, id: handle, host: ticket.pending.host ?? host }, sentBrief("start"), toldCoordinator(ticket.pending, undefined, record));
   log(record, "launched", { ticket: number, launchId: ticket.pending.launchId, handle: ticket.owner.handle });
   ticket.pending = null;
   return ticket.owner;
 }
 
-// Existing work found by the plan gets its existing writer as owner; adoption
-// starts nothing, and the PR keeps the rounds it already started.
 export function adopt(record, { plan, ticket: number, handleKind, handle, pid, session, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
   const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "merge-gate", "done", "decision-needed"]);
   if (["done", "decision-needed"].includes(entry.action) && !entry.reserves) throw new Error(`The plan's action for #${number} is ${entry.action} with no unsettled writer to adopt`);
@@ -1464,8 +1043,6 @@ export function adopt(record, { plan, ticket: number, handleKind, handle, pid, s
     if (session !== undefined && !new RegExp(`^${UUID}$`, "i").test(session)) throw new Error("--session must be the adopted process's session id");
   } else if (["session", "task"].includes(handleKind) && handle) h = { kind: handleKind, id: handle, host };
   else throw new Error("--handle-kind must be session, task or process");
-  // The writer's own effort is recorded as found; verification judges it
-  // against the ticket's Effort, so a mismatch stays recordable.
   ticket.owner = { route, model, effort, ...(entry.effort && { requestedEffort: entry.effort }), worktree, branch: branch ?? entry.branch ?? found?.branch ?? null, artifactParent: null, handle: h, ...(h.kind === "process" && session && { sessionId: session }), verified: false, adopted: { pr: entry.pr ?? null, rounds: entry.rounds ?? 0 }, since: new Date().toISOString() };
   log(record, "adopted", { ticket: number, handle: h, pr: entry.pr ?? null, rounds: entry.rounds ?? 0 });
   return ticket.owner;
@@ -1475,8 +1052,6 @@ export function withdraw(record, { ticket: number, evidence, observedOn, host = 
   const ticket = ticketOf(record, number);
   if (!ticket.pending) throw new Error(`#${number} has nothing pending`);
   if (!evidence) throw new Error("--evidence must say why no writer started (the observation that found none)");
-  // A start claimed on another host left its traces there; only an
-  // observation made there can show that nothing started.
   assertObservedOn(ticket.pending, number, host, observedOn, "withdraw");
   log(record, "withdrawn", { ticket: number, launchId: ticket.pending.launchId, evidence, ...(observedOn && { observedOn }) });
   ticket.history.push(settledStart(ticket.pending, { withdrawn: evidence, ...(observedOn && { observedOn }) }));
@@ -1490,9 +1065,6 @@ export function verify(record, { ticket: number, preflight: file }) {
   if (result.route !== owner.route || result.model !== owner.model) throw new Error(`The confirmation is for ${result.route} ${result.model}, not ${owner.route} ${owner.model}`);
   const requested = owner.requestedEffort ?? owner.effort;
   const verdict = result.verdicts?.find((v) => v.ticket === number && v.effort === requested);
-  // The preflight judges the model and effort only, so a confirmation clears
-  // only a mismatch the preflight itself recorded; one the writer's
-  // acknowledgement or report showed stands.
   if (verdict?.verdict === "confirmed") { owner.verified = true; if (!owner.mismatchBy || owner.mismatchBy === "preflight") { delete owner.mismatch; delete owner.mismatchBy; } }
   else if (verdict?.verdict === "blocked") { owner.verified = false; recordMismatch(owner, "preflight", verdict.reason); }
   else throw new Error(`The confirmation has no observed verdict for #${number} at the ticket's effort ${requested}`);
@@ -1506,8 +1078,6 @@ export function release(record, { ticket: number, observations, evidence, host =
   if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} of #${number}'s writer has no recorded outcome, and the resumed writer may still run; settle it with reconcile before release`);
   const s = ownerStatus(owner, observations, { host, identify });
   if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer observed to have ended is released`);
-  // A released writer's unanswered requests close with it; a new writer
-  // asks its own.
   const closed = openRequests(ticket);
   for (const r of closed) r.closed = { time: new Date().toISOString(), reason: "its writer was released" };
   noteSession(owner);
@@ -1516,17 +1086,11 @@ export function release(record, { ticket: number, observations, evidence, host =
   log(record, "released", { ticket: number, reason: s.reason, ...(closed.length && { closedRequests: closed.map((r) => r.id) }) });
 }
 
-// A writer held by its process is known by the session its stream names. It
-// is kept on the record once read, so the writer stays known after its stream
-// is archived or when the record is read on another host.
 function noteSession(owner) {
   if (!owner || owner.sessionId || owner.handle?.kind !== "process" || !owner.handle.launchDir) return;
-  try { owner.sessionId = streamSession(owner.handle.launchDir); } catch { /* no session started yet */ }
+  try { owner.sessionId = streamSession(owner.handle.launchDir); } catch {}
 }
 
-// Records the session of a writer held by its process, read from its stream
-// or transcript, when the record has none and its stream cannot be read: a
-// writer adopted by its process, or one whose stream was archived.
 export function writerSession(record, { ticket: number, writer, session, evidence }) {
   if (!new RegExp(`^${UUID}$`, "i").test(session ?? "") || !evidence) throw new Error("--session must be the writer's session id and --evidence say where it was read");
   const ticket = ticketOf(record, number);
@@ -1539,32 +1103,20 @@ export function writerSession(record, { ticket: number, writer, session, evidenc
 }
 
 export const REPORT_FIELDS = ["model", "effort", "permissionMode", "pr", "reviewedHead", "rounds", "findings", "verification", "ci", "filed", "next"];
-// A writer claimed before its brief asked for the filed tickets, or adopted
-// with its work, reports without them; the coordinator reads what it filed
-// from GitHub instead.
 const reportFieldsOf = (ticket) => (ticket.owner ?? ticket.history?.at(-1)?.owner)?.reportFields ?? REPORT_FIELDS.filter((f) => f !== "filed");
 
-// The first mismatch found stands with its source; a later one from another
-// source does not replace it.
 function recordMismatch(owner, by, reason) {
   if (owner.mismatch && owner.mismatchBy !== by) return;
   owner.mismatch = reason;
   owner.mismatchBy = by;
 }
 
-// What a writer read from its own metadata, against what it was started as;
-// null when they agree. A writer started without a recorded permission mode
-// (an existing writer adopted with its work, or a Codex writer) is judged on
-// its model and effort alone.
 function confirmationGap(owner, { model, effort, permissionMode }, wantedEffort = owner.effort) {
   const wantedMode = owner.permissionMode ?? null;
   if (model === owner.model && effort === wantedEffort && (!wantedMode || permissionMode === wantedMode)) return null;
   return `${model} at ${effort}${permissionMode ? ` in ${permissionMode}` : ""}, not ${owner.model} at ${wantedEffort}${wantedMode ? ` in ${wantedMode}` : ""}`;
 }
 
-// The writer's first message acknowledges its brief with the model, effort and
-// permission mode it confirmed from its own metadata. It is recorded with
-// where it was read; a mismatch plans as stop-writer.
 export function acknowledged(record, { ticket: number, model, effort, permissionMode, evidence }) {
   const owner = ticketOf(record, number).owner;
   if (!owner) throw new Error(`#${number} has no writer to have acknowledged`);
@@ -1577,18 +1129,9 @@ export function acknowledged(record, { ticket: number, model, effort, permission
   log(record, "acknowledged", { ticket: number, confirmed, ...(gap && { mismatch: owner.mismatch }) });
 }
 
-// A writer's request for a decision is recorded with the writer that asked
-// it, so a restarted coordinator finds what is still owed and to whom. An
-// answer is a message like the brief: its intent is recorded before it is
-// sent and its outcome after, and a resend is an identified retry the writer
-// ignores once a copy has arrived.
-// A writer started by this run keeps its assignment id across a resumed
-// process; an existing writer adopted with its work is known by its handle.
 const ownerId = (owner) => owner?.launchId ?? owner?.handle?.id ?? owner?.handle?.pid ?? null;
 const handleId = (owner) => owner?.handle?.id ?? owner?.handle?.pid ?? null;
 const openRequests = (own) => (own.requests ?? []).filter((r) => !r.closed && r.answer?.state !== "delivered" && own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
-// A running writer's transcript is never read, so only a writer whose turn
-// ended is checked there for an answer that may have arrived.
 function requestNext(r, ended) {
   if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; ${ended ? "if the writer's transcript shows it, record answered with that evidence; otherwise " : ""}wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
   if (r.relayed) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time}; once they decide, record answer and send it`;
@@ -1617,14 +1160,8 @@ export function relay(record, { ticket: number, request: id, to }) {
   r.relayed = { time: new Date().toISOString(), to };
   log(record, "relayed", { ticket: number, id, to });
 }
-// Tells a writer where its reports now go. It rides on messages a writer may
-// set aside as copies it already has (an answer resend, a resume carrying
-// one), so it says it holds either way, and it comes last, after any such
-// instruction.
 const contactLine = (to, host) => `Your coordinator is now session ${to} on ${host}; send every further report, blocker and question there. This holds even if you set the rest of this message aside as a copy you already have.`;
 
-// Prints the message to send: the request and delivery ids let the writer
-// recognize a second copy.
 export function answer(record, { ticket: number, request: id, text, retry = false }) {
   const r = findRequest(record, number, id);
   if (r.answer?.state === "delivered") throw new Error(`Request ${id} was already answered at ${r.answer.time}`);
@@ -1635,9 +1172,6 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   const owner = ticketOf(record, number).owner, to = record.coordinator.session;
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
-  // An answer from a coordinator that took over also names where the
-  // writer's next messages belong, in a line the duplicate instruction does
-  // not cover, so recording the answer delivered also records the contact.
   const moved = owner?.coordinator && owner.coordinator !== to ? `\n${contactLine(to, record.coordinator.host)}` : "";
   return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${moved}` };
 }
@@ -1650,17 +1184,11 @@ export function answered(record, { ticket: number, request: id, evidence }) {
   log(record, "answered", { ticket: number, id, deliveryId: r.answer.deliveryId });
 }
 
-// The writer now reports to `to`. A stored brief written before briefs kept
-// their own coordinator is first given the one it names, so later copies are
-// still rewritten from it.
 function moveContact(owner, to) {
   if (owner.brief && !owner.brief.coordinator && owner.coordinator) owner.brief.coordinator = owner.coordinator;
   owner.coordinator = to;
 }
 
-// After a takeover, a writer briefed by the previous coordinator is told this
-// coordinator's id, with the same intent, outcome and identified retry as an
-// answer; until then it reports to a session that no longer coordinates.
 export function contact(record, { ticket: number, retry = false, defaults = readWriterDefaults() }) {
   const owner = ticketOf(record, number).owner, to = record.coordinator.session;
   if (!owner?.coordinator) throw new Error(`#${number} has no writer this run briefed`);
@@ -1688,35 +1216,16 @@ export function result(record, { ticket: number, report: file }) {
   if (report.filed !== undefined) checkFiledField(report.filed);
   ticket.results.push({ time: new Date().toISOString(), report });
   if (ticket.owner) noteSession(ticket.owner);
-  // The report carries what the writer's metadata confirmed; one that differs
-  // from the start is kept as evidence and stops the writer.
   const gap = ticket.owner && confirmationGap(ticket.owner, report);
   if (gap) recordMismatch(ticket.owner, "report", `the writer reported ${gap}`);
   log(record, "result", { ticket: number, pr: report.pr, reviewedHead: report.reviewedHead, ...(gap && { mismatch: ticket.owner.mismatch }) });
-  // The report's list of filed tickets is a hint: each is recorded with filed
-  // only once GitHub confirms it.
   const named = filedNumbers(report.filed).filter((n) => !record.filed?.[n]);
   if (report.filed === undefined) return { filed: `the report lists no filed tickets; read what #${number}'s writer filed from GitHub (its PR report's Notes for reviewers, and tickets whose provenance line names #${number}'s PR) and record each with filed` };
   if (named.length) return { filed: `the report names ${named.map((n) => `#${n}`).join(", ")} as filed; confirm each on GitHub and record it with filed` };
 }
 
-// --- Tickets filed during the run ------------------------------------------
-
-// Every ticket a writer, its filing routes, review-pr or the coordinator files
-// during the run is recorded once GitHub confirms it, and triaged against the
-// PR it came from: it completes a slice's fix (always in scope, delivered by
-// that slice's PR while it is open, or under the parent once it merged), the
-// parent needs it (attached under the parent's tree), it is separate work, or
-// it waits on the maintainer. The plan reports every ticket without an
-// outcome, the parent issue cannot close while one remains, and a slice's PR
-// does not merge while a ticket that completes its fix is open and not closed
-// by it, unless the maintainer accepted the narrow fix as an interim.
 export const FILED_OUTCOMES = ["completes", "needed", "separate", "maintainer"];
 
-// A report's filed field is "None" or a list of entries, each a ticket number
-// or { number, reading }. Prose is refused: the writer's reading of how a
-// ticket relates to its fix names the slice and the parent too, and a number
-// scraped from it would stand as a filing nothing on GitHub can confirm.
 const isTicketNumber = (n) => Number.isSafeInteger(n) && n > 0;
 export function checkFiledField(value) {
   if (typeof value === "string" && /^none\.?$/i.test(value.trim())) return;
@@ -1742,11 +1251,6 @@ export function filed(record, { filed: number, ticket: from, pr, source, reading
   log(record, "filed", { filed: number, from: from ?? null, pr: pr ?? null });
 }
 
-// A number a writer's report names that GitHub shows is no ticket the writer
-// filed or reused (a mistyped number, its own slice, the parent) is dismissed
-// with that evidence, so it stops holding the plan and the parent's closure.
-// A reused existing issue is a filing like any other: it is recorded with
-// filed and triaged, never dismissed for its age.
 export function dismiss(record, { filed: number, ticket: from, evidence }) {
   if (!isTicketNumber(number) || !evidence) throw new Error("--filed must be the number the report names and --evidence say what GitHub shows: that it is no ticket the writer filed or reused");
   if (record.filed?.[number]) throw new Error(`#${number} is recorded as filed during the run; triage it instead`);
@@ -1768,9 +1272,8 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
     if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the issue in the parent's tree it was attached under, and --reason what of the parent's goal or criteria needs it");
     outcome = { kind, under, reason };
   } else if (kind === "separate") {
-    if (!reason) throw new Error("--reason must say why the ticket is separate work");
-    if (under !== undefined && !Number.isSafeInteger(under)) throw new Error("--under must be an issue number");
-    outcome = { kind, reason, ...(under !== undefined && { under }) };
+    if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the umbrella outside the parent's tree it was attached under, and --reason say why the ticket is separate work; when no umbrella exists, record maintainer instead");
+    outcome = { kind, under, reason };
   } else {
     if (!question) throw new Error("--question must give the question raised with the maintainer");
     if (slice !== undefined && !Number.isSafeInteger(slice)) throw new Error("--slice must be the number of the slice whose PR holds on the answer");
@@ -1781,9 +1284,6 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
   log(record, "triaged", { filed: number, outcome: kind, ...(previous && { replaced: previous.kind }) });
 }
 
-// The maintainer accepted a slice's narrow fix as an interim: its PR may merge
-// without the ticket, which stays in scope as completing that fix, under the
-// parent, with acceptance criteria that remove the narrow fix.
 export function interim(record, { filed: number, decision, evidence }) {
   const entry = filedEntry(record, number);
   if (!decision || !evidence) throw new Error("--decision must quote the maintainer's decision and --evidence say where it was read");
@@ -1793,15 +1293,14 @@ export function interim(record, { filed: number, decision, evidence }) {
   log(record, "interim", { filed: number, slice: o.slice });
 }
 
-// The filed tickets that hold a slice's PR: triaged as completing its fix, or
-// raised with the maintainer for it, with no interim decision.
 export const completingTickets = (record, slice) => Object.values(record.filed ?? {}).filter((e) => e.outcome && (e.outcome.kind === "completes" || e.outcome.kind === "maintainer") && e.outcome.slice === slice && !e.outcome.interim);
 
-// What the run still owes its filed tickets: a recorded ticket with no
-// outcome, and a ticket a writer's report names that the record does not hold.
 export function filedActions(record) {
   const out = [];
-  for (const e of Object.values(record.filed ?? {})) if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
+  for (const e of Object.values(record.filed ?? {})) {
+    if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
+    else if (e.outcome.kind === "separate" && !isTicketNumber(e.outcome.under)) out.push({ number: e.number, action: "triage-filed", unplaced: true, reason: "triaged separate with no umbrella it was attached under; attach it under the open umbrella whose Scope covers it and record triage again with --under, or record maintainer when no umbrella exists", ...(e.from && { from: e.from }) });
+  }
   const named = new Map();
   for (const [n, t] of Object.entries(record.tickets ?? {})) for (const r of t.results ?? []) for (const f of filedNumbers(r.report?.filed)) if (!record.filed?.[f] && !record.filedDismissed?.[f] && !named.has(f)) named.set(f, Number(n));
   for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it, or, when GitHub shows the writer neither filed nor reused it, record dismiss with that evidence`, from });
@@ -1814,10 +1313,6 @@ export function diskRecovery(record, { removed, branch, classifier }) {
   log(record, "disk-recovery", { removed });
 }
 
-// --- Detached CLI writer --------------------------------------------------
-
-// Arguments go into a command line, so characters a shell would interpret are
-// refused rather than escaped.
 const UNSAFE = /["'%^&|<>!`$\r\n]/;
 export function checkLaunchArgs(args, pending) {
   for (const arg of args) if (UNSAFE.test(arg)) throw new Error(`Launch argument ${JSON.stringify(arg)} holds a character the command line would interpret`);
@@ -1828,20 +1323,12 @@ export function checkLaunchArgs(args, pending) {
   if (only("--permission-mode") !== pending.permissionMode) throw new Error(`The launch's --permission-mode must be ${pending.permissionMode}, the mode the claim requested`);
 }
 
-// Creates a process through WMI, outside the caller's process tree, and
-// returns Create's return value and the new pid. The process gets a console of
-// its own; the startup record's ShowWindow 0 keeps that console hidden, so no
-// window opens (Windows Terminal included) and none takes the foreground.
 function createThroughWmi(commandLine, cwd, exec) {
   const script = `$s = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }; $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $env:LAUNCH_COMMAND; CurrentDirectory = $env:LAUNCH_CWD; ProcessStartupInformation = $s }; "$($r.ReturnValue) $($r.ProcessId)"`;
   const reply = exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, env: { ...process.env, LAUNCH_COMMAND: commandLine, LAUNCH_CWD: cwd } }).trim();
   return reply.split(" ").map(Number);
 }
 
-// The writer runs under a wrapper shell that redirects its input and output.
-// On Windows the wrapper is created through WMI, outside the coordinator's
-// process tree, so the writer survives the tool call that started it;
-// elsewhere the repository's detached launcher starts it.
 export function startDetachedWriter({ executable, args, cwd, launchDir }, { exec = execFileSync, platform = process.platform } = {}) {
   const prompt = path.join(launchDir, "prompt.txt"), out = path.join(launchDir, "out.jsonl"), err = path.join(launchDir, "err.log");
   if (platform === "win32") {
@@ -1851,8 +1338,6 @@ export function startDetachedWriter({ executable, args, cwd, launchDir }, { exec
     if (code !== 0) return { started: false, reason: `Win32_Process.Create returned ${code}` };
     return { started: true, pid };
   }
-  // The trailing exit-status write keeps the shell from replacing itself with
-  // the writer, so the recorded pid stays the wrapper's.
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^CLAUDE/i.test(key)));
   const quote = (a) => `'${a}'`;
   const child = spawnDetachedProcess("/bin/sh", ["-c", `${[executable, ...args].map(quote).join(" ")} < ${quote(prompt)} > ${quote(out)} 2> ${quote(err)}; echo $? > ${quote(path.join(launchDir, "exit.txt"))}`], { cwd, env, stdio: "ignore" });
@@ -1860,9 +1345,6 @@ export function startDetachedWriter({ executable, args, cwd, launchDir }, { exec
   return { started: true, pid: child.pid };
 }
 
-// The launch directory follows from the pending launch id alone, so a launch
-// that started a writer but failed before the record was written is still
-// found by reconcile.
 export const launchDirOf = (pending, number) => path.join(pending.artifactParent, `launch-${number}-${pending.launchId}`);
 
 export function launch(record, { ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, spawner = startDetachedWriter }) {
@@ -1876,9 +1358,6 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
   if (fs.existsSync(launchDir)) throw new Error(`Launch ${pending.launchId} was already attempted; reconcile it`);
   fs.mkdirSync(launchDir, { recursive: true });
   fs.copyFileSync(prompt, path.join(launchDir, "prompt.txt"));
-  // The writer's own command line names its launch directory, so a census
-  // finds the writer itself, before its start is recorded and after its
-  // wrapper ends.
   let outcome;
   try { outcome = spawner({ executable, args: [...args, "--add-dir", launchDir], cwd: record.checkout, launchDir }); }
   catch (error) { throw new Error(`The outcome of launch ${pending.launchId} is uncertain (${error.message}); it stays pending, and reconcile settles it before any retry`); }
@@ -1896,21 +1375,9 @@ export function launch(record, { ticket: number, executable, args = [], prompt, 
   return { started: true, owner: ticket.owner };
 }
 
-// --- Opening an idle CLI writer in the app ----------------------------------
-
-// The maintainer may want to read, or talk to, a CLI writer whose turn has
-// ended. `open` hands the session its stream names to the desktop app, which
-// adopts it into its session list. It changes nothing about who the writer is
-// or how it runs: the record keeps the CLI process as the writer, and the
-// coordinator resumes that writer by its CLI session id, never through the
-// app session. The maintainer answers any prompt the app shows when they
-// choose to talk to it. The open records its intent before the side effect and
-// its outcome after, so an interrupted open is visible as an intent with no
-// outcome rather than as nothing.
 const step = (holder, name, state, detail = {}) => { (holder.steps ??= []).push({ step: name, state, time: new Date().toISOString(), ...detail }); };
 const lastOpenStep = (owner) => owner?.opened?.steps?.at(-1) ?? null;
 
-// The session id the CLI writer's stream reports in its init line.
 export function streamSession(launchDir) {
   const out = path.join(launchDir ?? "", "out.jsonl");
   if (!launchDir || !fs.existsSync(out)) throw new Error(`No stream at ${out}; only a detached CLI writer's session can be opened`);
@@ -1925,9 +1392,6 @@ export function streamSession(launchDir) {
   throw new Error(`${out} has no init line naming the writer's session`);
 }
 
-// The intent is recorded, then `afterIntent` (the checkpoint save) runs before
-// the side effect. If it fails, the step is recorded as not run, so a recovered
-// record never shows the step as untried or uncertain.
 function savedIntent(file, coordinator, intent, number, afterIntent) {
   if (!afterIntent) return;
   try { afterIntent(); }
@@ -1937,8 +1401,6 @@ function savedIntent(file, coordinator, intent, number, afterIntent) {
   }
 }
 
-// The app refuses a resume whose output is redirected, so the handoff runs in
-// a hidden console of its own, created outside the coordinator's process tree.
 export function runHandoff({ executable, sessionId, cwd }, { exec = execFileSync, platform = process.platform } = {}) {
   if (platform !== "win32") throw new Error(`handing a session to the desktop app is verified only on Windows, not ${platform}`);
   const commandLine = `cmd.exe /d /c ""${executable}" --desktop --resume ${sessionId}"`;
@@ -1973,8 +1435,6 @@ export function openWriter(file, { coordinator, expectRevision, ticket: number, 
   return { revision: done.record.revision, sessionId, ...outcome };
 }
 
-// The app lists an adopted session as local_<session id>; an open whose
-// outcome was lost is settled the same way, by finding it there.
 export function opened(record, { ticket: number, session }) {
   const owner = ticketOf(record, number).owner, last = lastOpenStep(owner);
   if (!last || !["requested", "intent", "uncertain"].includes(last.state) || owner.opened.session) throw new Error(`#${number} has no open to confirm${last ? ` (open ${last.state})` : ""}`);
@@ -1985,26 +1445,16 @@ export function opened(record, { ticket: number, session }) {
   log(record, "opened", { ticket: number, session });
 }
 
-// A brief went with the writer's start; a copy is resent only as an
-// identified retry of the stored text, when no acknowledgement arrived. A
-// message can arrive late, so an unconfirmed resend is settled from the
-// writer's transcript or resent again: every copy names the assignment,
-// carries the same instructions, and tells the writer to act on the first
-// copy it receives.
 export function deliver(record, { ticket: number, retry = false }) {
   const owner = ticketOf(record, number).owner;
   if (record.handoff) throw new Error(`A planned handoff stopped new starts at ${record.handoff.since}; the brief to #${number}'s writer waits for the next coordinator`);
   if (!retry) throw new Error("The brief went with the writer's start; resend it with deliver --retry");
   if (!owner?.brief) throw new Error(`#${number} has no writer this coordinator briefed; an existing writer adopted with its work already has its assignment`);
   if (owner.acknowledged) throw new Error(`#${number}'s writer acknowledged its brief at ${owner.acknowledged.time}`);
-  // A resend after a takeover names this coordinator wherever the stored
-  // brief named the one that wrote it; everything else stays as first sent.
   const to = record.coordinator.session;
   const text = typeof owner.brief.text === "string" ? namingCoordinator(owner, record, owner.brief.text) : undefined;
   owner.brief = { ...owner.brief, ...(text !== undefined && { text, coordinator: to }), to, state: "intent", deliveryId: randomUUID().slice(0, 8), attempts: (owner.brief.attempts ?? 1) + 1, time: new Date().toISOString() };
   log(record, "brief-intent", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId, attempt: owner.brief.attempts });
-  // A start through another route's own means kept no copy of the prompt, so
-  // that route resends it.
   if (typeof owner.brief.text !== "string") return { message: null, resend: `the start kept no copy of the brief; send the writer its start prompt again by its route's own means, naming assignment ${owner.launchId}, then record delivered` };
   return { message: `${assignmentHeader(owner)}\n${owner.brief.text}` };
 }
@@ -2015,15 +1465,6 @@ export function delivered(record, { ticket: number, evidence }) {
   log(record, "brief-delivered", { ticket: number, handle: owner.handle, deliveryId: owner.brief.deliveryId });
 }
 
-// --- Resuming a CLI writer -------------------------------------------------
-
-// A detached CLI writer's process ends with its turn. When it left a request,
-// the coordinator answers by resuming that session, the one its stream named,
-// with the answer as the prompt, at the writer's own model, effort and
-// permission mode. The resumed process becomes the writer's handle; the
-// assignment, its requests and its history stay the same. The resume records
-// its intent before the side effect and its outcome after, and one whose
-// outcome was lost is settled with reconcile, never run again.
 const resumeDirOf = (owner, number, id) => path.join(owner.artifactParent, `resume-${number}-${id}`);
 export function resumeWriter(file, { coordinator, expectRevision, ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, census = processCensus, spawner = startDetachedWriter, afterIntent }) {
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable) || !path.isAbsolute(prompt ?? "")) throw new Error("--executable and --prompt must be absolute paths");
@@ -2043,8 +1484,6 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     const launchDir = resumeDirOf(owner, number, id);
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
     owner.sessionId = sessionId;
-    // A writer briefed by an earlier coordinator learns this one's id with the
-    // resume, so its next messages go here.
     const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
     owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: contactLine(moved, r.coordinator.host) }) };
     log(r, "resume-intent", { ticket: number, id, sessionId });
@@ -2078,15 +1517,11 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
   return { revision: done.record.revision, id, ...outcome };
 }
 
-// A launch whose outcome was not recorded is settled by a census of the
-// processes naming its launch directory, never by missing output alone.
 export function reconcile(record, { ticket: number, host = os.hostname(), census = processCensus, identify = processIdentity }) {
   const ticket = ticketOf(record, number), pending = ticket.pending;
   if (!pending && ticket.owner?.resuming) return reconcileResume(record, ticket.owner, number, { host, census, identify });
   if (!pending) throw new Error(`#${number} has nothing pending`);
   if (pending.route !== "claude-cli") throw new Error(`A ${pending.route} start is confirmed with launched or withdrawn with evidence`);
-  // The launch directory and the writer's processes are on the host that
-  // claimed the start; their absence here proves nothing.
   if (pending.host && pending.host !== host) throw new Error(`Launch ${pending.launchId} was claimed on ${pending.host}; reconcile it on that host`);
   const launchDir = launchDirOf(pending, number);
   if (!fs.existsSync(launchDir)) {
@@ -2125,9 +1560,6 @@ export function reconcile(record, { ticket: number, host = os.hostname(), census
   return { outcome };
 }
 
-// A resume whose outcome was lost: a process naming its directory is the
-// resumed writer; none means it ended or never started, and the writer is as
-// it was before the resume.
 function reconcileResume(record, owner, number, { host, census, identify }) {
   const { id, launchDir, contactTo } = owner.resuming;
   if (owner.handle.host && owner.handle.host !== host) throw new Error(`Resume ${id} ran on ${owner.handle.host}; reconcile it on that host`);
@@ -2152,21 +1584,14 @@ function reconcileResume(record, owner, number, { host, census, identify }) {
   return { outcome };
 }
 
-// --- Writer brief ---------------------------------------------------------
-
 const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${owner.brief.deliveryId}). If you have already received assignment ${owner.launchId}, ignore this copy and carry on with the first.`;
 
-// The brief to print for a writer's prompt. A brief that deliver recorded is
-// reproduced exactly, under its current delivery.
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
   if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text)}`;
   return briefBody(record, planFile, number, decisions, defaults);
 }
 
-// A stored brief names the coordinator it was written for, which it keeps
-// beside its text; after a takeover every copy names this coordinator
-// instead, and nothing else changes.
 function namingCoordinator(owner, record, text) {
   const from = owner.brief?.coordinator ?? owner.coordinator, to = record.coordinator.session;
   return from && from !== to ? text.split(from).join(to) : text;
@@ -2176,26 +1601,16 @@ function briefBody(record, planFile, number, decisions, defaults) {
   const plan = readJson(planFile), entry = plan.tickets.find((t) => t.number === number);
   const ticket = record.tickets[number], work = ticket?.pending ?? ticket?.owner;
   if (!entry || !work) throw new Error(`#${number} has no claimed or owned work to brief`);
-  // An existing writer adopted with its work may run on a retired route; it
-  // reads its own metadata as the runner notes describe, and reports the way
-  // its vendor's dispatch route does.
   const vendorRoutes = defaults.routes[routeVendor(work.model)] ?? [];
   const route = vendorRoutes.find((r) => r.route === work.route) ?? (ticket.owner?.adopted && vendorRoutes[0] ? { ...vendorRoutes[0], route: work.route, selfCheck: "read your own model, effort and permission mode as .agents/skills/RUNNERS.md describes for your runner" } : null);
   if (!route) throw new Error(`${retiredReason(work.route, defaults) ?? `${work.route} is not a configured route for ${work.model}`}; it has no brief`);
   const adopted = ticket.owner?.adopted ?? work.continues;
   const place = !work.continues || work.continues.worktreeExists ? `in ${work.worktree}` : `on a worktree at ${work.worktree} checked out from the existing origin branch`;
-  // Each route's way of reaching the coordinator comes from the runner
-  // configuration, keyed by the coordinator's harness; a route that cannot
-  // message it reports through its transcript, which the coordinator's
-  // check-in reads.
   const coordinator = `coordinator session ${record.coordinator.session}`;
   const how = route.reports?.[record.coordinator.harness] ?? { unsupported: `no message from ${work.route} to a ${record.coordinator.harness} coordinator is configured` };
   const mode = work.permissionMode ? ` in permission mode ${work.permissionMode}` : "";
   const confirmed = work.permissionMode ? "model, effort and permission mode" : "model and effort";
   const { tickets, split } = repositoriesOf(record);
-  // The parent is named by its type as GitHub reports it (Task #N, Feature
-  // #N, Bug #N), and its body, as its template structures it, is the design
-  // of record for every slice.
   const parent = `${plan.parent?.type ?? "issue"} #${record.issue}`;
   return [
     `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${tickets} ticket #${number} (${entry.title}), a sub-issue of ${parent}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
@@ -2223,8 +1638,6 @@ function briefBody(record, planFile, number, decisions, defaults) {
   ].join("\n");
 }
 
-// --- Command line ---------------------------------------------------------
-
 const FLAGS = new Set(["takeover", "retry"]);
 export function parseArgs(argv) {
   const [command, ...rest] = argv, options = {};
@@ -2246,10 +1659,6 @@ const integer = (value, name) => { const n = Number(value); if (!Number.isSafeIn
 const absolute = (value, name) => { if (typeof value !== "string" || !path.isAbsolute(value)) throw new Error(`--${name} must be an absolute path`); return value; };
 const readOptional = (file) => (file ? readJson(absolute(file, "file")) : undefined);
 
-// Commands whose side effect starts a writer or hands a session to the app:
-// with checkpoints enabled, the intent they act on must already be saved
-// remotely, so an interruption leaves a recorded intent rather than an
-// untracked writer.
 const SIDE_EFFECTS = new Set(["launch", "open", "resume"]);
 
 export function main(argv, { defaults = readWriterDefaults(), github, runners = {}, repos, clientFor = githubClient } = {}) {
@@ -2266,9 +1675,6 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
   const number = () => integer(o.ticket, "ticket");
   switch (command) {
     case "init": {
-      // The command line always records who merges, the coordinator's own
-      // session id and permission mode, and the slug of its session title;
-      // none of them is left to a default.
       if (!o.merging) throw new Error(`--merging must record who merges: ${MERGING.join(" or ")}`);
       checkCoordinatorId(o.harness, o.coordinator);
       if (!PERMISSION_MODES.includes(o.coordinatorMode)) throw new Error(`--coordinator-mode must be this session's own permission mode: ${PERMISSION_MODES.join(", ")}`);
@@ -2287,8 +1693,6 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       const record = readRecord(absolute(o.record, "record"));
       const plan = planDispatch({ record, snapshot: readJson(absolute(o.snapshot, "snapshot")), observations: readOptional(o.observations), preflights: (o.preflight ? o.preflight.split(",") : []).map((f) => readJson(absolute(f, "preflight"))), freeBytes: freeBytesAt(record.checkout), defaults });
       if (o.out) fs.writeFileSync(absolute(o.out, "out"), JSON.stringify(plan, null, 2) + "\n");
-      // With checkpoints, a plan whose summary changed becomes the status the
-      // parent issue's comment shows: done and remaining work, blockers and actions.
       const checkpoint = autoCheckpoint(absolute(o.record, "record"), { coordinator: record.coordinator.session, transition: "a new plan", github, plan, onlyIfChanged: true });
       return checkpoint ? { ...plan, checkpoint } : plan;
     }
@@ -2331,7 +1735,6 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
   try {
     const output = main(process.argv.slice(2));
     console.log(typeof output === "string" ? output : JSON.stringify(output, null, 2));
-    // The local change stands, but nothing remote holds it yet.
     if (output?.checkpoint?.saved === false) { console.error(`The record changed locally, but its checkpoint was not saved: ${output.checkpoint.reason}`); process.exitCode = 3; }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

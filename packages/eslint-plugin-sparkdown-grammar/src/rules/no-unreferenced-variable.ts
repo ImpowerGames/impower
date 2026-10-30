@@ -1,17 +1,3 @@
-// Rule: every variable must be expanded somewhere (GRAMMAR.md §7). A
-// variable no `{{NAME}}` reference uses is dead text in the `variables:`
-// block. A variable that TypeScript reads directly from
-// `GRAMMAR_DEFINITION.variables` is exempt when the comment block directly
-// above its key carries `# referenced-from: <file>`.
-//
-// Only references the build expands count: those in a rule's `match`,
-// `begin` or `end` (definitions/src/language.ts substitutes no other key)
-// and those in another variable's value or array entries. A `{{NAME}}`
-// mentioned in a `comment:` or other metadata, or in the variable's own
-// value, is not a use. The findings agree with the known-unused list of
-// the `grammarReachability` test in packages/sparkdown/src/tests/compiler/
-// (see no-unreferenced-rule.test.ts).
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex, markedComment } from "../utils/grammar-index.ts";
 import { REFERENCED_FROM } from "./no-unreferenced-rule.ts";

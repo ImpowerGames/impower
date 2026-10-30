@@ -1,12 +1,3 @@
-// The object-hierarchy engine is deleted (#705): nothing under
-// `packages/*/src`, `vscode-sparkdown/src` or `scripts/bench` imports a
-// runtime object class for code (`src/inkjs/engine`, the pointer that walked
-// its containers, the activation that shared them between stories), and no
-// parsed class generates runtime objects (`GenerateRuntimeObject`,
-// `GenerateIntoContainer`). Each file is read for every module specifier it
-// names, as TypeScript reads them past any comment, and each specifier of
-// this package (relative, or `@impower/sparkdown/...`) is resolved to the
-// file it names.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,23 +8,17 @@ import { scanOf, sourcesUnder } from "./repositoryScan";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const PACKAGES = "@impower/";
 
-/** The modules of the deleted engine, relative to the repository. */
 const DELETED = [
   /^packages\/sparkdown\/src\/inkjs\/engine(\/|$)/,
   /^packages\/sparkdown\/src\/runtime\/Pointer$/,
   /^packages\/sparkdown\/src\/runtime\/StoryActivation$/,
 ];
 
-/** The members that generated runtime objects. */
 const GENERATION = /\b(GenerateRuntimeObject|GenerateIntoContainer)\b/;
 
-/** Every module specifier a file names, as TypeScript reads them past any
- *  comment: `import ... from`, `export ... from`, a side-effect
- *  `import "..."`, `import type`, and `import("...")`. */
 const specifiersOf = (text: string): string[] =>
   ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 
-/** The roots the check reads, under `repo`. */
 const rootsOf = (repo: string): string[] => [
   ...(existsSync(join(repo, "packages"))
     ? readdirSync(join(repo, "packages")).map((name) => join(repo, "packages", name, "src"))
@@ -42,12 +27,6 @@ const rootsOf = (repo: string): string[] => [
   join(repo, "scripts", "bench"),
 ];
 
-/**
- * Each import of a deleted module, as `<file> -> <module>` relative to
- * `repo` (a relative specifier resolved from the importing file, and a
- * package specifier `@impower/<name>/...` from `packages/<name>`), and each
- * file that names a generating member, as `<file> names <member>`.
- */
 const whatRemains = (repo: string): string[] => {
   const found = new Set<string>();
   for (const root of rootsOf(repo)) {
@@ -78,8 +57,6 @@ test("nothing imports the object-hierarchy engine or generates runtime objects",
 });
 
 describe("the scan the check is held to", () => {
-  // A repository of its own, written to a temporary directory, with each way
-  // a file can name a module of the deleted engine.
   const withRepo = (files: Record<string, string>): string[] =>
     scanOf("object-engine-gone-", files, whatRemains);
 

@@ -1,6 +1,4 @@
 // agent-tooling-timeout-ms: 900000
-// Measured at 268 to 301 s on a loaded Windows machine (#735), so the default
-// five-minute bound leaves no headroom.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -26,13 +24,7 @@ import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 import {removeScratch} from './remove-scratch.mjs';
 import {testScratch} from './review-job-root.mjs';
 
-// Codex needs its job directory outside TEMP, and supervised job directories
-// must lie under the review job root, so the scratch folder lives there.
 const scratch=testScratch('cross-provider',path.dirname(fileURLToPath(import.meta.url)));
-// The fixture repository sits inside scratch, so its own default job root is
-// scratch/repo.review-jobs; the fixtures hold their job paths to scratch.
-// Each cutover position is read from its own copy of the repos file; launches
-// run with the switch off unless a case names the on copy.
 const committed=readRepos();
 const pinRepos=cutover=>{fs.mkdirSync(scratch,{recursive:true});const file=path.join(scratch,`repos-${cutover?'on':'off'}.json`);fs.writeFileSync(file,JSON.stringify({...committed,cutover}));return readRepos(file);};
 const OFF=pinRepos(false),ON=pinRepos(true);
@@ -106,8 +98,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   const aliased=structuredClone(plan);aliased.jobDir=path.join(alias,'job');assert.throws(()=>validateReviewPlan(aliased),/writes must exclude/);
   console.log('PASS: declared reviewer arguments reject alternate roots/configuration, shared private directories, missing feature disables and mismatched versions');
 
-  // The supervised route accepts the full-access grammar, and its reviewer
-  // environment holds only the authentication copy and the repository hooks.
   const authHome=path.join(scratch,'auth-home');fs.mkdirSync(authHome);fs.writeFileSync(path.join(authHome,'auth.json'),'{"fixture":true}');fs.writeFileSync(path.join(authHome,'config.toml'),'model_provider="unwanted"');
   const fullAccess=structuredClone(plan),fullReview=fullAccess.reviews[0];
   fullReview.permissions={sandbox:'danger-full-access',approvalPolicy:'never',networkAccess:true,cwd:privateDir,artifactWrites:'handoff-directory',codexHome:authHome};
@@ -273,8 +263,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   fs.writeFileSync(saturated,outstanding.map(JSON.stringify).join('\n')+'\n');const saturatedBefore=fs.readFileSync(saturated);
   assert.throws(()=>appendClaudeReceipt(saturated,{hook_event_name:'PreToolUse',tool_use_id:'one-more'}),/count exceeds/);
   assert.deepEqual(fs.readFileSync(saturated),saturatedBefore,'capacity refusal preserves prior evidence atomically');
-  // Windows reports EPERM for a lock directory whose removal by another writer
-  // is pending. Scripting that answer proves the wait without needing the race.
   const contended=path.join(hookDir,'contended.jsonl'),realMkdir=fs.mkdirSync;
   const scriptedMkdir=(codes)=>{fs.mkdirSync=(target,...rest)=>{const code=target===contended+'.lock'?codes.shift():undefined;if(code)throw Object.assign(new Error(code),{code});return realMkdir(target,...rest);};};
   try{
@@ -289,7 +277,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   }finally{fs.mkdirSync=realMkdir;}
   assert.deepEqual(readClaudeRows(contended).map(row=>row.id),['after-pending-removal'],'refused appends leave prior rows intact');
   assert.equal(fs.existsSync(contended+'.lock'),false);
-  // A scanner's brief hold on a fresh file surfaces as EACCES from rmSync.
   const held=path.join(hookDir,'held-scratch');fs.mkdirSync(held);fs.writeFileSync(path.join(held,'file'),'');
   const refusals=['EACCES','EBUSY'],warnings=[];
   const scriptedRm=(target,options)=>{const code=refusals.shift();if(code)throw Object.assign(new Error(code),{code});fs.rmSync(target,options);};
@@ -309,8 +296,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   assert.equal(new Set(readClaudeRows(concurrent).map(row=>row.id)).size,40,'concurrent compact writers preserve every completed row');
   console.log('PASS: compact receipt retention is bounded; native ancestor process is checked on Windows');
 
-  // Exercise the real handoff's rewritten argv, environment, stdout/stderr,
-  // completion and actual child exit with a native-CLI stand-in, not a model.
   if(process.platform==='win32') {
     const child=path.join(scratch,'native-review-child.mjs'),capture=path.join(scratch,'launch-capture.json');
     fs.writeFileSync(path.join(sourceHome,'auth.json'),'{}');fs.writeFileSync(path.join(sourceHome,'config.toml'),'model_provider="unwanted"');
@@ -323,7 +308,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
     for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread',OPENAI_API_KEY:'fixture-key',OpenAi_Base_Url:'https://fixture.invalid',OPENAI_ORG_ID:'fixture-org'})){previous[key]=process.env[key];process.env[key]=value;}
-    // With the switch on, the reviewer's delegated GH_TOKEN reaches the internal ticket, where its report is read back.
     let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;const reportReads=[];
     childProcess.execFileSync=(exe,args,options)=>{
       if(exe==='gh'&&args[0]==='auth'){authCalls++;assert.deepEqual(args,['auth','token','--hostname','github.com']);if(authUnavailable)throw new Error('fixture missing auth');return 'fixture-delegated-token';}
@@ -365,8 +349,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     console.log('PASS: actual launcher child receives exact narrow argv, isolated credentials/config home and separate protected native evidence; real exit precedes completion');
   }else console.log('SKIP: automatic Codex launcher is Windows-only; shared argument and environment fixtures ran');
 
-  // The same supervisor lifecycle uses the Claude adapter, not a second store.
-  // Reset hook history to an idle origin before each private job admission.
   const idleRows=readClaudeRows(receipts).filter(row=>row.hook_event_name!=='UserPromptSubmit'||row.prompt_id===promptId).filter(row=>row.hook_event_name!=='Stop'||row.prompt_id===promptId).filter(row=>row.hook_event_name!=='MessageDisplay'||(!row.delta&&row.turn_id===turnId));
   fs.writeFileSync(receipts,idleRows.map(JSON.stringify).join('\n')+'\n');
   let jobIndex=0;
@@ -420,7 +402,6 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
       assert.throws(()=>check(),/claim proof/,'aged terminal/new-prompt evidence must still refuse a stale claim');
     }
     fs.writeFileSync(receipts,proof);
-    // Native 2.1.270: PreToolUse receipt 49.400, marker final 49.435, then claim.
     const concurrent=readClaudeRows(receipts),admission=concurrent.pop();
     const markerIndex=concurrent.findIndex(row=>row.hook_event_name==='MessageDisplay'&&row.delta?.includes(f.saved.continuationId));
     concurrent.splice(markerIndex,0,admission);fs.writeFileSync(receipts,concurrent.map(JSON.stringify).join('\n')+'\n');

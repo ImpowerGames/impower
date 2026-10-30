@@ -1,16 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// `function NAME(...) end` (without `local`) inside a function body is
-// Luau-spec sugar for `NAME = function(...) end` — visible across
-// do/while/for/if block boundaries within the enclosing function. The
-// lowerer emits that assignment in place (I-1422): it assigns the local
-// NAME resolves to, or the global, neither of which a wrapping block's
-// BeginScope/EndScope discards.
-//
-// `local function NAME(...) end` still scopes to the innermost block
-// per Luau spec.
-
 describe("nested function hoisting", () => {
   test("function in do block, called after do block", () => {
     const r = runConformanceSource(`do
@@ -44,10 +34,6 @@ assert(inner(10) == 9, "got " .. tostring(inner(10)))`);
   });
 
   test("local function in do block stays local", () => {
-    // The local form's binding is scoped to the do block; referencing
-    // `inner` after the block exits should NOT find the local. We just
-    // verify the compile succeeds — calling `inner` after would be a
-    // separate test for the failure path.
     const r = runConformanceSource(`do
   local function inner(n) return n end
 end

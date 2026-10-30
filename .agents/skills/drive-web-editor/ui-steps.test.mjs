@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-// Pins parseUiSteps, which turns `driver.mjs ui` arguments into steps and
-// refuses anything malformed before a browser is launched (#423). Run:
-//   node .agents/skills/drive-web-editor/ui-steps.test.mjs
-//
-// The failure this guards against: a flag with a missing or empty value used
-// to produce a step that matched no branch and vanished, so `ui --sd` or
-// `--type "=Hello"` printed a clean report saying the run did nothing, which
-// the skill reads as a pass. And an unknown panel, field, button or
-// screenshot target used to throw from inside the step loop, after the
-// browser was up and earlier steps had run, taking the whole report with it.
-// A screen name is only shape-checked here: whether the tab exists is decided
-// at run time, where the failure lists the tabs present.
-//
-// Pure function, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -22,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -97,9 +83,6 @@ check("a --press combo that names no key is refused at parse time", () => {
 });
 
 check("a screen is any lowercase tab value, so a tab the editor grows later is not refused before the run", () => {
-  // Measured on 2026-09-04 the editor renders these nine; the parser does not
-  // pin the list, and a name that is not on the page fails at run time with
-  // the tabs present listed.
   for (const name of ["logic", "assets", "share", "main", "scripts", "files", "urls", "game", "screenplay", "future-tab"]) {
     assert.deepEqual(parseUiSteps(["--screen", name]), [{ screen: name }]);
   }
@@ -108,9 +91,6 @@ check("a screen is any lowercase tab value, so a tab the editor grows later is n
 });
 
 check("a --screen logic is 'followed by main' only when the very next step is --screen main", () => {
-  // The condition the ui loop hands switchScreen, decided from the parsed
-  // steps. Only --screen main waits for the script editor, so only it may
-  // turn a logic switch's missing editor into a note.
   assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "main"]), 0), true);
   assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "scripts"]), 0), false);
   assert.equal(followedByMain(parseUiSteps(["--screen", "logic", "--screen", "assets", "--shot", "b.png"]), 0), false);
@@ -568,7 +548,6 @@ await asyncCheck("a press focuses the script editor first and reports whether th
     calls.push(message.method);
     if (message.method === "editor/select") { calls.push(`focus:${message.params.takeFocus}`); return; }
     if (message.method === "editor/read") {
-      // The formatter answers through the language server a few reads later.
       if (formatAfterReads > 0 && --formatAfterReads === 0) { text = "x = 1"; version += 1; }
       return { textDocument: { uri: "file://local/main.sd", version, text }, selection: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } } };
     }
@@ -591,7 +570,6 @@ await asyncCheck("a press focuses the script editor first and reports whether th
   assert.deepEqual(unchanged.version, { before: 2, after: 2 });
   assert.equal(unchanged.textChanged, false);
   assert.equal(unchanged.text, undefined);
-  // Format on save answers late too; its read-back waits the same way.
   text = "y=2";
   const saved = await pressInEditor(page, "Control+s", { wait, commandWaitMs: 2_000 });
   assert.deepEqual(saved.version, { before: 2, after: 3 });
@@ -606,8 +584,6 @@ check("play, insert and scrub steps parse with their bounds (#969)", () => {
     { play: "stop" },
   ]);
   assert.deepEqual(parseUiSteps(["--insert", "1:2=x=y"]), [{ insert: { line: 1, col: 2 }, text: "x=y" }]);
-  // `\\` is a backslash, so a literal backslash-n has a spelling; a lone
-  // backslash before another character is kept.
   assert.equal(parseUiSteps(["--insert", "1:1=a\\\\nb\\tc"])[0].text, "a\\nb\\tc");
   assert.throws(() => parseUiSteps(["--play", "pause"]), /start or stop/);
   for (const v of ["0", "-1", "1.5", "x"]) assert.throws(() => parseUiSteps(["--scrub", v]), /positive line|needs a value/);
@@ -640,17 +616,107 @@ await asyncCheck("play reports the launch state it reached, and a click whose st
   assert.equal(started.running, true);
   assert.equal(started.control, "Stop Game");
   assert.equal(started.reason, undefined);
-  // A click that never starts the game: the step fails with a reason.
   clock = 0;
   const stuck = playPage((sel) => sel.includes("Play Game"));
   const failed = await playPreview(stuck.page, "start", { ...opts, request: async () => ({ launchState: "preview" }) });
   assert.equal(failed.clicked, true);
   assert.equal(failed.reached, false);
   assert.match(failed.reason, /did not start/);
-  // No control to press: nothing is clicked.
   const none = await playPreview(playPage(() => false).page, "stop", opts);
   assert.equal(none.clicked, false);
   assert.match(none.reason, /Stop Game control is not on screen/);
+});
+
+check("advance takes an optional positive click count", () => {
+  assert.deepEqual(parseUiSteps(["--play", "start", "--advance", "--shot", "a.png", "--advance", "3", "--advance"]), [
+    { play: "start" },
+    { advance: 1 },
+    { shotOf: "page", out: "a.png" },
+    { advance: 3 },
+    { advance: 1 },
+  ]);
+  for (const v of ["0", "-1", "1.5", "x"]) assert.throws(() => parseUiSteps(["--advance", v]), /positive click count/);
+});
+
+await asyncCheck("advance reports each click's text, launch state and game notifications, and refuses a click with no game running", async () => {
+  const beats = [
+    { text: "Goodbye.", launchState: "play", notes: [{ method: "game/didExecute", params: {} }] },
+    { text: "Hello.", launchState: "preview", notes: [{ method: "game/exited", params: { reason: "finished" } }] },
+  ];
+  let state = { launchState: "play" }, pending = [{ method: "game/stale", params: null }], made = 0;
+  const deps = {
+    request: async () => state,
+    click: async () => {
+      const beat = beats[made++];
+      state = { launchState: beat.launchState };
+      pending.push(...beat.notes);
+      return { clicked: true, at: { x: 10, y: 20 } };
+    },
+    settle: async () => ({ settled: true, text: beats[made - 1].text }),
+    notifications: async () => async () => pending.splice(0),
+  };
+  const first = await advanceGame({}, 1, deps);
+  assert.equal(first.reason, undefined);
+  assert.equal(first.clicked, 1);
+  assert.deepEqual(first.clicks, [{ click: 1, at: { x: 10, y: 20 }, settled: true, visible: "Goodbye.", launchState: "play", notifications: [{ method: "game/didExecute", params: {} }] }]);
+  const second = await advanceGame({}, 1, deps);
+  assert.equal(second.launchState, "preview");
+  assert.deepEqual(second.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+  const idle = await advanceGame({}, 2, deps);
+  assert.equal(idle.clicked, 0);
+  assert.equal(made, 2);
+  assert.match(idle.reason, /no game is running \(launch state preview\)/);
+  state = { launchState: "play" };
+  const noFrame = await advanceGame({}, 1, { ...deps, click: async () => ({ clicked: false, reason: "no same-origin player frame is on the page" }) });
+  assert.equal(noFrame.clicked, 0);
+  assert.match(noFrame.reason, /player frame/);
+});
+
+function gamePage({ frameUrl = "http://localhost:1/__player/index.html", box = { x: 800, y: 100, width: 400, height: 600 } } = {}) {
+  const clicks = [];
+  const listeners = [];
+  const win = { __editorProtocol: { subscribe: (fn) => { listeners.push(fn); return () => {}; } } };
+  const main = { url: () => "http://localhost:1/" };
+  const player = { url: () => frameUrl, locator: (sel) => ({ first: () => ({ boundingBox: async () => (sel === "#game" ? box : null) }) }) };
+  const page = {
+    mainFrame: () => main,
+    frames: () => [main, player],
+    mouse: { click: async (x, y) => { clicks.push({ x, y }); for (const fn of listeners) fn({ method: "game/exited", params: { reason: "finished" } }); } },
+    waitForFunction: async () => {},
+    evaluate: async (fn) => fn(),
+  };
+  return { page, win, clicks, listeners, emit: (message) => listeners.forEach((fn) => fn(message)) };
+}
+
+await asyncCheck("advance's own click finds the player frame and clicks the centre of #game, and its own collector reports the game notifications", async () => {
+  let launchState = "play";
+  const { page, win, clicks, listeners, emit } = gamePage();
+  const saved = globalThis.window;
+  globalThis.window = win;
+  try {
+    const opts = { request: async () => ({ launchState }), settle: async () => ({ settled: true, text: "Hello." }) };
+    const out = await advanceGame(page, 2, opts);
+    assert.equal(out.reason, undefined);
+    assert.deepEqual(clicks, [{ x: 1000, y: 400 }, { x: 1000, y: 400 }]);
+    assert.equal(listeners.length, 1);
+    assert.deepEqual(out.clicks.map((c) => c.at), [{ x: 1000, y: 400 }, { x: 1000, y: 400 }]);
+    assert.deepEqual(out.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+    emit({ method: "game/stale", params: null });
+    emit({ method: "editor/didChange", params: {} });
+    const again = await advanceGame(page, 1, opts);
+    assert.equal(listeners.length, 1);
+    assert.deepEqual(again.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+    const noFrame = await advanceGame(gamePage({ frameUrl: "http://localhost:1/other.html" }).page, 1, opts);
+    assert.equal(noFrame.clicked, 0);
+    assert.match(noFrame.reason, /no same-origin player frame/);
+    const hidden = gamePage({ box: { x: 0, y: 0, width: 0, height: 0 } });
+    const noView = await advanceGame(hidden.page, 1, opts);
+    assert.equal(noView.clicked, 0);
+    assert.deepEqual(hidden.clicks, []);
+    assert.match(noView.reason, /#game\) is not on screen/);
+  } finally {
+    globalThis.window = saved;
+  }
 });
 
 await asyncCheck("insert puts text at the position, reads it back and reports the preview route", async () => {
@@ -677,7 +743,6 @@ await asyncCheck("insert puts text at the position, reads it back and reports th
   const outside = await insertText(page, { line: 9, col: 1 }, "x", deps);
   assert.equal(outside.inserted, false);
   assert.match(outside.reason, /outside the open document/);
-  // An insert that lands differently (an auto-closed bracket) fails.
   page.keyboard.insertText = async (t) => { doc = "(" + t + ")" + doc; version++; };
   const garbled = await insertText(page, { line: 1, col: 1 }, "(", { ...deps, versionWaitMs: 0 });
   assert.equal(garbled.textMatches, false);
@@ -716,8 +781,6 @@ await asyncCheck("hover reports a diagnostic at the position and its lint toolti
   assert.deepEqual(out.diagnosticTooltip, { present: true, text: "Choice mark must be inside choose" });
   assert.ok(moves.length >= 2, "a second pointer move opens the lint tooltip");
   assert.deepEqual(out.tooltipPointer, { x: moves[1][0] + 2, y: moves[1][1] }, "inside a mark the second move stays at the position");
-  // At the mark's end edge the right side is excluded by CodeMirror's lint
-  // hover, so the second move aims at the last character inside the mark.
   const reads = [];
   const edgeContext = vm.createContext(protocolGlobals({ text: () => "x\n\n\n\n\n\n* [Go]", diagnostics: () => [diagnostic] }));
   const send = edgeContext.window.__editorProtocol.send;
@@ -735,8 +798,6 @@ await asyncCheck("hover reports a diagnostic at the position and its lint toolti
   assert.deepEqual(reads.at(-1), { line: 6, character: 0 }, "the tooltip move measures the last character inside the mark");
   assert.deepEqual(edge.tooltipPointer, { x: 42, y: 259 });
   assert.deepEqual(moves.at(-1), [42, 259]);
-  // A multi-line mark whose exclusive end is column 0 of the next line: the
-  // last character inside it is the end of the line before (round-1 review).
   const multiline = { ...diagnostic, range: { start: { line: 0, character: 0 }, end: { line: 1, character: 0 } } };
   const lineContext = vm.createContext(protocolGlobals({ text: () => "abc\nnext", diagnostics: () => [multiline] }));
   const lineSend = lineContext.window.__editorProtocol.send;

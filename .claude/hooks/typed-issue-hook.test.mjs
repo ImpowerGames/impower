@@ -1,14 +1,3 @@
-// Exercises the typed-issue hook two ways: the decision table runs against
-// decide() directly, and a set of payloads run through the literal
-// PreToolUse "command" string that .claude/settings.json ships, under bash
-// and, when one is installed, under dash as a plain POSIX shell, with
-// CLAUDE_PROJECT_DIR set, so the wiring is covered as well as the logic.
-// Both positions of the cutover switch in .agents/repos.json are covered:
-// the original tables pin the off position, and the public-repository guard
-// table runs the hook script with the switch on, from fixture checkouts that
-// carry their own repos file. Run:
-//   node .claude/hooks/typed-issue-hook.test.mjs
-
 import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -24,9 +13,6 @@ const ON = { ...readRepos(), cutover: true };
 const decide = (command, shell) => decideWith(command, shell, { repos: OFF });
 let failed = 0;
 
-// A checkout holding only the hook, its re-export and a repos file, so the
-// hook can run as the harness runs it with either position of the switch
-// without touching the committed file.
 const scratch = mkdtempSync(join(tmpdir(), "typed-issue-hook-"));
 function fixture(name, reposText) {
   const dir = join(scratch, name);
@@ -294,9 +280,6 @@ const denies = [
   ["a create after a $( ) following gcc -Wall with an escaped quote", 'gcc -Wall $(node -e "console.log(\\"-DX\\")") main.c ; gh issue create --title x --body-file t.md'],
   ["a create after a $( ) following a lowercase -body with an escaped quote", 'tool -body $(node -e "console.log(\\"x\\")") ; gh issue create --title x --body-file t.md'],
   ["a create after a $( ) following -Uri in a Bash command with an escaped quote", 'tool -Uri $(node -e "console.log(\\"x\\")") ; gh issue create --title x --body-file t.md'],
-  // Under the PowerShell tool a backslash is literal inside and outside a
-  // string: a Windows path ending in one, or a `\"` in a substitution, does
-  // not hide the create that follows.
   ["a create after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh issue create --title "x" --body-file t.md', "powershell"],
   ["a create after a Set-Location to a path ending in a backslash under PowerShell", 'Set-Location "C:\\out\\" ; gh issue create --title "x" --body-file t.md', "powershell"],
   ["a create between an assignment of a path ending in a backslash and a Write-Host under PowerShell", '$y = "C:\\out\\" ; gh issue create --title x ; Write-Host "done"', "powershell"],
@@ -305,9 +288,6 @@ const denies = [
   ["a create after a $( ) following git -C with a backslash-quote under PowerShell", 'git -C $(node -e "console.log(\\"d\\")") log ; gh issue create -t x'],
   ["an untyped irm create with a backslash-quoted body under PowerShell", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{\\"title\\":\\"x\\",\\"type\\":\\"Bug\\"}"', "powershell"],
   ["a create after a bare path ending in a backslash glued to a semicolon under PowerShell", "cd C:\\out\\; gh issue create --title x", "powershell"],
-  // PowerShell runs a backslash-terminated line on its own, so the type on
-  // the next line does not count and a create on the next line is a
-  // statement of its own.
   ["a create on the line after a backslash-terminated echo under PowerShell", "echo a \\\ngh issue create -t x", "powershell"],
   ["a typed create split over Bash-style backslash lines under PowerShell, whose first line is an untyped POST", "gh api -X POST repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f type=Bug", "powershell"],
   ["a typed create split over CRLF Bash-style backslash lines under PowerShell", "gh api -X POST repos/ImpowerGames/impower/issues \\\r\n  -f title=x \\\r\n  -f type=Bug", "powershell"],
@@ -316,27 +296,19 @@ const denies = [
   ["a gh issue create whose title ends in a backslash before a --repo line under PowerShell", "gh issue create --title x\\\n  -R other/repo", "powershell"],
   ["an untyped implicit-POST create continued onto a flag line whose body says read-only, with no tool name", "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f 'body=the tree is read-only'", "bash"],
   ["a create after a comment naming a cmdlet and a bare path ending in a backslash, with no tool name", "# Get-Content leaves the file locked\ncd C:\\out\\\ngh issue create --title x", "powershell"],
-  // In a Bash command a backtick pair is a substitution even before `$`.
   ["a create in a backquote around a $( ) inside double quotes under Bash", 'echo "`$(gh issue create --title x)`"', "bash"],
-  // gh issue create needs a --type value.
   ["gh issue create with --type and no value", "gh issue create --title x --type"],
   ["gh issue create with --type followed by another flag", "gh issue create --type --title x"],
   ["gh issue create with an empty --type", 'gh issue create --title x --type ""'],
   ["gh issue create with -T, which is the template flag", "gh issue create -T Bug --title x"],
-  // A hashtable group after a flag is analysed for the commands it runs.
   ["a create inside a hashtable value after a flag under Bash", "echo -x @{a=$(gh issue create -t x)}"],
   ["a create inside a hashtable value after a flag under PowerShell", "echo -x @{a=$(gh issue create -t x)}"],
   ["a create inside an irm -Headers hashtable value under PowerShell", "irm -Headers @{a=$(gh issue create -t x)} -Uri https://x"],
   ["a create in a parenthesised irm -Headers hashtable value under PowerShell", "irm -Headers @{a=(gh issue create -t x)} -Uri https://x"],
   ["a create as an irm -Body group under PowerShell", "irm -Body (gh issue create -t x) -Uri https://x"],
-  // A backtick pair inside a double-quoted string is a substitution only
-  // in a Bash command.
   ["a PR comment quoting the phrase in backticks under Bash", 'gh pr comment 445 --body "prefer `gh api` over `gh issue create` here"', "bash"],
   ["a create after a backtick-escaped quote in a Write-Host string under PowerShell", 'Write-Host "x`"y" ; gh issue create -t x'],
   ["an untyped curl create after an unbalanced flag group", 'echo -a @{ ; curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d "{\\"title\\":\\"x\\",\\"body\\":\\"y\\"}"'],
-  // A JSON string body is read with JSON escapes whichever shell sends it,
-  // so this body, which is not valid JSON (a bare `\s` and a `\"` that
-  // swallows the closing quote), is refused.
   ["a PowerShell JSON string body with a path ending in a backslash", "irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body '{\"title\":\"C:\\src\\\",\"type\":\"Bug\"}'"],
 ];
 
@@ -498,8 +470,6 @@ const allows = [
   ["a 2>&1 view", "2>&1 gh issue view 443"],
   ["Invoke-RestMethod typed double-quoted body with backtick-escaped quotes", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{`"title`":`"x`",`"type`":`"Bug`"}"', "powershell"],
   ["Invoke-RestMethod typed double-quoted body with backslash-escaped quotes, read as Bash", 'irm -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body "{\\"title\\":\\"x\\",\\"type\\":\\"Bug\\"}"', "bash"],
-  // Under the PowerShell tool a backslash is literal, so a Windows path
-  // ending in one does not swallow the rest of the line.
   ["a typed create after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues -f title=x -f type=Bug'],
   ["a typed irm create after a Write-Host of a path ending in a backslash under PowerShell", 'Write-Host "C:\\dist\\" ; irm -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}'],
   ["a comment on an issue after a cd to a path ending in a backslash under PowerShell", 'cd "C:\\out\\" ; gh api -X POST repos/ImpowerGames/impower/issues/443/comments -f body=x'],
@@ -553,9 +523,6 @@ const allows = [
   ["empty command", ""],
 ];
 
-// These shapes must stay linear: the quadratic versions took ten seconds or
-// more at these sizes, so a two-second budget leaves an order of magnitude
-// of headroom for a slow runner.
 {
   const guard = (label, command, shell) => {
     const t0 = Date.now();
@@ -580,26 +547,19 @@ const allows = [
   guard("32000 unbalanced groups after flags", "echo " + "-a ( ".repeat(32000));
   guard("32000 unbalanced hashtables after flags", "echo " + "-a @{ ".repeat(32000) + "}");
   guard("32000 balanced groups after flags", "echo " + "-a (1) ".repeat(32000));
-  // The same three under the PowerShell tool, where every group after a
-  // parameter is that parameter's value and an unclosed one forces a retry.
   guard("32000 unbalanced parameter groups under PowerShell", "echo " + "-a ( ".repeat(32000), "powershell");
   guard("32000 unbalanced parameter hashtables under PowerShell", "echo " + "-a @{ ".repeat(32000) + "}", "powershell");
   guard("32000 balanced parameter groups under PowerShell", "echo " + "-a (1) ".repeat(32000), "powershell");
   guard("32000 unbalanced parameter substitutions under PowerShell", "echo " + "-a $( ".repeat(32000), "powershell");
 }
 
-// The backtick scan inside a double-quoted string must stay linear.
 {
   const t0 = Date.now();
   decide('Write-Host "' + "a`n".repeat(40000) + '"; gh issue create --title x');
   check(Date.now() - t0 < 2000, "40000 backtick escapes in one string decide in under 2 s", `${Date.now() - t0} ms`);
 }
 
-// The here-doc and command-position passes must stay linear: a large command
-// full of `<<` operators, and a segment of many assignments, both decide fast.
 {
-  // Arithmetic shifts, so every line is tokenized rather than swallowed as a
-  // here-doc body.
   const many = Array.from({ length: 10000 }, (_, i) => `x=$((y << ${i % 7}))`).join("\n");
   let t0 = Date.now();
   decide(many);
@@ -610,9 +570,6 @@ const allows = [
   check(typeof r === "string" && Date.now() - t0 < 2000, "50000 assignments before a create decide in under 2 s", `${Date.now() - t0} ms, ${JSON.stringify(r)?.slice(0, 40)}`);
 }
 
-// A third column names the shell the tool name would give the hook;
-// without one the hook infers it from the command, and the row must then
-// decide the same under both shells, so no row leans on the inference.
 let shellNeutral = 0;
 for (const [label, command, shell] of denies) {
   const reason = decide(command, shell);
@@ -628,8 +585,6 @@ for (const [label, command, shell] of allows) {
   const unnamed = denies.filter((r) => !r[2]).length + allows.filter((r) => !r[2]).length;
   check(shellNeutral === unnamed, "every row without a named shell decides the same under both shells", `${unnamed - shellNeutral} row(s) depend on the shell`);
 }
-// The shell decides how a `$(` after a flag is read: in PowerShell it is
-// the flag's value, in Bash it is a substitution and the flag is ignored.
 {
   const psInFile = 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}';
   const psTyped = 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}';
@@ -638,23 +593,16 @@ for (const [label, command, shell] of allows) {
   check(decide(psTyped, "powershell") === null, "allowed: a typed irm create after -InFile $( ) under the PowerShell tool");
   check(typeof decide(bashWall, "bash") === "string", "denied: a create after gcc -Wall $( ) under the Bash tool");
   check(typeof decide(bashWall, "powershell") === "string", "denied: a create after gcc -Wall $( ) under the PowerShell tool");
-  // One text, both shells, in both orders: the bracket map cached for one
-  // shell must not answer for the other.
   check(decide(psInFile, "bash") === null && typeof decide(psInFile, "powershell") === "string", "the bracket map cached under Bash is not reused under PowerShell");
   check(typeof decide(psInFile, "powershell") === "string" && decide(psInFile, "bash") === null, "the bracket map cached under PowerShell is not reused under Bash");
-  // A string handed to pwsh -Command is PowerShell whatever the outer tool;
-  // the text is the one the Bash reading allows above.
   check(typeof decide(`pwsh -Command '${psInFile}'`, "bash") === "string", "denied: an untyped irm create after -InFile $( ) inside pwsh -Command under the Bash tool");
   check(typeof decide(`bash -c '${bashWall}'`, "powershell") === "string", "denied: a create after gcc -Wall $( ) inside bash -c under the PowerShell tool");
-  // Without a tool name the command is read both ways and refused if
-  // either reading refuses it.
   check(typeof decide(psInFile) === "string", "denied: an untyped irm create after -InFile $( ) with no tool name");
   check(decide(psTyped) === null, "allowed: a typed irm create after -InFile $( ) with no tool name");
   check(typeof decide(bashWall) === "string", "denied: a create after gcc -Wall $( ) with no tool name");
   check(decide(psInFile, "bash") === null && typeof decide(psInFile, "powershell") === "string" && typeof decide(psInFile) === "string", "a text one reading allows and the other refuses is refused with no tool name");
 }
 
-// The wired command string, under bash and under a plain POSIX shell.
 {
   const settings = JSON.parse(readFileSync(resolve(root, ".claude", "settings.json"), "utf8"));
   const entry = (settings.hooks?.PreToolUse ?? []).find(
@@ -703,7 +651,6 @@ for (const [label, command, shell] of allows) {
     wire("deny reason survives a percent sign", payload("Bash", { command: "gh issue create --title '100%'" }), true);
     wire("large payload without gh", payload("Bash", { command: "echo " + "x".repeat(200000) }), false);
     wire("large payload with a create at the end", payload("Bash", { command: "echo " + "x".repeat(200000) + "; gh issue create --title x" }), true);
-    // One wired case per pre-filter branch, so dropping a branch fails here.
     wire("curl create (curl branch)", payload("Bash", { command: 'curl -X POST https://api.github.com/repos/ImpowerGames/impower/issues -d \'{"title":"x"}\'' }), true);
     wire("irm create (irm branch)", payload("PowerShell", { command: "irm https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body $b" }), true);
     wire("iwr create (iwr branch)", payload("PowerShell", { command: "iwr https://api.github.com/repos/ImpowerGames/impower/issues -Method Post -Body $b" }), true);
@@ -717,17 +664,10 @@ for (const [label, command, shell] of allows) {
     wire("create after a PowerShell newline escape", payload("PowerShell", { command: 'Write-Host "Done.`n"; gh issue create --title x' }), true);
     wire("PowerShell capture of a create", payload("PowerShell", { command: "$out = gh issue create --title x" }), true);
     wire("create after a leading 2>&1", payload("Bash", { command: "2>&1 gh issue create --title x" }), true);
-    // The tool name picks the shell: the same text is a PowerShell flag
-    // value under one tool and a Bash substitution under the other.
     wire("untyped irm create after -InFile $( ) under the PowerShell tool", payload("PowerShell", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), true);
     wire("typed irm create after -InFile $( ) under the PowerShell tool", payload("PowerShell", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; type="Bug"}' }), false);
     wire("create after gcc -Wall $( ) under the Bash tool", payload("Bash", { command: 'gcc -Wall $(pkg-config --cflags "x\\") main.c ; gh issue create --title x' }), true);
-    // The tool name must win over what the text suggests: this Bash command
-    // mentions a PowerShell cmdlet, and read as PowerShell its create
-    // would vanish into the -Lsf group.
     wire("create after curl -Lsf $( ) in a Bash command that mentions Get-Content", payload("Bash", { command: 'grep -rn Get-Content notes.md ; curl -Lsf $(node -e "console.log(\\"Bearer \\" + t)") https://x ; gh issue create --title x --body-file t.md' }), true);
-    // A text the Bash reading allows and the PowerShell reading refuses:
-    // allowed under the Bash tool in any spelling, refused with no tool name.
     wire("PowerShell-only text under the Bash tool", payload("Bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), false);
     wire("PowerShell-only text under the Bash tool named in lower case", payload("bash", { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' }), false);
     wire("PowerShell-only text with no tool name", JSON.stringify({ tool_input: { command: 'irm -InFile $(Get-Content "C:\\dist\\") -Method Post -Uri https://api.github.com/repos/ImpowerGames/impower/issues -Body @{title="x"; body="y"}' } }), true);
@@ -738,7 +678,6 @@ for (const [label, command, shell] of allows) {
     wire("create whose body file argument ends in a backslash before the type line under the PowerShell tool", payload("PowerShell", { command: "gh api -X POST repos/ImpowerGames/impower/issues -f title=x -F body=@ticket.md\\\n  -f type=Bug" }), true);
     wire("untyped create over backslash lines with a read-only body and no tool name", JSON.stringify({ tool_input: { command: "gh api repos/ImpowerGames/impower/issues \\\n  -f title=x \\\n  -f 'body=the tree is read-only'" } }), true);
     wire("PR comment quoting the phrase in backticks under the PowerShell tool", payload("PowerShell", { command: 'gh pr comment 445 --body "prefer `gh api` over `gh issue create` here"' }), false);
-    // The recipe in the deny reason is a runnable line under both tools.
     {
       const r = run(payload("Bash", { command: "gh issue create --title x" }));
       const recipe = JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason.split("instead: ")[1];
@@ -750,8 +689,6 @@ for (const [label, command, shell] of allows) {
       wire("the recipe without its type under the PowerShell tool", payload("PowerShell", { command: recipe.replace(" -f type=Bug", "") }), true);
     }
 
-    // A wrong project directory must block loudly on a gh command, with a
-    // readable reason on stderr, and stay silent on everything else.
     {
       const r = run(payload("Bash", { command: "gh issue create --title x" }), { CLAUDE_PROJECT_DIR: resolve(root, "does-not-exist") });
       check(r.status === 2 && /not found/.test(r.stderr ?? ""), `[${shell}] wrong CLAUDE_PROJECT_DIR blocks a gh command with a readable reason`, `status=${r.status} stderr=${JSON.stringify(r.stderr)}`);
@@ -759,8 +696,6 @@ for (const [label, command, shell] of allows) {
       check(r2.status === 0 && !(r2.stderr ?? "").trim() && !r2.stdout, `[${shell}] wrong CLAUDE_PROJECT_DIR is silent on an unrelated command`, `status=${r2.status} stderr=${JSON.stringify(r2.stderr)}`);
     }
 
-    // The same wiring with the switch on: the guard refuses, its allowances
-    // pass, and an unparseable payload naming a guarded gh command is refused.
     {
       const onEnv = { CLAUDE_PROJECT_DIR: fixtures.on };
       const wireOn = (label, body, expectDeny) => wire(`switch on: ${label}`, body, expectDeny, onEnv);
@@ -774,14 +709,11 @@ for (const [label, command, shell] of allows) {
       wireOn("unparseable payload without gh", "{not json", false);
     }
 
-    // A repos file the loader rejects fails the check, and the wiring turns
-    // that into a refusal of the gh command rather than a pass.
     {
       const r = run(payload("Bash", { command: "gh pr view 12 --json number" }), { CLAUDE_PROJECT_DIR: fixtures.broken });
       check(r.status === 2 && /check itself failed/.test(r.stderr ?? ""), `[${shell}] a malformed repos file refuses a gh command`, `status=${r.status} stderr=${JSON.stringify(r.stderr)}`);
     }
 
-    // The committed checkout decides these the same in either position.
     {
       const rootEnv = { CLAUDE_PROJECT_DIR: root };
       wire("committed repos file: untyped create with no repository", payload("Bash", { command: "gh issue create --title x" }), true, rootEnv);
@@ -790,7 +722,6 @@ for (const [label, command, shell] of allows) {
   }
 }
 
-// The repos file and its loader.
 {
   const committed = readRepos();
   check(committed.code === "ImpowerGames/impower" && committed.internal === "ImpowerGames/impower-internal" && committed.autolinkPrefix === "I-" && typeof committed.cutover === "boolean", "the repos file names the code and internal repositories, the autolink prefix and the cutover switch", JSON.stringify(committed));
@@ -824,11 +755,6 @@ for (const [label, command, shell] of allows) {
   check(usage.status === 2 && /Usage/.test(usage.stderr), "node .agents/repos.mjs refuses an unknown value", JSON.stringify(usage));
 }
 
-// The public-repository guard, with the switch on. Every row runs the hook
-// script itself as the harness would, with a JSON payload on stdin, and
-// asserts its exit code and the first line of the reason. The same text must
-// decide the same in-process under both shell readings, and with the switch
-// off no row reaches the guard.
 {
   const guard = (what) => `Public-repository guard: ${what} on ImpowerGames/impower is refused.`;
   const lines = {
@@ -844,8 +770,6 @@ for (const [label, command, shell] of allows) {
     discussion: guard("a gh discussion command"),
     web: guard("a web page of issues, pull request conversations or discussions"),
   };
-  // Typed-creation refusals keep their wording; with the switch on their
-  // recipe names the internal repository.
   const internalRecipe = "gh api -X POST repos/ImpowerGames/impower-internal/issues ";
   const typed = {
     typedIssue: "gh issue create without --type leaves the issue untyped, and every ticket here carries one (Bug, Feature, or Task).",
@@ -857,7 +781,6 @@ for (const [label, command, shell] of allows) {
   const code = "ImpowerGames/impower";
   const internal = "ImpowerGames/impower-internal";
   const refusals = [
-    // gh issue: every subcommand, named, by placeholder, by URL, by GH_REPO, or with no repository.
     ["gh issue create with no repository", "gh issue create --title x --body y --type Task", "issue"],
     ["gh issue create naming the code repository", `gh issue create --title x --body y --type Task --repo ${code}`, "issue"],
     ["gh issue view with no repository", "gh issue view 12", "issue"],
@@ -874,36 +797,29 @@ for (const [label, command, shell] of allows) {
     ["gh issue create whose title holds an internal -R", `gh issue create --title "-R ${internal} x" --type Task`, "issue"],
     ["gh issue view inside bash -c", "bash -c 'gh issue view 12'", "issue"],
     ["gh issue view in a substitution", 'T="$(gh issue view 12 --json title)"', "issue"],
-    // gh's own repository order: the last repo flag in argument order, and a URL selector over any flag.
     ["gh issue view whose last repo flag is the code repository", `gh issue view 12 --repo ${internal} -R ${code}`, "issue"],
     ["gh issue view with -R internal before the subcommand and the code repository after", `gh -R ${internal} issue view 12 -R ${code}`, "issue"],
     ["gh issue view by the code repository's URL with an internal --repo", `gh issue view https://github.com/${code}/issues/12 --repo ${internal}`, "issue"],
     ["gh pr view --comments by the code repository's URL with an internal -R", `gh pr view https://github.com/${code}/pull/1975 --comments -R ${internal}`, "prView"],
     ["gh pr view --comments by the code repository's URL with a port and an internal -R", `gh pr view https://github.com:443/${code}/pull/1975 --comments -R ${internal}`, "prView"],
-    // Any repo flag or positional URL naming the code repository refuses, whatever gh's precedence.
     ["gh issue view whose first repo flag is the code repository", `gh issue view 12 -R ${code} --repo ${internal}`, "issue"],
     ["gh issue view by the internal repository's URL with a code -R", `gh issue view https://github.com/${internal}/issues/12 -R ${code}`, "issue"],
     ["gh pr view --json with --comments=true", "gh pr view 1975 --json title --comments=true", "prView"],
     ["gh pr view --json with --comments=false then --comments", "gh pr view 1975 --json title --comments=false --comments", "prView"],
-    // GH_REPO counts only when gh certainly inherits it.
     ["gh issue view after GH_REPO internal and sudo, which resets the environment", `GH_REPO=${internal} sudo gh issue view 12`, "issue"],
     ["gh issue view after GH_REPO internal and env -i", `GH_REPO=${internal} env -i gh issue view 12`, "issue"],
     ["gh issue view in bash -c that unsets an inherited internal GH_REPO", `GH_REPO=${internal} bash -c 'unset GH_REPO; gh issue view 12'`, "issue"],
     ["gh issue view in a substitution that unsets GH_REPO", `GH_REPO=${internal} bash -c 'T=$(unset GH_REPO; gh issue view 12)'`, "issue"],
-    // gh discussion, the whole family.
     ["gh discussion view with comments", `gh discussion view 67 --repo ${code} --json body,comments`, "discussion"],
     ["gh discussion list naming the code repository", `gh discussion list --repo ${code}`, "discussion"],
     ["gh discussion comment with no repository", "gh discussion comment 67 --body x", "discussion"],
     ["gh discussion create with no repository", "gh discussion create --title x --body y --category General", "discussion"],
     ["gh discussion view by the code repository's URL", `gh discussion view https://github.com/${code}/discussions/67`, "discussion"],
-    // gh's built-in aliases.
     ["gh pr ls without --author", `gh pr ls --repo ${code} --json number,title`, "prList"],
     ["gh issue new on the internal repository without --type", `gh issue new -R ${internal} --title x`, "typedIssue"],
-    // gh pr
     ["gh pr comment", "gh pr comment 12 --body-file r.md", "prComment"],
     ["gh pr comment naming the code repository", `gh pr comment 12 -R ${code} --body x`, "prComment"],
     ["gh pr review", "gh pr review 12 --approve", "prReview"],
-    // A URL inside an attached flag value is not the selector.
     ["gh pr comment whose attached --body= links an internal issue, before the number", `gh pr comment --body="See https://github.com/${internal}/issues/12" 1975`, "prComment"],
     ["gh pr review whose attached --body= links an internal issue, before the number", `gh pr review --body="See https://github.com/${internal}/issues/12" 1975 --comment`, "prReview"],
     ["gh pr comment whose attached -b links an internal issue", `gh pr comment -b"See https://github.com/${internal}/issues/12" 1975`, "prComment"],
@@ -927,7 +843,6 @@ for (const [label, command, shell] of allows) {
     ["gh pr status exporting latest reviews", "gh pr status --json number,latestReviews", "prView"],
     ["gh pr list", "gh pr list", "prList"],
     ["gh pr list by head branch only", "gh pr list --head feat/1962-x --json number", "prList"],
-    // gh search
     ["gh search issues with no repository", "gh search issues parser crash", "search"],
     ["gh search prs naming the code repository", `gh search prs fix --repo ${code}`, "search"],
     ["gh search issues by repo: qualifier", `gh search issues "repo:${code} crash"`, "search"],
@@ -944,7 +859,6 @@ for (const [label, command, shell] of allows) {
     ["gh search issues with a quoted org: qualifier for the code owner", `gh search issues 'repo:${internal} org:"ImpowerGames"'`, "search"],
     ["gh search issues with a comma-separated --repo naming the code repository", `gh search issues crash --repo ${internal},${code}`, "search"],
     ["gh search prs with a comma-separated --owner naming the code owner", `gh search prs fix --repo ${internal} --owner someone,ImpowerGames`, "search"],
-    // gh api, every method
     ["gh api issue comments, paginated", `gh api repos/${code}/issues/12/comments --paginate`, "api"],
     ["gh api issues collection", `gh api repos/${code}/issues`, "api"],
     ["gh api one issue", `gh api repos/${code}/issues/12`, "api"],
@@ -955,13 +869,11 @@ for (const [label, command, shell] of allows) {
     ["gh api pull request reviews", `gh api repos/${code}/pulls/12/reviews`, "api"],
     ["gh api one review's comments", `gh api repos/${code}/pulls/12/reviews/3/comments`, "api"],
     ["gh api review request", `gh api -X POST repos/${code}/pulls/12/requested_reviewers -f "reviewers[]=x"`, "api"],
-    // The path as GitHub resolves it.
     ["gh api with a percent-encoded repository name", `gh api repos/ImpowerGames/%69mpower/issues/1962`, "api"],
     ["gh api with a fragment", `gh api 'repos/${code}/issues#note'`, "api"],
     ["gh api with dot segments", `gh api repos/${code}/pulls/../issues/1`, "api"],
     ["gh api with a doubled slash", `gh api repos/${code}//issues/1`, "api"],
     ["gh api by repository ID", "gh api repositories/123456/issues/1/comments", "api"],
-    // Feeds that gather issues or their events across repositories.
     ["gh api issues assigned across repositories", "gh api issues", "api"],
     ["gh api the user's issues", "gh api user/issues", "api"],
     ["gh api the organization's issues", "gh api orgs/ImpowerGames/issues", "api"],
@@ -978,13 +890,11 @@ for (const [label, command, shell] of allows) {
     ["gh api by absolute URL", `gh api https://api.github.com/repos/${code}/issues/12`, "api"],
     ["gh api search/issues by q field", `gh api search/issues -f q="repo:${code} is:open"`, "search"],
     ["gh api search/issues by query string", `gh api "search/issues?q=repo:${code}+crash"`, "search"],
-    // GraphQL
     ["GraphQL issues by owner and name", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { issues(first: 5) { nodes { title } } } }'`, "graphql"],
     ["GraphQL pull request comments by variables", "gh api graphql -f owner=ImpowerGames -f name=impower -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { pullRequest(number: 1) { comments(first: 5) { nodes { body } } } } }'", "graphql"],
     ["GraphQL search by repo qualifier", `gh api graphql -f query='query { search(query: "repo:${code} crash", type: ISSUE, first: 5) { nodes { ... on Issue { title } } } }'`, "graphql"],
     ["GraphQL discussions", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { discussions(first: 1) { nodes { body } } } }'`, "graphql"],
     ["GraphQL pull request timeline", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1975) { timeline(first: 100) { nodes { ... on IssueComment { body } ... on PullRequestReview { body } } } } } }'`, "graphql"],
-    // Entry points that reach issues without naming one repository.
     ["GraphQL search scoped to the organization", `gh api graphql -f query='query { search(query: "org:ImpowerGames is:issue", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL search with no scope", `gh api graphql -f query='query { search(query: "is:issue crash", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL node by ID", `gh api graphql -f query='query { node(id: "I_kwDOabc") { ... on Issue { body } } }'`, "graphql"],
@@ -999,13 +909,11 @@ for (const [label, command, shell] of allows) {
     ["GraphQL search with a scoped repo: only in an unrelated field", `gh api graphql -f note='repo:${internal}' -f query='query { search(query: "is:issue crash", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL closing references from an internal pull request", `gh api graphql -f 'query=query { repository(owner: "ImpowerGames", name: "impower-internal") { pullRequest(number: 1) { closingIssuesReferences(first: 5) { nodes { body } } } } }'`, "graphql"],
     ["GraphQL from a fork's pull request to its head repository's issues", `gh api graphql -f query='query { repository(owner: "OtherOwner", name: "fork") { pullRequest(number: 1) { headRepository { issues(first: 5) { nodes { body } } } } } }'`, "graphql"],
-    // With the switch on, GraphQL may not read tickets at all, whatever repository it names.
     ["GraphQL search whose query variable is scoped to the internal repository, now refused with any GraphQL ticket read", `gh api graphql -F q='repo:${internal}' -f query='query($q: String!) { search(query: $q, type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL internal issues with their authors, now refused with any GraphQL ticket read", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower-internal") { issue(number: 1) { body author { login } comments(first: 5) { nodes { body } } } } }'`, "graphql"],
     ["GraphQL search scoped to the internal repository, now refused with any GraphQL ticket read", `gh api graphql -f query='query { search(query: "repo:${internal} is:issue", type: ISSUE, first: 10) { nodes { ... on Issue { body } } } }'`, "graphql"],
     ["GraphQL issues on the internal repository, now refused with any GraphQL ticket read",`gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower-internal") { issues(first: 5) { nodes { title } } } }'`, "graphql"],
     ["GraphQL closing issue references", `gh api graphql -f query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1975) { closingIssuesReferences(first: 5) { nodes { body } } } } }'`, "graphql"],
-    // curl, Invoke-RestMethod, irm, Invoke-WebRequest, iwr
     ["curl read of issue comments", `curl https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl review POST", `curl -X POST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
     ["curl issues search", `curl "https://api.github.com/search/issues?q=repo:${code}+crash"`, "search"],
@@ -1014,7 +922,6 @@ for (const [label, command, shell] of allows) {
     ["irm read of discussions", `irm https://api.github.com/repos/${code}/discussions`, "api"],
     ["Invoke-WebRequest read of review requests", `Invoke-WebRequest -Uri https://api.github.com/repos/${code}/pulls/12/requested_reviewers`, "api"],
     ["iwr read of the issues collection", `iwr https://api.github.com/repos/${code}/issues`, "api"],
-    // URL syntax: user information, curl globs, and web pages.
     ["curl read with user information in the URL", `curl https://reader@api.github.com/repos/${code}/issues/1962`, "api"],
     ["curl read through a brace glob that expands to the code repository", `curl 'https://api.github.com/repos/ImpowerGames/{impower,server}/issues/1962'`, "api"],
     ["curl read through a bracket glob", `curl 'https://api.github.com/repos/${code}/issues/[1-9]'`, "api"],
@@ -1035,11 +942,9 @@ for (const [label, command, shell] of allows) {
     ["curl of the code repository's discussions page", `curl https://github.com/${code}/discussions`, "web"],
     ["Invoke-WebRequest of the code repository's issue page", `Invoke-WebRequest -Uri https://github.com/${code}/issues/1962`, "web", "powershell"],
     ["iwr of a pull request's review comments page", `iwr https://www.github.com/${code}/pull/1975/files`, "web"],
-    // An attached method value does not take the URL after it.
     ["curl -XGET read of issue comments", `curl -XGET https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl -XPOST review", `curl -XPOST https://api.github.com/repos/${code}/pulls/12/reviews -d '{"event":"APPROVE"}'`, "api"],
     ["curl clustered -sSLXGET read", `curl -sSLXGET https://api.github.com/repos/${code}/issues/12`, "api"],
-    // Every argument that is wholly an API URL is a destination, whatever precedes it.
     ["curl read after -d consumed -X", `curl -d -X https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl read after -A consumed -X", `curl -A -X https://api.github.com/repos/${code}/issues/12/comments`, "api"],
     ["curl read whose URL has a fragment", `curl https://api.github.com/repos/${code}/issues/12/comments#top`, "api"],
@@ -1049,7 +954,6 @@ for (const [label, command, shell] of allows) {
     ["irm read through -Uri:", `irm -Uri:https://api.github.com/repos/${code}/issues/12`, "api", "powershell"],
     ["curl comment POST whose body links a pull request", `curl -X POST https://api.github.com/repos/${code}/issues/1/comments -d '{"body":"see https://api.github.com/repos/${code}/pulls/2"}'`, "api"],
     ["Invoke-RestMethod GraphQL reviews", `Invoke-RestMethod -Method Post -Uri https://api.github.com/graphql -Body (@{query='query { repository(owner: "ImpowerGames", name: "impower") { pullRequest(number: 1) { reviews(first: 5) { nodes { body } } } } }'} | ConvertTo-Json)`, "graphql"],
-    // Typed creation, now scoped to the internal repository.
     ["gh issue create on the internal repository without --type", `gh issue create --title x --body y --repo ${internal}`, "typedIssue"],
     ["gh issue create with -R internal before the subcommand without --type", `gh -R ${internal} issue create --title x`, "typedIssue"],
     ["gh issue create with GH_REPO internal without --type", `GH_REPO=${internal} gh issue create --title x`, "typedIssue"],
@@ -1169,7 +1073,6 @@ for (const [label, command, shell] of allows) {
     check(r.status === 0 && !(r.stderr ?? "").trim() && r.stdout === "", `switch on, allowed: ${label}`, `status=${r.status} stderr=${JSON.stringify(r.stderr)} stdout=${JSON.stringify(r.stdout)}`);
     check(decideWith(command, shell, { repos: ON }) === null, `switch on, allowed in-process under both readings: ${label}`);
   }
-  // The guard's own passes stay linear on large commands.
   {
     const timed = (label, command, shell) => {
       const t0 = Date.now();
@@ -1181,10 +1084,8 @@ for (const [label, command, shell] of allows) {
     timed("20000 gh flags and assignments", "X=1 ".repeat(10000) + "gh pr edit 1 " + "--title x ".repeat(10000));
     timed("a 300 KB search query", `gh search issues "${"repo:a/b ".repeat(30000)}"`);
   }
-  // The detail lines name the internal repository and the public contract.
   const reason = decideWith("gh issue view 12", "bash", { repos: ON });
   check(reason.includes(`live in ${internal}`) && /opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else/.test(reason) && reason.includes(`-R ${internal}`), "the guard's reason names the internal repository and the public contract", JSON.stringify(reason));
-  // With the switch off, the commands the guard would refuse pass as today.
   for (const command of ["gh issue view 12", "gh pr comment 12 --body x", "gh pr view 12 --comments", `gh api repos/${code}/issues/12/comments --paginate`, `gh issue create --title x --body y --type Task --repo ${code}`]) {
     check(decideWith(command, undefined, { repos: OFF }) === null, `switch off, allowed as today: ${command}`);
   }

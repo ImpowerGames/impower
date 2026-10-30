@@ -20,6 +20,7 @@ import {
   placeDurableAddress,
 } from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -53,7 +54,6 @@ import {
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
 import {
-  TOP_LEVEL_FLOW,
   ownEntry,
   type StartingValueListing,
   type StartingValues,
@@ -158,10 +158,6 @@ export interface RouteStarts {
   startPlans?: (from: string) => StartPlan | undefined;
 }
 
-/** Whether a program engine's image stands right after the statement whose
- *  instruction ran last, at `address`: where a beat's image rests at its
- *  newline, and where it is placed after that statement in any program that
- *  still holds it and the statement after it (`PositionCopy.after`). */
 const restsAfter = (
   state: unknown,
   address: ProgramAddress | undefined,
@@ -176,8 +172,6 @@ const restsAfter = (
   );
 };
 
-/** A value the editor can receive and evaluate an expression against: a
- *  primitive, or plain data made of them. */
 const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === undefined || typeof value === "function") {
     return false;
@@ -185,8 +179,6 @@ const isEvaluable =(value: unknown, depth = 0): boolean => {
   if (value === null || typeof value !== "object") {
     return true;
   }
-  // A table is a `Map` of the runtime's own objects, and a structure nested
-  // this deep is not a value an author reads in the console.
   if (value instanceof Map || value instanceof Set || depth > 8) {
     return false;
   }
@@ -195,7 +187,6 @@ const isEvaluable =(value: unknown, depth = 0): boolean => {
   );
 };
 
-/** Whether two locations are the same, nothing being the same as nothing. */
 const sameLocation = (
   a: ScriptLocation | null | undefined,
   b: ScriptLocation | null | undefined,
@@ -246,22 +237,12 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
-  /** While a preview's beat runs with its flush held back ({@link preview}):
-   *  the flush that would build a coordinator is kept instead. */
   protected _holdingFlush = false;
 
-  /** The flush a held run reached, if it reached one. */
   protected _held: { instructions: Instructions | null } | null = null;
 
-  /** Counts previews, so one that starts while another waits for its
-   *  pictures takes over, as does anything that changes what the wait
-   *  would display into: a load, a recompile, a reset, a start, a connect,
-   *  the game's destruction ({@link cancelPreview}). */
   protected _previewGeneration = 0;
 
-  /** The preview waiting for its beat's pictures, if one is: what a repeat
-   *  of its point settles with, the gate a take-over abandons, and the
-   *  signal that ends its wait then. */
   protected _pendingPreview: {
     address: ProgramAddress;
     generation: number;
@@ -270,73 +251,26 @@ export class Game<T extends M = {}> {
     cancel: () => void;
   } | null = null;
 
-  /** The targets of the choices the last displayed beat presented, which
-   *  the next preview clears before it waits ({@link clearChoices}). Kept
-   *  on the game rather than in a module's state: a loaded checkpoint
-   *  replaces that state while the choices stay on the page. */
   protected _shownChoices: string[] = [];
 
-  /**
-   * How many times one uninterrupted stretch of execution may advance the
-   * story before it is stopped as a runaway.
-   *
-   * An author can write a story that never ends, so execution needs a ceiling.
-   * Counting work rather than elapsed time makes the ceiling mean the same
-   * thing on an idle machine and a busy one, which is what keeps it from
-   * mistaking a long scene for a loop.
-   *
-   * The unit is one iteration of the loop in `stepWithinBudget`, which is not
-   * the same as a display line or a runtime path. Replaying a scene of plain
-   * display lines, each lowered to a `display()` call as the editor compiles
-   * it, costs about 37 iterations per line (73,961 at 2,000 lines), which puts
-   * a 20,000-line replay near 740,000.
-   *
-   * Calibrate against what the EDITOR compiles. Setting this ceiling from a
-   * program coarser than the editor's is exactly what shipped the planner's
-   * ceiling several times too small.
-   *
-   * Two million is about two and a half times a 20,000-line replay, so a
-   * replay to a line more than about 54,000 lines into one scene is stopped
-   * and reported as a possible infinite loop whether or not it loops: the
-   * ceiling counts work and cannot tell. What it costs when it does fire is
-   * worth stating plainly rather
-   * than hand-waving: an iteration runs in about 4 µs for a content-free loop
-   * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
-   * captures a checkpoint every beat, which is minutes. A replay only diverges
-   * if its plan has gone stale, so that shape is rare — but this ceiling is not
-   * a fast guard, and on the PLAY path it blocks the interface thread (#385).
-   */
   protected _executionStepLimit = 2_000_000;
 
   protected _executionStepsRemaining = 2_000_000;
 
-  /**
-   * How deeply calls may nest before the run is stopped as a stack overflow.
-   * Far deeper than any recursion a story needs, and shallow enough that
-   * recursion which never ends stops well inside the step ceiling: a call that
-   * displays a line takes about sixty advances, so this depth costs about a
-   * seventh of the ceiling, and the ceiling's minutes would hold up the
-   * preview's worker and every program after it (#1072).
-   */
   protected _callDepthLimit = 5_000;
 
   protected _executionBudgetExhausted = false;
 
   protected _executingAddress: ProgramAddress | null = null;
-  /** The address of the position executed most recently. */
   get executingAddress() {
     return this._executingAddress;
   }
 
-  /** Where the story stands, in the addresses of the engine that runs it,
-   *  and the accessor that places them in the source. */
   protected _positions!: StoryPositions;
   get locator(): ProgramLocator {
     return this._positions.locator;
   }
 
-  /** Which top-level flow the story is in, and when that changes
-   *  (`Module.onEnterScene`). Fed from every place the position can move. */
   protected _sceneTracker = new SceneTracker((flow) =>
     this.isFunctionFlow(flow),
   );
@@ -344,24 +278,13 @@ export class Game<T extends M = {}> {
     return this._sceneTracker;
   }
 
-  /** The program whose scenes the tracker last observed (#657). A program
-   *  given since is compared with it at the next observation: the tracker
-   *  and the prediction window stand while its scenes do. */
   protected _sceneProgram?: SparkProgram;
 
-  /** Counts the programs whose engine ran the declarations rather than
-   *  carrying the run of the engine before it (#1759, #657): two programs
-   *  given under one count define the same tables and the same functions. */
   protected _declarationsRun = 0;
   get declarationsRun() {
     return this._declarationsRun;
   }
 
-  /** What the last display began from, and what the programs given since
-   *  changed (#657): the program it showed, where its beat starts, the
-   *  route it was replayed along, and the scenes the compiles since emitted
-   *  or dropped a statement in (`""` for a declaration), `unmeasured` when a
-   *  compile was not measured against the program before it. */
   protected _changesSince?: {
     program: SparkProgram;
     beat?: { uri: string; line: number };
@@ -373,26 +296,9 @@ export class Game<T extends M = {}> {
     unmeasured: boolean;
   };
 
-  /** Whether the replay of the planned route wrote the story's state from
-   *  the step before its target to the checkpoint taken at the target
-   *  (#657): the checkpoint holds what the target's own statement wrote,
-   *  which the steps before it do not show. Unknown until a replay watched
-   *  it to its end. */
   protected _routeTargetWrote?: boolean;
-  /** The visits that stretch counted, in order (#657): a call of a
-   *  function the beat's text interpolates counts one in every replay, and
-   *  the checkpoint holds the same counts when two replays counted the same
-   *  visits. Unknown as the writes are. */
   protected _routeTargetVisits?: string;
-  /** Whether the replay of the planned route, from wherever it began, drew
-   *  from the story's seed or read a value no story state holds (#657): a
-   *  replay from the route's start makes a story state with a seed of its
-   *  own, and a clock reads another time, so the same steps can leave
-   *  another state. Unknown until a replay ran. */
   protected _routeUnrepeatable?: boolean;
-  /** The reactive changes taken when the watch began, given back when it
-   *  ends, and the story's state the write marks do not see then; set
-   *  while it runs. */
   protected _targetWatch?: {
     changes: { globals: Set<string>; tables: Set<object> };
     unmarked: string;
@@ -401,19 +307,9 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation | null = null;
 
-  /** Where the beat the game waits on stands: the last line the beat ran,
-   *  which is not the last instruction the story ran when the beat's
-   *  continue went on to cut the next line (#1756). Nothing while the game
-   *  does not wait. Kept until the story moves on or its state is replaced
-   *  (a continue, a step, a jump, a rewind, a restore, a load, another
-   *  program), and not by the story's last address, which a host's call
-   *  into the story (`EvaluateFunction`) moves while the beat still waits,
-   *  and which two beats can share. */
   protected _awaiting: ScriptLocation | null = null;
 
   protected _runtimeErrorsReported = 0;
-  /** How many runtime errors (not warnings) the game has reported, so a caller
-   *  can tell whether a failure it caught was already reported. */
   get runtimeErrorsReported() {
     return this._runtimeErrorsReported;
   }
@@ -423,18 +319,12 @@ export class Game<T extends M = {}> {
     return this._runtimeState;
   }
 
-  /** Whether the debugger has heard a stop (a step's or a breakpoint's)
-   *  since the current `step` began. */
   protected _announcedStop = false;
 
-  protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
+  protected _nextObjectVariableRef = 2000;
 
   protected _objectVariableRefMap = new Map<number, object>();
 
-  // The records `getTableRecord` made of Luau tables, each with its keys in
-  // the order the view lists them. A table's keys are all its own entries,
-  // so the view reads them without the `$` metadata conventions of the
-  // other records it shows (a define's `$type` and `$name`).
   protected _tableRecords = new WeakMap<object, string[]>();
 
   protected _startFrom?: {
@@ -445,12 +335,8 @@ export class Game<T extends M = {}> {
     return this._startFrom;
   }
 
-  /** Which beat of its line `setStartFrom` last started at, so a program
-   *  for the other engine can resolve the same start point. */
   protected _startBeat: "first" | "last" = "first";
 
-  /** The point `preview()` last previewed: its line, and the address it
-   *  named when that is not the one the line resolves to. */
   protected _previewFrom?: {
     file: string;
     line: number;
@@ -465,17 +351,11 @@ export class Game<T extends M = {}> {
     return this._previewAddress;
   }
 
-  /** The address `preview()` last ran to completion, so asking for it again
-   *  is a no-op. Kept apart from `context.system.previewing` — that one
-   *  answers "is this a preview rather than a real run", which callers must
-   *  be able to establish BEFORE a preview point has been chosen (see
-   *  `markPreviewing`). */
   protected _previewedAddress?: ProgramAddress;
   get previewedAddress() {
     return this._previewedAddress;
   }
 
-  /** The flow the route to the start point starts at the top of. */
   protected _simulateFlow?: string | null;
   get simulateFlow() {
     return this._simulateFlow;
@@ -486,24 +366,15 @@ export class Game<T extends M = {}> {
 
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
 
-  /** The address the story starts at, and a route to it ends at: the beat a
-   *  line starts (`setStartFrom`), or a flow. */
   protected _startAddress?: ProgramAddress | null;
   get startAddress() {
     return this._startAddress;
   }
 
-  /** The addresses of the line and function breakpoints, by kind, which
-   *  `_breakAddresses` joins: the game stops after a step that ran an
-   *  instruction whose address it holds. */
   protected _lineBreakAddresses = new Set<number>();
   protected _functionBreakAddresses = new Set<number>();
   protected _breakAddresses = new Set<number>();
-  /** Whether the step in under way has run an instruction of a function's
-   *  entry code, and stops once that entry code has run. */
   protected _steppingInThroughEntry = false;
-  /** The entry code a step in runs through (`programEntryCode`), for the
-   *  program root it was read from. */
   protected _entryCode: { root: unknown; addresses: Set<number> } | null =
     null;
 
@@ -515,47 +386,22 @@ export class Game<T extends M = {}> {
     return this._entryCode.addresses;
   }
 
-  /** The addresses of the instructions the story's current step ran
-   *  (`ProgramStory.executedLog`), reused from step to step. */
   protected _executedLog: number[] = [];
-  /** The addresses the story's current step logged for the beat that shows
-   *  what they ran (`ProgramStory.beatLog`), reused from step to step. */
   protected _beatLog: number[] = [];
 
-  /** The variables the data breakpoints watch: a global by its name, or a
-   *  temporary of the frame named `scope`. Between steps the game notes
-   *  where each is bound now (`locateWatch`) and the value object it holds;
-   *  during a step the engine reports each write to a bound variable
-   *  (`VariablesState.writeWatch`), and a write to the binding noted marks
-   *  the watch `written`. */
   protected _dataWatches: {
-    /** The breakpoint's data id, which a save names the watch by. */
     dataId: string;
     scope?: string;
     name: string;
-    /** The block scope a temporary was found in, which the watch keeps
-     *  while a frame named by its scope holds it. */
     blockScope: Map<string, InkObject> | null;
-    /** The pointer that block scope held for the variable, when the frame
-     *  binds it to one (a variable passed by reference, or one a closure
-     *  captured), which the watch follows while no frame named by its
-     *  scope runs. */
     pointer: VariablePointerValue | null;
-    /** The story's variables when the pointer was noted. */
     pointerState: object | null;
-    /** Where a write to the variable lands (`VariablesState.BindingOf`),
-     *  and its name there; `undefined` when no such variable is in scope. */
     binding: VariableBinding | undefined;
     bindingName: string;
     last: unknown;
     written: boolean;
   }[] = [];
 
-  /** A tag for each cell a save noted for a data breakpoint, unique to the
-   *  cell across sessions, which the save writes beside the cell's id: a
-   *  load binds a watch to the cell it read under that id only when the
-   *  watch holds the cell the tag names, the cell it held when the save was
-   *  written, or the cell an earlier load of the save bound it to. */
   protected _cellTags = new WeakMap<VariablePointerValue, string>();
 
   protected cellTag(cell: VariablePointerValue): string {
@@ -567,8 +413,6 @@ export class Game<T extends M = {}> {
     return tag;
   }
 
-  /** The engine's write watch while a data breakpoint is set: marks each
-   *  watch whose binding a write reached. */
   protected _noteWrite: WriteWatch = (binding, name) => {
     for (const watch of this._dataWatches) {
       if (watch.binding === binding && watch.bindingName === name) {
@@ -585,39 +429,19 @@ export class Game<T extends M = {}> {
     this._simulation = value;
   }
 
-  /** Whether a route replay is running now. The replay is one synchronous run
-   *  whose beats nothing displays, so while it lasts the UI module buffers no
-   *  operation and the game reports no execution. */
   protected _replaying = false;
   get replaying() {
     return this._replaying;
   }
 
-  /** The runtime errors and warnings the route replays raised, each with the
-   *  number of checkpoints saved before it was raised. A replay that resumes
-   *  from a checkpoint runs again only what came after that checkpoint, so it
-   *  keeps what the steps before it raised and drops the rest. */
   protected _routeErrors: { at: number; error: SimulationError }[] = [];
 
-  /** The errors that stopped the last search for a route, when it found
-   *  none. Kept apart from the replay's record, which a later replay of the
-   *  route already planned resumes. */
   protected _searchErrors?: SimulationError[];
 
-  /** The runtime errors and warnings the route to the start point raised, in
-   *  the order the replay raised them, or, when the search found no route, the
-   *  errors that stopped it. A replay reports these here rather than as it
-   *  raises them: nothing shows its beats, and the game that shows the start
-   *  point reports them as part of its own run. */
   get routeErrors(): SimulationError[] {
     return this._searchErrors ?? this._routeErrors.map((e) => e.error);
   }
 
-  /** The errors that stopped the route search that just returned, where the
-   *  statements that raised them are in `program`. A search that found no
-   *  route and raised an error was stopped by it on the way, since an error
-   *  ends the story; what it raised on the branches it abandoned for a route
-   *  it found is not the author's to see. */
   searchErrors(): SimulationError[] {
     return lastSearchStats.errors.map(({ message, address }) => ({
       message,
@@ -626,26 +450,14 @@ export class Game<T extends M = {}> {
     }));
   }
 
-  /** Why the last attempt to simulate a route gave up. Recorded where the
-   *  giving-up happens, because that is the only place that still knows: by the
-   *  time `_simulation` is flipped to `"fail"` — in `start()` or `preview()`,
-   *  which is where the editor learns about it — every distinguishing detail is
-   *  gone. Only meaningful while `_simulation` is `"fail"`. */
   protected _simulationFailure?: SimulationFailure;
   get simulationFailure() {
     return this._simulationFailure;
   }
-  /** Settable for the same reason `simulation` is: in the editor's preview the
-   *  route is planned in the compile worker, not here, so the host that made
-   *  the attempt is the one that knows how it went. */
   set simulationFailure(value) {
     this._simulationFailure = value;
   }
 
-  /** Whether `game/executed` carries what the editors draw: the executed
-   *  lines, the last executed path and the conditions. The host turns it off
-   *  while the game displays a suggestion, whose report only labels the
-   *  preview with its first and last location. */
   reportsExecutedLines = true;
 
   protected _restarted = false;
@@ -663,16 +475,8 @@ export class Game<T extends M = {}> {
     return this._program;
   }
 
-  // The context revision (#654) the define tables currently in `_context` were
-  // built from, and how many times they have been built on this Game. The
-  // count is what a test reads to prove an edit that changed no definition did
-  // not rebuild them.
   protected _definesContextRevision?: string;
   protected _definesContextBuilds = 0;
-  // Whether the define tables in `_context` have been built: a story that
-  // took over the declarations' run of the engine before it
-  // (`ProgramStory.declarationsCarried`) keeps the tables built from that
-  // run (#1759).
   protected _definesContextBuilt = false;
   get definesContextBuilds() {
     return this._definesContextBuilds;
@@ -689,17 +493,11 @@ export class Game<T extends M = {}> {
   }
 
   protected _plannedRoute: RoutePlan | null = null;
-  /** The route the last replay followed, or nothing when none has run. Read by
-   *  a caller deciding whether to plan another; it is the game's own record, so
-   *  a reader must not hold it across a replay. */
   get plannedRoute(): RoutePlan | null {
     return this._plannedRoute;
   }
 
   protected _previewRoute?: PreviewRoute;
-  /** The route the preview the game displays took (`previewRouteOf`), which
-   *  `game/executed` reports; set by whatever displays the preview, and
-   *  cleared for a preview no route reached. */
   get previewRoute(): PreviewRoute | undefined {
     return this._previewRoute;
   }
@@ -714,9 +512,6 @@ export class Game<T extends M = {}> {
     value: PinnedOptions;
   };
 
-  /** The pins the author set, as the host keeps them, which every route the
-   *  game plans takes: the preview's, the one PLAY starts from, and a
-   *  suggestion preview's. */
   get routePins(): readonly RoutePin[] {
     return this._routePins;
   }
@@ -724,8 +519,6 @@ export class Game<T extends M = {}> {
     this._routePins = pins;
   }
 
-  /** The program's options the pins name, matched again whenever the
-   *  program or the pins change (`pinnedOptionsOf`). */
   get pinnedOptions(): PinnedOptions {
     const root = this._story.root;
     const held = this._pinnedOptions;
@@ -739,22 +532,12 @@ export class Game<T extends M = {}> {
     return value;
   }
 
-  /** Which compile the planned route was replayed in
-   *  (`SparkProgram.changes.id`). A later compile says which program its own
-   *  changes are measured against, and only a route replayed in THAT program
-   *  can be read against them. */
   protected _plannedRouteChangeId?: number;
 
-  /** The root the planned route was replayed in, where its steps'
-   *  addresses stand (`validAddressPrefixLength`). */
   protected _plannedRouteRoot?: ProgramRoot;
 
   protected _plannedRouteStepCursor: number = 0;
 
-  /** What the route searches from the top kept of their level zero, by
-   *  search key (`LevelZeroWork`), held in the root and the compile named
-   *  below: a later search starts from one only while the program still
-   *  holds what that level zero ran (`levelZeroStore`). */
   protected _levelZeroWorks = new Map<string, LevelZeroWork>();
 
   protected _levelZeroRoot?: ProgramRoot;
@@ -773,31 +556,18 @@ export class Game<T extends M = {}> {
 
   protected _startPlansRoot?: ProgramRoot | null;
 
-  /** The index of each step of the planned route by its identity, built
-   *  when a caller asks for a step by identity alone (`stepCheckpoint`): a
-   *  route through a long loop holds hundreds of thousands of steps, and a
-   *  caller that names the index it expects reads the step there. */
   protected _plannedRouteStepMap: Map<string, number> | null = null;
 
-  /** Per checkpoint, the planned-route step the story was about to run when it
-   *  was captured; see {@link checkpoint}. */
   protected _checkpointStepCursors: (number | undefined)[] = [];
 
-  /** The last beat the replay under way displayed: the instructions its
-   *  flush took. Nothing before the replay displays one. */
   protected _shownBeat?: Instructions;
 
-  /** Per checkpoint, the replay's `_shownBeat` when it was captured, which a
-   *  replay resumed from the checkpoint starts from. */
   protected _checkpointShownBeats: (Instructions | undefined)[] = [];
 
   protected _checkpointDecisionsTaken: (number | undefined)[] = [];
 
   protected _routeSimulator: RouteSimulator | null = null;
 
-  /** Whether a run from where the last replay reached its target displays a
-   *  beat before the story ends, the beat on screen there included
-   *  (`noteRouteTarget`); unknown until a replay reached one. */
   protected _routeTargetShows?: boolean;
   get routeTargetShows() {
     return this._routeTargetShows;
@@ -808,16 +578,10 @@ export class Game<T extends M = {}> {
     return this._checkpoints;
   }
 
-  // The game's own version string (`GameConfiguration.version`).
   protected _version = "";
-  // How many beats a save holds, and how many the story keeps restorable
-  // during play (docs/engine/binary-program.md, section 7).
   protected _saveHistory = 16;
   protected _rewindBeats = 128;
 
-  /** The story, which keeps images of its beats: the checkpoints are its
-   *  images, and a save is its durable save (docs/engine/binary-program.md,
-   *  section 7). */
   get programStory(): ProgramStory {
     return this._story;
   }
@@ -835,7 +599,6 @@ export class Game<T extends M = {}> {
     this._rewindBeats = options.rewindBeats ?? 128;
     this._program = this.updateProgram(options.program);
 
-    // Create connection for sending and receiving messages
     this._connection = new Connection({
       onReceive: (msg) => this.onReceive(msg),
     });
@@ -865,7 +628,6 @@ export class Game<T extends M = {}> {
     }
     this._executionStepsRemaining = this._executionStepLimit;
 
-    // The story is checkpointed by its beats' images.
     this._checkpoints = new CheckpointStore(
       {
         captureImage: (keyframe) => this._story.captureBeat(keyframe),
@@ -879,7 +641,6 @@ export class Game<T extends M = {}> {
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );
 
-    // Create context
     this._context = {
       system: {
         previewing,
@@ -905,25 +666,14 @@ export class Game<T extends M = {}> {
       },
     };
 
-    // Build the runtime context entirely from the compiler's dedicated engine
-    // channels — NOT the LSP-only `program.context` (the Game runtime no longer
-    // depends on that field). Together these channels cover every context type:
-    //   defines  — define-typed structs (animation/character/ease/config/…),
-    //              fully merged with builtin $defaults
-    //   assets   — file-derived + implicit-def assets (image/audio/font/…)
-    //   layouts/components/styles — static UI structs
-    // Mutable interpreter state (visited/returned/…) is written onto this object
-    // by the modules at runtime; it was never part of program.context.
     this.assignContextChannels();
 
-    // Override default modules with custom ones if specified
     const allModules = {
-      ...modules, // custom modules should be first in call order
+      ...modules,
       ...DEFAULT_MODULES,
-      ...modules, // custom modules should override default modules if specified
+      ...modules,
     };
     const moduleNames = Object.keys(allModules);
-    // Instantiate all modules
     for (const key of moduleNames) {
       const name = key as keyof typeof allModules;
       const ctr = allModules[name];
@@ -931,7 +681,6 @@ export class Game<T extends M = {}> {
         this._modules[name] = new ctr(this);
       }
     }
-    // Register builtins of all modules
     for (const key of moduleNames) {
       const name = key as keyof typeof allModules;
       const module = this._modules[name];
@@ -953,7 +702,6 @@ export class Game<T extends M = {}> {
     if (system.requestFrame) {
       this._clock = new Clock(
         {
-          // A clock source reads in seconds, and `now` in milliseconds.
           get currentTime() {
             return system.now() / 1000;
           },
@@ -964,10 +712,7 @@ export class Game<T extends M = {}> {
   }
 
   updateProgram(program: SparkProgram) {
-    // A preview waiting for its pictures would display a beat of the old
-    // program.
     this.cancelPreview();
-    // The beat waited on is a location in the old program.
     this._awaiting = null;
     const before = this._program;
     this._program = program;
@@ -978,17 +723,6 @@ export class Game<T extends M = {}> {
       );
     }
     this._scripts = Object.keys(this._program.scripts);
-    // The program engine presents the members of `Story` this game reads on
-    // the paths it runs (see `ProgramStory`). It shares the pristine copies
-    // its images read with the engine of the program before, so a checkpoint
-    // taken there restores here for every statement this program kept
-    // (`restoreCheckpoint`), and it keeps the image of each beat, which a
-    // checkpoint and a save at a menu hold.
-    // It also takes over the globals of the engine before, with what that
-    // engine recorded of the declarations' run they descend from, when this
-    // program runs the same declarations (`carriedDeclarations`, #1759): it
-    // runs none and snapshots no table, and the define tables built from
-    // that run stand (`assignRuntimeDefines`).
     const previous = this.programStory;
     const engine = new ProgramStory(chunks, {
       images: previous?.images,
@@ -1013,37 +747,17 @@ export class Game<T extends M = {}> {
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
     this.restoreReactiveTracking();
-    // The breakpoints set last resolve against this program: a statement
-    // the compile emitted again has new addresses.
     this.resolveBreakpoints();
-    // Live edit → recompile reuses this Game: refresh the context channels from
-    // the new program and let modules re-derive any state cached from context
-    // (e.g. InterpreterModule's character-name map). Guarded on modules already
-    // existing — the constructor calls updateProgram BEFORE building the context
-    // + instantiating modules (it assigns channels itself, after).
     if (this._moduleNames && this._moduleNames.length > 0) {
       this.assignContextChannels();
       for (const moduleName of this._moduleNames) {
         this._modules[moduleName]?.onProgramUpdate();
       }
-      // The program (and its freshly-installed story) changed, so any earlier
-      // preview's result is stale even when the next preview resolves to the
-      // SAME path — an intra-line edit keeps the structural path while changing
-      // the text. Clearing the memo makes `preview()`'s same-path short-circuit
-      // miss, so it re-runs the new story and re-emits the beat's content;
-      // without this the reconcile pass sweeps the un-re-emitted elements and
-      // the preview goes blank until the cursor moves to a different beat.
       this._previewedAddress = undefined;
-      // The scene map may have changed with the program. The next
-      // observation compares it with the one the tracker observed, and when
-      // it changed, re-enters the current scene and re-requests what it
-      // needs (`settleSceneMap`, #657).
     }
     return this._program;
   }
 
-  /** A display begins: what changes from here is measured from the program
-   *  it shows, and from where its beat starts. */
   protected beginChangesSince(): void {
     const previewing = this._context.system.previewing;
     this._changesSince = {
@@ -1059,15 +773,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** Watch the story's writes from here to the checkpoint at the route's
-   *  target: a global, a table, a closed-over cell, or the random state a
-   *  draw advances; and log the visits counted. The beat's statement may
-   *  call functions and builtins: it runs again from the checkpoint in a
-   *  beat-only display as in a full one, and what its calls change is what
-   *  the watch sees. The reactive changes pending now are kept aside and
-   *  given back when the watch ends, so no binding misses one. A watch that
-   *  would share the write marks with another tracker leaves the answer
-   *  unknown. */
   protected watchTargetWrites(): void {
     const vs = this._story.variablesState;
     if (this._targetWatch || vs.trackWrites) {
@@ -1083,16 +788,11 @@ export class Game<T extends M = {}> {
     vs.trackWrites = true;
   }
 
-  /** The story's state that changes without a write mark and the watch
-   *  refuses any change of: the seed and last draw, which every random draw
-   *  reads and advances. Visits are compared between replays instead
-   *  (`_routeTargetVisits`). */
   protected unmarkedState(): string {
     const state = this._story.state;
     return `${state.storySeed}:${state.previousRandom}`;
   }
 
-  /** End the watch `watchTargetWrites` began, recording what it saw. */
   protected endTargetWatch(): void {
     const prior = this._targetWatch;
     if (!prior) {
@@ -1103,7 +803,6 @@ export class Game<T extends M = {}> {
     const changes = vs.takeReactiveChanges();
     const writes = vs.TakeWrites();
     vs.trackWrites = false;
-    // A state made anew during the watch kept no log of what it counted.
     const log = prior.state === this._story.state ? prior.state.visitLog : null;
     prior.state.visitLog = null;
     this._routeTargetVisits = log ? log.join(",") : undefined;
@@ -1118,8 +817,6 @@ export class Game<T extends M = {}> {
     vs.restoreReactiveChanges(changes);
   }
 
-  /** The route planned and replayed in the program the game holds, if the
-   *  last one was. */
   protected routeOfProgram(): RoutePlan | undefined {
     const route = this._plannedRoute;
     return route &&
@@ -1129,10 +826,6 @@ export class Game<T extends M = {}> {
       : undefined;
   }
 
-  /** Whether `route` reaches its target along the steps `before` reached
-   *  its own: from the same flow, through the same statements with the same
-   *  decisions, every step before the target. A chunk the compile kept keeps
-   *  its id, so a step that ran the same statement has the same address. */
   protected static sameRouteToBeat(before: RoutePlan, route: RoutePlan): boolean {
     const a = before.steps;
     const b = route.steps;
@@ -1147,7 +840,6 @@ export class Game<T extends M = {}> {
     return true;
   }
 
-  /** Where the beat at `address` starts in its script. */
   protected beatStart(
     address: ProgramAddress,
   ): { uri: string; line: number } | undefined {
@@ -1155,8 +847,6 @@ export class Game<T extends M = {}> {
     return at ? { uri: at.uri, line: at.startLine } : undefined;
   }
 
-  /** Add the flows the compile of `program` changed, measured against
-   *  `before`, to those changed since the last display began. */
   protected noteChangedFlows(
     before: SparkProgram | undefined,
     program: SparkProgram,
@@ -1190,16 +880,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /**
-   * Compare the scenes of the program the tracker last observed with the
-   * program now held, once per program given (#657). When they differ, the
-   * tracker starts over, so the observation re-enters the current scene,
-   * and the asset module lays its prediction window out again. They stand
-   * when every flow is the same kind with the same successors and calls,
-   * and holds the same beats with the same assets, except the beat at
-   * `cursor`: that beat is the one the preview runs again, and its pictures
-   * go through the preview's own gate.
-   */
   protected settleSceneMap(cursor: ProgramAddress | null | undefined): void {
     const before = this._sceneProgram;
     if (before === this._program) {
@@ -1212,8 +892,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Whether the scenes of `before` differ from those of the program now
-   *  held, as `settleSceneMap` compares them. */
   protected sceneMapChanged(
     before: SparkProgram,
     cursor: ProgramAddress | null | undefined,
@@ -1272,11 +950,6 @@ export class Game<T extends M = {}> {
     return false;
   }
 
-  /** Assign the program's channels (defines → character/image/…, assets,
-   *  layout/component/style) onto the runtime context. Defines are sourced from
-   *  the live runtime `__def` tables (assignRuntimeDefines); the rest come from
-   *  the static engine channels. Runtime-mutated state (visit counts, …) lives
-   *  under separate keys and is preserved. */
   protected assignContextChannels() {
     const assignChannel = (src?: { [type: string]: any }) => {
       if (src) {
@@ -1285,11 +958,6 @@ export class Game<T extends M = {}> {
         }
       }
     };
-    // Defines (character/animation/ease/config/…) come from the LIVE runtime
-    // __def tables: the story's __def calls resolve authored→builtin inheritance
-    // via the VM __index chain and carry the richer values the lossy compile-time
-    // channel dropped. (The static `program.defines` channel was retired once
-    // this path proved byte-identical — see buildContextFromStory.)
     this.assignRuntimeDefines();
     assignChannel(this._program.assets);
     if (this._program.layouts) {
@@ -1306,38 +974,11 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Source the define context from the live runtime `__def` tables
-   *  (buildDefinesContext). Each define type is replaced wholesale so a live edit
-   *  that removes/renames a define doesn't leave a stale entry. Requires the
-   *  program to have been compiled with `seedBuiltinsIntoStory` so builtin
-   *  defaults are present in the story VM. No-op when the story has no globals yet
-   *  (e.g. an uncompiled program). */
   protected assignRuntimeDefines() {
     const globals = this._story?.state?.variablesState?.["_globalVariables"];
     if (!globals || globals.size === 0) {
       return;
     }
-    // A program carries the revision of the context it was compiled with
-    // (#654). The define tables this produces are a function of that context
-    // alone, and the revision is keyed by every declaration a define's value
-    // can be computed from, so a program carrying the revision the tables
-    // already in `_context` were built from leaves them in place. They are
-    // plain JS all the way down (`convertValue` converts every runtime value
-    // and drops methods), so nothing in them points at the replaced story.
-    // Rebuilding them cost 14 to 20 ms in the worker's game and 12 to 16 ms
-    // again on the page, on every keystroke, for a project the size of Raffles
-    // and Bunny.
-    //
-    // The revision names more than the define tables read, though: it moves
-    // whenever the compile's own implicit definitions differ (the filtered
-    // image a directive such as `[[hero_concerned:gloves]]` implies), which an
-    // edit of one word of a directive does, and those reach the game through
-    // the assets channel, not the story. The tables are a function of the
-    // declarations' run, so a story that took over the run of the engine
-    // before it (#1759) leaves in place the tables built from that run, or
-    // from the run it descends from, whatever the revision says. Its globals
-    // are those the engine before held, which the story may have written
-    // since, so the tables are never built from them.
     const revision = this._program?.contextRevision;
     if (revision !== undefined && revision === this._definesContextRevision) {
       return;
@@ -1347,12 +988,6 @@ export class Game<T extends M = {}> {
       return;
     }
     const runtime = buildDefinesContext(this._story);
-    // A program compiled WITHOUT `seedBuiltinsIntoStory` still has authored
-    // globals, so the empty-map bail above doesn't catch it — it just yields a
-    // define context with every builtin type (colors, `synth`, `character`,
-    // `config`…) silently absent, which surfaces far downstream as missing
-    // defaults. Warn loudly instead of failing quietly; every in-repo host
-    // sets the flag, so this fires only for an external embedder's mistake.
     if (!runtime["synth"] && !runtime["character"] && !runtime["color"]) {
       console.warn(
         "spark-engine: the runtime story carries no builtin defines — was the program compiled without `seedBuiltinsIntoStory`? Builtin types (colors, synths, typewriters, …) will be missing from the game context.",
@@ -1366,15 +1001,6 @@ export class Game<T extends M = {}> {
     this._definesContextBuilt = true;
   }
 
-  /** What the engine of `before`, the program the game held, hands the
-   *  engine of `program` in place of a run of the declarations (#1759):
-   *  given only when the compile that made `program` was measured against
-   *  `before` and ran no other declaration and no other function
-   *  (`ChunkChanges.initializers`, the compiler's own rule for running the
-   *  declarations again), and when the engine finds `program`'s root runs
-   *  the declarations its own does (`ProgramStory.declarationsFor`). A
-   *  program measured against another one, a program of another compiler,
-   *  and a game's first program run them. */
   protected carriedDeclarations(
     previous: ProgramStory | undefined,
     before: SparkProgram | undefined,
@@ -1401,10 +1027,6 @@ export class Game<T extends M = {}> {
     story.collapseWhitespace = false;
     story.processEscapes = false;
     story.onError = (message, type, _source, raised) => {
-      // The story reports its errors as the step that raised them ends, before
-      // that step's location is recorded, so an error names the content that
-      // raised it, and the last recorded step only when that content has no
-      // location.
       this.Error(
         raised?.message ?? message,
         type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
@@ -1412,9 +1034,6 @@ export class Game<T extends M = {}> {
           this._executingLocation,
       );
     };
-    // The program engine calls no hook per step: the game reads the address
-    // of each step it takes (`stepWithinBudget`), which records it and
-    // compares it with the breakpoints' addresses.
     story.onExecute = null;
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
@@ -1434,14 +1053,8 @@ export class Game<T extends M = {}> {
     this._simulation = "simulating";
     this._simulationFailure = undefined;
     if (this._startAddress != null) {
-      // Plan a route from the top of the flow the start point stands in, or
-      // first from the story's start inside a scene that takes parameters
-      // (`routesFromStartFirst`).
       const to = this._startAddress;
       const from = this.routeStartOf(to);
-      // The replay below starts by loading a checkpoint or jumping to the
-      // route's start, either of which replaces the story state, so the
-      // search need not restore one of its own first.
       const budget = {
         callerResetsStory: true,
         startPlans: this.startPlans,
@@ -1450,9 +1063,6 @@ export class Game<T extends M = {}> {
       let route;
       if (this.routesFromStartFirst(to)) {
         route = Game.planRouteFromStart(this._story, this._program, to, budget);
-        // Only a search that ran the story out shows that no run reaches
-        // the address; one cut short by a ceiling, or stopped by an error,
-        // is what the author is told.
         if (!route && lastSearchStats.endReason === "exhausted") {
           route = Game.planRouteInFlow(
             this._story,
@@ -1478,26 +1088,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /**
-   * Turn a route search that came back empty into the reason it did.
-   *
-   * Checking whether the target is a real address first is not
-   * belt-and-braces: a line that is not part of the story flow (front matter,
-   * a `define` block, the gap between scenes) resolves to `TOP_LEVEL_START`,
-   * and the search that
-   * then runs is searching for a target that was never in the story. Whatever
-   * ceiling it stops on, the honest answer is that there was nothing to route
-   * to — not that the scene is too long.
-   *
-   * Every ceiling collapses to `"timeout"` because they are one thing to the
-   * author: the search gave up before it had finished looking, so whether a
-   * route exists is still unknown. Which ceiling it was is a fact about the
-   * planner, and `lastSearchStats.endReason` still carries it for anyone
-   * debugging one.
-   *
-   * A search that BROKE is kept apart from one that ran the story out, because
-   * only the second is entitled to say the script has no path to the line.
-   */
   describeFailedRouteSearch(
     to: ProgramAddress | null | undefined,
   ): SimulationFailure {
@@ -1517,8 +1107,6 @@ export class Game<T extends M = {}> {
     return Boolean(this._modules[name]);
   }
 
-  /** A top-level flow the story calls and returns from rather than enters:
-   *  a `function`, a binding evaluator, or a synthetic flow. */
   isFunctionFlow(flow: string): boolean {
     const kind = this._program?.sceneAssets?.[flow]?.kind;
     if (kind) {
@@ -1530,27 +1118,16 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The top-level flow an address stands in: a scene's name, a branch's
-   *  scene's, a function's, or `"0"` for the top-level content
-   *  (`ProgramLocator.sceneAt`). Null for no address. */
   sceneOf(address: ProgramAddress | null | undefined): string | null {
     return address == null
       ? null
       : (this._positions.locator.sceneAt(address) ?? null);
   }
 
-  /** The flow a route to `address` starts at the top of: the scene the
-   *  address stands in, or the top-level content. */
   routeStartOf(address: ProgramAddress): string {
-    return this.sceneOf(address) ?? "0";
+    return this.sceneOf(address) ?? START_FLOW_NAME;
   }
 
-  /** Whether a route to `address` is searched from the story's start before
-   *  the top of its scene: the scene takes parameters, which bind what the
-   *  divert that enters it passes, and a route from its top passes none, so
-   *  binds nil for each (#664). The route from the scene's top is the one
-   *  that stands only when no run from the story's start reaches the
-   *  address (#1608). */
   routesFromStartFirst(address: ProgramAddress): boolean {
     const scene = this.sceneOf(address);
     return (
@@ -1611,7 +1188,7 @@ export class Game<T extends M = {}> {
       this._startPlansRoot = root;
     }
     const unsetSeed =
-      from === TOP_LEVEL_FLOW && this.playsFromTopLevel() ? null : 0;
+      from === START_FLOW_NAME && this.playsFromTopLevel() ? null : 0;
     const key = `${unsetSeed}:${from}`;
     let kept = this._startPlans.get(key);
     if (!kept) {
@@ -1632,14 +1209,14 @@ export class Game<T extends M = {}> {
     return (
       this._play &&
       this._startAddress != null &&
-      this.routeStartOf(this._startAddress) === TOP_LEVEL_FLOW
+      this.routeStartOf(this._startAddress) === START_FLOW_NAME
     );
   }
 
   get drawsOwnSeed(): boolean {
     return (
       this.playsFromTopLevel() &&
-      this.keptStartPlan(TOP_LEVEL_FLOW).plan.seed === null
+      this.keptStartPlan(START_FLOW_NAME).plan.seed === null
     );
   }
 
@@ -1649,9 +1226,6 @@ export class Game<T extends M = {}> {
     return startingValueListing(this._story, from, this.startingValueSource());
   }
 
-  /** The scenes of the positions on the call stack: where every open
-   *  tunnel, thread, and function call will return to, plus the current
-   *  position. */
   protected callStackScenes(): string[] {
     const scenes: string[] = [];
     for (const address of this._positions.stack()) {
@@ -1663,20 +1237,11 @@ export class Game<T extends M = {}> {
     return scenes;
   }
 
-  /** Note where the story is; when that is a different scene, tell every
-   *  module. A route simulation is silent: it never enters anything. */
   observeScene(address: ProgramAddress | null | undefined): void {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
-    // Once per program given: whether its scenes are the ones observed.
     this.settleSceneMap(address);
-    // This runs on every position change in the step loop; the call stack is
-    // walked only when the scene actually changes. A call into a function
-    // keeps the scene current, as `SceneTracker.observe` rules with the same
-    // `isFunctionFlow` predicate, so every step inside one returns here too:
-    // walking the stack on each would make recursion cost the square of its
-    // depth.
     const scene = this.sceneOf(address);
     if (
       scene === this._sceneTracker.current ||
@@ -1700,21 +1265,11 @@ export class Game<T extends M = {}> {
   }
 
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
-    // The connect restores what the page shows; a preview waiting from
-    // before it would display its beat over the restored state.
     this.cancelPreview();
-    // The connect clears every transient target, the choice slots among
-    // them, out of the page and out of the module's state, so the choices
-    // the last beat presented are gone before the restore.
     this._shownChoices = [];
     this.beginChangesSince();
     this._connection.connectOutput(send);
-    // Everything the connect restores, and whatever it goes on to display,
-    // is a new stream: what the last one still had in flight must not land
-    // on it.
     const epoch = this._connection.beginEpoch();
-    // Before the modules connect, so the scene's assets are requested before
-    // the restore gate waits on the ones already on screen.
     const previewing = this._context.system.previewing;
     this.observeScene(
       typeof previewing === "number" ? previewing : this._positions.current(),
@@ -1724,9 +1279,6 @@ export class Game<T extends M = {}> {
         this._modules[moduleName]?.onConnected(),
       ),
     );
-    // A newer connect began while this one waited (for the main layout's
-    // fonts, or the restore gate): that connect restores the page, and this
-    // one's restore would reach the page stamped as the newer stream.
     if (this._connection.epoch !== epoch) {
       return;
     }
@@ -1734,23 +1286,6 @@ export class Game<T extends M = {}> {
     this.module.ui.markRestored();
   }
 
-  /**
-   * A beat-only display's stand-in for `connect` (#657): the screen the page
-   * shows keeps its structure, and only its content is reconciled. It does
-   * what `connect` does except what the structure needs: the modules do not
-   * connect, the tree, its handlers, the theme and the cache sizes stand,
-   * and the scene is observed against the tracker that stood
-   * (`settleSceneMap`), so a scene whose map is unchanged is not entered
-   * again and nothing is predicted again. The ui module clears the targets a
-   * connect clears, in a content pass, and restores the module state as a
-   * connect does; the asset module waits only for the restored pictures the
-   * page was not showing. The audio module's restore is left out: its
-   * mixers come from the define tables, which stand, and a preview resumes
-   * no channel. The choices the last beat presented are kept, so the
-   * preview's `clearChoices` takes them and their click observers off.
-   *
-   * Only for a display `beatOnlyRefusal` does not refuse.
-   */
   async redisplay(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
     this.cancelPreview();
     this.beginChangesSince();
@@ -1760,7 +1295,6 @@ export class Game<T extends M = {}> {
     this.observeScene(
       typeof previewing === "number" ? previewing : this._positions.current(),
     );
-    // Read before the redisplay begins, which takes the standing screen.
     const shown = this.module.ui.standing?.pictures ?? [];
     await Promise.all([
       this.module.ui.onRedisplay(),
@@ -1776,38 +1310,12 @@ export class Game<T extends M = {}> {
     this.module.ui.markRestored();
   }
 
-  /**
-   * Why the next display of the preview at `cursor` must connect in full,
-   * or null when it can be beat-only (#657), as far as the game knows: the
-   * page shows a screen the game composed (`unshown`), whose last beat
-   * changed only written content (`screen`), over a tree whose building
-   * wrote none of the story's state (`bindings`); the program held runs the
-   * declarations the tree was built under (`declarations`), in a context of
-   * the same base (`context`); it builds the same tree (`layouts`); and its
-   * scenes are those observed, apart from the beat at the cursor
-   * (`scenes`). The worker adds what only it knows: a fresh application,
-   * PLAY, a swap between a suggestion and the real program, and the
-   * checkpoint.
-   */
   beatOnlyRefusal(cursor: ProgramAddress | null | undefined): string | null {
     const ui = this.module.ui;
     const refused = ui.beatOnlyRefusal();
     if (refused) {
       return refused;
     }
-    // The state the beat runs from is the one the display the page shows ran
-    // its beat from: it shows the same beat, and its route reached it along
-    // the same statements with the same decisions. The route's checkpoint is
-    // taken at the beat's first statement in each program, so it is a value
-    // of its own every time and cannot be compared by identity; the route
-    // says what ran before it. What the beat's own statement wrote before the
-    // capture is in the checkpoint too, and the route does not show it, so a
-    // target that wrote the story's state in either replay, or counted other
-    // visits in one than in the other, or one not watched to its end,
-    // connects. So does a replay that drew from the story's seed or read a
-    // value no story state holds: the same steps may have left another
-    // state. The statement may call what it likes: a beat-only display runs
-    // it again from the checkpoint, as a full one does.
     const since = this._changesSince;
     const beat = cursor != null ? this.beatStart(cursor) : undefined;
     const route = this.routeOfProgram();
@@ -1834,7 +1342,6 @@ export class Game<T extends M = {}> {
     ) {
       return "checkpoint";
     }
-    // Only the flow the cursor stands in changed.
     const cursorScene = this.sceneOf(cursor) ?? "";
     if (
       since.unmeasured ||
@@ -1849,14 +1356,6 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** Where a run from `startFrom` begins: its `address` when it names one
-   *  (a position no line resolves to, such as the end of a scene that runs
-   *  nothing of its own), and otherwise the address of the beat on the line
-   *  (`ProgramLocator.addressAt`), or `TOP_LEVEL_START`, the top of the
-   *  top-level content, when the line has none. A line that `>` breaks holds
-   *  several beats: PLAY from the line starts at its first, and the route a
-   *  preview of the line replays ends at its last (`beat`), so the beats
-   *  before it run, and apply what they do, as any beat on the route does. */
   setStartFrom(
     startFrom: { file: string; line: number; address?: ProgramAddress },
     beat: "first" | "last" = "first",
@@ -1875,8 +1374,6 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** The lines of `search` a debugger may set a breakpoint on: the lines the
-   *  chunks' line tables start rows on. */
   possibleBreakpointLines(search: {
     uri: string;
     range: { start: { line: number }; end: { line: number } };
@@ -1896,22 +1393,18 @@ export class Game<T extends M = {}> {
     return this.updateDataBreakpointsMap(dataBreakpoints);
   }
 
-  /** The breakpoints the debugger set last, which a program that arrives
-   *  resolves again, since an edited statement's chunk has new addresses. */
   protected _requestedBreakpoints: {
     lines: { file: string; line: number }[];
     functions: { name: string }[];
     data: { dataId: string }[];
   } = { lines: [], functions: [], data: [] };
 
-  /** Resolves the breakpoints set last against the program now loaded. */
   protected resolveBreakpoints() {
     this.updateBreakpointsMap(this._requestedBreakpoints.lines);
     this.updateFunctionBreakpointsMap(this._requestedBreakpoints.functions);
     this.updateDataBreakpointsMap(this._requestedBreakpoints.data);
   }
 
-  /** Joins the breakpoint addresses of every kind. */
   protected joinBreakAddresses() {
     this._breakAddresses = new Set([
       ...this._lineBreakAddresses,
@@ -1919,18 +1412,6 @@ export class Game<T extends M = {}> {
     ]);
   }
 
-  /**
-   * Notes where a data breakpoint's variable is bound now and the value
-   * object it holds. A global is bound by its name. A temporary is found in
-   * the block scope that held it when the watch last found it, while a frame
-   * named by the watch's scope still holds that block scope, so a temporary
-   * of the same name declared in an inner block shadows it without being it;
-   * otherwise it is found anew, in the innermost frame named by the scope,
-   * from its innermost block scope out. A temporary bound to a pointer (a
-   * variable passed by reference, or one a closure captured) is bound where
-   * the pointer leads, which a write through it reaches. Nothing is bound
-   * when no such variable is in scope.
-   */
   protected locateWatch(
     program: ProgramStory,
     watch: (typeof this._dataWatches)[number],
@@ -1970,21 +1451,12 @@ export class Game<T extends M = {}> {
       watch.pointer = bound instanceof VariablePointerValue ? bound : null;
       watch.pointerState = variablesState;
     } else if (!watch.pointer || watch.pointerState !== variablesState) {
-      // A reset gives the story other variables, which no pointer of the
-      // earlier ones reaches (a load, which keeps them, carries the pointer
-      // to the cell it read for the variable, or drops it:
-      // `loadProgramSave`).
       watch.pointer = null;
       watch.binding = undefined;
       watch.bindingName = watch.name;
       watch.last = undefined;
       return;
     }
-    // A variable the frame captured outlives the frame: while no frame
-    // named by the scope runs, the watch keeps the variable it captured,
-    // through the pointer the frame held, which a later call of the same
-    // closure binds again (inside a builtin step, say, which runs and
-    // returns the call within the step).
     const { binding, name } = scope
       ? variablesState.BindingOf(scope, watch.name)
       : variablesState.BindingThrough(watch.pointer!);
@@ -1993,7 +1465,6 @@ export class Game<T extends M = {}> {
     watch.last = this.valueAtBinding(program, binding, name);
   }
 
-  /** The value object a binding holds for the variable `name`. */
   protected valueAtBinding(
     program: ProgramStory,
     binding: VariableBinding,
@@ -2010,9 +1481,6 @@ export class Game<T extends M = {}> {
     return binding.get(name);
   }
 
-  /** Notes where each data breakpoint's variable is bound now and what it
-   *  holds, so that only a step that writes it stops the game: a load, a
-   *  jump or a replay between steps changes it without a step. */
   protected refreshDataWatches() {
     const program = this.programStory;
     for (const watch of this._dataWatches) {
@@ -2020,13 +1488,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Whether the step that ran last wrote another value to a data
-   *  breakpoint's variable: the engine reported a write to the binding the
-   *  watch noted before the step, and the binding holds another value
-   *  object than it did. A declaration binds a new variable, which the
-   *  engine does not report, so a temporary declared again, in its own
-   *  block, an inner one or another invocation of its function, is not
-   *  written. Notes where each is bound for the next step. */
   protected dataWatchesChanged(): boolean {
     const program = this.programStory;
     let changed = false;
@@ -2044,8 +1505,6 @@ export class Game<T extends M = {}> {
     return changed;
   }
 
-  /** A breakpoint that stops at `address`, placed on the line it stands on,
-   *  or an unverified one with `message` when there is no such address. */
   protected programBreakpoint(
     address: number | undefined,
     message: string,
@@ -2067,8 +1526,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** Of `addresses`, the one that stands first in the source: in the first
-   *  script of the program, on the first line and column. */
   protected firstInSource(addresses: number[]): number | undefined {
     let first: number | undefined;
     let key: [number, number, number] | undefined;
@@ -2100,17 +1557,11 @@ export class Game<T extends M = {}> {
   ) {
     this._requestedBreakpoints.lines = breakpoints;
     const program = this.programStory;
-    // A line's breakpoint is the address `addressAt` gives it: a beat's
-    // `LineStart`, or the start of the statement or part on the line.
     this._lineBreakAddresses = new Set();
     const actual = breakpoints.map((b) => {
       const address = program.root.addressAt(b.file, b.line, {
         functions: true,
       });
-      // A declaration runs when the story is reset, before a debugger can
-      // stop it, so a breakpoint there would never stop. (A function
-      // written in a declaration is a body of its own, which runs when it
-      // is called.)
       const at =
         address === undefined
           ? undefined
@@ -2138,7 +1589,6 @@ export class Game<T extends M = {}> {
   ) {
     this._requestedBreakpoints.functions = functionBreakpoints;
     const program = this.programStory;
-    // A function's breakpoint is the address its code starts at.
     this._functionBreakAddresses = new Set();
     const actual = functionBreakpoints.map((b) => {
       const declared = this._program.functionLocations?.[b.name];
@@ -2168,11 +1618,6 @@ export class Game<T extends M = {}> {
   protected updateDataBreakpointsMap(dataBreakpoints: { dataId: string }[]) {
     this._requestedBreakpoints.data = dataBreakpoints;
     const program = this.programStory;
-    // A variable's breakpoint watches the variable itself, which a
-    // temporary of the same name can shadow, so it is no set of
-    // addresses: the game stops after a step that wrote another value to
-    // it. It is placed on the first instruction in the source that
-    // assigns that name in its scope.
     const watches: typeof this._dataWatches = [];
     const actual = dataBreakpoints.map((b) => {
       const dot = b.dataId.lastIndexOf(".");
@@ -2208,17 +1653,12 @@ export class Game<T extends M = {}> {
         last: undefined,
         written: false,
       });
-      // A global is placed where it is declared, since a temporary that
-      // shadows it is assigned by the same name; a temporary where it is
-      // first assigned.
       const first =
         scope === undefined
           ? (this.firstInSource(declarations) ??
             this.firstInSource(assignments))
           : (this.firstInSource(assignments) ??
             this.firstInSource(declarations));
-      // A variable no statement in the program writes is watched all the
-      // same, at no line.
       return first === undefined
         ? { verified: true }
         : this.programBreakpoint(first, "No variable found at the breakpoint");
@@ -2248,24 +1688,14 @@ export class Game<T extends M = {}> {
     const route = Game.planRouteInFlow(story, program, from, to, budget);
     if (
       route ||
-      from === "0" ||
       budget?.resumeFrom ||
       lastSearchStats.endReason !== "exhausted"
     ) {
       return route;
     }
-    // The flow holds no way to the target from its top: a branch that only a
-    // divert from outside its scene enters is one. The story's start may
-    // reach it, through the divert that enters it and with the arguments
-    // that divert passes (#1606). Only a search that ran the flow out tries
-    // this one: a search cut short by a ceiling would only be cut short
-    // again, on more of the story.
     return Game.planRouteFromStart(story, program, to, budget);
   }
 
-  /** Plan a route from the top of the flow `from` to `to`, within that
-   *  flow: the flow is entered with no arguments, so a scene that takes
-   *  parameters binds nil for each (#664). */
   static planRouteInFlow(
     story: ProgramStory,
     program: SparkProgram,
@@ -2291,9 +1721,6 @@ export class Game<T extends M = {}> {
     });
   }
 
-  /** Plan a route from the story's start to `to`, through whatever flows
-   *  the story diverts into on the way, so the flows the route enters take
-   *  the arguments the diverts that enter them pass. */
   static planRouteFromStart(
     story: ProgramStory,
     program: SparkProgram,
@@ -2310,26 +1737,14 @@ export class Game<T extends M = {}> {
     > & RouteStarts,
   ) {
     const { startPlans, ...rest } = budget ?? {};
-    return planRoute(story, "0", to, {
+    return planRoute(story, START_FLOW_NAME, to, {
       ...rest,
-      start: startPlans?.("0"),
+      start: startPlans?.(START_FLOW_NAME),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,
     });
   }
 
-  /** The checkpoint captured for a step of the SIMULATED route, looked up by
-   *  the step's identity.
-   *
-   *  `expected` corroborates the match. Identity used to be the path history
-   *  spelled out (`"p0|p1|p2"`), so equal identities implied an equal number
-   *  of components and therefore the same index — which is what
-   *  `patchAndSimulateRoute` relies on when it resumes by POSITION rather than
-   *  by the index it matched. A fixed-width hash carries no depth, so that
-   *  implication has to be checked rather than assumed: a caller passes the
-   *  step it believes it matched, and a disagreement on address or index
-   *  means no match, costing a re-simulation instead of resuming the preview
-   *  from an unrelated story position. */
   getCheckpoint(
     seq: string,
     expected?: {
@@ -2342,9 +1757,6 @@ export class Game<T extends M = {}> {
     return index === null ? null : this._checkpoints.getJson(index);
   }
 
-  /** The index of the checkpoint `getCheckpoint` would write, when it would
-   *  write one: a route's resumption asks whether there is one, which needs
-   *  no save written (#1758). */
   protected stepCheckpoint(
     seq: string,
     expected?: {
@@ -2379,12 +1791,6 @@ export class Game<T extends M = {}> {
               expected?.maxCheckpoint != null &&
               step.checkpoint > expected.maxCheckpoint
             ) {
-              // Deeper than the caller established is safe. A step's own
-              // checkpoint number is stamped when the step is reached, and the
-              // engine runs a whole beat between one stamp and the next, so a
-              // checkpoint stamped on a step inside the unchanged part of the
-              // route can still have been taken with the story standing past
-              // it (see `findResumePoint`).
               return null;
             }
             const image = this._checkpoints.imageOf(step.checkpoint);
@@ -2398,9 +1804,6 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** Whether the story writes a save of `image` (`ProgramStory.saveOfImage`
-   *  answers one rather than nothing): it places the image's beat, which
-   *  for an image taken just after a choice is the beat before its menu. */
   protected writesImage(image: unknown): boolean {
     const taken = image as ProgramImage;
     return this._story.canRestore(taken.afterChoice?.menu ?? taken);
@@ -2411,18 +1814,9 @@ export class Game<T extends M = {}> {
     fromStep = 0,
     fromCheckpointOverride?: number,
   ): void {
-    // A route exists, so whatever the last search concluded no longer applies.
-    // Cleared here rather than only in `simulate()` because
-    // `patchAndSimulateRoute` arrives with a route of its own and never passes
-    // through `simulate()`, which would otherwise leave an older reason to be
-    // reported against this run.
     this._simulationFailure = undefined;
     this._searchErrors = undefined;
     const startStep = route.steps[fromStep];
-    // A step's own checkpoint number is stamped when the step is reached, and
-    // the engine runs a whole beat between one stamp and the next, so a caller
-    // that established which checkpoint a step's story actually comes from says
-    // so rather than letting it be re-derived.
     const fromCheckpoint = fromCheckpointOverride ?? startStep?.checkpoint ?? -1;
     const fromDecision =
       this._checkpointDecisionsTaken[fromCheckpoint] ?? startStep?.decision ?? 0;
@@ -2440,7 +1834,6 @@ export class Game<T extends M = {}> {
     this._plannedRouteStart = this.keptStartPlan(route.from).json;
     this._simulateFlow = route.from;
     this._startAddress = route.to;
-    // Force the story to follow this route
     this._routeSimulator = buildRouteSimulator(route.decisions, fromDecision);
     this._story.simulator = this._routeSimulator;
     this._plannedRouteStepMap = null;
@@ -2451,10 +1844,6 @@ export class Game<T extends M = {}> {
     const drawn = storyDraws.count;
     const read = ambientReads.count;
 
-    // A replay is not a preview, even on a game that has displayed one: the
-    // coordinator shows every beat a previewing game runs as a preview, which
-    // changes the module state the route's checkpoints save. The mark is the
-    // display's, so it returns once the replay ends.
     const previewing = this._context.system.previewing;
     this._context.system.previewing = undefined;
     this._replaying = true;
@@ -2463,14 +1852,10 @@ export class Game<T extends M = {}> {
     }
     let unrepeatable: boolean | undefined;
     try {
-      // The checkpoint's image is restored in place.
       this.replayRoute(route, fromCheckpoint);
-      // Counted before the target is asked about, whose run draws and reads
-      // nothing the route's checkpoints keep.
       unrepeatable = storyDraws.count !== drawn || ambientReads.count !== read;
       this.noteRouteTarget();
     } finally {
-      // A replay that stopped short of its target leaves the answer unknown.
       if (this._targetWatch) {
         this.endTargetWatch();
         this._routeTargetWrote = undefined;
@@ -2487,20 +1872,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /**
-   * After a replay reached its target, put the beat on screen there in the
-   * target's checkpoint when a run from the target would display none (#1606).
-   *
-   * A target whose own beat is queued displays it. Any other (a `done`, a
-   * `fin`, a divert, a line of logic) is run on as far as the next thing it
-   * shows, by the story alone (`showsBeatAhead`), and the target's checkpoint
-   * puts the game back where the replay left it. A run that would show
-   * nothing before the story ends gets the last beat the replay displayed
-   * queued again, and the checkpoint is taken again with it: the story stands
-   * where it reached the target, with everything the lines before it did,
-   * and the display and PLAY from there show that beat first, waiting, so the
-   * next click runs on into the target.
-   */
   protected noteRouteTarget(): void {
     if (this._simulation !== "success") {
       return;
@@ -2516,8 +1887,6 @@ export class Game<T extends M = {}> {
       this._routeTargetShows = shows;
       return;
     }
-    // Held: it waits for the player even where it first advanced on its own
-    // (a layout-only beat, an auto beat). A run from the top never meets it.
     this.module.interpreter.requeue({ ...this._shownBeat, hold: true });
     const cursor = this._checkpointStepCursors[last];
     const decisionsTaken = this._checkpointDecisionsTaken[last];
@@ -2529,10 +1898,6 @@ export class Game<T extends M = {}> {
     this._routeTargetShows = true;
   }
 
-  /** Whether a run jumped straight to `address`, as a preview or PLAY of a
-   *  line no route reaches runs, displays a beat before the story ends. The
-   *  story is left where that run stopped, so the game is put at its start
-   *  point again before it runs. */
   jumpShowsBeat(address: ProgramAddress): boolean {
     this.jumpTo(address, true);
     return showsBeatAhead(this._story);
@@ -2545,8 +1910,6 @@ export class Game<T extends M = {}> {
       ? this._checkpointShownBeats[startCheckpoint]
       : undefined;
     if (!resumed && startCheckpoint >= 0) {
-      // A checkpoint the program can no longer place: the route replays
-      // from its start, and every checkpoint and step it stamps is its own.
       this._checkpoints.truncate(0);
       this._checkpointStepCursors.length = 0;
       this._checkpointShownBeats.length = 0;
@@ -2557,21 +1920,6 @@ export class Game<T extends M = {}> {
       this._story.simulator = this._routeSimulator;
     }
     if (!resumed) {
-      // Starting the route at its beginning rather than resuming inside it. The
-      // replay about to run is the whole truth about the checkpoints it saves,
-      // so no module state may carry over from whatever this game ran before:
-      // the story rewinds here, and every module's saved state rewinds with it
-      // to what a game that has never run holds. Left carried over, a route's
-      // checkpoints embed the last run's backdrop, a beat it left queued (which
-      // the replay would flush first, as a beat of its own) and the styles the
-      // last beat it displayed set, so the same route through the same program
-      // saved different checkpoints depending on whether the game had last
-      // replayed another route or displayed a preview. The page's own records
-      // of what it presents are the modules' to keep (`onReplay`), and a
-      // module that derives one from its saved state derives it again here.
-      // The runtime record goes too: it is what tells the replay it has
-      // reached its target, and one left from a run that reached the same
-      // target ends this replay before it runs a step.
       for (const k of this._moduleNames) {
         this._modules[k]?.load({});
       }
@@ -2586,14 +1934,11 @@ export class Game<T extends M = {}> {
     this._executingLocation = null;
 
     if (this._plannedRouteStepCursor >= route.steps.length - 1) {
-      // The replay resumes at the target, or the step before it.
       this.watchTargetWrites();
     }
     this.continue(true);
 
     if (this._simulation === "simulating") {
-      // Still "simulating" means the replay never arrived at the target, even
-      // though the planner said there was a way there.
       this._simulation = "fail";
       this._simulationFailure = "diverged";
     }
@@ -2602,19 +1947,6 @@ export class Game<T extends M = {}> {
     this._routeSimulator = null;
   }
 
-  /**
-   * What the route already planned still offers, now that a new program is
-   * loaded.
-   *
-   * The story ahead of an unchanged prefix is a story that has already been
-   * searched and replayed once. Establishing how much of it is unchanged costs
-   * a walk over the route's steps and a checkpoint read; searching it again
-   * costs a story advance per step, which on a long scene is the whole cost of
-   * previewing.
-   *
-   * Everything here is a question about the PREVIOUS route, so it must be asked
-   * before anything replaces it.
-   */
   protected plannedRouteStartsAs(from: string): boolean {
     return (
       this._plannedRoute?.from === from &&
@@ -2628,13 +1960,9 @@ export class Game<T extends M = {}> {
       return { replayOnly: false };
     }
     if ((route.pins ?? "") !== this.pinnedOptions.key) {
-      // Planned with other pins, so its decisions are not the ones these
-      // pins make: the route is searched for from the top.
       return { replayOnly: false };
     }
     if (!this._program.changes) {
-      // A program that says nothing about what it changed leaves the decision
-      // exactly where it was: step identity alone, as it has always been.
       return { replayOnly: false };
     }
     const validSteps = validAddressPrefixLength(
@@ -2644,15 +1972,6 @@ export class Game<T extends M = {}> {
       this._program.changes,
       this._plannedRouteChangeId,
     );
-    // The route still ends where it is wanted, so it is worth replaying it
-    // before searching for another. Replaying is what happens after a search
-    // in any case, and from no deeper a checkpoint than this one — so trying
-    // it first costs a second replay when the route no longer holds, and
-    // saves the whole search when it does.
-    // The route's own steps are kept only while every one of them still
-    // holds: a step past the valid prefix names a statement the compile
-    // emitted again, whose decisions the route's forced ones no longer
-    // name, so the rest is searched for.
     const replayOnly = route.to === to && validSteps === route.steps.length;
     const pinned = this.pinnedOptions;
     const chunks = this._program.changes.chunks;
@@ -2687,12 +2006,6 @@ export class Game<T extends M = {}> {
         replayOnly,
       };
     }
-    // The replay after it is held only by what the new program still agrees
-    // with: it forces whatever the new route decides, so a checkpoint past
-    // the route's forced verdicts holds a state it can resume from wherever
-    // the new route takes the same steps (`replayPatchedRoute`). Looked for
-    // first, since each look leaves the story holding the checkpoint it
-    // read, and the search's own point is the one a search runs from.
     const replayCheckpointIndex =
       searchSteps < validSteps
         ? this.findReplayCheckpoint(validSteps)
@@ -2718,14 +2031,8 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** How many searches' level-zero work a game keeps: a flow's own search
-   *  and the search from the story's start that can follow it
-   *  (`planRoute`). */
   protected static readonly LEVEL_ZERO_WORKS = 2;
 
-  /** Where this game's route searches keep and find level zero's work
-   *  (`SearchOptions.levelZeroStore`): a search finds work only while the
-   *  program still holds what that level zero ran. */
   get levelZeroStore(): LevelZeroStore {
     return {
       find: (key) => this.heldLevelZeroWorks().get(key),
@@ -2754,9 +2061,6 @@ export class Game<T extends M = {}> {
     return false;
   }
 
-  /** The level-zero works the program still holds (`levelZeroHolds`),
-   *  measured from the root and compile they were last held in and then held
-   *  in this one's; the rest are dropped. */
   protected heldLevelZeroWorks(): Map<string, LevelZeroWork> {
     const root = this._story.root;
     const changeId = this._program.changes?.id;
@@ -2782,29 +2086,8 @@ export class Game<T extends M = {}> {
     return this._levelZeroWorks;
   }
 
-  /**
-   * How many checkpoints back to look for one whose story is still standing
-   * inside the unchanged part of the route.
-   *
-   * Each attempt costs a checkpoint read and a story-state load, and a
-   * checkpoint that is too deep is too deep by one beat, not by twenty. Giving
-   * up after a few and searching the scene instead is cheaper than reading
-   * back through a store that holds one entry per beat of a long scene.
-   */
   protected static readonly RESUME_CANDIDATES = 8;
 
-  /**
-   * The deepest checkpoint the new program may be resumed from, and the step of
-   * the planned route its story is standing on.
-   *
-   * The step has to be read out of the restored story rather than assumed: the
-   * engine advances a whole beat at a time, while the cursor that stamps a
-   * step's checkpoint number sees one position per beat, so a checkpoint's
-   * story is routinely further along the route than the step it was stamped
-   * against. Resuming on that assumption would claim steps as still to come
-   * that the restored state has already taken, and the plan would come back
-   * with a hole in it.
-   */
   protected findResumePoint(validSteps: number): {
     stepIndex: number;
     checkpointIndex: number;
@@ -2832,13 +2115,6 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /**
-   * The deepest checkpoint a replay of a route sharing the planned route's
-   * first `validSteps` steps may resume from: one whose story stands within
-   * them (`placeCheckpoint`). A replay forces the new route's decisions from
-   * there, so unlike a search it needs no charge, and it is not held before
-   * the route's forced verdicts.
-   */
   protected findReplayCheckpoint(validSteps: number): number | undefined {
     if (!this._plannedRoute || validSteps < 1) {
       return undefined;
@@ -2860,21 +2136,6 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  /**
-   * Restore checkpoint `checkpointIndex` far enough to see where its story
-   * stands, and describe that position as a resume point.
-   *
-   * Returns nothing when the story stands past `validSteps`, which is the case
-   * that matters: the state has then already run statements this compile
-   * changed, and no amount of care with the route around it would make it
-   * describe the new program.
-   *
-   * Seeing where the story stands means putting it there, so this leaves the
-   * story holding the checkpoint's state. Everything that can run afterwards
-   * replaces it: a search restores its own node's state, a replay loads the
-   * checkpoint itself, and a search that starts at the top resets first,
-   * because the story no longer reports itself as pristine.
-   */
   protected readResumePoint(
     checkpointIndex: number,
     cursor: number,
@@ -2886,12 +2147,6 @@ export class Game<T extends M = {}> {
       return null;
     }
     const { state, at } = placed;
-    // A search resumed here is charged what the search that planned the route
-    // had spent when it recorded this step, so that every bound runs out
-    // where it ran out there; a step recorded without it, or past level zero,
-    // where no resumed search can stand as that search stood, is not resumed
-    // from (`routeChargeAt`). A fallback route is resumed by origin/main's
-    // search, which is charged nothing (`planRoute`).
     const charge = route.fallback ? undefined : routeChargeAt(route, at);
     if (!route.fallback && !charge) {
       return null;
@@ -2909,10 +2164,6 @@ export class Game<T extends M = {}> {
     }
     return {
       state,
-      // Up to but not including the step the story is standing on, because a
-      // search reads the position it is standing on before advancing and would
-      // otherwise record it twice. This is the convention a fork already
-      // follows — it pops the step it is about to re-encounter.
       steps: route.steps.slice(0, at),
       decisions,
       conditions: route.conditions.slice(0, conditions),
@@ -2921,12 +2172,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /**
-   * Restore checkpoint `checkpointIndex` far enough to see where its story
-   * stands: the step of the planned route it stands on, within the first
-   * `validSteps`, and its image. Nothing when it stands past them, or
-   * somewhere the new program would not place it (see `readResumePoint`).
-   */
   protected placeCheckpoint(
     checkpointIndex: number,
     cursor: number,
@@ -2939,16 +2184,9 @@ export class Game<T extends M = {}> {
     let state: ProgramImage | undefined;
     let standingOn: ProgramAddress | undefined;
     const program = this.programStory;
-    // The checkpoint's image, restored in place, which a search node runs
-    // from as it is.
     const image = this._checkpoints.imageOf(checkpointIndex) as
       | ProgramImage
       | undefined;
-    // A route resumes only from a checkpoint whose positions the new
-    // root holds as they are: the steps after it are judged by their
-    // addresses (`validAddressPrefixLength`), so one placed through its
-    // saved form is not resumed from, and the search goes on from an
-    // earlier one (#700). `restoreCheckpoint` translates.
     if (!image || !program.canRestore(image, false)) {
       return null;
     }
@@ -2961,9 +2199,6 @@ export class Game<T extends M = {}> {
     if (standingOn == null) {
       return null;
     }
-    // The step that position belongs to, looked for from the checkpoint's own
-    // step onwards: an address repeats along a route, and the arrival that
-    // matters is the one this checkpoint was taken at or after.
     let at = -1;
     for (let i = cursor - 1; i < validSteps; i += 1) {
       if (route.steps[i]!.address === standingOn) {
@@ -2975,41 +2210,17 @@ export class Game<T extends M = {}> {
       return null;
     }
     if (program && at + 1 >= validSteps && !restsAfter(state, standingOn)) {
-      // The step after this one is not one the new program takes the way
-      // the route did (a statement was inserted before it, or it was
-      // emitted again), and the image stands somewhere other than right
-      // after the statement that ran, where it would be placed after that
-      // statement in the new program: restoring it would skip what the new
-      // program runs there.
       return null;
     }
     return { state, at };
   }
 
-  /**
-   * Replay the route already planned, resuming from `stepIndex`.
-   *
-   * Used when nothing the new program changed can be reached before that step
-   * and the route still ends where it is wanted, so there is nothing left to
-   * search for: the story is restored to the checkpoint and the rest of the
-   * route runs again in the new program.
-   *
-   * The steps after the resume point are replaced by copies that carry no
-   * checkpoint: the store is truncated to the resume point, so an index
-   * recorded against the old run would name a state captured by this one. The
-   * copies keep their addresses: the caller replays only a route every step of
-   * which `routeResumption` found valid in the new program (`replayOnly`). The
-   * replay stamps a checkpoint on every step it reaches.
-   */
   resumePlannedRoute(stepIndex: number, checkpointIndex: number): string | null {
     return this.checkpointJson(
       this.replayPlannedRoute(stepIndex, checkpointIndex),
     );
   }
 
-  /** `resumePlannedRoute`, answering the newest checkpoint as a value
-   *  (`newestCheckpoint`) rather than as its full save, which a game in the
-   *  same session loads in place (`loadCheckpoint`) (#1758). */
   replayPlannedRoute(
     stepIndex: number,
     checkpointIndex: number,
@@ -3027,18 +2238,6 @@ export class Game<T extends M = {}> {
     return this.newestCheckpoint();
   }
 
-  /**
-   * Replay `newRoute`, resuming from the deepest checkpoint of the previous
-   * route that this one still agrees with.
-   *
-   * `limits` bounds how far into the previous route a checkpoint may be taken
-   * from, as a step count and as a checkpoint number. Step identity alone
-   * answers "did the route come this way again", which is the whole question
-   * while the PROGRAM is the same; when the program has changed it answers only
-   * half of it, and the caller supplies the other half (see
-   * {@link routeResumption}). Leaving it out considers every step, which is
-   * what a caller with no reason to doubt the program does.
-   */
   patchAndSimulateRoute(
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
@@ -3046,33 +2245,20 @@ export class Game<T extends M = {}> {
     return this.checkpointJson(this.replayPatchedRoute(newRoute, limits));
   }
 
-  /** `patchAndSimulateRoute`, answering the newest checkpoint as a value
-   *  (`newestCheckpoint`) rather than as its full save, which a game in the
-   *  same session loads in place (`loadCheckpoint`) (#1758). */
   replayPatchedRoute(
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
   ): StoredCheckpoint | null {
     if (!this._plannedRoute || !this.plannedRouteStartsAs(newRoute.from)) {
-      // simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
       return this.newestCheckpoint();
     }
 
-    // Search for a valid checkpoint we can start simulation from, among the
-    // steps the caller says the new program still agrees with. A checkpoint
-    // beyond that is a state the old program produced from statements this one
-    // no longer has, however well its step's identity matches.
     const considered =
       limits == null
         ? newRoute.steps.length
         : Math.max(0, Math.min(limits.steps, newRoute.steps.length));
-    // The deepest of those steps with a checkpoint to resume from, looked for
-    // by index from the last: a route can hold hundreds of thousands of steps
-    // past its last checkpoint (a loop with no beat in it). The resume below
-    // is positional (`valid - 1` indexes the OLD route), so the match has to
-    // agree on that index, not merely on identity.
     let valid = considered;
     let lastValidOldRouteCheckpoint: number | null = null;
     while (valid > 0) {
@@ -3089,31 +2275,22 @@ export class Game<T extends M = {}> {
     }
 
     if (lastValidOldRouteCheckpoint === null) {
-      // Could not start from an earlier checkpoint, so simulate from the beginning
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
       return this.newestCheckpoint();
     }
 
-    // Keep valid steps, trim away invalid steps, and add on the new route's
-    // steps after them.
     const patchedSteps = this._plannedRoute.steps.slice(0, valid);
     for (let i = valid; i < newRoute.steps.length; i += 1) {
       patchedSteps.push(newRoute.steps[i]!);
     }
     const patchedRoute: RoutePlan = { ...newRoute, steps: patchedSteps };
 
-    // Add new checkpoints onto the previous simulation
     const fromStep = valid - 1;
     this.simulateRoute(patchedRoute, fromStep);
     return this.newestCheckpoint();
   }
 
-  /** End the route simulation, so the modules connect, restore and display as
-   *  a running game rather than as a replay. A route search leaves
-   *  `system.simulating` set; a game that connects after one and displays from
-   *  its state calls this first. A simulation that never reached its target
-   *  ends as failed; one that did keeps its success. */
   endSimulation(): void {
     if (this._simulation === "simulating") {
       this._simulation = "fail";
@@ -3122,8 +2299,6 @@ export class Game<T extends M = {}> {
   }
 
   start(save: string = ""): void {
-    // A preview waiting for its pictures would display its beat over the
-    // run.
     this.cancelPreview();
     this._state = "running";
     this.endSimulation();
@@ -3137,37 +2312,6 @@ export class Game<T extends M = {}> {
       this.observeScene(this._positions.current());
       this.continue(true);
     } else if (this._simulation === "fail") {
-      // `rewindStory`, NOT `reset`. By the time `start` runs, `connect` has
-      // already called every module's `onConnected` AND `restore` — the ui
-      // module has mounted its layouts, registered its `@event` handlers and
-      // had the renderer attach the matching DOM listeners. A full `reset`
-      // here clears `_state` and calls `onReset`, throwing all of that away,
-      // and nothing mounts again afterwards.
-      //
-      // The result was a UI that rendered perfectly and did nothing: the DOM
-      // was intact, the renderer still forwarded clicks, and the engine looked
-      // them up in an `_events` map that had just been emptied. Traced on a
-      // STOP -> PLAY, where the order is
-      //   onConnected -> mountEvent -> ui/observe -> onReset.
-      // Module reset is only meaningful BEFORE modules are initialized; here we
-      // only need the story rewound so the replay starts from `_startAddress`.
-      //
-      // Per-module residue audit for this branch (the abandoned run's state
-      // survives the rewind — what of it is CORRECT to keep?):
-      //   interpreter — the beat FIFO is the first hazard: unflushed beats
-      //     from the abandoned run sit at the queue's head and would render
-      //     FIRST in the replay. The routing the run remembered for a glued
-      //     continuation is the second: a beat of the replay would inherit
-      //     a cue from a beat that is no longer going to run. Both are
-      //     cleared below by `clearQueuedBeats`; the replay re-queues from
-      //     the start path. (`_matcherCache`/name maps are pure derivations.)
-      //   audio — `_channelsCurrentlyPlaying` and `_state.channels` MIRROR
-      //     the renderer, whose players are untouched by a story rewind:
-      //     clearing them would break `replace`-behavior stops and channel-
-      //     wide saves for audio that is audibly still playing. Kept.
-      //   ui — preserving mounted layouts/`_events` is this branch's whole
-      //     reason to exist (see above). Kept.
-      //   core / world — stateless (`CoreState`/`WorldState` are empty).
       this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
       this.clearChoices();
@@ -3231,11 +2375,8 @@ export class Game<T extends M = {}> {
   }
 
   destroy(): void {
-    // Before the modules go, so the waiting preview's pin is let go while
-    // the asset module can still send the release.
     this.cancelPreview();
     this._destroyed = true;
-    // A game with its own clock stops asking for frames.
     this._clock?.stop();
     this._clock?.dispose();
     for (const k of this._moduleNames) {
@@ -3250,15 +2391,6 @@ export class Game<T extends M = {}> {
 
   checkpoint(): void {
     this._checkpoints.capture();
-    // Where along the planned route the story stood when this checkpoint was
-    // taken: the index of the step it is about to run next. A later compile
-    // that resumes from this checkpoint needs exactly that, because the steps
-    // it claims as already taken have to be the steps the restored state has
-    // actually taken. Nothing but this records it — a step's own checkpoint
-    // number is stamped when the step is REACHED, which is a different moment.
-    //
-    // Recorded only while replaying a route. During ordinary play the cursor
-    // stands wherever the last replay left it and means nothing.
     this._checkpointStepCursors.length = this._checkpoints.length;
     this._checkpointShownBeats.length = this._checkpoints.length;
     this._checkpointDecisionsTaken.length = this._checkpoints.length;
@@ -3280,10 +2412,6 @@ export class Game<T extends M = {}> {
     return this.buildSave(false);
   }
 
-  /** The executed record's positions as a save holds them: each address in
-   *  its durable form (`durableAddress`), since a chunk id names a statement
-   *  only in the process that gave it (#700). An address the root no longer
-   *  holds is left out. */
   protected durableExecuted(executed: RecencyEntry[]): RecencyEntry[] {
     const root = this._story.root;
     const out: RecencyEntry[] = [];
@@ -3296,9 +2424,6 @@ export class Game<T extends M = {}> {
     return out;
   }
 
-  /** The addresses in `root` of a saved executed record's durable
-   *  positions, in their order, without those it cannot place. A bare
-   *  address is another process's and is dropped too. */
   protected placedExecuted(root: ProgramRoot, saved: RecencyEntry[]): RecencyEntry[] {
     const out: RecencyEntry[] = [];
     for (const entry of saved) {
@@ -3317,9 +2442,6 @@ export class Game<T extends M = {}> {
     const state = this.programStory.state;
     try {
       if (withStory) {
-        // A data breakpoint on a captured variable notes the id the save
-        // gives the variable's cell, which a load of the save reads the
-        // cell under (`loadProgramSave`).
         const watched = this._dataWatches.filter(
           (watch) =>
             watch.pointer && watch.pointerState === state.variablesState,
@@ -3339,7 +2461,6 @@ export class Game<T extends M = {}> {
             }
           };
         }
-        // The story's durable save of the current beat.
         try {
           story = this._story.toSave(this._version);
         } finally {
@@ -3377,50 +2498,20 @@ export class Game<T extends M = {}> {
     return this.loadProgramSave(this._story, saveJSON);
   }
 
-  /** The newest checkpoint as a value, or null when there is none or the
-   *  story cannot write its image, as `checkpoints.at(-1)` is then null.
-   *  Nothing is written: its full save is `checkpointJson`'s (#1758). */
   newestCheckpoint(): StoredCheckpoint | null {
     const checkpoint = this._checkpoints.checkpointAt(-1);
     return checkpoint && this.writesImage(checkpoint.image) ? checkpoint : null;
   }
 
-  /** The full save of a checkpoint value, as `checkpoints.at` writes one,
-   *  for a reader that needs the string: a game of its own (PLAY's), a save
-   *  file, a test. Written by the story as it is now. */
   checkpointJson(checkpoint: StoredCheckpoint | null): string | null {
     return checkpoint ? this._checkpoints.jsonOf(checkpoint) : null;
   }
 
-  /**
-   * Loads a checkpoint value this game's route left (`newestCheckpoint`),
-   * without writing its full save (`checkpointJson`) or reading it back
-   * (#1758). The game then holds the route's state at that beat: the beat,
-   * the story's position and output, `store` values, the runtime record and
-   * the module state are what a load of the save holds, while a define's
-   * properties other than `store` ones and the tables the story shares
-   * follow the route, not the save's reconstruction of them on the
-   * declarations' current run (the maintainer's decision on #1758). The
-   * story loads the image in place (`ProgramStory.loadImage`); the module state
-   * is read from the checkpoint's body; the runtime record is the
-   * checkpoint's collections, with the executed positions a load of the
-   * save keeps (each through its durable form, `durableExecuted` then
-   * `placedExecuted`); and each data breakpoint's binding goes, as a load of
-   * a save that notes no cell drops it. An image the story does not load in
-   * place (`ProgramStory.loadImage`: one taken just after a choice, or one
-   * whose positions this root does not hold as they are) loads through the
-   * save. Refuses, with nothing of the game changed, what a load
-   * of the save refuses; the two share their checks of the module states
-   * and what they do once the story has loaded (`checkSaveModules`,
-   * `finishLoad`).
-   */
   loadCheckpoint(checkpoint: StoredCheckpoint): boolean {
     const program = this._story;
     const image = checkpoint.image as ProgramImage;
     try {
-      // Read before anything changes, as `loadProgramSave` reads the save.
       if (!this.writesImage(image)) {
-        // A load of the save, which is no save, would refuse it.
         throw new Error("The save holds no story to load");
       }
       const saveData: SaveData = JSON.parse(checkpoint.body);
@@ -3435,8 +2526,6 @@ export class Game<T extends M = {}> {
         const json = this.checkpointJson(checkpoint);
         return json !== null && this.load(json);
       }
-      // A save written of a checkpoint notes no cell, so a load of it
-      // binds no data breakpoint (`loadProgramSave`).
       for (const watch of this._dataWatches) {
         watch.pointer = null;
         watch.pointerState = null;
@@ -3449,10 +2538,6 @@ export class Game<T extends M = {}> {
     return false;
   }
 
-  /** Throws what a load refuses a save's module states for: no record of
-   *  them, or a module of the game's without a state, each an object, as
-   *  `save` writes them. What a module's state holds is the module's to
-   *  read. */
   protected checkSaveModules(saveData: SaveData): void {
     const isRecord = (value: unknown) =>
       typeof value === "object" && value !== null && !Array.isArray(value);
@@ -3466,11 +2551,7 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** What a load does once its story has loaded, which cannot fail: a
-   *  waiting preview goes, and the modules and the runtime record load. */
   protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
-    // A preview waiting for its pictures would display its beat over the
-    // loaded state, and record a checkpoint of it.
     this.cancelPreview();
     this.restoreReactiveTracking();
     for (const k of this._moduleNames) {
@@ -3480,10 +2561,6 @@ export class Game<T extends M = {}> {
       }
     }
     this._runtimeState = runtime;
-    // The game waits on the beat the save was taken at, where the runtime
-    // record the save carried last ran: a story loaded in place keeps the
-    // last instruction its beat's continue ran, which can stand past the
-    // beat, and a story loaded from JSON keeps none (#1200).
     this._awaiting = this.lastExecutedScriptLocation();
     if (saveData.simulatedFrom) {
       this._simulation = "success";
@@ -3491,19 +2568,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /**
-   * Loads a save into the game, or refuses it with nothing of the game changed:
-   * everything that can fail is read before anything changes. The save must
-   * carry a story (one written while the story could not save, which
-   * `buildSave` stores as an empty story, is refused), a state for every module
-   * the game has, each an object, as `save` writes them, and a runtime record
-   * of the shape `toJSON` writes (`RuntimeState.read`), and the story must
-   * place it (`ProgramStory.checkSave`). What a module's state holds is the
-   * module's to read. Then the story loads, which puts itself back, line in
-   * progress included, when it fails past the placement, and ends the line in
-   * progress when it succeeds; only then does a waiting preview go, and the
-   * modules and the runtime record load, which cannot fail.
-   */
   protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
     try {
       const saveData: SaveData =
@@ -3517,20 +2581,9 @@ export class Game<T extends M = {}> {
       }
       const runtime = RuntimeState.read(saveData.runtime);
       program.checkSave(saveData.story);
-      // The executed record's positions, written durably (`buildSave`),
-      // placed in this program; one it cannot place is dropped, as a save's
-      // count whose symbol cannot be placed is.
       runtime.pathsExecutedThisFrame = RecencySet.from(
         this.placedExecuted(program.root, runtime.pathsExecutedThisFrame.toArray()),
       );
-      // A load reads the cells of captured variables anew, under the ids
-      // the save gave them, so a data breakpoint that still holds the cell
-      // the save noted for its data id (`buildSave`), which the note's tag
-      // names, binds to the cell the load read under that id, and that cell
-      // takes the tag. A watch of the same data id holding another cell, of
-      // another closure, say, is not the watch the save noted. Any other
-      // watch's pointer reaches no variable of the loaded story, and the
-      // watch holds no binding until a frame named by its scope runs.
       const noted = new Map<string, { cell: number; tag: string }>();
       if (Array.isArray(saveData.watchedCells)) {
         for (const entry of saveData.watchedCells) {
@@ -3579,16 +2632,6 @@ export class Game<T extends M = {}> {
     return false;
   }
 
-  /**
-   * Restores checkpoint `index` in place: the story's image of the beat, and
-   * the module state and runtime collections saved beside it. Within a
-   * session an image taken before a compile restores after it for every
-   * statement the compile kept, and one that names a statement it emitted
-   * again is translated through its saved form (#1429); one that still cannot
-   * be placed is unplaced, and nothing changes, so that the caller replays
-   * (docs/engine/binary-program.md, sections 7 and 8). A route's resumption
-   * does not translate (`readResumePoint`).
-   */
   restoreCheckpoint(index: number): boolean {
     const entry = this._checkpoints.checkpointAt(index);
     const story = this.programStory;
@@ -3596,8 +2639,6 @@ export class Game<T extends M = {}> {
       return false;
     }
     const image = entry.image as ProgramImage;
-    // Placed before anything of the game changes: an unplaced checkpoint
-    // leaves the preview and the line in progress as they are.
     if (!story.canRestore(image)) {
       return false;
     }
@@ -3611,8 +2652,6 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
     }
-    // The collections as the session holds them, which no record is
-    // written of or read back from (#1758).
     this._runtimeState = RuntimeState.of(entry.runtime);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
@@ -3644,57 +2683,17 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  /** Rewind the STORY to its initial state, leaving module state alone.
-   *
-   *  Split out from {@link reset} because the two are only safe at different
-   *  points in the lifecycle. Rewinding the story is safe at any time; resetting
-   *  the modules is only safe BEFORE they are initialized, because
-   *  `Module.reset` clears `_state` and calls `onReset`, which for the ui module
-   *  drops the mounted-layout map and the `_events` handler registry. */
   protected rewindStory() {
-    // End any line the story is part-way through, rather than running it to
-    // its end. See `discardOpenStoryLine`.
     this.discardOpenStoryLine();
     this._story.ResetState();
     this.restoreReactiveTracking();
   }
 
-  /** Let go of a story line that is stopped part-way through, so the story
-   *  state can be replaced.
-   *
-   *  The runtime refuses to reset, reload or jump while a line is still open,
-   *  so `rewindStory`, `jumpTo` and `load` each had to deal with that
-   *  first, and each did it by finishing the line with a bare `Continue()`.
-   *
-   *  Finishing it was never the point — all three replace the story state on
-   *  the very next line, so whatever that work produced was thrown away — and
-   *  it carried a real cost: `Continue()` advances the story until the line
-   *  ends, and a story sitting in a loop that never completes a line never
-   *  ends, so the call ran forever with no error raised and nothing to stop it
-   *  (#386). The path that made that reachable is the preview's own recovery:
-   *  it runs precisely when execution was stopped part-way through a loop for
-   *  running out of budget, so the recovery re-entered the loop that had just
-   *  been declared a runaway, this time with nothing counting the work.
-   *
-   *  Ending the line instead of finishing it removes both problems at once:
-   *  the story is left replaceable, no work is done, and there is no ceiling
-   *  to get wrong. */
   protected discardOpenStoryLine() {
     this._story.CancelAsyncContinue();
-    // The story is about to stand somewhere else, so it no longer waits on
-    // the beat it waited on.
     this._awaiting = null;
   }
 
-  /** Re-assert reactive dependency tracking after ANY story-state
-   *  replacement (`ResetState`, a recompile's `new Story`, a checkpoint
-   *  `LoadJson`). Each of those yields a `VariablesState` whose fine-grained
-   *  tracking defaults OFF, and the flag is normally enabled only once, at
-   *  layout mount (`UIModule.constructLayoutsFromAst`) — which does NOT
-   *  re-run on these paths, precisely because they preserve the mounted UI.
-   *  Without this, every mounted `{binding}` freezes after a STOP → PLAY
-   *  restart or a live-edit recompile: the VM keeps updating the globals,
-   *  but no change is ever recorded for `refreshLayouts` to react to. */
   protected restoreReactiveTracking() {
     if (this._program?.sparkle?.layouts) {
       this._story.variablesState.reactiveDepsEnabled = true;
@@ -3705,7 +2704,6 @@ export class Game<T extends M = {}> {
     this.cancelPreview();
     this.rewindStory();
     this._sceneTracker.reset();
-    // Reset modules to their initial state
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
@@ -3730,8 +2728,6 @@ export class Game<T extends M = {}> {
       done = this.stepWithinBudget();
     } while (!done);
 
-    // A preview whose flush is held reports its execution once the beat
-    // displays (`preview`), after what it displays, as this does.
     if (
       this._simulation !== "simulating" &&
       !this._holdingFlush &&
@@ -3748,21 +2744,11 @@ export class Game<T extends M = {}> {
     this._executionStepsRemaining = this._executionStepLimit;
   }
 
-  /** A debugger traversal is its own stretch of execution, so it starts with a
-   *  full budget rather than sharing whatever the last `continue` left. */
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
-    // A step advances the story; a preview waiting to display a beat of it
-    // would display over the step's.
     this.cancelPreview();
     this._awaiting = null;
     this.resetExecutionBudget();
     this.refreshDataWatches();
-    // A step in, over or out runs until it stops where it says it stops, or
-    // at a breakpoint or a beat to show, however many lines that takes: the
-    // debugger sends one request and waits for the stop, which it hears as
-    // a step's or a breakpoint's. A beat to show is announced as the step's
-    // stop too, since the debugger hears a wait for the player only while
-    // it follows the execution.
     const origin = {
       depth: this._story.state.callstackDepth,
       location: this._executingLocation,
@@ -3776,9 +2762,6 @@ export class Game<T extends M = {}> {
     if (traversal !== "continue" && !this._announcedStop) {
       this.notifyStepped();
     }
-    // A step gates nothing: a beat it reaches displays at once, since the
-    // game is previewing, and one it does not reach issues no gate. Nothing
-    // waits, so an abandoned pin goes now.
     this.module.assets.releaseAbandonedGates();
     return done;
   }
@@ -3801,7 +2784,6 @@ export class Game<T extends M = {}> {
           }: possible infinite loop`,
           ErrorType.Error,
         );
-        // Execution is running away. Force it to stop.
         return true;
       }
       this._executionStepsRemaining -= 1;
@@ -3818,11 +2800,6 @@ export class Game<T extends M = {}> {
             const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
             if (step) {
               if (step.address === address) {
-                // The nearest checkpoint at or before this step. Steps reached
-                // before the first capture have none, and must stay undefined:
-                // recording -1 made `getCheckpoint` ask the store for index -1
-                // (null) instead of reporting "no checkpoint here", so a real
-                // absence was indistinguishable from a lookup failure.
                 const latestCheckpoint = this._checkpoints.length - 1;
                 if (latestCheckpoint >= 0) {
                   step.checkpoint = latestCheckpoint;
@@ -3832,7 +2809,6 @@ export class Game<T extends M = {}> {
                   this._plannedRouteStepCursor ===
                   this._plannedRoute.steps.length - 1
                 ) {
-                  // What runs from here to the target is the target's own.
                   this.watchTargetWrites();
                 }
               }
@@ -3847,7 +2823,6 @@ export class Game<T extends M = {}> {
           this._startAddress != null &&
           this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
         ) {
-          // End simulation
           this.endTargetWatch();
           this.checkpoint();
           this._simulation = "success";
@@ -3858,15 +2833,12 @@ export class Game<T extends M = {}> {
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         const instructions = this.module.interpreter.flush();
         if (this._holdingFlush) {
-          // The preview displays this beat once its pictures are resident;
-          // see `displayHeld` for the rest of what a flush does.
           this._held = { instructions: instructions ?? null };
           return true;
         }
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (this._simulation !== "simulating") {
-            // A route replay presents nothing on the page.
             this.noteShownChoices(instructions);
           } else {
             this._shownBeat = instructions;
@@ -3874,8 +2846,6 @@ export class Game<T extends M = {}> {
           if (
             !this._coordinator.shouldContinue() &&
             this._simulation !== "simulating" &&
-            // A load beat is loading and a cutscene beat playing, not waiting
-            // for the player.
             (!(instructions.load || instructions.cutscene) ||
               (instructions.choices?.length ?? 0) > 0)
           ) {
@@ -3886,13 +2856,8 @@ export class Game<T extends M = {}> {
           this._simulation !== "simulating" &&
           this._state === "running"
         ) {
-          // Nothing buffered left to display and no flow left to run, so the
-          // story is over. Note this only fires once the final beat has been
-          // consumed -- a last beat still waiting to be read flushes above.
           this.notifyFinished();
         }
-        // A replay takes one checkpoint per beat. The continue after its last
-        // line can end the story with nothing to flush, and that is no beat.
         if (instructions || this._simulation !== "simulating") {
           this.checkpoint();
         }
@@ -3900,31 +2865,14 @@ export class Game<T extends M = {}> {
           if (!this._story.canContinue) {
             return true;
           }
-          // Continue without user interaction
           continue;
         }
-        // DONE - waiting for user interaction (or auto advance).
-        // If this run produced NO content beat (`_coordinator` was never created
-        // — e.g. a UI-only project with no dialogue), the per-beat reveal
-        // (Coordinator.updateUI → ui.reveal) will never fire and the layouts
-        // layer would stay hidden (opacity:0). Reveal it here now that the run
-        // has settled. Idempotent; a real game has `_coordinator` set here and
-        // skips this, keeping its flash-free, asset-gated beat-time reveal.
         if (!this._coordinator) {
           this.module.ui.reveal();
         }
         return true;
       } else if (this._story.canContinue) {
-        // One step was charged above. A Luau callback runs all of its steps
-        // inside the step that called it, and those count too: the limit stops
-        // them where the budget runs out, and what they took is charged after.
         const stepsBefore = this._story.stepCount;
-        // The step appends the address of each instruction it runs, a Luau
-        // callback's among them, to the log, which the game reads once the step
-        // returns: a breakpoint stops the game when its set holds one of them.
-        // It appends them to the beat log too, in the continue whose beat shows
-        // what they ran, which the game records as the addresses that beat ran
-        // (#1686). No call and no string per step.
         const program = this.programStory;
         const log = this._executedLog;
         log.length = 0;
@@ -3932,9 +2880,6 @@ export class Game<T extends M = {}> {
         const beatLog = this._beatLog;
         beatLog.length = 0;
         program.beatLog = beatLog;
-        // While a data breakpoint is set, the engine reports each write to
-        // a bound variable during the step, so the watch hears which
-        // binding a write reached. With none it calls nothing.
         const variablesState = program.state.variablesState;
         variablesState.writeWatch =
           this._dataWatches.length > 0 ? this._noteWrite : null;
@@ -3968,25 +2913,14 @@ export class Game<T extends M = {}> {
           this._runtimeState.recordExecution(beatLog[i]!);
         }
         if (stopped) {
-          // The budget ran out part way through the step. The story cannot
-          // resume from there: the operation the step was running has already
-          // taken its arguments, so running it again would fail for a reason
-          // the story does not have. The story ends, as a runtime error ends
-          // it, and the check at the top of the loop reports the budget.
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           continue;
         }
-        // A data breakpoint stops the game once a step has written another
-        // value to its variable.
         if (this._dataWatches.length > 0 && this.dataWatchesChanged()) {
           hit = true;
         }
         if (this._story.state.callstackDepth > this._callDepthLimit) {
-          // Recursion that does not end. The story ends here, as a runtime
-          // error ends it, and the run stops as a runaway, as it does at the
-          // step ceiling: nothing flushes and the story is not reported as
-          // finished.
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           this.Error(
@@ -4002,22 +2936,10 @@ export class Game<T extends M = {}> {
           this._executingLocation = location;
         }
 
-        // A continue returns at its line's newline, so the one after a line
-        // can complete with nothing to show: the flow went on through logic
-        // to the story's end, or on into more of it. Choices alone make a beat
-        // of their own. A continue that shows nothing is not handed to the
-        // interpreter at all: `queue` would create its empty beat buffer, and
-        // the interpreter's saved state is part of every checkpoint, which two
-        // runs reaching the same story position must write alike. The end is
-        // reported, or the story runs on, below.
         if (
           this._story.asyncContinueComplete &&
           this._story.continueShowedSomething
         ) {
-          // The step's beat takes its routing from the first
-          // `display(<table>)` table that names a target (see
-          // `InterpreterModule.queue`). Its body is `currentText`, the step's
-          // ordered visible text.
           this.module.interpreter.queue(
             this._story.currentDisplayInstructions,
             this._story.currentChoices.map((c) => c.text),
@@ -4026,24 +2948,13 @@ export class Game<T extends M = {}> {
         }
 
         if (this._simulation !== "simulating") {
-          // A breakpoint is a set of addresses, and a step stops the game when
-          // the set holds the address of an instruction it ran. Each
-          // instruction of a line has an address of its own, so a breakpoint
-          // stops once each time its instruction runs; one inside a Luau
-          // callback stops the game once the step that called it returns.
           if (hit) {
             this.notifyHitBreakpoint();
-            // DONE - hit breakpoint
             return true;
           }
-          // With no traversal asked for, nothing below can stop the game.
           if (traversal === "continue") {
             return false;
           }
-          // A step in does not stop inside a function's entry code: it binds
-          // the parameters one instruction at a time, so the stop waits for
-          // the `EnterBlock` after it, where a function breakpoint stops too,
-          // though that runs on the same line (#1743).
           if (traversal === "in") {
             const last = this._positions.previous();
             if (last != null && this.entryCode().has(last)) {
@@ -4057,7 +2968,6 @@ export class Game<T extends M = {}> {
             }
           }
 
-          // Skip duplicate stops (avoid breaking at the same location)
           if (
             sameLocation(prevExecutedLocation, this._executingLocation) ||
             sameLocation(initialExecutedLocation, this._executingLocation)
@@ -4067,30 +2977,24 @@ export class Game<T extends M = {}> {
 
           const currentCallstackDepth = this._story.state.callstackDepth;
 
-          // Handle step in: Stop at each instruction that is executed
           if (traversal === "in") {
             this.notifyStepped();
-            // DONE - stepped in
             return true;
           }
 
-          // Handle step over: Stop at the next line in the same function
           if (
             traversal === "over" &&
             currentCallstackDepth <= initialCallstackDepth
           ) {
             this.notifyStepped();
-            // DONE - stepped over
             return true;
           }
 
-          // Handle step out: Stop when we return to a shallower depth
           if (
             traversal === "out" &&
             currentCallstackDepth < initialCallstackDepth
           ) {
             this.notifyStepped();
-            // DONE - stepped out
             return true;
           }
 
@@ -4098,11 +3002,6 @@ export class Game<T extends M = {}> {
 
         return false;
       } else {
-        // Unreachable: reaching here would need `canContinue && !canContinue`,
-        // because the first branch already claims every `!canContinue` case
-        // (which is where running out of flow is now reported). Kept purely as
-        // a backstop so a future change to the conditions above can't spin
-        // here forever.
         return true;
       }
     }
@@ -4119,20 +3018,13 @@ export class Game<T extends M = {}> {
   }
 
   chosePathToContinue(index: number) {
-    // The coordinator's click handler took the choices off the page.
     this._shownChoices = [];
-    // Tell the story where to go next
     this._story.ChooseChoiceIndex(index);
-    // Save after every choice
     this.checkpoint();
     this.continue();
     this.notifyChosePathToContinue();
   }
 
-  /** Take the choices the last displayed beat presented off the page: their
-   *  text and pictures, their click observers, and the elements themselves.
-   *  Only the targets that showed a choice are touched, so a beat that
-   *  presented none costs the page nothing. */
   clearChoices() {
     const targets = this._shownChoices;
     this._shownChoices = [];
@@ -4144,15 +3036,10 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Remember the choice targets a displayed beat presents (the
-   *  interpreter's `choice 0`, `choice 1`, and so on, which an element
-   *  named `choice 0` matches as two classes). */
   protected noteShownChoices(instructions: Instructions | null) {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  /** Resets the story and moves it to an address; `TOP_LEVEL_START` is the
-   *  top of the top-level content. */
   jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
     if (withStartingValues) {
@@ -4185,8 +3072,6 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** Announces a wait for the player at the beat just flushed, at the last
-   *  line the beat ran (the record `game/executed` reports, #1686). */
   protected notifyAwaitingInteraction() {
     const location =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
@@ -4252,22 +3137,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** What the last stretch of execution did, as `game/executed` reports it. */
   protected executedParams(): GameExecutedParams {
     const detailed = this.reportsExecutedLines;
     let first: ScriptLocation | undefined;
     let last: ScriptLocation | undefined;
     let lastAddress: ProgramAddress | undefined;
-    // Each script's executed lines, and the last of them to be added: the
-    // line an editor follows while a game runs, which is not the end of the
-    // last location when that location returns to lines already executed (a
-    // line that calls a function, after the function's body).
     const lines = new Map<string, Set<number>>();
     const lastLines = new Map<string, number>();
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
-      // The record holds addresses while the game runs; a string is a saved
-      // position's durable form, which a load places or drops
-      // (`placedExecuted`), and names no position here.
       if (typeof p !== "number") {
         return;
       }
@@ -4303,14 +3180,9 @@ export class Game<T extends M = {}> {
         };
       }
     }
-    // Copies, not the runtime state's own arrays, so a report, once taken,
-    // is not changed by what the story evaluates afterwards (the layouts'
-    // bindings as they mount).
     const failed = this._simulation === "fail";
     return {
       simulateFlow: this._simulateFlow,
-      // Where the route that failed was to start and to end, which the page
-      // labels the failure with.
       simulateLocation:
         failed && this._simulateFlow != null
           ? (this.flowDocumentLocationOf(this._simulateFlow) ?? undefined)
@@ -4328,23 +3200,12 @@ export class Game<T extends M = {}> {
       state: this._state,
       restarted: this._restarted,
       simulation: this._simulation,
-      // Gated on the state rather than sent whenever it happens to be set, so
-      // a reason recorded by an earlier failed simulation can never ride along
-      // with a run that succeeded.
       simulationFailure:
         this._simulation === "fail" ? this._simulationFailure : undefined,
       route: this._previewRoute,
     };
   }
 
-  /**
-   * The route `route` as the preview reports it: where it starts, the line it
-   * ends at, and each decision it made (`routeDecisions`), placed in the
-   * scripts. `source` reads the scripts, counting lines from 0: a line's
-   * text, which names a forced verdict, and the loops and function bodies,
-   * which tell a clipped loop from a forced verdict. Without it the text is empty and every
-   * verdict the route forced is reported forced.
-   */
   previewRouteOf(route: RoutePlan, source?: ScriptSource): PreviewRoute {
     const lineOf = (address: ProgramAddress) => {
       const location = this.scriptLocationOf(address);
@@ -4382,7 +3243,6 @@ export class Game<T extends M = {}> {
       structureOf,
       pinned,
     )) {
-      // A clipped loop is listed at its own first line.
       const location = decision.loop
         ? this.lineLocation(
             this.scriptUri(decision.loop.script),
@@ -4453,7 +3313,6 @@ export class Game<T extends M = {}> {
     };
   }
 
-  /** The start of line `line` of the script `uri`. */
   protected lineLocation(uri: string, line: number): DocumentLocation {
     return {
       uri,
@@ -4548,13 +3407,6 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The story's globals and the temporaries of a frame by name, for the
-   *  editor to evaluate an expression against: each value it can receive
-   *  and read into (`isEvaluable`). A table holds the runtime's own objects
-   *  and functions, which no message can carry. The frame is `frameId` of
-   *  thread `threadId`, numbered as `getTempVariables` and `getStackTrace`
-   *  number them (#1740); with neither, or naming a thread or frame the
-   *  call stack no longer has, it is the frame that runs. */
   getEvaluationContext(threadId?: number, frameId?: number) {
     const context: any = {};
     const variableState = this._story.state.variablesState;
@@ -4565,9 +3417,6 @@ export class Game<T extends M = {}> {
       ? thread.callstack[frameId ?? thread.callstack.length - 1]
       : undefined;
     for (const name of variableState["_globalVariables"].keys()) {
-      // A global as the frame reads it: `GetVariableWithName` reads the
-      // running frame's temporaries first, so a named frame reads its own,
-      // and the global itself where it has none of that name.
       const valueObj =
         selected && thread
           ? this.valueInFrame(thread, selected, name)
@@ -4582,9 +3431,6 @@ export class Game<T extends M = {}> {
       selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
     if (contextElement?.temporaryVariables) {
       for (const [name, scoped] of contextElement.temporaryVariables.entries()) {
-        // A temporary bound to a pointer (a variable passed by reference,
-        // or one a closure captured) reads the value it points to, as the
-        // Temps scope shows it, not the pointer's variable name.
         const valueObj =
           scoped instanceof VariablePointerValue
             ? this.valueAtPointerInThread(contextThread, scoped)
@@ -4598,9 +3444,6 @@ export class Game<T extends M = {}> {
     return context;
   }
 
-  /** The value `name` reads in `element`, a frame of `thread`: its
-   *  temporary of that name in the innermost block scope that has one, or
-   *  else the global. */
   protected valueInFrame(
     thread: CallStack.Thread,
     element: CallStack.Element,
@@ -4622,8 +3465,6 @@ export class Game<T extends M = {}> {
       : globalObj;
   }
 
-  /** Whether `value` is the record `getTableRecord` made of a table, which
-   *  the evaluation context leaves out as it left out the table's `Map`. */
   isTableRecord(value: unknown): boolean {
     return (
       typeof value === "object" && value != null && this._tableRecords.has(value)
@@ -4634,15 +3475,9 @@ export class Game<T extends M = {}> {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
-      // A name with a `$` after its first character is the compiler's own
-      // (the cell a method of a define written in a function reads a local
-      // of that function through, `__cell$…`), which no author wrote; a
-      // scoped define's key starts with its `$` and is shown.
       if (name.indexOf("$") > 0) {
         continue;
       }
-      // The global itself: a temporary of the same name shadows it for the
-      // story, and the Temps scope shows that temporary (#1727).
       const globalObj = variableState.GetGlobalVariableValue(name);
       const valueObj =
         globalObj instanceof VariablePointerValue
@@ -4676,10 +3511,6 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  /** The temporaries of a frame (`frameId`, an index into the call stack of
-   *  thread `threadId` as `getStackTrace` numbers its frames), by default
-   *  the frame that runs, each with the scope a data breakpoint names it
-   *  by. */
   getTempVariables(threadId?: number, frameId?: number): Variable[] {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
@@ -4694,27 +3525,15 @@ export class Game<T extends M = {}> {
         ? thread.callstack.length - 1
         : callStack.currentElementIndex);
     const contextElement = thread?.callstack[frameIndex];
-    // A temporary's scope is the identity of the frame it is a temporary of
-    // (`DebugFrame.scope`), which keeps two anonymous functions apart.
     const programScope = this._story.debugFrames(thread?.threadIndex ?? 0)?.[
       frameIndex
     ]?.scope;
-    // Every block scope of the frame, from the innermost out, so a temporary
-    // of an outer block (a function's parameters and the variables its
-    // closure captured, beside the locals of its body) is shown while the
-    // frame runs an inner one, and an inner temporary hides an outer one of
-    // the same name, as reading the name does.
     const scopes = contextElement?.temporaryScopes ?? [];
     const seen = new Set<string>();
     for (let s = scopes.length - 1; s >= 0; s -= 1) {
       for (const [name, scoped] of scopes[s]!.entries()) {
-        // A name with a `$` is the compiler's own (a loop's hidden index,
-        // stop and step), which no author wrote.
         if (!name.includes("$") && !seen.has(name)) {
           seen.add(name);
-          // A temporary bound to a pointer (a variable passed by reference,
-          // or one a closure captured) shows the value it points to, in the
-          // frames of the thread it belongs to (#1667).
           const valueObj =
             scoped instanceof VariablePointerValue && thread
               ? this.valueAtPointerInThread(thread, scoped)
@@ -4740,16 +3559,6 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  /**
-   * The value `pointer` leads to, read in the frames of `thread`. A closed
-   * pointer holds its value. An open one names a frame by its
-   * `contextIndex` (1 for the outermost, 0 for the globals, -1 for the
-   * frame on top) and the block scope that binds the name by its
-   * `scopeIndex`, as `VariablesState.ValueAtVariablePointer` reads them;
-   * that reads the frames of the thread that runs, which another thread's
-   * frame at the same index is not (#1667). A pointer that leads to
-   * another is followed.
-   */
   protected valueAtPointerInThread(
     thread: CallStack.Thread,
     pointer: VariablePointerValue,
@@ -4780,9 +3589,6 @@ export class Game<T extends M = {}> {
         }
       }
       if (found === undefined) {
-        // No temporary of the name in that frame: a pointer at the globals,
-        // or at the frame on top, reads the global; one at any other frame
-        // reads nothing, as `VariablesState.GetRawVariableWithName` does.
         return at.contextIndex <= 0
           ? variableState.GetVariableWithName(name, 0)
           : null;
@@ -4808,8 +3614,6 @@ export class Game<T extends M = {}> {
         );
       });
     } else if (typeof value === "object" && value) {
-      // A table lists its keys in the order `getTableRecord` gave them; a
-      // record's own enumeration would put every integer key first.
       const tableKeys = this._tableRecords.get(value);
       const record = value as Record<string, unknown>;
       for (const k of tableKeys ?? Object.keys(record)) {
@@ -4854,20 +3658,9 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  /** One level of a Luau table as the Variables view reads it: a record of
-   *  its entries, with `_tableRecords` keeping its keys in order, the array
-   *  part first, then its other keys as the table holds them. A nested table
-   *  stays the runtime's table until the view shows it (`getVariableInfo`
-   *  converts it then), so a deep or cyclic table costs one level per
-   *  expansion. */
   getTableRecord(table: ObjectValue): Record<string, unknown> {
-    // No prototype, so a key such as `__proto__` is an own entry like any
-    // other rather than a call of an inherited setter.
     const record: Record<string, unknown> = Object.create(null);
     const entries = table.value ?? new Map<string, unknown>();
-    // The array part is the keys 1, 2, 3, ... up to the first hole, as
-    // `ipairs` reads it (`arrayPortion` in the runtime's MethodDispatch);
-    // every other key follows in the order the table holds them.
     const keys: string[] = [];
     for (let i = 1; entries.get(String(i)) != null; i += 1) {
       keys.push(String(i));
@@ -4902,7 +3695,6 @@ export class Game<T extends M = {}> {
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
   ): Variable {
-    // A table nested in a table shown before is converted as it is shown.
     if (value instanceof ObjectValue) {
       value = this.getTableRecord(value);
     }
@@ -4973,7 +3765,6 @@ export class Game<T extends M = {}> {
     const callStack = this._story.state.callStack;
     for (const thread of callStack._threads) {
       const threadId = thread.threadIndex;
-      // A thread is named by the frame it runs.
       const name = this._story.debugFrames(threadId)?.at(-1)?.name;
       threads.push({
         id: threadId,
@@ -4983,8 +3774,6 @@ export class Game<T extends M = {}> {
     return threads;
   }
 
-  /** The story's stack trace: each frame named from its symbol, at the line
-   *  of the address it stands at (`ProgramStory.debugFrames`). */
   protected getProgramStackTrace(
     program: ProgramStory,
     threadId: number,
@@ -4996,22 +3785,12 @@ export class Game<T extends M = {}> {
     if (!frames) {
       return { stackFrames, totalFrames: 0 };
     }
-    // The protocol counts startFrame and levels from the top (running)
-    // frame, the last of frames, and reads a levels of 0 or none as the rest
-    // of the stack. Each frame keeps its index from the outermost end as its
-    // id, which scopes, variables and evaluate look frames up by.
     const top = frames.length - 1 - Math.max(0, startFrame);
     const bottom = levels ? Math.max(0, top - levels + 1) : 0;
-    // A frame that stands at no address is the one running after a load,
-    // which keeps no last instruction: it stands where the game last ran,
-    // or where the runtime record the save carried last ran.
     const ran =
       this._executingLocation && this._executingLocation[0] >= 0
         ? this._executingLocation
         : this.lastExecutedScriptLocation();
-    // The frame that runs stands on the beat the game waits on, which is
-    // not where its last instruction stands when the beat's continue went
-    // on to cut the next line (#1756).
     const awaiting =
       threadId === program.state.callStack.currentThread.threadIndex
         ? this._awaiting
@@ -5079,41 +3858,16 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = false;
   }
 
-  /** Declare that what follows is a preview rather than a real run.
-   *
-   *  `preview()` runs last: the caller has to load a checkpoint and connect the
-   *  game first, and `connect()` restores every module — which is where the
-   *  audio module decides whether to resume whatever the route left playing. It
-   *  reads `context.system.previewing` to decide, so the mode has to be set
-   *  before the connect rather than at the end of `preview()`.
-   *
-   *  Do not call this on a game that is about to run for real: `Application`
-   *  reads the same flag to decide whether to skip building a renderer.
-   *
-   *  Pass the address the cursor resolved to whenever there is one: the
-   *  asset module reads it as the preview's anchor, to centre its
-   *  prediction window; without an address the flag is simply `true` and it
-   *  does not. The address a preview settled on afterwards is
-   *  `previewedAddress`. */
   markPreviewing(previewAddress?: ProgramAddress): void {
     this._context.system.previewing =
       previewAddress != null ? previewAddress : true;
   }
 
-  /** Run the story to the preview point's beat: from the loaded checkpoint
-   *  when the route to it succeeded, else from the start of the flow. */
   protected runPreview(previewAddress: ProgramAddress) {
     if (this._simulation === "success") {
       this.continue(true);
       return;
     }
-    // A failed route, or none: the same reason as the `start` fail branch.
-    // Modules are already connected and mounted here, so a full `reset`
-    // would clear the ui module's mounted layouts and `_events` and nothing
-    // would mount again. Only the story needs resetting, which the jump
-    // does, before jumping to the preview path — plus discarding any beats
-    // the abandoned run left queued (see the start-branch residue audit;
-    // idempotent between previews, where the queue is already drained).
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
     this.jumpTo(previewAddress, true);
@@ -5121,88 +3875,24 @@ export class Game<T extends M = {}> {
     this.continue();
   }
 
-  /** Whether a preview's beat is running with its flush held back, to be
-   *  displayed once the pictures it shows are resident. */
   get holdingFlush(): boolean {
     return this._holdingFlush;
   }
 
-  /**
-   * Preview the beat at a point in the script: run the story to the beat's
-   * flush the way play does, hold back the coordinator that would display
-   * it, wait until the pictures the beat shows are resident, then display
-   * it, so its line and its portrait land together. What displays together
-   * is the story's decision as it runs (a conditional, a divert, a
-   * `[[hide]]`, a line of dialogue, a beat that spills into the next scene),
-   * so nothing read off the source can say it; the beat itself can. A beat
-   * with no picture to wait for displays at once, and so does one whose
-   * pictures are already resident; the wait is bounded by the restore
-   * timeout, after which the beat displays anyway. The layouts' bindings
-   * refresh when the beat displays, as they do in play, so nothing the beat
-   * changed shows before its line does.
-   *
-   * A run that stops short of its flush (at a breakpoint inside the beat,
-   * or as a runaway) displays nothing, as it does in play. A preview that
-   * starts while another is waiting takes over, whether or not its point
-   * resolves, and so does a load, a recompile, a reset, a start, a connect,
-   * a debug step, or the game's destruction: the earlier preview's wait
-   * ends at once and it displays nothing, its point previews again when
-   * asked, and its pin goes with the next beat's gate, right after that
-   * gate's request, so a picture still queued for the beat the cursor has
-   * left leaves the express lane once the beat it is on has asked for its
-   * own (a load already in flight finishes there) and the page's
-   * background queue stays paused between the two; when nothing waits (the
-   * next beat needs no gate, the take-over's point resolves to none, a
-   * debug step, whose beat displays at once) the pin goes at once and the
-   * queue resumes, and it goes when its own load settles or with the game
-   * in any case. A
-   * repeat of the point whose preview is waiting settles with it. The
-   * choices the last displayed beat presented leave before the wait, after
-   * the beat's pictures have been asked for, so none of them can be clicked
-   * while it waits and a run that stops short takes them away too; the
-   * page's connect clears every transient target, the choice slots among
-   * them, and forgets them for the game, so on the page's path the connect
-   * takes them and this clear is for a host that previews without a connect
-   * between (a route replay presents none). A handler that runs while the
-   * beat waits repaints the layouts from the story's state, which the beat
-   * has already changed, as it does in play when a handler runs while a
-   * beat's own gate waits. The execution report is what the run executed,
-   * taken when it stopped, so nothing a handler runs during the wait is in
-   * it. With `restore_timeout` at 0 the wait is unbounded: the beat
-   * displays when the page answers or the next update takes the preview
-   * over. Resolves to the path previewed; to null when the point resolves
-   * to none, or when the preview was taken over while it waited.
-   */
   async preview(
     file: string,
     line: number,
-    /** Where a preview with no route runs from, when not the point's own
-     *  address: the line above it that shows a beat (#1606). */
     runFrom?: ProgramAddress,
-    /** The point's address, when it is not the one its line resolves to
-     *  (`setStartFrom`). */
     address?: ProgramAddress,
   ): Promise<ProgramAddress | null> {
     if (this._state === "running") {
-      // Don't preview while running
       return null;
     }
     const previewAddress =
       address ?? this.locator.addressAt(file, line, { beat: "last" });
     if (previewAddress == null) {
-      // A preview call takes over a waiting preview whether or not its
-      // point resolves; with no beat to gate, nothing waits, so an
-      // abandoned pin goes now.
       this.cancelPreview();
       this.module.assets.releaseAbandonedGates();
-      // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
-      // has no narrative path to preview: every path-located flow is a synthetic
-      // `__binding$*` evaluator, and those are excluded from preview candidates.
-      // Its layouts were still mounted at connect, but nothing reveals the
-      // layouts LAYER in this case — no content beat runs, so neither the
-      // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,
-      // and the layer stays at its mounted `opacity:0` (invisible). Reveal it
-      // here so previewing a UI-only screen actually shows it. Idempotent.
       this.module.ui.reveal();
       return null;
     }
@@ -5215,8 +3905,6 @@ export class Game<T extends M = {}> {
     this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];
     this.endSimulation();
-    // A game that has never started is previewing from its first preview on,
-    // as one constructed to preview is from birth.
     if (this._state === "initial") {
       this._state = "previewing";
     }
@@ -5234,18 +3922,10 @@ export class Game<T extends M = {}> {
       this._held = null;
       this._coordinator = null;
     }
-    // What the run executed, taken now: nothing the story runs during the
-    // wait (a handler) can join it.
     const executed = this.executedParams();
-    // The gate for the beat's pictures: none for a run that stopped short
-    // or a beat with nothing to wait for, and the asset module lets an
-    // abandoned pin go either way.
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
-    // After the beat's pictures have been asked for, so that request is the
-    // first thing out; before the wait, so none of the choices can be
-    // clicked meanwhile; whether or not the run reached its flush.
     this.clearChoices();
     if (!held) {
       this.finishPreview(previewAddress, executed);
@@ -5278,9 +3958,6 @@ export class Game<T extends M = {}> {
     return waiting;
   }
 
-  /** Display a held beat once its pictures are resident, unless something
-   *  took the preview over while it waited, which ends the wait at once;
-   *  the pending record and the gate go however the wait ends. */
   protected async displayWhenResident(
     previewAddress: ProgramAddress,
     generation: number,
@@ -5297,25 +3974,18 @@ export class Game<T extends M = {}> {
       this.displayHeld(instructions);
     } finally {
       this.forgetPendingPreview(generation);
-      // A composed display is on the page once it has been sent, and the
-      // pictures its gate pins stay resident until then (#1820).
       this.module.ui.afterCompose(() => gate.release());
     }
     this.finishPreview(previewAddress, executed);
     return previewAddress;
   }
 
-  /** Drop the pending record of the preview of `generation`, if it is
-   *  still the pending one (a take-over may have replaced it). */
   protected forgetPendingPreview(generation: number): void {
     if (this._pendingPreview?.generation === generation) {
       this._pendingPreview = null;
     }
   }
 
-  /** Report a preview once it has displayed what it displays: the run's
-   *  execution as taken when the run stopped, sent after the display as
-   *  `continue` sends it in play; then the modules' notice and the page's. */
   protected finishPreview(
     previewAddress: ProgramAddress,
     executed: GameExecutedParams,
@@ -5328,14 +3998,6 @@ export class Game<T extends M = {}> {
     this.notifyPreviewed(previewAddress);
   }
 
-  /** Take over from a preview. A waiting one ends its wait now and displays
-   *  nothing, and its gate is abandoned: the asset module lets the pin go
-   *  with the next beat's gate, at once when the caller issues none, when
-   *  the load settles, or with the game, whichever is first, since a
-   *  release before the next gate's request would let the page's
-   *  background queue start loads beside the picture the next beat waits
-   *  on. The point last previewed is forgotten either way, since what the
-   *  caller is about to do replaces the state that preview showed. */
   protected cancelPreview(): void {
     this._previewGeneration += 1;
     this._previewedAddress = undefined;
@@ -5347,9 +4009,6 @@ export class Game<T extends M = {}> {
     }
   }
 
-  /** Display a beat whose flush was held, doing what the flush would have
-   *  done in `stepWithinBudget`: the coordinator, the interaction notice,
-   *  the checkpoint, and the reveal of a run that displayed nothing. */
   protected displayHeld(instructions: Instructions | null) {
     this._coordinator = null;
     if (instructions) {
@@ -5374,8 +4033,6 @@ export class Game<T extends M = {}> {
     return location ? this.getDocumentLocation(location) : null;
   }
 
-  /** Where the last address the runtime record holds a location for
-   *  stands. */
   protected lastExecutedScriptLocation(): ScriptLocation | null {
     const lastExecuted = this._runtimeState.pathsExecutedThisFrame
       .toArray()
@@ -5389,8 +4046,6 @@ export class Game<T extends M = {}> {
       : null;
   }
 
-  /** Where an address stands, as a script index and a range; nothing for an
-   *  address the program does not hold. */
   scriptLocationOf(
     address: ProgramAddress | null | undefined,
   ): ScriptLocation | undefined {
@@ -5401,7 +4056,6 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** Where an address stands, as an editor takes a location. */
   documentLocationOf(
     address: ProgramAddress | null | undefined,
   ): DocumentLocation | null {
@@ -5413,7 +4067,6 @@ export class Game<T extends M = {}> {
     return Game.documentLocation(this._program, this._scripts, location);
   }
 
-  /** The uri a location's script index names, as `documentLocation` gives it. */
   protected scriptUri(scriptIndex: number | undefined) {
     return scriptIndex != null
       ? (this._scripts[scriptIndex] ?? this._program.uri)
@@ -5442,9 +4095,6 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  /** Where a flow named by its qualified name (a route's start) is declared,
-   *  as an editor takes a location; nothing for a flow the program does not
-   *  declare. */
   flowDocumentLocationOf(flow: string): DocumentLocation | null {
     const program = this._program;
     const location =
@@ -5455,16 +4105,12 @@ export class Game<T extends M = {}> {
     return location ? this.getDocumentLocation(location) : null;
   }
 
-  /** Where the story that runs `program` stands: the position its last step
-   *  ran, which the player's worker names when the story runs away. */
   static storyLocation(
     story: ProgramStory,
     program: SparkProgram,
   ): DocumentLocation | null {
     const positions = storyPositions(story, program);
     const scripts = Object.keys(program?.scripts ?? {});
-    // The position its last step ran, or, after an image was restored and
-    // before a step has run, where it stands.
     const location = Game.scriptLocationIn(
       scripts,
       positions.locator,

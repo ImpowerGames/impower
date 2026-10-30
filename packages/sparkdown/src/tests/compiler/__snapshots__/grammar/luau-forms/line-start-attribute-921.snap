@@ -1,4 +1,4 @@
-sparkdown [0..47]
+sparkdown [0..65]
  ├─ LuauFunctionAttributes [0..33]
  │   ├─ LuauFunctionAttributes_begin 0
  │   │   └─ LuauFunctionAttributes_begin_c1 0
@@ -61,51 +61,68 @@ sparkdown [0..47]
  │   │           └─ LuauFunctionDefinition_end_c5 33
  │   └─ LuauFunctionAttributes_end 33
  ├─ Newline [33..34]: "\n"
- ├─ ImplicitAction [34..46]
- │   ├─ ImplicitAction_begin 34
- │   │   └─ ImplicitAction_begin_c1 34
- │   │       └─ OptionalWhitespace 34
- │   ├─ ImplicitAction_content [34..46]
- │   │   └─ ActionLineEnd [34..46]
- │   │       ├─ ActionLineEnd_begin 34
- │   │       │   └─ ActionLineEnd_begin_c1 34
- │   │       │       └─ OptionalWhitespace 34
- │   │       ├─ ActionLineEnd_content [34..46]
- │   │       │   └─ TextChunk [34..46]
- │   │       │       ├─ TextChunk_begin 34
- │   │       │       ├─ TextChunk_content [34..46]
- │   │       │       │   ├─ Word [34..39]: "Value"
- │   │       │       │   ├─ Space [39..40]: " "
- │   │       │       │   ├─ LuauInterpolatedStringExpression [40..45]
- │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [40..41]
- │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [40..41]
- │   │       │       │   │   │       └─ PunctuationBraceOpen [40..41]: "{"
- │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [41..44]
- │   │       │       │   │   │   └─ LuauAccessPath [41..44]
- │   │       │       │   │   │       ├─ LuauAccessPath_begin 41
- │   │       │       │   │   │       ├─ LuauAccessPath_content [41..44]
- │   │       │       │   │   │       │   └─ LuauAccessPart [41..44]
- │   │       │       │   │   │       │       └─ LuauFunctionCall [41..44]
- │   │       │       │   │   │       │           ├─ LuauFunctionCall_begin [41..42]
- │   │       │       │   │   │       │           │   ├─ LuauFunctionCall_begin_c1 [41..42]
- │   │       │       │   │   │       │           │   │   └─ LuauFunctionName [41..42]: "f"
- │   │       │       │   │   │       │           │   └─ LuauFunctionCall_begin_c2 42
- │   │       │       │   │   │       │           ├─ LuauFunctionCall_content [42..44]
- │   │       │       │   │   │       │           │   └─ LuauFunctionCallParameters [42..44]
- │   │       │       │   │   │       │           │       ├─ LuauFunctionCallParameters_begin [42..43]
- │   │       │       │   │   │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [42..43]
- │   │       │       │   │   │       │           │       │       └─ PunctuationParenOpen [42..43]: "("
- │   │       │       │   │   │       │           │       └─ LuauFunctionCallParameters_end [43..44]
- │   │       │       │   │   │       │           │           └─ LuauFunctionCallParameters_end_c1 [43..44]
- │   │       │       │   │   │       │           │               └─ PunctuationParenClose [43..44]: ")"
- │   │       │       │   │   │       │           └─ LuauFunctionCall_end 44
- │   │       │       │   │   │       └─ LuauAccessPath_end 44
- │   │       │       │   │   │           └─ LuauAccessPath_end_c1 44
- │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [44..45]
- │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [44..45]
- │   │       │       │   │           └─ PunctuationBraceClose [44..45]: "}"
- │   │       │       │   └─ Punctuation [45..46]: "."
- │   │       │       └─ TextChunk_end 46
- │   │       └─ ActionLineEnd_end 46
- │   └─ ImplicitAction_end 46
- └─ Newline [46..47]: "\n"
+ ├─ Scene [34..45]
+ │   ├─ Scene_begin [34..40]
+ │   │   ├─ Scene_begin_c1 34
+ │   │   │   └─ OptionalWhitespace 34
+ │   │   ├─ Scene_begin_c2 [34..39]
+ │   │   │   └─ SceneKeyword [34..39]: "scene"
+ │   │   └─ Scene_begin_c3 [39..40]
+ │   │       └─ RequiredWhitespace [39..40]: " "
+ │   ├─ Scene_content [40..45]
+ │   │   └─ SceneWithoutParametersDeclaration [40..45]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [40..45]
+ │   │       │   └─ SceneDeclarationName [40..45]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 45
+ │   └─ Scene_end 45
+ ├─ Newline [45..46]: "\n"
+ ├─ ImplicitAction [46..60]
+ │   ├─ ImplicitAction_begin [46..48]
+ │   │   └─ ImplicitAction_begin_c1 [46..48]
+ │   │       └─ OptionalWhitespace [46..48]: "  "
+ │   ├─ ImplicitAction_content [48..60]
+ │   │   └─ ActionLineEnd [48..60]
+ │   │       ├─ ActionLineEnd_begin 48
+ │   │       │   └─ ActionLineEnd_begin_c1 48
+ │   │       │       └─ OptionalWhitespace 48
+ │   │       ├─ ActionLineEnd_content [48..60]
+ │   │       │   └─ TextChunk [48..60]
+ │   │       │       ├─ TextChunk_begin 48
+ │   │       │       ├─ TextChunk_content [48..60]
+ │   │       │       │   ├─ Word [48..53]: "Value"
+ │   │       │       │   ├─ Space [53..54]: " "
+ │   │       │       │   ├─ LuauInterpolatedStringExpression [54..59]
+ │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [54..55]
+ │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [54..55]
+ │   │       │       │   │   │       └─ PunctuationBraceOpen [54..55]: "{"
+ │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [55..58]
+ │   │       │       │   │   │   └─ LuauAccessPath [55..58]
+ │   │       │       │   │   │       ├─ LuauAccessPath_begin 55
+ │   │       │       │   │   │       ├─ LuauAccessPath_content [55..58]
+ │   │       │       │   │   │       │   └─ LuauAccessPart [55..58]
+ │   │       │       │   │   │       │       └─ LuauFunctionCall [55..58]
+ │   │       │       │   │   │       │           ├─ LuauFunctionCall_begin [55..56]
+ │   │       │       │   │   │       │           │   ├─ LuauFunctionCall_begin_c1 [55..56]
+ │   │       │       │   │   │       │           │   │   └─ LuauFunctionName [55..56]: "f"
+ │   │       │       │   │   │       │           │   └─ LuauFunctionCall_begin_c2 56
+ │   │       │       │   │   │       │           ├─ LuauFunctionCall_content [56..58]
+ │   │       │       │   │   │       │           │   └─ LuauFunctionCallParameters [56..58]
+ │   │       │       │   │   │       │           │       ├─ LuauFunctionCallParameters_begin [56..57]
+ │   │       │       │   │   │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [56..57]
+ │   │       │       │   │   │       │           │       │       └─ PunctuationParenOpen [56..57]: "("
+ │   │       │       │   │   │       │           │       └─ LuauFunctionCallParameters_end [57..58]
+ │   │       │       │   │   │       │           │           └─ LuauFunctionCallParameters_end_c1 [57..58]
+ │   │       │       │   │   │       │           │               └─ PunctuationParenClose [57..58]: ")"
+ │   │       │       │   │   │       │           └─ LuauFunctionCall_end 58
+ │   │       │       │   │   │       └─ LuauAccessPath_end 58
+ │   │       │       │   │   │           └─ LuauAccessPath_end_c1 58
+ │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [58..59]
+ │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [58..59]
+ │   │       │       │   │           └─ PunctuationBraceClose [58..59]: "}"
+ │   │       │       │   └─ Punctuation [59..60]: "."
+ │   │       │       └─ TextChunk_end 60
+ │   │       └─ ActionLineEnd_end 60
+ │   └─ ImplicitAction_end 60
+ ├─ Newline [60..61]: "\n"
+ ├─ LuauEndKeyword [61..64]: "end"
+ └─ Newline [64..65]: "\n"

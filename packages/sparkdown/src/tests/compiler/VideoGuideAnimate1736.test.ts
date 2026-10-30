@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
 
-// The video guide's `[[animate ...]]` row is the example an author copies to
-// animate the layer a movie is on (I-1736). Written after a movie on that
-// layer, it names an animation and no picture, so it compiles without a
-// diagnostic.
-
 const uri = "file:///project/main.sd";
 const video: File = {
   uri: "file:///project/assets/bunny_idle.webm",
@@ -30,7 +25,7 @@ describe("video guide animate example (I-1736)", () => {
 
   it("compiles after a movie on the same layer without naming a missing image", () => {
     const [example] = guideAnimateExamples();
-    const text = `[[show portrait bunny_idle]]\n${example}\n`;
+    const text = `scene start\n  [[show portrait bunny_idle]]\n  ${example}\nend\n`;
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [

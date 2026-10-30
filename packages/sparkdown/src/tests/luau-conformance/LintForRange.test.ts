@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// ForRange rule. Snippets and expected messages are quoted verbatim and
-// placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseWithLints, lintInFunction } from "./diagnosticTestHarness";
 
@@ -87,9 +81,7 @@ end
   });
 });
 
-// Sparkdown-specific: a length whose operand is a field, a call or another
-// length is still a bare length. The grammar spells some of these operands
-// in several nodes.
+// Sparkdown-specific
 describe("bare lengths of compound operands", () => {
   const ZERO = "For loop starts at 0, but arrays start at 1";
   test.each([
@@ -108,7 +100,7 @@ describe("bare lengths of compound operands", () => {
   });
 });
 
-// Sparkdown-specific: ranges the rule must leave alone.
+// Sparkdown-specific
 describe("ordinary ranges are not reported", () => {
   test.each([
     ["an increasing constant range", "\nfor i = 1, 10 do\nend\n"],
@@ -116,8 +108,6 @@ describe("ordinary ranges are not reported", () => {
     ["negative bounds, which are not literals", "\nfor i = -1, -5 do\nend\n"],
     ["a generic for", "\nfor k, v in pairs({}) do\nend\n"],
     ["an expression bound", "\nlocal n = 3\nfor i = n, 1 do\nend\n"],
-    // Luau's rule looks for a bare `#t`; arithmetic on it is a different
-    // bound, and counting from 0 to `#t - 1` is correct.
     ["0 to #t - 1", "\nlocal t = {}\nfor i = 0, #t - 1 do\nend\n"],
     ["0 to #t // 2", "\nlocal t = {}\nfor i = 0, #t // 2 do\nend\n"],
     ["#t - 1 down to 1", "\nlocal t = {}\nfor i = #t - 1, 1 do\nend\n"],
@@ -128,8 +118,6 @@ describe("ordinary ranges are not reported", () => {
   });
 });
 
-// A Sparkle `layout` loop is a separate construct in the grammar, and the rule
-// does not reach it (docs/compiler/LINTS.md).
 describe("a loop in a Sparkle layout is not checked", () => {
   test("for i = 8, 1 in a layout", () => {
     expect(

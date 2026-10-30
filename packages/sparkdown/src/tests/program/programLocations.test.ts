@@ -1,11 +1,3 @@
-// A program of statement chunks builds no path-location table (#700). Its root
-// locates every address from the chunks' own line tables
-// (docs/engine/binary-program.md, section 8), so a compile walks no runtime
-// tree for locations and sorts none: the two phases that built the current
-// engine's table, `populateLocations` and `sortPathLocations`, are absent from
-// its profile, as is the table. The scene
-// assets it carries are read from its chunks, and each beat is known by the
-// address of its `LineStart`.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { MAIN_URI, programCompiler } from "./programHarness";
@@ -41,8 +33,6 @@ const quiet = <T>(run: () => T): T => {
   }
 };
 
-/** A compile, an edit inside one beat and a compile again, with the phases
- *  each compile measured. */
 function editInsideOneBeat() {
   const c = programCompiler({ [MAIN_URI]: TEXT }, {
     useBuiltinsPrelude: true,
@@ -87,10 +77,8 @@ describe("a compile with statement chunks", () => {
     const { first, edited, phases } = editInsideOneBeat();
     expect(first.chunks).toBeDefined();
     expect(edited.chunks).toBeDefined();
-    // The compile was measured, and built its chunks.
     expect(phases.some((name) => name.includes("program/chunks"))).toBe(true);
     expect(phases.filter((name) => /populateLocations|sortPathLocations/.test(name))).toEqual([]);
-    // The edit is in the program: its beat is at its line.
     const locator = programLocator(edited);
     const address = locator.addressAt(MAIN_URI, 3)!;
     expect(locator.locationOf(address)).toMatchObject({ uri: MAIN_URI, startLine: 3 });
@@ -117,12 +105,9 @@ describe("a compile with statement chunks", () => {
     expect(beats[1]!.address).toBe(locator.addressAt(MAIN_URI, 6));
   });
 
-  // Round 2 of the review of #1618 (report 6028078542): a choose block's
-  // entries are its own code and its choices' bodies blocks of it, so its
-  // entries' assets were read before every body's.
   it("reads a choice's entry and its body before the next choice's, in document order", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -133,6 +118,9 @@ describe("a compile with statement chunks", () => {
       "      [[body_b]] Body B.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -146,12 +134,9 @@ describe("a compile with statement chunks", () => {
     expect(images).toEqual(["intro", "option_a", "body_a", "option_b", "body_b", "outro"]);
   });
 
-  // Round 3 of the review of #1618 (report 6028384794): a choose block in
-  // another's preamble has its `then` clause emitted after every entry of the
-  // block around it, so its clause's assets fell behind the later choices'.
   it("reads a nested choose block's then clause before the next choice of the block around it", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  choose",
@@ -166,6 +151,9 @@ describe("a compile with statement chunks", () => {
       "  then",
       "    [[finished]] Finished.",
       "  end",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -183,18 +171,14 @@ describe("a compile with statement chunks", () => {
       "body_b",
       "finished",
     ]);
-    // Each record stands at its own beat's line.
     expect(beats.map((beat) => locator.locationOf(beat.address)?.startLine)).toEqual([
       6, 8, 11, 13,
     ]);
   });
 
-  // #1645: the beats of a choose block's choices, its then clause and the
-  // content after it read in document order, not with the choices' content
-  // after the rest of the scene.
   it("reads a choose block's bodies, its then clause and the content after it in document order", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -207,6 +191,9 @@ describe("a compile with statement chunks", () => {
       "    [[joined]] Joined.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -227,11 +214,9 @@ describe("a compile with statement chunks", () => {
     ]);
   });
 
-  // #1645: a choose block nested in a choice's body reads its beats where it
-  // stands, before the next choice of the block around it.
   it("reads a choose block nested in a choice's body before the next choice", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -246,6 +231,9 @@ describe("a compile with statement chunks", () => {
       "    + [B] [[option_b]] B.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -267,18 +255,18 @@ describe("a compile with statement chunks", () => {
     ]);
   });
 
-  // Round 1 of the review of #1618 (report 6026971997): an interpolation
-  // splits a beat's text into several literals, each of which named the
-  // beat's address in a record of its own.
   it("names one record for a beat whose text an interpolation splits", () => {
     const text = [
       "store score = 0",
       "",
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[room]] Hello {score} [[portrait]] and [[room]] again.",
       "  [[street]] Later.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");

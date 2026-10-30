@@ -1,12 +1,3 @@
-// A reassignment whose value list ends its line with a comma. In Luau code (a
-// function body or a Luau block) the list continues on the next line, as in
-// Luau and as a declaration's does (`TrailingCommaValueList.test.ts`): a
-// comment after the comma, or blank and comment-only lines before the next
-// value, leave the list open. A line that starts with a statement belongs to
-// the enclosing block, and the comma before it is Luau's parse error. In a
-// narrative body the reassignment ends at its line: the next line is story,
-// and a comma that ends the line is the same error.
-
 import { describe, expect, test } from "vitest";
 import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -19,7 +10,7 @@ function run(source: string) {
 }
 
 const fn = (body: string, ret: string) =>
-  `Value {f()}.\nfunction f()\n  local a, g = 0, 0\n  local t = { a = 0, g = 0 }\n${body}\n  ${ret}\nend\n`;
+  `scene start\n  Value {f()}.\nend\nfunction f()\n  local a, g = 0, 0\n  local t = { a = 0, g = 0 }\n${body}\n  ${ret}\nend\n`;
 
 describe("Luau code: a reassignment list continues after a trailing comma", () => {
   test.each([
@@ -99,7 +90,6 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     expect(text).toBe(expected);
   });
 
-  // Luau evaluates every value, then assigns as many as there are targets.
   const bump = "  local calls = 0\n  local function bump() calls = calls + 1 return 9 end\n";
   test.each([
     ["on the next line", `${bump}  g = 1,\n    bump()`, "return g * 10 + calls"],
@@ -114,11 +104,11 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
   test.each([
     [
       "in a narrative body",
-      "store g = 0\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& g = 1, bump()\nValue {g * 10 + calls}.\n",
+      "store g = 0\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\nscene start\n  & g = 1, bump()\n  Value {g * 10 + calls}.\nend\n",
     ],
     [
       "to a field target in a narrative body",
-      "store t = { g = 0 }\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& t.g = 1, bump()\nValue {t.g * 10 + calls}.\n",
+      "store t = { g = 0 }\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\nscene start\n  & t.g = 1, bump()\n  Value {t.g * 10 + calls}.\nend\n",
     ],
   ])("an extra value for a single target after `&` is still evaluated (%s)", (_name, source) => {
     const { errors, text } = run(source);
@@ -127,29 +117,28 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
   });
 });
 
-// Luau's parse error for the missing value, reported on the comma's line.
 const missingValue = (got: string) =>
   `Expected identifier when parsing expression, got '${got}'`;
 
 describe("Luau code: a reassignment comma with nothing after it", () => {
   test.each([
-    ["end", "function f()\n  local a, g = 0, 0\n  a, g = 1,\nend\nValue {f()}.\n", "end"],
+    ["end", "function f()\n  local a, g = 0, 0\n  a, g = 1,\nend\nscene start\n  Value {f()}.\nend\n", "end"],
     [
       "else",
-      "function f(ok)\n  local a, g = 0, 0\n  if ok then\n    a, g = 1,\n  else\n    return 2\n  end\nend\nValue {f(false)}.\n",
+      "function f(ok)\n  local a, g = 0, 0\n  if ok then\n    a, g = 1,\n  else\n    return 2\n  end\nend\nscene start\n  Value {f(false)}.\nend\n",
       "else",
     ],
     [
       "until",
-      "function f()\n  local n, a, g = 0, 0, 0\n  repeat\n    n = n + 1\n    a, g = 1,\n  until n > 2\n  return n\nend\nValue {f()}.\n",
+      "function f()\n  local n, a, g = 0, 0, 0\n  repeat\n    n = n + 1\n    a, g = 1,\n  until n > 2\n  return n\nend\nscene start\n  Value {f()}.\nend\n",
       "until",
     ],
-    ["return", "function f()\n  local a, g = 0, 0\n  a, g = 1,\n  return 4\nend\nValue {f()}.\n", "return"],
-    ["local", "function f()\n  local a, g = 0, 0\n  a, g = 1,\n  local b = 4\n  return b\nend\nValue {f()}.\n", "local"],
-    ["end, after a single target", "function f()\n  local g = 0\n  g = 1,\nend\nValue {f()}.\n", "end"],
+    ["return", "function f()\n  local a, g = 0, 0\n  a, g = 1,\n  return 4\nend\nscene start\n  Value {f()}.\nend\n", "return"],
+    ["local", "function f()\n  local a, g = 0, 0\n  a, g = 1,\n  local b = 4\n  return b\nend\nscene start\n  Value {f()}.\nend\n", "local"],
+    ["end, after a single target", "function f()\n  local g = 0\n  g = 1,\nend\nscene start\n  Value {f()}.\nend\n", "end"],
     [
       "return, after an operator line that ends with a comma",
-      "function f()\n  local a, g, n = 0, 0, 3\n  a, g = 1,\n    n\n    + 4,\n  return g\nend\nValue {f()}.\n",
+      "function f()\n  local a, g, n = 0, 0, 3\n  a, g = 1,\n    n\n    + 4,\n  return g\nend\nscene start\n  Value {f()}.\nend\n",
       "return",
     ],
   ])("before %s: the error, and the keyword stays with its block", (_name, source, got) => {
@@ -160,17 +149,15 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
 
   test("before an assignment, the second `=` is the error", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local a, g, x = 0, 0, 0\n  a, g = 1,\n  x = 99\n  return a\nend\nValue {f()}.\n",
+      "function f()\n  local a, g, x = 0, 0, 0\n  a, g = 1,\n  x = 99\n  return a\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual([missingValue("=")]);
   });
 
-  // Every other statement that can start the line after the comma, each in a
-  // place it can stand, and the statement stays with its block.
   const inLoop = (line: string) =>
-    `function f()\n  local a, g = 0, 0\n  for i = 1, 2 do\n    a, g = 1,\n    ${line}\n  end\n  return a\nend\nValue {f()}.\n`;
+    `function f()\n  local a, g = 0, 0\n  for i = 1, 2 do\n    a, g = 1,\n    ${line}\n  end\n  return a\nend\nscene start\n  Value {f()}.\nend\n`;
   const inBody = (lines: string) =>
-    `function f()\n  local a, g = 0, 0\n  a, g = 1,\n${lines}\n  return a\nend\nValue {f()}.\n`;
+    `function f()\n  local a, g = 0, 0\n  a, g = 1,\n${lines}\n  return a\nend\nscene start\n  Value {f()}.\nend\n`;
   test.each([
     ["break", inLoop("break"), "break"],
     ["goto", inBody("  goto done\n  ::done::"), "goto"],
@@ -185,7 +172,7 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     ["a define", inBody("  define cfg with\n    k = 1\n  end"), "define"],
     [
       "elseif",
-      "function f(ok)\n  local a, g = 0, 0\n  if ok then\n    a, g = 1,\n  elseif not ok then\n    return 2\n  end\nend\nValue {f(false)}.\n",
+      "function f(ok)\n  local a, g = 0, 0\n  if ok then\n    a, g = 1,\n  elseif not ok then\n    return 2\n  end\nend\nscene start\n  Value {f(false)}.\nend\n",
       "elseif",
     ],
   ])("before %s: the error", (_name, source, got) => {
@@ -193,8 +180,6 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
-  // `continue` is a name where a value can stand, as Luau reads it (#1906),
-  // so it is the list's second value.
   test("before `continue`: `continue` is the second value", () => {
     const { errorMessages } = collectDiagnostics(inLoop("continue"));
     expect(errorMessages).toEqual([]);
@@ -219,56 +204,49 @@ describe("Luau code: an operator that cannot begin a value after a comma", () =>
   });
 });
 
-// Its Luau meets its end of input at the line's end, as an `&` line's does,
-// so the comma's value is missing at `<eof>` (#1907).
 describe("narrative body: the reassignment ends at its line", () => {
   test.each([
     ["next line", "  a, b = 1,\n  2\n"],
     ["after a comment", "  a, b = 1, -- note\n  2\n"],
   ])("a value on the next line is story, and the comma is the error (%s)", (_name, body) => {
     const { errorMessages } = collectDiagnostics(
-      `store a, b = 0, 0\n-> one\nscene one\n${body}  Value {a}.\nend\n`,
+      `store a, b = 0, 0\nscene start\n${body}  Value {a}.\nend\n`,
     );
     expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
   test("before prose: the error, and the story line is untouched", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
-      "store a, b = 0, 0\n-> one\nscene one\n  a, b = 1,\n  The hero has {a} health.\nend\n",
+      "store a, b = 0, 0\nscene start\n  a, b = 1,\n  The hero has {a} health.\nend\n",
     );
     expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 
   test.each([
-    ["two targets", "store a, b = 0, 0\n& a, b = 1,\nThe hero has {a} health.\n"],
-    ["one target", "store a = 0\n& a = 1,\nThe hero has {a} health.\n"],
+    ["two targets", "store a, b = 0, 0\nscene start\n  & a, b = 1,\n  The hero has {a} health.\nend\n"],
+    ["one target", "store a = 0\nscene start\n  & a = 1,\n  The hero has {a} health.\nend\n"],
   ])("a reassignment in an `&` statement ends at its line too (%s)", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
-    // The authored island ends before prose: its native EOF owns this error.
     expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
   });
 
   test("a complete list is not an error", () => {
     const { errorMessages } = collectDiagnostics(
-      "store a, b = 0, 0\n-> one\nscene one\n  a, b = 1, 2\n  Value {a}.\nend\n",
+      "store a, b = 0, 0\nscene start\n  a, b = 1, 2\n  Value {a}.\nend\n",
     );
     expect(errorMessages).toEqual([]);
   });
 
   test("in a sparkdown `if` around story: the error, and the story line is untouched", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(
-      "store a, b = 0, 0\n-> one\nscene one\n  if true then\n    a, b = 1,\n    The hero has {a} health.\n  end\nend\n",
+      "store a, b = 0, 0\nscene start\n  if true then\n    a, b = 1,\n    The hero has {a} health.\n  end\nend\n",
     );
     expect(errorMessages).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 });
 
-// A target list that ends its line with a comma continues on the next line
-// in Luau code, as in Luau (`a,` then `g = 1, 2`). Nothing else in Luau code
-// starts with a name followed by a comma, so calls, tables, `return` lists
-// and `for` headers that break after a comma read as before.
 describe("Luau code: a target list continues after a trailing comma", () => {
   test.each([
     ["next line", "  a,\n    g = 1, 2", "return a * 10 + g", "Value 12.\n"],
@@ -295,7 +273,7 @@ describe("Luau code: a target list continues after a trailing comma", () => {
 
   test("a return list that breaks after a comma reads as before", () => {
     const { errors, text } = run(
-      "Value {f()}.\nfunction f()\n  local a, g = 1, 2\n  return a,\n    g\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local a, g = 1, 2\n  return a,\n    g\nend\n",
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Value 1.\n");
@@ -303,20 +281,20 @@ describe("Luau code: a target list continues after a trailing comma", () => {
 
   test("before `end`: the missing target is the error, and `end` stays with the function", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local a, g = 0, 0\n  a,\nend\nValue {f()}.\n",
+      "function f()\n  local a, g = 0, 0\n  a,\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual([missingValue("end")]);
   });
 
   test("a target list with no `=` is the error at the token after it", () => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local a, g = 0, 0\n  a,\n    g\nend\nValue {f()}.\n",
+      "function f()\n  local a, g = 0, 0\n  a,\n    g\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(errorMessages).toEqual(["Expected '=' when parsing assignment, got 'end'"]);
   });
 
   test("in a narrative body a line that ends with a comma is still story", () => {
-    const { errors, text } = run("-> one\nscene one\n  a,\n  Hi.\nend\n");
+    const { errors, text } = run("scene start\n  a,\n  Hi.\nend\n");
     expect(errors).toEqual([]);
     expect(text).toBe("a,\n");
   });
@@ -332,7 +310,6 @@ describe("Luau code: targets the reassignment's start reads", () => {
   });
 });
 
-// A compound assignment (`+=`) takes one target and one value, as in Luau.
 describe("Luau code: a compound assignment with a list", () => {
   test.each([
     ["an extra value on the same line", "  g += 1, 2"],
@@ -340,8 +317,6 @@ describe("Luau code: a compound assignment with a list", () => {
     ["a comma that ends the line", "  g += 1,"],
   ])("%s: the comma is the error", (_name, body) => {
     const { errorMessages } = collectDiagnostics(fn(body, "return g"));
-    // Luau's reading then reads on from the token after the comma, and its
-    // errors there are reported too (I-1322).
     expect(errorMessages[0]).toEqual(missingValue(","));
   });
 
@@ -353,7 +328,7 @@ describe("Luau code: a compound assignment with a list", () => {
 
 describe("Sparkle handler closures", () => {
   const layout = (handler: string) =>
-    `store a, g = 0, 0\nlayout form with\n  button "Go" @click={ ${handler} }\nend\nValue {g}.\n`;
+    `store a, g = 0, 0\nlayout form with\n  button "Go" @click={ ${handler} }\nend\nscene start\n  Value {g}.\nend\n`;
 
   test.each([
     ["a complete list", "a, g = 1, 2", []],
@@ -365,7 +340,6 @@ describe("Sparkle handler closures", () => {
   });
 });
 
-// A bracket inside a quoted key is text, not structure (review round 4).
 describe("Luau code: a target whose key is a string holding a bracket", () => {
   test.each([
     ["on one line", '  t["["], g = 1, 2', 'return t["["] * 10 + g'],
@@ -392,8 +366,6 @@ describe("Luau code: a target whose key is a string holding a bracket", () => {
   });
 });
 
-// As in Luau, whose compiler evaluates complex targets before the values, a
-// call in a target runs before a call among the values (review round 4).
 describe("evaluation order of targets and values", () => {
   const order =
     "  local calls = 0\n  local function key() calls = calls * 10 + 1 return \"g\" end\n  local function bump() calls = calls * 10 + 2 return 9 end\n";

@@ -3,18 +3,14 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
 import { testCompiler } from "../engineUnderTest";
 import { officialSyntaxErrors } from "../compiler/officialSyntax";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 
-// A function body is Luau, so a line there that begins with `&` continues the
-// type before it as an intersection, as Luau reads it. `&` marks a Luau
-// statement only in story text, where it ends at its line (#1374).
 const inFunction = (body: string) =>
-  `Value {f()}.\nfunction f()\n${body
+  `scene start\n  Value {f()}.\nend\nfunction f()\n${body
     .split("\n")
     .map((line) => (line ? `  ${line}` : line))
     .join("\n")}\nend\n`;
 
-// TypeInfer.functions.test.cpp, `luau_subtyping_is_np_hard`, at Luau
-// 7d5f73364fdbbaa984fa545071630eba73cfea98, verbatim.
 const LUAU_SUBTYPING_IS_NP_HARD = `
 --!strict
 
@@ -109,8 +105,6 @@ test.each([
   expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
 });
 
-// Luau does not mix a union and an intersection without parentheses, and
-// an intersection line after a union line is that error, as on one line.
 test("an intersection line after a union line is Luau's mixing error", () => {
   expect(
     checkLuau("type F = number\n| string\n& boolean\nreturn 1").syntaxDiagnostics.map(
@@ -158,9 +152,6 @@ test.each([
   expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
 });
 
-// A member may be named by a word that begins a declaration elsewhere
-// (`store`, `const`) or that Luau reads as a name where a type stands
-// (`continue`, `goto`): the line ends before such a word only after a type.
 test.each(["store", "const", "continue", "goto"])(
   "an intersection member named %s reads as Luau",
   (name) => {
@@ -170,8 +161,6 @@ test.each(["store", "const", "continue", "goto"])(
   },
 );
 
-// A statement right after a member's type, with nothing between them (`{}a`),
-// is the next statement, as Luau reads it, and runs.
 test("a statement right after a member's type on its line runs", () => {
   const ctx = makeRuntimeStoryFromSource(
     inFunction("local a = 1\ntype T = {}\n& {}a = 9\nreturn a"),
@@ -180,21 +169,18 @@ test("a statement right after a member's type on its line runs", () => {
   expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
 });
 
-// The member lines that continue a function's return type are part of the
-// type, and a statement after one on its line runs, as Luau reads it.
 test.each([
   ["at the start of the line", "& {}a = 9"],
   ["indented", "  & {}a = 9"],
   ["after a block comment", "& {}--[[c]]a = 9"],
 ])("a statement after a return type's member line runs (%s)", (_name, line) => {
   const ctx = makeRuntimeStoryFromSource(
-    `store a = 1\nValue {f().a}.\nfunction f(): {}\n${line}\nreturn {a = a}\nend\n`,
+    `store a = 1\nscene start\n  Value {f().a}.\nend\nfunction f(): {}\n${line}\nreturn {a = a}\nend\n`,
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
 });
 
-// Each member line is a line of its own, at any indentation.
 test.each([
   ["table members", "type T = {}\n& {}\n& {}\nreturn 1"],
   ["named members", "type A = {}\ntype B = {}\ntype T = {}\n& A\n& B\nreturn 1"],
@@ -204,8 +190,6 @@ test.each([
   expect(checkLuau(body).syntaxDiagnostics).toEqual([]);
 });
 
-// An `&` line that continues no type is reported exactly as Luau reports
-// it, its recovery's errors included.
 test.each(["& {}", "& print(1)", "&Hello", "& {}a = 9"])(
   "an `&` line that continues no type is reported as Luau reports it: %s",
   (line) => {
@@ -222,10 +206,6 @@ test.each(["& {}", "& print(1)", "&Hello", "& {}a = 9"])(
   },
 );
 
-// Where Sparkdown's reading of a statement departs from Luau's on purpose
-// (a statement whose expression is already an error is not also reported as
-// incomplete), an `&` line departs the same way: `& ()` reports the `&` and
-// then what `()` alone reports.
 test("an `&` line reports what the same line without its `&` reports", () => {
   const plain = checkLuau("()\nreturn 1").syntaxDiagnostics.map((d) => d.message);
   expect(checkLuau("& ()\nreturn 1").syntaxDiagnostics.map((d) => d.message)).toEqual([
@@ -234,23 +214,17 @@ test("an `&` line reports what the same line without its `&` reports", () => {
   ]);
 });
 
-// A member line is read as Luau's lexer reads it, but its strings and
-// Sparkdown's own expressions keep their meaning: a statement after the
-// member on its line keeps its interpolation, and a member's `typeof` reads
-// a regular expression or a `new`.
 test.each([
   ["a backtick string", "`Value {a}`"],
   ["a double-quoted string", '"Value {a}"'],
 ])("a statement after a member line keeps the interpolation of %s", (_name, text) => {
   const ctx = makeRuntimeStoryFromSource(
-    `store result = ""\nstore a = 3\nfunction capture(s)\n  result = s\nend\nfunction f()\n  type T = {}\n  & {}capture(${text})\nend\n& f()\n{result}\n`,
+    `store result = ""\nstore a = 3\nfunction capture(s)\n  result = s\nend\nfunction f()\n  type T = {}\n  & {}capture(${text})\nend\nscene start\n  & f()\n  {result}\nend\n`,
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Value 3\n");
 });
 
-// A malformed value after a member is reported once, as Luau reports it:
-// the tree reads the value, so its errors are not also the member line's.
 test.each(["& {}a = 1 +", '& {}a = "x" ..', "& {}a = `v {1}` .."])(
   "a malformed value after a member line is reported as Luau reports it: %s",
   (line) => {
@@ -259,8 +233,6 @@ test.each(["& {}a = 1 +", '& {}a = "x" ..', "& {}a = `v {1}` .."])(
   },
 );
 
-// A member line's `typeof` reads Sparkdown's own expressions from the tree,
-// as the same type written on one line does.
 test.each([
   ["a regular expression", "", "typeof(@/hello/)"],
   ["a new", "define Foo with\n  init()\n  end\nend\n", "typeof(new Foo())"],
@@ -270,10 +242,6 @@ test.each([
   expect(errorMessages(body(`type T = {}\n  & ${member}`))).toEqual([]);
 });
 
-// Controls: a statement later on a member line runs. The converter reads
-// the line as Luau does, so these ran before the member line's end moved to
-// that statement too; the "reads as Luau" cases above and the grammar
-// fixture are what pin the boundary.
 test.each([
   ["a type alias", "type T = number\n& number local a = 9\nreturn a", "9"],
   ["a return type", "local function g(): number\n  & number return 8\nend\nreturn g()", "8"],
@@ -292,8 +260,6 @@ test("an intersection line runs with CRLF line endings", () => {
   expect(ctx.story.ContinueMaximally()).toBe("Value 3.\n");
 });
 
-// The marker is gone from function bodies: a written one is Luau's syntax
-// error, reported as Luau reports it.
 const AMPERSAND_ERROR = "Expected identifier when parsing expression, got '&'";
 test.each([
   ["a call", "& print(1)\nreturn 1", [0, 0]],
@@ -308,10 +274,6 @@ test.each([
   expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
 });
 
-// A define's method is a function body too, which the lowerer reports
-// rather than the type checker: a marked line there is reported as Luau
-// reports the same body, and nothing else (a method call's `:` is not a
-// type's).
 const errorMessages = (source: string) => {
   const uri = "inmemory:///main.sd";
   const compiler = testCompiler();
@@ -321,7 +283,8 @@ const errorMessages = (source: string) => {
   const program = (compiler.compile({ textDocument: { uri } } as never) as any).program;
   return ((program.diagnostics?.[uri] ?? []) as any[])
     .filter((d) => d.severity === 1)
-    .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    .map((d) => (typeof d.message === "string" ? d.message : d.message.value))
+    .filter((message) => message !== NO_START_SCENE_MESSAGE);
 };
 test.each(["local t = {}\n& t:missing()", "local a\n& a =", "& local v: = 1"])(
   "a marked line in a define's method is reported as Luau reports it: %s",
@@ -338,11 +301,9 @@ test.each(["local t = {}\n& t:missing()", "local a\n& a =", "& local v: = 1"])(
   },
 );
 
-// A marked statement in a block that does not run is neither run nor moved
-// out of the block: the story still plays, and the count stays 0.
 test("a marked statement in a function neither runs nor leaves its block", () => {
   const ctx = makeRuntimeStoryFromSource(
-    "store count = 0\nfunction bump()\n  if false then\n    & count += 1\n  end\nend\n& bump()\nThe count is {count}.\n",
+    "store count = 0\nfunction bump()\n  if false then\n    & count += 1\n  end\nend\nscene start\n  & bump()\n  The count is {count}.\nend\n",
   );
   expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
   expect(ctx.story.ContinueMaximally()).toBe("The count is 0.\n");
@@ -356,34 +317,36 @@ test("a call and assignment without the marker run in a function", () => {
   expect(ctx.story.ContinueMaximally()).toBe("Value 3.\n");
 });
 
-// In story text a marked statement ends at its line, and the story line
-// after it plays in order.
 test.each([
   ["\n", "LF"],
   ["\r\n", "CRLF"],
 ])("a story marked statement ends at its line (%#)", (eol) => {
   const ctx = makeRuntimeStoryFromSource(
-    ["store count = 0", "& count += 1", "The count is {count}.", ""].join(eol),
+    [
+      "store count = 0",
+      "scene start",
+      "  & count += 1",
+      "  The count is {count}.",
+      "end",
+      "",
+    ].join(eol),
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("The count is 1.\n");
 });
 
-// A type that ends its line in story text does not take a marked line after
-// it: the `&` there marks a statement, not an intersection.
-test.each([
-  [
-    "a declaration",
-    "-> start\nscene start\n  local s: number\n  & s = 2\n  Value {s}.\nend\n",
-    "Value 2.\n",
-  ],
-  [
-    "a type alias",
-    "store s = 1\ntype T = number\n& s += 1\nValue {s}.\n",
-    "Value 2.\n",
-  ],
-])("a marked line after %s in story text is a statement", (_name, source, text) => {
-  const ctx = makeRuntimeStoryFromSource(source);
+test("a marked line after a declaration in story text is a statement", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    "scene start\n  local s: number\n  & s = 2\n  Value {s}.\nend\n",
+  );
   expect(ctx.errorMessages).toEqual([]);
-  expect(ctx.story.ContinueMaximally()).toBe(text);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 2.\n");
+});
+
+test("a marked line after a type alias in story text is a statement", () => {
+  expect(
+    errorMessages("store s = 1\ntype T = number\n& s += 1\nscene start\nend\n"),
+  ).toEqual([
+    "statement must be inside a scene or branch; the top level holds declarations only",
+  ]);
 });

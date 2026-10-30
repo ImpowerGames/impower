@@ -1,9 +1,3 @@
-// A checkpoint the worker's route game saves while it replays a route is what
-// the page loads to display a preview. A route replay buffers no UI operation
-// and ends with the module state it always ended with, so the page that loads
-// its checkpoint renders the layout, the portrait and the dialogue exactly as
-// it did before the replay stopped buffering.
-
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";
 import { compile, createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -19,7 +13,7 @@ const SOURCE = `define SPRITE as image with
   src = "https://example.com/hero.png"
 end
 
--> start
+
 
 scene start
 ${FILLER}
@@ -34,8 +28,6 @@ const TARGET_LINE = SOURCE.split("\n").findIndex((l) =>
   l.includes("The line being previewed."),
 );
 
-/** Replay the route to the target on an unconnected game, as the worker
- *  does, and return the checkpoint it ends on. */
 function routeCheckpoint(): string {
   const game = new Game({
     program: compile(SOURCE) as any,

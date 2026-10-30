@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
-// The same loop written in a scene's body or a branch's body, where it runs
-// in that flow rather than in a function.
 const WHILE_IN_FLOW = `& local y = "outer"
 while true do
   local y = "inner"
@@ -17,12 +15,16 @@ const indent = (text: string, by: string) =>
     .map((line) => `${by}${line}`)
     .join("\n");
 const places: Record<string, string> = {
-  "in a scene": `-> s
+  "in a scene": `scene start
+  -> s
+end
 scene s
 ${indent(WHILE_IN_FLOW, "  ")}
 end
 `,
-  "in a branch": `-> s.b
+  "in a branch": `scene start
+  -> s.b
+end
 scene s
   branch b
 ${indent(WHILE_IN_FLOW, "    ")}
@@ -41,8 +43,6 @@ describe("while body scope in a scene or a branch", () => {
   }
 });
 
-// A `while` body is a block: its locals end with each iteration and never
-// replace a binding from an enclosing scope.
 describe("while body scope", () => {
   test("a body local is not visible after the loop", () => {
     const r = runConformanceSource(

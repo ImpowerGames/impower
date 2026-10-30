@@ -1,9 +1,3 @@
-// A one-line `repeat ... until cond` whose last body statement is a `local`
-// declaration runs its body once and leaves the statements after it to run:
-// the declaration ends before `until`, which the loop takes, and the
-// condition is the loop's next sibling rather than a part of the
-// declaration (#1092).
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
@@ -16,7 +10,7 @@ const run = (source: string) => {
 describe("a repeat loop whose body ends with a local declaration", () => {
   test("a function runs the loop and returns after it", () => {
     const r = run(
-      "function f()\n  local n = 0\n  repeat n = n + 1 local z = 1 until true\n  return n\nend\n\nResult {f()}.\n",
+      "function f()\n  local n = 0\n  repeat n = n + 1 local z = 1 until true\n  return n\nend\n\nscene start\n  Result {f()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -24,7 +18,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("a body of only the declaration still runs its loop", () => {
     const r = run(
-      "function g()\n  local n = 0\n  repeat local z = 1 n = n + 1 until true\n  repeat local z = 1 until true\n  return n\nend\n\nResult {g()}.\n",
+      "function g()\n  local n = 0\n  repeat local z = 1 n = n + 1 until true\n  repeat local z = 1 until true\n  return n\nend\n\nscene start\n  Result {g()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -32,7 +26,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("the upstream conformance line keeps the return after it", () => {
     const r = run(
-      "function h()\n  repeat local a = 5 until a - 4 < 0 or a - 4 >= 0\n  return 7\nend\n\nValue {h()}.\n",
+      "function h()\n  repeat local a = 5 until a - 4 < 0 or a - 4 >= 0\n  return 7\nend\n\nscene start\n  Value {h()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Value 7.\n");
@@ -40,17 +34,15 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("the loop repeats until the condition reads the declared local", () => {
     const r = run(
-      "function k()\n  local n = 0\n  repeat n = n + 1 local done = n >= 3 until done\n  return n\nend\n\nResult {k()}.\n",
+      "function k()\n  local n = 0\n  repeat n = n + 1 local done = n >= 3 until done\n  return n\nend\n\nscene start\n  Result {k()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 3.\n");
   });
 
-  // A loop nested directly in another is #1195; a block between them keeps
-  // each `until` with its own loop.
   test("a loop nested in a block inside another loop runs without an error", () => {
     const r = run(
-      "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nResult {f()}.\n",
+      "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nscene start\n  Result {f()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -58,7 +50,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("a scene shows the line after the loop", () => {
     const r = run(
-      "store n = 0\n-> start\nscene start\n  repeat n = n + 1 local z = 1 until true\n  Count {n}.\nend\n",
+      "store n = 0\nscene start\n  repeat n = n + 1 local z = 1 until true\n  Count {n}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Count 1.\n");
@@ -71,31 +63,23 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(tree).not.toContain("ERROR_INCOMPLETE");
     expect(tree).toMatch(/^ [├└]─ LuauSparkdownRepeatLoop \[12\.\.46\]$/m);
     expect(tree).toMatch(/─ LuauSparkdownRepeatLoop_end_c2 \[41\.\.46\]\n.*─ LuauUntilKeyword \[41\.\.46\]: "until"$/m);
-    // A story `until` condition ends at its line, read with the bounded rule (#1907).
     expect(tree).toMatch(/^ [├└]─ LuauSparkdownExplicitUntilCondition \[46\.\.51\]$/m);
   });
 });
 
-// An `until` after a statement on the loop's line, a declaration or an `&`
-// statement, is never read into the statement: no rule reads `until` but a
-// loop's end (#1906), so the statement ends before it and the loop takes it,
-// as Luau reads it.
 describe("a repeat loop whose until follows a statement on its line", () => {
   test("inside a block left without its end, reports Luau's error at the until", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n",
+      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n\nscene start\nend\n",
     );
-    // The `until` closes the `if` and the `repeat`, so the `end` written for
-    // the `if` closes the function, and the function's own `end` closes
-    // nothing (#774), past Luau's first error, where its parser has stopped.
     expect([...ctx.errorMessages].sort()).toEqual([
       "Expected 'end' (to close 'then' at line 3), got 'until'",
       "Expected <eof>, got 'end'",
     ]);
   });
 
-  test("at the top level, runs the loop", () => {
-    const r = run("store n = 0\nrepeat & n = n + 1 until n >= 3\nCount {n}.\n");
+  test("in a scene, runs the loop", () => {
+    const r = run("store n = 0\nscene start\n  repeat & n = n + 1 until n >= 3\n  Count {n}.\nend\n");
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Count 3.\n");
   });

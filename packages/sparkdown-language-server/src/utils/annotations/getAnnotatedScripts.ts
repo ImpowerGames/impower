@@ -2,12 +2,6 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { type Tree } from "@lezer/common";
 import { type AnnotatedScript } from "./getDeclarationScopes";
 
-/**
- * The scripts a request from `uri` can see, each paired with its syntax tree
- * and a reader over its own text: every script of the compiled program, or
- * `uri` alone before the first compile. A script with no open document is
- * left out, because there is no text to read its annotation ranges from.
- */
 export const getAnnotatedScripts = (
   uri: string,
   programScripts: Record<string, unknown> | undefined,

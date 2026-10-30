@@ -1,7 +1,3 @@
-// Protocol message types are dynamic-imported inside the listener effect:
-// they re-export from `vscode-languageserver-protocol` which is CJS-only
-// and crashes Vite SSR module load if statically imported here
-// (see memory: feedback_defer_cjs_imports_in_ssr_loaded_modules).
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
@@ -15,50 +11,17 @@ export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 
 const AUTOSAVE_DELAY = 200;
 
-/**
- * Wraps the SparkdownScriptEditor (Preact) component with the
- * workspace-aware lifecycle the legacy `<se-logic-script-editor>`
- * provided. The inner editor is imported directly from
- * sparkdown-document-views rather than registered as a custom element.
- *
- * Lifecycle ownership is split between two effects:
- *   1. Listener effect (deps: []). Attaches the `jsonrpc` window
- *      listener exactly once per mount and never re-runs — so when
- *      the inner editor's `ConnectedEditorMessage` fires after its
- *      async controller startup, we're guaranteed to catch it.
- *   2. Reload effect (deps: [filename, textPulledAt]). Re-triggers
- *      a `loadFile` when the file we're showing changes or when the
- *      workspace pulled fresh text from the remote — but only after
- *      the initial load has already happened (`uriRef.current` is
- *      set by the first ConnectedEditor-driven load).
- *
- * If we put the listener in an effect that depends on textPulledAt,
- * each early signal initialization would tear down + re-attach the
- * listener, missing the inner editor's one-shot ConnectedEditor
- * notification.
- */
 export default function LogicScriptEditor({
   filename = "",
 }: LogicScriptEditorProps) {
-  // Stable per-document state — read by the protocol handler and save flow.
   const uriRef = useRef<string | undefined>(undefined);
   const versionRef = useRef<number | undefined>(undefined);
   const textRef = useRef<string | undefined>(undefined);
 
-  // Normalized snapshots of every text THIS editor has written to disk. A
-  // `DidWriteFiles` whose text matches one of these is our own autosave/rename
-  // echo — never an external edit — so it must not trigger a reload. We match
-  // against what we WROTE (not the live buffer) because an in-flight autosave
-  // can lag behind the buffer after further keystrokes; comparing the echo to
-  // the buffer would then misread our own stale write as a divergent external
-  // edit and destroy + rebuild the editor mid-typing, wiping the just-typed
-  // characters (#216). Bounded so a long session can't grow it without limit.
   const ownWritesRef = useRef<Set<string>>(new Set<string>());
   const OWN_WRITES_LIMIT = 16;
   const normalizeText = (s: string) => s.replace(/\r\n|\r/g, "\n");
 
-  // Latest props/store values stashed in refs so the listener (mounted
-  // once) always reads current values without needing to reattach.
   const filenameRef = useRef(filename);
   filenameRef.current = filename;
   const loadFileRef = useRef<() => Promise<void>>(async () => {});
@@ -77,9 +40,6 @@ export default function LogicScriptEditor({
     );
   }).value;
 
-  // Listener effect — mount-only, no dynamic deps, so it survives every
-  // workspace signal update and is guaranteed to be attached when the
-  // inner editor's ConnectedEditorMessage fires.
   useEffect(() => {
     let disposed = false;
     let detach: (() => void) | undefined;
@@ -164,8 +124,6 @@ export default function LogicScriptEditor({
       const debouncedSave = debounce(async () => {
         if (uriRef.current && versionRef.current && textRef.current != null) {
           const written = textRef.current;
-          // Remember what we're writing so its DidWriteFiles echo is recognized
-          // as our own and never reloads the editor (#216).
           ownWritesRef.current.add(normalizeText(written));
           if (ownWritesRef.current.size > OWN_WRITES_LIMIT) {
             ownWritesRef.current = new Set(
@@ -201,22 +159,6 @@ export default function LogicScriptEditor({
           if (!changed) {
             return;
           }
-          // Reload the open buffer when this script changed underneath us:
-          //  • a remote pull (Drive sync) always reloads; OR
-          //  • a LOCAL write whose on-disk text diverged from what the editor
-          //    is showing — an EXTERNAL edit, e.g. a reference-aware asset
-          //    rename rewriting this script via applyWorkspaceEdit from the
-          //    file manager pane.
-          // The editor's OWN writes are skipped: they echo back text this
-          // editor wrote, which we track in `ownWritesRef`. We must match the
-          // echo against what we WROTE — not the live buffer — because an
-          // in-flight autosave lags behind the buffer once the user keeps
-          // typing, so a buffer comparison would misclassify our own stale echo
-          // as an external edit and reload (destroying the editor + wiping the
-          // just-typed characters, #216). A genuine external rewrite (e.g. a
-          // reference-aware asset rename rewriting this script via
-          // applyWorkspaceEdit from the file manager pane) is text we never
-          // wrote, so it still diverges and reloads.
           const changedText =
             changed.text != null ? normalizeText(changed.text) : null;
           const isOwnWrite =
@@ -248,21 +190,12 @@ export default function LogicScriptEditor({
           }
         }),
         onProtocolMessage(ConnectedEditorMessage.type, () => {
-          // Inner editor signals it's mounted and ready — initial load.
           loadFile();
         }),
       ];
 
       detach = () => disposers.forEach((d) => d());
 
-      // Initial load — don't rely solely on ConnectedEditorMessage. The inner
-      // SparkdownScriptEditor mounts as a direct child, and its controller can
-      // emit ConnectedEditor before this listener attaches (its single dynamic
-      // import resolves faster than this effect's Promise.all of 7), so the
-      // one-shot would be missed and the editor would never receive a document.
-      // The proactive load covers the controller-ahead ordering; the
-      // ConnectedEditor handler above covers the controller-behind ordering.
-      // Mirrors PreviewScreenplay.
       loadFile();
     })();
 
@@ -272,10 +205,6 @@ export default function LogicScriptEditor({
     };
   }, []);
 
-  // Reload effect — re-fires loadFile when the file we're showing
-  // changes or when the workspace pulled fresh text. Only kicks in
-  // after the initial load (uriRef populated by ConnectedEditor
-  // handler); the mount-time render path is the listener effect.
   useEffect(() => {
     if (!uriRef.current) return;
     loadFileRef.current?.();

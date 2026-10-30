@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("nested-function siblings capture each other as upvalues", () => {
   test("function checkmessage() calls function doit() declared earlier in the same scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function doit(s)
@@ -57,23 +60,13 @@ end
     expect(recorded).toEqual([42]);
   });
 
-  // Note: forward references — `function A() B() end function B() end`
-  // — are a known divergence. Sparkdown's closure-upval mechanism
-  // resolves the captured pointer's contextIndex at definition time,
-  // not at call time, so `B` must be declared BEFORE `A` for the
-  // upval to point at a real slot. Lua handles this via late binding;
-  // we'd need to hoist nested-function locals to match.
-
   test("external declarations are NOT wrongly captured as upvals", () => {
-    // `host_record` is declared as `external …` at the document
-    // top level. The closure-capture pre-scan registers it in
-    // `globalCallableNames`, so the inner `function inner()` does
-    // NOT try to capture `host_record` as a closure upval (which
-    // would fail to resolve at runtime since host_record isn't a
-    // sparkdown variable).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -87,12 +80,12 @@ end
   });
 
   test("stdlib calls inside nested function bodies stay routed to stdlib", () => {
-    // Grammar tags stdlib calls as `LuauStdLibFunctions`, not
-    // `LuauFunctionCall`. The scanner only walks `LuauFunctionCall`
-    // for the new call-site capture, so stdlib refs are untouched.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner(s)

@@ -1,13 +1,3 @@
-// A choice inside a `do` block or a loop of a `choose` block's preamble on
-// the program engine (#1503, docs/engine/binary-program.md, section 4). The
-// body of such a block is the `choose` statement's own code, as a gated `if`
-// branch's is, so the chunk that raises the choice holds its entry: a choice
-// is never raised from a body's own chunk. A loop runs every pass, raising
-// a choice on each, and a `break` or `continue` of it is a jump of the
-// chunk. The block scopes as Luau does (#1575): a `do` block's local is gone
-// after its `end`, a loop's pass reads its own variables, and a statement
-// after the block's `end` is the preamble's, run before the choices are
-// presented.
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { afterEach, describe, expect, it } from "vitest";
 import { shuffleDraws } from "../../runtime/evaluation";
@@ -32,8 +22,6 @@ afterEach(() => {
   shuffleDraws.next = null;
 });
 
-/** What a script shows when the choices `picks` names are
- *  taken in turn (the first one at every menu past them). */
 const programRun = (text: string, picks: number[]) =>
   silence(() => {
     const { program } = compileScript(text);
@@ -43,15 +31,12 @@ const programRun = (text: string, picks: number[]) =>
     return { actual };
   });
 
-/** A script whose only scene holds a `choose` block with `preamble` before
- *  its last choice, `Outer`, and `after` after the block. */
 const scene = (
   preamble: readonly string[],
   after: readonly string[] = ["  After."],
 ) =>
   [
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     ...preamble,
     "    * Outer",
@@ -63,8 +48,6 @@ const scene = (
   ].join("\n");
 
 describe("a do block of a choose block's preamble that offers choices", () => {
-  // The `do` preambles of the ticket: the block offers its choice with the
-  // outer one, and each is taken.
   const DO_PREAMBLES: Record<string, readonly string[]> = {
     "a do holding a choose": [
       "    do",
@@ -93,7 +76,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       "    end",
     ],
   };
-  // The inner choice's text and its body's line in each.
   const INNER: Record<keyof typeof DO_PREAMBLES, [string, string]> = {
     "a do holding a choose": ["Inner", "Chose inner."],
     "a do holding a local and a choice": ["Inner 1", "Chose inner 1."],
@@ -124,7 +106,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       );
       const root = program.chunks!;
       const reader = new BinaryProgramReader(root);
-      // One chunk raises both choices, and the body's local is set in it.
       const raising = rootChunks(root).filter((chunk) =>
         [...reader.instructions(chunk)].some((i) => i.op === Op.Choice),
       );
@@ -136,8 +117,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
     }
   });
 
-  // A label between two choices the body offers is a compile error at its
-  // line, as between two choices an `if` gates.
   it("names a label between two choices of the do block's body", () => {
     const text = scene([
       "    do",
@@ -153,8 +132,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
     );
   });
 
-  // A statement after the `do` block's `end` is the preamble's: it runs
-  // before the choices are presented, and the block's local is gone there.
   it("runs a statement after the do block's end before the choices, without the block's local", () => {
     const text = scene([
       "    do",
@@ -174,13 +151,10 @@ describe("a do block of a choose block's preamble that offers choices", () => {
     });
   });
 
-  // The first open question of the ticket: the outer `do`'s local is gone
-  // after its `end`, on the program engine, as in Luau (#1575, #1588).
   it("drops a do block's local at its end when a nested do's gated choice is taken", () => {
     const text = [
       "store open = false",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      local open = true",
@@ -202,9 +176,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
     });
   });
 
-  // The second open question: a label inside the body is reachable like any
-  // other, and a single choice whose body jumps to a label after the block
-  // runs on there.
   it("reaches a label inside the do block's body, and a jump from the choice's body", () => {
     const labelled = scene(
       [
@@ -221,8 +192,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       menus: [["Inner 1", "Outer"], ["Outer"]],
     });
     const single = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      * Inner",
@@ -242,9 +212,6 @@ describe("a do block of a choose block's preamble that offers choices", () => {
 });
 
 describe("a loop of a choose block's preamble that offers choices", () => {
-  // Each loop runs every pass and raises a choice on each, which reads the
-  // pass's variables; taking one runs its body and continues at the block's
-  // end.
   const LOOPS: Record<string, readonly string[]> = {
     while: [
       "    local i = 0",
@@ -418,8 +385,6 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     }
   });
 
-  // A `choose` block written in the loop's body is part of the presentation
-  // too, and a `do` block or a loop of its own preamble is its code, whole.
   it("runs a do block or a loop of the preamble of a block written in the loop's body", () => {
     const cases: [readonly string[], string[], string[]][] = [
       [
@@ -547,8 +512,6 @@ describe("a loop of a choose block's preamble that offers choices", () => {
       const loaded = programStory(text);
       loaded.keepBeatImages = true;
       loaded.loadSave(save);
-      // The save holds the beat before the menu, whose continue raises the
-      // loop's choices again.
       while (loaded.canContinue) {
         loaded.Continue();
       }
@@ -567,7 +530,7 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     ]);
     const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program)).toContainEqual([5, unsupportedConstructMessage("a break or continue inside a choice's body")]);
+    expect(errorsOf(program)).toContainEqual([4, unsupportedConstructMessage("a break or continue inside a choice's body")]);
   });
 
   it("emits the same chunks after an edit inside the loop's body as a cold compile", () => {
@@ -604,10 +567,6 @@ describe("a loop of a choose block's preamble that offers choices", () => {
   });
 });
 
-// The statements after a choice an `if`, a `do` block or a loop of the
-// preamble holds are the choice's body, not the preamble (#1622): a `choose`
-// block written there is a block of its own, run when the choice is taken, as
-// it is in the body of a choice written directly in the block.
 describe("a choose block in the body of a choice of a choose block's preamble", () => {
   const HELD: Record<string, readonly string[]> = {
     "an if": [
@@ -656,8 +615,7 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
 
   it("runs the ticket's script from chunks", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      * A",
@@ -679,8 +637,6 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     });
   });
 
-  // Each pass of a loop raises its own choice, whose body holds the nested
-  // block.
   it("runs a nested block in the body of a choice a loop pass raises from chunks", () => {
     const text = scene([
       "    for i = 1, 2 do",
@@ -734,9 +690,6 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
     });
   });
 
-  // A nested block that offers no choice ends as any block does: its end runs
-  // on out of it, so the lines after the block are still the choice's body,
-  // gated or not.
   it("runs the lines after a nested block that offers no choice in the gated choice's body", () => {
     for (const nested of [
       ["        choose", "          Empty.", "        end"],

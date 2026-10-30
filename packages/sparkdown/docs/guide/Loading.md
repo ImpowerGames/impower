@@ -54,8 +54,10 @@ end
 The same keyword works on a tunnel and on a thread:
 
 ```sparkdown
--> load Interlude ->
-<- load Sidebar
+scene start
+  -> load Interlude ->
+  <- load Sidebar
+end
 ```
 
 A tunnel and a thread come back to the scene that called them, so that scene keeps its loaded assets while they run; the called scene's assets are released when it returns.
@@ -65,8 +67,10 @@ A tunnel and a thread come back to the scene that called them, so that scene kee
 `load` is also a directive, for loading without changing scene or for choosing the transition:
 
 ```sparkdown
-[[load Chapter2 with fade]]
-[[load Gallery Credits]]
+scene start
+  [[load Chapter2 with fade]]
+  [[load Gallery Credits]]
+end
 ```
 
 The directive loads each named scene or world in turn behind the loading screen. A `load` on an arrow is the same as writing `[[load Name]]` on the line before the arrow.

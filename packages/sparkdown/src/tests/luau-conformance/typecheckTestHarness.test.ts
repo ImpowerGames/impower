@@ -1,7 +1,3 @@
-// Tests for the harness that runs the port of Luau's type-checker tests
-// (`typecheck/`): what counts as a syntax diagnostic and where one is placed,
-// how a ported case runs, and what is checked about a port.
-
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,8 +37,6 @@ describe("syntax diagnostics", () => {
     expect(checkLuau("--!strict\nlocal x = 1").syntaxDiagnostics).toEqual([]);
   });
 
-  // A snippet is a `.luau` file, which is Luau from its first line (I-1320),
-  // so a line that would be a divert in a script is Luau's error.
   test("a line Luau cannot read is reported where it starts, in the snippet's own lines and columns", () => {
     const [first] = checkLuau("local x = 1\n-> elsewhere\nlocal y = 2").syntaxDiagnostics;
     expect(first).toMatchObject({ line: 1, column: 0, code: "SyntaxError" });
@@ -50,10 +44,6 @@ describe("syntax diagnostics", () => {
   });
 
   test("a construct the grammar once could not finish is read whole", () => {
-    // Luau reads a `;` right after a `repeat`'s `until` condition, and the
-    // condition now ends before it (I-1289), so no part of the snippet is
-    // left unfinished: the harness reports an unfinished construct (an error
-    // node) where the grammar leaves one, and none is known to be left now.
     expect(checkLuau("\n\n    repeat local x = 1 until x;\n").syntaxDiagnostics).toEqual([]);
   });
 
@@ -66,7 +56,6 @@ describe("syntax diagnostics", () => {
 
   test("a snippet that closes its function early is reported at what follows", () => {
     expect(checkLuau("local x = 1\nend\nlocal y = 2").syntaxDiagnostics).toEqual([
-      // Luau's error for the `end` that closes nothing it opened (I-1322).
       { line: 1, column: 0, endLine: 1, endColumn: 3, message: "Expected <eof>, got 'end'", code: "SyntaxError" },
       {
         line: 2,
@@ -203,12 +192,7 @@ describe("checkLuau", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Running ported cases, with a stand-in for checkLuau
-// ---------------------------------------------------------------------------
-
 const FILE = "TypeInfer.primitives.test.cpp";
-// An upstream file no area switch names, so its cases are off unless forced.
 const AREA_OFF_FILE = "Other.test.cpp";
 const SYNTAX_ERROR: LuauDiagnostic = { line: 0, column: 0, endLine: 0, endColumn: 1, message: "bad", code: "SyntaxError" };
 
@@ -360,10 +344,6 @@ describe("running a ported case", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Assertions against a checked result
-// ---------------------------------------------------------------------------
-
 function diagnostic(code: string, message = code, data?: Record<string, unknown>): LuauDiagnostic {
   return { line: 2, column: 4, endLine: 2, endColumn: 9, message, code, ...(data ? { data } : {}) };
 }
@@ -506,10 +486,6 @@ describe("the area switch", () => {
     expect(areaIsChecked("Nowhere.test.cpp", { LUAU_TYPECHECK_AREAS: "A.test.cpp" })).toBe(false);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Checking a port against the manifest
-// ---------------------------------------------------------------------------
 
 const MANIFEST: Manifest = {
   pin: "0".repeat(40),

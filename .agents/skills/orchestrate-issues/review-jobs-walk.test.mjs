@@ -1,14 +1,3 @@
-// The coordinator's readers of a PR's review-job directory (the dead-launch
-// sweep in issue-run.mjs and the review checkpoint's journal reader) read
-// only where the review workflow writes launch plans and journals. A
-// reviewer's workspace, with its probe checkouts, clones and caches, and a
-// reviewer tool's private home are never entered, each file is statted at
-// most once, and an entry a reviewer removes while the walk reads it is
-// skipped. A journal the walk saw empty is read again before a launch is
-// called dead, and the launcher refuses a plan or journal where the walk
-// would never see it.
-//
-//   node .agents/skills/orchestrate-issues/review-jobs-walk.test.mjs
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -23,10 +12,6 @@ const fold = (p) => (process.platform === "win32" ? path.resolve(p).toLowerCase(
 const inside = (child, parent) => fold(child) === fold(parent) || fold(child).startsWith(fold(parent) + path.sep);
 const coordinatorRow = JSON.stringify({ event: "coordinator", time: "2026-10-01T00:00:00Z", pid: 1 });
 
-// A PR's job directory as the review workflow lays it out: a launch-state
-// directory holding the plan, its launcher logs and (optionally) its journal,
-// and a reviewer workspace beside it holding a probe checkout, an npm cache
-// and a fixture journal copied from another PR's tests.
 function jobs(name, { journal = false, probeFiles = 50 } = {}) {
   const root = path.join(tmp, `${name}.review-jobs`);
   const round = path.join(root, "pr-1", "round-1");
@@ -50,8 +35,6 @@ function jobs(name, { journal = false, probeFiles = 50 } = {}) {
   const fixture = path.join(reviewer, "interruption-data-x", "src.review-jobs", "pr-1801");
   fs.mkdirSync(fixture, { recursive: true });
   fs.writeFileSync(path.join(fixture, "journal.jsonl"), coordinatorRow + "\n");
-  // The launcher's per-launch artifacts directory holds the reviewer tool's
-  // private home, with its sessions and caches.
   const toolHome = path.join(launch, "handoff-0-review-x", "codex-home-y");
   fs.mkdirSync(path.join(toolHome, "sessions"), { recursive: true });
   for (let i = 0; i < probeFiles; i++) fs.writeFileSync(path.join(toolHome, "sessions", `s${i}.jsonl`), coordinatorRow + "\n");
@@ -59,8 +42,6 @@ function jobs(name, { journal = false, probeFiles = 50 } = {}) {
   return { root, prDir: path.join(root, "pr-1"), round, launch, reviewer, toolHome, plan, journalFile };
 }
 
-// Every path the fs calls below touch while `body` runs, with `hook` called
-// before each so a test can remove an entry just before it is read.
 const WATCHED = ["readdirSync", "statSync", "lstatSync", "openSync", "readFileSync", "existsSync"];
 function traced(body, hook = () => {}) {
   const calls = [];
@@ -121,7 +102,6 @@ scenario("each file in the job directory is statted at most once by either reade
   }
 });
 
-// A reviewer removes its probe while the walk reads the round directory.
 const removedMidWalk = (label, read) => scenario(`a directory or file removed while ${label} reads it is skipped, never fatal`, () => {
   const f = jobs(`removed-${label.replace(/\W+/g, "-")}`, { journal: true, probeFiles: 0 });
   const doomedDir = path.join(f.round, "head-probe");
@@ -141,15 +121,12 @@ removedMidWalk("the journal reader", (f) => assert.equal(readJournals(f.prDir).l
 scenario("a journal the walk saw empty and its launcher filled before the census is not a dead launch", () => {
   const f = jobs("journal-filled", { probeFiles: 0 });
   fs.writeFileSync(f.journalFile, "");
-  // The launcher writes its first rows after the walk listed the empty journal.
   const { result } = traced(() => run.deadLaunches(f.root, [{ ticket: 1, pr: 1 }], () => []), (name, target) => {
     if (name === "readFileSync" && fold(target) === fold(f.plan)) fs.writeFileSync(f.journalFile, coordinatorRow + "\n");
   });
   assert.deepEqual(result, []);
 });
 
-// The launcher refuses a plan or journal where the readers would never see
-// it, so no launch can hide from the sweep, the checkpoint or the gate.
 const launcherRefusals = async () => {
   const name = "launcher refuses a plan or journal inside a directory the review-job readers skip";
   try {

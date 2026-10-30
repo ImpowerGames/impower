@@ -1,24 +1,3 @@
-// #379 — the status bar explains why a preview could not be simulated.
-//
-// When the editor cannot simulate its way to the line the author is previewing
-// from, the row at the bottom of the Game Preview turns red and shows
-// `main : 3 → 🞪 → main : 6`. Until now that was the whole message: which two
-// lines were involved, and nothing about why, so an author had no way to tell
-// a script they had broken from a line that simply is not reachable.
-//
-// What must hold:
-//   - each cause gets its own sentence, and none of them hedges between causes
-//     the engine can already tell apart;
-//   - the row explains itself on hover — a `title` for the pointer and a
-//     matching `aria-label` for a screen reader;
-//   - a healthy preview carries no explanation at all, so nothing stale is left
-//     hanging off a row that is no longer in its failed state;
-//   - a failure the engine cannot yet name still says something, rather than
-//     leaving the red row silent again.
-//
-// The tooltip itself is drawn by the browser, not the page, so what is checked
-// here is the attribute the browser draws it from.
-
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
 import {
@@ -56,9 +35,6 @@ describe("the sentence chosen for each cause", () => {
   });
 
   test("a broken search does not blame the script", () => {
-    // The distinction that matters most here: this sentence must not read like
-    // the "exhausted" one, which tells an author their script is at fault. It
-    // says only that the attempt went wrong, and stops there.
     expect(describeSimulationFailure("fail", "errored")).toBe(
       "Something went wrong while searching for a route to this line.",
     );
@@ -68,9 +44,6 @@ describe("the sentence chosen for each cause", () => {
   });
 
   test("no two causes share a sentence", () => {
-    // The point of carrying a cause at all is that the author reads something
-    // different for each one. Two causes sharing wording would pass every test
-    // above while telling them nothing.
     const sentences = Object.values(SIMULATION_FAILURE_MESSAGES);
     expect(new Set(sentences).size).toBe(sentences.length);
   });
@@ -86,8 +59,6 @@ describe("the sentence chosen for each cause", () => {
     expect(describeSimulationFailure("simulating", undefined)).toBeNull();
     expect(describeSimulationFailure("none", undefined)).toBeNull();
     expect(describeSimulationFailure(undefined, undefined)).toBeNull();
-    // Even a cause left over from an earlier attempt says nothing once the
-    // preview is no longer failing.
     expect(describeSimulationFailure("success", "timeout")).toBeNull();
   });
 });
@@ -110,8 +81,6 @@ function statusRow() {
     executionInfo,
   } as any;
   const controller = new GamePlayerController(host, refs);
-  // `updateExecutionLabels` only reads the worker's game to know one is
-  // there at all.
   (controller as any)._workerGame = {};
   (controller as any)._program = {
     uri: "file://proj/main.sd",
@@ -161,9 +130,6 @@ describe("the row itself", () => {
   });
 
   test("a preview that then succeeds is left with no explanation on it", () => {
-    // The row is reused across every edit and every cursor move, so an
-    // explanation left behind would sit on a healthy row claiming a failure
-    // that is over.
     const { controller, locationItems } = statusRow();
 
     controller.updateExecutionLabels(

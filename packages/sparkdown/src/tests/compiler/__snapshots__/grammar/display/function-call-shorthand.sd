@@ -1,3 +1,5 @@
-The hero yells {{shout}} loudly.
-Damage: {{ compute(5, "fire") }} points.
-{{shout}}
+scene start
+  The hero yells {{shout}} loudly.
+  Damage: {{ compute(5, "fire") }} points.
+  {{shout}}
+end

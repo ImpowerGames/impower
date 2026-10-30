@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { baseFromPatch, checkComments, LISTING_LIMIT, needsCheck, parsePatch } from "./check-comments.mjs";
+import { baseFromPatch, checkComments, listPullRequestFiles, LISTING_LIMIT, needsCheck, parsePatch } from "./check-comments.mjs";
 import { loadTypescript } from "../../.agents/hooks/comment-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -97,6 +97,9 @@ try {
   for (const file of Object.keys(separators)) write(file, "export {};\n");
   write("src/wrapped.css", "/* keeps the panel layout\n * stacked, since the host page forces a column on every element */\n.a { color: red; }\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 1;\n");
+  const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
+  write("src/licensed.ts", `${mpl}\nexport const l = 1;\n`);
+  write("src/escape.ts", "export const e = [\"\\u0001\"];\n");
   const base = commit("base");
 
   write("src/existing.ts", "export const a = 2; // legacy note kept from before the rule\n// re-asserts the border, since the normalize reset clears it\nexport const b = 2;\n");
@@ -114,7 +117,11 @@ try {
   for (const [file, code] of Object.entries(separators)) write(file, `export {};${String.fromCharCode(code)}// prose after a JavaScript line terminator\n`);
   write("src/wrapped-copy.css", ".b { color: blue; }\n/* keeps the panel layout stacked, since the host page forces a column on every element */\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
+  write("src/licensed-copy.ts", `${mpl}\nexport const m = 1;\n`);
+  write("src/licence-prose.ts", "export const p = 1;\n// keeps the copyright header because the generator depends on it\n");
+  write("src/escape.ts", "export const e = [\"\\u0001\", \"\\u001f\"];\n// prose beside a control-character escape\n");
   commit("head");
+  const caretNotation = (patch) => patch.replace(/\\u00([01][0-9a-f])/gi, (_, hex) => `\\^${String.fromCharCode(parseInt(hex, 16) + 64)}`);
 
   const records = [
     record(base, "src/existing.ts"),
@@ -132,6 +139,9 @@ try {
     ...Object.keys(separators).map((file) => record(base, file)),
     record(base, "src/wrapped-copy.css", "added"),
     { ...record(base, "src/unpatched-legacy.ts"), patch: undefined },
+    record(base, "src/licensed-copy.ts", "added"),
+    record(base, "src/licence-prose.ts", "added"),
+    { ...record(base, "src/escape.ts"), patch: caretNotation(record(base, "src/escape.ts").patch) },
   ];
   const result = checkComments({ root: checkout, records, mergeBase: base });
   const at = (file) => result.findings.filter((f) => f.file === file);
@@ -158,6 +168,9 @@ try {
   for (const file of Object.keys(separators)) assert.deepEqual(at(file).map((f) => f.line), [1], `${file}: a comment after a JavaScript-only line terminator is found on the patch's physical line`);
   assert.ok(at("src/wrapped-copy.css")[0]?.reasons.some((r) => /src\/wrapped\.css:1/.test(r)), "a duplicate of a block comment wrapped with leading asterisks names the original");
   assert.deepEqual(at("src/unpatched-legacy.ts"), [], "a file without a patch keeps the comments its merge base held");
+  assert.deepEqual(at("src/licensed-copy.ts"), [], "an added licence notice passes, even where the same notice is already in another file");
+  assert.deepEqual(at("src/licence-prose.ts").map((f) => f.line), [2], "prose that mentions copyright is a finding");
+  assert.deepEqual(at("src/escape.ts").map((f) => f.line), [2], "a patch whose control-character escapes the listing rewrites in caret notation is still judged");
 
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/comment-check.yml"), "utf8");
   assert.match(workflow, /compare\/\$BASE_SHA\.\.\.\$HEAD_SHA" --jq '\.merge_base_commit\.sha'/, "the workflow takes the merge base the files endpoint diffs against");
@@ -187,7 +200,7 @@ try {
   const listing = path.join(tempDir("check-comments-listing-"), "files.json");
   const run = (files, env = {}, cwd = checkout) => {
     fs.writeFileSync(listing, JSON.stringify(files));
-    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", ...env } });
+    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "", ...env } });
   };
 
   const failing = run(records);
@@ -214,14 +227,41 @@ try {
   bare.write("src/a.ts", "export {};\n// prose\n");
   bare.commit("head");
   fs.writeFileSync(listing, JSON.stringify([bare.record(bareBase, "src/a.ts")]));
-  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
+  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(required.status, 1);
   assert.match(required.stdout + required.stderr, /COMMENT_POLICY_REQUIRE_TYPESCRIPT/, "a required scanner that does not resolve fails rather than falling back");
-  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "" } });
+  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(fallback.status, 1);
   assert.match(fallback.stdout, /Scanned with the fallback JavaScript scanner/, "the report names the fallback when it judged the file");
+  const requiredYaml = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "1" } });
+  assert.equal(requiredYaml.status, 1);
+  assert.match(requiredYaml.stdout + requiredYaml.stderr, /COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve/, "a required yaml lexer that does not resolve fails rather than falling back");
 
-  console.log("ok: check-comments judges added comments, duplicates, exempt paths, missing patches and truncated listings");
+  {
+    const escaped = "@@ -1 +1 @@\n-a\n+    .replace(/[\\u0000-\\u001f\\u007f]/g, \"\")";
+    const pages = [Array.from({ length: 100 }, (_, k) => ({ filename: `src/f${k}.ts`, patch: k === 7 ? escaped : "" })), [{ filename: "src/last.ts" }]];
+    const asked = [];
+    const fetch = async (url, init) => {
+      asked.push({ url, init });
+      const page = Number(new URL(url).searchParams.get("page"));
+      return { ok: true, status: 200, text: async () => JSON.stringify(pages[page - 1] ?? []) };
+    };
+    const listed = await listPullRequestFiles({ repository: "owner/repo", number: 5, token: "t", api: "https://api.example.invalid", fetch });
+    assert.equal(listed.length, 101, "every page is read until one comes back short");
+    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than a control character in its place");
+    assert.deepEqual(asked.map(({ url }) => url), [1, 2].map((p) => `https://api.example.invalid/repos/owner/repo/pulls/5/files?per_page=100&page=${p}`));
+    assert.equal(asked[0].init.headers.authorization, "Bearer t");
+
+    const full = Array.from({ length: 100 }, (_, k) => ({ filename: `f${k}` }));
+    let calls = 0;
+    const capped = await listPullRequestFiles({ repository: "o/r", number: 1, token: "t", fetch: async () => (calls++, { ok: true, status: 200, text: async () => JSON.stringify(full) }) });
+    assert.equal(capped.length, LISTING_LIMIT, "listing stops at the endpoint's cap");
+    assert.equal(calls, LISTING_LIMIT / 100);
+
+    await assert.rejects(listPullRequestFiles({ repository: "o/r", number: 1, token: "t", fetch: async () => ({ ok: false, status: 403, text: async () => "forbidden" }) }), /answered 403: forbidden/, "a refused page fails rather than listing fewer files");
+  }
+
+  console.log("ok: check-comments judges added comments, duplicates, exempt paths, missing patches and truncated listings, and lists a pull request's files");
 } finally {
   for (const dir of scratch) fs.rmSync(dir, { recursive: true, force: true });
 }

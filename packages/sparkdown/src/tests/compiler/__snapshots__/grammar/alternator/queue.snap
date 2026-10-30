@@ -1,108 +1,125 @@
-sparkdown [0..27]
- └─ LuauSparkdownSequentialAlternatorBlock [0..27]
-     ├─ LuauSparkdownSequentialAlternatorBlock_begin [0..5]
-     │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c1 0
-     │   │   └─ OptionalWhitespace 0
-     │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c2 0
-     │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c3 0
-     │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c4 [0..5]
-     │   │   └─ LuauControlKeyword [0..5]: "queue"
-     │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 5
-     │       └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 5
-     │           └─ OptionalWhitespace 5
-     ├─ LuauSparkdownSequentialAlternatorBlock_content [5..24]
-     │   ├─ Newline [5..6]: "\n"
-     │   ├─ LuauAlternatorSeparator [6..10]
-     │   │   ├─ LuauAlternatorSeparator_c1 [6..8]
-     │   │   │   └─ ExtraWhitespace [6..8]: "  "
-     │   │   ├─ LuauAlternatorSeparator_c2 [8..9]: "|"
-     │   │   ├─ LuauAlternatorSeparator_c3 [9..10]
-     │   │   │   └─ LuauAlternatorSeparator_c3 [9..10]
-     │   │   │       └─ OptionalWhitespace [9..10]: " "
-     │   │   ├─ LuauAlternatorSeparator_c4 10
-     │   │   ├─ LuauAlternatorSeparator_c5 10
-     │   │   ├─ LuauAlternatorSeparator_c6 10
-     │   │   └─ LuauAlternatorSeparator_c7 10
-     │   ├─ ImplicitAction [10..11]
-     │   │   ├─ ImplicitAction_begin 10
-     │   │   │   └─ ImplicitAction_begin_c1 10
-     │   │   │       └─ OptionalWhitespace 10
-     │   │   ├─ ImplicitAction_content [10..11]
-     │   │   │   └─ ActionLineEnd [10..11]
-     │   │   │       ├─ ActionLineEnd_begin 10
-     │   │   │       │   └─ ActionLineEnd_begin_c1 10
-     │   │   │       │       └─ OptionalWhitespace 10
-     │   │   │       ├─ ActionLineEnd_content [10..11]
-     │   │   │       │   └─ TextChunk [10..11]
-     │   │   │       │       ├─ TextChunk_begin 10
-     │   │   │       │       ├─ TextChunk_content [10..11]
-     │   │   │       │       │   └─ Word [10..11]: "A"
-     │   │   │       │       └─ TextChunk_end 11
-     │   │   │       └─ ActionLineEnd_end 11
-     │   │   └─ ImplicitAction_end 11
-     │   ├─ Newline [11..12]: "\n"
-     │   ├─ LuauAlternatorSeparator [12..16]
-     │   │   ├─ LuauAlternatorSeparator_c1 [12..14]
-     │   │   │   └─ ExtraWhitespace [12..14]: "  "
-     │   │   ├─ LuauAlternatorSeparator_c2 [14..15]: "|"
-     │   │   ├─ LuauAlternatorSeparator_c3 [15..16]
-     │   │   │   └─ LuauAlternatorSeparator_c3 [15..16]
-     │   │   │       └─ OptionalWhitespace [15..16]: " "
-     │   │   ├─ LuauAlternatorSeparator_c4 16
-     │   │   ├─ LuauAlternatorSeparator_c5 16
-     │   │   ├─ LuauAlternatorSeparator_c6 16
-     │   │   └─ LuauAlternatorSeparator_c7 16
-     │   ├─ ImplicitAction [16..17]
-     │   │   ├─ ImplicitAction_begin 16
-     │   │   │   └─ ImplicitAction_begin_c1 16
-     │   │   │       └─ OptionalWhitespace 16
-     │   │   ├─ ImplicitAction_content [16..17]
-     │   │   │   └─ ActionLineEnd [16..17]
-     │   │   │       ├─ ActionLineEnd_begin 16
-     │   │   │       │   └─ ActionLineEnd_begin_c1 16
-     │   │   │       │       └─ OptionalWhitespace 16
-     │   │   │       ├─ ActionLineEnd_content [16..17]
-     │   │   │       │   └─ TextChunk [16..17]
-     │   │   │       │       ├─ TextChunk_begin 16
-     │   │   │       │       ├─ TextChunk_content [16..17]
-     │   │   │       │       │   └─ Word [16..17]: "B"
-     │   │   │       │       └─ TextChunk_end 17
-     │   │   │       └─ ActionLineEnd_end 17
-     │   │   └─ ImplicitAction_end 17
-     │   ├─ Newline [17..18]: "\n"
-     │   ├─ LuauAlternatorSeparator [18..22]
-     │   │   ├─ LuauAlternatorSeparator_c1 [18..20]
-     │   │   │   └─ ExtraWhitespace [18..20]: "  "
-     │   │   ├─ LuauAlternatorSeparator_c2 [20..21]: "|"
-     │   │   ├─ LuauAlternatorSeparator_c3 [21..22]
-     │   │   │   └─ LuauAlternatorSeparator_c3 [21..22]
-     │   │   │       └─ OptionalWhitespace [21..22]: " "
-     │   │   ├─ LuauAlternatorSeparator_c4 22
-     │   │   ├─ LuauAlternatorSeparator_c5 22
-     │   │   ├─ LuauAlternatorSeparator_c6 22
-     │   │   └─ LuauAlternatorSeparator_c7 22
-     │   ├─ ImplicitAction [22..23]
-     │   │   ├─ ImplicitAction_begin 22
-     │   │   │   └─ ImplicitAction_begin_c1 22
-     │   │   │       └─ OptionalWhitespace 22
-     │   │   ├─ ImplicitAction_content [22..23]
-     │   │   │   └─ ActionLineEnd [22..23]
-     │   │   │       ├─ ActionLineEnd_begin 22
-     │   │   │       │   └─ ActionLineEnd_begin_c1 22
-     │   │   │       │       └─ OptionalWhitespace 22
-     │   │   │       ├─ ActionLineEnd_content [22..23]
-     │   │   │       │   └─ TextChunk [22..23]
-     │   │   │       │       ├─ TextChunk_begin 22
-     │   │   │       │       ├─ TextChunk_content [22..23]
-     │   │   │       │       │   └─ Word [22..23]: "C"
-     │   │   │       │       └─ TextChunk_end 23
-     │   │   │       └─ ActionLineEnd_end 23
-     │   │   └─ ImplicitAction_end 23
-     │   └─ Newline [23..24]: "\n"
-     └─ LuauSparkdownSequentialAlternatorBlock_end [24..27]
-         ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 24
-         │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 24
-         │       └─ OptionalWhitespace 24
-         ├─ LuauSparkdownSequentialAlternatorBlock_end_c2 [24..27]
-         │   └─ LuauEndKeyword [24..27]: "end"
-         └─ LuauSparkdownSequentialAlternatorBlock_end_c3 27
+sparkdown [0..53]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownSequentialAlternatorBlock [12..49]
+ │   ├─ LuauSparkdownSequentialAlternatorBlock_begin [12..19]
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c2 14
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c3 14
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c4 [14..19]
+ │   │   │   └─ LuauControlKeyword [14..19]: "queue"
+ │   │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 19
+ │   │       └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 19
+ │   │           └─ OptionalWhitespace 19
+ │   ├─ LuauSparkdownSequentialAlternatorBlock_content [19..44]
+ │   │   ├─ Newline [19..20]: "\n"
+ │   │   ├─ LuauAlternatorSeparator [20..26]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [20..24]
+ │   │   │   │   └─ ExtraWhitespace [20..24]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [24..25]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [25..26]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [25..26]
+ │   │   │   │       └─ OptionalWhitespace [25..26]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 26
+ │   │   │   ├─ LuauAlternatorSeparator_c5 26
+ │   │   │   ├─ LuauAlternatorSeparator_c6 26
+ │   │   │   └─ LuauAlternatorSeparator_c7 26
+ │   │   ├─ ImplicitAction [26..27]
+ │   │   │   ├─ ImplicitAction_begin 26
+ │   │   │   │   └─ ImplicitAction_begin_c1 26
+ │   │   │   │       └─ OptionalWhitespace 26
+ │   │   │   ├─ ImplicitAction_content [26..27]
+ │   │   │   │   └─ ActionLineEnd [26..27]
+ │   │   │   │       ├─ ActionLineEnd_begin 26
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 26
+ │   │   │   │       │       └─ OptionalWhitespace 26
+ │   │   │   │       ├─ ActionLineEnd_content [26..27]
+ │   │   │   │       │   └─ TextChunk [26..27]
+ │   │   │   │       │       ├─ TextChunk_begin 26
+ │   │   │   │       │       ├─ TextChunk_content [26..27]
+ │   │   │   │       │       │   └─ Word [26..27]: "A"
+ │   │   │   │       │       └─ TextChunk_end 27
+ │   │   │   │       └─ ActionLineEnd_end 27
+ │   │   │   └─ ImplicitAction_end 27
+ │   │   ├─ Newline [27..28]: "\n"
+ │   │   ├─ LuauAlternatorSeparator [28..34]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [28..32]
+ │   │   │   │   └─ ExtraWhitespace [28..32]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [32..33]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [33..34]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [33..34]
+ │   │   │   │       └─ OptionalWhitespace [33..34]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 34
+ │   │   │   ├─ LuauAlternatorSeparator_c5 34
+ │   │   │   ├─ LuauAlternatorSeparator_c6 34
+ │   │   │   └─ LuauAlternatorSeparator_c7 34
+ │   │   ├─ ImplicitAction [34..35]
+ │   │   │   ├─ ImplicitAction_begin 34
+ │   │   │   │   └─ ImplicitAction_begin_c1 34
+ │   │   │   │       └─ OptionalWhitespace 34
+ │   │   │   ├─ ImplicitAction_content [34..35]
+ │   │   │   │   └─ ActionLineEnd [34..35]
+ │   │   │   │       ├─ ActionLineEnd_begin 34
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 34
+ │   │   │   │       │       └─ OptionalWhitespace 34
+ │   │   │   │       ├─ ActionLineEnd_content [34..35]
+ │   │   │   │       │   └─ TextChunk [34..35]
+ │   │   │   │       │       ├─ TextChunk_begin 34
+ │   │   │   │       │       ├─ TextChunk_content [34..35]
+ │   │   │   │       │       │   └─ Word [34..35]: "B"
+ │   │   │   │       │       └─ TextChunk_end 35
+ │   │   │   │       └─ ActionLineEnd_end 35
+ │   │   │   └─ ImplicitAction_end 35
+ │   │   ├─ Newline [35..36]: "\n"
+ │   │   ├─ LuauAlternatorSeparator [36..42]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [36..40]
+ │   │   │   │   └─ ExtraWhitespace [36..40]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [40..41]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [41..42]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [41..42]
+ │   │   │   │       └─ OptionalWhitespace [41..42]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 42
+ │   │   │   ├─ LuauAlternatorSeparator_c5 42
+ │   │   │   ├─ LuauAlternatorSeparator_c6 42
+ │   │   │   └─ LuauAlternatorSeparator_c7 42
+ │   │   ├─ ImplicitAction [42..43]
+ │   │   │   ├─ ImplicitAction_begin 42
+ │   │   │   │   └─ ImplicitAction_begin_c1 42
+ │   │   │   │       └─ OptionalWhitespace 42
+ │   │   │   ├─ ImplicitAction_content [42..43]
+ │   │   │   │   └─ ActionLineEnd [42..43]
+ │   │   │   │       ├─ ActionLineEnd_begin 42
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 42
+ │   │   │   │       │       └─ OptionalWhitespace 42
+ │   │   │   │       ├─ ActionLineEnd_content [42..43]
+ │   │   │   │       │   └─ TextChunk [42..43]
+ │   │   │   │       │       ├─ TextChunk_begin 42
+ │   │   │   │       │       ├─ TextChunk_content [42..43]
+ │   │   │   │       │       │   └─ Word [42..43]: "C"
+ │   │   │   │       │       └─ TextChunk_end 43
+ │   │   │   │       └─ ActionLineEnd_end 43
+ │   │   │   └─ ImplicitAction_end 43
+ │   │   └─ Newline [43..44]: "\n"
+ │   └─ LuauSparkdownSequentialAlternatorBlock_end [44..49]
+ │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 [44..46]
+ │       │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 [44..46]
+ │       │       └─ OptionalWhitespace [44..46]: "  "
+ │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c2 [46..49]
+ │       │   └─ LuauEndKeyword [46..49]: "end"
+ │       └─ LuauSparkdownSequentialAlternatorBlock_end_c3 49
+ ├─ Newline [49..50]: "\n"
+ └─ LuauEndKeyword [50..53]: "end"

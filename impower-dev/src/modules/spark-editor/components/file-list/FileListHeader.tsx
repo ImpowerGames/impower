@@ -13,11 +13,8 @@ import {
 } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 
-// Files are ALWAYS grouped by type (extension); the sort field only orders rows
-// WITHIN each type group. So the sort options are the secondary keys.
 export type SortKey = "name" | "modified" | "size";
 export type SortOrder = "asc" | "desc";
-/** "" = all types; otherwise the media category to keep. */
 export type TypeFilter = "" | "image" | "audio" | "video" | "text";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -39,27 +36,13 @@ export type FileListHeaderProps = {
   onSearch: (query: string) => void;
   sortKey: SortKey;
   sortOrder: SortOrder;
-  /** Pick a sort field; the parent toggles asc↔desc when it's the active one. */
   onSort: (key: SortKey) => void;
   typeFilter: TypeFilter;
   onTypeFilter: (value: TypeFilter) => void;
-  /** Rendered to the right of the search bar (the pane's "more" 3-dots menu). */
   trailing?: ComponentChildren;
-  /**
-   * Multi-select mode: replaces the Filter/Sort row (row 2) with these selection
-   * controls, leaving the search row (row 1) in place. Keeping the search bar
-   * mounted means the header height is unchanged, so the file list never shifts
-   * when toggling selection mode.
-   */
   selectionRow?: ComponentChildren;
 };
 
-/**
- * File-manager header (reimplemented from the legacy EngineConsoleHeader on our
- * preact/Tailwind/Radix stack): a search field, a Type filter menu (funnel icon,
- * tinted when active), and a Sort menu (field label + asc/desc arrow). Sort
- * applies to FILES only — folders always sort first by name.
- */
 export default function FileListHeader({
   search,
   onSearch,
@@ -78,8 +61,7 @@ export default function FileListHeader({
 
   return (
     <div class="flex min-w-0 flex-1 flex-col gap-4 mt-4">
-      {/* Row 1 — search bar + the pane's "more" menu (matching the old engine,
-          whose 3-dots sat on the search/title row). */}
+
       <div class="flex flex-row items-center gap-2">
         <div class="relative flex min-w-0 flex-1 items-center">
           <Search class="pointer-events-none absolute left-2 size-4 text-foreground/40" />
@@ -104,9 +86,7 @@ export default function FileListHeader({
         {trailing}
       </div>
 
-      {/* Row 2 — multi-select controls when selecting; otherwise the Type filter
-          (LEFT) + sort (RIGHT). Either way the row is h-8, so the header height
-          is identical and the list doesn't shift when entering selection mode. */}
+
       {selectionRow ?? (
         <div class="flex flex-row items-center justify-between">
           <DropdownRoot>

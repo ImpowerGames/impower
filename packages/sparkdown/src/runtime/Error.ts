@@ -1,5 +1,3 @@
-// TODO: Unify with Compiler.
-
 export interface SourceMetadata {
   fileName: string | null;
   filePath: string | null;
@@ -9,15 +7,9 @@ export interface SourceMetadata {
   endCharacterNumber: number;
 }
 
-/** A runtime error as it was raised: its text without the location prefix the
- *  story's `message` carries, and the path of the content the story was
- *  executing, or null when it was executing none. */
 export interface RaisedError {
   message: string;
   path: string | null;
-  /** On the program engine, the address of the instruction that raised it,
-   *  kept as it raised it: an error ends the story, which forgets where it
-   *  stood before the error is reported (#700). */
   address?: number;
 }
 
@@ -27,7 +19,6 @@ export type ErrorHandler = (
   source: SourceMetadata | null,
 ) => void;
 
-/** What a running story reports its errors and warnings through. */
 export type RuntimeErrorHandler = (
   message: string,
   type: ErrorType,

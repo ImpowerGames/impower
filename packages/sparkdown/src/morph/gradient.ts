@@ -1,29 +1,3 @@
-// The gradients a moving drawing's fill or stroke paints with, read from the
-// artwork within a closed grammar, and the copy of one a live part carries
-// for the moving shape to paint with. Artwork with a style sheet is never
-// baked live, so no sheet rule takes part.
-//
-// A gradient blends only when everything that decides it is in this grammar:
-// a `linearGradient` or `radialGradient` in the SVG namespace (the nearest
-// default namespace declaration names it, for it and its stops) with no
-// inline `style` and no
-// `transform` attribute, holding nothing but `stop` elements, reached from
-// the drawing through a bare `url(#id)` and from there through `href` or
-// `xlink:href` (its prefix bound to XLink) of the form `#id`, each to another
-// such gradient; its
-// `gradientUnits` and `spreadMethod` spelled exactly as SVG names them;
-// coordinates as plain numbers or percentages no larger than 1e300, with
-// nothing around them, a percentage in `userSpaceOnUse` only at zero (any other resolves
-// against a viewport); a `gradientTransform` as a list of the six transform
-// functions, numbers separated by commas or spaces and functions by a comma
-// or spaces, its matrix's entries no larger either; each stop's `offset` the same way, and its
-// colour as `paint.ts` reads `stop-color` and `stop-opacity`; and nothing
-// that may set `color-interpolation` on the gradients, their stops or their
-// ancestors (the attribute, the property, `all`, or an inline style the
-// paint grammar cannot split). Anything else leaves the pair
-// unblended. Reading less than a browser does is safe; reading something
-// differently is not.
-
 import { parseTransform, type Affine } from "./affine";
 import { own } from "./own";
 import { stopColor } from "./paint";
@@ -35,10 +9,8 @@ const KINDS: Record<string, MorphGradient["kind"]> = { linearGradient: "linear",
 const UNITS = new Set<string>(["userSpaceOnUse", "objectBoundingBox"]);
 const SPREADS = new Set<string>(["pad", "reflect", "repeat"]);
 
-/** Each kind's coordinates in `MorphGradient.geometry` order, with their initial values. */
 const GEOMETRY: Record<MorphGradient["kind"], [string, string | undefined][]> = {
   linear: [["x1", "0%"], ["y1", "0%"], ["x2", "100%"], ["y2", "0%"]],
-  // An unset focus is the centre.
   radial: [["cx", "50%"], ["cy", "50%"], ["r", "50%"], ["fx", undefined], ["fy", undefined], ["fr", "0%"]],
 };
 
@@ -49,17 +21,10 @@ const REFERENCE = /^#([A-Za-z0-9_.-]+)$/;
 const elementsOf = (element: Element): Element[] =>
   element.children.filter((c): c is Element => !!c && typeof c === "object");
 
-/**
- * The largest magnitude a gradient number may have: far beyond any drawing's
- * scale, and small enough that blending two such numbers never overflows a
- * double, as a number too large for one never could be drawn with certainty.
- */
 const GRADIENT_LIMIT = 1e300;
 
-/** Whether every number is within `GRADIENT_LIMIT`. */
 export const gradientNumbers = (numbers: readonly number[]) => numbers.every((n) => Math.abs(n) <= GRADIENT_LIMIT);
 
-/** A number within `GRADIENT_LIMIT`, or a percentage as a fraction; undefined otherwise. */
 const fraction = (text: string): { value: number; percent: boolean } | undefined => {
   const percent = text.endsWith("%");
   const body = percent ? text.slice(0, -1) : text;
@@ -68,17 +33,11 @@ const fraction = (text: string): { value: number; percent: boolean } | undefined
   return gradientNumbers([value]) ? { value, percent } : undefined;
 };
 
-/** A `gradientTransform` in the grammar, or undefined. */
 export function readGradientTransform(text: string): Affine | undefined {
   const matrix = parseTransform(text);
   return matrix && gradientNumbers(matrix) ? matrix : undefined;
 }
 
-/**
- * Whether the element or an ancestor may set `color-interpolation`, which the
- * bake does not read: as an attribute, in an inline style the paint grammar
- * cannot split (an escape or a comment can spell the name), or through `all`.
- */
 const interpolates = (doc: ArtDocument, element: Element) =>
   [...ancestry(doc, element)].some(({ element: e }) => {
     if (e.attributes["color-interpolation"] !== undefined) return true;
@@ -89,7 +48,6 @@ const interpolates = (doc: ArtDocument, element: Element) =>
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
-/** The namespace the nearest declaration `name` (`xmlns` or `xmlns:prefix`), the element's own or an ancestor's, binds. */
 const boundNamespace = (doc: ArtDocument, element: Element, name: string): string | undefined => {
   for (const { element: e } of ancestry(doc, element)) {
     const declared = e.attributes[name];
@@ -98,28 +56,12 @@ const boundNamespace = (doc: ArtDocument, element: Element, name: string): strin
   return undefined;
 };
 
-/**
- * Whether an element's unprefixed name is in the SVG namespace. An element
- * under another namespace is no gradient or stop a browser paints with,
- * whatever its name.
- */
 const inSvg = (doc: ArtDocument, element: Element) => boundNamespace(doc, element, "xmlns") === SVG_NS;
 
-/**
- * The gradient `id` names, resolved through its `href` chain: each attribute
- * from the first gradient in the chain that sets it (coordinates only from
- * gradients of the first one's kind) and the stops of the first that has
- * any. Undefined for anything outside the grammar, a chain that loops or
- * reaches something other than a gradient, or no stops.
- */
 export function readGradient(doc: ArtDocument, id: string): MorphGradient | undefined {
   const chain: Element[] = [];
   for (let at = doc.byId.get(id); at; ) {
     if (chain.includes(at) || !own(KINDS, at.tagName) || !inSvg(doc, at)) return undefined;
-    // Inline style could set the transform, and a `transform` attribute is
-    // one in SVG 2; a link in any other namespace prefix is one the bake
-    // cannot tell from `xlink:href`, and `xlink:href` is a link only where
-    // its prefix is bound to the XLink namespace.
     if ((at.attributes["style"] ?? "").replace(WSP, "") || at.attributes["transform"] !== undefined) return undefined;
     if (Object.keys(at.attributes).some((name) => name.endsWith(":href") && name !== "xlink:href")) return undefined;
     if (at.attributes["xlink:href"] !== undefined && boundNamespace(doc, at, "xmlns:xlink") !== XLINK_NS) return undefined;
@@ -146,16 +88,13 @@ export function readGradient(doc: ArtDocument, id: string): MorphGradient | unde
   for (const [name, initial] of GEOMETRY[kind]) {
     const text = attribute(name, true) ?? initial;
     if (text === undefined) {
-      // `fx` and `fy` default to the centre.
       geometry.push(geometry[name === "fx" ? 0 : 1]!);
       continue;
     }
     const read = fraction(text);
-    // A user-space percentage resolves against a viewport; zero is zero anywhere.
     if (!read || (read.percent && units === "userSpaceOnUse" && read.value !== 0)) return undefined;
     geometry.push(read.value);
   }
-  // A negative radius is an error a browser does not draw.
   if (kind === "radial" && (geometry[2]! < 0 || geometry[5]! < 0)) return undefined;
   const holder = chain.find((e) => elementsOf(e).length > 0);
   if (!holder) return undefined;
@@ -166,7 +105,6 @@ export function readGradient(doc: ArtDocument, id: string): MorphGradient | unde
     const read = fraction(text);
     const color = stopColor(doc, stop);
     if (!read || !color || interpolates(doc, stop) || !inSvg(doc, stop)) return undefined;
-    // Offsets clamp to 0..1, and one below an earlier stop's takes that one's.
     last = Math.max(last, Math.min(1, Math.max(0, read.value)));
     stops.push([last, color]);
   }
@@ -180,11 +118,9 @@ export function readGradient(doc: ArtDocument, id: string): MorphGradient | unde
   };
 }
 
-/** Whether two gradients can blend: the same kind, units, spread and stop count. */
 export const gradientsMatch = (a: MorphGradient, b: MorphGradient) =>
   a.kind === b.kind && a.units === b.units && a.spread === b.spread && a.stops.length === b.stops.length;
 
-/** The copy of a gradient a live part carries, written with `gradient`'s values. */
 export function gradientCopy(id: string, gradient: MorphGradient): Element {
   const { attributes, stops } = gradientAttributes(gradient);
   return {

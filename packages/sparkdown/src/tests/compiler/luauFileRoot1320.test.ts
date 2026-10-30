@@ -1,8 +1,3 @@
-// A `.luau` file parses as Luau from its first line (I-1320, closing I-732
-// and I-1385): its top level is a pure-Luau block body, so a `local` list
-// continues after a trailing comma, a call is a statement rather than an
-// action line, and a line that reads like a Sparkdown construct (`define`,
-// `store`, `layout`, `->`) gets the errors the official parser reports.
 import { describe, expect, test } from "vitest";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { officialErrorList } from "./officialSyntax";
@@ -14,7 +9,6 @@ import { createSparkdownParser } from "../../compiler/utils/createSparkdownParse
 import { stripAnsi } from "./grammarSnapshot";
 import { compareEnginesFull, formatDivergences } from "./scopeEquality";
 
-/** The names of the nodes of a document's tree as the compiler parses it. */
 function nodeNames(uri: string, text: string): string[] {
   const compiler = testCompiler();
   compiler.configure({
@@ -47,26 +41,21 @@ describe("a .luau file's top level is Luau (I-732)", () => {
     expect(names).not.toContain("ImplicitAction");
   });
 
-  // The lints read the `.luau` file's own tree as Luau reads it too: a
-  // top-level `;` separates two statements, so the second one on the line
-  // is not reported as missing one.
   test("a statement after a top-level semicolon is not reported as on the same line", () => {
     const { errorMessages, warningMessages } = collectDiagnostics("local a; b = 1, 2\nprint(a, b)\n", "inmemory:///util.luau");
     expect(errorMessages).toEqual([]);
     expect(warningMessages.filter((m) => m.includes("A new statement is on the same line"))).toEqual([]);
   });
 
-  // A `.luau` file is a Luau chunk, whose top level may return; a script's
-  // top level is story, where a return is an error.
   test("a return at a .luau file's top level is no error", () => {
     for (const source of ["local x = 1\nreturn x\n", "return\n"]) {
       expect(collectDiagnostics(source, "inmemory:///util.luau").errorMessages, JSON.stringify(source)).toEqual([]);
     }
   });
 
-  test("a marked return at a .sd script's top level is still reported", () => {
-    expect(collectDiagnostics("& return 1\n", "inmemory:///main.sd").errorMessages).toEqual([
-      "Return statements can only be used inside a function body — found one at file scope.",
+  test("a marked return in a scene of a .sd script is still reported", () => {
+    expect(collectDiagnostics("scene start\n  & return 1\nend\n", "inmemory:///main.sd").errorMessages).toEqual([
+      "Return statements can only be used inside a function body — found one in scene 'start'.",
     ]);
   });
 
@@ -75,9 +64,6 @@ describe("a .luau file's top level is Luau (I-732)", () => {
   });
 });
 
-// A `.luau` file's tree, as the `.luau` root reads it, and its scopes, which
-// VS Code's grammar for the `sparkdown-luau` language gives every character
-// as the tree does.
 describe("the .luau root's tree and scopes", () => {
   const LUAU_FILE = [
     "--!strict",
@@ -108,8 +94,6 @@ describe("the .luau root's tree and scopes", () => {
   }
 });
 
-// The forms of I-1385's table: in a `.luau` file each is Luau's, and its
-// errors are the official parser's, no more and no fewer, each at its range.
 describe("a .luau file's Sparkdown-looking lines get the official parser's errors (I-1385)", () => {
   const errorsIn = (sources: Record<string, string>) =>
     diagnoseFilesDetailed(sources)

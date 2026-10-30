@@ -1,11 +1,3 @@
-// A value-list name (`x` in `local a, b = 1, x`) depends on an earlier name's
-// `=` (#1116), and `CompilationAnnotator` reads that answer when it lowers a
-// chunk. After incremental edits to such a list, the compiled program must be
-// byte-identical to a cold compile of the same text, as
-// `incrementalEquivalence.test.ts` requires for the rest of the language.
-// A chunk is lowered again whole, so this holds with or without the editor's
-// widened annotation window (`incrementalValueListParity.test.ts` pins that);
-// it guards the compile path itself.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -94,7 +86,6 @@ const SCRIPT = [
   "",
 ].join("\n");
 
-// Each step is a find -> replace on the first occurrence, applied in order.
 const STEPS: [string, string, string][] = [
   ["warm-up inside f", "pre_5 = 5 + 1", "pre_5 = 5 +  1"],
   ["the list gains its `=`", "aa, bb ==", "aa, bb ="],

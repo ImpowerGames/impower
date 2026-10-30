@@ -1,7 +1,3 @@
-/*
- * Inspired by Pattern Monster <https://pattern.monster>
- */
-
 import { Create } from "../../../core/types/Create";
 import { Random } from "../../../core/types/Random";
 import { Graphic } from "../types/Graphic";

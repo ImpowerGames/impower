@@ -1,1 +1,3 @@
-f(x).y
+scene start
+  f(x).y
+end

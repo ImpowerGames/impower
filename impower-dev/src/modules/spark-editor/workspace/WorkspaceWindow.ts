@@ -79,35 +79,11 @@ import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 
-/**
- * Owns the editor's window/UI state and bridges it to out-of-process peers.
- *
- * Data flow:
- * - The reactive `WorkspaceStore` (signals) is the single source of truth for
- *   in-page UI. Intents below (openPane, openFileEditor, setPreviewMode, …)
- *   update it via `this.update()`; Preact components read the signals and
- *   re-render. They do NOT broadcast events for in-page consumption.
- * - `sendProtocolMessage()` dispatches `spark-editor-protocol` messages on a window
- *   CustomEvent bus — strictly the boundary to peers that can't read the
- *   in-page signal: the OPFS/LSP/PDF workers, the game-player & screenplay
- *   iframes, and the framework-agnostic CodeMirror editor-view controllers
- *   (a reusable package that must stay decoupled from this app's store).
- * - `handleProtocol()` is the inbound half: it folds peer-originated events
- *   (editor scroll/selection/highlights, compiled program, …) back into the
- *   store.
- *
- * The class is large; the sections below group it by concern. A future split
- * into per-concern modules behind this facade is viable once a shared "core"
- * (store/update/cache/getPaneType) is extracted and the project
- * lifecycle/sync methods gain test coverage.
- */
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this),
   );
 
-  // Removes each protocol-bus and media-query listener this instance
-  // registered. See `dispose()`.
   protected _disposers: (() => void)[] = [];
 
   constructor() {
@@ -127,22 +103,11 @@ export default class WorkspaceWindow {
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
-  /**
-   * Stop answering protocol requests and reacting to layout changes. The app's
-   * singleton lives for the page; tests construct instances on a shared
-   * `window` and must dispose each one, or its handlers keep answering later
-   * requests.
-   */
   dispose() {
     this._disposers.forEach((dispose) => dispose());
     this._disposers = [];
   }
 
-  // Inbound protocol → store. One typed listener per message kind; each
-  // handler receives the fully-typed message (no instanceof/`.is()` guards).
-  // `onProtocolRequest` for requests (the handler must return the message's
-  // Response — a forgotten `return` is a compile error — and the reply is sent
-  // automatically), `onProtocolMessage` for notifications.
   protected registerProtocolHandlers() {
     this._disposers.push(
       onProtocolRequest(LoadedProjectIdMessage.type, (m) =>
@@ -191,20 +156,12 @@ export default class WorkspaceWindow {
   }
 
   protected getCacheableState(store: WorkspaceCache) {
-    // Reset any data that shouldn't survive past the current session
-    // (this data shouldn't be saved in localStorage)
     const copy = structuredClone(store);
-    // Reset screen state
     copy.screen = {};
-    // Reset sync state
     copy.sync = {};
-    // Reset diagnostics state
     copy.debug.diagnosticsSummary = {};
-    // Reset pinpoints state
     copy.debug.pinpoints = {};
-    // Reset highlights state
     copy.debug.highlights = {};
-    // Reset game preview state
     copy.preview.modes.game = {};
     return copy;
   }
@@ -239,23 +196,10 @@ export default class WorkspaceWindow {
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, id);
   }
 
-  // ===========================================================================
-  // Account state
-  //
-  // The signed-in Google account lives in a dedicated `workspace.account`
-  // signal (NOT the persisted cache — see WorkspaceStore for why). These
-  // intents are the single write path; the sync provider calls `clearAccount`
-  // on an out-of-band revocation (invalid_grant), and Account.tsx calls
-  // `setAccount` after sign-in / initial fetch. Components react via the
-  // derived `workspace.signals.account` / `signinLabel` computeds.
-  // ===========================================================================
-
-  /** Record the current Google account (or null when signed out). */
   setAccount(info: AccountInfo | null) {
     workspace.account.value = info ?? null;
   }
 
-  /** Clear the signed-in account — used on sign-out and on revocation. */
   clearAccount() {
     workspace.account.value = null;
   }
@@ -408,9 +352,6 @@ export default class WorkspaceWindow {
     message: CompiledProgramMessage.Notification,
   ) => {
     const { program, diagnosticsSummary } = message.params;
-    // The main thread only needs per-file severity counts (to color file
-    // rows/tabs); the slim relay provides them pre-rolled-up. Fall back to
-    // summarizing full diagnostics if a non-slim relay ever sends them.
     const summary =
       diagnosticsSummary ??
       Object.fromEntries(
@@ -448,11 +389,6 @@ export default class WorkspaceWindow {
       },
     });
   };
-
-  // ===========================================================================
-  // Editor state & layout queries (highlights/pinpoints, pane/panel/editor
-  // lookups, showDocument/search)
-  // ===========================================================================
 
   setHighlights(highlights: Record<string, number[]>) {
     this.update({
@@ -538,17 +474,12 @@ export default class WorkspaceWindow {
     }
   }
 
-  /** Every pin in the project, as the Game Preview plans its routes with
-   *  them. */
   getRoutePins(): RoutePin[] {
     return Object.entries(this.store.debug.routePins ?? {}).flatMap(
       ([uri, pins]) => pins.map(({ line, offer }) => ({ uri, line, offer })),
     );
   }
 
-  /** Keep `pins` as the project's pins, and tell the Game Preview, and the
-   *  script editors when `fromPreview` (an editor that moved its own pins
-   *  through an edit already holds them). */
   protected storeRoutePins(
     routePins: Record<string, { line: number; offer: number }[]>,
     fromPreview: boolean,
@@ -564,8 +495,6 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetRoutePinsMessage.type.request({ pins }));
   }
 
-  /** Apply a change the author made to the pins from the Game Preview's
-   *  route list (`preview/changeRoutePins`), answering every pin kept. */
   changeRoutePins(change: ChangeRoutePinsParams): RoutePin[] {
     this.storeRoutePins(
       changedRoutePins(this.store.debug.routePins ?? {}, change),
@@ -628,10 +557,6 @@ export default class WorkspaceWindow {
   }
 
   getPanelType(filenameOrUri: string) {
-    // Key off the BASENAME (last path segment), not a naive `.`-split: now that
-    // files nest under scripts/ + assets/, a dotted FOLDER name (`act.1/x.sd`)
-    // would otherwise scramble the extension. The root `main.sd` is the "Main"
-    // entry; every other script lives under scripts/ and routes to the list.
     const base = filenameOrUri.split("/").pop() ?? "";
     const dot = base.lastIndexOf(".");
     const name = dot > 0 ? base.slice(0, dot) : base;
@@ -801,10 +726,6 @@ export default class WorkspaceWindow {
     );
   }
 
-  // ===========================================================================
-  // Panes, panels, views & file editors (store-only intents)
-  // ===========================================================================
-
   openPane(pane: PaneType) {
     this.update({
       ...this.store,
@@ -907,11 +828,6 @@ export default class WorkspaceWindow {
     }
   }
 
-  // ===========================================================================
-  // Preview pane (store-only intents; the Did*PreviewPane broadcasts notify the
-  // out-of-process editor-view controllers)
-  // ===========================================================================
-
   expandPreviewPane() {
     this.update({
       ...this.store,
@@ -944,10 +860,6 @@ export default class WorkspaceWindow {
     });
   }
 
-  // ===========================================================================
-  // Project name editing & remote-resource picking
-  // ===========================================================================
-
   startEditingProjectName() {
     this.update({
       ...this.store,
@@ -962,8 +874,6 @@ export default class WorkspaceWindow {
     const id = this.store.project.id;
     const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
-      // Capture the previous name BEFORE the optimistic update; otherwise
-      // the comparison below always sees the new value and never persists.
       const previousName = this.store.project.name;
       this.update({
         ...this.store,
@@ -1006,10 +916,6 @@ export default class WorkspaceWindow {
     });
   }
 
-  // ===========================================================================
-  // Game control (JSON-RPC requests to the game-player iframe)
-  // ===========================================================================
-
   startGame() {
     if (!this.store.preview.modes.game.running) {
       this.update({
@@ -1033,12 +939,6 @@ export default class WorkspaceWindow {
     }
   }
 
-  /**
-   * Sync editor state to a game that is no longer running, without asking the
-   * player to stop. Use this when the player stopped on its own -- the story
-   * ran out, or it errored -- since telling it to stop again just round-trips
-   * a message to something that has already gone.
-   */
   endGame() {
     if (this.store.preview.modes.game.running) {
       this.update({
@@ -1136,12 +1036,6 @@ export default class WorkspaceWindow {
     workspace.animatePortraits.value = cached !== "false";
   }
 
-  /**
-   * Turn idle portrait motion on or off, for this browser and every project.
-   * Independent of story pause: off returns portraits to rest, on starts a
-   * fresh cycle. The preview sends the current value again whenever a player
-   * connects.
-   */
   setAnimatePortraits(enabled: boolean) {
     workspace.animatePortraits.value = enabled;
     localStorage.setItem(
@@ -1192,11 +1086,6 @@ export default class WorkspaceWindow {
       sendProtocolMessage(DisableGameDebugMessage.type.request({}));
     }
   }
-
-  // ===========================================================================
-  // Project lifecycle & remote sync (load/unload, Google Drive sync, conflict
-  // resolution, import/export). Heavily Workspace.fs/sync-coupled.
-  // ===========================================================================
 
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;

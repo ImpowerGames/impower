@@ -1,10 +1,7 @@
-// PreToolUse hook for the PowerShell tool: refuses .NET file calls with a
-// relative path, which resolve against the process directory rather than the
-// PowerShell location. The decision lives in .agents/hooks/write-hazards.mjs.
-
 import { pathToFileURL } from "node:url";
 import { dotNetRelativePathReason } from "../../.agents/hooks/write-hazards.mjs";
 
+// workaround(powershell): .NET file calls resolve a relative path against the process directory, not the PowerShell location
 export async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;

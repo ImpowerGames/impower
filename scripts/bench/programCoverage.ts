@@ -1,13 +1,3 @@
-// How much of a project the binary program's writer emits (#694, #695, #698): the
-// project compiled cold as the player's worker compiles it, and the statements
-// of its flows and its declaration sequences counted by what became of them.
-//
-// Run through preview-bench.mjs --mode coverage, with the configuration as one
-// JSON argument: { project, json }. The report gives the statements the writer
-// emits, of which how many are declarations, the ones it has no emit path for
-// counted by the construct each names, how many functions the program has (the
-// statements of their bodies are among the statements counted), and the
-// construct that kept the program from being built, with its script and line.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";

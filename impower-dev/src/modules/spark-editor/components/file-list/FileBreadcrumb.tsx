@@ -3,19 +3,11 @@ import { Fragment } from "preact";
 import { breadcrumbSegments } from "../../utils/fileTree";
 
 export type FileBreadcrumbProps = {
-  /** Current dive-mode scope path (`""` = project root). */
   scope: string;
-  /** Navigate to a folder path (`""` = root). */
   onNavigate: (path: string) => void;
   class?: string;
 };
 
-/**
- * Dive-mode breadcrumb: `[folder] › chapters › act1`. Every crumb except the
- * current (last) folder is tappable to scope back up; the root crumb is a folder
- * glyph. Horizontally scrollable (scrollbar hidden) so a deep trail scrolls
- * rather than clipping the current folder.
- */
 export default function FileBreadcrumb({
   scope,
   onNavigate,

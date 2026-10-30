@@ -1,14 +1,3 @@
-// A function value keeps its type when the runtime is bundled (I-1128).
-//
-// The running game executes a worker that esbuild bundles. esbuild writes a
-// class that names itself in its own body (`SymbolValue.Copy` builds a new
-// `SymbolValue`) as `var SymbolValue = class _SymbolValue`, so in the game the
-// class's `constructor.name` is `_SymbolValue`, while vitest, which transforms
-// file by file, keeps `SymbolValue`. The stdlib told function values apart by
-// that name, so in the game `type(f)` of a named function was "table" and
-// `table.sort(t, f)` refused it as a table. This file runs the runtime harness
-// from an esbuild bundle of itself, the form the game runs.
-
 import { build, type Plugin } from "esbuild";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +9,6 @@ type Harness = typeof import("./runtimeTestHarness");
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// Vite's `?raw` import, as the worker build honours it.
 const rawPlugin: Plugin = {
   name: "raw",
   setup(b) {
@@ -90,7 +78,9 @@ describe("a function value in the bundled runtime", () => {
       "function sort_items()",
       "  table.sort(items, compare)",
       "end",
-      "{sort_items()}",
+      "scene start",
+      "  {sort_items()}",
+      "end",
     ]);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("table.sort: comparator threw: bad compare");
@@ -107,7 +97,9 @@ describe("a function value in the bundled runtime", () => {
       "  table.sort(items, greater)",
       '  return table.concat(items, ",")',
       "end",
-      "{sorted()}",
+      "scene start",
+      "  {sorted()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("3,2,1");
@@ -122,7 +114,9 @@ describe("a function value in the bundled runtime", () => {
       "  local g = f",
       '  return type(f) .. " " .. type(g) .. " " .. tostring(f)',
       "end",
-      "{describe()}",
+      "scene start",
+      "  {describe()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("function function function: f");
@@ -136,7 +130,9 @@ describe("a function value in the bundled runtime", () => {
       "function replaced()",
       '  return (string.gsub("abc", "b", shout))',
       "end",
-      "{replaced()}",
+      "scene start",
+      "  {replaced()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("aBc");

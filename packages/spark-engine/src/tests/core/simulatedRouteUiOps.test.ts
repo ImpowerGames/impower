@@ -1,9 +1,3 @@
-// A route replay runs every beat between the top of the scene and the target
-// in one synchronous turn. Nothing displays those beats, so the UI operations
-// they would produce must not be buffered: a game that connects after the
-// replay displays exactly what a fresh game loaded from the replay's
-// checkpoint displays, and a connected game reports nothing for the search.
-
 import { describe, expect, test } from "vitest";
 import { Game } from "../../game/core/classes/Game";
 import {
@@ -14,13 +8,12 @@ import {
   normalizeMessages,
 } from "../ui/harness/uiTestHarness";
 
-// Dialogue, so each replayed beat would start the typewriter.
 const BEATS = Array.from(
   { length: 40 },
   (_, i) => `  HERO:\n  Line number ${i}.\n`,
 );
 
-const SOURCE = `-> start
+const SOURCE = `
 
 scene start
 ${BEATS.join("\n")}
@@ -68,8 +61,6 @@ describe("a simulated route buffers no UI operation", { timeout: 30_000 }, () =>
       normalizeMessages(fresh.messages),
     );
 
-    // And the preview that follows displays the same beat the same way,
-    // stopping no sound the replay never played.
     routed.reset();
     fresh.reset();
     await routed.preview(TARGET_LINE);
@@ -110,8 +101,6 @@ describe("a simulated route buffers no UI operation", { timeout: 30_000 }, () =>
       game.setStartFrom({ file: MAIN_URI, line: TARGET_LINE });
       game.simulate();
       expect(game.context.system.previewing).toBe(mark ? "start" : undefined);
-      // The module state; the story's random seed differs between any two
-      // games.
       return JSON.parse(game.save() as string).modules;
     };
     const marked = search(true);
@@ -143,7 +132,7 @@ define second_theme as audio with
   src = "https://example.com/second.wav"
 end
 
--> start
+
 
 scene start
   ((play music first_theme))
@@ -172,8 +161,6 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The first stop.")));
-    // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = resumed.restoreCheckpoint.bind(resumed);
     resumed.restoreCheckpoint = (...args: unknown[]) => {
@@ -206,7 +193,7 @@ define second_theme as audio with
   src = "https://example.com/second.wav"
 end
 
--> start
+
 
 scene start
   ((play music first_theme))
@@ -236,8 +223,6 @@ end
 
     const resumed: any = createHarness(source, 0, { connect: false }).game;
     resumed.patchAndSimulateRoute(planTo(resumed, lineOf("The later stop.")));
-    // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = resumed.restoreCheckpoint.bind(resumed);
     resumed.restoreCheckpoint = (...args: unknown[]) => {
@@ -262,7 +247,7 @@ end
   text "HUD"
 end
 
--> start
+
 
 scene start
   [[open hud]]
@@ -295,7 +280,7 @@ end
   text "HUD"
 end
 
--> start
+
 
 scene start
 ${BEATS.slice(0, 10).join("\n")}
@@ -334,15 +319,8 @@ end
   });
 });
 
-// A route replayed from the top of its scene saves the checkpoint a game that
-// has never run saves (#680). The player's worker routes on the game that also
-// displays the preview when it displays from its own game, so the same route
-// through the same program follows a displayed preview as often as it follows
-// another route; neither may leave anything in the checkpoints it saves.
 describe("a route replayed from the top of its scene", { timeout: 30_000 }, () => {
-  // The target is the scene's first beat, so the replay reaches it before any
-  // beat of its own displays and sets nothing over what came before it.
-  const SHORT = `-> start
+  const SHORT = `
 
 scene start
   HERO:
@@ -357,9 +335,6 @@ end
   const FIRST = lineOf("The first line.");
   const SECOND = lineOf("The second line.");
 
-  /** The module state a route to `line` saves, on a game that has done
-   *  `before` first. The story's random seed differs between any two games,
-   *  so the modules are what is compared. */
   const routed = async (line: number, before?: (h: any) => Promise<void>) => {
     const h = createHarness(SHORT, 0);
     await h.ready;
@@ -372,7 +347,6 @@ end
   };
 
   test("saves what a fresh game saves after the game displayed a preview", async () => {
-    // The preview's beat sets the continue indicator as a preview shows it.
     const afterDisplay = await routed(FIRST, async (h) => {
       await h.preview(SECOND);
       await flushMicrotasks(10);
@@ -381,8 +355,6 @@ end
   });
 
   test("saves what a fresh game saves after the game replayed another route", async () => {
-    // That route ends on its target beat without displaying it, which leaves
-    // the beat queued.
     const afterRoute = await routed(FIRST, async (h) => {
       h.game.setStartFrom({ file: MAIN_URI, line: FIRST });
       h.game.simulate();

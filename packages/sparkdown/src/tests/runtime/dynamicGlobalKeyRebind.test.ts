@@ -1,8 +1,3 @@
-// Writing a top-level function's name through the globals table with a key
-// the compiler cannot name (`_G[k] = g`, `rawset(_G, k, g)`) rebinds it as
-// `f = g` does (I-1394): in Luau `_G[k]` and the global `k` names are the
-// same slot. With such a store anywhere in the story, every call of a
-// top-level function reads the global.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
@@ -26,8 +21,6 @@ import {
   storyRun,
 } from "../program/programHarness";
 
-// The text a compiled story runs to, with the compile's error and warning
-// diagnostics and the run's errors.
 const outcome = ({ program }: { program: SparkProgram }) => {
   const diagnostics = Object.values(program.diagnostics ?? {})
     .flat()
@@ -41,15 +34,11 @@ const outcome = ({ program }: { program: SparkProgram }) => {
   };
 };
 
-// A script's leading `function` lines stay at the top level, and the story
-// lines after them run in a scene the story diverts to, where a `local` may
-// stand.
 const inScene = (text: string): string => {
   const lines = text.trimEnd().split("\n");
   const story = lines.findIndex((line) => !line.startsWith("function "));
   return [
     ...lines.slice(0, story),
-    "-> start",
     "scene start",
     ...lines.slice(story).map((line) => `  ${line}`),
     "end",
@@ -132,8 +121,6 @@ const cases: [string, string, string][] = [
   ],
 ];
 
-// Whether the program calls through a variable (`CallVar`) anywhere, as a
-// call of a rebound top-level function does, rather than jumping to it.
 const callsThroughVariable = (root: ProgramRoot): boolean => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).some((chunk) =>
@@ -141,9 +128,6 @@ const callsThroughVariable = (root: ProgramRoot): boolean => {
   );
 };
 
-// An edit that replaces `before` with `after` in `text`, compiled
-// incrementally after a compile of `text`: the program's surface, which a
-// cold compile of the edited text must equal, and what it runs to.
 const afterEdit = (script: string, before: string, after: string) => {
   const text = inScene(script);
   const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
@@ -172,8 +156,6 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     expect(run(text)).toEqual({ text: expected, errors: [] });
   });
 
-  // A story without a store through _G whose key is not a literal keeps
-  // every call of a top-level function a direct jump.
   it.each([
     ["no store through _G", "function f() return 7 end\n& x = 1\nf is {f()}.\n"],
     [
@@ -192,8 +174,6 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
       "dynamic-key multiple and compound stores into another table",
       "function f() return 7 end\n& local t = {f = 1}\n& local k = 'f'\n& t[k], x = 2, 3\n& t[k] += 1\nf is {f()}.\n",
     ],
-    // A literal key no name spells writes a global no call reads, and
-    // stands for no dynamic store.
     ["a literal key spelling the dynamic store's mark", "function f() return 7 end\n& _G['_G[]'] = 1\nf is {f()}.\n"],
     ["a rawset of a literal key spelling the dynamic store's mark", "function f() return 7 end\n& rawset(_G, '_G[]', 1)\nf is {f()}.\n"],
     ["a literal key spelling a whole table's mark", "function f() return 7 end\n& _G['*vars'] = 1\n& _G['*'] = 1\nf is {f()}.\n"],
@@ -219,9 +199,6 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     expect(callsThroughVariable(program.chunks!)).toBe(true);
   });
 
-  // The call still names the function the story declares, so it is held to
-  // that function's parameters, as a direct call is; a name a store rebinds
-  // is not (I-1091).
   const arity = "Function call to `f` requires 1 argument, but got 2";
   const surplus =
     "function f(a) return a end\n& local k = 'z'\n& x = 1\nf is {f(1, 2)}.\n";
@@ -265,10 +242,6 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
     expect(result).toEqual({ text: expected, errors: [] });
   });
 
-  // A statement served from its memo holds no objects, so a store through
-  // _G that one stood for would leave the story's global writes, and a call
-  // rebuilt by a later edit would jump to the function again. Edits around
-  // the store, in a block whose statements are memoized, must keep it.
   const filler = (prefix: string) =>
     Array.from({ length: 16 }, (_, i) => `    ${prefix} ${i}.`);
   it.each([
@@ -279,8 +252,7 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
   ])("edits around a store %s in a memoized block keep the call through the global", (_name, store, expected) => {
     let text = [
       "function f() return 7 end",
-      "-> MAIN",
-      "scene MAIN",
+      "scene start",
       "  choose",
       "    + [Go]",
       "      Go.",

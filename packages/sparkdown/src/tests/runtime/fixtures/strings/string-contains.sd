@@ -1,5 +1,7 @@
 store s = "Hello, World!"
--> main
+scene start
+  -> main
+end
 scene main
   {s:find("World")}
   {s:find("zzz")}

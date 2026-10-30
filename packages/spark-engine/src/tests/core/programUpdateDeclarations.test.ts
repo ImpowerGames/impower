@@ -1,19 +1,3 @@
-// #1759: a game given the program of the next compile built a new program
-// engine whose first state ran every declaration chunk of the root, walked
-// the whole graph of tables they built (`SnapshotInitTables`) and rebuilt
-// the defines context from them, although an edit inside a beat changes no
-// declaration. The defines context's guard (#654) did not hold either: it
-// compared the context revision, which moves with the compile's own
-// implicit definitions, so an edit of one word of a portrait directive moved
-// it.
-//
-// A program the compile measured against the game's program, running the
-// same declarations and the same functions, hands the new engine the
-// declarations' run of the engine before it: no declaration runs, no table
-// is walked, and the define tables stand. An edit that changes a `define`,
-// a `store`, a `const` or a top-level function runs them all and rebuilds
-// the defines from the fresh run.
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -40,7 +24,7 @@ define hero as character with
   name = "Hero"
 end
 
--> start
+
 
 scene start
   Action line.
@@ -73,8 +57,6 @@ const posAt = (text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** A compiler over one script, configured as the preview's worker
- *  configures its compiler, and an editor that compiles after each edit. */
 function session(initial: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -151,9 +133,6 @@ const globalsOf = (game: Game) => {
   };
 };
 
-/** What the update of `game` to `program` ran: the declaration chunks the
- *  new engine ran, the snapshots of the init tables taken, and the builds of
- *  the defines context. */
 function update(game: Game, program: SparkProgram) {
   const snapshot = vi.spyOn(VariablesState.prototype, "SnapshotDefaultGlobals");
   const builds = game.definesContextBuilds;
@@ -197,7 +176,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
       expect(context(game)["config"]?.["pace"]?.["speed"]).toBe(5);
       expect(globalsOf(game)).toEqual({ base_speed: 5, boosted: 2, LIMIT: 3 });
 
-      // And again for the next edit, from the engine that took the run over.
       expect(update(game, s.edit("Last line.", "The last line."))).toEqual({
         declarations: 0,
         snapshots: 0,
@@ -208,10 +186,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
   );
 
   it("keeps its defines although a directive's word moved the context revision", () => {
-    // Why the #654 guard did not hold: the revision names the compile's own
-    // implicit definitions too (here the filtered image `hero_worried~gloves`
-    // the directive implies), which reach the game through the assets
-    // channel, not through the story the define tables are built from.
     const s = session(SOURCE);
     const first = s.compile();
     const game = makeGame(first);
@@ -228,7 +202,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
     const game = makeGame(s.compile());
     const before = game.programStory;
     const anchors = before.variablesState.InitTableAnchors();
-    // A table the declarations built, held by a default global.
     const [name, table] = [...before.variablesState.Declared.roots][0]!;
 
     update(game, s.edit("Last line.", "The last line."));
@@ -237,7 +210,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
     expect(story.declarationsCarried).toBe(true);
     expect(story.variablesState.InitTableAnchors()).toBe(anchors);
     expect(story.variablesState.globalEntries.get(name)).toBe(table);
-    // Not a fresh state: a caller that needs one resets (#1692).
     expect(story.stateIsPristine).toBe(false);
 
     quiet(() => story.ResetState());
@@ -265,7 +237,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
 
     const second = s.edit("Line one of dialogue.", "Line one, rewritten.");
     expect(update(game, second).declarations).toBe(0);
-    // The globals the story wrote stand until the game restores or resets.
     expect(globalsOf(game).base_speed).toBe(6);
     expect(quiet(() => game.restoreCheckpoint(checkpoint))).toBe(true);
     expect(globalsOf(game)).toEqual({ base_speed: 5, boosted: 2, LIMIT: 3 });
@@ -274,8 +245,6 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
     });
     expect(globalsOf(game).base_speed).toBe(6);
 
-    // A game given the same program from nothing ran the declarations; the
-    // save of the carried game loads into it and saves again as it was.
     const saved = quiet(() => game.save());
     const fresh = makeGame(second);
     quiet(() => fresh.load(saved));
@@ -286,18 +255,12 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
   });
 });
 
-// A save holds a named define's `store` properties alone, and a load puts
-// them over the define as the declarations built it (`SetJsonToken`). The
-// tables a carried engine took over are the ones the story wrote in, so a
-// load into it must not read what the story wrote into a property no save
-// holds: it loads as it loads into the engine of a fresh run, which is what
-// the engine of the program before an update held.
 const GUIDE = `define guide with
   store mood = 1
   title = "calm"
 end
 
--> start
+
 scene start
   Before.
   Restored {guide.title}.
@@ -337,7 +300,6 @@ describe("a save loaded after an update that carried the declarations (#1759)", 
     });
     expect(shown.join("")).toContain("Restored calm.");
 
-    // As the same save loads into a game of the edited program from nothing.
     const fresh = makeGame(second);
     quiet(() => fresh.load(saved));
     expect(guideTitle(fresh)).toBe("calm");
@@ -346,13 +308,10 @@ describe("a save loaded after an update that carried the declarations (#1759)", 
 });
 
 describe("a game whose constant holds a table (#1759)", () => {
-  // A restore of an image another program's engine took gives each
-  // constant its compiled value. The story can write in a constant's table,
-  // and then only a fresh run holds that value.
   const limits = (write: string) => `const LIMITS = { cap = 3 }
 store visits = 0
 
--> start
+
 scene start
   Before.
   ${write}
@@ -374,8 +333,6 @@ end
       while (story.canContinue) story.Continue();
       game.checkpoint();
     });
-    // Every read of the constant's table during the update, counted on the
-    // table itself: deciding to carry the run asks nothing of it.
     const map = (
       story.variablesState.GetVariableWithName("LIMITS") as unknown as {
         value: Map<string, unknown>;
@@ -436,13 +393,10 @@ end
   });
 
   it("runs the declarations after a load that merged into a table a constant reaches", () => {
-    // A save's named-define token for a `store` that holds the constant's
-    // table (an older save, written when `guide` was a define with a
-    // `store cap`) is merged onto that table in place as the load reads it.
     const s = session(`const LIMITS = { cap = 3 }
 store guide = LIMITS
 
--> start
+
 scene start
   Before.
   After.
@@ -521,8 +475,6 @@ describe("a game given a program that changes a declaration (#1759)", () => {
     expect(ran.declarations).toBeGreaterThan(0);
     expect(ran.snapshots).toBe(1);
     expect(ran.builds).toBe(1);
-    // The same on the base, which carried nothing: these hold before the
-    // change and after it.
     expect(game.programStory.declarationsCarried === true).toBe(false);
     expect(game.programStory.stateIsPristine).toBe(true);
     check(game);

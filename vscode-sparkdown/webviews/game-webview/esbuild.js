@@ -5,13 +5,7 @@ import path from "path";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-/**
- * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
- * file in a dedicated namespace, then load its contents as a text string.
- * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
- * same `import text from "./some.file?raw"` works in code bundled by either.
- * @type {import('esbuild').Plugin}
- */
+/** @type {import('esbuild').Plugin} */
 const rawPlugin = {
   name: "raw",
   setup(build) {
@@ -34,12 +28,6 @@ const rawPlugin = {
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-// Source files bundled INTO the inline worker (workspace.worker →
-// spark-web-player, spark-engine, the compiler, textmate-grammar-tree, …),
-// collected from the worker's esbuild metafile on every outer build (below).
-// The outer build's own metafile can't list them (the inline worker is a
-// separate build), so in --watch mode they are handed to the watcher
-// explicitly.
 const workerInputs = new Set();
 
 /** @type {import('esbuild').Plugin} **/
@@ -64,11 +52,7 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         ...(extraConfig || {}),
         metafile: true,
       });
-      // Record each bundled SOURCE file so --watch tracks the worker's deep
-      // deps, not just spark-web-player.
       for (const input of Object.keys(result.metafile?.inputs ?? {})) {
-        // esbuild lists namespaced inputs as `<namespace>:<path>` (e.g. a ?raw
-        // import in rawPlugin's `raw-loader` namespace). Strip it first.
         const real = input.startsWith("raw-loader:")
           ? input.slice("raw-loader:".length)
           : input;
@@ -133,10 +117,7 @@ const config = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // Not ctx.watch(), which polls the build graph's files; the helper watches
-    // this webview's own graph and the inline worker's inputs from change
-    // notifications. A build error must not kill the watcher — it logs and
-    // keeps watching.
+    // workaround(esbuild): ctx.watch() polls the build graph's files rather than using change notifications
     const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
       extraInputs: () => workerInputs,

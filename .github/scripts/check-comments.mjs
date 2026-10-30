@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { bodyLines, codeFile, exemptPath, judgeComments, loadTypescript, rule, scanComments } from "../../.agents/hooks/comment-policy.mjs";
+import { bodyLines, codeFile, exemptPath, judgeComments, loadTypescript, loadYaml, rule, scanComments } from "../../.agents/hooks/comment-policy.mjs";
 
 export const LISTING_LIMIT = 3000;
 export const DUPLICATE_MIN_LENGTH = 30;
@@ -107,6 +107,18 @@ function duplicates(file, key, root, state) {
   return found;
 }
 
+export async function listPullRequestFiles({ repository, number, token, api = "https://api.github.com", fetch = globalThis.fetch, limit = LISTING_LIMIT }) {
+  const records = [];
+  for (let page = 1; ; page++) {
+    const url = `${api}/repos/${repository}/pulls/${number}/files?per_page=100&page=${page}`;
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28" } });
+    if (!response.ok) throw new Error(`${url} answered ${response.status}: ${await response.text()}`);
+    const batch = JSON.parse(await response.text());
+    records.push(...batch);
+    if (batch.length < 100 || records.length >= limit) return records;
+  }
+}
+
 export function judgedRecords(records) {
   return records.filter((record) => record.status !== "removed" && codeFile(record.filename) && !exemptPath(record.filename));
 }
@@ -133,7 +145,7 @@ export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT 
       if (typeof record.patch === "string") {
         const parsed = parsePatch(record.patch);
         added = parsed.added;
-        before = baseFromPatch(text, parsed.hunks);
+        before = mergeBase ? baseText(root, mergeBase, record.previous_filename ?? file, state) : baseFromPatch(text, parsed.hunks);
       } else if ((record.additions ?? 1) > 0) {
         added = new Set(text.split("\n").map((_, k) => k + 1));
         before = baseText(root, mergeBase, record.previous_filename ?? file, state);
@@ -162,7 +174,7 @@ export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT 
       }
       const reasons = [];
       if (comment.kind === "refused") reasons.push(comment.reason);
-      if (comment.kind !== "directive" && comment.kind !== "workaround") {
+      if (!["directive", "workaround", "licence"].includes(comment.kind)) {
         const key = commentKey(comment.text);
         if (key.length >= DUPLICATE_MIN_LENGTH) {
           const elsewhere = duplicates(file, key, root, state);
@@ -202,8 +214,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   const filesPath = option("--files");
   if (!filesPath) {
-    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--detect | --merge-base <sha> [--root <checkout>]] [--limit <n>]");
+    console.error("usage: check-comments.mjs --files <pull-request-files.json> [--list | --detect | --merge-base <sha> [--root <checkout>]] [--limit <n>]");
     process.exit(2);
+  }
+  if (args.includes("--list")) {
+    const { GITHUB_REPOSITORY, PR_NUMBER, GH_TOKEN, GITHUB_API_URL } = process.env;
+    const records = await listPullRequestFiles({ repository: GITHUB_REPOSITORY, number: PR_NUMBER, token: GH_TOKEN, api: GITHUB_API_URL || undefined });
+    fs.writeFileSync(filesPath, JSON.stringify(records));
+    console.log(`${records.length} changed file(s) listed for ${GITHUB_REPOSITORY}#${PR_NUMBER}`);
+    process.exit(0);
   }
   const limit = Number(option("--limit") ?? LISTING_LIMIT);
   if (args.includes("--detect")) {
@@ -220,6 +239,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const root = path.resolve(option("--root") ?? process.cwd());
   if (process.env.COMMENT_POLICY_REQUIRE_TYPESCRIPT === "1" && !loadTypescript(root)) {
     console.log(`COMMENT_POLICY_REQUIRE_TYPESCRIPT is set, but typescript does not resolve from ${root} or its main checkout, so the check refuses to judge JavaScript and TypeScript with the fallback scanner.`);
+    process.exit(1);
+  }
+  if (process.env.COMMENT_POLICY_REQUIRE_YAML === "1" && !loadYaml(root)) {
+    console.log(`COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve from ${root} or its main checkout, so the check refuses to judge YAML with the fallback scanner.`);
     process.exit(1);
   }
   const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));

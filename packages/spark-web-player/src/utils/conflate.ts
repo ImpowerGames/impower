@@ -15,7 +15,6 @@ export function conflate<F extends (...args: any[]) => any>(
   let pendingThis: any;
   let nextWaiters: Waiter[] = [];
 
-  // Track the last finished run (args + outcome) so we can dedupe the "final" startRun
   let lastArgs!: Parameters<F>;
   let lastOutcome:
     | { status: "fulfilled"; value: Result }
@@ -51,11 +50,10 @@ export function conflate<F extends (...args: any[]) => any>(
         const wg = nextWaiters;
         nextWaiters = [];
 
-        // Optional: skip the final run if equal to the run that just settled
         if (
           memoize &&
           isSameArgs(lastArgs, nextArgs) &&
-          lastOutcome // should always be set here
+          lastOutcome
         ) {
           if (lastOutcome.status === "fulfilled") {
             const value = lastOutcome.value;
@@ -68,7 +66,6 @@ export function conflate<F extends (...args: any[]) => any>(
           return;
         }
 
-        // Otherwise, actually start the final run
         startRun(nextThis, wg, ...nextArgs);
       } else {
         running = false;
@@ -83,7 +80,6 @@ export function conflate<F extends (...args: any[]) => any>(
       return startRun(this, undefined, ...args);
     }
 
-    // While busy, last call wins
     pendingArgs = args;
     pendingThis = this;
     hasPending = true;

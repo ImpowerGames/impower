@@ -65,8 +65,6 @@ export interface RunMenu {
 /** The route the preview took to the line it shows, as `game/executed`
  *  reports it. */
 export interface PreviewRoute {
-  /** Where the route starts: the top of the scene `scene` names, or of the
-   *  top-level content of the script `location` is in when it names none. */
   start: { scene?: string; location: DocumentLocation };
   /** The line the route ends at. */
   target: DocumentLocation;

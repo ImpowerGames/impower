@@ -1,25 +1,10 @@
-// PORT-READINESS INVENTORY — one test per construct in the
-// companion/O/N sample. A PASSING test = the construct works today.
-// A FAILING test = a documented gap to build before porting a real
-// `.sd` script. Tests are grouped: (A) Luau logic we've built,
-// (B) uncertain features / likely gaps, (C) narrative display.
-//
-// Run: npx vitest run .../PortInventory.test.ts
-// The failures ARE the to-build list.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-// Hint/Information diagnostics are stylistic (faded in VS Code), not
-// blockers — filter them so the inventory reflects only real issues.
 const HINT_NOISE = [
   "Unreachable statement detected",
 ];
 
-// Compile + run a snippet, binding a `host_record` recorder so
-// snippets can surface values without an unbound-external runtime
-// throw. Captures compile diagnostics, recorded values, story output,
-// and any runtime error — never throws.
 function probe(source: string): {
   errors: string[];
   warnings: string[];
@@ -81,15 +66,14 @@ function probe(source: string): {
   return { errors, warnings, recorded, output, compiled, runtimeError };
 }
 
-// ============================================================
-// (A) Luau logic — expected to work.
-// ============================================================
 describe("inventory · A · luau logic", () => {
   test("undeclared global assignment (& foundTheAlley = true)", () => {
     const r = probe(`external host_record(v)
-& foundTheAlley = true
-& run()
-done
+scene start
+  & foundTheAlley = true
+  & run()
+  done
+end
 
 function run()
 host_record(foundTheAlley)
@@ -102,8 +86,10 @@ end
   test("const reference (MAX_TRUST)", () => {
     const r = probe(`external host_record(v)
 const MAX_TRUST = 100
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(MAX_TRUST)
@@ -121,8 +107,7 @@ end
 define O as companion with
   name = "Orion"
 end
--> main
-scene main
+scene start
   -> LoseTrust(companion.O) ->
   & host_record(companion.O.trust)
   done
@@ -140,9 +125,6 @@ end
   });
 });
 
-// ============================================================
-// (B) Uncertain features / likely gaps.
-// ============================================================
 describe("inventory · B · uncertain", () => {
   test("enum-style constant via define (TIME_OF_DAY.NIGHT)", () => {
     const r = probe(`external host_record(v)
@@ -150,8 +132,10 @@ define TIME_OF_DAY with
   NIGHT = 2
   DAY = 1
 end
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(TIME_OF_DAY.NIGHT)
@@ -163,27 +147,27 @@ end
 
   test("GAP/DESIGN: nested table autovivification (inventory.star += 1, undeclared)", () => {
     const r = probe(`external host_record(v)
-& inventory.star += 1
-& run()
-done
+scene start
+  & inventory.star += 1
+  & run()
+  done
+end
 
 function run()
 host_record(inventory.star)
 end
 `);
-    // CURRENT: like Luau, indexing an undeclared nil errors. The
-    // sample writes `inventory.star += 1` directly — DESIGN DECISION:
-    // autovivify `inventory` on first nested write, or require a
-    // declaration. When resolved, flip this assertion.
     expect(r.runtimeError).toContain("attempt to index nil with 'star'");
   });
 
   test("nested table with explicit declaration (inventory = {} then .star += 1)", () => {
     const r = probe(`external host_record(v)
-& inventory = { star = 0 }
-& inventory.star += 1
-& run()
-done
+scene start
+  & inventory = { star = 0 }
+  & inventory.star += 1
+  & run()
+  done
+end
 
 function run()
 host_record(inventory.star)
@@ -195,8 +179,10 @@ end
 
   test("format is string.format (sample typo) — string.format works", () => {
     const r = probe(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%d at %s", 2000, "night"))
@@ -208,8 +194,7 @@ end
   });
 
   test("print() emits display text from a function body", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   & run()
   done
 end
@@ -219,13 +204,11 @@ end
 `);
     expect(r.errors).toEqual([]);
     expect(r.runtimeError).toBe(null);
-    // print is the escape hatch for display output inside functions.
     expect(r.output).toContain("Footprints... glowing?");
   });
 
   test("log() is developer console output, NOT story display", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   & run()
   Visible.
   done
@@ -237,18 +220,13 @@ end
     expect(r.errors).toEqual([]);
     expect(r.runtimeError).toBe(null);
     expect(r.output).toContain("Visible");
-    // log goes to console, never the player-visible output.
     expect(r.output).not.toContain("debug only");
   });
 });
 
-// ============================================================
-// (C) Narrative display — core sparkdown syntax.
-// ============================================================
 describe("inventory · C · display", () => {
   test("dialogue line (O: text)", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   O: Footprints... glowing?
   done
 end
@@ -258,8 +236,7 @@ end
   });
 
   test("scene heading ($: text)", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   $: A DARK ALLEYWAY
   done
 end
@@ -269,8 +246,7 @@ end
   });
 
   test("interpolation in display text ({expr})", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   & name = "Orion"
   {name} enters.
   done
@@ -281,8 +257,7 @@ end
   });
 
   test("image command line ([[show backdrop x]])", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   [[show backdrop alley_neon]]
   Text.
   done
@@ -293,8 +268,7 @@ end
   });
 
   test("audio command line (((play music x)))", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   ((play music stars))
   Text.
   done
@@ -305,8 +279,7 @@ end
   });
 
   test("SYNTAX: bare choice marks must be wrapped in choose...end", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   Intro.
   + [I'll protect it.] -> ProtectStar
   + [Let's take it.] -> TakeStar
@@ -321,15 +294,11 @@ scene TakeStar
   done
 end
 `);
-    // CURRENT: bare `+`/`*` choices error — sparkdown requires a
-    // `choose ... end` wrapper (unlike ink). The sample's bare
-    // choices need migration to the wrapped form (next test).
     expect(r.errors.join(" ")).toContain("choose");
   });
 
   test("choice inside choose...end block", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   Intro.
   choose
     + [I'll protect it.] -> ProtectStar
@@ -350,8 +319,7 @@ end
   });
 
   test("branch block (branch X ... end)", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   branch ProtectStar
     Protected.
   end
@@ -363,8 +331,7 @@ end
   });
 
   test("tunnel call no-arg (-> PassTime() ->)", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   -> PassTime() ->
   After.
   done
@@ -379,8 +346,7 @@ end
   });
 
   test("text emphasis (*here*)", () => {
-    const r = probe(`-> main
-scene main
+    const r = probe(`scene start
   The star fell *here*.
   done
 end

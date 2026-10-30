@@ -1,12 +1,3 @@
-// A cutscene on the page (I-1383): `[[play NAME]]` mounts a full-screen
-// `<div class="cutscene"><video class="object">` above every layout, plays
-// it, and answers the game's `ui/play-cutscene` once the video has ended or
-// the player has skipped it, after its exit transition, which removes it. The
-// click or key that skips it goes no further, so the game advances once. A
-// preview shows its first frame and answers at once. It pauses, resumes and
-// skips with the game, plays its sound through the `movie` mixer and keeps
-// its file resident.
-
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { describe, expect, test, vi } from "vitest";
@@ -16,8 +7,6 @@ import { getEventData } from "../../app/utils/getEventData";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 import { fakeAudioContext, stubMedia } from "./mediaStubs";
 
-// A real game compiles and replays its route for each test here; on a busy
-// machine that can outlast the default timeout.
 vi.setConfig({ testTimeout: 60_000 });
 
 const INTRO = "/file:/proj/intro.webm?v=1";
@@ -34,7 +23,7 @@ define movie as channel with
   mixer = "film"
 end
 
--> start
+
 
 scene start
   [[play intro]]
@@ -60,7 +49,6 @@ end
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((l) => l.includes(text));
 
-/** The page's application: the stub the harness built. */
 const appOf = (h: { ui: any }) => h.ui.app as any;
 
 const cutsceneOf = (overlay: HTMLElement) =>
@@ -69,8 +57,6 @@ const cutsceneOf = (overlay: HTMLElement) =>
 const videoOf = (overlay: HTMLElement) =>
   overlay.querySelector(".cutscene video") as HTMLVideoElement | null;
 
-/** The game's `ui/play-cutscene` requests as the page receives them, and the
- *  page's answers to them. */
 function recordCutscenes(h: ReturnType<typeof createDOMHarness>) {
   const requests: any[] = [];
   const answers: any[] = [];
@@ -97,8 +83,6 @@ function recordCutscenes(h: ReturnType<typeof createDOMHarness>) {
   return { requests, answers };
 }
 
-/** A page whose game plays on, at `flow`, with the asset cache able to fetch
- *  a video into an object URL when `resident` holds. */
 async function playing(flow: string, opts: { resident?: boolean } = {}) {
   const h = createDOMHarness(SOURCE, 0, { compose: true });
   const media = stubMedia(h.overlay);
@@ -116,7 +100,6 @@ async function playing(flow: string, opts: { resident?: boolean } = {}) {
     cache._deps.createObjectURL = () => `blob:page/${++n}`;
   }
   const recorded = recordCutscenes(h);
-  // What the game does once the beat is over, counted rather than done.
   const advanced = {
     auto: vi.spyOn(h.game, "autoAdvancedToContinue").mockImplementation(() => {}),
     clicked: vi.spyOn(h.game, "clickedToContinue").mockImplementation(() => {}),
@@ -125,8 +108,6 @@ async function playing(flow: string, opts: { resident?: boolean } = {}) {
   return { h, media, advanced, ...recorded };
 }
 
-/** Run the next beat on a coordinator, as PLAY does, with the page's
- *  pointer and key events reaching it as `Application.bind` sends them. */
 async function runBeat(h: ReturnType<typeof createDOMHarness>) {
   const next = h.nextBeat();
   expect(next?.cutscene).toBeTruthy();
@@ -175,9 +156,6 @@ const keyDown = (target: Element, key: string, init: object = {}) => {
   return e as Event;
 };
 
-/** Web animations that run until they are finished or cancelled, as a
- *  browser's do: the harness's own finish at once. Each records whether its
- *  styles were kept. */
 function holdAnimations() {
   const animations: {
     keyframes: unknown;
@@ -204,7 +182,6 @@ function holdAnimations() {
         committed: false,
         finish: () => resolve(this),
       };
-      // A cancelled animation's `finished` rejects.
       (this as any).abort = () => reject(new Error("AbortError"));
       animations.push(this.record);
     }
@@ -237,8 +214,6 @@ describe("a cutscene on the page, in play", () => {
     expect(requests).toHaveLength(1);
     const cutscene = cutsceneOf(h.overlay);
     expect(cutscene).not.toBeNull();
-    // Above every layout: the last thing in the overlay, where the builtin
-    // `cutscene` style stands it over them.
     expect(h.overlay.lastElementChild).toBe(cutscene);
     const video = videoOf(h.overlay)!;
     expect(video.classList.contains("object")).toBe(true);
@@ -298,13 +273,11 @@ describe("a cutscene on the page, in play", () => {
     const { tick, gameEvents } = await runBeat(h);
     const video = videoOf(h.overlay)!;
     expect(pointerDown(video).defaultPrevented).toBe(true);
-    // A second click lands during the exit, and a third once it has gone.
     pointerDown(video);
     await tick();
     pointerDown(h.overlay);
     await tick();
     expect(answers).toHaveLength(1);
-    // The game saw only the click after the cutscene had gone.
     expect(gameEvents).toEqual(["pointerdown"]);
     expect(advanced.auto).toHaveBeenCalled();
     expect(advanced.clicked).not.toHaveBeenCalled();
@@ -314,7 +287,6 @@ describe("a cutscene on the page, in play", () => {
     const { h, answers, advanced } = await playing("start");
     const { tick, gameEvents } = await runBeat(h);
     const body = h.overlay.ownerDocument.body;
-    // Another key, a held key and a shortcut are left for the game.
     const left = [
       keyDown(body, "a"),
       keyDown(body, "Enter", { repeat: true }),
@@ -324,8 +296,6 @@ describe("a cutscene on the page, in play", () => {
     expect(answers).toHaveLength(0);
     expect(gameEvents).toEqual(["keydown", "keydown", "keydown"]);
     expect(left.map((e) => e.defaultPrevented)).toEqual([false, false, false]);
-    // The key that skips it does nothing else: a focused control is not
-    // pressed by it, nor the page scrolled.
     const skip = keyDown(body, "Enter");
     expect(skip.defaultPrevented).toBe(true);
     await tick();
@@ -408,7 +378,6 @@ describe("a cutscene on the page, in play", () => {
       const { tick } = await runBeat(h);
       const cutscene = cutsceneOf(h.overlay)!;
       const video = videoOf(h.overlay)!;
-      // In from hidden, and then it plays.
       expect(effects).toEqual([
         {
           target: cutscene,
@@ -420,7 +389,6 @@ describe("a cutscene on the page, in play", () => {
       expect(media.of(video, "play")).toBe(1);
       pointerDown(video);
       await tick();
-      // Out on the frame it stopped on, and then it goes.
       expect(effects[1]).toMatchObject({
         target: cutscene,
         keyframes: [{ opacity: "0" }],
@@ -444,8 +412,6 @@ describe("a cutscene on the page, in play", () => {
       expect(media.of(video, "play")).toBe(0);
       pointerDown(video);
       await tick();
-      // The enter stops on the frame it reached, the movie never starts,
-      // and the exit plays from there.
       expect(enter).toMatchObject({ cancelled: true, committed: true });
       expect(media.of(video, "play")).toBe(0);
       const exit = held.animations[1];
@@ -468,7 +434,6 @@ describe("a cutscene on the page, in play", () => {
       const cutscene = cutsceneOf(h.overlay)!;
       const [enter] = held.animations;
       expect(enter?.keyframes).toEqual([{ transform: "rotate(360deg)" }]);
-      // `spin` turns it and never ends: it is not hidden while it turns.
       expect(cutscene.style.opacity).toBe("");
       const video = videoOf(h.overlay)!;
       pointerDown(video);
@@ -476,7 +441,6 @@ describe("a cutscene on the page, in play", () => {
       const exit = held.animations[1];
       expect(exit?.keyframes).toEqual([{ transform: "rotate(360deg)" }]);
       expect(answers).toHaveLength(0);
-      // A click during the exit takes it down.
       expect(pointerDown(video).defaultPrevented).toBe(true);
       await tick();
       expect(exit?.cancelled).toBe(true);
@@ -524,7 +488,6 @@ describe("a cutscene on the page, in play", () => {
     try {
       await runBeat(h);
       const first = cutsceneOf(h.overlay);
-      // A second cutscene replaces it.
       const secondDone = (h.ui as any).playCutscene({
         src: INTRO,
         loop: true,
@@ -535,7 +498,6 @@ describe("a cutscene on the page, in play", () => {
       expect(first?.isConnected).toBe(false);
       await flushMicrotasks(50);
       expect(answers).toHaveLength(1);
-      // A new page over the same overlay takes the second down.
       const second = cutsceneOf(h.overlay);
       expect(second).not.toBeNull();
       const next = new (h.ui.constructor as any)(appOf(h));
@@ -581,11 +543,8 @@ describe("a cutscene on the page, in a preview", () => {
     expect(video).not.toBeNull();
     expect(video.getAttribute("preload")).toBe("metadata");
     expect(media.of(video, "play")).toBe(0);
-    // The game's clock does not reach it.
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(0);
-    // Its own display's beat, sent after the request in the same stream,
-    // leaves it up; the next display, in a newer stream, takes it down.
     const epoch = requests[0].epoch;
     expect(typeof epoch).toBe("number");
     const message = (epoch: number) =>

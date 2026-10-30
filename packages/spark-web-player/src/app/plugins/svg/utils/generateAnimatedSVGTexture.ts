@@ -17,11 +17,9 @@ export const generateAnimatedSVGTexture = (
   options?: GenerateAnimatedSVGTextureOptions,
 ) => {
   const { scale = 1, quality = 4, ...rest } = options || {};
-  // Create graphicsContext
   const graphicsContext = new GraphicsContext();
   graphicsContext.scale(scale, scale);
 
-  // Create svgContext
   const svgContext = AnimatedSVGParser(svg, graphicsContext, {
     ...(rest || {}),
     time,
@@ -31,10 +29,8 @@ export const generateAnimatedSVGTexture = (
     },
   });
 
-  // Create graphic
   const graphic = new Graphics(svgContext);
 
-  // Render the graphic to a texture
   const dimensions = parseSVGViewBoxAttribute(svg);
   const renderTexture = renderer?.generateTexture({
     target: graphic,

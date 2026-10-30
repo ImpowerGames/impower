@@ -1,10 +1,5 @@
 import { PatternName } from "../types/patternName";
 
-/**
- * Pattern names that are supported by default.
- *
- * @summary PatternName
- */
 export const DEFAULT_PATTERNS: PatternName[] = [
   "brick",
   "bubbles",

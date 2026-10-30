@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-// Agent driver for the Impower live editor + game preview.
-//
-// Why this exists: CLAUDE.md makes "LOOK at the rendered pixels" a hard gate on
-// calling any change done, and `npm run web:dev` picks RANDOM free ports every
-// launch — so there is no fixed URL an agent can hardcode. This driver owns the
-// whole loop: boot the two dev servers, remember the port it got, drive the
-// editor with Playwright, and drop screenshots on disk.
-//
-// Playwright is a declared root devDependency. Browsers come from the local
-// ms-playwright cache; `npx playwright install chromium` if it is empty.
-//
-// This file must live inside the repo tree regardless: Node resolves
-// `playwright` from the SCRIPT's directory, not from cwd, so a copy of this
-// script in a temp dir will not find it.
-//
-//   node .agents/skills/drive-web-editor/driver.mjs up
-//   node .agents/skills/drive-web-editor/driver.mjs status
-//   node .agents/skills/drive-web-editor/driver.mjs verify --sd repro.sd --shot out.png
-//   node .agents/skills/drive-web-editor/driver.mjs down
-//
-// State (editor URL + launcher pid) lives in this session's directory (see
-// sessionDir) — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
@@ -34,19 +12,10 @@ import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VA
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
-// Each session keeps its own server record and Chromium profile, in a
-// directory keyed by checkout and session under a short root outside the
-// checkout (session-dir.mjs). Two sessions in one checkout therefore never
-// stop each other's servers or write into each other's OPFS, and the profile
-// path stays short however long the worktree name is (see profilePathProblem).
 export { SESSION_VARIABLES, driverSession, sessionDir, checkoutStateFiles };
 const SESSION = driverSession();
 const SESSION_DIR = sessionDir({ root: REPO_ROOT });
 const STATE_FILE = path.join(SESSION_DIR, "state.json");
-// Servers launched by a driver that kept its record beside the script (under
-// this skill or its former resolve-issue location) are still found, so `down`
-// can stop them; the next `up` writes into the session directory. `exists` is
-// a parameter so state-path.test.mjs can pin the choice without touching disk.
 const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
 const hereOrPrevious = (name, exists = fs.existsSync) => {
   const here = path.join(SKILL_DIR, name);
@@ -60,10 +29,6 @@ export function chooseStateFile(own = STATE_FILE, legacy = () => hereOrPrevious(
 }
 const stateFile = () => chooseStateFile();
 
-// Persistent Chromium profile. OPFS is scoped per ORIGIN and per profile, so
-// reusing one profile plus the pinned port (see pickPorts) means a script you
-// loaded stays loaded across driver invocations and across down/up. A global
-// `--profile <dir>` or IMPOWER_DRIVER_PROFILE names another one.
 function takeProfileFlag(argv) {
   const at = argv.indexOf("--profile");
   if (at < 0) return null;
@@ -77,11 +42,6 @@ function takeProfileFlag(argv) {
 }
 const PROFILE_DIR = takeProfileFlag(process.argv) ?? (process.env.IMPOWER_DRIVER_PROFILE ? path.resolve(process.env.IMPOWER_DRIVER_PROFILE) : path.join(SESSION_DIR, "profile"));
 
-// Chromium stores service-worker caches at
-// <profile>\Default\Service Worker\CacheStorage\<40-char hash>\<uuid>\index-dir\the-real-index,
-// 139 characters past the profile. Past Windows' 260-character path limit
-// `caches.open` fails, the worker never installs and assets 404 while the
-// game still mounts, so a profile that deep is refused at launch.
 export const CACHE_STORAGE_SUFFIX = 139;
 export const WINDOWS_PATH_LIMIT = 259;
 export function profilePathProblem(dir, platform = process.platform) {
@@ -91,9 +51,6 @@ export function profilePathProblem(dir, platform = process.platform) {
   return `browser profile ${dir} is too deep: its Cache Storage paths reach about ${longest} characters, past Windows' ${WINDOWS_PATH_LIMIT}, so the service worker cannot install and assets 404. Pass a shorter --profile <dir>, or leave --profile and IMPOWER_DRIVER_PROFILE unset for the short per-session default`;
 }
 
-// A profile records which session last opened it. Another session opening it
-// within PROFILE_CLAIM_MS would write into the OPFS project that session is
-// working on, so the launch is refused; an older claim is taken over.
 export { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS };
 export function profileClaimConflict(claim, session = SESSION, now = Date.now(), dir = PROFILE_DIR) {
   if (!claim || typeof claim.at !== "number") return null;
@@ -102,19 +59,6 @@ export function profileClaimConflict(claim, session = SESSION, now = Date.now(),
   const minutes = Math.max(0, Math.round((now - claim.at) / 60_000));
   return `browser profile ${dir} was opened ${minutes} min ago by another session (${claim.session ?? "no session identity"}), and its OPFS project may be that session's work. Use your own profile: set IMPOWER_DRIVER_SESSION or pass --profile <dir>; the claim lapses after ${PROFILE_CLAIM_MS / 60_000} min`;
 }
-// A claim that is there but does not parse counts as another session's
-// fresh claim, so a damaged file refuses the launch rather than clearing the
-// guard; the claim is renamed into place so no reader sees a partial file.
-// Reading, checking and writing the claim happen while holding a lock file
-// created exclusively, so two launches at once cannot both pass the check:
-// the one that finds the lock taken is refused. A lock older than
-// PROFILE_LOCK_STALE_MS is left by a launch that died mid-claim (the claim
-// itself takes milliseconds) and is taken over.
-// The lock names its holder, and the holder reads it back before writing the
-// claim and before releasing it. A launch stalled past the takeover window
-// therefore writes nothing: the lock it reads back belongs to whoever took it
-// over, and it refuses. Taking a stale lock over replaces exactly the holder
-// that was read, so a lock acquired in between is never removed.
 export { PROFILE_LOCK_STALE_MS };
 export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now(), beforeWrite, beforeTakeover } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
@@ -145,9 +89,6 @@ export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.
       age = now - fs.statSync(lock).mtimeMs;
     } catch {}
     if (age <= PROFILE_LOCK_STALE_MS) throw taken();
-    // Only the holder that was just read is replaced, and only if it is
-    // still there; anything else means another launch got there first.
-    // state-path.test.mjs replaces the lock here to pin that.
     beforeTakeover?.();
     if (other == null || holder() !== other) throw taken();
     try {
@@ -169,8 +110,6 @@ export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.
     }
     const conflict = profileClaimConflict(claim, session, now, dir);
     if (conflict) throw new Error(conflict);
-    // state-path.test.mjs stalls a claim here to pin that a holder which lost
-    // its lock writes nothing.
     beforeWrite?.();
     if (holder() !== held) throw taken();
     const tmp = `${file}.${held}.tmp`;
@@ -182,17 +121,11 @@ export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.
   }
 }
 
-// A record names the session that launched its servers. `down` in another
-// session leaves them running unless given --force; a record with no
-// session field predates this rule and stops as before.
 export function foreignRecord(record, session = SESSION) {
   if (!record || !("session" in record)) return false;
   return (record.session ?? null) !== (session ?? null);
 }
 
-// Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
-// it exists under another user. `kill` is a parameter so state-path.test.mjs
-// can pin the EPERM rule without a protected pid.
 function pidAlive(pid, kill = process.kill) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -203,23 +136,8 @@ function pidAlive(pid, kill = process.kill) {
   }
 }
 
-// How long a launch gets to answer before `up` gives up on it.
 const READY_WAIT_MS = 15 * 60_000;
 
-// Whether the pid a state file records is still the launcher it recorded. A
-// live pid alone proves nothing, because the system hands a freed pid to the
-// next process it starts, so a record whose tree is long gone can name any
-// live process. What ties the pid to the launch is when the process behind it
-// started: the launcher was created just before its record was written, and
-// any later process on the same pid was created after that. So the record
-// stands while its pid is alive and that process started within
-// LAUNCH_SLACK_MS before the record's `startedAt` (spawn latency on a loaded
-// machine) or START_GRAIN_MS after it (a start reported in whole seconds). A
-// record from a driver that wrote no `startedAt` uses its file's mtime, which
-// that driver wrote once, at launch. A start the system will not report (no
-// such process, another user's, or nothing to ask) does not stand. `probe`
-// supplies the three readings so state-path.test.mjs can pin the table
-// without a process or a file.
 const LAUNCH_SLACK_MS = 60_000;
 const START_GRAIN_MS = 2_000;
 async function recordStands(record, probe = liveProbe) {
@@ -244,9 +162,6 @@ const liveProbe = {
   },
 };
 
-// When the process behind a pid was created, in ms since the epoch, or null
-// when the system will not say. Windows answers through PowerShell (about half
-// a second); elsewhere `ps` prints the start as a date `Date.parse` reads.
 function processStartedMs(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve(null);
   const win = process.platform === "win32";
@@ -282,15 +197,10 @@ function readState() {
   }
 }
 
-// A state file that is there but does not parse. writeState renames a finished
-// file into place, so this means a hand edit or a truncation from outside;
-// `status` reports it, `up` refuses to launch over it, `down` removes it.
 function stateUnreadable() {
   return readState() === null && fs.existsSync(stateFile());
 }
 
-// Written beside this script whatever `stateFile()` read, and renamed into
-// place so no reader ever sees a partial file.
 function writeState(record) {
   recordCheckoutOwner(REPO_ROOT);
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
@@ -307,17 +217,11 @@ export function removeState(file = stateFile(), io = fs) {
   }
 }
 
-// `down` can encounter cleanup failures both directly and after a stop command.
-// Report them without throwing from an EventEmitter listener or claiming removal.
 export function removeStoppedState(file, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; }, context = "No process was stopped" } = {}) {
   try { remove(); return true; }
   catch (error) { report(`${context}; state cleanup failed: ${error.message} The record is kept. Check ownership, resolve the filesystem error and retry down.`); fail(1); return false; }
 }
 
-// A nonzero stop exit keeps the record unless `verifyStopped` shows the whole
-// tree gone: taskkill /T exits 255 when one member, already exiting, refuses
-// termination although every other member was killed (I-1395). Without that
-// evidence, or when it shows a survivor, the failure stands.
 export function stopExitHandler(file, pid, { remove = () => removeState(file), log: report = log, fail = (code) => { process.exitCode = code; }, verifyStopped } = {}) {
   return (code) => {
     if (code !== 0) {
@@ -333,9 +237,6 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
   };
 }
 
-// Every process on Windows, as { pid, ppid, start }, `start` being its
-// creation time in UTC ticks (null when the system will not say). `down`
-// reads it before and after taskkill to tell a stopped tree from a survivor.
 export function windowsProcessTable() {
   const script = "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().Ticks } else { '-' }) }";
   return new Promise((resolve, reject) => {
@@ -354,28 +255,14 @@ export function windowsProcessTable() {
   });
 }
 
-// The processes of `root`'s tree in the census `before` that are still there
-// in `after`: a member with its pid and creation time unchanged, or a process
-// created after `before` by a member or by another such process, through any
-// number of generations (a child the stop may have missed). A process's
-// parent is the one that held its parent pid when it was created, the latest
-// known process with that pid created no later than it, since Windows keeps a
-// parent pid after that parent exits and the pid can be reused. A creation
-// time the system did not report is treated as unchanged. null means the
-// root was not in `before`, so the tree is unknown.
 export function treeSurvivors(before, after, root) {
   const rootRow = before.find((row) => row.pid === root);
   if (!rootRow) return null;
-  // Membership is by process identity, pid and creation time, since a
-  // member's pid can pass to another process, a member's own new child
-  // included.
   const key = (row) => `${row.pid}:${row.start}`;
   const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
   const rows = [...before, ...after];
   const byPid = new Map();
   for (const row of rows) byPid.set(row.pid, [...(byPid.get(row.pid) ?? []), row]);
-  // The process that held `row`'s parent pid when `row` was created: the
-  // latest known process with that pid created no later than `row`.
   const parentOf = (row) => {
     let parent = null;
     for (const other of byPid.get(row.ppid) ?? []) {
@@ -399,10 +286,6 @@ export function treeSurvivors(before, after, root) {
   return after.filter((row) => tree.has(key(row)) || (memberPids.has(row.pid) && (row.start === null || tree.has(`${row.pid}:null`))));
 }
 
-// Whether the tree `before` recorded for `root` is gone, read a few times
-// since a member taskkill could not terminate may still be exiting. A
-// survivor seen in one reading stays a member in the next, so a child it
-// starts before it exits is still found.
 export async function treeStopped(before, root, { table = windowsProcessTable, attempts = 6, waitMs = 500 } = {}) {
   let survivors = [];
   const known = [...before];
@@ -416,24 +299,9 @@ export async function treeStopped(before, root, { table = windowsProcessTable, a
   return { stopped: false, reason: `pid${survivors.length > 1 ? "s" : ""} ${survivors.map((row) => row.pid).join(", ")} of its tree still run` };
 }
 
-// Which Chromium the driver launches, and why. In order:
-//   1. IMPOWER_DRIVER_CHROMIUM, an explicit executable (refused if missing);
-//   2. the build the installed `playwright` pins and would launch itself
-//      (`expected`: for a headless launch, its headless shell; see
-//      pinnedExecutable), then the pinned full build (`full`) when that differs;
-//   3. another chromium-N or chromium_headless_shell-N build in
-//      PLAYWRIGHT_BROWSERS_PATH, newest revision first: a sandbox can
-//      pre-install a revision other than the pinned one, and npm install
-//      skips the download (see CLAUDE.md), so the pinned one never arrives;
-//   4. a system Chromium on PATH, then at the usual Linux locations, for a
-//      container that ships /usr/bin/chromium but no Playwright cache (#1470).
-// Nothing found throws one line naming every place looked at. The file
-// system, environment and platform are parameters so
-// chromium-resolver.test.mjs can pin the order without a browser.
 export const SYSTEM_CHROMIUM_NAMES = ["chromium", "chromium-browser", "google-chrome"];
 export const SYSTEM_CHROMIUM_PATHS = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome"];
 const CACHE_REL_PATHS = [
-  // [platform, architecture or null for any this platform runs, layout]
   ["linux", "arm64", "chrome-linux/chrome"],
   ["linux", "x64", "chrome-linux64/chrome"],
   ["win32", null, "chrome-win/chrome.exe"],
@@ -447,10 +315,6 @@ const CACHE_REL_PATHS = [
   ["darwin", "arm64", "chrome-headless-shell-mac-arm64/chrome-headless-shell"],
   ["darwin", null, "chrome-headless-shell-mac-x64/chrome-headless-shell"],
 ];
-// Only layouts this machine can run: a cache shared across machines can hold
-// a newer build for another OS or CPU, which would be found first and fail.
-// Playwright's registry puts linux-arm64 builds in chrome-linux and x64 in
-// chrome-linux64; Windows and macOS run x64 builds on arm64 by emulation.
 export function resolveChromium({ expected, full, env = process.env, platform = process.platform, arch = process.arch, exists = fs.existsSync, readdir = fs.readdirSync } = {}) {
   const p = platform === "win32" ? path.win32 : path.posix;
   const explicit = env.IMPOWER_DRIVER_CHROMIUM;
@@ -498,18 +362,10 @@ export function resolveChromium({ expected, full, env = process.env, platform = 
   throw new Error(`no Chromium found; looked at: ${looked.join("; ")}. Set IMPOWER_DRIVER_CHROMIUM to a Chromium executable, or run \`npx playwright install chromium\``);
 }
 
-// The choice the last launch made, for the launch log line.
 let chromiumChoice;
 export function chromiumChoiceLine(choice = chromiumChoice) {
   return choice ? `${choice.executablePath} (${choice.reason})` : "not resolved";
 }
-// The executable Playwright itself launches. `chromium.executablePath()`
-// names the full build (`chromium-<rev>/chrome-<platform>/...`), but a
-// headless launch with no executablePath runs the separate headless shell,
-// `chromium_headless_shell-<rev>/chrome-headless-shell-<platform>/
-// chrome-headless-shell`, and that is the build a container can lack while
-// the full one is present (#1470). A layout this does not recognise keeps
-// the full build's path.
 export function pinnedExecutable(full, { headless, platform = process.platform } = {}) {
   if (!headless || !full) return full;
   const p = platform === "win32" ? path.win32 : path.posix;
@@ -519,23 +375,16 @@ export function pinnedExecutable(full, { headless, platform = process.platform }
   if (!plat) return full;
   const root = parts.slice(0, i).join(p.sep) || p.sep;
   const shellDir = parts[i].replace("chromium-", "chromium_headless_shell-");
-  // Playwright's linux-arm64 builds keep the older layout: the full build in
-  // chrome-linux/chrome and the shell in chrome-linux/headless_shell.
   if (plat[1] === "linux") return p.join(root, shellDir, "chrome-linux", "headless_shell");
   const exe = "chrome-headless-shell" + (platform === "win32" ? ".exe" : "");
   return p.join(root, shellDir, `chrome-headless-shell-${plat[1]}`, exe);
 }
-// Callers spread `executablePath` into Playwright's launch options; undefined
-// keeps Playwright's own default, so the normal path is unchanged.
 function resolveChromiumExecutablePath(chromium, { headless } = {}) {
   const full = chromium.executablePath();
   chromiumChoice = resolveChromium({ expected: pinnedExecutable(full, { headless }), full });
   return chromiumChoice.source === "playwright" ? undefined : chromiumChoice.executablePath;
 }
 
-// ---------------------------------------------------------------- servers ---
-
-// Is this TCP port free on loopback right now?
 function portFree(port) {
   return new Promise((resolve) => {
     const srv = net.createServer();
@@ -545,16 +394,10 @@ function portFree(port) {
   });
 }
 
-// Pick a stable base port from the worktree path.
-//
-// OPFS is scoped per ORIGIN, so the random ports `npm run web:dev` picks would
-// discard the loaded project on every launch. Hashing the worktree path keeps
-// this checkout on one origin while staying clear of the other worktrees
-// running on the same machine.
 async function pickPorts() {
   let h = 0;
   for (const ch of REPO_ROOT + (SESSION ?? "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const base = 38000 + (h % 800) * 4; // 4-port stride: editor, player, hmr, spare
+  const base = 38000 + (h % 800) * 4;
   for (let attempt = 0; attempt < 200; attempt++) {
     const p = base + attempt * 4;
     if (p > 65000) break;
@@ -568,23 +411,6 @@ async function pickPorts() {
   die("could not find 3 consecutive free ports");
 }
 
-// Boot the `npm run web:dev` launcher, scripts/dev-preview.mjs, detached, on
-// ports WE chose.
-//
-// Detached matters: the agent runs each command as a separate short-lived
-// process, so the servers must outlive `up`.
-//
-// The launcher runs under node directly rather than through npm. On Windows
-// that makes it the detached wrapper's own child, which libuv's kill-on-close
-// job ends whenever the wrapper ends, and the launcher's job then ends the
-// servers. Through npm the wrapper's child was only the cmd.exe npm runs in,
-// so a wrapper killed without its tree left npm, the launcher and both
-// servers running, and `down` found the record stale and stopped nothing.
-//
-// Do NOT try to scrape the launcher's "✓ Live preview ready → URL" line: a
-// detached child on Windows does not flush its stdio into an inherited file
-// handle, so the log stays 0 bytes forever while the servers run perfectly.
-// Since the port is pinned, readiness is just an HTTP poll.
 export function observeLauncherExit(child, report = log) {
   child.once("exit", (code, signal) => {
     report(`dev server launcher pid ${child.pid} exited: code=${code ?? "none"}; signal=${signal ?? "none"}`);
@@ -600,14 +426,6 @@ export async function up(args) {
     log(`already up → ${existing.url}`);
     return;
   }
-  // One probe timing out is not evidence the servers are gone: a cold build
-  // takes minutes, and a loaded machine stalls the first response. While the
-  // record stands (recordStands) this waits for its URL, the same wait a fresh
-  // launch gets, and stops the moment the launcher exits. A pid verified as
-  // the launcher's stays its own until it exits, so each poll asks only that;
-  // a pid the system reuses mid-wait ends the wait at the deadline instead,
-  // where the `down` the message names finds the record stale and removes it.
-  // A stale record is dropped so the file written below is the only record.
   if (await recordStands(existing)) {
     log(`servers pid ${existing.pid} are still starting → ${existing.url} (state: ${stateFile()})`);
     if (await waitReady(existing.url, existing.mode, () => pidAlive(existing.pid))) return;
@@ -631,7 +449,7 @@ export async function up(args) {
         HMR_PORT: String(ports.hmr),
       },
       stdio: "ignore",
-      linger: true, // `down` stops this tree with taskkill /T from the pid recorded below
+      linger: true,
     },
   );
   observeLauncherExit(child);
@@ -643,9 +461,6 @@ export async function up(args) {
   await waitReady(url, mode);
 }
 
-// Polls until the URL answers and returns true. `keep`, when given, is asked
-// before each poll whether the wait is still worth it, and a false ends the
-// wait with a false return; the deadline ends it with an exit.
 async function waitReady(url, mode, keep) {
   log("COLD build takes 4-8 min (esbuild builds every worker bundle). Waiting...");
   const deadline = Date.now() + READY_WAIT_MS;
@@ -669,9 +484,6 @@ async function isUp(url) {
   }
 }
 
-// Names the state file it read, because with the fallback above there are two
-// places it can come from, and an unreadable file is reported as itself rather
-// than as absence. Exits 0 only when the recorded URL answers.
 async function status(args = []) {
   if (args.includes("--all")) return statusAll();
   const file = stateFile();
@@ -687,12 +499,6 @@ async function status(args = []) {
   if (alive) process.exitCode = 0;
 }
 
-// `status --all` reports every session's record for this checkout, and any
-// record beside the driver, for a caller that must know whether anyone's
-// servers use the tree (clean-worktrees). Answering records come first, so
-// the first line a reader matches says UP whenever any server answers; an
-// unreadable record comes next and replaces the DOWN lines, since it may name
-// a live server. Exits 0 only when some record answers.
 async function statusAll() {
   const legacy = hereOrPrevious(".state.json");
   const files = [...new Set([...checkoutStateFiles(REPO_ROOT), ...(fs.existsSync(legacy) ? [legacy] : [])])];
@@ -716,7 +522,6 @@ async function statusAll() {
   process.exitCode = up.length ? 0 : 1;
 }
 
-// Read kernel identities rather than command text or rounded wall-clock dates.
 export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
   const rows = [];
   for (const name of io.readdirSync("/proc")) {
@@ -744,8 +549,6 @@ export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
 const runningProcess = (row) => row.state !== "Z" && row.state !== "X";
 const sameProcess = (a, b) => a?.pid === b?.pid && a?.start === b?.start && a?.uid === b?.uid;
 
-// A detached launcher owns its session and group. A record for a member of
-// somebody else's group cannot authorize signalling that group.
 export async function stopLinuxTree(pid, { read = linuxProcesses, signal = process.kill, uid = process.getuid?.(), self = process.pid, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), now = Date.now } = {}) {
   if (!Number.isInteger(pid) || pid <= 1 || pid === self) throw new Error("invalid launcher pid");
   const initial = read();
@@ -762,13 +565,10 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
     if (group.length && (group.some((row) => row.session !== pid || row.uid !== uid) || !group.some((row) => anchors.some((anchor) => sameProcess(anchor, row))))) throw new Error("process group identity changed; refusing to signal it");
     const currentLeader = rows.find((row) => row.pid === pid && runningProcess(row));
     if (currentLeader && !sameProcess(leader, currentLeader)) throw new Error("launcher identity changed; refusing to signal it");
-    // Retain members first observed while a known identity still vouches for
-    // this group, so later children can survive the original launcher's exit.
     for (const row of group) {
       if (!anchors.some((anchor) => sameProcess(anchor, row))) anchors.push(row);
       observed.set(row.pid, row);
     }
-    // A descendant that leaves the group needs separate ownership handling.
     const descendants = new Set(rows.filter((row) => sameProcess(observed.get(row.pid), row)).map((row) => row.pid));
     let changed;
     do {
@@ -793,13 +593,6 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
   }
 }
 
-// The launcher spawns npm -> node grandchildren. Killing the launcher pid alone
-// orphans the two vite servers and they keep holding their ports. taskkill /T
-// tears down the whole tree. Only a record that stands names a tree to kill: a
-// stale record's pid may belong to any process by now, so that record is
-// removed and nothing is signalled. The record goes only with a kill that
-// reported success, or on Windows one whose tree a census shows gone; a
-// refused kill keeps it, so the tree stays stoppable.
 async function down(args = []) {
   const file = stateFile();
   const s = readState();
@@ -832,8 +625,6 @@ async function down(args = []) {
     }
     return;
   }
-  // The census taken before the kill names the tree a nonzero taskkill exit
-  // is checked against; without it that exit stays a failure.
   let tree = null;
   if (process.platform === "win32") {
     try { tree = await windowsProcessTable(); }
@@ -854,13 +645,6 @@ async function down(args = []) {
   killer.on("exit", stopExitHandler(file, s.pid, { remove: removeState, log, verifyStopped: tree ? () => treeStopped(tree, s.pid) : undefined }));
 }
 
-// Check the things that fail LATE and expensively if they are wrong:
-// a near-full C: silently corrupts a fresh worktree's node_modules, a missing
-// Playwright browser only surfaces after the 5-minute dev-server build, and a
-// logged-out gh only surfaces when you try to open the PR at the very end.
-// `--tooling-only` is for a worktree with nothing to boot and no install: it
-// keeps the disk, gh and git checks and reports the browser and install
-// probes as skipped rather than failing on a dependency that is absent by design.
 async function preflight(args = []) {
   const unknown = args.filter((arg) => arg !== "--tooling-only");
   if (unknown.length) die(`preflight takes only --tooling-only; got ${unknown.join(" ")}`);
@@ -901,14 +685,6 @@ async function preflight(args = []) {
   process.exitCode = ok ? 0 : 1;
 }
 
-/**
- * Whether this worktree's dependencies are usable. A full disk leaves an
- * install that looks complete and is not: truncated binaries, empty package
- * directories, a missing `dist/*.mjs`. The damage surfaces much later as a
- * baffling build error, so the binaries are executed here rather than
- * measured, and a failure names the repair. An absent `node_modules` is not
- * a failure: a hooks-only, skills-only or docs-only change needs none.
- */
 async function installHealth(root = REPO_ROOT, run = cmdOk) {
   if (!fs.existsSync(path.join(root, "node_modules"))) {
     return {
@@ -963,15 +739,6 @@ function cmdOk(cmd, args) {
   });
 }
 
-// ---------------------------------------------------------------- browser ---
-
-// The browser `withEditor` drives: the persistent profile, so the editor
-// keeps its storage and its last screen across runs.
-// Node resolves a bare specifier from the importing script's own directory,
-// not from the working directory, so a copy of this driver outside the repo
-// tree cannot find playwright however it is invoked, and a worktree that
-// skipped its install cannot either. Saying which is the difference between
-// a fix and a bare ERR_MODULE_NOT_FOUND.
 async function importPlaywright() {
   try {
     return await import("playwright");
@@ -985,9 +752,6 @@ async function importPlaywright() {
   }
 }
 
-// The profile is checked and claimed before Playwright is loaded, so a
-// refused profile never opens a browser. `dir`, `platform` and `playwright`
-// are parameters so state-path.test.mjs can pin that without a browser.
 export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
@@ -1004,13 +768,6 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   });
 }
 
-// Every navigation onto the editor goes through these two. A cold editor
-// load here takes longer than Playwright's 30 s default, so a bare
-// `page.goto(url)` dies with `Timeout 30000ms exceeded` against a server
-// that is perfectly healthy; keeping the options in one place means a
-// script built on the exported helpers navigates the way the driver does
-// rather than rediscovering that. driver-messages.test.mjs pins that these
-// are the only navigators in the file.
 const EDITOR_NAVIGATION = { waitUntil: "domcontentloaded", timeout: 120_000 };
 async function openEditorPage(page, url) {
   return page.goto(url, EDITOR_NAVIGATION);
@@ -1024,12 +781,6 @@ async function reportFreshWorker(...args) {
   return worker.reportFreshWorker(...args);
 }
 
-// Runs `fn` against a page on the editor. `url` and `mode` come from the
-// state file `up` wrote: `mode` is how it launched the servers, and says
-// whether the game preview can be observed at all; a record without one is
-// a same-origin launch. `launch` and `state` are parameters so
-// seed-project.test.mjs can run this without a browser and pin what `fn`
-// is handed.
 async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
   const record = state();
   if (!record?.url)
@@ -1055,9 +806,6 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
   }
 }
 
-// Write a .sd source into the editor project's OPFS and reload so the editor
-// re-reads it. The default project id is "local" and its entry script is
-// "main.sd" (WorkspaceConstants.LOCAL_PROJECT_ID / WorkspaceStore).
 async function writeMainSd(page, source) {
   await waitForProtocol(page);
   return page.evaluate(async (src) => {
@@ -1071,66 +819,14 @@ async function writeMainSd(page, source) {
   }, source);
 }
 
-// ---------------------------------------------------------------- project ---
-//
-// `--sd` writes one script. A bug or feature that involves assets (portraits,
-// backdrops, audio, image previews, the asset inspector) needs the whole
-// project in the editor's storage, and every session that needed one wrote
-// its own seeder (#435). `seedProject` is that seeder: it reads a project
-// directory or an exported project zip in Node, ships the files into the page
-// in batches of base64, and writes each one under `<project>/<relative path>`
-// in `navigator.storage.getDirectory()`, which is the layout the editor's own
-// zip import produces (WorkspaceFileSystem.writeProjectZip). Like that import
-// it replaces the project: once every file has landed, the entries under the
-// project that the source lacks are removed, so a file from an earlier seed
-// cannot stand in for one the source lacks. Dot entries (`.name`, `.trash`)
-// are the editor's own metadata: the walk skips them, as the editor's export
-// does, and the prune leaves them wherever they sit beside a kept entry; a
-// stale directory goes whole, dot entries inside it included.
-//
-// The seed is safe to fail. Nothing is removed before the writes: an entry
-// of the previous project whose kind clashes with the source (a file where
-// the source has a directory of that name, or the other way round) would
-// have to be removed before the write, so a seed with one is refused before
-// anything is written. A marker file (`<project>/.seeding`) stands from the
-// first write until the prune has finished, so a refused write, a refused
-// removal or a Ctrl+C leaves the previous project in storage with the files
-// that landed over it and the marker in place; `verify` and `ui` refuse to
-// run on a marked project, the next `--project` seed replaces it, and
-// `seed --clear` empties it. The report's `storage` field says which state
-// storage was left in.
-//
-// The functions the page runs (`rememberedProject`, `beginSeed`,
-// `seedInterrupted`, `kindClashes`, `writeProjectBatch`, `pruneProject`,
-// `readProjectFile`) close over nothing, so `page.evaluate` can ship them;
-// seed-project.test.mjs rebuilds each from its source and runs it in a
-// context holding only the page's globals, so a reference to module scope or
-// to a Node global in one fails the check before it fails in the page.
-
-// Bytes of file content per `page.evaluate`. Base64 adds a third, and one
-// round trip per file is what made the hand-written seeders slow.
 const SEED_BATCH_BYTES = 8 * 1024 * 1024;
 
-// Bounds on what one seed reads into memory: every file is held in Node until
-// its batch ships, and one file's base64 has to fit Node's string limit
-// (512 MiB of characters, 384 MiB of content). A project over these is not
-// one the editor is built for, and the reason names the bound that stopped it.
 const SEED_LIMITS = { files: 20_000, dirs: 20_000, bytes: 1024 * 1024 * 1024, fileBytes: 256 * 1024 * 1024 };
 
-// Directory names a project never holds. Meeting one means `--project` points
-// at a package or a build output, and reading it in full would hold a
-// dependency tree in memory before the mistake showed.
 const REFUSED_DIRS = ["node_modules", "dist"];
 
-// The marker file a seed leaves in the project until its prune is done. A dot
-// entry: the workspace's file store lists it like any file, the Files panel's
-// include globs leave it off the screen, and the prune keeps dot entries
-// until the end.
 const SEED_MARKER = ".seeding";
 
-// The key the editor keeps the id of the project it opens under
-// (WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY) and the id it opens when
-// the key is unset (WorkspaceConstants.LOCAL_PROJECT_ID).
 const PROJECT_ID_KEY = "project";
 const LOCAL_PROJECT_ID = "local";
 
@@ -1138,21 +834,9 @@ function refusedDirError(rel) {
   return new Error(`the project holds ${rel}/, which a project never does; point --project at the project directory itself`);
 }
 
-// Every file under `dir`, as `{ path, bytes }` with `/`-separated paths
-// relative to `dir`, sorted. Links are followed, so a junctioned asset tree
-// seeds like a plain one, and a tree reachable by two names seeds under
-// both; an entry that cannot be read (a dangling link, a link back to a
-// directory the walk is inside or to one above it, a socket) lands in
-// `failed` with its reason. Dot entries are skipped and counted in
-// `skipped`. The bounds in `limits` stop the walk with a reason before it
-// holds more than they allow; the bound on directories entered is what stops
-// a tree whose links reach the same directories under many names, which
-// the walk otherwise enters once per name.
 function walkProjectDir(dir, limits = SEED_LIMITS) {
   const files = [];
   const failed = [];
-  // The real paths of the directories the walk is inside, root first; a
-  // directory that is one of them, or an ancestor of one, is a cycle.
   const inside = [];
   let skipped = 0;
   let bytes = 0;
@@ -1213,15 +897,6 @@ function walkProjectDir(dir, limits = SEED_LIMITS) {
   return { files, skipped, failed };
 }
 
-// What one zip entry name is to the seed: the `/`-joined project path of a
-// file, or null for an entry the seed never writes (a directory entry, a
-// name of `.` and empty segments only, or a dot-named entry, which is
-// `skipped`). `.` and empty segments are dropped (`./main.sd` is `main.sd`).
-// A path that is absolute or climbs out with `..` throws, because the seed
-// would write outside the project; an entry under a directory a project
-// never holds throws as the walk refuses it. The bounds filter and
-// `zipProjectEntries` both go through this, so the bounds count the entries
-// the seed would write and a refusal is raised before the entry is inflated.
 function zipEntryPath(name) {
   const normalized = name.replace(/\\/g, "/");
   if (normalized.endsWith("/")) return { path: null };
@@ -1237,16 +912,6 @@ function zipEntryPath(name) {
   return { path: segments.join("/") };
 }
 
-// The project files in an unpacked archive (`{ [name]: Uint8Array }`, the
-// shape fflate's unzipSync returns), each entry read as `zipEntryPath` reads
-// it. An archive whose every entry sits under one top-level folder that
-// holds `main.sd` (a zip made by hand from the project directory, which is
-// how a desktop's compress command lays one out) is unwrapped and the folder
-// named in `unwrapped`; the editor's own export has no such folder. A single
-// folder without `main.sd` cannot be told from the project's own layout (an
-// asset bundle under `assets/`), so it stays and is named in `kept`, for the
-// seed to say which reading it took. An archive holding both a file and a
-// directory of one name is refused, because no filesystem can hold both.
 export function zipProjectEntries(archive) {
   let entries = [];
   const paths = new Set();
@@ -1283,14 +948,6 @@ export function zipProjectEntries(archive) {
   return { files: entries, skipped, failed: [], ...(unwrapped ? { unwrapped } : {}), ...(kept ? { kept } : {}) };
 }
 
-// The project at `source`: a directory, walked, or a `.zip`, unpacked with
-// fflate, the library the editor's own import uses, so an archive the editor
-// accepts is one the driver accepts. The bounds in `limits` are checked on
-// the archive's central directory, entry by entry, before the entry they
-// name is inflated, so the memory spent before a refusal stays within the
-// bound that tripped; the entries before it have been inflated by then.
-// Throws with the reason when the source cannot be read as a project or is
-// over the bounds.
 async function collectProject(source, limits = SEED_LIMITS) {
   const abs = path.resolve(source);
   if (!fs.existsSync(abs)) throw new Error(`--project ${source} does not exist (resolved to ${abs})`);
@@ -1335,8 +992,6 @@ async function collectProject(source, limits = SEED_LIMITS) {
   return { kind: "zip", ...entries, skipped: skipped + entries.skipped };
 }
 
-// Files grouped into batches whose content stays under `maxBytes`, in the
-// order given. A file larger than the budget travels alone.
 export function planBatches(files, maxBytes = SEED_BATCH_BYTES) {
   const batches = [];
   let current = [];
@@ -1355,16 +1010,10 @@ export function planBatches(files, maxBytes = SEED_BATCH_BYTES) {
   return batches;
 }
 
-// Runs in the page. The id of the project the editor opens on load, or null
-// when it opens the default.
 async function rememberedProject({ key }) {
   return localStorage.getItem(key);
 }
 
-// Runs in the page. Puts the seed marker in the project directory, creating
-// the directory when `create` holds and answering `missing` when it does not
-// and the directory is not there; `interrupted` says whether the marker was
-// already there, which means an earlier seed did not finish.
 async function beginSeed({ project, marker, create = true }) {
   const root = await navigator.storage.getDirectory();
   let dir;
@@ -1379,13 +1028,11 @@ async function beginSeed({ project, marker, create = true }) {
     await dir.getFileHandle(marker, { create: false });
     interrupted = true;
   } catch {
-    /* no marker: the previous seed finished, or there was none */
   }
   await dir.getFileHandle(marker, { create: true });
   return { interrupted };
 }
 
-// Runs in the page. Whether the seed marker is in the project.
 async function seedInterrupted({ project, marker }) {
   const root = await navigator.storage.getDirectory();
   try {
@@ -1397,12 +1044,6 @@ async function seedInterrupted({ project, marker }) {
   }
 }
 
-// Runs in the page. The entries under the project whose kind clashes with
-// the source: a file where `dirs` (the directories the source's paths lead
-// through) names a directory, or a directory where `files` names a file.
-// Each is `{ path, storage, source }` with the kind on each side. The walk
-// descends only into directories the source leads through; anything else
-// is the prune's to remove after the writes.
 async function kindClashes({ project, files, dirs }) {
   const root = await navigator.storage.getDirectory();
   const fileSet = new Set(files);
@@ -1427,14 +1068,6 @@ async function kindClashes({ project, files, dirs }) {
   return clashes.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
-// Runs in the page. Writes each `{ path, base64 }` under the project,
-// creating directories, and reads the size back so `bytes` is what landed
-// rather than what was sent; a file that could not be written, or that reads
-// back a different size, lands in `failed` with the reason and the rest of
-// the batch still goes in. Nothing that is there is removed: an entry of the
-// other kind in the way is a failed write with the storage's reason. The
-// worker handles definite write failures. Failed post-write verification
-// retains the current bytes: another client may already own that path.
 async function writeProjectBatch({ project, entries, archive }) {
   const bridge = window.__editorProtocol;
   if (!bridge) throw new Error("Editor protocol bridge is not ready");
@@ -1460,20 +1093,14 @@ async function writeProjectBatch({ project, entries, archive }) {
     try {
       const originalSize = data.byteLength;
       const created = await send("workspace/willCreateFiles", { files: [{ uri, data }] });
-      // Imports can normalize SVG labels. Verify the acknowledged stored size,
-      // while retaining the input size for hosts that omit optional metadata.
       const size = created.find(file => file.uri === uri)?.size ?? originalSize;
       const readBack = await send("workspace/readFile", { file: { uri } });
       if (readBack.byteLength !== size) throw new Error(`wrote ${size} bytes but the file reads back as ${readBack.byteLength}`);
       written[index] = { path: filename, bytes: readBack.byteLength };
     } catch (error) {
-      // Never delete by a stale existence check after acknowledgement: a
-      // concurrent writer may have replaced this path. Keep the seed marked.
       failed[index] = { path: filename, reason: error.name && error.name !== "Error" ? `${error.name}: ${error.message}` : String(error.message || error) };
     }
   };
-  // Bound active requests while independent files overlap. Indexed results
-  // retain archive order even when writes and failures finish out of order.
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(8, files.length) }, async () => {
     while (next < files.length) {
@@ -1487,15 +1114,6 @@ async function writeProjectBatch({ project, entries, archive }) {
   return { written: written.filter(Boolean), failed: failed.filter(Boolean) };
 }
 
-// Runs in the page. Removes every entry under the project that `keep` (the
-// seeded paths) does not name or lead through, dot entries excepted, and
-// names what it removed as paths relative to the project; a directory none
-// of `keep` leads through goes whole and counts once. An entry the storage
-// refuses to remove, or a directory it refuses to list, lands in `failed`
-// with its reason and the walk goes on; `removed` always says what went,
-// whatever failed after it. The marker is removed last and only when
-// nothing failed, so an unfinished prune stays marked. A project that is
-// not in storage answers `missing`.
 async function pruneProject({ project, keep, marker }) {
   const root = await navigator.storage.getDirectory();
   const files = new Set(keep);
@@ -1549,10 +1167,6 @@ async function pruneProject({ project, keep, marker }) {
   return { removed: removed.sort(), failed };
 }
 
-// Runs in the page. The file's content as base64, or null when it is not
-// there; how seed-project.test.mjs reads a seeded file back. The bytes go
-// through String.fromCharCode a 32 KiB slice at a time, which keeps an audio
-// file's read-back to a few thousand calls.
 async function readProjectFile({ project, path: filePath }) {
   const root = await navigator.storage.getDirectory();
   try {
@@ -1570,12 +1184,6 @@ async function readProjectFile({ project, path: filePath }) {
   }
 }
 
-// Which script the run is actually about to drive. `--sd` is needed only
-// when the script changes, because the pinned port keeps OPFS across
-// `down`/`up`, so a run without it re-uses whatever the last run left in
-// storage. Naming that script in every report is what stops the re-use
-// being silent: `wroteThisRun: false` with a `firstLine` from another repro
-// is the mismatch, visible without remembering to look for it.
 async function loadedScript(page, wroteThisRun, project = LOCAL_PROJECT_ID, file = "main.sd") {
   let encoded = null;
   try {
@@ -1595,34 +1203,16 @@ async function loadedScript(page, wroteThisRun, project = LOCAL_PROJECT_ID, file
   };
 }
 
-// One captured console line. A failed request reads as "Failed to load
-// resource: the server responded with a status of 404 (Not Found)", which
-// names the status and not the resource: the browser puts the URL in the
-// message's location instead. The line carries it, so the report says which
-// resource is missing and the noise list below can name the one that is
-// always missing rather than absorbing every 404 there is.
 function consoleLine(m) {
   const text = m.text();
   const url = m.type() === "error" ? (m.location?.()?.url ?? "") : "";
   return `[${m.type()}] ${text}${url && !text.includes(url) ? ` (${url})` : ""}`;
 }
 
-// Console lines every run on this app produces, whatever the change under
-// test is. They are partitioned out of `consoleErrors` so a reader spends
-// no time on them, and counted under `consoleNoise` so the partition stays
-// honest: a line that stopped appearing reads as a count of zero rather
-// than disappearing, and a line the list does not know still lands in
-// `consoleErrors` where it can be read. Each pattern names the one resource
-// it absorbs: the editor asks a dev server that serves no API for the
-// signed-in account. (The language server's refresh requests, refused as
-// `Unhandled method …/refresh` before the editor's client registers, were
-// absorbed here until #1785 made the server catch the refusal; one appearing
-// again is that bug back, so it is left in `consoleErrors`.)
 const KNOWN_CONSOLE_NOISE = [
   { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
 ];
 
-/** Splits the captured console into the lines worth reading and the known noise, by count. */
 function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   const errors = [];
   const noise = {};
@@ -1636,43 +1226,25 @@ function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   return { errors: errors.slice(0, limit), noise };
 }
 
-// Whether the project in the page's storage carries the seed marker, which
-// means an earlier `--project` seed did not finish and the project is a mix.
 async function interruptedSeed(page, project = LOCAL_PROJECT_ID) {
   return page.evaluate(seedInterrupted, { project, marker: SEED_MARKER });
 }
 
-// The error `verify` and `ui` report when they are asked to run on a project
-// an earlier seed left marked.
 function interruptedSeedError(project = LOCAL_PROJECT_ID) {
   return `an earlier --project seed did not finish (${project}/${SEED_MARKER} is in storage), so the project in storage is the previous project with part of that seed over it and nothing seen on it is evidence. Re-run with --project to seed it again, or empty it with seed --clear.`;
 }
 
-// The first line of an error, with its name in front when it has one worth
-// reading (a DOMException's message says nothing about which error it is).
 function describeError(err) {
   const message = String(err?.message ?? err).split("\n")[0];
   return err?.name && err.name !== "Error" && !message.startsWith(err.name) ? `${err.name}: ${message}` : message;
 }
 
-// The reason a page whose editor remembers a project other than `project`
-// refuses a seed or a clear, or null when it remembers `project` or nothing:
-// the editor would open the remembered one, so the storage under `project`
-// is not what a run on that page would see.
 async function otherProjectRemembered(page, project) {
   const remembered = await page.evaluate(rememberedProject, { key: PROJECT_ID_KEY });
   if (remembered == null || remembered === project) return null;
   return `the editor remembers project "${remembered}" (localStorage "${PROJECT_ID_KEY}"), not "${project}", so it would open a project`;
 }
 
-// Empty the project in the page's storage: every non-dot entry goes, and the
-// marker with it once everything went; a project that is not there is
-// nothing to clear and answers `missing`, and a page whose editor remembers
-// another project is refused with nothing removed. The marker stands first,
-// so a clear that stops part-way leaves the project marked as a plain run
-// must not drive it. The way out of storage a seed cannot replace: a marked
-// project with nothing to seed over it, an entry whose kind clashes with the
-// source, or a quota the previous project and the seed cannot share.
 async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
   const report = { project, removed: [], failed: [] };
   try {
@@ -1701,36 +1273,13 @@ async function clearProject(page, { project = LOCAL_PROJECT_ID } = {}) {
   return report;
 }
 
-// Seed the project at `source` into the page's storage and report what
-// landed. `files` and `bytes` count what was written and measured back, not
-// what was sent; `failed` names every entry that was not read or written;
-// `removed` names the previous project's entries that went; `mainSd` says
-// whether a root `main.sd` landed; `unwrapped` names a zip's wrapping
-// folder, and `kept` a zip's single top-level folder that held no `main.sd`
-// and so was seeded as it is, with a `note` saying so; `storage` says what
-// storage holds now (`untouched`, `mixed`: the files that landed over
-// whatever was there, with the marker set, or `replaced`); and `reason` is
-// set whenever storage does not hold the whole project and nothing else, so
-// a caller can fail on it. A source with
-// no files, or none at its root named `main.sd` while `expectMainSd` holds,
-// is refused before anything is written, as is a page whose editor
-// remembers a project other than `project`, and a previous project holding
-// an entry whose kind clashes with the source (`clashes` names them), since
-// writing over it would mean removing it first. With `clear`, the previous
-// project is emptied (`clearProject`, reported under `clear`) once the
-// source has passed every check that needs no storage, so a refused source
-// leaves it standing; a clear that stops part-way is the reason, with the
-// project marked. `collect`, `batchBytes` and `limits` are parameters so the
-// check can drive this with a fixture, small batches and small bounds.
 async function packProjectBatch(batch) {
   const { zipSync } = await import("fflate");
   return Buffer.from(zipSync(Object.fromEntries(batch.map((file) => [file.path, file.bytes])), { level: 0 })).toString("base64");
 }
 
-// Keep each DevTools message below its pipe limit. Decode chunks into one
-// browser-owned buffer, then pass its handle rather than serializing it again.
 async function sendProjectBatch(page, { project, entries, archive }) {
-  const chunkChars = 4 * 1024 * 1024; // multiple of four for independent base64 decoding
+  const chunkChars = 4 * 1024 * 1024;
   if (archive.length <= chunkChars) return page.evaluate(writeProjectBatch, { project, entries, archive });
   const length = archive.length / 4 * 3 - (archive.endsWith("==") ? 2 : archive.endsWith("=") ? 1 : 0);
   const handle = await page.evaluateHandle((length) => new ArrayBuffer(length), length);
@@ -1755,8 +1304,6 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
     return report;
   };
   const firstLine = describeError;
-  // What storage holds after a seed that stopped part-way. With `clear` the
-  // previous project went before the first write, so nothing of it stands.
   const mixed = () => {
     const landed = `${report.files} file${report.files === 1 ? "" : "s"} that landed`;
     const held = `(a file whose write failed holds what that write left)`;
@@ -1857,11 +1404,6 @@ async function seedProject(page, source, { project = LOCAL_PROJECT_ID, batchByte
   return done();
 }
 
-// `seed`: load a project into the editor's storage, reload so the editor
-// re-reads it, and print the report. Exits 1 when the seed left storage
-// holding anything but the whole project. `--clear` empties the project
-// first, once the source has been read and accepted, or on its own, and the
-// report says what went under `clear`.
 async function seed(args, deps = liveDeps) {
   let source;
   try {
@@ -1917,7 +1459,6 @@ async function seed(args, deps = liveDeps) {
   );
 }
 
-// Wait only for installation; subsequent model reads use the editor protocol.
 async function waitForProtocol(page, timeout = 90_000) {
   await page.waitForFunction(() => window.__editorProtocol != null, null, { timeout });
 }
@@ -1982,15 +1523,12 @@ async function waitForEditor(page, timeout = 90_000) {
       bridge.send({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "editor/read", params: {} }, Math.max(1, deadline - Date.now()))
         .then((editor) => { if (editor?.textDocument?.uri) finish(editor); }, () => {});
     };
-    // Subscribe before reading so a mount between those operations is not lost.
     const unsubscribe = bridge.subscribe((message) => { if (message.method === "editor/didLoad") read(); });
     const timer = setTimeout(() => finish(null, new Error("Editor did not answer editor/read before the readiness deadline")), timeout);
     read();
   }), { timeout: Math.max(1, deadline - Date.now()) });
 }
 
-// Scrub through the same selection notifications the editor sends to the player.
-// Keep the historical "clicked" report field for callers; no mouse click is needed.
 async function clickLine(page, line) {
   const editor = await protocolRequest(page, "editor/read");
   const lines = editor.textDocument.text.split("\n");
@@ -2006,19 +1544,12 @@ async function clickLine(page, line) {
   return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected.position };
 }
 
-// Subscribe before reading state so a mount between the two cannot be lost.
 const GAME_MOUNT_BUDGET_MS = 45_000;
 async function gameMountedWithin(page, timeout = GAME_MOUNT_BUDGET_MS, { now = Date.now } = {}) {
   if (timeout <= 0) return false;
   return waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "mounted", timeout).then(() => true, () => false);
 }
 
-// The game mount wait `verify` and a `ui --sd` step use: the budget once,
-// then a recovery reload, the editor brought back (`switched` says whether
-// that changed the screen or tab), and the budget again. `now` is the clock,
-// a parameter for the in-process check; `ensure` is what brings the editor
-// back, and the commands pass their own `ensureScriptEditor` dep so the
-// recovery goes through the same function as the rest of the run.
 async function waitForGame(page, { timeout = GAME_MOUNT_BUDGET_MS, now = Date.now, ensure = ensureScriptEditor } = {}) {
   if (await gameMountedWithin(page, timeout, { now })) return { mounted: true, reloaded: false };
 
@@ -2041,16 +1572,6 @@ async function previewSummary(page) {
   });
 }
 
-// What the game is actually SHOWING, as readable text.
-//
-// TWO traps here, both of which produce useless output if you do the obvious
-// thing:
-//   1. `textContent` picks up the player's injected <style> blocks, so every
-//      ancestor's text is a wall of CSS.
-//   2. The typewriter effect wraps EVERY CHARACTER in its own <span>, so
-//      "leaf elements with text" gives you one letter per entry.
-// `innerText` solves both: it is layout-aware (display:none <style> is
-// excluded) and it flattens the per-character spans back into words.
 async function previewText(page) {
   return page.evaluate(() => {
     const p = window.__preview;
@@ -2059,9 +1580,6 @@ async function previewText(page) {
   });
 }
 
-// The route indicator ("main : 1 → main : 8") lives in the PLAYER's toolbar,
-// INSIDE the iframe — it is not in the editor document, so searching the editor
-// DOM for it finds nothing. Read it via __preview.
 async function routeLabel(page) {
   return page.evaluate(() => {
     const p = window.__preview;
@@ -2069,39 +1587,11 @@ async function routeLabel(page) {
   });
 }
 
-// Every line of the open document, as source text.
 async function documentLines(page) {
   const editor = await protocolRequest(page, "editor/read");
   return editor.textDocument.text.split("\n");
 }
 
-// Did the preview land on the line we asked for?
-//
-// The route number cannot answer this. It reports how far execution reached
-// rather than the line requested, so it differs from the target on every line
-// with anything after it, and a check built on it warns on healthy scrubs and
-// teaches its reader to ignore it (#419 — this function is that fix).
-//
-// The rendered text can answer it, but only for lines it can attribute, so
-// there are three outcomes rather than a boolean:
-//
-//   landed        the target line's own text is on screen
-//   elsewhere     some other line's text is on screen and the target's is not.
-//                 A real failed scrub, and it names what it found instead.
-//   inconclusive  nothing attributable. Either the line does not render
-//                 verbatim (interpolation, markup, a heading, a character name)
-//                 or its text cannot be told apart from another line's.
-//
-// "inconclusive" is a real answer, not a soft failure. Collapsing it into
-// either of the others is what makes a check like this dangerous: reported as
-// success it hides failed scrubs, which is the one thing this harness exists to
-// catch, and reported as failure it is the very noise #419 is about.
-//
-// A line is usable as evidence only when its trimmed text is at least three
-// characters and is not contained in any other line's text. That second
-// condition is what stops "Hello" being read as proof while the screen shows
-// "Hello there", and it makes duplicated lines unusable in both directions
-// instead of silently attributing to whichever came first.
 export function classifyScrub(lines, target, visible) {
   if (!Array.isArray(lines) || lines.length === 0) {
     return {
@@ -2125,9 +1615,6 @@ export function classifyScrub(lines, target, visible) {
     };
   }
 
-  // Deliberately not precomputed for every line: on a long script that is a
-  // quadratic scan of substring tests. Only the target and the handful of lines
-  // actually present in `visible` are ever asked.
   const attributable = (i) => {
     const t = trimmed[i];
     if (!t || t.length < 3) return false;
@@ -2142,7 +1629,7 @@ export function classifyScrub(lines, target, visible) {
   const showing = [];
   for (let i = 0; i < trimmed.length; i++) {
     if (i === idx) continue;
-    if (!trimmed[i] || !visible.includes(trimmed[i])) continue; // cheap filter first
+    if (!trimmed[i] || !visible.includes(trimmed[i])) continue;
     if (attributable(i)) showing.push(i + 1);
   }
   if (showing.length > 0) {
@@ -2168,24 +1655,12 @@ export function classifyScrub(lines, target, visible) {
   };
 }
 
-// The beat the preview paused on. In "main : 1 → main : 8" that is 8; with no
-// arrow ("main : 1") it is 1.
-//
-// Do NOT read this as the line that was scrubbed to. The engine pauses on the
-// beat AFTER the content it played, so it equals the requested line only when
-// nothing follows that line: scrubbing to line 20 of a 63-line script settles
-// on beat 22. Comparing it for equality is a rough smoke test that reports a
-// mismatch on healthy mid-script scrubs; `previewText` is what says whether the
-// preview is actually showing the requested line.
 function routeBeat(label) {
   if (!label) return null;
   const nums = [...label.matchAll(/main\s*:\s*(\d+)/g)].map((m) => Number(m[1]));
   return nums.length ? nums[nums.length - 1] : null;
 }
 
-// Read player state and await its notifications. An empty game DOM does not
-// imply that a program loaded. On timeout, read errors for the active document;
-// errors in other project documents are outside this diagnostic result.
 const PROGRAM_BUDGET_MS = 90_000;
 async function waitForProgram(page, timeout = PROGRAM_BUDGET_MS) {
   const started = Date.now();
@@ -2197,9 +1672,6 @@ async function waitForProgram(page, timeout = PROGRAM_BUDGET_MS) {
   return out;
 }
 
-// The warning for a program wait that failed, from its report: an error
-// count is the open document not compiling; none is the harness not being
-// ready, or an error in a file that is not open.
 function programWarning(program, budget = PROGRAM_BUDGET_MS) {
   if (program.errors == null) return `the player had not loaded a program within ${seconds(budget)}, and settled diagnostics could not be read. Inspect the protocol error and retry before trusting the preview.`;
   if (program.errors > 0) {
@@ -2208,20 +1680,11 @@ function programWarning(program, budget = PROGRAM_BUDGET_MS) {
   return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub sent now is dropped and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
 }
 
-// The warning for a run whose logic pane shows its fullscreen scripts view:
-// the file on screen is not the project's main.sd, which is what the scrub
-// reads and what `--sd` or `--project` wrote.
 function scriptsViewWarning({ projectPath, sdPath }) {
   const which = projectPath ? "the seeded project's main.sd" : sdPath ? "the main.sd --sd wrote" : "the project's main.sd";
   return `the logic pane is showing its fullscreen scripts view (another file is open), so the file on screen is not ${which}, and the scrub reads the file on screen. Close that file in the editor before trusting this run.`;
 }
 
-// Wait for the game DOM to stop changing. A scrub round-trips editor -> player
-// worker -> simulateRoute -> checkpoint -> re-render, and the typewriter effect
-// then reveals text character by character — so the DOM keeps mutating for
-// seconds after the cursor moves. Polling the rendered text until it stops
-// changing is the only reliable "it has settled" signal; a fixed sleep either
-// truncates mid-typewriter or wastes time.
 async function waitForPreviewSettle(page, { timeout = 30_000, quiet = 2500 } = {}) {
   const deadline = Date.now() + timeout;
   let last = await previewText(page);
@@ -2261,11 +1724,6 @@ async function verify(args, deps = liveDeps) {
     async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
       const result = { url };
       let monitoredWorker;
-      // What verify captures is the game preview, which the page can observe
-      // only in same-origin mode (window.__preview). In cross-origin mode
-      // the run stops here, before the page is loaded and before a seed or
-      // a script write replaces what storage holds for a picture that could
-      // never be evidence.
       if (mode === "cross-origin") {
         result.gameMounted = null;
         result.program = { loaded: null, reason: "the preview is not observable (cross-origin mode)" };
@@ -2275,7 +1733,6 @@ async function verify(args, deps = liveDeps) {
         return result;
       }
 
-      // A navigation that never completes is a report, not a stack trace.
       try {
         await openEditorPage(page, url);
       } catch (err) {
@@ -2303,8 +1760,6 @@ async function verify(args, deps = liveDeps) {
       const shell = await deps.ensureScriptEditor(page);
       if (shell.switched) result.switchedToLogic = true;
       if (!shell.present) {
-        // No editor, no scrub, no evidence: say so in the report rather than
-        // dying in a Playwright timeout with nothing printed.
         result.gameMounted = false;
         result.error = shell.reason;
         result.preview = await deps.previewSummary(page).catch(() => null);
@@ -2313,17 +1768,10 @@ async function verify(args, deps = liveDeps) {
         return result;
       }
       result.editorSettled = shell.settled;
-      // Which editor is on screen: the main tab's, or the fullscreen scripts
-      // view with another file open. --sd writes main.sd either way, so in
-      // the second case the script on screen is not the one being scrubbed.
       result.editorView = await page.evaluate(() =>
         document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
       );
       if (result.editorView === "scripts-view") result.editorWarning = scriptsViewWarning({ projectPath, sdPath });
-      // The preview pane remembers screenplay mode across runs, and in that
-      // mode the game never mounts (window.__preview is installed by the game
-      // preview alone). verify needs the game, so switch back, the way a user
-      // does: the screenplay toolbar's "Preview Game" button.
       const gameObservable = await page
         .waitForFunction(() => window.__preview != null, null, { timeout: 5_000 })
         .then(() => true, () => false);
@@ -2337,11 +1785,6 @@ async function verify(args, deps = liveDeps) {
         }
       }
 
-      // The project goes in first and the script over it, so a repro script
-      // can run against a real project's assets. A seed that left storage
-      // holding anything but the whole project is not the project; nothing
-      // seen on it is evidence, so the run stops on `seed.reason` without a
-      // screenshot, and says nothing about the game, which was never asked.
       if (projectPath) {
         result.seed = await deps.seedProject(page, projectPath, { expectMainSd: !sdPath });
         if (result.seed.reason) {
@@ -2361,8 +1804,6 @@ async function verify(args, deps = liveDeps) {
         result.wroteChars = await deps.writeMainSd(page, src);
       }
       if (projectPath || sdPath) {
-        // Reload so loadInitialFiles re-reads OPFS, then let the LSP + player
-        // finish their first compile.
         try {
           await reloadEditorPage(page);
         } catch (err) {
@@ -2382,8 +1823,6 @@ async function verify(args, deps = liveDeps) {
           return result;
         }
         result.editorSettled = again.settled;
-        // The reload restores the view from storage; read it again rather
-        // than trusting the pre-reload answer.
         result.editorView = await page.evaluate(() =>
           document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view",
         );
@@ -2391,8 +1830,6 @@ async function verify(args, deps = liveDeps) {
         else delete result.editorWarning;
       }
 
-      // Which script the scrub below is about to drive, whether or not this
-      // run wrote it.
       result.script = await deps.loadedScript(page, Boolean(sdPath));
 
       await page
@@ -2404,17 +1841,11 @@ async function verify(args, deps = liveDeps) {
             "window.__preview never reported sameOrigin within 60s: the preview pane is showing the screenplay, or the game preview never mounted";
         });
 
-      // The recovery reload brings the editor back through the same dep the
-      // rest of the run uses, so `switchedToLogic` means one thing.
       const mount = await deps.waitForGame(page, { ensure: deps.ensureScriptEditor });
       result.gameMounted = mount.mounted;
       if (mount.reloaded) result.neededReload = true;
       if (mount.switched) result.switchedToLogic = true;
       if (!mount.mounted) {
-        // A game that never mounted is a failed run: the screenshot is not
-        // evidence and the shell must not stay green. The retry's own reason
-        // (the editor was on another screen after the reload) is added to the
-        // generic text rather than replacing it.
         result.error =
           "the game never mounted (#game absent) — the Game Preview is blank. " +
           "Screenshot is NOT valid evidence. Try `down` then `up`." +
@@ -2422,10 +1853,6 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
       }
 
-      // Let the FIRST compile finish before touching the cursor. On a cold
-      // origin the player worker is not listening for `didSelect` yet, so an
-      // early scrub is silently dropped and the preview stays on beat 1-2.
-      // A game that never mounted has no program to wait for.
       result.program = mount.mounted ? await deps.waitForProgram(page) : { loaded: null, reason: "the game never mounted" };
       if (result.program.loaded === false) result.programWarning = programWarning(result.program);
       let settle = await deps.waitForPreviewSettle(page);
@@ -2437,14 +1864,6 @@ async function verify(args, deps = liveDeps) {
         settle = scrubbed.settle;
         result.route = scrubbed.route;
 
-        // There is deliberately no "did the preview move" field here. Every
-        // `verify` reloads the page, so the preview always starts at the top and
-        // the route labels are empty until the first selection arrives — a
-        // before/after comparison is therefore true on every run, and a field
-        // that is always true is one nobody reads.
-
-        // Whether the scrub landed is decided from the rendered text, not from
-        // the route number. See classifyScrub.
         result.scrubCheck = scrubbed.scrubCheck;
 
         if (result.scrubCheck.outcome !== "landed") {
@@ -2492,9 +1911,6 @@ async function verify(args, deps = liveDeps) {
       if (shot) {
         const out = path.resolve(shot);
         fs.mkdirSync(path.dirname(out), { recursive: true });
-        // verify's evidence is the game preview, but the editor pane is in
-        // the same picture; a settled view can still be unpainted, so wait
-        // for its lines and gutter and say so if they never came.
         const paintBudget = PAINT_BUDGET_MS;
         if (!(await deps.editorPainted(page, paintBudget))) {
           result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
@@ -2521,23 +1937,6 @@ async function verify(args, deps = liveDeps) {
   );
 }
 
-// ------------------------------------------------------- editor surfaces ---
-//
-// `verify` reaches the game preview. These reach the editor's own interface:
-// the find and go-to-line panels inside the script editor, and the three main
-// screens the bottom tabs switch between. A change to any of those is invisible
-// to `verify`, and before this every session that touched one wrote its own
-// Playwright script to satisfy the skill's completion gate (#423).
-//
-// Every action here is the one a user performs: the panels open on their own
-// keyboard shortcut, text goes in as real keystrokes, screens switch by
-// clicking the tab. Nothing dispatches into CodeMirror or pokes the workspace
-// store, so what these observe is what a user would see.
-
-// Panels the script editor owns. Each opens on a CodeMirror keymap binding and
-// is identified by the class its Panel implementation sets on its root
-// (customSearch.ts in sparkdown-document-views). The fields are contenteditable
-// divs carrying a `name`, not <input>s.
 const SURFACES = {
   find: {
     selector: ".sparkdown-script-editor-root .cm-search",
@@ -2555,21 +1954,6 @@ const SURFACES = {
   },
 };
 
-// The main screens. Every tab in the editor is a Radix trigger whose id ends in
-// `-trigger-<value>`, and the value is the workspace's own name for the pane
-// (`logic`, `assets`, `share`) or, for the tab row inside a pane, its panel
-// (`main`, `scripts`, ...). The tab's text is not usable as a name: it renders
-// twice (an active and an inactive label), so its accessible name is
-// "LogicLogic".
-//
-// Which screen is on display is read from the pane's content, not from the
-// screen tab's selected state: on a fresh load the app highlights no screen tab
-// at all (MainWindow.tsx pins the tab row to a non-matching value until the
-// workspace reports ready), so the tab says "none" while the logic screen is
-// plainly showing. Each pane mounts its own inner tab row and nothing else
-// does, so that row is the marker; the logic pane's fullscreen scripts view
-// (Logic.tsx, view "logic-editor") mounts no tab row but does mount a script
-// editor, so that counts for logic too. The Router mounts one pane at a time.
 const SCREENS = {
   logic: '[role="tab"][id$="-trigger-main"], .sparkdown-script-editor-root .cm-content',
   assets: '[role="tab"][id$="-trigger-files"]',
@@ -2583,20 +1967,6 @@ const LANGUAGE_TARGETS = {
 };
 const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", hover: LANGUAGE_TARGETS.hover, completion: LANGUAGE_TARGETS.completion, page: null };
 
-/**
- * Playwright's key strings are case-sensitive for a single character: `Shift+g`
- * delivers `key: "g"` with `shiftKey: true`, which no keyboard produces (a
- * keyboard reports `G`), and CodeMirror resolves a letter binding from the
- * reported key, so the shifted variant of a binding never runs from that form
- * and the unshifted one runs instead. Measured in the live editor on
- * 2026-09-04 with playwright 1.61: `Control+Shift+G`, `Control+Shift+KeyG`,
- * and holding Control and Shift around `press("KeyG")` all deliver `key: "G"`;
- * only `Control+Shift+g` delivers `g`. So a lowercase letter under Shift is
- * rewritten to its uppercase form before it is pressed.
- *
- * A `+` key is written as a trailing `+` (`Control++`), the way Playwright
- * reads it; an empty combo is refused rather than pressed as nothing.
- */
 export function normalizeKeyCombo(combo) {
   const raw = String(combo ?? "").trim();
   if (raw === "") throw new Error("empty key combo");
@@ -2626,24 +1996,15 @@ async function pressKey(page, combo) {
   return n;
 }
 
-/** Focus the CodeMirror view so editor-scoped keymap bindings receive keys. */
 async function focusEditor(page, editor) {
   editor ??= await protocolRequest(page, "editor/read");
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range: editor.selection, takeFocus: true });
   return editor;
 }
 
-// Keys whose command edits the document asynchronously (the formatter answers
-// through the language server), so the read-back waits for a new version.
 const DOCUMENT_COMMAND_KEYS = new Set(["Shift+Alt+F", "Control+s", "Meta+s"]);
 const PRESS_TEXT_LIMIT = 8192;
 
-/**
- * A `ui --press` step: focus the script editor first, so the key reaches the
- * document rather than a panel or the page (panels have their own `--click`
- * and `--close` steps), press, then read the document back so the report
- * says whether the text changed and a reviewer can tell the command ran.
- */
 export async function pressInEditor(page, combo, { wait = waitForDomQuiet, commandWaitMs = 5_000 } = {}) {
   const before = await focusEditor(page);
   const n = await pressKey(page, combo);
@@ -2669,7 +2030,6 @@ export async function pressInEditor(page, combo, { wait = waitForDomQuiet, comma
 const INSERT_TEXT_LIMIT = 4096;
 const PLAY_BUDGET_MS = 30_000;
 
-// Poll `preview/gameState` until `reached` holds or the budget runs out.
 async function waitGameState(request, reached, { timeout, now = Date.now, pause }) {
   const end = now() + timeout;
   let state = await request("preview/gameState");
@@ -2680,14 +2040,6 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
   return state;
 }
 
-/**
- * A `ui --play start|stop` step: click the preview's PLAY or Stop control
- * with a real pointer (as timing.mjs's startPlay does), then wait for the
- * game's launch state to say it is running (`play` or `pause`) or back in
- * `preview`, and for the opposite control to be on screen. A click whose
- * state never arrives is a failed step, so `clicked: true` alone is never
- * the evidence.
- */
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
   const label = start ? "Play Game" : "Stop Game";
@@ -2710,15 +2062,63 @@ export async function playPreview(page, action, { request = (method, params) => 
   return out;
 }
 
-/**
- * A `ui --insert line:col=text` step: put the caret at the position and
- * insert the text through the page's input path as one edit (Playwright's
- * insertText, so no key handler auto-closes a bracket or opens completion),
- * then read the document back and compare it with the expected splice. The
- * edit is incremental, unlike a `--sd` reload, so it is how a check of the
- * running editor's incremental compile is made; the preview's route after
- * it settles is reported as `verify` reports it.
- */
+const running = (s) => s?.launchState === "play" || s?.launchState === "pause";
+
+async function gameNotifications(page) {
+  await waitForProtocol(page);
+  await page.evaluate(() => {
+    if (window.__driverGameLog) return;
+    window.__driverGameLog = [];
+    window.__editorProtocol.subscribe((message) => {
+      if (typeof message?.method === "string" && message.method.startsWith("game/")) {
+        window.__driverGameLog.push({ method: message.method, params: message.params ?? null });
+      }
+    });
+  });
+  return () => page.evaluate(() => window.__driverGameLog.splice(0));
+}
+
+async function clickGame(page) {
+  const frame = page.frames().find((f) => f !== page.mainFrame() && /\/__player\//.test(f.url()));
+  if (!frame) return { clicked: false, reason: "no same-origin player frame is on the page; `up` without --cross-origin" };
+  const box = await frame.locator("#game").first().boundingBox().catch(() => null);
+  if (!box || box.width <= 0 || box.height <= 0) return { clicked: false, reason: "the game's view (#game) is not on screen in the player frame" };
+  const at = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+  await page.mouse.click(at.x, at.y);
+  return { clicked: true, at };
+}
+
+export async function advanceGame(page, count, {
+  request = (method, params) => protocolRequest(page, method, params),
+  click = () => clickGame(page),
+  settle = () => waitForPreviewSettle(page),
+  notifications = () => gameNotifications(page),
+} = {}) {
+  const drain = await notifications();
+  await drain();
+  const out = { advance: count, clicked: 0, clicks: [] };
+  for (let n = 1; n <= count; n++) {
+    const before = await request("preview/gameState");
+    if (!running(before)) {
+      out.launchState = before?.launchState ?? null;
+      out.reason = `click ${n} of ${count} was not made: no game is running (launch state ${out.launchState}); --play start runs one`;
+      return out;
+    }
+    const clicked = await click();
+    if (!clicked.clicked) {
+      out.launchState = before.launchState;
+      out.reason = `click ${n} of ${count} was not made: ${clicked.reason}`;
+      return out;
+    }
+    out.clicked = n;
+    const settled = await settle();
+    const state = await request("preview/gameState");
+    out.clicks.push({ click: n, at: clicked.at, settled: settled.settled, visible: settled.text, launchState: state?.launchState ?? null, notifications: await drain() });
+    out.launchState = state?.launchState ?? null;
+  }
+  return out;
+}
+
 export async function insertText(page, position, text, { request = (method, params) => protocolRequest(page, method, params), notify = (method, params) => protocolNotify(page, method, params), settle = waitForPreviewSettle, route = routeLabel, versionWaitMs = 5_000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const out = { insert: position, inserted: false, textMatches: false };
   const before = await request("editor/read");
@@ -2758,12 +2158,6 @@ export async function insertText(page, position, text, { request = (method, para
   return out;
 }
 
-/**
- * The scrub `verify --line` runs and the `ui --scrub` step reuses: move the
- * editor cursor to the line through the same notifications a real click
- * sends (clickLine), retrying once for a line the view had not rendered,
- * then let the preview settle and classify the rendered text against it.
- */
 export async function scrubPreview(page, target, deps) {
   let scrub = await deps.clickLine(page, target);
   if (!scrub.clicked && !/Stop the running preview/.test(scrub.reason ?? "")) {
@@ -2776,7 +2170,6 @@ export async function scrubPreview(page, target, deps) {
   return { scrub, settle, route, scrubCheck };
 }
 
-/** The `ui --scrub <line>` step's report, built from scrubPreview. */
 export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
   const out = { scrub: target, ...scrub, route, settled: settle.settled, visible: settle.text, scrubCheck };
   delete out.reason;
@@ -2787,7 +2180,6 @@ export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
   return out;
 }
 
-/** Resolve while the DOM has been still for `quiet` ms, or give up at `timeout`. */
 async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
   return page.evaluate(
     ({ quiet, timeout }) =>
@@ -2811,18 +2203,15 @@ async function waitForDomQuiet(page, { quiet = 400, timeout = 8_000 } = {}) {
   );
 }
 
-/** The editor shell is up: its tab row exists. Does not need the script editor. */
 async function waitForApp(page, timeout = 90_000) {
   await page.waitForSelector('[role="tab"]', { timeout });
 }
 
-/** The screen on display, read from pane content; null while no pane is mounted. */
 async function activeScreen(page) {
   const mounted = await mountedScreens(page);
   return mounted.length === 1 ? mounted[0] : null;
 }
 
-/** Every main screen whose content is mounted; empty while no pane is. */
 async function mountedScreens(page) {
   return page.evaluate(
     (screens) => Object.entries(screens).filter(([, selector]) => document.querySelector(selector)).map(([name]) => name),
@@ -2830,16 +2219,7 @@ async function mountedScreens(page) {
   );
 }
 
-/**
- * The script editor is only on the logic screen, and the screen is remembered
- * by the persistent profile across runs. A command that needs the editor
- * cannot assume it is there; this says whether it is, and why not.
- */
 async function scriptEditorPresent(page, timeout = 10_000) {
-  // Fail fast when another screen is on display: the editor cannot appear
-  // there, so waiting the full budget would only cost the session time. On
-  // the logic screen the budget stays, because a cold editor's mount was
-  // measured at up to ~4.6 s on the reference machine.
   const screenNow = await activeScreen(page);
   const budget = screenNow != null && screenNow !== "logic" ? 500 : timeout;
   try {
@@ -2854,16 +2234,8 @@ async function scriptEditorPresent(page, timeout = 10_000) {
   }
 }
 
-/**
- * The words for an absent editor, in parts, so a caller that adds its own
- * advice can keep the navigational kind ("put --screen main before this
- * step") and drop only the generic kind (re-run). Pure; the gate test builds
- * its stubs from it so the strings cannot drift apart.
- */
 export function editorAbsentReason({ screen, panelTab, budgetMs }) {
   const where = `the script editor is not on screen (active screen: ${screen ?? "none"}${panelTab ? `, tab: ${panelTab}` : ""})`;
-  // No screen at all is a page still loading, not a wrong screen: nothing to
-  // navigate to, so no navigational advice.
   const navigational =
     screen === "logic" && panelTab && panelTab !== "main"
       ? "put --screen main before this step"
@@ -2874,20 +2246,11 @@ export function editorAbsentReason({ screen, panelTab, budgetMs }) {
   return { reason: `${where}; ${advice}`, where, advice, navigational };
 }
 
-/**
- * Is a script editor expected on the screen as it is now? Yes on the logic
- * pane's `main` tab and in its fullscreen scripts view (no tab row); no on the
- * `scripts` tab or on any other screen. Waits briefly for a pane to mount, so
- * a page still hydrating does not read as "nothing expected".
- */
 async function editorExpectedHere(page) {
   await page
     .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: 5_000 })
     .catch(() => {});
   const screen = await activeScreen(page);
-  // No pane mounted at all is a page still loading, and in the fullscreen
-  // scripts view the editor is its own pane marker; neither is "nothing
-  // expected". Only a mounted pane can say no.
   if (screen == null) return null;
   if (screen !== "logic") return false;
   return page.evaluate(() => {
@@ -2896,26 +2259,12 @@ async function editorExpectedHere(page) {
   });
 }
 
-// The budgets the gate, the screen switch, the run's start, the --sd settle
-// and the panel opener share. A site that names one in a message formats the
-// local it waited with `seconds`, so the wait and the sentence cannot part.
-// `verify`'s own mount waits, the --sd reload's, and the gate's short
-// recovery look and re-settle are each their own number at their own site.
-// A cold mount gets MOUNT_BUDGET_MS and a cold settle SETTLE_BUDGET_MS; a
-// screen switch that lands on the editor and the run's start always use
-// those two. Once the run has settled the editor anywhere, a gated step
-// re-checks with WARM_BUDGET_MS for both.
 const MOUNT_BUDGET_MS = 20_000;
 const SETTLE_BUDGET_MS = 15_000;
 const WARM_BUDGET_MS = 8_000;
-// How long a screenshot waits for a settled editor to paint.
 const PAINT_BUDGET_MS = 5_000;
 const seconds = (ms) => `${ms / 1000}s`;
 
-/**
- * Settled diagnostics do not imply that the editor has painted. A screenshot needs the
- * lines and the gutter on screen; this waits for them.
- */
 async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
   return page
     .waitForFunction(
@@ -2932,36 +2281,14 @@ async function editorPainted(page, timeout = PAINT_BUDGET_MS) {
     .then(() => true, () => false);
 }
 
-/**
- * For a step that captures or acts on whatever is on screen (a screenshot or
- * a key press): if an editor is expected here — or nothing has mounted yet to
- * say otherwise — it must be mounted and settled first, or the step reports
- * why not and the run fails. If a mounted pane says none is expected (another
- * screen, the `scripts` tab), the step proceeds; it is not the driver's place
- * to guess what the session wanted to capture there.
- *
- * The wait is paid once per run: after anything has settled the editor (the
- * run's start, a reload, a screen switch, or an earlier step), later steps
- * re-check it with the shorter warm budgets, and after a step has given up
- * on it, later steps fail at once and point at the first. A screenshot alone
- * also waits for the editor to paint.
- */
 function editorGate({ expected = editorExpectedHere, present = scriptEditorPresent, settle = settleEditor, painted = editorPainted } = {}) {
   let settledOnce = false;
-  // What the first failed step found, and which step it was, so later steps
-  // can fail fast and point at it. `kind` decides what a recovery look does.
   let gaveUp = null;
   const gate = async (page, what, step = null) => {
-    // The question comes first: a step on a screen where no editor is
-    // expected is never refused, whatever an earlier step found.
     const exp = await expected(page);
     if (exp === false) return { required: false };
     const at = gaveUp?.step != null ? `step ${gaveUp.step}` : "an earlier step";
     if (gaveUp) {
-      // Fail fast, but let a recovery show: a short look that finds the
-      // editor up and settled clears the latch and the step proceeds. The
-      // re-settle needs three reads 600 ms apart plus their round trips, so
-      // its budget leaves room for a slow machine.
       const quick = await present(page, 2_000);
       if (!quick.present) return { required: true, ok: false, reason: `the script editor is still not up (${at} reported: ${gaveUp.what}); this ${what} was skipped` };
       if (gaveUp.kind === "unsettled" && !(await settle(page, 6_000))) {
@@ -2972,11 +2299,6 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
     const budget = settledOnce ? WARM_BUDGET_MS : MOUNT_BUDGET_MS;
     const here = await present(page, budget);
     if (!here.present) {
-      // The presence check's navigational advice ("put --screen main before
-      // this step") is the fix and is kept; its generic advice is the same
-      // as the gate's and is said once.
-      // "no pane had mounted" is said only while that is still so; a pane
-      // that mounted during the wait is named by the presence check itself.
       const stillNoPane = exp == null && /active screen: none/.test(here.where ?? "");
       const state = (stillNoPane ? "no pane had mounted; " : "") + (here.where ?? here.reason);
       const advice = here.navigational ?? "Re-run; if it persists the machine is saturated";
@@ -2989,24 +2311,16 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
       return { required: true, ok: false, reason: `this ${what} needs a settled script editor, and the view did not return settled diagnostics for ${seconds(settleBudget)}. Re-run; if it persists the machine is saturated` };
     }
     settledOnce = true;
-    // A settled view can still be unpainted; a screenshot of it is a picture
-    // of nothing, so the capture step alone also waits for the paint.
     const paintBudget = PAINT_BUDGET_MS;
     if (what === "screenshot" && !(await painted(page, paintBudget))) {
       return { required: true, ok: false, reason: `the script editor is mounted and settled but has not painted its lines and gutter within ${seconds(paintBudget)}; this screenshot would have shown an unpainted editor pane. Re-run; if it persists the machine is saturated` };
     }
     return { required: true, ok: true };
   };
-  // A settle the run did elsewhere (at the start, after --sd, in a screen
-  // switch that landed on the editor) tells the gate, so the once-per-run
-  // rule holds across it; a settled editor is a present one, so either kind
-  // of give-up is cleared.
   gate.noteSettled = () => {
     settledOnce = true;
     gaveUp = null;
   };
-  // A reload throws the settled view away; nothing the gate learned about it
-  // holds for the next one.
   gate.reset = () => {
     settledOnce = false;
     gaveUp = null;
@@ -3014,35 +2328,15 @@ function editorGate({ expected = editorExpectedHere, present = scriptEditorPrese
   return gate;
 }
 
-/**
- * Wait until the script editor is not only present but stable: the logic pane
- * mounts a CodeMirror view, and a moment later the document arrives and the
- * view can be replaced. A shortcut pressed into the first view goes nowhere,
- * and a cursor read from it is null. Stable means the same view object with
- * the same document length across three reads 600 ms apart.
- */
 async function settleEditor(page, timeout = 30_000) {
   return settledDiagnostics(page, timeout).then(() => true, () => false);
 }
 
-/**
- * For commands that always need the script editor (`verify`): bring the logic
- * screen back if a previous run left the profile elsewhere, then wait for the
- * editor as before.
- */
 async function ensureScriptEditor(page) {
   await waitForApp(page);
   let switched = false;
   let first = await scriptEditorPresent(page, 10_000);
   if (!first.present) {
-    // The editor lives on the logic screen's `main` tab (or its fullscreen
-    // scripts view). Clicking the logic screen tab only changes the screen
-    // (WorkspaceWindow.openPane sets the pane, not the panel), so a profile
-    // left on the `scripts` tab needs the inner tab clicked as well. Both
-    // clicks happen before the one long wait, so a `scripts` profile does not
-    // pay a dead budget on the logic click. A tab already on display is not
-    // clicked, so `switched` is only ever true for a click that changed
-    // something; the screen is judged from its content, not its highlight.
     const clickIfNeeded = async (value, needed) => {
       const tab = page.locator(tabSelector(value)).first();
       if (!(await tab.isVisible().catch(() => false))) return false;
@@ -3053,15 +2347,10 @@ async function ensureScriptEditor(page) {
     };
     const clickedLogic = await clickIfNeeded("logic", async () => (await activeScreen(page)) !== "logic");
     const clickedMain = await clickIfNeeded("main", async (tab) => (await tab.getAttribute("aria-selected")) !== "true");
-    // One long wait for a cold mount, whether or not anything was clicked.
     first = await scriptEditorPresent(page, 45_000);
-    // A click that changed the screen is reported whether or not the editor
-    // then came up; the caller can say both things.
     switched = clickedLogic || clickedMain;
   }
   if (!first.present) return { present: false, switched, reason: first.reason };
-  // The view can be replaced when the document arrives, on a cold load as
-  // much as after a switch, so settle it on every path.
   const settled = await settleEditor(page);
   return { present: true, switched, settled };
 }
@@ -3076,15 +2365,11 @@ async function surfaceOpen(page, name) {
   return page.locator(surfaceOf(name).selector).first().isVisible().catch(() => false);
 }
 
-/** Open a panel on its own shortcut and wait for it to be on screen. */
 async function openSurface(page, name, { settled = false } = {}) {
   const s = surfaceOf(name);
   if (await surfaceOpen(page, name)) return { surface: name, open: true, alreadyOpen: true };
   const editor = await scriptEditorPresent(page);
   if (!editor.present) return { surface: name, open: false, reason: editor.reason };
-  // The view can still be replaced a moment after it appears; a shortcut sent
-  // into the old view opens nothing. `ui` settles through its gate first and
-  // says so; a caller outside `ui` gets the settle here.
   if (!settled && !(await settleEditor(page, SETTLE_BUDGET_MS))) {
     return { surface: name, open: false, reason: `the script editor did not return settled diagnostics for ${seconds(SETTLE_BUDGET_MS)} and never settled; the shortcut was not sent. Re-run; if it persists the machine is saturated` };
   }
@@ -3103,7 +2388,6 @@ async function openSurface(page, name, { settled = false } = {}) {
   return { surface: name, open: true, pressed: key.combo };
 }
 
-/** Close a panel the way a user does: Escape from inside it. */
 async function closeSurface(page, name) {
   const s = surfaceOf(name);
   if (!(await surfaceOpen(page, name))) return { surface: name, open: false, alreadyClosed: true };
@@ -3118,7 +2402,6 @@ async function closeSurface(page, name) {
   return { surface: name, open: false, closed: true };
 }
 
-/** Which panel a field name belongs to. */
 function surfaceForField(field) {
   for (const [name, s] of Object.entries(SURFACES)) if (s.fields[field]) return name;
   throw new Error(
@@ -3132,26 +2415,12 @@ function fieldLocator(page, field) {
   return page.locator(`${s.selector} ${s.fields[field]}`).first();
 }
 
-/**
- * What a field is showing: its rendered text (`innerText`, with the trailing
- * break a contenteditable leaves stripped). This is the browser's rendering,
- * not the panel's own reader (`readFieldText` in customSearch.ts); the two
- * agree on everything `typeInto` can type, and differ only on a non-breaking
- * space that arrives by paste or a restored query. Absent field → null.
- */
 async function readField(page, field) {
   const loc = fieldLocator(page, field);
   if ((await loc.count()) === 0) return null;
   return loc.evaluate((el) => el.innerText.replace(/\n$/, ""));
 }
 
-/**
- * Put text into a panel field with real keystrokes: click it, select what is
- * there, type. A `\n` in the text is entered as the field's own line-break
- * shortcut (Control+Enter — plain Enter submits the panel), which is how a
- * user gets a multi-line find or replace. A read-back that differs from what
- * was typed is a `reason`, so it lands in `failed`.
- */
 async function typeInto(page, field, text, { settled = false } = {}) {
   const name = surfaceForField(field);
   const opened = await openSurface(page, name, { settled });
@@ -3181,7 +2450,6 @@ async function typeInto(page, field, text, { settled = false } = {}) {
   };
 }
 
-/** The surfaces that own a button or toggle name, open ones first. */
 async function openSurfacesOwning(page, kind, name) {
   const owners = Object.entries(SURFACES).filter(([, s]) => s[kind].includes(name));
   if (owners.length === 0) {
@@ -3192,7 +2460,6 @@ async function openSurfacesOwning(page, kind, name) {
   return { owners: owners.map(([n]) => n), open };
 }
 
-/** Click a panel button by its `name`, on whichever owning panel is open. */
 async function clickSurfaceButton(page, name) {
   const { owners, open } = await openSurfacesOwning(page, "buttons", name);
   if (open.length === 0) return { button: name, clicked: false, reason: `no panel with a "${name}" button is open (${owners.join(" or ")})` };
@@ -3202,14 +2469,12 @@ async function clickSurfaceButton(page, name) {
   return { button: name, surface, clicked: true };
 }
 
-/** Flip one of the find panel's checkboxes (`case`, `re`, `word`) and report its state. */
 async function toggleSurfaceOption(page, name) {
   const { owners, open } = await openSurfacesOwning(page, "toggles", name);
   if (open.length === 0) return { toggle: name, toggled: false, reason: `no panel with a "${name}" toggle is open (${owners.join(" or ")})` };
   const surface = open[0];
   const box = page.locator(`${SURFACES[surface].selector} input[name=${name}]`).first();
   const before = await box.isChecked();
-  // The box is visually hidden behind its label; clicking the label is what a user does.
   const label = page.locator(`${SURFACES[surface].selector} label:has(input[name=${name}])`).first();
   if ((await label.count()) > 0) await label.click();
   else await box.click({ force: true });
@@ -3224,21 +2489,12 @@ async function toggleSurfaceOption(page, name) {
   };
 }
 
-/**
- * Bring a screen to the front by clicking its tab. `name` is a main screen
- * (logic, assets, share) or any other tab value on the page, such as the
- * `main` / `scripts` row inside the logic pane. Success is the screen's own
- * content being mounted (for a main screen) or the tab reporting selected (for
- * an inner tab); the screen tab's own highlight is not trusted, see SCREENS.
- */
 async function switchScreen(page, name, { followedByMain = false } = {}) {
   const tab = page.locator(tabSelector(name)).first();
   try {
     await tab.waitFor({ state: "visible", timeout: 10_000 });
   } catch {
     const known = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((t) => t.id.replace(/^.*-trigger-/, "")));
-    // The logic pane's fullscreen scripts view has no tab row at all; the
-    // way back is its own header button, which `ui` has no step for.
     const inScriptsView = !known.includes("main") && await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
     if (inScriptsView && (name === "main" || name === "scripts")) {
       return { screen: name, active: false, reason: `the logic pane is in its fullscreen scripts view (another file is open), which has no tab row; close that file with the view's own header button, then re-run` };
@@ -3261,44 +2517,24 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
     };
   }
   let settled = await waitForDomQuiet(page, { quiet: 600, timeout: 10_000 });
-  // A switch that lands on the script editor (the logic screen, or its `main`
-  // tab) mounts a view that can be replaced when the document arrives; a step
-  // that runs before that lands in a view about to go away.
-  // A point check right after the click is too early: the editor mounts up
-  // to ~4.6 s after the pane does. Wait for it where the tab can bring it.
-  // `--screen logic` lands on an editor only when the logic pane's own tab is
-  // `main` (or the pane shows its fullscreen scripts view, which has no tab
-  // row); on the `scripts` tab no editor can appear, so waiting would be dead.
   const mainTabSelectedOrAbsent = await page.evaluate(() => {
     const main = document.querySelector('[role="tab"][id$="-trigger-main"]');
     return main == null || main.getAttribute("aria-selected") === "true";
   });
   const landsOnEditor = name === "main" || (name === "logic" && mainTabSelectedOrAbsent);
   if (name === "logic" && !mainTabSelectedOrAbsent) {
-    // The screen switched, but the pane's own tab is `scripts`: no editor
-    // came up, and the step says so rather than reading as a full recovery.
     return { screen: name, active: true, settled, editorHere: false, note: "the logic pane's own tab is scripts, so no script editor is on screen; use --screen main to reach it" };
   }
-  // The cold mount budget, whatever the run has settled so far: the switch
-  // mounted a fresh view, so a slow-but-fine mount must not fail the switch
-  // and then pass the screenshot that follows it.
   const mountBudget = MOUNT_BUDGET_MS;
   const editorHere = landsOnEditor
     ? (await scriptEditorPresent(page, mountBudget)).present
     : await protocolRequest(page, "editor/read", {}, 500).then(() => true, () => false);
   if (landsOnEditor && !editorHere) {
-    // The tab is up but the editor it should carry never mounted: a switch
-    // that reads as a success here would let a later screenshot lie. In the
-    // documented pair `--screen logic --screen main`, the main switch that
-    // follows waits for the editor and gives the verdict, so this is a note;
-    // any other following step does not, so this is a failure.
     const text = `the ${name} tab is up but no script editor mounted within ${seconds(mountBudget)}`;
     if (name === "logic" && followedByMain) return { screen: name, active: true, settled, editorHere: false, note: `${text}; the --screen main that follows waits for it` };
     return { screen: name, active: true, settled, editorHere: false, reason: `${text}. Re-run; if it persists the machine is saturated` };
   }
   if (editorHere) {
-    // The cold settle budget, so a switch that reports the editor settled
-    // means what the gate means by it.
     const settleBudget = SETTLE_BUDGET_MS;
     const editorSettled = await settleEditor(page, settleBudget);
     settled = editorSettled && settled;
@@ -3310,7 +2546,6 @@ async function switchScreen(page, name, { followedByMain = false } = {}) {
   return { screen: name, active: true, settled };
 }
 
-/** Everything a session might want to read back, in one object. */
 async function readSurfaces(page) {
   const out = { screen: null, panelTab: null, tabs: [], find: { open: false }, goto: { open: false }, cursorLine: null };
   out.tabs = await page.evaluate(() =>
@@ -3323,9 +2558,6 @@ async function readSurfaces(page) {
   out.screens = await mountedScreens(page);
   out.screen = out.screens.length === 1 ? out.screens[0] : null;
   out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
-  // Which script editor is on screen: the `main` tab's, or the logic pane's
-  // fullscreen scripts view (another file open, no tab row). --sd writes
-  // main.sd, which in the second case is not the file being shown.
   const editor = await protocolRequest(page, "editor/read", {}, 500).catch(() => null);
   out.editorView = editor ? await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view") : null;
 
@@ -3366,9 +2598,6 @@ export function unionRect(rects, viewport) {
   return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
 }
 
-// The go-to panel accepts a one-based line and zero-based column. Read the selection
-// back before typing or aiming the pointer; an out-of-range column must not
-// silently become a check of the end of the line.
 export async function placeCaret(page, position, { present = scriptEditorPresent } = {}) {
   const editor = await present(page);
   if (!editor.present) return { placed: false, reason: editor.reason };
@@ -3432,8 +2661,6 @@ export async function readLanguageSurface(page, kind) {
   }, { kind, selectors: LANGUAGE_TARGETS });
 }
 
-// Wait on the same viewport predicate used in the report: CodeMirror inserts
-// tooltips off-screen before its layout pass positions them.
 export async function waitLanguageSurface(page, kind, { read = readLanguageSurface, timeout = 15_000, infoTimeout = 2000, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   if (kind === "hover") return read(page, kind);
   const end = now() + timeout;
@@ -3456,12 +2683,6 @@ export async function waitLanguageSurface(page, kind, { read = readLanguageSurfa
 
 const SEVERITY = { 1: "error", 2: "warning", 3: "information", 4: "hint" };
 
-/**
- * The settled diagnostics whose range covers a one-based position, each
- * with its message as plain text, its severity name and its zero-based LSP
- * range. A range that ends at the position counts (the caret is at its end);
- * languageSurface then aims the pointer inside the mark.
- */
 export async function diagnosticsAt(page, position, { diagnostics = settledDiagnostics } = {}) {
   const settled = await diagnostics(page);
   const line = position.line - 1;
@@ -3477,7 +2698,6 @@ export async function diagnosticsAt(page, position, { diagnostics = settledDiagn
     }));
 }
 
-// The lint tooltip CodeMirror shows for a diagnostic under the pointer.
 async function lintTooltip(page, timeout = 5_000) {
   const selector = ".sparkdown-script-editor-root .cm-tooltip-lint";
   const shown = await page.locator(selector).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
@@ -3523,19 +2743,11 @@ export async function languageSurface(page, kind, position, text, { place = plac
     const found = await diagnosticsAt(page, position, { diagnostics });
     out.diagnostics = found;
     if (found.length > 0) {
-      // CodeMirror's lint tooltip opens on a real pointer move over the
-      // marked range; one move can land before the range is measured, so
-      // a second small move follows, and the tooltip is waited for. At a
-      // mark's end the pointer sits right of the boundary, a side CodeMirror's
-      // lint hover excludes, so the move aims at the last character inside it.
       let spot = { x: out.pointer.x + 2, y: out.pointer.y };
       const { start, end } = found[0].range;
       const atEnd = end.line === position.line - 1 && end.character === position.col - 1;
       const nonEmpty = start.line < end.line || start.character < end.character;
       if (atEnd && nonEmpty) {
-        // The last character before the end, stepping back over line breaks
-        // (an end at column 0 belongs to the line before), but not before
-        // the start.
         const lines = (await protocolRequest(page, "editor/read")).textDocument.text.split("\n");
         let line = end.line;
         let character = end.character;
@@ -3571,7 +2783,6 @@ export async function languageSurface(page, kind, position, text, { place = plac
   return out;
 }
 
-/** Screenshot one visible surface, or the whole page. */
 async function shotOf(page, what, out) {
   if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
   if (!out) throw new Error(`--shot-of ${what} needs an output path`);
@@ -3598,27 +2809,12 @@ async function shotOf(page, what, out) {
   return { of: what, screenshot: target };
 }
 
-/**
- * Whether the step after `index` is `--screen main`, the one switch that
- * waits for the script editor itself. A `--screen logic` whose editor never
- * mounts is a note rather than a failure only then; any other following step
- * would let the missing editor pass unreported. Pure, so the test can pin the
- * condition where it is decided.
- */
 export function followedByMain(steps, index) {
   return steps[index + 1]?.screen === "main";
 }
 
-/**
- * Parse `ui` arguments into steps, refusing anything malformed before a
- * browser is launched: a flag with no value, an unknown panel, field, button,
- * toggle, screen or shot target, or an empty field name. Pure; tested in
- * ui-steps.test.mjs.
- */
 export function parseUiSteps(args) {
   const steps = [];
-  // Any tab value is accepted here; the editor can grow a tab, and whether one
-  // exists is decided at run time, where the failure lists the tabs present.
   const screenName = /^[a-z][a-z0-9-]*$/;
   const fields = Object.values(SURFACES).flatMap((s) => Object.keys(s.fields));
   const buttons = Object.values(SURFACES).flatMap((s) => s.buttons);
@@ -3652,8 +2848,6 @@ export function parseUiSteps(args) {
         const spec = value();
         const eq = spec.indexOf("=");
         if (eq < 0) bad("--insert needs line:col=text");
-        // `\n` is a line break and `\\` a backslash, so any text, a literal
-        // backslash-n included, has a spelling.
         const text = spec.slice(eq + 1).replace(/\\([\\n])/g, (_, c) => (c === "n" ? "\n" : "\\"));
         if (!text || text.length > INSERT_TEXT_LIMIT) bad(`--insert text must be 1..${INSERT_TEXT_LIMIT} characters`);
         steps.push({ insert: parsePosition(spec.slice(0, eq)), text });
@@ -3663,6 +2857,17 @@ export function parseUiSteps(args) {
         const v = value();
         if (v !== "start" && v !== "stop") bad(`--play takes start or stop, got "${v}"`);
         steps.push({ play: v });
+        break;
+      }
+      case "--advance": {
+        const v = args[i + 1];
+        if (v == null || v.startsWith("--")) {
+          steps.push({ advance: 1 });
+          break;
+        }
+        if (!/^\d+$/.test(v) || !Number.isSafeInteger(Number(v)) || Number(v) < 1) bad(`--advance takes a positive click count, got "${v}"`);
+        i++;
+        steps.push({ advance: Number(v) });
         break;
       }
       case "--scrub": {
@@ -3740,9 +2945,6 @@ export function parseUiSteps(args) {
         bad(`unknown argument ${a}`);
     }
   }
-  // A `--project` seed replaces the project, main.sd included, so a script an
-  // earlier `--sd` step wrote would be removed or written over by it; the
-  // order that keeps the script is refused the other way round.
   const firstSd = steps.findIndex((s) => s.sd);
   const lastProject = steps.map((s) => Boolean(s.project)).lastIndexOf(true);
   if (firstSd >= 0 && lastProject > firstSd) {
@@ -3751,12 +2953,6 @@ export function parseUiSteps(args) {
   return steps;
 }
 
-// The report of a step that was refused before it ran, in the shape the
-// step reports when it runs with its outcome field saying nothing happened
-// (`clicked`, `active`, `matches`, `screenshot`), so a reader checking that
-// field on a refused step finds it. Every gate goes through this; `--project`
-// and `--probe` are never gated, and a step kind added later reports its
-// parsed fields until it is given a shape here.
 function gatedStep(step, reason) {
   const gated = { gated: true, reason };
   if (step.sd) return { sd: step.sd, wroteChars: null, ...gated };
@@ -3771,16 +2967,12 @@ function gatedStep(step, reason) {
   if (step.hover) return { hover: step.hover, present: false, ...gated };
   if (step.complete) return { completion: step.complete, popupPresent: false, ...gated };
   if (step.play) return { play: step.play, clicked: false, reached: false, ...gated };
+  if (step.advance) return { advance: step.advance, clicked: 0, clicks: [], ...gated };
   if (step.insert) return { insert: step.insert, inserted: false, textMatches: false, ...gated };
   if (step.scrub) return { scrub: step.scrub, clicked: false, ...gated };
   return { ...step, ...gated };
 }
 
-/**
- * `ui`: run the steps in the order given, then read every surface back. Each
- * step records its own outcome under `steps`; a step that fails, or throws,
- * records a `reason` and the run continues, so the report is never lost.
- */
 async function ui(args, deps = liveDeps) {
   const headless = !args.includes("--headed");
   let steps;
@@ -3817,21 +3009,7 @@ async function ui(args, deps = liveDeps) {
         return result;
       }
       result.startedOn = await deps.activeScreen(page);
-      // A project an earlier seed left marked is a mix of two projects, and
-      // nothing seen on it is evidence. Only a `--project` step can put it
-      // right, so every step but a `--project` and a `--probe` (which
-      // captures nothing and is how the page is diagnosed) is refused while
-      // the marker stands, and the run stops at the first refused step. A
-      // `--project` step that fails closes the gate as well, whether its seed
-      // stopped part-way (the marker stands) or was refused before it wrote
-      // (storage holds the previous project, which this run did not ask
-      // for), so no step captures a project the run does not describe.
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
-      // The start only records what it finds. A step that needs a settled
-      // editor (a screenshot, a key press, a panel) checks for one itself at
-      // the moment it runs, so the failure lands on the step that would
-      // otherwise have lied, and a run whose steps never needed the editor is
-      // not failed for a slow mount it never depended on.
       const expectedAtStart = await deps.editorExpectedHere(page);
       if (expectedAtStart === false) {
         if (result.startedOn === "logic") result.startNote = "the run started on the logic screen's scripts tab, where there is no script editor; --screen main reaches it";
@@ -3854,8 +3032,6 @@ async function ui(args, deps = liveDeps) {
           result.steps.push(gatedStep(step, `${gate}${rest > 0 ? ` The ${rest} step${rest === 1 ? "" : "s"} after this one did not run.` : ""}`));
           break;
         }
-        // What a `--sd` or `--project` step has reported so far, kept
-        // outside the try so a throw after the write does not lose it.
         let written = null;
         try {
           if (step.freshSw) {
@@ -3878,17 +3054,10 @@ async function ui(args, deps = liveDeps) {
           } else if (step.sd || step.project) {
             let out;
             if (step.project) {
-              // As verify does: a `--sd` step after this one supplies
-              // main.sd, so the project needs none of its own. parseUiSteps
-              // refuses a `--sd` before a `--project`, whose main.sd the
-              // seed would take away.
               const seeded = await deps.seedProject(page, step.project, { expectMainSd: !steps.slice(index + 1).some((s) => s.sd) });
               out = { project: step.project, seed: seeded };
               written = out;
               if (seeded.reason) {
-                // Storage holding anything but the whole project is not the
-                // project; the step fails, the page is not reloaded onto it,
-                // and the steps after it do not run.
                 out.reason = seeded.reason;
                 gate = (await deps.interruptedSeed(page))
                   ? interruptedSeedError()
@@ -3904,36 +3073,18 @@ async function ui(args, deps = liveDeps) {
               out.wroteChars = await deps.writeMainSd(page, src);
             }
             const wrote = step.project ? "--project seeded the project, whose main.sd" : "--sd wrote main.sd, which";
-            // The reload throws the settled view away.
             requireEditor.reset();
             await reloadEditorPage(page);
             await deps.waitForApp(page);
-            // No editor can appear on the `scripts` tab or another screen;
-            // say so at once instead of waiting a minute for it.
-            // Only a mounted pane can say no editor is coming; a page with no
-            // pane yet, or the scripts view whose marker is the editor itself,
-            // gets the full wait.
             const expectedAfterReload = await deps.editorExpectedHere(page);
             const editor = expectedAfterReload === false ? await deps.scriptEditorPresent(page, 1_000) : await deps.scriptEditorPresent(page, 60_000);
             if (editor.present) {
-              // As verify does on its own path: let the view stop being
-              // replaced, let the first compile settle, and let the editor's
-              // asynchronous cursor restore land, before any step reads or
-              // moves the cursor. The preview is observable only in
-              // same-origin mode (window.__preview); elsewhere waiting on it
-              // would burn the full timeout for nothing.
               out.editorSettled = await deps.settleEditor(page, SETTLE_BUDGET_MS);
               if (out.editorSettled) requireEditor.noteSettled();
-              // window.__preview is installed by the game preview's own effect,
-              // a moment after mount, and never in cross-origin mode or while
-              // the preview is in screenplay mode; wait for it, then give up.
               const observable = await page
                 .waitForFunction(() => window.__preview != null, null, { timeout: 15_000 })
                 .then(() => true, () => false);
               if (observable) {
-                // The mount wait verify uses, reload retry included; a game
-                // that never mounted has no program to wait for, and the
-                // blank pane fails the step, as it fails verify.
                 const mount = await deps.waitForGame(page, { ensure: deps.ensureScriptEditor });
                 if (mount.reloaded) {
                   out.neededReload = true;
@@ -3941,9 +3092,6 @@ async function ui(args, deps = liveDeps) {
                   out.editorSettled = await deps.settleEditor(page, SETTLE_BUDGET_MS);
                   if (out.editorSettled) requireEditor.noteSettled();
                 }
-                // The recovery brings the editor back by clicking the logic
-                // screen tab and the main tab when they are not on display;
-                // a run whose steps are the navigation has to know.
                 if (mount.switched) out.switchedToLogic = true;
                 if (mount.mounted) {
                   const program = await deps.waitForProgram(page);
@@ -3963,8 +3111,6 @@ async function ui(args, deps = liveDeps) {
                 const settleReason = `the script editor never settled within ${seconds(SETTLE_BUDGET_MS)} after the reload; later steps may have run without settled diagnostics`;
                 out.reason = out.reason ? `${out.reason}; also ${settleReason}` : settleReason;
               }
-              // The step wrote main.sd; if the pane is showing another file
-              // in its fullscreen scripts view, the editor on screen is not it.
               out.editorView = await page.evaluate(() => (document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view"));
               if (out.editorView === "scripts-view") {
                 const viewReason = `the logic pane is showing its fullscreen scripts view (another file is open); ${wrote} is not the file on screen. Close that file in the editor and re-run`;
@@ -3976,9 +3122,6 @@ async function ui(args, deps = liveDeps) {
             await deps.waitForDomQuiet(page, { quiet: 1500, timeout: 30_000 });
             result.steps.push(out);
           } else if (step.screen) {
-            // In the documented recovery pair `--screen logic --screen main`,
-            // the logic switch has no business failing for an editor the
-            // main switch is about to wait for.
             const switched = await switchScreen(page, step.screen, { followedByMain: followedByMain(steps, index) });
             if (switched.editorSettled) requireEditor.noteSettled();
             result.steps.push(switched);
@@ -4012,13 +3155,14 @@ async function ui(args, deps = liveDeps) {
               continue;
             }
             result.steps.push(await pressInEditor(page, step.press, { wait: deps.waitForDomQuiet }));
-          } else if (step.play || step.insert || step.scrub) {
-            const ready = await requireEditor(page, step.play ? "PLAY" : step.insert ? "insert" : "scrub", stepNo);
+          } else if (step.play || step.advance || step.insert || step.scrub) {
+            const ready = await requireEditor(page, step.play ? "PLAY" : step.advance ? "advance" : step.insert ? "insert" : "scrub", stepNo);
             if (ready.ok === false) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             if (step.play) result.steps.push(await playPreview(page, step.play));
+            else if (step.advance) result.steps.push(await advanceGame(page, step.advance));
             else if (step.insert) result.steps.push(await insertText(page, step.insert, step.text, { settle: deps.waitForPreviewSettle, route: deps.routeLabel }));
             else result.steps.push(scrubReport(step.scrub, await scrubPreview(page, step.scrub, deps)));
           } else if (step.click) {
@@ -4033,8 +3177,6 @@ async function ui(args, deps = liveDeps) {
             }
             result.steps.push(await shotOf(page, step.shotOf, step.out));
           } else if (step.probe) {
-            // Never gated: a probe captures no pixels, and it is the one step
-            // that can diagnose a page whose editor will not mount.
             const code = fs.readFileSync(path.resolve(step.probe), "utf8");
             result.steps.push({
               probe: step.probe,
@@ -4048,17 +3190,12 @@ async function ui(args, deps = liveDeps) {
         } catch (err) {
           const message = String(err.message || err).split("\n")[0];
           result.steps.push({ ...(written ?? step), reason: `step threw: ${message}` });
-          // A `--sd` or `--project` step that threw may have written to
-          // storage without the page being reloaded onto it (a reload that
-          // timed out), so the page is not known to show what storage
-          // holds, and the steps after it do not run.
           if (step.sd || step.project) {
             gate = `the ${step.project ? "--project" : "--sd"} step ${stepNo} threw (${message}), so the page is not known to show what storage holds.`;
           }
         }
       }
 
-      // Which script the run drove, whether or not one of its steps wrote it.
       result.script = await deps
         .loadedScript(page, steps.some((s) => s.sd))
         .catch((err) => ({ file: "main.sd", read: false, reason: String(err.message || err).split("\n")[0] }));
@@ -4076,9 +3213,6 @@ async function ui(args, deps = liveDeps) {
       result.consoleErrors = captured.errors;
       result.consoleNoise = captured.noise;
       deps.log(JSON.stringify(result, null, 2));
-      // A step that could not do what it was asked is a failed run, whatever
-      // else succeeded: `ui --sd x.sd --shot out.png && open out.png` must not
-      // open a screenshot of the wrong document under a green shell.
       process.exitCode = result.failed.length > 0 ? 1 : 0;
       return result;
     },
@@ -4086,12 +3220,6 @@ async function ui(args, deps = liveDeps) {
   );
 }
 
-// ---------------------------------------------------------------- redgreen ---
-
-// Paths in --files and the test command's cwd are the directory the session
-// is standing in, which must be this driver's own worktree root: runRedGreen
-// refuses a subdirectory (git resolves rev:path from the root), and this
-// refuses another checkout, so the worktree's driver never edits main's tree.
 async function redgreenCli(args) {
   let report;
   try {
@@ -4125,10 +3253,6 @@ async function redgreenCli(args) {
   if (!report.ok) process.exit(1);
 }
 
-// Helpers for a session that has to drive the editor beyond what `ui` and
-// `verify` cover. Import them from a script INSIDE the repo tree (Node resolves
-// playwright from the importing script's directory), e.g.
-//   import { withEditor, writeMainSd, waitForEditor } from "../../.agents/skills/drive-web-editor/driver.mjs";
 export {
   withEditor,
   openEditorPage,
@@ -4197,12 +3321,6 @@ export {
   START_GRAIN_MS,
 };
 
-// ------------------------------------------------------------------ utils ---
-
-// The value after `name`, or undefined when the flag is not given. A flag
-// that is given with no value, an empty one, or another flag in its place
-// throws, as parseUiSteps refuses the same: `--project "$RB"` with `RB`
-// unset must not become a run without a project.
 function flag(args, name) {
   const i = args.indexOf(name);
   if (i < 0) return undefined;
@@ -4212,10 +3330,6 @@ function flag(args, name) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// What `verify`, `ui` and `seed` reach the browser through. Each command takes
-// this as its `deps` parameter, so seed-project.test.mjs can run the commands
-// in-process against a stub page and storage and pin that each one seeds,
-// stops on `seed.reason`, and reloads only after a seed that landed whole.
 const liveDeps = {
   reportFreshWorker,
   languageSurface,
@@ -4245,8 +3359,6 @@ const liveDeps = {
   readSurfaces,
 };
 
-// Only dispatch when run as a command. `classifyScrub` is a pure function with
-// its own test beside this file, and importing it must not boot a browser.
 const runAsCli =
   process.argv[1] != null &&
   fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));

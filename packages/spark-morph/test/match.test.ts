@@ -17,7 +17,6 @@ describe("matchTrack", () => {
       expect(sharpCorners(fr), `corners at ${t}`).toBe(4);
       expect(selfIntersects(fr)).toBe(false);
     }
-    // Each corner travels on a straight line to its own counterpart.
     const half = anchors(r.track.frame(0.5));
     anchors(loop(square)).forEach((a, i) => {
       const b = anchors(loop(offKilterQuad))[i]!;
@@ -35,7 +34,6 @@ describe("matchTrack", () => {
   });
 
   test("a target exported with the opposite winding or a rotated start still pairs as drawn", () => {
-    // The same quadrilateral, reversed and started at its third corner.
     const quadReversedRotated = "M85,90L95,5L5,15L15,80Z";
     const r = matchTrack(loop(square), loop(quadReversedRotated));
     expect(r.ok).toBe(true);
@@ -53,7 +51,6 @@ describe("matchTrack", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     for (const t of runtimeProgress) expect(selfIntersects(r.track.frame(t))).toBe(false);
-    // Angular blending keeps handle lengths between the endpoints' lengths.
     const len = (segs: ReturnType<typeof loop>, i: number) => Math.hypot(segs[i]!.c1[0] - segs[i]!.p0[0], segs[i]!.c1[1] - segs[i]!.p0[1]);
     const l0 = len(loop(upperOpen), 0),
       l1 = len(loop(closedLash), 0),
@@ -77,8 +74,6 @@ describe("matchTrack", () => {
   });
 
   test("self-intersection is reported only when the caller asks for the check", () => {
-    // A square to a bow tie: the target crosses itself, so the artist's
-    // pairing crosses before it arrives.
     const bowTie = "M0,0L100,100L100,0L0,100Z";
     const unchecked = matchTrack(loop(square), loop(bowTie));
     expect(unchecked.ok).toBe(true);
@@ -95,10 +90,6 @@ describe("matchTrack", () => {
   });
 
   test("a smooth node turning exactly 180 degrees keeps both handles collinear mid-morph", () => {
-    // The node at (50, 0) is smooth in both loops with its handles reversed
-    // between them: outgoing [1, 0] becomes [-1, 0] and incoming [-1, 0]
-    // becomes [1, 0]. Each handle's shortest rotation is a tie, and both
-    // must resolve the same way or the node kinks into a cusp.
     const a: Cubic[] = [
       { p0: [50, 0], c1: [60, 0], c2: [100, 40], p1: [100, 50] },
       { p0: [100, 50], c1: [100, 100], c2: [0, 100], p1: [0, 50] },
@@ -132,10 +123,6 @@ describe("matchTrack", () => {
   });
 
   test("the seam tolerance is inclusive and a wider gap closes with an edge, at any scale", () => {
-    // A right triangle left open by a gap just inside 2% of its perimeter
-    // snaps shut; one just outside gets a closing edge and so has four
-    // nodes against a three-node target, and the pipeline refuses it as
-    // not-closed at the same boundary.
     for (const k of [1e-8, 1, 1e8]) {
       const target = `M0,0L${k * 90},0L0,${k * 100}Z`;
       const withGap = (gap: number) => `M0,0L${k * 100},0L0,${k * 100}L${gap},0`;

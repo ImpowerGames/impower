@@ -1,2 +1,4 @@
 store f = @native function() return 7 end
-Value {f()}.
+scene start
+  Value {f()}.
+end

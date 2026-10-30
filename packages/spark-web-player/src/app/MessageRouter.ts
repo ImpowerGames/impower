@@ -14,8 +14,6 @@ import { BatchElementsMessage } from "../../../spark-engine/src/game/modules/ui/
 import { BeatMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import type { Manager } from "./Manager";
 
-/** The requests a notification carries for the page to answer: the
- *  animations of a composed beat, on their own or inside a batch. */
 function carriedRequests(message: Message): RequestMessage[] {
   if (!BeatMessage.type.isNotification(message as NotificationMessage)) {
     return [];
@@ -40,32 +38,16 @@ type Answer =
   | { result: unknown; transfer?: ArrayBuffer[] }
   | undefined;
 
-/**
- * The page's end of the game's message stream: hands each message the game
- * sends to the managers and sends the game one answer for every request.
- *
- * Every request is answered, so nothing the game waits on can wait for ever:
- * with the first manager's answer, with an error when no manager handles the
- * method, and with an error for each request still open when the page
- * disconnects.
- *
- * Every stream the game sends carries an epoch. A message from an older
- * stream than the newest one seen is dropped (a request among them, or one a
- * dropped beat carries, is answered with an error), so what a superseded preview still had in flight
- * cannot paint over the one that replaced it.
- */
 export class MessageRouter {
   protected _managers: () => Iterable<Manager>;
 
   protected _reply: (message: Message, transfer?: ArrayBuffer[]) => void;
 
   protected _epoch = 0;
-  /** The newest stream this page has seen. */
   get epoch() {
     return this._epoch;
   }
 
-  /** Requests received and not yet answered: id to method. */
   protected _pending = new Map<string | number, string>();
 
   protected _disconnected = false;
@@ -81,7 +63,6 @@ export class MessageRouter {
   receive(message: StreamMessage): void {
     const isRequest = "id" in message && "params" in message;
     if (!isRequest && "id" in message) {
-      // A response: the page sends the game no requests of its own.
       return;
     }
     if (this._disconnected) {
@@ -119,8 +100,6 @@ export class MessageRouter {
     }
   }
 
-  /** Answer every open request with an error and every later one the same
-   *  way: the page is going away, and nothing it was doing will finish. */
   disconnect(): void {
     this._disconnected = true;
     const pending = [...this._pending];
@@ -135,16 +114,9 @@ export class MessageRouter {
     }
   }
 
-  /**
-   * Answer a request a manager met inside another message (an animation a
-   * composed beat carries, #1820) once `work` settles, as this router
-   * answers the requests it hands out: with its result, with its error, or
-   * with an error when the page disconnects first.
-   */
   answer(message: RequestMessage, work: Promise<Answer>): void {
     if (this._disconnected) {
       this.answerError(message, DISCONNECTED, "the page disconnected");
-      // Its outcome no longer reaches the game.
       void work.catch(() => {});
       return;
     }
@@ -156,9 +128,6 @@ export class MessageRouter {
 
   protected async handleRequest(message: RequestMessage): Promise<void> {
     this._pending.set(message.id, message.method);
-    // Every manager sees the request synchronously, as it arrives: a
-    // handler that starts work before its first await must not slip behind
-    // the notifications that follow the request.
     const answers = [...this._managers()].map((manager): Promise<Answer> => {
       try {
         return manager
@@ -168,7 +137,6 @@ export class MessageRouter {
         return Promise.resolve({ error: toResponseError(e) });
       }
     });
-    // A manager that handles the method wins over one that threw on it.
     const settled = await Promise.all(answers);
     this.settle(
       message,
@@ -176,10 +144,8 @@ export class MessageRouter {
     );
   }
 
-  /** Send the answer to a request, unless a disconnect has answered it. */
   protected settle(message: RequestMessage, answer: Answer): void {
     if (!this._pending.delete(message.id)) {
-      // Already answered by a disconnect.
       return;
     }
     if (!answer) {
@@ -196,7 +162,6 @@ export class MessageRouter {
         jsonrpc: "2.0",
         id: message.id,
         method: message.method,
-        // The game settles a request only on a defined result or an error.
         ...("error" in payload && payload.error !== undefined
           ? { error: payload.error }
           : { result: "result" in payload ? (payload.result ?? null) : null }),

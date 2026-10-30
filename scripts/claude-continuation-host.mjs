@@ -58,8 +58,6 @@ export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
   const tool=rows.findLast(row=>row.hook_event_name==='PreToolUse');
   const index=rows.indexOf(tool),later=rows.slice(index+1);
   if(tool?.tool_name!=='Bash')throw new Error('Current Claude claim proof requires native Bash admission');
-  // Concurrent native hooks can record the marker after PreToolUse. Both must
-  // exist at claim time; receipt order is not tool execution order.
   const ended=rows.slice(Math.min(rows.indexOf(display),index)+1).some(row=>['Stop','SessionEnd'].includes(row.hook_event_name));
   const matching=rows.filter(row=>row.hook_event_name==='PreToolUse'&&row.commandDigest===digest&&!rows.some(done=>['PostToolUse','PostToolUseFailure'].includes(done.hook_event_name)&&done.tool_use_id===row.tool_use_id));
   const latestPrompt=rows.findLast(row=>row.hook_event_name==='UserPromptSubmit');
@@ -70,8 +68,6 @@ export function verifyClaudeClaimConfiguration(destination,plan,options={}) {
   return{turnId:display.turn_id,model:plan.writer,effort:tool.effort.level,permissions:plan.permissions};
 }
 
-// This socket has no accepted-turn acknowledgment or verified queued-message
-// retraction. The journal owner decides whether submission is allowed, once.
 export function sendClaudeFrame(record,envelope,{connect=endpoint=>net.createConnection(endpoint),timeoutMs=3000}={}) {
   return new Promise((resolve,reject)=>{
     let socket,settled=false,writeInvoked=false;
@@ -130,8 +126,6 @@ export function claudeContinuationHost({plan,env=process.env,platform=process.pl
       if(!sameIdentity(record.process,identify(record.process.pid)))return{state:'disconnected'};
       const rows=evidence(record),stop=configuration(record,currentPlan,rows);
       if(rows.some(row=>row.hook_event_name==='SessionEnd'))return{state:'disconnected'};
-      // Effort changes during a new prompt have no reliable early hook receipt.
-      // Keep our outbox pending until a native Stop establishes the current route.
       const transcript=readClaudeRows(record.transcript,128*1024*1024);
       const lastPrompt=rows.findLast(row=>row.hook_event_name==='UserPromptSubmit');
       if(lastPrompt&&lastPrompt.prompt_id!==stop.prompt_id)return{state:'unknown'};

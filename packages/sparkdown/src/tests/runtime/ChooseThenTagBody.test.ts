@@ -1,21 +1,8 @@
-// A `choose … then … end` gather body is ordinary scene content and can
-// contain `#`/`##` section tags (and `[[…]]` annotations). The choose-block
-// and then-clause grammar rules originally lacked `#Annotation`, so a
-// standalone tag line in the body couldn't be consumed — the parser spun on
-// empty matches ("[ScopedRule:LuauSparkdownChooseThenClause] Too many
-// consecutive empty matches … Possible infinite loop!"), surfacing in the
-// editor on the real R&B port (`## FinalImage`, `## BadGuysCloseIn`).
-//
-// This guards that a tag line in a then-body is recognized as a `Tag`
-// (not swallowed/unparsed) and that the block still compiles + runs.
-
 import { describe, expect, test } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-const SRC = `-> main
-
-scene main
+const SRC = `scene start
   choose
   + [A]
     Body A.
@@ -62,7 +49,6 @@ describe("choose…then…end tag body", () => {
     expect(errors).toBe(0);
     expect(result.program.chunks).toBeDefined();
 
-    // The `##` line is recognized as a Tag (not left unparsed).
     const docs: any = (compiler as any).documents;
     const tree = String(
       printTree(docs.tree("inmemory:///main.sd"), docs.get("inmemory:///main.sd")),
@@ -70,7 +56,6 @@ describe("choose…then…end tag body", () => {
     expect(tree).toContain("FinalImage");
     expect(tree).toContain("Tag");
 
-    // And picking a choice runs the then-body to the divert (no dead-end).
     const story = testStory(result.program.chunks);
     const rtErrors: string[] = [];
     story.onError = (m: string) => rtErrors.push(m);

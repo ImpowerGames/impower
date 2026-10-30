@@ -1,3 +1,5 @@
 const kX = "hi"
 store x = kX
-{x}
+scene start
+  {x}
+end

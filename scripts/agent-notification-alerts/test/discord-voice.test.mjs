@@ -48,8 +48,6 @@ class FakeSocket extends EventEmitter {
   }
 }
 
-// Only pipe index 0 is a live Discord; every other index refuses, matching
-// how a real machine with one running Discord client behaves.
 function singlePipeConnect(onWrite) {
   return (path) => new FakeSocket(path.endsWith('-0'), onWrite);
 }
@@ -63,8 +61,6 @@ async function withState(fn) {
   } finally {
     if (previous === undefined) delete process.env.AGENT_ALERT_STATE_DIR;
     else process.env.AGENT_ALERT_STATE_DIR = previous;
-    // A watcher's fire-and-forget status-file write can still be landing when
-    // this runs; retry past the transient Windows ENOTEMPTY that causes.
     await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
 }
@@ -155,10 +151,6 @@ test('a Connect Discord request drives authorize, token exchange, authenticate, 
       assert.deepEqual(await readJson(discordTokenPath()), { access_token: 'AT', refresh_token: 'RT', expires_at: (await readJson(discordTokenPath())).expires_at });
       assert.equal(await exists(discordConnectRequestPath()), false, 'the one-time request marker is consumed');
       assert.equal(await exists(discordCallMutePath()), false);
-      // Confirmed against a real Discord client: omitting the key gets
-      // "Missing redirect_uri in request", but a real URL gets "Redirect URI
-      // cannot be used in the RPC OAuth2 Authorization flow" — the local
-      // AUTHORIZE step wants the key present and explicitly null.
       assert.equal(authorizeArgs.redirect_uri, null);
       assert.ok('redirect_uri' in authorizeArgs, 'the key itself must be present, not merely absent-and-undefined');
       assert.ok(authorizeArgs.scopes.includes('rpc.voice.read'), 'reading the selected voice channel needs this scope');
@@ -172,7 +164,6 @@ test('a command-level Discord error (not a token-expiry code) still reports and 
   await withState(async () => {
     const connect = singlePipeConnect((socket, sent) => {
       if (sent.v === 1) return socket.reply({ cmd: 'DISPATCH', evt: 'READY', data: {} });
-      // Discord's real response to a misconfigured AUTHORIZE request, observed live.
       if (sent.cmd === 'AUTHORIZE') return socket.reply({ cmd: 'AUTHORIZE', evt: 'ERROR', nonce: sent.nonce, data: { code: 5000, message: 'OAuth2 Error: invalid_request: Missing "redirect_uri" in request.' } });
     });
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
@@ -225,12 +216,8 @@ test('a SUBSCRIBE acknowledgement is never mistaken for a channel-select dispatc
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 10 });
     try {
       await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'ready');
-      // A genuine dispatch establishes the call.
       socketRef.reply({ cmd: 'DISPATCH', evt: 'VOICE_CHANNEL_SELECT', data: { channel_id: '999' } });
       await waitFor(() => exists(discordCallMutePath()));
-      // Nothing else replies after this: Discord's own SUBSCRIBE acknowledgement
-      // echoes the same evt name with no channel data, so this isolates whether
-      // it alone can wrongly clear an already-active call.
       socketRef.reply({ cmd: 'SUBSCRIBE', evt: 'VOICE_CHANNEL_SELECT', nonce: 'late-ack', data: {} });
       await new Promise((resolve) => setTimeout(resolve, 200));
       assert.equal(await exists(discordCallMutePath()), true, 'a SUBSCRIBE acknowledgement must never clear an active call');
@@ -284,8 +271,6 @@ test('disabling the opt-out preference mid-call clears only the Discord-derived 
       const stateDir = discordCallMutePath().replace(/discord-call-muted$/, '');
       await writeFile(join(stateDir, 'discord-mute-disabled'), '');
       await waitFor(async () => !(await exists(discordCallMutePath())));
-      // The underlying call itself must still be tracked as active — only the
-      // marker file the opt-out preference gates should have been cleared.
       await waitFor(async () => (await readJson(discordStatusPath(), {})).inCall === true);
     } finally {
       await watcher.stop();
@@ -299,9 +284,6 @@ test('a Discord that is not running never reports a call and backs off without t
     const watcher = startDiscordVoiceWatcher({ clientId: 'client', clientSecret: 'secret', connect, syncIntervalMs: 15 });
     try {
       await waitFor(async () => (await readJson(discordStatusPath(), {})).phase === 'unavailable');
-      // Read the watcher's own state, not the polled status file: a
-      // concurrent tick can be mid-write to that file at the exact moment
-      // this assertion runs, which is a race rather than a defect.
       assert.equal(watcher.getStatus().inCall, false);
       assert.equal(await exists(discordCallMutePath()), false);
       assert.equal(watcher.getStatus().backoffMs, 2000, 'one full cycle through all refused pipes must back off by exactly one step, not one per pipe');

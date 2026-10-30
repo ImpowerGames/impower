@@ -1,1 +1,3 @@
-x .. shuffle queue|a|b|c ..
+scene start
+  x .. shuffle queue|a|b|c ..
+end

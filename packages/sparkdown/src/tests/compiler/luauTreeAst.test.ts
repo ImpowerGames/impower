@@ -1,31 +1,3 @@
-// The AST `readLuauAst.ts` reads from Sparkdown's syntax tree must be the AST
-// Luau's parser reads from the same Luau (#1285, the second check of #1283).
-//
-// The oracle is the pinned official C++ parser. Converter nodes are encoded
-// through `printOfficialAst` and compared with its JSON, omitting locations
-// for structural checks; position checks compare every encoded node's range:
-// - for every Luau fixture `luauFixtures.ts` finds, except the inputs on
-//   which the two disagree about having a syntax error (#1284's list) and
-//   those on `KNOWN_STRUCTURAL_DISAGREEMENTS` below. A `.sd` fixture's units
-//   are compared with Luau's reading of the text the type checker extracted
-//   for each before it read the tree (`luauCheckerText.ts`), Sparkdown's own
-//   constructs printed as that text reads them (`luauCheckerView.ts`); a
-//   conformance file's `run`
-//   function with Luau's reading of the file itself. A unit in which either
-//   side finds a syntax error is compared on having one: the AST of a
-//   recovery is a side effect of how each reader recovers;
-// - for generated expressions covering every operator in Luau's precedence
-//   table, every pair of binary operators, every call form and its sugar,
-//   indexing, method calls, tables, functions, `if` expressions,
-//   interpolated strings and the literals' spellings.
-// Every node's location must also equal the parser's, mapped to the
-// document by `textDocumentPosition`, over statements in their one-line and
-// multi-line forms. Sparkdown's own constructs have fixtures of their own.
-//
-// A bug disagreement that stops happening fails its test, so its fix removes
-// the entry. The two intentional integer limitations are checked explicitly
-// by the official oracle and remain documented after #1309 closes.
-
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,24 +25,17 @@ import { expressionDocument, generatedExpressions } from "./luauGeneratedExpress
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface StructuralDisagreement {
-  /** A fixture as `luauInputs` names it, or a generated expression as written. */
   input: string;
-  /** The open issue that explains it. */
   issue: number;
   reason: string;
 }
 
-// Inputs both sides read without a syntax error, but differently: the
-// grammar reads Luau's tokens another way than Luau does.
 const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
 ];
 
-// Fixtures excluded from the extracted-syntax agreement suite are excluded here
-// too; every other fixture's full tree AST is compared with C++.
 const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.limitation).map((entry) => entry.fixture));
 const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
 
-/** The first line at which two printed trees differ, with a few lines around it from each. */
 function firstDifference(luau: string, tree: string): string {
   const a = luau.split("\n");
   const b = tree.split("\n");
@@ -83,7 +48,6 @@ function firstDifference(luau: string, tree: string): string {
   return "";
 }
 
-/** Compares a reading of the tree with Luau's, returning the differences found; none when they agree. */
 function compareUnit(label: string, luauRoot: Json, luauErrors: number, unit: LuauAstUnit, tree: AstNode, view: Parameters<typeof printAst>[1]): string[] {
   if (luauErrors > 0 || unit.errors.length > 0) {
     if (luauErrors > 0 !== unit.errors.length > 0) {
@@ -102,7 +66,6 @@ function compareUnit(label: string, luauRoot: Json, luauErrors: number, unit: Lu
   return a === b ? [] : [`${label}: ${firstDifference(a, b)}`];
 }
 
-/** The differences between the tree's reading of a fixture and Luau's. */
 function fixtureDifferences(input: LuauInput): string[] {
   const tree = parseSource(input.text);
   const units = readLuauUnits(tree, input.text);
@@ -177,7 +140,6 @@ function range(begin: { line: number; column?: number; character?: number }, end
   return `${begin.line}:${begin.character ?? begin.column}-${end.line}:${end.character ?? end.column}`;
 }
 
-/** Each node's document range from the tree, beside the parser's range mapped to the document, where they differ. */
 function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit; flows: LuauTextUnit[] }) => LuauTextUnit, pickOurs: (units: ReturnType<typeof readLuauUnits>) => LuauAstUnit): string[] {
   const tree = parseSource(text);
   const unit = pick(checkerTextUnits(tree, text));
@@ -349,9 +311,6 @@ describe("Sparkdown's own constructs", () => {
         "    ExprConstantNumber 2",
       ].join("\n"),
     );
-    // The branch is a unit of its own, whose function takes the scene's
-    // parameter `k` and in which the scene's local `n` reads as a global
-    // (I-1674).
     expect(units.flows).toHaveLength(2);
     expect(units.flows[0]!.errors).toEqual([]);
     expect(units.flows[1]!.errors).toEqual([]);
@@ -463,7 +422,6 @@ describe("Sparkdown's own constructs", () => {
         "SparkdownChoose",
       ]),
     );
-    // A plain visitor reaches the Luau inside each construct.
     const kinds: string[] = [];
     visitAst(units.prelude.root, { visit: (node) => (kinds.push(isSparkdownNode(node) ? `*${node.kind}` : node.kind), true) });
     expect(kinds).toContain("*SparkdownCallShorthand");
@@ -495,7 +453,6 @@ describe("Sparkdown's own constructs", () => {
 });
 
 describe("Unfinished and boundary input", () => {
-  /** The prelude's errors as `line:character message`, from the tree, and from Luau's parser mapped to the document. */
   function preludeErrors(text: string): { tree: string[]; luau: string[] } {
     const tree = parseSource(text);
     const unit = checkerTextUnits(tree, text).prelude;
@@ -523,8 +480,6 @@ describe("Unfinished and boundary input", () => {
   });
 
   test("a break reports the required block closer at the following token (I-1508)", () => {
-    // Luau ends the loop's block at the break, as at a return (#1298), and
-    // the function's `end` is met where the chunk ends (I-1430).
     const { tree, luau } = preludeErrors("function f()\n  while true do\n    break\n    x = 2\n  end\nend\n");
     expect(luau).toEqual(["3:4 Expected 'end' (to close 'do' at line 2), got 'x'", "5:0 Expected <eof>, got 'end'"]);
     expect(tree).toEqual(luau);
@@ -532,7 +487,6 @@ describe("Unfinished and boundary input", () => {
   });
 
   test("a plain Luau return reports the required block closer at the following token (#1298)", () => {
-    // The function ends there, and its `end` is met where the chunk ends (I-1430).
     const { tree, luau } = preludeErrors("function f()\n  return 1\n  x = 2\nend\n");
     expect(luau).toEqual(["2:2 Expected 'end' (to close 'function' at line 1), got 'x'", "3:0 Expected <eof>, got 'end'"]);
     expect(tree).toEqual(luau);
@@ -573,7 +527,6 @@ describe("The other entry points", () => {
     expect(unit!.errors).toEqual([]);
     expect(withoutLocations(printOfficialAst(unit!.root))).toEqual(withoutLocations(parsed.root));
     expect(unit!.hotcomments.map((c) => [c.header, c.content])).toEqual([[true, "strict"]]);
-    // The file's lines are the wrapper document's, two lines down.
     expect(unit!.root.body[0]!.location.begin.line).toBe(jsonLocation(parsed.root.body[0]!).begin.line + 2);
   });
 
@@ -605,7 +558,6 @@ describe("The other entry points", () => {
     expect(parsed.errors).toEqual([]);
     expect(unit.errors).toEqual([]);
     expect(withoutLocations(printOfficialAst(unit.root))).toEqual(withoutLocations(parsed.root));
-    // Names an object inherits are no attributes either.
     const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n@constructor function g() end\n@toString function h() end\n@__proto__ function i() end\n@hasOwnProperty function j() end\n";
     const badText = runWrapperText("W", bad);
     const expected = parseOfficialTree(bad).errors.map((e) => e.message);

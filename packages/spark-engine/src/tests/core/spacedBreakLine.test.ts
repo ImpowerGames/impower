@@ -1,23 +1,12 @@
-// A line that a spaced `>` breaks holds several beats, each with its own path
-// on that line. The preview of the line shows its last beat, with everything
-// the beats before it did, and PLAY from the line starts at its first, so the
-// player sees them all.
-//
-// The preview is driven through the production scrub path: an UNCONNECTED
-// game plans and replays the route to the line (what `workspace.worker`
-// does, routing to the line's last beat), and its checkpoint is loaded into a
-// CONNECTED game that previews the point (what the player does).
-
 import { describe, expect, test } from "vitest";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
-// The builtin `main` layout, whose backdrop is a persistent picture slot.
 const SOURCE = `define BG as image with
   src = "https://example.com/bg.png"
 end
 
--> start
+
 
 scene start
   HERO: [[show backdrop BG]] One. > Two. > Three.
@@ -36,7 +25,6 @@ const lineOf = (needle: string): number =>
 const THREE = lineOf("One. > Two. > Three.");
 const EMPTY_MIDDLE = lineOf("A > > B");
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -45,7 +33,6 @@ const writtenText = (harness: any): string =>
     )
     .join(" ");
 
-/** The body text of a beat, leaving out the cue. */
 const body = (beat: any): string =>
   Object.entries(beat?.text ?? {})
     .filter(([target]) => !target.startsWith("character_"))
@@ -53,7 +40,6 @@ const body = (beat: any): string =>
     .map((e: any) => e.text ?? "")
     .join("");
 
-/** Preview `line` the way the editor does. */
 async function scrubTo(line: number) {
   const simulator = createHarness(SOURCE, line, { connect: false });
   const simulated: any = simulator.game;
@@ -64,7 +50,6 @@ async function scrubTo(line: number) {
 
   const player = createHarness(SOURCE, line, { loadCheckpoint: checkpoint });
   await player.ready;
-  // What the restore and the preview put on the backdrop, together.
   const backdrop = (): string[] =>
     flatten(player.messages)
       .filter(
@@ -83,7 +68,6 @@ const flatten = (messages: any[]): any[] =>
     m?.method === "ui/batch" ? flatten(m.params?.messages ?? []) : [m],
   );
 
-/** The beats PLAY from `line` shows, in order. */
 async function playFrom(line: number, count: number) {
   const harness = createHarness(SOURCE, line);
   await harness.ready;
@@ -99,9 +83,6 @@ async function playFrom(line: number, count: number) {
 describe("a line that `>` breaks", () => {
   test("holds its beats on the same line, the first for PLAY and the last for the preview", () => {
     const { game } = createHarness(SOURCE, THREE, { connect: false });
-    // The program's own locator (`programLocator`), whose addresses are the
-    // beats' (a first beat's address can be 0, so they are compared to
-    // undefined rather than for truth).
     const locator = programLocator(game.program);
     const at = (beat: "first" | "last") =>
       locator.addressAt(MAIN_URI, THREE, { beat });
@@ -119,7 +100,6 @@ describe("a line that `>` breaks", () => {
     expect(text).toContain("Three.");
     expect(text).not.toContain("One.");
     expect(text).not.toContain("Two.");
-    // The first beat showed the backdrop; the previewed beat still has it.
     expect(backdrop.some((write) => write.includes("bg.png"))).toBe(true);
   });
 
@@ -132,8 +112,6 @@ describe("a line that `>` breaks", () => {
   });
 
   test("a break before a divert keeps the line's own beat first", async () => {
-    // The range after the break holds only the divert, so its call shows no
-    // text of its own; it still belongs where it stands on the line.
     const line = lineOf("Before > -> later");
     const { game } = createHarness(SOURCE, line, { connect: false });
     const locator = programLocator(game.program);

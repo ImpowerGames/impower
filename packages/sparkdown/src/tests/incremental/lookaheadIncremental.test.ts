@@ -1,9 +1,3 @@
-// An operator at the end of a line leaves its rule open across the blank
-// lines and comments after it, and the next token decides whether the
-// operator is missing its operand. No regex reads past its own line (I-1283).
-// An edit to that token has to reparse the operator's line too, or the
-// incremental tree keeps the node the old text gave it (#1580).
-
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
@@ -11,16 +5,12 @@ import { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import { getParser } from "../compiler/grammarSnapshot";
 import { applyEdit, type Edit, editAndReparse, replaceEdit } from "./incremental";
 
-// Inserts `insert` `offset` characters into the first `find`.
 const insertEdit = (src: string, find: string, offset: number, insert: string): Edit => {
   const at = src.indexOf(find);
   if (at < 0) throw new Error(`insertEdit: ${JSON.stringify(find)} not found`);
   return { from: at + offset, to: at + offset, insert };
 };
 
-// The parse reuses nothing before an edit fewer than 128 characters into the
-// document (`TreeFragment.applyChanges` drops shorter fragments), so the
-// scripts start with enough story lines to be reused.
 const PREFIX = "  Plain line.\n".repeat(12);
 
 const source = (between: string, next = "  local r = 1") => `${PREFIX}  local q =${between}
@@ -28,7 +18,6 @@ ${next}
   Plain line.
 `;
 
-// Splits `  local r = 1` after its `l`.
 const split = (s: string) => insertEdit(s, "  local r", 3, "\n");
 
 const CASES: [string, string, (src: string) => Edit][] = [
@@ -39,10 +28,7 @@ const CASES: [string, string, (src: string) => Edit][] = [
   ["split the keyword after a comment that spans lines", source("\n--[[ a\nb\n]]"), split],
   ["split the keyword after a comment that opens on the operator's line", source(" --[[ a\nb ]]"), split],
   ["delete the next statement", source(""), (s) => replaceEdit(s, "  local r = 1\n", "")],
-  // The edit is inside the comment, whose close is still ahead of it.
   ["close a comment that spans lines from inside it", source("\n--[[ a\nb\nc\nd\ne\nf\n]]"), (s) => replaceEdit(s, "\ne\n", "\n]] l\n")],
-  // The walk back over blank lines reaches a document that starts with a
-  // line break.
   ["type on a blank line under blank lines from the document's start", "\n" + "  \n".repeat(100) + "  local q =\n  local r = 1\n", (s) => insertEdit(s, "  \n  local q", 0, " ")],
 ];
 
@@ -61,8 +47,6 @@ describe("incremental reparse of an operator whose operand is read from a later 
   return r
 end
 `;
-  // The first edit inside a block reparses the whole block and leaves a
-  // restart point at each of its lines; the second restarts inside it.
   test("split the keyword inside a function body", () => {
     const parser = getParser();
     const first = insertEdit(FUNCTION_SOURCE, "  return r", 10, " ");
@@ -84,11 +68,6 @@ end
     expect(printTree(incremental, final)).toBe(printTree(parser.parse(final), final));
   });
 
-  // The compiler's document serves the parser its text in slices, and a
-  // lookahead sees the end of the input where the last slice read ends. A
-  // parse that restarts just before a slice end has to see it end where a
-  // parse from the start does: here the operator's line ends the first
-  // slice, so neither parse reads the line after it.
   test("finish a keyword after the operator's line ends a slice of the document", () => {
     const parser = getParser();
     const before = "  Plain line.\n".repeat(1170) + "  local q =\n  l\n  Plain line.\n";

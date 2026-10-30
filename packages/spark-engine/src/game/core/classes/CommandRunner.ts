@@ -12,15 +12,12 @@ export class CommandRunner<G extends Game> implements ICommandRunner {
   }
 
   onInit(): void {
-    // NoOp
   }
 
   onUpdate(_deltaMS: number): void {
-    // NoOp
   }
 
   onDestroy(): void {
-    // NoOp
   }
 
   onExecute(): boolean {
@@ -32,11 +29,9 @@ export class CommandRunner<G extends Game> implements ICommandRunner {
   }
 
   onFinished(): void {
-    // NoOp
   }
 
   onPreview(): boolean {
-    // NoOp
     return false;
   }
 }

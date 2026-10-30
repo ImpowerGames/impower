@@ -1,17 +1,3 @@
-// Starts the review coordinator, `node scripts/agent-handoff.mjs <plan>`,
-// through spawnDetached and prints the pid of the process at the root of its
-// tree. On Windows that is the hidden wrapper in detached-launch.mjs, so the
-// coordinator and its reviewer get a hidden console instead of a visible one
-// that takes keyboard focus, and the detached wrapper is outside the process
-// tree of the command tool call that ran this script, so the coordinator
-// outlives that call.
-//
-//   node scripts/start-coordinator.mjs <absolute-plan.json> <absolute-job-dir>
-//
-// The coordinator runs in the plan's `worktree`. Its stdout and stderr go to
-// `<plan name>.coordinator.out.log` and `.err.log` in the job directory; both
-// are created exclusively, so a plan already started from that directory is
-// refused before anything spawns.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -41,8 +27,6 @@ export async function startCoordinator(plan, jobDir, io = { spawn, platform: pro
     child.unref();
     return { pid: child.pid, stdout, stderr };
   } catch (error) {
-    // Nothing started, so the logs this attempt created are removed and the
-    // plan may be started again; a log that already existed is kept.
     if (child?.pid === undefined) {
       for (const fd of [out, err]) if (fd !== undefined) fs.closeSync(fd);
       out = err = undefined;

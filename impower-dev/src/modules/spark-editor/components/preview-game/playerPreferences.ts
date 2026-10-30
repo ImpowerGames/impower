@@ -14,8 +14,6 @@ import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValue
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 
-/** The route list's toggles as this browser keeps them for the author, in
- *  every project. */
 const storedRouteToggles = (): RouteTogglesParams => {
   try {
     const stored = JSON.parse(
@@ -57,9 +55,7 @@ export const createPlayerPreferenceSync = (
     post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
   return {
-    /** The player finished Initialize. */
     initialized: send,
-    /** A message arrived from the player. */
     received: (message: unknown) => {
       if (
         ConnectedPreviewMessage.type.isNotification(message) &&

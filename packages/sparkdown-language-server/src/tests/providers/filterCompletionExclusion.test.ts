@@ -1,11 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { labelsAt as completionLabelsAt } from "./completionHarness";
 
-// A attribute candidate list leaves out the attributes the directive has already
-// applied (#478). The attributes of an asset command are not siblings of one
-// another in the tree — each sits inside its own `AssetCommandFilter` — so a
-// sibling walk finds none of them and excludes nothing.
-
 const vocabulary = { version: 1, layers: [], folders: {}, diagnostics: [], groups: {
   phone: { options: ["on", "off"], switch: true },
   look: { options: ["down", "up"], switch: false },
@@ -44,8 +39,6 @@ describe("provider · attribute completion exclusion (#478)", () => {
   });
 
   test("the partial name under the cursor is still offered", () => {
-    // The author is part-way through typing `look.down`; treating that token
-    // as an applied attribute would hide the very name being completed.
     const labels = labelsAt(`[[bunny_bruh~phone~look.d|]]\n`);
     expect(labels, "the name being typed must stay in the list").toContain(
       "down",
@@ -60,8 +53,6 @@ describe("provider · attribute completion exclusion (#478)", () => {
   });
 
   test("a `+`-joined command excludes per asset, not per line", () => {
-    // `phone` belongs to the first asset and must not be excluded from the
-    // second one's list; `coat` belongs to the second and must be.
     const labels = labelsAt(`[[bunny_bruh~phone + raffles~coat~|]]\n`);
     expect(labels, "applied to this asset").not.toContain("coat");
     expect(labels, "applied to the other asset, not this one").toContain(

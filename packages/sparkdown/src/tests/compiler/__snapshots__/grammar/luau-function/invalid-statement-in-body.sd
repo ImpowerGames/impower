@@ -23,4 +23,6 @@ function greet(n)
 end
 ]]
 end
-After it.
+scene start
+  After it.
+end

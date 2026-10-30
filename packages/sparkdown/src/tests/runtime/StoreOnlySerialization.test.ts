@@ -1,18 +1,3 @@
-// Store-keyed define serialization: ONLY `store`-marked state persists.
-// Everything else (type tables, methods, non-store props, the UI structs)
-// is reconstructed by re-running the definition at init; saved define
-// references restore their class link by NAME.
-//
-// Design (confirmed 2026-06-13):
-//   - named define globals (define X / type tables) → write only the
-//     changed `store` delta; merge it onto the init-reconstructed default
-//     on load (so own non-store props like `name` survive).
-//   - `new` instances → write store props + `{defref: <ClassName>}`; on
-//     load, create fresh + relink __index to the LIVE class global.
-//   - a define with no store state writes nothing.
-//
-// Run: npx vitest run .../StoreOnlySerialization.test.ts
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -42,8 +27,7 @@ function compileStory(source: string): ProgramRoot {
 function storySource(setupBody: string, checkBody: string, prelude = ""): string {
   return `external host_record(v)
 ${prelude}
--> main
-scene main
+scene start
   & setup()
   choose
     * [go]
@@ -113,11 +97,8 @@ host_record(h.title)`,
   test("save carries no class definition (methods/non-store props)", () => {
     const { errors, savedJson } = roundTrip(`h = new Hero()`, `host_record(h.hp)`, HERO);
     expect(errors).toEqual([]);
-    // The class method and the non-store default are reconstructed by
-    // init — they must NOT appear in the save.
     expect(savedJson).not.toContain("levelUp");
     expect(savedJson).not.toContain("wanderer");
-    // The store prop's class reference is by name.
     expect(savedJson).toContain("Hero");
   });
 });
@@ -141,12 +122,6 @@ end
     expect(recorded).toEqual([4, "Orion"]);
   });
 
-  // Namespace-scoping (P4 verification): a leaf-instance define now binds a
-  // synthetic `$<type>_<name>` global instead of the bare name. Save/load must
-  // be transparent to that — `defself` merges by GLOBAL KEY (not the name),
-  // and `defref` relinks via the class NAME which is always a bare type. This
-  // round-trip stresses both paths plus grandparent-qualified access at once.
-  // See project_define_namespace_scoping.
   test("scoped leaf instance + new-instance of a type both survive one round-trip", () => {
     const { errors, recorded } = roundTrip(
       `companion.O.trust = 1
@@ -168,11 +143,11 @@ end
     );
     expect(errors).toEqual([]);
     expect(recorded).toEqual([
-      1, // leaf `$companion_O` store delta merged by global key (defself)
-      "Orion", // leaf non-store prop reconstructed at init, survives merge
-      "Orion", // grandparent-qualified access resolves the scoped instance
-      9, // `new companion()` store prop survived (defref instance)
-      true, // defref relinked __index to the live bare `companion` type
+      1,
+      "Orion",
+      "Orion",
+      9,
+      true,
     ]);
   });
 
@@ -188,7 +163,6 @@ end
 `,
     );
     expect(errors).toEqual([]);
-    // Widget has no store props → fully reconstructed by init, never saved.
     expect(savedJson).not.toContain("do-not-save");
   });
 });

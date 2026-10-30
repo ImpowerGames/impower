@@ -14,15 +14,8 @@ import {
   upperOpen,
 } from "./fixtures";
 
-// A jump in the handoff frame is a single instant of progress, so a uniform
-// scan at any step steps over it. These tests cover [0, 1] contiguously in
-// steps and bisect every step toward the half that moves more: a smooth
-// frame shrinks to nothing as the bracket narrows, while a jump keeps its
-// full size however narrow the bracket gets.
 const STEPS = 100;
 const DEPTH = 28;
-// Well under the 0.2 to 0.5 units a jump measures on these lashes, and far
-// above what a smooth frame moves across 2^-28 of a step.
 const JUMP_TOLERANCE = 1e-4;
 
 const points = (frame: { p0: Point }[]): Point[] => frame.map((c) => c.p0);
@@ -32,7 +25,6 @@ const apart = (a: Point[], b: Point[]): number => {
   return m;
 };
 
-/** The largest frame-to-frame distance left after bisecting every step down to its narrowest bracket. */
 function worstJump(frameAt: (t: number) => Point[]): { jump: number; at: number } {
   let worst = { jump: 0, at: 0 };
   let prev = frameAt(0);
@@ -73,11 +65,7 @@ describe("ArcLoop.fractionAt", () => {
   });
 });
 
-// Handles that reach past each other more as k grows: no knot at first,
-// then a loop that deepens.
 const curve = (k: number): Cubic => ({ p0: [0, 0], c1: [20 * k, 6], c2: [10 - 20 * k, 6], p1: [10, 0] });
-// A wide loop whose crossing leaves through both ends at x = 0 as the end
-// anchor slides along x.
 const exiting = (x: number): Cubic => ({ p0: [0, 0], c1: [20, 10], c2: [-4, 10], p1: [x, 0] });
 const handles = (c: Cubic): Point[] => [c.c1, c.c2];
 const knotted = (c: Cubic): boolean => {
@@ -88,8 +76,6 @@ const knotted = (c: Cubic): boolean => {
 describe("cubicDoublePoint", () => {
   test("finds where a curve crosses itself, including on a chord test's sample points", () => {
     expect(knotted(curve(0.25))).toBe(false);
-    // At k = 11/18 the crossing sits at t = 0.25 and 0.75, both sample points
-    // of a 16-chord flattening, which reads the curve as unknotted.
     expect(cubicKnots(curve(11 / 18))).toBe(false);
     const [s, t] = cubicDoublePoint(curve(11 / 18))!;
     expect(s).toBeCloseTo(0.25, 12);
@@ -104,9 +90,6 @@ describe("cubicDoublePoint", () => {
 });
 
 describe("unknot", () => {
-  // A knot test with blind instants, or a shortening that snaps back when a
-  // crossing leaves, changes the curve within a hair of its input, so each
-  // sweep also compares neighbours densely.
   const neighbours = (family: (k: number) => Cubic, ks: number[]) => {
     for (const k of ks) {
       const step = apart(handles(unknot(family(k))), handles(unknot(family(k + 1e-9))));
@@ -138,8 +121,6 @@ describe("unknot", () => {
   });
 });
 
-// Round 3's accepted synthetic track, whose tip curve's crossing leaves
-// through an end at progress 0.6103.
 const exitFrom =
   "M0,0 C18.70687671471387,27.200044468045235 61.04559829225764,-8.21095135062933 100,34.56834292039275 C61.04559829225764,10.78579482063651 18.70687671471387,46.196790639311075 0,0Z";
 const exitTo =
@@ -164,12 +145,6 @@ describe("bend handoff continuity", () => {
       expect(jump, `jump of ${jump} near progress ${at}`).toBeLessThan(JUMP_TOLERANCE);
     }, 60_000);
   }
-  // Brackets where the drawn frame jumped: a nearest-point search over the
-  // canonical frame switched between the two arms of a folded tip (up to
-  // 0.0075), or the tip curve's knot removal changed its number of handle
-  // shortenings (0.67), its chord-based knot test missed a crossing on a
-  // sample point (0.079), or it stopped shortening as the crossing left
-  // through an end (0.63). The curves before any choice move by about 1e-14.
   for (const [name, from, to, tipDistance, lo, hi] of [
     ["upper lash, reversed closed lash", upperOpen, closedLashReversed, undefined, 0.4681871348474821, 0.468187134847484],
     ["upper lash, tip distance 1", upperOpen, closedLash, 1, 0.4557886117414852, 0.4557886117414871],

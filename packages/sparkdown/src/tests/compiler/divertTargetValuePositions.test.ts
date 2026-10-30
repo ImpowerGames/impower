@@ -1,12 +1,3 @@
-// #1715: a divert target misused as a value holds no position of its own, so
-// its diagnostics landed at line 0 column 0 at the top level and were dropped
-// (logged HIDDEN) inside a scene. They are reported on the target's name, as
-// the divert reports `target not found` and #1703 reports `-> DONE`.
-//
-// The third diagnostic of `DivertTarget.ResolveWith`, storing a target with
-// by-reference arguments, gets the same placement but cannot be reached from
-// authored syntax: no syntax declares a by-reference parameter
-// (programFlowParameters.test.ts).
 import { describe, expect, it } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -45,7 +36,6 @@ function matching(program: any, pattern: RegExp) {
     .map(({ message: _m, ...rest }: any) => rest);
 }
 
-/** Where `target` is written on `line` of `text`, after the arrow. */
 function rangeOf(text: string, line: number, target: string) {
   const lineText = text.split("\n")[line]!;
   const start = lineText.indexOf(`-> ${target}`) + 3;
@@ -60,7 +50,7 @@ describe("a divert target misused as a value", () => {
   it.each([
     [
       "in a scene",
-      "-> start\n\nscene start\n  local r = (-> other) + 1\n  Hello.\nend\n\nscene other\n  Hi.\nend\n",
+      "\n\nscene start\n  local r = (-> other) + 1\n  Hello.\nend\n\nscene other\n  Hi.\nend\n",
       3,
     ],
     [
@@ -80,7 +70,7 @@ describe("a variable preceded by '->'", () => {
     ["at the top level", "store x = 1\nstore r = -> x\n\nHello.\n", 1],
     [
       "in a scene",
-      "-> start\n\nscene start\n  store x = 1\n  local r = -> x\n  Hello.\nend\n",
+      "\n\nscene start\n  store x = 1\n  local r = -> x\n  Hello.\nend\n",
       4,
     ],
   ])("%s is reported on the variable's name", (_name, text, line) => {

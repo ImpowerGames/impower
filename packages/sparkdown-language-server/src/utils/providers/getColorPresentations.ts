@@ -17,31 +17,23 @@ export const getColorPresentations = (color: Color): ColorPresentation[] => {
 
   const a = rgba.a;
 
-  // Reusable formatting helpers for alpha channel
   const alphaSlashPercentage = a === 1 ? "" : ` / ${Math.round(a * 100)}%`;
 
-  // HEX
   presentations.push({ label: c.toHex().toLowerCase() });
   presentations.push({ label: c.toHex().toUpperCase() });
 
-  // RGB & RGBA
-  // Modern space-separated
   presentations.push({
     label: `rgb(${rgb.r} ${rgb.g} ${rgb.b}${alphaSlashPercentage})`,
   });
-  // Legacy comma-separated
   if (a === 1) {
     presentations.push({ label: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` });
   } else {
     presentations.push({ label: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})` });
   }
 
-  // HSL & HSLA
-  // Modern space-separated
   presentations.push({
     label: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%${alphaSlashPercentage})`,
   });
-  // Legacy comma-separated
   if (a === 1) {
     presentations.push({ label: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` });
   } else {

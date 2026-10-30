@@ -1,15 +1,3 @@
-// Regression tests for the basic.luau lines 438-570 batch:
-//   - `__namecall` fallback for colon-calls whose method lookup misses
-//     (newproxy userdata pattern), including a callable-table handler
-//     (`__namecall` set to a table with `__call`).
-//   - `__call` resolution inside CallLuauFunction /
-//     CallLuauFunctionProtected (callable tables passed to pcall).
-//   - `__eq` getequalhandler rule: primitive identity first, handler
-//     fires only when BOTH operands share the SAME `__eq` value.
-//   - First-class stdlib builtins dispatched through pcall
-//     (`pcall(rawequal, ...)`), including the missing-argument trap.
-//   - `__idiv` / `__tostring` metamethods and C-style `%g` formatting
-//     (the vec3t pattern).
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -52,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("__namecall", () => {
   test("function handler fires for colon-calls with no method", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local obj = newproxy(true)
@@ -67,8 +57,10 @@ end
 
   test("callable-table handler resolves through __call", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local obj = newproxy(true)
@@ -86,8 +78,10 @@ end
 describe("__call via pcall", () => {
   test("pcall on a callable table rewrites to __call(t, args...)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = setmetatable({}, { __call = function(self, a, b) return a + b end })
@@ -102,13 +96,12 @@ end
 });
 
 describe("__eq same-handler rule", () => {
-  // Luau, unlike Lua 5.x, has no identity shortcut: `luaV_equalval`
-  // calls the handler `get_compTM` finds even for a table compared with
-  // itself (events.luau: `t ~= t` under `__eq = print`).
   test("the handler is consulted for a == a", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = setmetatable({}, { __eq = function() return false end })
@@ -121,8 +114,10 @@ end
 
   test("same metatable fires the handler", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __eq = function(l, r) return #l == #r end }
@@ -138,8 +133,10 @@ end
 
   test("different metatables sharing one handler still fire it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function eq(l, r) return #l == #r end
@@ -154,8 +151,10 @@ end
 
   test("distinct handlers do NOT fire — plain reference equality", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = setmetatable({}, { __eq = function(l, r) return #l == #r end })
@@ -172,8 +171,10 @@ end
 describe("first-class stdlib builtins through pcall", () => {
   test("pcall(rawequal, a, b) dispatches the builtin", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok1, r1 = pcall(rawequal, "a", "a")
@@ -190,8 +191,10 @@ end
 
   test("under-application of a fixed-arity builtin traps", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(pcall(rawequal, "a") == false)
@@ -205,8 +208,10 @@ end
 describe("vec3t metamethod arithmetic", () => {
   test("__idiv and __tostring dispatch; %g formats shortest-form", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function vec3t(x, y, z)
     return setmetatable({x=x, y=y, z=z}, {
@@ -228,8 +233,10 @@ end
 
   test("%g matches C semantics at the fixed/exponential boundary", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%g", 5))

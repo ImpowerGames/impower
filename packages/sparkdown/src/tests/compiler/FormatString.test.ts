@@ -1,17 +1,9 @@
-// FormatString (I-613). The upstream cases are in
-// `luau-conformance/LintCandidatesStdlib.test.ts` (FormatStringFormat to
-// FormatStringDate); these are the controls around them: where the rule reads
-// a call in Sparkdown's text, the calls it leaves alone, and a sweep holding
-// each validator to the runtime function that runs the literal, which must
-// reject every literal the rule warns about.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed, lintInFunction } from "../luau-conformance/diagnosticTestHarness";
 import { STDLIB } from "../../runtime/StdLib";
 
 const lints = (source: string) => diagnoseDetailed(source).filter((d) => d.code === "FormatString");
 const inFunction = (body: string) => lints(`& run()\nfunction run(s, f, p)\n${body}\nend\n`).map((d) => d.message);
-/** Each warning's line and the text its range covers. */
 const covered = (source: string) => {
   const lines = source.split("\n");
   return lints(source).map((d) => `${d.range!.start.line}: ${lines[d.range!.start.line]!.slice(d.range!.start.character, d.range!.end.character)}`);
@@ -75,8 +67,6 @@ describe("FormatString in Sparkdown", () => {
     expect(inFunction(' print(os.date("%\\0"))')).toEqual(["Invalid date format: date format can not contain null characters"]);
   });
 
-  // After `\z` the runtime keeps a space outside ASCII, as Luau does (I-1396),
-  // so the two readings agree and the literal is reported.
   const NBSP = String.fromCharCode(0xa0);
   test.each([
     ["string.format", ` print(string.format("%\\z${NBSP}d", 7))`, "Invalid format string: invalid format specifier: must be a string format specifier or %"],
@@ -87,10 +77,6 @@ describe("FormatString in Sparkdown", () => {
     expect(inFunction(body)).toEqual([message]);
   });
 
-  // The runtime runs `%` before a character that is not a class as that
-  // character, so the pattern is not reported. Since I-1398 a letter after
-  // `%` also means the letter; this space is not a letter and keeps its
-  // escape, so the reading is unchanged.
   test("a match pattern with a space outside ASCII after an escape is not reported", () => {
     expect(inFunction(` print(string.match(s, "%\\z${NBSP}d"))`)).toEqual([]);
   });
@@ -107,9 +93,6 @@ describe("FormatString in Sparkdown", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// The runtime
-
 class Rejected extends Error {}
 const story = {
   Error(message: string): never {
@@ -117,7 +100,6 @@ const story = {
   },
 };
 
-/** Whether the runtime's library function `name` rejects its arguments with an error matching `rejection`. */
 function rejects(name: string, args: unknown[], rejection: RegExp): boolean {
   try {
     (STDLIB[name]!.fn as (story: unknown, args: unknown[]) => unknown)(story, args);
@@ -129,11 +111,9 @@ function rejects(name: string, args: unknown[], rejection: RegExp): boolean {
 }
 
 const BACKSLASH = String.fromCharCode(92);
-/** A Luau string literal holding `text`, each character a decimal escape. */
 const literal = (text: string) => `"${[...text].map((c) => BACKSLASH + String(c.charCodeAt(0)).padStart(3, "0")).join("")}"`;
 const ASCII = Array.from({ length: 128 }, (_, code) => String.fromCharCode(code));
 
-/** The literals among `cases` that the rule warns about, each case written as a statement by `call`. */
 function warned<T>(cases: T[], call: (c: T) => string): T[] {
   const lines = lintInFunction(`\n${cases.map(call).join("\n")}`, "FormatString").map((l) => l.line);
   return lines.map((line) => cases[line - 1]!);

@@ -20,14 +20,14 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     "do if true end end",
     "do if true then x = 1 elseif false end end",
   ])("missing then in %s names the native token", body => {
-    const island = `& ${body}`;
+    const island = `  & ${body}`;
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
     expect(native.message).toContain("Expected 'then'");
-    const source = `store x = 0\n${island}\nreturn to the village\n`;
+    const source = `store x = 0\nscene start\n${island}\n  return to the village\nend\n`;
     const published = errors(source);
     expect(published.map(message)).toEqual([native.message]);
-    expect(published[0]!.range.start).toEqual({ line: 1, character: native.location.begin.column });
-    expect(published[0]!.range.end).toEqual({ line: 1, character: native.location.end.column });
+    expect(published[0]!.range.start).toEqual({ line: 2, character: native.location.begin.column + 2 });
+    expect(published[0]!.range.end).toEqual({ line: 2, character: native.location.end.column + 2 });
   });
 
   test.each([
@@ -37,7 +37,7 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     const island = `& ${body}`;
     const native = parseOfficialTree(`  ${body}`).errors[0]!;
     expect(native.message).toContain("<eof>");
-    const source = `store a, b = 0, 0\nscene s\n${island}\nThe hero returns.\nend\n`;
+    const source = `store a, b = 0, 0\nscene start\n${island}\nThe hero returns.\nend\n`;
     const published = errors(source);
     expect(published.map(message)).toEqual([native.message]);
     expect(published[0]!.code).toBe(syntaxErrorCode);
@@ -52,7 +52,7 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     "do for i = 1, 2 do x += i end end",
     "do repeat x += 1 until x == 2 end",
   ])("complete control %s has no syntax error", body => {
-    expect(errors(`store x = 0\n& ${body}\nreturn to the village\n`)).toEqual([]);
+    expect(errors(`store x = 0\nscene start\n& ${body}\nreturn to the village\nend\n`)).toEqual([]);
   });
 
   test.each(["return to the village\n", "& math.abs(5)\n", ""])("missing then ends before independent tail %s", tail => {
@@ -63,31 +63,26 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     expect(published[0]!.range.start).toEqual({ line: 0, character: island.length });
   });
 
-  test.each(["file", "scene", "branch"])("marked missing operand owns %s EOF with a later valid mark", scope => {
-    // A local belongs in a scene or branch, so the file's island assigns a store.
-    const prefix = scope === "file" ? "store n = 0\n" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
-    const suffix = scope === "file" ? "" : scope === "scene" ? "end\n" : "end\nend\n";
-    const island = scope === "file" ? "& n = 1," : "& local n = 1,";
+  test.each(["scene", "branch"])("marked missing operand owns %s EOF with a later valid mark", scope => {
+    const prefix = scope === "scene" ? "scene start\n" : "scene start\nbranch b\n";
+    const suffix = scope === "scene" ? "end\n" : "end\nend\n";
+    const island = "& local n = 1,";
     const published = errors(`${prefix}${island}\n& math.abs(5)\nreturn to the village\n${suffix}`);
     expect(published.map(message)).toEqual(["Expected identifier when parsing expression, got <eof>"]);
     expect(published[0]!.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
   });
 
-  // The marked local sits in a scene, the place a local belongs.
   test.each([
-    ["function f()\n local n = 1,\n 2\n return n\nend\n", ""],
-    ["& local f = function()\n local n = 1,\n 2\n return n\nend\n", "scene a\n"],
-  ])("a genuine function's value list still continues across lines: %s", (code, prefix) => {
-    expect(errors(`${prefix}${code}${prefix ? "end\n" : ""}`)).toEqual([]);
+    ["function f()\n local n = 1,\n 2\n return n\nend\n", "", "scene start\nend\n"],
+    ["& local f = function()\n local n = 1,\n 2\n return n\nend\n", "scene start\n", "end\n"],
+  ])("a genuine function's value list still continues across lines: %s", (code, prefix, suffix) => {
+    expect(errors(`${prefix}${code}${suffix}`)).toEqual([]);
   });
 
   test("bounded lookahead shares one full-document lexical pass across islands", () => {
     const measure = (count: number) => {
       const lines = Array.from({ length: count }, (_, n) => `& local n${n} =`);
       const source = lines.join("\n") + "\nThe hero returns.\n";
-      // The lookups carry tokens over from the document before (#1724), and
-      // the shorter document begins with the longer one's lines: start each
-      // measurement from an empty document's.
       nextLuauToken(0, "");
       const startsWith = String.prototype.startsWith;
       let scans = 0;

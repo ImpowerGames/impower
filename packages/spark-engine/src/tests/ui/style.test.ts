@@ -1,13 +1,3 @@
-// Golden-master: style blocks → the emitted style/CSS stream.
-//
-// `connect()`'s onConnected calls `constructStyles()`, which emits hidden
-// `<style>` elements: a `style-variables` element (image/color/ease/font CSS
-// custom properties), `style-fonts`, `style-animations`, and a `style-styles`
-// element carrying every authored `style` block as an `ElementContent`
-// `{ styles: {...} }` payload (the renderer turns it into a stylesheet via
-// `getStyleContent`). §9.2 of the reactive spec proposes structured style
-// rules instead of a CSS string; until then THIS payload is the baseline.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
@@ -44,7 +34,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Hi.
@@ -55,7 +45,6 @@ describe("style", () => {
   test("style + variables construction stream", async () => {
     const harness = createHarness(SOURCE);
     await harness.ready;
-    // Only the style-* element creates carry the CSS payloads we want to lock.
     const styleCreates = harness
       .snapshotFiltered("ui/create")
       .filter((m: any) => String(m.params?.name ?? "").startsWith("style-"));

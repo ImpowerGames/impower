@@ -1,14 +1,13 @@
 :host {
   display: block;
   position: relative;
-  contain: layout; /* Helps with layout isolation */
+  contain: layout;
 }
 
-/* Styles applied only when component handles its own scroll */
 :host([internal-scroller]) {
   overflow-y: auto;
   overflow-x: hidden;
-  contain: strict; /* Strict containment is only safe with explicit height constraints */
+  contain: strict;
   -webkit-overflow-scrolling: touch;
 }
 

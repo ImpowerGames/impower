@@ -159,8 +159,6 @@ export default class AudioPlayer {
   }
 
   secondsToApproximateTimeConstant(sec: number = 0) {
-    // https://developer.mozilla.org/en-US/docs/Web/API/AudioParam/setTargetAtTime#choosing_a_good_timeconstant
-    // (At 5 timeConstants, we will be 99.3% of the way to the target value)
     return sec / 5;
   }
 
@@ -203,17 +201,13 @@ export default class AudioPlayer {
     instance.ended = new Promise<AudioInstance>((resolve) => {
       instance.onEnded = resolve;
     });
-    // Setup gain node
     gainNode.connect(this._volumeNode);
-    // Setup source node
     sourceNode.detune.value = this._pitchBend * 100;
     sourceNode.loop = this._loop;
     sourceNode.buffer = this._audioBuffer;
     sourceNode.addEventListener(
       "ended",
       () => {
-        // Played source nodes cannot be played again.
-        // So once they're finished playing, disconnect them
         this._disconnect(instance);
       },
       { once: true },
@@ -237,7 +231,6 @@ export default class AudioPlayer {
   ): void {
     if (!instance.willDisconnect || cancelsDisconnect) {
       instance.willDisconnect = disconnectWhenDone;
-      // Future events scheduled after "when" should be canceled
       instance.gainNode.gain.cancelScheduledValues(when);
       instance.gainNode.gain.setTargetAtTime(
         value,

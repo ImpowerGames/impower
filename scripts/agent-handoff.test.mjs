@@ -1,5 +1,4 @@
 // agent-tooling-timeout-ms: 600000
-// Ran 244 s on a Windows runner with four checks in flight (#1937).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -16,8 +15,6 @@ import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processI
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
-// Each cutover position is read from its own copy of the repos file; every
-// launch here runs with the switch off unless a case names the on copy.
 const committed = readRepos();
 const pinRepos = (cutover) => { const file = path.join(scratch, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committed, cutover })); return readRepos(file); };
 const OFF = pinRepos(false), ON = pinRepos(true);
@@ -38,8 +35,6 @@ const config = { worktree, pr: 531, completedReviewRound: 0, writer: "writer-tes
 }};
 const file = path.join(scratch, "plan.json");
 const write = () => fs.writeFileSync(file, JSON.stringify(config));
-// A matching head never substitutes for correction state at the final cap,
-// including the second serial reviewer under an extended authorization.
 for (const limit of [3, 6]) {
   const recovery = { ...config, completedReviewRound: limit, reviewedHead: git("rev-parse", "HEAD").trim(), completedRoundReviews: 1, reviewRoundLimit: limit, ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}) };
   assert.throws(() => validateReviewRecovery(recovery), /finalCorrections.*pending serial reviewer/);
@@ -54,8 +49,6 @@ await verifyReviewComment(1, prThread, "a".repeat(40), worktree, {
 assert.equal(commentReads, 2, "a transient comment mismatch must be read again");
 assert.equal(waits, 1, "a transient comment mismatch waits before retrying");
 await assert.rejects(verifyReviewComment(1, prThread, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
-// With the switch on, a report is a comment on the internal ticket, read by id
-// from the internal repository; the same report on the public pull request is refused.
 {
   const ticketThread = reviewThread({ pr: 554, ticket: 12 }, ON);
   const reads = [];
@@ -65,7 +58,6 @@ await assert.rejects(verifyReviewComment(1, prThread, "a".repeat(40), worktree, 
   await assert.rejects(verifyReviewComment(7, ticketThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.code}/issues/554`), attempts: 1 }), new RegExp(`does not verify review thread ${ON.internal}#12`), "a report on the public pull request is refused with the switch on");
   await assert.rejects(verifyReviewComment(7, prThread, "a".repeat(40), worktree, { readComment: comment(`https://api.github.com/repos/${ON.internal}/issues/12`), attempts: 1 }), /does not verify/, "a ticket comment does not stand in for a pull request comment with the switch off");
 }
-// A malformed plan is refused before the lock, journal or any child exists.
 const launchMarker = path.join(scratch, "malformed-plan-launched");
 const markingChild = path.join(scratch, "marking-child.mjs");
 fs.writeFileSync(markingChild, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(launchMarker)}, "launched");`);
@@ -96,7 +88,6 @@ for (const [label, change, message, repos = OFF] of malformed) {
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
 }
 
-// Job paths outside the review job root are refused before the lock, journal or any child exists.
 {
   const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-outside-"));
   console.log(`Outside-root directory: ${outsideDir}`);
@@ -120,9 +111,7 @@ for (const [label, change, message, repos = OFF] of malformed) {
     assert.equal(fs.existsSync(plan.journal), false, `${label} outside the root must leave no journal`);
     assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} outside the root must not take the lock`);
   }
-  // A Windows junction is removed with rmdir, a POSIX symlink with unlink.
   try { fs.unlinkSync(link); } catch { fs.rmdirSync(link); }
-  // Without the test seam the root is <main checkout>.review-jobs beside the main checkout.
   const unseamed = structuredClone(config);
   unseamed.journal = path.join(scratch, "unseamed.jsonl");
   const unseamedFile = path.join(scratch, "unseamed.json");
@@ -131,7 +120,6 @@ for (const [label, change, message, repos = OFF] of malformed) {
   assert.equal(fs.existsSync(unseamed.journal), false, "the default root refuses a scratch plan before writing its journal");
 }
 
-// A Codex argument array is refused once, naming every missing flag and field.
 const codexDir = path.join(scratch, "codex-private");
 fs.mkdirSync(codexDir);
 const codexPermissions = { sandbox: "workspace-write", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir };
@@ -151,16 +139,12 @@ assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test"
   return true;
 }, "the scratch job directory is not a verified sandbox store, so a later check still refuses");
 
-// The full-access grammar is accepted exactly, and a partial one is refused
-// once with every problem named, before any slot is reserved.
 const codexHome = path.join(scratch, "codex-home");
 fs.mkdirSync(codexHome);
 fs.writeFileSync(path.join(codexHome, "auth.json"), "{}");
 const fullAccessArgs = ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', "-c", 'approval_policy="never"', "--sandbox", "danger-full-access", "-c", 'model_provider="openai"', "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--dangerously-bypass-hook-trust", "--output-last-message", codexReport, "-"];
 const fullAccessPermissions = { sandbox: "danger-full-access", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir, codexHome };
 assert.doesNotThrow(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: fullAccessPermissions }, codexPlan), "the documented full-access grammar is accepted");
-// Exercise the documented round layout through the real launcher preflight.
-// Prompt/plan/journal state stays beside, rather than inside, the empty reviewer.
 {
   const round = path.join(scratch, "pr-531", "round-1");
   const state = path.join(round, "launch-a");
@@ -207,8 +191,6 @@ assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high"
 assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', ...fullCodexArgs.slice(1, -1), "--dangerously-bypass-hook-trust", "-"], effort: "high", permissions: codexPermissions }, codexPlan), /no --dangerously-bypass-hook-trust/, "the sandboxed grammar stays exact");
 assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: { ...fullAccessPermissions, codexHome: codexDir } }, codexPlan), /credentials must be separate/, "the copied authentication home is separate from the reviewer directory");
 
-// The hooks the launcher installs apply the shared policy from a working
-// directory outside any checkout, and a broken hook fails closed.
 {
   const home = fs.mkdtempSync(path.join(scratch, "hook-home-"));
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "impower-hook-cwd-"));
@@ -216,8 +198,6 @@ assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high"
   const hooks = JSON.parse(fs.readFileSync(installReviewerHooks(home), "utf8")).hooks.PreToolUse;
   assert.equal(hooks.length, 1);
   assert.equal(new RegExp(hooks[0].matcher).test("Bash") && new RegExp(hooks[0].matcher).test("apply_patch"), true);
-  // A real Codex event carries the session id; the shared entry point's
-  // session-title gate refuses an event without one.
   const sessionId = `reviewer-hook-test-${process.pid}-${Date.now()}`;
   const runHook = (hook, command) => {
     const payload = JSON.stringify({ session_id: sessionId, hook_event_name: "PreToolUse", tool_name: "Bash", cwd: outside, tool_input: { command } });
@@ -233,8 +213,6 @@ assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high"
   const ordinary = runHook(hooks[0].hooks[0], "git status");
   assert.equal(ordinary.status, 0, `an ordinary command passes the reviewer hook: ${ordinary.stderr}`);
   assert.equal(ordinary.stdout.trim(), "", "an ordinary command draws no decision");
-  // A policy path holding shell expansion syntax and quotes runs that exact
-  // file; a decoy at the path an expansion would name exits 0 and says nothing.
   const literalDir = fs.mkdtempSync(path.join(scratch, "hook-literal-"));
   const literalEntry = path.join(literalDir, "$HOME o'k ’q", "policy.mjs");
   fs.mkdirSync(path.dirname(literalEntry));
@@ -321,8 +299,6 @@ config.journal = path.join(scratch, "changed-third-round-head.jsonl");
 git("commit", "--allow-empty", "-m", "correction after review");
 write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
 assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
-// A reviewer the round still plans launches on the corrected head, at the round
-// limit too; once the planned count is spent the correction needs a new round.
 config.completedRoundReviews = 1;
 config.steps.first.reviewers = 2;
 for (const finalCorrections of [false, true]) {
@@ -356,9 +332,6 @@ delete config.reviewedHead;
 write(); await assert.rejects(runHandoff(file), /Supply reviewedHead/);
 assert.equal(fs.existsSync(config.journal), false);
 
-// A reviewer that relinks a workspace package or deletes install entries leaves
-// `git status` clean, because node_modules is gitignored. The launcher names each
-// change and blocks before the next step can run on the damaged install.
 {
   fs.writeFileSync(path.join(worktree, ".gitignore"), "node_modules\n");
   git("add", ".gitignore");
@@ -383,7 +356,6 @@ assert.equal(fs.existsSync(config.journal), false);
   const blocked = fs.readFileSync(damaged.journal, "utf8").trim().split("\n").map(JSON.parse).at(-1);
   assert.equal(blocked.event, "blocked");
   assert.match(blocked.reason, /@impower\/sparkdown/);
-  // The same fingerprint as a command, for reviewers the launcher does not start.
   const cli = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "reviewed-install.mjs");
   const snapshot = path.join(scratch, "install-snapshot.json");
   execFileSync(process.execPath, [cli, "snapshot", worktree, snapshot], { windowsHide: true });
@@ -395,9 +367,6 @@ assert.equal(fs.existsSync(config.journal), false);
   fs.rmSync(path.join(worktree, "node_modules"), { recursive: true });
 }
 
-// Finish a real third-round lens, recover its recorded state, then make a
-// correction. Only the GitHub read is stubbed; children, commits and journals
-// use the scratch repository and the real launcher.
 const lifecycleChild = path.join(scratch, "round-lifecycle.mjs");
 fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
 const lifecycle = { ...config, pr:531, first:"review", maxSteps:2, reviewedHead:git("rev-parse","HEAD").trim(), journal:path.join(scratch,"completed-third.jsonl"), steps:{
@@ -482,8 +451,6 @@ try {
   assert.equal(raisedCorrected.find(row=>row.event==="completed").finalCorrections,true);
   assert.equal(raisedCorrected.filter(row=>row.event==="launching").length,1,"actual corrections after round six still block another lens");
 
-  // Two planned reviewers with a correction between them share round 1; the
-  // same chain with one planned reviewer stops before the second launches.
   const betweenReviewers = (reviewers, journal) => ({ ...lifecycle, first:"first", maxSteps:3, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,journal), steps:{
     first:{...lifecycle.steps.review,round:1,reviewers,args:[lifecycleChild,"first-review","--model","reviewer-test"],next:["next-review"]},
     "next-review":{...extendedLifecycle.steps.implement},
@@ -499,8 +466,6 @@ try {
   fs.writeFileSync(file,JSON.stringify(unplanned)); await assert.rejects(runHandoff(file),/same round requires the recorded reviewed head/);
   assert.equal(fs.readFileSync(unplanned.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="launching").length,2,"a correction after the last planned reviewer cannot launch another in its round");
 
-  // A retried attempt of a planned reviewer replaces that reviewer's place, so
-  // the round's other planned reviewer still launches on the corrected head.
   const retryChild = path.join(scratch, "retry-lifecycle.mjs");
   fs.writeFileSync(retryChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:process.argv[2]==="null"?null:process.argv[2],commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
   const planned = ["ax-1", "undirected-1"];
@@ -525,7 +490,6 @@ try {
   assert.ok(retriedCompleted.every(row=>row.completedRound===1),"the retry and the correction stay in round 1");
   assert.deepEqual(retriedRows.filter(row=>row.event==="launching"&&row.role==="review").map(row=>[row.reviewerId,row.attempt]),[["ax-1",1],["ax-1",2],["undirected-1",1]]);
 
-  // Recovery carries the record: a resumed plan continues the same round.
   const resumeAt = retriedCompleted[1];
   git("commit","--allow-empty","-m","correction after the retry");
   const resumed = (overrides, journal) => ({ ...lifecycle, first:"undirected", maxSteps:1, completedReviewRound:1, reviewedHead:resumeAt.reviewedHead, completedRoundReviews:resumeAt.completedRoundReviews, completedRoundReviewers:resumeAt.completedRoundReviewers, plannedRoundReviewers:resumeAt.plannedRoundReviewers, finalCorrections:false, journal:path.join(scratch,journal), steps:{ undirected:retryStep("undirected-1",undefined,"null") }, ...overrides });
@@ -539,22 +503,16 @@ try {
   };
   await refusedResume({ completedRoundReviewers:undefined }, null, /Supply completedRoundReviewers from the journal as an object/, "resume-without-record.jsonl");
   await refusedResume({ plannedRoundReviewers:undefined }, null, /Supply plannedRoundReviewers/, "resume-without-planned.jsonl");
-  // Without any of the round's record a named retry cannot be placed, so it
-  // is refused rather than journalled with null accounting.
   await refusedResume({ completedRoundReviews:undefined, completedRoundReviewers:undefined, plannedRoundReviewers:undefined }, { undirected:retryStep("ax-1",3,"null") }, /needs the round's record/, "resume-without-any-record.jsonl");
   await refusedResume({ completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, null, /equal to its number of reviewers/, "resume-mismatched-count.jsonl");
   await refusedResume({}, { undirected:retryStep("ax-1",2,"null") }, /needs a higher attempt/, "resume-stale-attempt.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["blast-1","undirected-1"] } }, /cannot change once it has started/, "resume-replanned-round.jsonl");
-  // A pending planned reviewer cannot be swapped for another, and a completed
-  // round cannot grow a place for a further reviewer on the corrected head.
   await refusedResume({}, { undirected:{ ...retryStep("blast-1",undefined,"null"), reviewers:["ax-1","blast-1"] } }, /cannot change once it has started/, "resume-replaced-pending.jsonl");
   await refusedResume({ completedRoundReviews:2, completedRoundReviewers:{"ax-1":2,"undirected-1":1} }, { undirected:{ ...retryStep("third-1",undefined,"null"), reviewers:[...planned,"third-1"] } }, /cannot change once it has started/, "resume-expanded-round.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("third-1",undefined,"null") } }, /must be one of its planned reviewers/, "resume-added-reviewer.jsonl");
   await refusedResume({}, { undirected:{ ...lifecycle.steps.review, round:1, reviewers:2 } }, /later reviewers need reviewerId/, "resume-unnamed-reviewer.jsonl");
   await refusedResume({}, { undirected:{ ...retryStep("undirected-1",undefined,"null"), reviewerId:undefined } }, /needs reviewerId/, "resume-missing-id.jsonl");
 
-  // A count-form round journals null identity records; a recovery plan that
-  // carries them exactly as emitted resumes its pending reviewer.
   const countFirst = { ...lifecycle, first:"review", maxSteps:1, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,"count-form-first.jsonl"), steps:{ review:{ ...lifecycle.steps.review, round:1, reviewers:2 } } };
   fs.writeFileSync(file,JSON.stringify(countFirst)); await runHandoff(file);
   const countRow = fs.readFileSync(countFirst.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed");
@@ -582,8 +540,6 @@ for (const badRound of [undefined, "3", 4]) {
 }
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");
 
-// A bounded wait never reserves after its deadline, even when the event loop
-// is held past it while a slot frees.
 {
   const full = path.join(scratch, "deadline-slots");
   const held = Array.from({length:8}, () => reserveReviewerSlot(full));
@@ -602,7 +558,6 @@ console.log("PASS: sequential completion, replay refusal, distinct routes, decla
 }
 console.log("PASS: a bounded slot wait refuses after its deadline, reports the wait once, takes a slot within the bound, and a zero bound does not wait");
 
-// Independent coordinators in distinct repositories race for one machine pool.
 const pool = path.join(scratch, "machine-slots");
 const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
@@ -750,7 +705,6 @@ assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
 assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
 {
   const reviewedHead=execFileSync("git",["rev-parse","HEAD"],{cwd:config.worktree,encoding:"utf8",windowsHide:true}).trim();
-  // The launch token exists only in the reviewer's prompt and the private journal, so the fixture reads it from the launching row.
   const token=()=>fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="launching").reportToken;
   const heading="### Adversarial review — undirected (reviewer-test)";
   const genuine=()=>`${heading}\n\nRound 1; reviewed head ${reviewedHead}.\n\n${token()}`;
@@ -775,9 +729,6 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
     await assert.rejects(run("branching-artifact",()=>[report(43,genuine())]),/declares 2 transitions/);
     config.steps.first.next=[null];
     assert.ok(listed.every((thread)=>thread===`${OFF.code}#${config.pr}`),"with the switch off the launcher lists the pull request's comments");
-    // With the switch on, the plan names the internal ticket: the launcher
-    // lists that ticket's comments and reads the adopted report by id from the
-    // internal repository; a report on the public pull request is not adopted.
     const ticketUrl=`https://api.github.com/repos/${ON.internal}/issues/12`, reads=[];
     let byId=ticketUrl;
     childProcess.execFileSync=(exe,args,options)=>{if(exe!=="gh")return realExec(exe,args,options);reads.push(args[1]);return JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`,undefined,byId));};
@@ -902,8 +853,6 @@ for(const mode of ["already-exited","uncertain-exit-journal"]){
 }
 console.log("PASS: real already-exited children have no false termination warning; uncertain registration plus exit-journal failure releases capacity");
 
-// A reviewer route that cannot answer is refused before a slot is reserved,
-// and a reviewer that fails on its route names the provider's message.
 {
   const { routeFailure } = await import("./agent-handoff.mjs");
   assert.equal(routeFailure("working\nYou've hit your weekly limit - resets Sep 28\n"), "You've hit your weekly limit - resets Sep 28");
@@ -912,9 +861,6 @@ console.log("PASS: real already-exited children have no false termination warnin
   assert.equal(routeFailure("TypeError: cannot read properties of undefined"), undefined, "an ordinary crash is not a route failure");
   for (const benign of ["GitHub authentication configured", "processed 401 files", "listening on port 429", "authentication succeeded"]) assert.equal(routeFailure(`crash\n${benign}`), undefined, `a benign line is not a route failure: ${benign}`);
   for (const failing of ["HTTP 429 from the API", "error: status 401", "Failed to authenticate: OAuth session expired and could not be refreshed", "authentication failed for this account"]) assert.equal(routeFailure(`working\n${failing}\n`), failing, `a route failure is named: ${failing}`);
-  // Native Claude JSON output puts long metadata before the result, so the
-  // semantic message is classified and named whole, not the line's first 400
-  // characters.
   {
     const metadata = { type: "result", subtype: "success", is_error: true, terminal_reason: "api_error", session_id: "e7c82e28", modelUsage: { filler: "x".repeat(900) } };
     const limit = "You've hit your weekly limit · resets Oct 5, 1am (America/New_York)";
@@ -967,7 +913,6 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
   assert.equal(journalRows("mute").some((row) => row.event === "reserved"), false, "a clean exit without an answer reserves no slot");
   assert.equal(fs.existsSync(launchedMarker), false, "a clean exit without an answer launches no reviewer");
 
-  // Every Codex step shape, awaited or native, probes without its report file.
   const { probeReviewerRoute } = await import("./agent-handoff.mjs");
   const codexDir = fs.mkdtempSync(path.join(scratch, "probe-codex-"));
   fs.writeFileSync(path.join(codexDir, "exec"), `const i=process.argv.indexOf("-o");if(i>0)require("fs").writeFileSync(process.argv[i+1],"probe wrote the report");console.log("OK");`);
@@ -987,8 +932,6 @@ else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log(
 }
 console.log("PASS: an unanswering reviewer route is refused before slot reservation with its own error, and a reviewer's route failure is named in the blocked row");
 
-// An author-experience lens step gains the editor delegation, and the driver's
-// preflight refuses the plan before any reviewer process or reservation.
 {
   const lensRepo = path.join(scratch, "lens-repo");
   fs.mkdirSync(path.join(lensRepo, ".agents", "skills", "drive-web-editor"), { recursive: true });

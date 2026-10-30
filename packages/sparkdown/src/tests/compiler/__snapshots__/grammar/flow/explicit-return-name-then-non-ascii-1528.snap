@@ -1,101 +1,118 @@
-sparkdown [0..48]
- ├─ LuauSparkdownExplicitStatement [0..11]
- │   ├─ LuauSparkdownExplicitStatement_begin [0..2]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
+sparkdown [0..66]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
- │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
- │   │       └─ RequiredWhitespace [1..2]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [2..11]
- │   │   ├─ LuauSparkdownExplicitReturnStatement [2..10]
- │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin [2..9]
- │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 2
- │   │   │   │   │   └─ OptionalWhitespace 2
- │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [2..8]
- │   │   │   │   │   └─ LuauControlKeyword [2..8]: "return"
- │   │   │   │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [8..9]
- │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [8..9]
- │   │   │   │           └─ OptionalWhitespace [8..9]: " "
- │   │   │   ├─ LuauSparkdownExplicitReturnStatement_content [9..10]
- │   │   │   │   └─ LuauSparkdownExplicitAccessPath [9..10]
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 9
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [9..10]
- │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [9..10]
- │   │   │   │       │       └─ LuauVariable [9..10]
- │   │   │   │       │           └─ LuauVariable_c1 [9..10]
- │   │   │   │       │               └─ LuauVariableName [9..10]: "x"
- │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 10
- │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 10
- │   │   │   └─ LuauSparkdownExplicitReturnStatement_end 10
- │   │   └─ LuauInvalidStatementCharacter [10..11]: "名"
- │   └─ LuauSparkdownExplicitStatement_end 11
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
  ├─ Newline [11..12]: "\n"
- ├─ Scene [12..22]
- │   ├─ Scene_begin [12..18]
- │   │   ├─ Scene_begin_c1 12
- │   │   │   └─ OptionalWhitespace 12
- │   │   ├─ Scene_begin_c2 [12..17]
- │   │   │   └─ SceneKeyword [12..17]: "scene"
- │   │   └─ Scene_begin_c3 [17..18]
- │   │       └─ RequiredWhitespace [17..18]: " "
- │   ├─ Scene_content [18..22]
- │   │   └─ SceneWithoutParametersDeclaration [18..22]
- │   │       ├─ SceneWithoutParametersDeclaration_c1 [18..22]
- │   │       │   └─ SceneDeclarationName [18..22]: "main"
- │   │       └─ SceneWithoutParametersDeclaration_c2 22
- │   └─ Scene_end 22
- ├─ Newline [22..23]: "\n"
- ├─ LuauSparkdownExplicitStatement [23..36]
- │   ├─ LuauSparkdownExplicitStatement_begin [23..27]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [23..25]
- │   │   │   └─ OptionalWhitespace [23..25]: "  "
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [25..26]
- │   │   │   └─ LuauExplicitStatementMark [25..26]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [26..27]
- │   │       └─ RequiredWhitespace [26..27]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [27..36]
- │   │   ├─ LuauSparkdownExplicitReturnStatement [27..35]
- │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin [27..34]
- │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 27
- │   │   │   │   │   └─ OptionalWhitespace 27
- │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [27..33]
- │   │   │   │   │   └─ LuauControlKeyword [27..33]: "return"
- │   │   │   │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [33..34]
- │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [33..34]
- │   │   │   │           └─ OptionalWhitespace [33..34]: " "
- │   │   │   ├─ LuauSparkdownExplicitReturnStatement_content [34..35]
- │   │   │   │   └─ LuauSparkdownExplicitAccessPath [34..35]
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 34
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [34..35]
- │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [34..35]
- │   │   │   │       │       └─ LuauVariable [34..35]
- │   │   │   │       │           └─ LuauVariable_c1 [34..35]
- │   │   │   │       │               └─ LuauVariableName [34..35]: "x"
- │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 35
- │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 35
- │   │   │   └─ LuauSparkdownExplicitReturnStatement_end 35
- │   │   └─ LuauInvalidStatementCharacter [35..36]: "名"
- │   └─ LuauSparkdownExplicitStatement_end 36
- ├─ Newline [36..37]: "\n"
- ├─ ImplicitAction [37..47]
- │   ├─ ImplicitAction_begin [37..39]
- │   │   └─ ImplicitAction_begin_c1 [37..39]
- │   │       └─ OptionalWhitespace [37..39]: "  "
- │   ├─ ImplicitAction_content [39..47]
- │   │   └─ ActionLineEnd [39..47]
- │   │       ├─ ActionLineEnd_begin 39
- │   │       │   └─ ActionLineEnd_begin_c1 39
- │   │       │       └─ OptionalWhitespace 39
- │   │       ├─ ActionLineEnd_content [39..47]
- │   │       │   └─ TextChunk [39..47]
- │   │       │       ├─ TextChunk_begin 39
- │   │       │       ├─ TextChunk_content [39..47]
- │   │       │       │   ├─ Word [39..44]: "Hello"
- │   │       │       │   ├─ Space [44..45]: " "
- │   │       │       │   ├─ Word [45..46]: "名"
- │   │       │       │   └─ Punctuation [46..47]: "."
- │   │       │       └─ TextChunk_end 47
- │   │       └─ ActionLineEnd_end 47
- │   └─ ImplicitAction_end 47
- └─ Newline [47..48]: "\n"
+ ├─ LuauSparkdownExplicitStatement [12..25]
+ │   ├─ LuauSparkdownExplicitStatement_begin [12..16]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [14..15]
+ │   │   │   └─ LuauExplicitStatementMark [14..15]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [15..16]
+ │   │       └─ RequiredWhitespace [15..16]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [16..25]
+ │   │   ├─ LuauSparkdownExplicitReturnStatement [16..24]
+ │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin [16..23]
+ │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 16
+ │   │   │   │   │   └─ OptionalWhitespace 16
+ │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [16..22]
+ │   │   │   │   │   └─ LuauControlKeyword [16..22]: "return"
+ │   │   │   │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [22..23]
+ │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [22..23]
+ │   │   │   │           └─ OptionalWhitespace [22..23]: " "
+ │   │   │   ├─ LuauSparkdownExplicitReturnStatement_content [23..24]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [23..24]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 23
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [23..24]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [23..24]
+ │   │   │   │       │       └─ LuauVariable [23..24]
+ │   │   │   │       │           └─ LuauVariable_c1 [23..24]
+ │   │   │   │       │               └─ LuauVariableName [23..24]: "x"
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 24
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 24
+ │   │   │   └─ LuauSparkdownExplicitReturnStatement_end 24
+ │   │   └─ LuauInvalidStatementCharacter [24..25]: "名"
+ │   └─ LuauSparkdownExplicitStatement_end 25
+ ├─ Newline [25..26]: "\n"
+ ├─ LuauEndKeyword [26..29]: "end"
+ ├─ Newline [29..30]: "\n"
+ ├─ Scene [30..40]
+ │   ├─ Scene_begin [30..36]
+ │   │   ├─ Scene_begin_c1 30
+ │   │   │   └─ OptionalWhitespace 30
+ │   │   ├─ Scene_begin_c2 [30..35]
+ │   │   │   └─ SceneKeyword [30..35]: "scene"
+ │   │   └─ Scene_begin_c3 [35..36]
+ │   │       └─ RequiredWhitespace [35..36]: " "
+ │   ├─ Scene_content [36..40]
+ │   │   └─ SceneWithoutParametersDeclaration [36..40]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [36..40]
+ │   │       │   └─ SceneDeclarationName [36..40]: "main"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 40
+ │   └─ Scene_end 40
+ ├─ Newline [40..41]: "\n"
+ ├─ LuauSparkdownExplicitStatement [41..54]
+ │   ├─ LuauSparkdownExplicitStatement_begin [41..45]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [41..43]
+ │   │   │   └─ OptionalWhitespace [41..43]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [43..44]
+ │   │   │   └─ LuauExplicitStatementMark [43..44]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [44..45]
+ │   │       └─ RequiredWhitespace [44..45]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [45..54]
+ │   │   ├─ LuauSparkdownExplicitReturnStatement [45..53]
+ │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin [45..52]
+ │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 45
+ │   │   │   │   │   └─ OptionalWhitespace 45
+ │   │   │   │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [45..51]
+ │   │   │   │   │   └─ LuauControlKeyword [45..51]: "return"
+ │   │   │   │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 [51..52]
+ │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 [51..52]
+ │   │   │   │           └─ OptionalWhitespace [51..52]: " "
+ │   │   │   ├─ LuauSparkdownExplicitReturnStatement_content [52..53]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [52..53]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 52
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [52..53]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [52..53]
+ │   │   │   │       │       └─ LuauVariable [52..53]
+ │   │   │   │       │           └─ LuauVariable_c1 [52..53]
+ │   │   │   │       │               └─ LuauVariableName [52..53]: "x"
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 53
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 53
+ │   │   │   └─ LuauSparkdownExplicitReturnStatement_end 53
+ │   │   └─ LuauInvalidStatementCharacter [53..54]: "名"
+ │   └─ LuauSparkdownExplicitStatement_end 54
+ ├─ Newline [54..55]: "\n"
+ ├─ ImplicitAction [55..65]
+ │   ├─ ImplicitAction_begin [55..57]
+ │   │   └─ ImplicitAction_begin_c1 [55..57]
+ │   │       └─ OptionalWhitespace [55..57]: "  "
+ │   ├─ ImplicitAction_content [57..65]
+ │   │   └─ ActionLineEnd [57..65]
+ │   │       ├─ ActionLineEnd_begin 57
+ │   │       │   └─ ActionLineEnd_begin_c1 57
+ │   │       │       └─ OptionalWhitespace 57
+ │   │       ├─ ActionLineEnd_content [57..65]
+ │   │       │   └─ TextChunk [57..65]
+ │   │       │       ├─ TextChunk_begin 57
+ │   │       │       ├─ TextChunk_content [57..65]
+ │   │       │       │   ├─ Word [57..62]: "Hello"
+ │   │       │       │   ├─ Space [62..63]: " "
+ │   │       │       │   ├─ Word [63..64]: "名"
+ │   │       │       │   └─ Punctuation [64..65]: "."
+ │   │       │       └─ TextChunk_end 65
+ │   │       └─ ActionLineEnd_end 65
+ │   └─ ImplicitAction_end 65
+ └─ Newline [65..66]: "\n"

@@ -1,10 +1,3 @@
-// A function statement (`function g() ... end`, no `local`) written inside a
-// function is `g = function() ... end`, as Luau's is (I-1422). Naming a
-// local of the scene in scope where the function is written, it assigns
-// that local. With no local of the name in scope, it assigns the global. It
-// never declares a local of the function. The enclosing-function case is
-// EnclosingLocalFunctionStatement.test.ts (I-1349).
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -42,8 +35,7 @@ const run = (lines: string[]) =>
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-// The lines of scene `S`, which the story diverts to.
-const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
+const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 describe("a function statement in a scene's local function naming the scene's local", () => {
   test("assigns the local", () => {
@@ -263,10 +255,6 @@ describe("a function statement in a scene's local function naming the scene's lo
   });
 });
 
-// With no local of the name in scope, the statement assigns the global, as
-// an assignment of the name does: a top-level `function` is a function of
-// the story, and a `store` is a global, in whatever script and form they are
-// declared.
 describe("a function statement in a top-level function naming a global", () => {
   test.each([
     ["a top-level function", "function g() return 1 end"],
@@ -274,14 +262,14 @@ describe("a function statement in a top-level function naming a global", () => {
     ["an & store", "& store g = 1"],
   ])("assigns %s", (_, decl) => {
     expect(
-      run([decl, "function change()", "  function g() return 3 end", "end", "& change()", "Got {g()}."]),
+      run([decl, "function change()", "  function g() return 3 end", "end", ...inScene(["& change()", "Got {g()}."])]),
     ).toEqual(got("Got 3."));
   });
 
   test("assigns a store declared in another script", () => {
     const { program } = quiet(() =>
       programCompiler({
-        [MAIN_URI]: ["function change()", "  function g() return 3 end", "end", "& change()", "Got {g()}.", ""].join("\n"),
+        [MAIN_URI]: ["function change()", "  function g() return 3 end", "end", ...inScene(["& change()", "Got {g()}."]), ""].join("\n"),
         "inmemory:///other.sd": ["store g = 1", ""].join("\n"),
       }).compile(),
     );
@@ -296,8 +284,7 @@ describe("a function statement in a top-level function naming a global", () => {
         "  function g() return 3 end",
         "  return g()",
         "end",
-        "Before {tostring(g)}.",
-        "Got {change()} {g()}.",
+        ...inScene(["Before {tostring(g)}.", "Got {change()} {g()}."]),
       ]),
     ).toEqual(got("Before nil.", "Got 3 3."));
   });
@@ -312,23 +299,19 @@ describe("a function statement in a top-level function naming a global", () => {
         "  inner()",
         "end",
         "function call() return g() end",
-        "& change()",
-        "Got {call()}.",
+        ...inScene(["& change()", "Got {call()}."]),
       ]),
     ).toEqual(got("Got 3."));
   });
 
   test("reports reassigning a top-level const, as an assignment does", () => {
     const { program } = quiet(() =>
-      compileScript(["const g = 1", "function change()", "  function g() return 3 end", "end", ""].join("\n")),
+      compileScript(["const g = 1", "function change()", "  function g() return 3 end", "end", ...inScene([]), ""].join("\n")),
     );
     expect(errorsOf(program)).toEqual([[2, "Cannot re-assign the const `g`."]]);
   });
 });
 
-// A later call of the name dispatches through the value the statement
-// assigned, as after `g = function() ... end`, even where the name is a
-// builtin's, which a call would otherwise reach.
 describe("a call after a function statement named after a builtin", () => {
   const forms = [
     ["the function statement", "  function type(x) return 'replacement' end"],
@@ -336,14 +319,14 @@ describe("a call after a function statement named after a builtin", () => {
   ];
 
   test.each(forms)("reaches the new function in the same function after %s", (_, def) => {
-    expect(run(["function change()", def, "  return type(1)", "end", "Got {change()}."])).toEqual(
+    expect(run(["function change()", def, "  return type(1)", "end", ...inScene(["Got {change()}."])])).toEqual(
       got("Got replacement."),
     );
   });
 
   test.each(forms)("reaches it after a block inside the function after %s", (_, def) => {
     expect(
-      run(["function change()", "  do", `  ${def}`, "  end", "  return type(1)", "end", "Got {change()}."]),
+      run(["function change()", "  do", `  ${def}`, "  end", "  return type(1)", "end", ...inScene(["Got {change()}."])]),
     ).toEqual(got("Got replacement."));
   });
 
@@ -357,7 +340,7 @@ describe("a call after a function statement named after a builtin", () => {
         "  end",
         "  return inner()",
         "end",
-        "Got {change()}.",
+        ...inScene(["Got {change()}."]),
       ]),
     ).toEqual(got("Got replacement."));
   });
@@ -371,7 +354,7 @@ describe("a call after a function statement named after a builtin", () => {
         "    return type(1)",
         "  end",
         "end",
-        "Got {thing.m()}.",
+        ...inScene(["Got {thing.m()}."]),
       ]),
     ).toEqual(got("Got replacement."));
   });
@@ -385,7 +368,7 @@ describe("a call after a function statement named after a builtin", () => {
 
   test("a recursive call in the definition's own body reaches the new function", () => {
     expect(
-      run(["function change()", ...recursive, "  return type(1)", "end", "Got {change()}."]),
+      run(["function change()", ...recursive, "  return type(1)", "end", ...inScene(["Got {change()}."])]),
     ).toEqual(got("Got replacement."));
   });
 
@@ -408,9 +391,9 @@ describe("a call after a function statement named after a builtin", () => {
       "  end",
       "end",
     ];
-    expect(run([...inBlock, "A {a()}."])).toEqual(got("A replacement."));
-    expect(run([...inInner, "B {b()}."])).toEqual(got("B replacement."));
-    expect(run([...inMethod, "M {thing.m()}."])).toEqual(got("M replacement."));
+    expect(run([...inBlock, ...inScene(["A {a()}."])])).toEqual(got("A replacement."));
+    expect(run([...inInner, ...inScene(["B {b()}."])])).toEqual(got("B replacement."));
+    expect(run([...inMethod, ...inScene(["M {thing.m()}."])])).toEqual(got("M replacement."));
   });
 
   test("a recursive call reaches a scene's local the statement assigns", () => {
@@ -439,14 +422,12 @@ describe("a call after a function statement named after a builtin", () => {
         "  function type(x) return 'replacement' end",
         "  return type(1)",
         "end",
-        "Got {change()} {type(1)}.",
+        ...inScene(["Got {change()} {type(1)}."]),
       ]),
     ).toEqual(got("Got replacement number."));
   });
 });
 
-// The statement's lowering depends on what the lines above the function
-// declare of its name, so an edit there lowers the function again.
 describe("an incremental compile of a function statement naming a top-level name", () => {
   test.each([
     ["a top-level function added", "store b = 0", "store b = 0\nfunction g() return 1 end", "Got 3 3."],
@@ -458,7 +439,7 @@ describe("an incremental compile of a function statement naming a top-level name
       "  function g() return 3 end",
       "  return g()",
       "end",
-      "Got {change()} {tostring(g and g())}.",
+      ...inScene(["Got {change()} {tostring(g and g())}."]),
       "",
     ];
     const session = programSession(lines.join("\n"));

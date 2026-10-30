@@ -1,1 +1,3 @@
-obj.subtable[key]
+scene start
+  obj.subtable[key]
+end

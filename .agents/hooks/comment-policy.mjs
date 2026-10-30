@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
-const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const directives = config.directives.filter((d) => d.form).map((d) => ({ form: new RegExp(d.form), extensions: d.extensions, throughBlock: d.throughBlock === true }));
+const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions, firstLines: d.firstLines, startOfLine: d.startOfLine === true }));
+const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
 const FAMILIES = {
@@ -17,7 +19,7 @@ const FAMILIES = {
 };
 
 export const rule =
-  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
+  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads, a licence or copyright notice, or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
   "Restructure or rename the code, or fix the cause, instead of explaining it; the rationale belongs in the ticket.";
 
 const posix = (file) => String(file).replaceAll("\\", "/").replace(/^\.\//, "");
@@ -525,7 +527,17 @@ function foldedComments(text, from, to, indent, scan) {
 
 function scanYaml(text) {
   const comments = [];
-  let i = 0, quote = null, records = null;
+  let i = 0, quote = null, records = null, flow = 0;
+  const valueStart = (code) => {
+    const before = code.trimEnd(), last = before.slice(-1), spaced = before.length < code.length;
+    if (!before.trim()) return true;
+    if (spaced && (last === ":" || /^\s*(?:-\s+)*[-?]$/.test(before))) return true;
+    if (flow === 0) return false;
+    if (/[[{,]/.test(last)) return true;
+    const lead = before.slice(0, -1);
+    if (last === ":") return /["'\]}]$/.test(lead.trimEnd());
+    return last === "?" && spaced && /(?:^|[[{,])\s*$/.test(lead);
+  };
   while (i < text.length) {
     const lineStart = i;
     const end = lineEnd(text, i);
@@ -542,41 +554,83 @@ function scanYaml(text) {
         comments.push({ start: j, end });
         break;
       } else {
-        if ((c === "'" || c === '"') && /^$|[:\-[{,?]$/.test(code.trimEnd().slice(-1))) quote = c;
+        if ((c === "'" || c === '"') && valueStart(code)) quote = c;
+        else if ((c === "[" || c === "{") && valueStart(code)) flow++;
+        else if ((c === "]" || c === "}") && flow > 0) flow--;
         code += c;
       }
     }
     i = next;
     if (quote) continue;
-    const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?([|>])([-+1-9]*)\s*$/.exec(code);
-    if (!header) continue;
-    const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+[|>]/.test(code) ? 0 : -1);
-    const indicator = /[1-9]/.exec(header[3]);
-    const indentOf = (line) => /^ */.exec(line)[0].length;
-    let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
-    let blockEnd = i;
-    while (blockEnd < text.length) {
-      const lineStop = lineEnd(text, blockEnd);
-      const line = text.slice(blockEnd, lineStop);
-      if (line.trim()) {
-        content ??= indentOf(line) > parent ? indentOf(line) : Infinity;
-        if (indentOf(line) < content) break;
-      }
-      blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
-    }
     records ??= yamlRecords(text);
-    const index = records.findIndex((r) => r.start === lineStart);
-    const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
-    const indent = Number.isFinite(content) ? content : 0;
-    if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
-    else if (scan) for (const c of scan(text.slice(i, blockEnd), indent)) comments.push({ start: c.start + i, end: c.end + i });
-    i = blockEnd;
+    const block = blockScalarComments(text, lineStart, i, code, records);
+    if (!block) continue;
+    comments.push(...block.comments);
+    i = block.end;
   }
   return comments;
 }
 
-function scanPs1(text, indent = 0) {
+function blockScalarComments(text, lineStart, i, code, records, keyLineStart = lineStart) {
+  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?(?:[!&]\S*\s+)*([|>])([-+1-9]*)\s*$/.exec(code);
+  if (!header) return null;
   const comments = [];
+  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+(?:[!&]\S*\s+)*[|>]/.test(code) ? 0 : -1);
+  const indicator = /[1-9]/.exec(header[3]);
+  const indentOf = (line) => /^ */.exec(line)[0].length;
+  let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
+  let blockEnd = i;
+  while (blockEnd < text.length) {
+    const lineStop = lineEnd(text, blockEnd);
+    const line = text.slice(blockEnd, lineStop);
+    if (line.trim()) {
+      content ??= indentOf(line) > parent ? indentOf(line) : Infinity;
+      if (indentOf(line) < content) break;
+    }
+    blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
+  }
+  const index = records.findIndex((r) => r.start === keyLineStart);
+  const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
+  const indent = Number.isFinite(content) ? content : 0;
+  if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
+  else if (scan) for (const c of scan(text.slice(i, blockEnd), indent)) comments.push({ start: c.start + i, end: c.end + i });
+  return { comments, end: blockEnd };
+}
+
+function scanYamlLexed(yaml, text) {
+  const comments = [];
+  const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR]);
+  let offset = 0, records = null, keep = null, keyLine = null;
+  const lineOfOffset = (at) => text.lastIndexOf("\n", at - 1) + 1;
+  for (const token of new yaml.Lexer().lex(text)) {
+    if (control.has(token)) continue;
+    const type = yaml.CST.tokenType(token);
+    if (type === "map-value-ind") keyLine = lineOfOffset(offset);
+    else if (!["space", "newline", "comment", "anchor", "tag", "block-scalar-header"].includes(type)) keyLine = null;
+    if (keep === "header" && type === "newline") keep = "content";
+    else if (keep === "content") keep = "after";
+    else if (keep === "after" && type !== "comment" && type !== "newline" && type !== "space") keep = null;
+    if (type === "comment") comments.push({ start: offset, end: offset + token.length, afterKeep: keep === "after" });
+    else if (type === "block-scalar-header") {
+      keep = token.includes("+") ? "header" : null;
+      const lineStart = lineOfOffset(offset);
+      const stop = lineEnd(text, offset);
+      const next = Math.min(text.indexOf("\n", stop) + 1 || text.length, text.length);
+      records ??= yamlRecords(text);
+      const block = blockScalarComments(text, lineStart, next, text.slice(lineStart, offset + token.length), records, keyLine ?? lineStart);
+      if (block) comments.push(...block.comments);
+    }
+    offset += token.length;
+  }
+  return comments;
+}
+
+function scanPs1(text, indent = 0, literals = null) {
+  const comments = [];
+  const literal = (start, end) => {
+    literals?.push({ start, end });
+    return end;
+  };
   const hereClose = (j, quote) => {
     if (text[j] !== "\n") return -1;
     let k = j + 1;
@@ -608,17 +662,17 @@ function scanPs1(text, indent = 0) {
         const end = lineEnd(text, i);
         comments.push({ start: i, end });
         i = end;
-      } else if (c === "`") i += 2;
+      } else if (c === "`") i = literal(i, i + 2);
       else if (c === "@" && text[i + 1] === "'" && /^\r?\n/.test(text.slice(i + 2, i + 4))) {
         let line = text.indexOf("\n", i + 2);
         while (line >= 0 && hereClose(line, "'") < 0) line = text.indexOf("\n", line + 1);
-        i = line < 0 ? text.length : hereClose(line, "'");
-      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = expandable(i + 2, true);
+        i = literal(i, line < 0 ? text.length : hereClose(line, "'"));
+      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = literal(i, expandable(i + 2, true));
       else if (c === "'") {
         let j = i + 1;
         while (j < text.length && !(text[j] === "'" && text[j + 1] !== "'")) j += text[j] === "'" ? 2 : 1;
-        i = j + 1;
-      } else if (c === '"') i = expandable(i + 1, false);
+        i = literal(i, j + 1);
+      } else if (c === '"') i = literal(i, expandable(i + 1, false));
       else if (c === "(") {
         depth++;
         i++;
@@ -637,18 +691,30 @@ function scanPs1(text, indent = 0) {
 const SCANNERS = { js: scanJs, css: scanCss, html: scanHtml, py: scanPy, sh: scanSh, yaml: scanYaml, ps1: scanPs1 };
 
 const defaultRoot = path.resolve(here, "../..");
-const typescriptCache = new Map();
+const moduleCaches = { typescript: new Map(), yaml: new Map() };
 
-function resolveTypescriptFrom(base) {
+function resolveFrom(base, name) {
   try {
     nodeModule.enableCompileCache?.();
     const require = nodeModule.createRequire(path.join(base, "package.json"));
-    const resolved = require.resolve("typescript");
+    const resolved = require.resolve(name);
     if (path.relative(base, resolved).startsWith("..")) return null;
     return require(resolved);
   } catch {
     return null;
   }
+}
+
+function loadModule(name, root) {
+  const cache = moduleCaches[name];
+  if (cache.has(root)) return cache.get(root);
+  let loaded = resolveFrom(root, name);
+  if (!loaded) {
+    const main = mainCheckout(root);
+    if (main && path.resolve(main) !== path.resolve(root)) loaded = resolveFrom(main, name);
+  }
+  cache.set(root, loaded);
+  return loaded;
 }
 
 function mainCheckout(root) {
@@ -657,14 +723,12 @@ function mainCheckout(root) {
 }
 
 export function loadTypescript(root = defaultRoot) {
-  if (typescriptCache.has(root)) return typescriptCache.get(root);
-  let ts = resolveTypescriptFrom(root);
-  if (!ts) {
-    const main = mainCheckout(root);
-    if (main && path.resolve(main) !== path.resolve(root)) ts = resolveTypescriptFrom(main);
-  }
-  typescriptCache.set(root, ts);
-  return ts;
+  return loadModule("typescript", root);
+}
+
+export function loadYaml(root = defaultRoot) {
+  const yaml = loadModule("yaml", root);
+  return yaml?.Lexer && yaml.CST?.tokenType ? yaml : null;
 }
 
 function scanTypescript(ts, text, file) {
@@ -695,6 +759,11 @@ function scanTypescript(ts, text, file) {
 }
 
 function scanFamily(text, file, family, options) {
+  if (family === "yaml") {
+    const yaml = options.scanner === "fallback" ? null : loadYaml(options.root ?? defaultRoot);
+    if (yaml) return { scanner: "the yaml package's lexer", comments: scanYamlLexed(yaml, text) };
+    return { scanner: "the fallback YAML scanner, since yaml does not resolve from this checkout or its main checkout", comments: scanYaml(text) };
+  }
   if (family !== "js") return { scanner: `the ${family} scanner`, comments: SCANNERS[family](text) };
   const ts = options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
   if (ts) return { scanner: `TypeScript ${ts.version}`, comments: scanTypescript(ts, text, file) };
@@ -708,10 +777,10 @@ export function scanComments(text, file, options = {}) {
   const { scanner, comments } = scanFamily(text, file, family, options);
   return comments
     .sort((a, b) => a.start - b.start)
-    .map(({ start, end }) => {
+    .map(({ start, end, afterKeep }) => {
       const line = lineOf(start), endLine = lineOf(Math.max(start, end - 1));
       const lineStart = starts[line];
-      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end), scanner };
+      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end), scanner, ...(afterKeep ? { afterKeep } : {}) };
     });
 }
 
@@ -762,35 +831,199 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
-export function classifyComment(text, file, { root = defaultRoot } = {}) {
+function licenceNotice(lines) {
+  const body = lines.join("\n");
+  return licences.some(({ form }) => form.test(body));
+}
+
+const POWERSHELL_HELP_ARGUMENT = new Map([
+  ["SYNOPSIS", false], ["DESCRIPTION", false], ["PARAMETER", true], ["EXAMPLE", false], ["INPUTS", false], ["OUTPUTS", false],
+  ["NOTES", false], ["LINK", false], ["COMPONENT", false], ["ROLE", false], ["FUNCTIONALITY", false],
+  ["FORWARDHELPTARGETNAME", true], ["FORWARDHELPCATEGORY", true], ["REMOTEHELPRUNSPACE", true], ["EXTERNALHELP", true],
+]);
+const POWERSHELL_HELP = "comment-based help Get-Help reads";
+
+function powershellHelp(text) {
+  if (!text.startsWith("<#") || !text.endsWith("#>")) return false;
+  let keywords = 0;
+  for (const raw of text.slice(2, -2).split(/\r?\n/)) {
+    const line = raw.trim();
+    const keyword = /^\.([A-Za-z]+)(?:[ \t]+(\S.*))?$/.exec(line);
+    if (!keyword) {
+      if (line && !keywords) return false;
+      continue;
+    }
+    const argument = POWERSHELL_HELP_ARGUMENT.get(keyword[1].toUpperCase());
+    if (argument === undefined || argument !== Boolean(keyword[2])) return false;
+    keywords++;
+  }
+  return keywords > 0;
+}
+
+function powershellStructure(text) {
+  const literals = [];
+  const chars = text.split("");
+  const blank = (spans, fill) => {
+    for (const { start, end } of spans) for (let i = start; i < end && i < chars.length; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = fill;
+  };
+  blank(scanPs1(text, 0, literals), " ");
+  blank(literals, "_");
+  return chars.join("");
+}
+
+function openingBrace(code, from) {
+  let depth = 0;
+  for (let i = from - 1; i >= 0; i--) {
+    if (code[i] === "}") depth++;
+    else if (code[i] === "{" && depth-- === 0) return i;
+  }
+  return -1;
+}
+
+function opensFunction(code, brace) {
+  let i = brace - 1;
+  while (i >= 0 && /\s/.test(code[i])) i--;
+  if (code[i] === ")") {
+    for (let depth = 0; i >= 0; i--) {
+      if (code[i] === ")") depth++;
+      else if (code[i] === "(" && --depth === 0) break;
+    }
+    if (i < 0) return false;
+    i--;
+    while (i >= 0 && /\s/.test(code[i])) i--;
+  }
+  return /(?:^|[\s;])(?:function|filter|workflow)[ \t]+[^\s{}()]+$/i.test(code.slice(0, i + 1));
+}
+
+function powershellHelpPlaced(code, comment) {
+  const before = code.slice(0, comment.start);
+  const after = code.slice(comment.end);
+  if (!before.trim() || !after.trim()) return true;
+  if (/^[ \t]*(?:\r?\n[ \t]*){1,2}(?:function|filter|workflow)[ \t]/i.test(after)) return true;
+  const open = openingBrace(code, comment.start);
+  if (open < 0 || !opensFunction(code, open)) return false;
+  return !before.slice(open + 1).trim() || /^\s*\}/.test(after);
+}
+
+const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
+
+function jsdocTypescript(file, options) {
+  if (!JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase())) return null;
+  return options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
+}
+
+function readTag(ts, tag) {
+  const { SyntaxKind: K } = ts;
+  if (tag.kind === K.JSDocParameterTag || tag.kind === K.JSDocPropertyTag || tag.kind === K.JSDocReturnTag) return Boolean(tag.typeExpression);
+  const read = ["JSDocTypeTag", "JSDocTypedefTag", "JSDocTemplateTag", "JSDocCallbackTag", "JSDocSatisfiesTag", "JSDocThisTag", "JSDocEnumTag", "JSDocImportTag", "JSDocOverloadTag", "JSDocAugmentsTag", "JSDocImplementsTag", "JSDocPrivateTag", "JSDocProtectedTag", "JSDocPublicTag", "JSDocReadonlyTag", "JSDocOverrideTag", "JSDocDeprecatedTag", "JSDocClassTag"];
+  return read.some((name) => K[name] !== undefined && tag.kind === K[name]);
+}
+
+function jsdocTags(ts, comment) {
+  const source = ts.createSourceFile("probe.js", `${comment}\nvar probe;`, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const docs = source.statements[0]?.jsDoc;
+  const doc = docs?.[docs.length - 1];
+  if (!doc || doc.end !== comment.length) return null;
+  const prose = typeof doc.comment === "string" ? doc.comment : (doc.comment ?? []).map((part) => source.text.slice(part.pos, part.end)).join("");
+  const tags = (doc.tags ?? []).map((tag) => ({
+    read: readTag(ts, tag),
+    text: source.text.slice(tag.getStart(source), tag.end).replace(/\s+$/, "").replace(/(?:\r\n|[\n\r])[ \t]*\*$/, "").replace(/\s+$/, ""),
+  }));
+  return { prose: prose.trim(), tags };
+}
+
+function jsdocKeptTags(comment, file, options) {
+  if (!comment.startsWith("/**")) return null;
+  const ts = jsdocTypescript(file, options);
+  if (!ts) return /(?:^|\s)@[A-Za-z]/.test(comment) && JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase()) ? { whole: true } : null;
+  const parsed = jsdocTags(ts, comment);
+  const kept = parsed?.tags.filter((t) => t.read).map((t) => t.text) ?? [];
+  return kept.length ? { kept } : null;
+}
+
+export function classifyComment(text, file, options = {}) {
+  const root = options.root ?? defaultRoot;
   const rel = posix(file);
   if (exemptPath(rel)) return { kind: "exempt", reason: `${rel} is under a path the rule exempts` };
   const extension = path.posix.extname(rel).toLowerCase();
   if (!FAMILIES[extension]) return { kind: "exempt", reason: `${extension || rel} is not a code file type the rule covers` };
   const lines = bodyLines(text);
   if (!lines.length) return { kind: "refused", reason: "an empty comment" };
+  if (licenceNotice(lines)) return { kind: "licence", reason: "a licence or copyright notice" };
   if (/^workaround\b/i.test(lines[0])) {
     const marker = /^workaround\(([^()\s]+)\):\s*\S/.exec(lines[0]);
     if (!marker) return { kind: "refused", reason: "a workaround note takes the form `workaround(<name>): <what the dependency or platform does wrong, with the version or link that retires the note>`" };
     const reason = workaroundNameReason(marker[1], root);
     return reason ? { kind: "refused", reason } : { kind: "workaround", reason: `a workaround note for \`${marker[1]}\`` };
   }
-  const allowed = directives.filter((d) => !d.extensions || d.extensions.includes(extension));
-  if (lines.every((line) => allowed.some((d) => d.form.test(line)))) return { kind: "directive", reason: "a directive a tool reads" };
+  if (text.startsWith("/**")) {
+    const ts = jsdocTypescript(rel, options);
+    const parsed = ts && jsdocTags(ts, text);
+    if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
+  }
+  if (extension === ".ps1" && powershellHelp(text)) return { kind: "directive", reason: POWERSHELL_HELP };
+  const commentDirective = commentDirectives.find((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text));
+  if (commentDirective) return { kind: "directive", reason: "a directive a tool reads", ...(commentDirective.firstLines && { firstLines: commentDirective.firstLines }), ...(commentDirective.startOfLine && { startOfLine: true }) };
+  if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
+}
+
+function directiveLine(line, extension) {
+  return directives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
+}
+
+function throughBlockLine(line, extension) {
+  return line !== undefined && directives.some((d) => d.throughBlock && (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
 }
 
 export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
-  let previous = null;
+  const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  let previous = null, block = null, structure = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
-    const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
+    if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced((structure ??= powershellStructure(text)), comment)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
+    if (comment.firstLines && comment.line > comment.firstLines) Object.assign(comment, { kind: "refused", reason: `a directive its tool reads only in a file's first ${comment.firstLines} lines` });
+    if (comment.startOfLine && comment.column !== 0) Object.assign(comment, { kind: "refused", reason: "a directive its tool reads only at the start of a line" });
+    if (block && single(comment) && comment.line === previous.endLine + 1) {
+      if (comment.kind === "refused") Object.assign(comment, { kind: "directive", reason: `continues the directive on line ${block.line}, whose reader takes the rest of its comment block` });
+    } else block = null;
+    if (!block && comment.kind === "directive" && single(comment) && throughBlockLine(bodyLines(comment.text)[0], extension)) block = comment;
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
     }
     previous = comment;
+  }
+  const runs = [];
+  for (const comment of comments) {
+    const run = runs[runs.length - 1], last = run?.[run.length - 1];
+    if (!single(comment)) continue;
+    if (last && comment.line === last.endLine + 1 && comment.column === last.column) run.push(comment);
+    else runs.push([comment]);
+  }
+  for (const run of runs) {
+    const paragraphs = [];
+    let current = null;
+    for (const comment of run) {
+      if (!bodyLines(comment.text).length) {
+        paragraphs.push({ separator: comment });
+        current = null;
+      } else if (current) current.members.push(comment);
+      else paragraphs.push((current = { members: [comment] }));
+    }
+    for (const p of paragraphs) {
+      if (!p.members) continue;
+      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text))) : p.members[0].kind === "licence";
+      if (p.licence) for (const c of p.members) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${p.members[0].line}` });
+    }
+    paragraphs.forEach((p, k) => {
+      if (!p.separator) return;
+      const before = paragraphs.slice(0, k).reverse().find((q) => q.members);
+      const after = paragraphs.slice(k + 1).find((q) => q.members);
+      if (before?.licence && after?.licence) Object.assign(p.separator, { kind: "licence", reason: `separates the licence notice on line ${before.members[0].line}` });
+    });
   }
   return comments;
 }
@@ -801,8 +1034,31 @@ export function refusedComments(text, file, options = {}) {
     .map(({ line, endLine, text: comment, reason, scanner }) => ({ line, endLine, text: comment, reason, scanner }));
 }
 
+function emptyJsxContainers(text, file, options) {
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  if (familyOf(file) !== "js" || extension === ".ts") return [];
+  const ts = options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
+  if (!ts) return [];
+  const { SyntaxKind } = ts;
+  const source = ts.createSourceFile(posix(file), text, ts.ScriptTarget.Latest, false, extension === ".tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.JS);
+  const blank = (node) => !node || node.kind !== SyntaxKind.JsxText || !text.slice(node.pos, node.end).trim();
+  const found = [];
+  const visit = (node) => {
+    if (node.kind === SyntaxKind.JsxElement || node.kind === SyntaxKind.JsxFragment) {
+      const children = node.children;
+      children.forEach((child, k) => {
+        if (child.kind === SyntaxKind.JsxExpression && !child.expression && !child.dotDotDotToken && blank(children[k - 1]) && blank(children[k + 1])) found.push({ start: child.getStart(source), end: child.end });
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
 export function stripComments(text, file, options = {}) {
-  const refused = judgeComments(text, file, options).filter((c) => c.kind === "refused");
+  const judged = judgeComments(text, file, options);
+  const refused = judged.filter((c) => c.kind === "refused");
   if (!refused.length) return text;
   const family = familyOf(file);
   if (family === "html") {
@@ -813,18 +1069,37 @@ export function stripComments(text, file, options = {}) {
     }
     return out + text.slice(at);
   }
+  const cuts = [];
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const removals = [];
+  for (const c of refused) {
+    const jsdoc = family === "js" ? jsdocKeptTags(c.text, file, options) : null;
+    if (jsdoc?.whole) continue;
+    if (!jsdoc) {
+      removals.push(c);
+      continue;
+    }
+    const kept = jsdoc.kept;
+    const before = text.slice(c.lineStart, c.start);
+    const alone = /^[ \t]*$/.test(before);
+    const pad = alone ? before : "";
+    const breaks = /[\n\r\u2028\u2029]/.test(c.text);
+    const single = kept.length === 1 && !/[\n\r]/.test(kept[0]) && (alone || !breaks);
+    const block = kept.map((tag) => tag.split(/\r\n|[\n\r]/).map((line, k) => (k ? line : `${pad} * ${line}`)).join(eol)).join(eol);
+    const replacement = single ? `/** ${kept[0]} */` : `/**${eol}${block}${eol}${pad} */`;
+    cuts.push({ from: c.start, to: c.end, replacement, rewrite: true });
+  }
   const removed = new Uint8Array(text.length);
-  for (const c of refused) removed.fill(1, c.start, c.end);
+  for (const c of removals) removed.fill(1, c.start, c.end);
   const code = (from, to) => {
     for (let k = from; k < to; k++) if (!removed[k] && !/\s/.test(text[k])) return true;
     return false;
   };
   const { starts, ends, lineOf } = lineIndex(text, family === "js");
   const nextLine = (offset) => starts[lineOf(offset) + 1] ?? text.length;
-  const cuts = [];
-  for (const c of refused) {
+  for (const c of removals) {
     const leading = code(c.lineStart, c.start), following = code(c.end, c.lineStop);
-    if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true });
+    if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true, afterKeep: c.afterKeep });
     else if (!following) {
       let from = c.start;
       while (from > c.lineStart && /[ \t]/.test(text[from - 1])) from--;
@@ -840,29 +1115,45 @@ export function stripComments(text, file, options = {}) {
       cuts.push({ from, to, replacement: breaks ? "\n" : joins ? " " : "" });
     }
   }
+  for (const box of family === "js" ? emptyJsxContainers(text, file, options) : []) {
+    const inside = judged.filter((c) => c.start > box.start && c.end < box.end);
+    if (!inside.length || inside.some((c) => !removals.includes(c))) continue;
+    const first = lineOf(box.start), last = lineOf(box.end - 1);
+    if (text.slice(starts[first], box.start).trim() || text.slice(box.end, ends[last]).trim()) continue;
+    cuts.push({ from: starts[first], to: nextLine(box.end - 1), whole: true });
+  }
   cuts.sort((a, b) => a.from - b.from);
   const strength = (replacement) => ["", " ", "\n"].indexOf(replacement ?? "");
   const merged = [];
   for (const cut of cuts) {
     const last = merged[merged.length - 1];
-    if (last && cut.from <= last.to) {
+    if (last && (cut.from < last.to || (cut.from === last.to && !cut.rewrite && !last.rewrite))) {
       last.to = Math.max(last.to, cut.to);
       last.whole ||= cut.whole;
+      last.afterKeep ||= cut.afterKeep;
       if (strength(cut.replacement) > strength(last.replacement)) last.replacement = cut.replacement;
     } else merged.push({ ...cut });
   }
   const blankLine = (k) => k >= 0 && k < starts.length && !text.slice(starts[k], ends[k]).trim();
+  const lineText = (k) => (k >= 0 && k < starts.length ? text.slice(starts[k], ends[k]) : "");
   for (const cut of merged) {
     if (!cut.whole) continue;
+    if (cut.afterKeep) {
+      while (cut.to < text.length && blankLine(lineOf(cut.to))) cut.to = nextLine(cut.to);
+      continue;
+    }
     const first = lineOf(cut.from);
+    const after = cut.to < text.length ? lineOf(cut.to) : -1;
     const blankBefore = first === 0 || blankLine(first - 1);
-    if (blankBefore && cut.to < text.length && blankLine(lineOf(cut.to))) cut.to = nextLine(cut.to);
+    if (blankBefore && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
     else if (cut.to >= text.length && first > 0 && blankLine(first - 1)) cut.from = starts[first - 1];
+    else if (first > 0 && /[{([]\s*$/.test(lineText(first - 1)) && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
+    else if (first > 0 && blankLine(first - 1) && after >= 0 && /^\s*[})\]]/.test(lineText(after))) cut.from = starts[first - 1];
   }
   let out = "", at = 0;
   for (const cut of merged) {
-    if (cut.from < at) continue;
-    out += text.slice(at, cut.from) + (cut.replacement ?? "");
+    if (cut.to <= at) continue;
+    out += text.slice(at, Math.max(at, cut.from)) + (cut.replacement ?? "");
     at = cut.to;
   }
   return out + text.slice(at);

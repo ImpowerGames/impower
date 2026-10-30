@@ -1,12 +1,3 @@
-// A choice written in a block nested inside another block of a `choose`
-// block's preamble (#1681, from #705's review of the whole-program fallback):
-// an `if` around a `do`, or a loop around a `do`. The language reference
-// says a block's preamble offers its choices together with the block's own
-// (`docs/runtime/DIVERGENCES.md`, "Weaves use `choose ... then ... end`
-// blocks"), and the program engine does so for every nesting of `do`
-// blocks, `if` branches and loops in the preamble (#1503): each nested body
-// that offers a choice is the `choose` statement's own code, so the chunk
-// that raises the choice holds its entry.
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { Op } from "../../program/ProgramInstructions";
@@ -18,12 +9,9 @@ import {
 } from "./programHarness";
 import { run, silence } from "./programScopes";
 
-/** A script whose only scene holds a `choose` block with `preamble` before
- *  its last choice, `Outer`, and a line after the block. */
 const scene = (preamble: readonly string[]) =>
   [
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     ...preamble,
     "    * Outer",
@@ -65,9 +53,6 @@ describe("a choice in a block nested inside another block of a choose block's pr
     });
   });
 
-  // The reference offers every pass's choice together with the block's own,
-  // as the program engine does for a choice written in the loop's body
-  // itself (#1503).
   const LOOPS: Record<string, readonly string[]> = {
     while: [
       "    local i = 0",
@@ -110,8 +95,6 @@ describe("a choice in a block nested inside another block of a choose block's pr
     });
   }
 
-  // A choice's body is the lines after it up to the next choice, and a
-  // block that offers one is where the next choice is.
   it("ends the body of a gated choice at a do block after it that offers a choice, and offers both", () => {
     const text = scene([
       "    if true then",

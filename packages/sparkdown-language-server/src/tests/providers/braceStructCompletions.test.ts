@@ -7,12 +7,6 @@ import {
   insideBraces,
 } from "./braceCompletionHarness";
 
-// Struct property completion in an animation written with brace blocks
-// (#1228): a container property opens a balanced block with the cursor
-// inside, a scalar property is followed by ` = `, and inside a block the
-// properties offered are the block's own.
-
-// The fields of the engine's `default_animation`.
 const program = {
   context: {
     animation: {
@@ -109,7 +103,6 @@ end
 `,
       schemaProgram,
     ).map((i) => String(i.label));
-    // Outside a style a string option is offered as a quoted string.
     expect(labels).toEqual(expect.arrayContaining(['"ease"', '"linear"']));
   });
 
@@ -130,8 +123,6 @@ end
   });
 
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
-    // Outside `[…]` the struct grammar reads `'` as text.
-    // A lone `[` and one inside a closed bracket run are text there too.
     for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       const labels = completeAt(
         `animation fade with
@@ -146,7 +137,6 @@ end
 });
 
 describe("provider · element completion in layout and component brace blocks", () => {
-  // A layout or component struct with two element fields.
   const elements = { text: { content: "" }, row: { gap: 0 } };
   const elementProgram = {
     context: {
@@ -176,10 +166,8 @@ describe("provider · element completion in layout and component brace blocks", 
     for (const source of [
       `layout hud with\n  row { text "a; te|" }\nend\n`,
       `layout hud with\n  row { text 'a; te|' }\nend\n`,
-      // Content glued to the name or a class is still content.
       `layout hud with\n  row { text'a; te|' }\nend\n`,
       `layout hud with\n  row { text.title'a; te|' }\nend\n`,
-      // A single-quoted attribute value too.
       `layout hud with\n  row { text #label='a; te|' }\nend\n`,
       `component hud with\n  row { text #label='a; te|' }\nend\n`,
     ]) {

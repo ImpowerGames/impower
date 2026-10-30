@@ -1,8 +1,3 @@
-// Batch unlocked by CallLuauFunction + __builtin_iter dispatch:
-// - table.foreach / foreachi (both deprecated in Luau — flagged via
-//   the existing strikethrough diagnostic).
-// - utf8.codes (iterator returning byte_position + codepoint).
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -45,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("table.foreach", () => {
   test("calls fn(k, v) for every entry in insertion order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { a = 1, b = 2, c = 3 }
@@ -62,8 +59,10 @@ end
 
   test("non-nil return breaks the loop and is returned", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3, 4, 5 }
@@ -81,8 +80,10 @@ end
 describe("table.foreachi", () => {
   test("walks the array portion only, calls fn(i, v)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "a", "b", "c", name = "ignored" }
@@ -98,8 +99,10 @@ end
 
   test("stops at first gap in the array portion", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -118,8 +121,10 @@ end
 describe("utf8.codes", () => {
   test("yields (byte_position, codepoint) for ASCII", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("abc") do
@@ -129,19 +134,15 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // ASCII: each codepoint is 1 byte, positions 1, 2, 3. Codepoints
-    // 97 ('a'), 98 ('b'), 99 ('c').
     expect(recorded).toEqual([1, 97, 2, 98, 3, 99]);
   });
 
   test("byte positions account for multi-byte UTF-8", () => {
-    // 'é' (U+00E9) spelled as its UTF-8 bytes \xC3\xA9 — under the
-    // byte-string convention a bare "é" char IS the raw byte E9
-    // (invalid UTF-8). 'B' is 1 byte; '€' (U+20AC, > 0xFF) encodes
-    // automatically.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("\\xC3\\xA9B€") do
@@ -151,14 +152,15 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // Positions: 1 ('é'), 3 ('B'), 4 ('€'). Codepoints: 233, 66, 8364.
     expect(recorded).toEqual([1, 233, 3, 66, 4, 8364]);
   });
 
   test("empty string yields nothing", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("") do

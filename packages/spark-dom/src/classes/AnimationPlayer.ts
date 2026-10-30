@@ -21,20 +21,12 @@ export default class AnimationPlayer {
     }
   }
 
-  /** Adds the effect's animations to the player and returns them, so a
-   *  caller can cancel one before it ends. */
   add(effect: AnimationEffect): Animation[] {
     const { element, animations } = effect;
     const created: Animation[] = [];
     if (element) {
-      // Convert engine animations to dom animations
       animations.forEach((animation) => {
         const convertedKeyframes: Keyframe[] = [];
-        // Defensive: an authored `define X as animation with keyframes = {...}`
-        // can resolve to a non-array `keyframes` (object/undefined). A lone
-        // keyframe object is one keyframe, not an array. The engine
-        // (getAnimationDefinition) already normalizes this; here we just avoid
-        // crashing if a non-array slips through and blacks out the whole preview.
         const rawKeyframes: unknown = (animation as { keyframes?: unknown })
           .keyframes;
         const keyframeList: any[] = Array.isArray(rawKeyframes)
@@ -51,10 +43,8 @@ export default class AnimationPlayer {
                 convertedKeyframe["iterations"] = Infinity;
               } else if (prop === "delay") {
                 if (typeof value === "number") {
-                  // convert seconds to milliseconds
                   convertedKeyframe["delay"] = value * 1000;
                 } else if (typeof value === "string") {
-                  // convert string time value to milliseconds
                   const ms = getMilliseconds(value);
                   if (ms != null) {
                     convertedKeyframe["delay"] = ms;
@@ -62,10 +52,8 @@ export default class AnimationPlayer {
                 }
               } else if (prop === "duration") {
                 if (typeof value === "number") {
-                  // convert seconds to milliseconds
                   convertedKeyframe["duration"] = value * 1000;
                 } else if (typeof value === "string") {
-                  // convert string time value to milliseconds
                   const ms = getMilliseconds(value);
                   if (ms != null) {
                     convertedKeyframe["duration"] = ms;
@@ -86,10 +74,8 @@ export default class AnimationPlayer {
         const convertedTiming: EffectTiming = {};
         if (animation.timing.delay != null) {
           if (typeof animation.timing.delay === "number") {
-            // convert seconds to milliseconds
             convertedTiming.delay = animation.timing.delay * 1000;
           } else if (typeof animation.timing.delay === "string") {
-            // convert string time value to milliseconds
             const ms = getMilliseconds(animation.timing.delay);
             if (ms != null) {
               convertedTiming.delay = ms;
@@ -100,10 +86,8 @@ export default class AnimationPlayer {
         }
         if (animation.timing.duration != null) {
           if (typeof animation.timing.duration === "number") {
-            // convert seconds to milliseconds
             convertedTiming.duration = animation.timing.duration * 1000;
           } else if (typeof animation.timing.duration === "string") {
-            // convert string time value to milliseconds
             const ms = getMilliseconds(animation.timing.duration);
             if (ms != null) {
               convertedTiming.duration = ms;
@@ -114,7 +98,6 @@ export default class AnimationPlayer {
         }
         if (animation.timing.iterations != null) {
           if (animation.timing.iterations === "infinite") {
-            // convert seconds to milliseconds
             convertedTiming.iterations = Infinity;
           } else {
             convertedTiming.iterations = animation.timing.iterations;
@@ -131,10 +114,8 @@ export default class AnimationPlayer {
         }
         if (animation.timing.end_delay != null) {
           if (typeof animation.timing.end_delay === "number") {
-            // convert seconds to milliseconds
             convertedTiming.endDelay = animation.timing.end_delay * 1000;
           } else if (typeof animation.timing.end_delay === "string") {
-            // convert string time value to milliseconds
             const ms = getMilliseconds(animation.timing.end_delay);
             if (ms != null) {
               convertedTiming.endDelay = ms;
@@ -159,10 +140,6 @@ export default class AnimationPlayer {
     return created;
   }
 
-  /**
-   * Milliseconds from the animations' start to the end of the longest one:
-   * where a stage that follows them starts on the same timeline.
-   */
   get endTime(): number {
     let end = 0;
     for (const instance of this._instances) {
@@ -172,16 +149,6 @@ export default class AnimationPlayer {
     return end;
   }
 
-  /**
-   * Plays every animation from `startTime` on the document timeline, or from
-   * now without one. A start time already past plays them with that much
-   * already elapsed.
-   *
-   * Setting a start time is what starts an animation at it. `play()` would
-   * rewind one whose start time is still ahead (a negative current time) or
-   * whose start is so far past that it has finished, and start it from the
-   * beginning when the page is next ready instead.
-   */
   async play(startTime?: number): Promise<void> {
     await Promise.allSettled(
       this._instances.map(async (instance) => {

@@ -3,10 +3,6 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 
-// `sceneAssets` after an incremental compile: an edit inside one scene
-// changes that scene's assets and leaves every other scene's as they were.
-// The oracle is a cold compile of the edited text.
-
 const URI = "file://proj/main.sd";
 
 const file = (text: string, version: number): File => ({
@@ -50,9 +46,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** A program's scene assets with each beat's address read as where it
- *  stands: an address counts the chunks the compiler has made, so an
- *  incremental compile's differs from a cold compile's for the same beat. */
 function sceneAssetsOf(program: SparkProgram) {
   return JSON.parse(
     JSON.stringify(program.sceneAssets, (key, value) =>

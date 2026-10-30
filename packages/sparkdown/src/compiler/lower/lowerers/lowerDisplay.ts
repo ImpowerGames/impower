@@ -40,44 +40,6 @@ import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownCondit
 import { opensAlternator } from "../../utils/alternatorDecision";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
-// Each display line lowers to `display(<table>)` calls, one per beat. The table
-// carries the line's routing (a `target`, and for dialogue the `character` cue)
-// resolved at compile time, and its `text` as a captured string of the body's
-// content (Text runs interleaved with lowered `{expr}` interpolation
-// expressions). The engine's interpreter reads the tables a step collected
-// (`InterpreterModule.queue`) to build that step's beat.
-
-// Build the `display({ target?, character?, text, pause? })` calls for a display
-// statement. The table carries the routing (target + dialogue cue) resolved at
-// compile time plus the body as a STRING-CAPTURE expression: the body's
-// ParsedObjects wrapped in a StringExpression, so ink evaluates them
-// (interpolation → live values, markup preserved) into one string at call
-// time, and the interpreter parses that string.
-//
-// A `>` break splits the body into beats, one display() call each (see
-// `splitBodyRangeAtBreaks`). Each call is its own Continue() (the engine ends
-// a step at the call's closing newline), so the screenplay preview can route
-// to each beat by its own checkpoint, and each call is stamped with its own
-// source range. A beat a break ends carries `pause`, so it waits for a click
-// even when it shows no text. Author `# tag`s ride the call's `tags`, and a
-// mid-line divert follows the call. A `load` action line makes a
-// `display({ load })` call instead.
-//
-// Glue joins two lines only when both are marked: the first ends with `..` and
-// the second begins with `..`. Inside a block body, where both lines are known,
-// `joinMidBodyGlue` joins them in the captured string. Otherwise the join
-// happens as the story runs: a beat whose text ends with `..` is `glue`, or
-// `extend` when a `>` break follows the mark, and a beat whose text begins with
-// `..` is `continues`. `display` joins a `continues` beat to the beat shown
-// before it when that beat offered to join, and otherwise shows it as a line
-// of its own. The join keeps the spaces written before the first mark and
-// drops those after the second.
-//
-// An action line that begins with `..` is a glued continuation: its first
-// beat names no routing, so it takes the routing of the beat it joins, and a
-// failed join shows it on the default target, which is where action shows. A
-// continuation that names a speaker keeps its routing: carried on in a box, it
-// names the box's speaker.
 function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
@@ -89,10 +51,6 @@ function buildDisplayCalls(
 ): ParsedObject[] {
   const leads = statementLeads(parent, ctx);
   const isContinuation = leads && lineType === "action";
-  // Resolve the routing at compile time: dialogue → target "dialogue" + the
-  // cue; write → the layer is the target, and a write with no layer names no
-  // target, so the interpreter uses its default; everything else → the line
-  // type IS the target.
   let target: string | undefined;
   let character: string | undefined;
   if (isContinuation) {
@@ -109,10 +67,6 @@ function buildDisplayCalls(
     character = undefined;
   }
 
-  // A continuation's beats after a break route by the line it continues: the
-  // beat the run joined it to, and failing that the line the source reads
-  // before it. That line is outside this statement, so its routing is
-  // recorded as a read, once a beat takes it.
   let joined: ReturnType<typeof lexicalRouting> | undefined;
   const joinedRouting = () => {
     if (joined === undefined) {
@@ -127,10 +81,6 @@ function buildDisplayCalls(
     return joined;
   };
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
-  // A line that is only an inline conditional (`{if c then "a"}`) shows what
-  // the same conditional shows beside other text: its matching branch, or
-  // nothing (#1103). Each branch makes its own call, so a line with no
-  // matching branch makes none, rather than an empty line.
   if (ranges.length === 1 && !ranges[0]!.pause && !ranges[0]!.leads && !leads) {
     const only = soleExpressionSegment(parent, ranges[0]!, ctx);
     const conditional =
@@ -150,23 +100,16 @@ function buildDisplayCalls(
     const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
       divertTail,
     });
-    // Author `# tag`s are metadata, not text: they ride the call's `tags`.
     const { tags, rest: body } = separateTags(walked);
-    // Text after a mid-line divert is dropped: the line's call, which the
-    // divert follows, carries the text before it.
     if (divertTail.bodyIndex >= 0) {
       const before = separateTags(walked.slice(0, divertTail.bodyIndex)).rest;
       body.splice(before.length);
     }
-    // A `..` that begins the beat's text: the statement's own, one after a
-    // mid-line break, or one that begins the block line after a break.
     let beatLeads = (i === 0 && leads) || range.leads;
     if (body[0] instanceof LeadMark) {
       body.shift();
       beatLeads = true;
     }
-    // The spaces before a tag after the mark are a Text piece of their own, so
-    // the mark that ends the statement may stand before whitespace.
     let end = body.length;
     while (end > 0) {
       const last = body[end - 1];
@@ -175,29 +118,20 @@ function buildDisplayCalls(
     }
     const trailingGlue = body[end - 1] instanceof GlueMark ? body[end - 1] : null;
     if (trailingGlue) body.splice(end - 1);
-    // A lone `..` that begins a line of this beat warns where it stands.
     for (const mark of joinMidBodyGlue(body)) {
       calls.push(buildUnjoinedWarning(mark, ctx));
     }
-    // A plain divert holds the line open, so the target's first line joins
-    // this one's beat. A `load` arrow's directive is its own step, which the
-    // call's closing newline already starts.
     const divertJoins =
       divertTail.objects.length > 0 &&
       divertTail.objects.every(
         (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
       );
-    // A `load` line stays a directive when the line before it ends with `..`.
-    // Block bodies retain blank lines before their first meaningful token.
-    // Ignore that whitespace when consuming the grammar's load marker.
     const firstContent = body.findIndex(
       (part) => !(part instanceof Text) || part.text.trim().length > 0,
     );
     const loadArgs = lineType === "action" && body[firstContent] instanceof LoadMark
       ? body.slice(firstContent + 1) : null;
     if (loadArgs) {
-      // Everything after `load` names assets, so a `..` ending the line joins
-      // nothing onto it.
       if (trailingGlue) {
         reportLoadGlue(parent, range, ctx);
         const last = loadArgs.at(-1);
@@ -209,21 +143,10 @@ function buildDisplayCalls(
         buildLoadCall(loadArgs, range, ctx, tags, { open: divertJoins }),
       );
     } else {
-      // An empty body still makes a call, so the line keeps its own step. A
-      // statement with no body of its own is stamped from its start, since an
-      // empty block body's range sits on the line after it. Every range of a
-      // body a break split is stamped where it stands, even one whose visible
-      // body is empty (a range holding only a divert), so it sorts among the
-      // line's other beats.
       const stamped =
         body.length > 0 || range.pause || ranges.length > 1
           ? range
           : { from: parent.from, to: parent.from };
-      // A glued continuation takes its routing from the beat it joins, which
-      // only the run knows. Its calls name the continuation (`group`), and
-      // each beat after one of its breaks asks for the routing of the beat
-      // that `group` named (`inherit`), falling back to the routing its own
-      // line reads.
       calls.push(
         buildDisplayCall(
           isContinuation && i > 0 ? joinedRouting()?.target : target,
@@ -234,12 +157,8 @@ function buildDisplayCalls(
           tags,
           {
             pause: range.pause,
-            // `.. >` ends its step at the click like any break, and offers
-            // the box to the step after it.
             extend: trailingGlue != null && range.pause,
             glue: trailingGlue != null && !range.pause && !divertJoins,
-            // Source offsets start again in every script, so the file the
-            // continuation is written in is part of what names it.
             group: isContinuation
               ? `${ctx.filePath ?? ""}#${parent.from}`
               : undefined,
@@ -252,15 +171,12 @@ function buildDisplayCalls(
     }
     if (divertTail.objects.length > 0) {
       calls.push(...divertTail.objects);
-      // Reached only when a tunnel returns: it ends the joined line.
       calls.push(new Text("\n"));
     }
   }
   return calls;
 }
 
-// The interpolation a body range holds when it holds nothing else but
-// whitespace.
 function soleExpressionSegment(
   parent: SyntaxNode,
   range: { from: number; to: number },
@@ -273,19 +189,13 @@ function soleExpressionSegment(
   return only?.kind === "expr" ? only.node : null;
 }
 
-// A `..` that ends a line of a display body, held in the body until
-// `buildDisplayCalls` or `joinMidBodyGlue` resolves it. It generates nothing.
 class GlueMark extends ParsedObject {
-  /** Nothing: the writer emits it, and generation makes nothing of it. */
   protected override Prepare(): boolean {
     return false;
   }
 }
 
-// A `..` that begins a line of a body, held in the body in the same way,
-// with the source range of the mark.
 class LeadMark extends ParsedObject {
-  /** Nothing: the writer emits it, and generation makes nothing of it. */
   protected override Prepare(): boolean {
     return false;
   }
@@ -295,19 +205,8 @@ class LeadMark extends ParsedObject {
   }
 }
 
-// A grammar-classified load keyword. It remains literal text unless it is
-// the first object in an action beat.
 class LoadMark extends Text {}
 
-// Resolve the `..` marks inside a body in place. A body line that ends with
-// `..` joins the next when that one begins with `..`: the spaces written before
-// the first mark stay, and all the whitespace between the marks, the line
-// break included, is dropped, across however many Text pieces it spans (the
-// spaces before a line's `# tag` are a piece of their own). A mark without its
-// partner joins nothing: the line break stays, without the spaces written
-// before a lone `..` that ends a line. Returns the ranges of the lone `..`
-// marks that begin a line, which the story warns about when it shows the body,
-// as it does for any line that begins with `..` and joins nothing.
 function joinMidBodyGlue(
   body: ParsedObject[],
 ): { from: number; to: number }[] {
@@ -317,7 +216,6 @@ function joinMidBodyGlue(
       let before = i - 1;
       while (isBlankText(body[before])) before--;
       if (body[before] instanceof GlueMark) {
-        // Joined: drop both marks and the whitespace between them.
         body.splice(before, i - before + 1);
         i = before;
       } else {
@@ -326,7 +224,6 @@ function joinMidBodyGlue(
       }
     } else if (body[i] instanceof GlueMark) {
       body.splice(i, 1);
-      // The spaces before a tag after the mark are a Text piece of their own.
       let next = i;
       while (body[next] instanceof Text && /^[ \t]*$/.test((body[next] as Text).text)) {
         next++;
@@ -349,30 +246,6 @@ function isBlankText(obj: ParsedObject | undefined): boolean {
   return obj instanceof Text && !/[^ \t\n]/.test(obj.text);
 }
 
-// Split a display body's source range into beat sub-ranges at its `>` breaks.
-// The grammar names each break as a `Break` node (the `>` with the spaces
-// around it), so we read those nodes instead of re-scanning the source
-// (GRAMMAR.md §5). A split drops the break, and the newline after it when the
-// break ends a block line, so the next range starts where its text does.
-//
-// Every break ends the range before it, which is marked `pause`, and starts
-// the next. The range after the LAST break is the line's own end rather than
-// a beat a break ends, so it is dropped when it holds nothing: `A >` is one
-// beat, while `A > >` is that beat and the empty one the second break ends.
-//
-// A range with no content is a beat with no text in an inline line (`>`,
-// `> Hello`, `A > > B`). In a block the line before has already ended its
-// beat, or the block has just begun, so an empty range is only where the
-// break split it and is dropped; a block body that is nothing but breaks
-// keeps one range that shows nothing and waits for nothing.
-//
-// A break that ends its source line keeps the tags and comments written after
-// it on that line in the range before it, so a line's tags stay with the beat
-// the line shows.
-//
-// A `..` right after a break in the middle of a line begins the part after it
-// (`A .. > .. B`): the following range is marked `leads` and starts at the
-// break's end. Body walking consumes the named glue mark and its separator.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
@@ -387,8 +260,6 @@ function splitBodyRangeAtBreaks(
   for (const brk of breaks) {
     const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
     const lineEnd = newline < 0 ? bodyEnd : brk.to + newline;
-    // A break ends its line when nothing but tags and comments follows it
-    // there. Another break on the line ends a range of its own instead.
     const endsLine =
       !hasBodyContent(parent, brk.to, lineEnd, ctx) &&
       !breaks.some((other) => other.from >= brk.to && other.from < lineEnd);
@@ -405,7 +276,6 @@ function splitBodyRangeAtBreaks(
     }
     const mark = collectTopLevelInjections(parent, brk.to, lineEnd)
       .find((injection) => injection.kind === "leadingGlue" && injection.from === brk.to);
-    // Body walking consumes the named mark and its separator.
     segStart = brk.to;
     leads = mark != null;
   }
@@ -420,8 +290,6 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
 }
 
-// A beat of a display body: its source range, whether a break ends it
-// (`pause`), and whether a `..` in the middle of the line begins it (`leads`).
 interface BeatRange {
   from: number;
   to: number;
@@ -437,10 +305,6 @@ const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "leadingGlue",
 ]);
 
-// Whether [from, to) of a display body holds anything but whitespace and the
-// `marks` it names: by default author tags, comments, breaks and `..` marks. A
-// break followed on its line only by a `..` ends that line, so the beat it
-// ends carries the join.
 function hasBodyContent(
   parent: SyntaxNode,
   from: number,
@@ -459,10 +323,6 @@ function hasBodyContent(
   return pos < to && ctx.read(pos, to).trim().length > 0;
 }
 
-// Collect `Break` nodes that fall within [from, to), in source order. Skips
-// any `Break` nested inside a deeper display construct whose own lowerer owns
-// it — only top-of-body breaks split beats. (In practice block-display bodies
-// hold their breaks directly; this guard just keeps the walk total.)
 function collectBreaksInRange(
   parent: SyntaxNode,
   from: number,
@@ -486,14 +346,7 @@ function collectBreaksInRange(
   return out;
 }
 
-// ----- Body walking with interpolation splicing -----
-
 type BodySegment =
-  // `start` is the source offset the segment's raw text begins at. Block-mode
-  // trimming needs it to tell a segment that begins a source line (its leading
-  // whitespace is the body's indentation) from one that begins mid-line
-  // because another segment preceded it (its leading whitespace is the
-  // author's own spacing).
   | { kind: "text"; raw: string; start: number }
   | { kind: "load"; node: SyntaxNode }
   | { kind: "expr"; node: SyntaxNode }
@@ -515,34 +368,15 @@ function processDisplayBody(
   ctx: LowerContext,
   mode: "inline" | "block",
   options: {
-    // Receives a mid-line divert's objects instead of the body, so the
-    // caller can place them after the line's display() call. `bodyIndex` is
-    // the body length when the divert was reached.
     divertTail: { objects: ParsedObject[]; bodyIndex: number };
   },
 ): ParsedObject[] {
   let segments = collectBodySegments(parent, bodyStart, bodyEnd, ctx);
 
-  // Mode-specific text trimming.
   if (mode === "block") {
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i]!;
       if (seg.kind === "text") {
-        // Strip each line's leading indentation (block body lines are
-        // indented under their heading/cue). A segment's second and later
-        // lines always begin a source line, so they are always stripped. Its
-        // FIRST line begins a source line only when the segment itself starts
-        // at one; when another segment precedes it on the same line — a
-        // `{...}` interpolation, a `..` glue marker, a divert, a tag — the
-        // leading whitespace is the author's own word separator, and stripping
-        // it fuses the words (`The limit is {LIMIT} tonight.` →
-        // `The limit is 5tonight.`).
-        //
-        // A block body range begins at a line start (`extractBlockBodyRange`
-        // starts it after the cue's newline, and a range split at a break
-        // that ends a line starts after the break's newline) or right after
-        // a mid-line break, so the source character before a line-starting
-        // segment is a newline.
         const startsSourceLine =
           seg.start <= 0 || ctx.read(seg.start - 1, seg.start) === "\n";
         seg.raw = seg.raw
@@ -568,8 +402,6 @@ function processDisplayBody(
     if (last && last.kind === "text") {
       last.raw = last.raw.replace(/\s+$/, "");
     } else if (last?.kind === "load") {
-      // With no argument, the separator is trailing display whitespace:
-      // the beat says "load" rather than issuing an empty load directive.
       segments[segments.length - 1] = {
         kind: "text",
         raw: ctx.read(last.node.from, last.node.to).trimEnd(),
@@ -589,22 +421,10 @@ function processDisplayBody(
     } else if (seg.kind === "load") {
       out.push(new LoadMark(ctx.read(seg.node.from, seg.node.to)));
     } else if (seg.kind === "glue") {
-      // A `..` that ends a line of the body. It stays in the body as a
-      // marker: `buildDisplayCalls` marks the call `glue` or `extend` for one
-      // that ends a beat, and `joinMidBodyGlue` resolves one that ends an
-      // earlier line. Neither reaches the compiled program.
       out.push(new GlueMark());
     } else if (seg.kind === "lead") {
-      // A `..` that begins a line of the body, resolved in the same way.
       out.push(new LeadMark({ from: seg.from, to: seg.to }));
     } else if (seg.kind === "inlineGluedAlt") {
-      // `Here is text .. queue|A|B|C .. and more` — inline-glued
-      // alternator embedded in display content. The grammar matches
-      // a dedicated `LuauSparkdownInlineGlued{Sequential,Conditional}
-      // AlternatorBlock` rule whose `_begin`/`_content`/`_end` shape is
-      // structurally identical to the block-form and inline-`{}` forms.
-      // The same lowerer family handles all three via dynamic prefix
-      // derivation, so we just need to route this node through it.
       const lowered =
         seg.node.name === "LuauSparkdownInlineGluedSequentialAlternatorBlock"
           ? lowerSparkdownSequentialAlternatorBlock(
@@ -615,38 +435,18 @@ function processDisplayBody(
               makeAltNodeRef(seg.node),
               ctx,
             );
-      // The alternator keeps no block of its own: its diagnostics, such as a
-      // match with no arm, go to the context.
       forwardBlockDiagnostics(lowered, ctx);
       if (lowered.content) {
         for (const obj of lowered.content) out.push(obj);
       }
     } else if (seg.kind === "tag") {
-      // `text # tag` / `text # tag # more` — trailing tag annotation
-      // on a display line. The `Tags` grammar wrapper contains one or
-      // more `Tag` children; each Tag emits a `BeginTag` + content +
-      // `EndTag` triplet so the runtime collects the tag string into
-      // `currentTags`. `appendDisplayTagContent` handles `{var}`
-      // interpolations inside the tag body (single-identifier refs
-      // only — same constraint as the choice-tag interpolation path).
       appendDisplayTags(seg.node, ctx, out);
     } else if (seg.kind === "expr") {
-      // `{if cond then a else b}` — sparkdown's inline-conditional
-      // equivalent of ink's `{cond:a|b}`. Detect this shape inside
-      // an interpolation and lower as a `Conditional` ParsedObject
-      // (emits the chosen branch's value into the output stream)
-      // rather than as a plain Expression.
       const inlineCond = tryLowerInlineConditional(seg.node, ctx);
       if (inlineCond) {
-        // Its errors are the reading's of the whole brace.
         reportInlineIfReading(seg.node, ctx);
         out.push(inlineCond);
       } else {
-        // `{queue|A|B|C end}` / `{plural(n)|one="…"|other="…" end}` —
-        // inline alternator blocks. Route through the existing
-        // alternator lowerers (which produce a Sequence / Conditional
-        // wrapped in a Weave) and splice the result into the display
-        // content stream.
         const inlineAlt = tryLowerInlineAlternator(seg.node, ctx);
         if (inlineAlt) {
           for (const obj of inlineAlt) out.push(obj);
@@ -659,12 +459,7 @@ function processDisplayBody(
         }
       }
     } else {
-      // Inline mid-line divert (`text -> target`). Its objects go to
-      // `divertTail`, which the caller places after the line's call.
       const divertObjects = buildDivert(seg.node, ctx);
-      // A mid-line `load` arrow follows the standalone shape rules; the
-      // diagnostic rides the context buffer because this block's own
-      // diagnostics are not surfaced from this depth.
       const loadProblem = divertLoadShapeProblem(seg.node);
       if (loadProblem && ctx.diagnostics) {
         ctx.diagnostics.push({
@@ -690,11 +485,6 @@ function processDisplayBody(
   return out;
 }
 
-// Walk [bodyStart, bodyEnd) and produce a linear list of raw text segments
-// interleaved with top-level `LuauInterpolatedStringExpression` and `Divert`
-// nodes. Nested interpolations (e.g. inside a backtick string in the body)
-// are intentionally not promoted — they belong to the backtick string's own
-// interpolation.
 function collectBodySegments(
   parent: SyntaxNode,
   bodyStart: number,
@@ -718,9 +508,6 @@ function collectBodySegments(
   while (i < bodyEnd) {
     const next = injections[idx];
     if (next && next.from === i && next.kind === "break") {
-      // A break left in a range (a trailing one, or one on a line the split
-      // passed over) contributes no text, and neither does a `..` right after
-      // it that ends the line: no part follows the break for it to begin.
       idx++;
       i = next.to;
       const after = injections[idx];
@@ -732,10 +519,7 @@ function collectBodySegments(
     }
     if (next && next.from === i && next.kind === "leadingGlue") {
       idx++;
-      // A `..` after something else on its line is text.
       if (next.from !== bodyStart && !startsItsLine(next.node, ctx)) continue;
-      // A line that begins with `..` shows its text without the mark or the
-      // spaces after it.
       flush();
       out.push({ kind: "lead", from: next.from, to: next.to });
       i = next.to;
@@ -755,11 +539,6 @@ function collectBodySegments(
       } else if (next.kind === "glue") {
         out.push({ kind: "glue" });
       } else if (next.kind === "comment") {
-        // Emit nothing — the comment is removed. Swallow the trailing
-        // newline ONLY for a whole-line comment (nothing but indent before
-        // the `//`), so the line vanishes cleanly. For a hypothetical
-        // end-of-line comment with text before it (`say hi // note`), keep
-        // the newline — otherwise the next line would merge onto this one.
         const wholeLine =
           next.from <= bodyStart || ctx.read(next.from - 1, next.from) === "\n";
         i = next.to;
@@ -776,7 +555,6 @@ function collectBodySegments(
       continue;
     }
     if (next && next.from < i) {
-      // Defensive: skip past any injection we've already passed.
       idx++;
       continue;
     }
@@ -819,8 +597,6 @@ function collectTopLevelInjections(
         }
         return;
       }
-      // Don't descend into a backtick string — its inner `{...}` belongs to
-      // the string itself, not the surrounding display body.
       if (node.name === "LuauInterpolatedString") return;
       if (
         isExplicitRuleName(node.name, "LuauInterpolatedStringExpression") ||
@@ -832,13 +608,6 @@ function collectTopLevelInjections(
         return;
       }
       if (node.name === "Divert") {
-        // The grammar captures the whitespace before `->` inside the
-        // Divert node (as `Indent` / `OptionalSeparator`). Anchor the
-        // injection on the `DivertMark` so any leading whitespace remains
-        // as part of the preceding text segment — that space is what
-        // separates the text from the diverted-to content visually. A range
-        // may begin inside that whitespace (after the `..` of `A > .. -> s`),
-        // so the anchor is what must fall inside it.
         const mark = getDescendent("DivertMark", node);
         const from = mark ? mark.from : node.from;
         if (from >= bodyStart && node.to <= bodyEnd) {
@@ -848,12 +617,6 @@ function collectTopLevelInjections(
       }
       if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
-          // The alternator's `_begin` captures the leading whitespace,
-          // the opening `..`, the keyword, and the optional modifier, and
-          // its `_end` the closing `..`. To preserve the visible space
-          // before the alternator opens (`Before .. queue|A|B|C ..` →
-          // `Before A`), anchor the injection's `from` on the opening `..`
-          // rather than on the alternator node's leading edge.
           const beginNode = findChildByNameDirect(node, `${node.name}_begin`);
           const openingGlue = beginNode
             ? getDescendent("AlternatorGlue", beginNode)
@@ -863,22 +626,12 @@ function collectTopLevelInjections(
         }
         return;
       }
-      // `Tags` wraps one or more trailing `# tag` annotations after
-      // display text on the same line. The grammar already parses these
-      // correctly (see grammar/flow/dynamic-tag-on-display-line.snap);
-      // we just need to splice them as a separate "tag" segment so the
-      // surrounding text doesn't absorb the `#` and so `appendDisplayTags`
-      // can emit a `BeginTag` / content / `EndTag` triplet per Tag child.
       if (isExplicitRuleName(node.name, "Tags")) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "tag", node, from: node.from, to: node.to });
         }
         return;
       }
-      // A `//` display comment inside a display body (e.g. a `// note`
-      // line under a dialogue cue). Splice it out entirely — it contributes
-      // no text. The trailing newline is consumed in collectBodySegments so
-      // the line vanishes rather than leaving a blank.
       if (
         node.name === "SparkdownLineComment" ||
         node.name === "SparkdownInlineComment"
@@ -888,29 +641,18 @@ function collectTopLevelInjections(
         }
         return;
       }
-      // A `..` that ends a line of display content. The `Glue` grammar node
-      // spans any whitespace before it plus the `..`, which is always its
-      // final two characters. Anchor the injection on the `..` itself
-      // (`node.to - 2`) so the whitespace before it stays in the preceding
-      // text segment: the spaces written before the mark are the ones the
-      // join keeps (`shadows ..` + `and` → `shadows and`). The `..` marks of
-      // an inline-glued alternator are `AlternatorGlue` nodes inside the
-      // alternator, which the branch above does not descend into.
       if (node.name === "Glue") {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "glue", node, from: node.to - 2, to: node.to });
         }
         return;
       }
-      // A block body line that begins with `..`.
       if (node.name === "LeadingGlue") {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "leadingGlue", node, from: node.from, to: node.to });
         }
         return;
       }
-      // A `>` break with the spaces around it. `splitBodyRangeAtBreaks`
-      // decides where beats split; within a range a break is no text.
       if (node.name === "Break") {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "break", node, from: node.from, to: node.to });
@@ -929,26 +671,6 @@ function collectTopLevelInjections(
   return out;
 }
 
-// ----- Escape / newline handling for display text -----
-
-// Resolves escapes in one raw text segment of a display body:
-//   - `\<space|tab|newline>` → a line break, plus the run of spaces/tabs
-//     immediately after it (the author's line-continuation indent) is dropped
-//   - `\<other>`             → kept as literal `\<char>` (so `\*` stays `\*`)
-//   - plain `\n` mid-content → a line break
-//
-// A line break carries no whitespace of its own, whichever of the two forms
-// the author used to write it. The block-body caller has already stripped the
-// indentation that puts continuation lines under their cue, so adding a space
-// back here would put a space in the story text that the author never wrote —
-// and, next to a `..` glue marker whose own separating space is already in the
-// preceding segment, would make the join two spaces wide and audibly lengthen
-// the pause the letter-by-letter typing puts between the joined words.
-//
-// The result goes straight into a `Text` object and is never re-scanned, so
-// nothing downstream can mistake a `{` after a break for an escaped one:
-// `collectBodySegments` lifts every interpolation out into its own segment
-// before this function sees the text.
 function applyDisplayEscapes(raw: string): string {
   const input = raw.replace(/\r\n?/g, "\n");
   let out = "";
@@ -981,37 +703,17 @@ function applyDisplayEscapes(raw: string): string {
   return out;
 }
 
-// ----- Tag annotations on display lines -----
-
-// Lowers a `Tags` node (one or more `Tag` annotations after a display
-// line's text content) into `BeginTag` / content / `EndTag` triplets,
-// pushing them into `out`. Each `Tag` child becomes one triplet.
-// Tag bodies support `{var}` interpolations — single-identifier
-// references emit a `VariableReference` with `outputWhenComplete=true`;
-// non-identifier expressions and bare text emit as literal text. The
-// runtime walks the resulting BeginTag/StringValue/VariableReference
-// /EndTag sequence and accumulates the substituted strings into
-// `currentTags`. (Same machinery as the choice-tag interpolation path
-// in `lowerChoice.ts > appendTagContent` — keeping the two impls
-// parallel; an expression-lowerer rewrite would unify them.)
 function appendDisplayTags(
   tagsNode: SyntaxNode,
   ctx: LowerContext,
   out: ParsedObject[],
 ): void {
-  // Tags grammar wraps its content in a `Tags_content` child (begin/
-  // content/end shape). Look at the named `Tags_content` first; fall
-  // back to direct iteration for safety.
   const contentNode =
     findChildByNameDirect(tagsNode, "Tags_content") ?? tagsNode;
   let child = contentNode.firstChild;
   while (child) {
     if (isExplicitRuleName(child.name, "Tag")) {
       out.push(new Tag(true));
-      // `Tag`'s capture 3 wraps with the `TagContent` named rule
-      // (§6.4: address by name, not by `_cN` index). `TagContent`
-      // lives one level inside the auto-generated `_c3` capture
-      // wrapper, so `getDescendent` is required to reach it.
       const tagContent = getDescendent(["TagContent", "SparkdownExplicitTagContent"], child);
       if (tagContent) {
         for (const obj of lowerTagContent(tagContent, ctx)) {
@@ -1024,8 +726,6 @@ function appendDisplayTags(
   }
 }
 
-// ----- Body region extraction -----
-
 function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
   from: number;
   to: number;
@@ -1034,23 +734,17 @@ function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
     ["ColonSeparator", "ColonOperator"],
     nodeRef.node,
   );
-  // A line that begins with `..` shows its text without the mark.
   const glue = leadingGlue(nodeRef.node);
   if (glue) return { from: glue.to, to: nodeRef.to };
   if (colon) return { from: colon.to, to: nodeRef.to };
   return { from: nodeRef.from, to: nodeRef.to };
 }
 
-// The `..` an inline line's text begins with, if it begins with one: an action
-// line's first mark, or the one after a dialogue cue's or write line's colon.
 function leadingGlue(node: SyntaxNode): SyntaxNode | null {
   const begin = findChildByNameDirect(node, `${node.name}_begin`);
   return (begin && getDescendent("LeadingGlue", begin)) ?? null;
 }
 
-// Whether a display statement's text begins with `..`: the mark of an inline
-// line, or one that begins the first line of a block's body. An action line's
-// mark after an interpolation on its line (`{3} .. and more.`) is text.
 function statementLeads(node: SyntaxNode, ctx: LowerContext): boolean {
   const glue = leadingGlue(node);
   if (glue) return !ACTION_STATEMENTS.has(node.name) || beginsItsText(glue, ctx);
@@ -1075,32 +769,16 @@ const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "BlockWrite",
 ]);
 
-// Whether nothing but whitespace stands before `node` on its source line.
 function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
   const column = ctx.characterNumber(node.from);
   return !ctx.read(node.from - column, node.from).trim();
 }
 
-// Whether `node` begins a line's text: nothing but whitespace stands before it
-// on its source line, or the `|` that opens an alternator arm written on one
-// line (`| .. B`).
 function beginsItsText(node: SyntaxNode, ctx: LowerContext): boolean {
   const column = ctx.characterNumber(node.from);
   return /^[ \t]*(?:\|[ \t]*)?$/.test(ctx.read(node.from - column, node.from));
 }
 
-// The marks that end a line a top-level interpolation node began, for an
-// action that follows such a node on its line. The grammar no longer produces
-// that shape: a line that starts with an interpolation is one ImplicitAction
-// (#1746), whose marks lower with the rest of its display line. When the shape
-// is met, in `{x} ..`, `{x} >`, `{x} .. >` or `{x} .. # tag` the action holds
-// only the marks (a `..` there parses as one that begins an inline action). The
-// interpolation's calls carry them, as the beats of a line written out would:
-// each `>` in `breaks` ends a beat that waits for a click, a `..` with no `>`
-// makes the line's beat `glue`, and one right before the last `>` makes the
-// beat that `>` ends `extend`. `spaces` are the spaces written before that
-// `..`, which the join keeps, and `tags` are the line's tags. A `..` after the
-// last `>` begins no part, so it marks nothing.
 interface LineEndMarks {
   breaks: SyntaxNode[];
   glue: boolean;
@@ -1134,7 +812,6 @@ function lineEndMarks(
     tags: [],
   };
   let pos = node.from;
-  // The `..` since the last `>`, which the next `>` would follow.
   let glue = false;
   for (const injection of collectTopLevelInjections(node, node.from, node.to)) {
     if (ctx.read(pos, injection.from).trim()) return null;
@@ -1175,7 +852,6 @@ const ADJACENT_WHITESPACE: ReadonlySet<string> = nodeNameSet([
 const LOAD_GLUE_MESSAGE =
   "A `load` line cannot end with `..`. Name every asset it loads on the line.";
 
-// Report the `..` that ends a `load` line, on the mark's range.
 function reportLoadGlue(
   parent: SyntaxNode,
   range: { from: number; to: number },
@@ -1199,7 +875,6 @@ function reportLoadGlue(
   });
 }
 
-// The display line each statement kind routes by.
 const DISPLAY_LINE_TYPES: Record<string, string> = {
   InlineDialogue: "dialogue",
   BlockDialogue: "dialogue",
@@ -1216,8 +891,6 @@ const DISPLAY_LINE_TYPES: Record<string, string> = {
   BlockWrite: "write",
 };
 
-/** The `routing` read (`LoweringRead`) of the continuation lowered from
- *  `node`, as the document now answers it. */
 export function continuationRoutingRead(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -1225,11 +898,6 @@ export function continuationRoutingRead(
   return JSON.stringify(lexicalRouting(node, ctx));
 }
 
-// The routing of the line a glued continuation continues, as the SOURCE reads
-// it: the display line before it, or the line that one continues in turn. The
-// run may join the continuation to another line instead (one a divert brought
-// here), which is what `inherit` asks for; this is the answer when no such
-// beat ran, as after a jump straight to the continuation's own beat.
 function lexicalRouting(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -1238,7 +906,6 @@ function lexicalRouting(
   while (sib) {
     const lineType = DISPLAY_LINE_TYPES[sib.name];
     if (!lineType) return null;
-    // A continuation routes by what the line IT continues routes by.
     if (lineType === "action" && statementLeads(sib, ctx)) {
       sib = precedingConstruct(sib);
       continue;
@@ -1261,11 +928,6 @@ function lexicalRouting(
   return null;
 }
 
-// Sibling node names that sit between two display constructs without being
-// content themselves — skipped when looking back for the preceding construct.
-// A `//` comment line is among them: it shows nothing, so a `..` reaches
-// across it at run time, and the line after it is the continuation of the
-// line before it.
 const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
@@ -1278,9 +940,6 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Tags",
 ]);
 
-// What begins a branch of an `if` or an arm of an alternator block, before
-// the branch's first statement. A story `if` or `elseif` reads its condition,
-// with its `then`, with the bounded rule (#1907).
 const BRANCH_OPENERS: ReadonlySet<string> = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
@@ -1288,7 +947,6 @@ const BRANCH_OPENERS: ReadonlySet<string> = nodeNameSet([
   "LuauAlternatorSeparator",
 ]);
 
-// The bodies of those branches and arms.
 const BRANCH_BODIES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownIfBlock_content",
   "LuauSparkdownElseifBlock_content",
@@ -1303,11 +961,6 @@ const BRANCHING_BLOCKS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownConditionalAlternatorBlock",
 ]);
 
-// The construct the run reaches just before `node`: the sibling before it,
-// past whitespace, comments and tags. The first statement of an `if` branch or
-// an alternator arm runs right after whatever ran before the block (its
-// condition shows nothing), so for that statement it is the construct before
-// the block.
 function precedingConstruct(node: SyntaxNode): SyntaxNode | null {
   let current = node;
   for (;;) {
@@ -1324,9 +977,6 @@ function precedingConstruct(node: SyntaxNode): SyntaxNode | null {
   }
 }
 
-// For block forms, the body spans every line after the first newline. The
-// per-line indentation is stripped later by `processDisplayBody` in `block`
-// mode.
 function extractBlockBodyRange(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -1347,9 +997,6 @@ function readIdentifier(
   return ctx.read(node.from, node.to).trim();
 }
 
-// A dialogue line's cue as the interpreter reads it: the character's name, and
-// the parenthetical written after it (`ALICE (softly)`), which the beat shows
-// over its text.
 function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
   const name = getDescendent("DialogueCharacterName", node);
   if (!name) return null;
@@ -1359,8 +1006,6 @@ function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
     ? `${cue} ${ctx.read(parenthetical.from, parenthetical.to).trim()}`
     : cue;
 }
-
-// ----- Inline display forms -----
 
 export function lowerInlineDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -1385,7 +1030,6 @@ export function lowerImplicitAction(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  // The interpolation before it on its line lowers these marks.
   if (lineEndMarks(nodeRef.node, ctx)) return {};
   return wrapInWeave(
     buildDisplayCalls(
@@ -1400,17 +1044,6 @@ export function lowerImplicitAction(
   );
 }
 
-// A `{ ... }` interpolation node that reaches the statement dispatcher on
-// its own. A line that starts with an interpolation is an ImplicitAction
-// (#1746) and lowers through the display statement path, so the top-level
-// grammar no longer produces this node as a statement. When one is lowered
-// here, the inner expression lowers directly, marked `outputWhenComplete` so
-// its value is captured, into a `display({ text })` call on the default
-// target.
-//
-// Interpolations on one source line (`{x}{y}`, or `{x} {y}`) form one
-// display line, as ink's `{x}{y}` does: the first of the chain lowers the
-// whole chain to one call, and the rest contribute nothing of their own.
 export function lowerLuauInterpolatedStringExpression(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -1436,9 +1069,6 @@ export function lowerLuauInterpolatedStringExpression(
     }
   }
   if (body.length === 0) return {};
-  // The marks that end the line (`{x} ..`, `{x} .. >`, `{x} > >`) make the
-  // line's beats: the interpolation is the first, and each `>` after the first
-  // adds an empty beat that waits for a click.
   let after = last.nextSibling;
   while (after && ADJACENT_WHITESPACE.has(after.name)) after = after.nextSibling;
   const marks = after ? lineEndMarks(after, ctx) : null;
@@ -1474,9 +1104,6 @@ export function lowerLuauInterpolatedStringExpression(
   return wrapInWeave(calls);
 }
 
-// The interpolation sibling on the same source line next to `node` in the
-// given direction, skipping whitespace (`{x} {y}` is one line as `{x}{y}`
-// is), or null.
 function adjacentInterpolationSibling(
   node: SyntaxNode,
   direction: "prev" | "next",
@@ -1512,15 +1139,10 @@ export function lowerInlineAction(
 ): CompiledBlock {
   let { from, to } = extractInlineBodyRange(nodeRef);
   const glue = leadingGlue(nodeRef.node);
-  // The interpolation before it on its line lowers these marks (`{x} ..`).
   if (lineEndMarks(nodeRef.node, ctx)) return {};
   if (glue && beginsItsText(glue, ctx)) {
-    // A `..` line with nothing after it but tags or a comment shows nothing,
-    // so it lowers to nothing and leaves the offer for the line after it.
     if (!hasBodyContent(nodeRef.node, from, to, ctx)) return {};
   } else if (glue) {
-    // Something began the line before this `..` (`{3} .. and more.`), so the
-    // mark is in the middle of the line, where it is text.
     from = glue.from;
   }
   return wrapInWeave(
@@ -1576,8 +1198,6 @@ export function lowerInlineWrite(
     buildDisplayCalls(nodeRef.node, from, to, ctx, "inline", "write", target),
   );
 }
-
-// ----- Block (multi-line) display forms -----
 
 export function lowerBlockDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -1657,54 +1277,16 @@ export function lowerBlockWrite(
   );
 }
 
-// Detects the `{if cond then a else b}` pattern inside an interpolation
-// node and lowers it as an inkjs `Conditional` ParsedObject. The
-// grammar parses the if-expression as a string of sibling nodes inside
-// the interpolation: `LuauTernaryExpression` (carrying the condition),
-// `LuauThenKeyword`, then-value sibling(s), optional `LuauElseKeyword`
-// + else-value sibling(s). We rebuild that into a Conditional with
-// `ConditionalSingleBranch` branches whose `_innerWeave` contains the
-// per-branch value as an Expression with `outputWhenComplete = true`,
-// so the chosen branch evaluates and emits its value into the output
-// stream — same end-effect as ink's `{cond:a|b}`.
-// Sparkdown alternator blocks (`queue|chain|cycle|shuffle…|…end` and
-// `plural(x)|one="…"|other="…" end`) are normally top-level constructs
-// dispatched by `lower()` to their dedicated lowerers. When they appear
-// *inline* — inside a `LuauInterpolatedStringExpression`, e.g.
-// `{queue|A|B|C end}` — the inline interpolation path would otherwise
-// drop them on the floor (expression-token collection doesn't know how
-// to handle alternator nodes).
-//
-// This helper detects the case where an interpolation's content is an
-// alternator block and routes the lowering through the existing
-// top-level lowerers, returning the resulting `ParsedObject[]` so the
-// caller can splice them into the surrounding display content. The
-// runtime then runs the Sequence / Conditional in place, emitting the
-// chosen arm's content into the output stream — same semantics as the
-// block form, but spelled inline.
 function tryLowerInlineAlternator(
   interpNode: SyntaxNode,
   ctx: LowerContext,
 ): ParsedObject[] | null {
-  // The grammar uses two different rule names depending on whether the
-  // alternator is top-level (`LuauSparkdown*AlternatorBlock`, has a
-  // statement-ending terminator) or inline-inside-`{...}` (plain
-  // `Luau*AlternatorBlock`, has a `]/)/}/end`-terminator). The lowerers
-  // handle both via dynamic prefix derivation from `nodeRef.node.name`,
-  // so we just need to find either variant here. Look for the
-  // interpolation-content child first (a `_content` wrapper), then any
-  // direct child below.
-  // `{{...}}` is call-only: never reinterpret its body as an alternator —
-  // fall through to `lowerExpressionFromContainer`, which enforces the
-  // shorthand semantics (`{{queue|A|B end}}` is an error, not an alternator).
   if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const content = findFirstDirectChild(
     interpNode,
     "LuauInterpolatedStringExpression_content",
   );
   const host = content ?? interpNode;
-  // A structural word that holds no arms is a name, which the expression
-  // path lowers (`{match(x)}` calls `match`, I-1310).
   const seq =
     findFirstDirectChild(host, "LuauSequentialAlternatorBlock") ??
     findFirstDirectChild(host, "LuauSparkdownSequentialAlternatorBlock");
@@ -1730,10 +1312,6 @@ function tryLowerInlineAlternator(
   return null;
 }
 
-// Construct a synthetic `SparkdownSyntaxNodeRef` from a bare `SyntaxNode`.
-// The alternator lowerers only consult `nodeRef.node` for tree-walking;
-// they don't use the other `SyntaxNodeRef` fields. The cast is safe
-// because both paths agree on the structural minimum.
 function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {
   return {
     from: node.from,
@@ -1744,15 +1322,11 @@ function makeAltNodeRef(node: SyntaxNode): SparkdownSyntaxNodeRef {
   } as unknown as SparkdownSyntaxNodeRef;
 }
 
-// `wrapBranch`, when given, turns a branch's output into the branch's content
-// (a whole-line conditional's display call).
 function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
   wrapBranch?: (body: ParsedObject[]) => ParsedObject[],
 ): Conditional | null {
-  // Call-only shorthand: `{{if … then … else …}}` must NOT become a
-  // Conditional — see the matching guard in `tryLowerInlineAlternator`.
   if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const ifExpr = findFirstDirectChild(interpNode, "LuauTernaryExpression");
   if (!ifExpr) return null;
@@ -1762,22 +1336,8 @@ function tryLowerInlineConditional(
   );
   if (!firstCondContent) return null;
 
-  // Walk the children of `LuauTernaryExpression`. Since the rule no
-  // longer ends at `(?=then)`, the `then`/`else` clauses parse as
-  // nested `LuauThenExpression`/`LuauElseExpression` children, with
-  // `elseif` appearing as a free-standing `LuauElseifKeyword` (caught
-  // by `LuauTernaryKeyword`) between branches:
-  //   LuauTernaryExpression
-  //     ├ LuauTernaryExpressionCondition  (first if-cond)
-  //     ├ LuauThenExpression              (`then <body1>`)
-  //     ├ LuauElseifKeyword (×N)          → start elseif-cond phase
-  //     ├ <cond-N expression nodes>
-  //     ├ LuauThenExpression              (`then <bodyN>`)
-  //     └ LuauElseExpression?             (`else <body>`)
   type Branch = { cond: Expression | null; body: SyntaxNode[] };
   const branches: Branch[] = [];
-  // Its condition and values are lowered from their own readings, whose
-  // errors the reading of the whole brace reports (`reportInlineIfReading`).
   const firstCond = lowerExpressionFromContainer(firstCondContent, ctx, null);
   if (!firstCond) return null;
   let current: Branch = { cond: firstCond, body: [] };
@@ -1791,15 +1351,8 @@ function tryLowerInlineConditional(
     name === "RequiredWhitespace" ||
     name === "Newline";
 
-  // The actual child clauses live inside the `_content` wrapper that
-  // begin/end rules emit, not as direct children of the rule node.
   const ifContent =
     findChildByNameDirect(ifExpr, "LuauTernaryExpression_content") ?? ifExpr;
-  // The first `LuauTernaryExpressionCondition` was already lowered as
-  // `firstCond` above. Subsequent `LuauTernaryExpressionCondition`
-  // children belong to `elseif` clauses — they appear because the
-  // condition rule's `(?<=if\b{{WS}}*)` lookbehind also fires after
-  // `elseif`'s trailing `if\b`. Track whether we've consumed the first.
   let seenFirstCond = false;
   let elseifCondNode: SyntaxNode | null = null;
   let child = ifContent.firstChild;
@@ -1839,7 +1392,6 @@ function tryLowerInlineConditional(
       elseifCondNode = null;
       elseifCondNodes = [];
     } else if (isWhitespaceNode(child.name)) {
-      // Structural whitespace between siblings.
     } else if (phase === "in-elseif-cond") {
       elseifCondNodes.push(child);
     }
@@ -1847,10 +1399,6 @@ function tryLowerInlineConditional(
   }
   branches.push(current);
 
-  // Build the inkjs `Conditional` + `ConditionalSingleBranch` list.
-  // First branch is the if-branch (uses the initialCondition); each
-  // elseif becomes its own boolean-test branch; the trailing else is
-  // marked `isElse=true`.
   const initial = branches[0]!.cond;
   if (!initial) return null;
   const out: ConditionalSingleBranch[] = [];
@@ -1869,7 +1417,6 @@ function tryLowerInlineConditional(
     } else if (b.cond === null) {
       branch.isElse = true;
     } else {
-      // elseif: own condition, no equality match (`matchingEquality=false`)
       branch.ownExpression = b.cond;
     }
     out.push(branch);
@@ -1878,8 +1425,6 @@ function tryLowerInlineConditional(
   return new Conditional(initial, out);
 }
 
-// Direct child lookup that does NOT descend into a `_content` wrapper.
-// Used to find an alternator's `_begin` / `_content` / `_end` rule children.
 function findChildByNameDirect(
   parent: SyntaxNode,
   name: string,
@@ -1896,7 +1441,6 @@ function findFirstDirectChild(
   parent: SyntaxNode,
   name: string,
 ): SyntaxNode | null {
-  // Look inside the parent's `_content` wrapper if present (begin/end rules).
   const contentName = `${parent.name}_content`;
   let scan = parent.firstChild;
   while (scan) {

@@ -1,7 +1,3 @@
-// A divert whose target does not resolve reports `target not found` at compile
-// time, and that diagnostic is its only symptom: the compiled program still
-// loads, so one bad target never stops the rest of the story from running.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -17,14 +13,14 @@ describe("a program with an unresolved divert target", () => {
     ["a mid-line tunnel chain in plain text", "Hi -> t -> there."],
     ["a standalone divert", "-> there"],
   ])("loads when the target is %s", (_, line) => {
-    const source = `-> main\nscene main\n  ${line}\n  done\nend\n${tunnelScene}`;
+    const source = `scene start\n  ${line}\n  done\nend\n${tunnelScene}`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual(["target not found: `-> there`"]);
     expect(ctx.story).toBeDefined();
   });
 
   test("loads when the tunnel itself is unresolved", () => {
-    const source = `-> main\nscene main\n  HERO: Hi -> nope -> there.\n  done\nend\n`;
+    const source = `scene start\n  HERO: Hi -> nope -> there.\n  done\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([
       "target not found: `-> nope`",
@@ -34,8 +30,7 @@ describe("a program with an unresolved divert target", () => {
   });
 
   test("runs the content that does not reach the unresolved divert", () => {
-    const source = `-> main
-scene main
+    const source = `scene start
   Before
   if false then
     -> there
@@ -50,7 +45,7 @@ end
   });
 
   test("reports a story error when it reaches the unresolved divert", () => {
-    const source = `-> main\nscene main\n  Before\n  -> there\nend\n`;
+    const source = `scene start\n  Before\n  -> there\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual(["target not found: `-> there`"]);
     expect(() => ctx.story.ContinueMaximally()).toThrow("Divert target not found.");

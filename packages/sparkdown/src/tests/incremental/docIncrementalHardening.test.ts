@@ -1,21 +1,3 @@
-// Regression nets for the adversarial-review findings on PR #282
-// (https://github.com/ImpowerGames/impower/pull/282#issuecomment-5087796022):
-//
-// 1. EOF edits (backspace/delete/type-over at the document tail) must not
-//    reuse stale chunks past the new document end — the no-op continuation
-//    fast path must only fire for TRUE no-ops (packet ends exactly at the
-//    zero-width edit point AND the fragment covers the whole input).
-// 2. Abandoned partial parses mutate the shared cached compiler; parses off
-//    older trees must detect that (epoch check) and fall back to scratch
-//    instead of producing corrupt trees.
-// 3. A leftover `ahead` packet from an abandoned parse must never be
-//    spliced into a later tree (cleared on every reuse).
-// 4. An impure splice must refuse a truncated tail (finishAfterSplice
-//    retires the tokenizer, so the tail must reach region.to).
-// 5. Restarts at mid-line pure boundaries must widen their window to the
-//    line start so `^`/lookbehind assertions match a from-scratch parse
-//    (Whitespace vs TrailingWhitespace divergence).
-
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
@@ -68,7 +50,6 @@ function cachedCompiler(tree: Tree): any {
   return Object.values((tree as any).props ?? {}).find((c: any) => c?.packet);
 }
 
-/** Incrementally reparse and assert byte-identity + a healthy packet. */
 function checkedReparse(
   name: string,
   tree: Tree,
@@ -91,10 +72,6 @@ function checkedReparse(
   expect(incTree.length, `${name}: tree length`).toBe(newText.length);
   return { tree: incTree, text: newText };
 }
-
-// ---------------------------------------------------------------------------
-// 1. EOF edit matrix
-// ---------------------------------------------------------------------------
 
 describe("hardening — edits at the document tail", () => {
   const base = bigThenBlock(30);
@@ -134,8 +111,6 @@ describe("hardening — edits at the document tail", () => {
       const parser = getParser();
       const tree = parser.parse(doc(base) as any);
       const r = checkedReparse(c.name, tree, base, c.edit(base));
-      // chained follow-up edit off the incremental tree must also hold
-      // (a poisoned packet fails HERE even when the first tree looks fine)
       checkedReparse(
         c.name + " (chained mid-doc edit)",
         r.tree,
@@ -181,10 +156,6 @@ describe("hardening — edits at the document tail", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 2 + 3. Abandoned and branched parses
-// ---------------------------------------------------------------------------
-
 describe("hardening — abandoned and branched parses", () => {
   const base = bigThenBlock(40);
 
@@ -207,14 +178,10 @@ describe("hardening — abandoned and branched parses", () => {
         "dialogue line number 20",
         "dialogue line number XX",
       );
-      // start an incremental parse and ABANDON it (its constructor/advances
-      // already mutated the shared cached compiler)
       const { partial } = startPartial(base, tree, edit);
       for (let i = 0; i < advances; i++) {
         if (partial.advance()) break;
       }
-      // a fresh parse from the SAME original tree + fragments must still be
-      // byte-identical (the epoch check must refuse the mutated compiler)
       const otherEdit = replaceEdit(
         base,
         "dialogue line number 30",
@@ -240,11 +207,9 @@ describe("hardening — abandoned and branched parses", () => {
     const textA = applyEdit(base, editA);
     const treeA = parser.parse(doc(textA) as any, fragmentsFor(tree, editA));
     expect(dump(treeA, textA)).toBe(dump(parser.parse(doc(textA) as any), textA));
-    // branch B parses from the ORIGINAL tree after branch A mutated the compiler
     const textB = applyEdit(base, editB);
     const treeB = parser.parse(doc(textB) as any, fragmentsFor(tree, editB));
     expect(dump(treeB, textB)).toBe(dump(parser.parse(doc(textB) as any), textB));
-    // and continuing off branch A still works
     const editA2 = replaceEdit(textA, "branch A line", "branch A line more");
     const textA2 = applyEdit(textA, editA2);
     const treeA2 = parser.parse(doc(textA2) as any, fragmentsFor(treeA, editA2));
@@ -256,21 +221,17 @@ describe("hardening — abandoned and branched parses", () => {
   test("stale-ahead resurrection sequence: abandon, tail-rewrite, then grow the doc", () => {
     const parser = getParser();
     const tree = parser.parse(doc(base) as any);
-    // 1. abandon a mid-doc edit parse (mints an ahead in the cached compiler)
     const { partial } = startPartial(
       base,
       tree,
       replaceEdit(base, "dialogue line number 10", "dialogue line number QQ"),
     );
     partial.advance();
-    // 2. complete a parse that rewrites the tail (shrinks the doc)
     const cut = base.indexOf("    L30:");
     const edit2: Edit = { from: cut, to: base.length, insert: "  end\n  done\nend\n" };
     const text2 = applyEdit(base, edit2);
     const tree2 = parser.parse(doc(text2) as any, fragmentsFor(tree, edit2));
     expect(dump(tree2, text2)).toBe(dump(parser.parse(doc(text2) as any), text2));
-    // 3. grow the doc back — any resurrected stale-ahead chunks would put
-    // phantom nodes past the end or diverge from scratch
     const edit3: Edit = {
       from: text2.length,
       to: text2.length,
@@ -283,23 +244,14 @@ describe("hardening — abandoned and branched parses", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 5. Mid-line pure-boundary restart window semantics
-// ---------------------------------------------------------------------------
-
 describe("hardening — mid-line restart window semantics", () => {
   test("trailing whitespace after a top-level `end` stays identical across an incremental restart", () => {
-    // The `end` line carries trailing spaces; a pure split point is minted
-    // mid-line right after the zero-width loop close, so an unwidened
-    // restart window would flip `(?<!^)`-style assertions
-    // (Whitespace vs TrailingWhitespace).
     const text =
       "while x do\n  foo()\nend  \nAn action line here.\nAnother action line.\n";
     const parser = getParser();
     const tree = parser.parse(doc(text) as any);
     const edit = replaceEdit(text, "Another action line.", "Another EDITED line.");
     const r = checkedReparse("trailing-ws restart", tree, text, edit);
-    // and again, one line closer to the boundary
     checkedReparse(
       "trailing-ws restart 2",
       r.tree,
@@ -309,18 +261,8 @@ describe("hardening — mid-line restart window semantics", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 6. Restart at a blank line inside open scopes
-// ---------------------------------------------------------------------------
-
 describe("hardening — restart at a blank line inside open scopes", () => {
   test("a restart at a blank line keeps the line's newline record in the tree", () => {
-    // The tokenizer holds one token back, so a blank line's split request
-    // is still waiting for its newline token when the next line's request
-    // arrives. A restart at that blank line must mint its chunk there; if
-    // the newline token joined the last kept chunk (already compiled), its
-    // record was lost while the enclosing scopes still counted it, and the
-    // tree came out malformed.
     let text = [
       "function f(...)",
       "  local x, t, f, maker = 1, {}, print, print",

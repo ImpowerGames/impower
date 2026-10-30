@@ -1,5 +1,3 @@
-// math.noise + debug.traceback + debug.info.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -42,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("math.noise", () => {
   test("deterministic — same input gives same output", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0.5))
@@ -59,10 +59,11 @@ end
   });
 
   test("integer inputs return 0 at the lattice corners", () => {
-    // Perlin noise is 0 at integer lattice points (gradient * 0 = 0).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0, 0, 0))
@@ -79,8 +80,10 @@ end
 
   test("output stays within ~[-1, 1]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.noise(0.1, 0.2, 0.3))
@@ -93,9 +96,6 @@ end
     for (const v of recorded) {
       expect(typeof v).toBe("number");
       const n = v as number;
-      // Perlin's nominal range is roughly [-sqrt(3)/2, sqrt(3)/2] ≈
-      // [-0.87, 0.87] but corner values can spill slightly. Allow
-      // a generous margin.
       expect(n).toBeGreaterThanOrEqual(-1.1);
       expect(n).toBeLessThanOrEqual(1.1);
     }
@@ -105,8 +105,10 @@ end
 describe("debug.traceback", () => {
   test("returns a string containing 'stack traceback:'", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = debug.traceback()
@@ -119,8 +121,10 @@ end
 
   test("prepends the optional message", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = debug.traceback("oh no")
@@ -135,8 +139,10 @@ end
 describe("debug.info", () => {
   test("level 1 returns the current frame's path with `s` option", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local src = debug.info(1, "s")
@@ -149,8 +155,10 @@ end
 
   test("multi-letter opts return multi-value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s, l = debug.info(1, "sl")
@@ -159,14 +167,15 @@ host_record(l)
 end
 `);
     expect(errors).toEqual([]);
-    // Source is a string, line is -1 (we don't track line info).
     expect(recorded).toEqual(["string", -1]);
   });
 
   test("out-of-range level returns nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local v = debug.info(999, "s")

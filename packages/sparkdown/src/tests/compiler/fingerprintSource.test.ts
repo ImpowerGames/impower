@@ -1,12 +1,3 @@
-// The text a durable save's fingerprint hashes is read from the parse
-// (`fingerprintSource`, I-1112): every comment the grammar defines is left
-// out of it, and the text of every string it defines is kept as written.
-// The kinds are the grammar's own: every node the parser builds, a rule's or
-// a capture's, whose TextMate scope is a comment or a string (a tag, scoped
-// as both a comment and a tag, is text the program carries). Each has a
-// sample below in which the grammar reads it, so a kind the grammar adds
-// fails the first test until it has one.
-
 import { describe, expect, test } from "vitest";
 import { createSparkdownParser } from "../../compiler/utils/createSparkdownParser";
 import { normalizeSource } from "../../compiler/utils/fingerprintSource";
@@ -23,12 +14,6 @@ const kindsOf = (scope: "comment" | "string"): string[] =>
     })
     .map((node) => node.typeId);
 
-// Kinds no script reads. The three `LuauStyle…`/`LuauUI…` rules are ones
-// nothing includes (`grammarReachability.test.ts`). The explicit tags are
-// included only by `SparkdownExplicitDivertPath`, whose end matches at the
-// first character that is not part of a target's name, before a tag's
-// leading whitespace or `#` can start the annotation. A kind leaves this
-// list when a sample reads it.
 const UNREAD = [
   "LuauStylePropertyValue",
   "LuauUIAttributeValue",
@@ -38,7 +23,6 @@ const UNREAD = [
   "SparkdownExplicitTags",
 ];
 
-// A script holding a comment, and the same script without it.
 const COMMENTS: [string, string][] = [
   ["& x = 1 -- a note", "& x = 1"],
   ["& y = --[[ a block ]] 2", "& y = 2"],
@@ -62,13 +46,9 @@ const COMMENTS: [string, string][] = [
     "layout main with\n  row {\n    // a slash comment\n    text\n  }\nend",
     "layout main with\n  row {\n    text\n  }\nend",
   ],
-  // The grammar reads a shebang's text after its `#!` as the comment.
   ["#!/usr/bin/env luau\n& x = 1", "#!/usr/bin/env other\n& x = 1"],
   ["& local x = 1 --[[c]] print(x)", "& local x = 1 print(x)"],
-  // After a value that can be called, as a name can.
   ["& local x = foo --[[a\n]] print(1)", "& local x = foo print(1)"],
-  // Its closing brackets stand outside the comment where a token follows
-  // them, as the grammar reads it in a statement.
   ["& local x = 1 --[[a\n]]print(x)", "& local x = 1 --[[b\n]]print(x)"],
   ["& local x: number --[[c]] = 1", "& local x: number = 1"],
   [
@@ -77,11 +57,8 @@ const COMMENTS: [string, string][] = [
   ],
 ];
 
-// A script holding a string, and the same script with the spacing inside the
-// string changed, or for a string that holds no whitespace, a character.
 const STRINGS: [string, string][] = [
   ['& s = "a  b"', '& s = "a b"'],
-  // A selector's parameters: a string, a style attribute, an event's.
   [
     'style card with\n  ("a  b") {\n  }\nend',
     'style card with\n  ("a b") {\n  }\nend',
@@ -197,8 +174,6 @@ const STRINGS: [string, string][] = [
   ],
 ];
 
-// Two scripts that differ only in spacing that is not text: the spacing of
-// logic, indentation, the space at a line's end, an interpolation's Luau.
 const SAME_SPACING: [string, string][] = [
   ["& x  =  1 +   2", "& x=1+2"],
   ["HERO:\n  (softly)\n  Hi.", "HERO:\n      (softly)\n    Hi."],
@@ -207,15 +182,12 @@ const SAME_SPACING: [string, string][] = [
   ["& y = 1 - -2", "& y = 1 -  -2 -- a note"],
 ];
 
-// Two scripts that differ in spacing that is displayed, or in tokens that
-// spacing alone tells apart.
 const OTHER_SPACING: [string, string][] = [
   ["Hello ((sfx)) there.", "Hello((sfx))there."],
   ["& y = 1 - -2", "& y = 1 - 2"],
   ["& local x = 1", "& localx = 1"],
 ];
 
-// The kinds of `scope` the grammar reads in a script.
 const read = (script: string, kinds: ReadonlySet<string>): Set<string> => {
   const found = new Set<string>();
   createSparkdownParser()

@@ -1,12 +1,3 @@
-// Golden-master: choices rendering + a click → EventMessage round-trip.
-//
-// The interpreter emits one text target per choice (`choice 0`, `choice 1`, …)
-// and lists them in `instructions.choices`. `Coordinator.display()` writes each
-// choice's text and registers a `click` observer per choice; clicking fires an
-// EventMessage back into the engine, which clears the choices and advances the
-// story via `chosePathToContinue(index)`. This locks BOTH the render stream and
-// the post-click clear+advance stream.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -27,7 +18,7 @@ end
 `;
 
 const CHOICE_STORY = `${SCREEN}
--> start
+
 
 scene start
   choose
@@ -70,12 +61,10 @@ describe("choices", () => {
     const observed = harness.observedElementIds();
     expect(observed.length).toBe(3);
 
-    // Click choice 0; capture only what the round-trip produces.
     harness.reset();
     harness.emitEvent("click", observed[0]!, { button: 0 });
     await flushMicrotasks();
     expect(harness.snapshotWire("ui/")).toMatchSnapshot("ui-after-click");
-    // The story advanced (chosePathToContinue fired).
     expect(
       harness.messages.some((m) => m.method === "game/chosePathToContinue"),
     ).toBe(true);

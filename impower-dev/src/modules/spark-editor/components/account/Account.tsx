@@ -14,41 +14,13 @@ import workspace from "../../workspace/WorkspaceStore";
 export const propDefaults = {};
 export type AccountProps = Partial<typeof propDefaults>;
 
-/**
- * Side-drawer account panel. Two layouts:
- *
- *   - **Unauthenticated**: Import Project (file input), Export Project,
- *     then a "Sync With Google Drive" call-to-action pinned to the bottom.
- *     If the user previously signed in but revoked consent, the bottom
- *     CTA flips to "Grant Access To Google Drive".
- *
- *   - **Authenticated**: Load Remote Project + Save Remote Project as
- *     elevated `fab-bg` buttons up top, then the user's name/email row
- *     pinned to the bottom; clicking that row opens a Radix dropdown
- *     with a Sign Out item.
- *
- * On mount the panel fetches the current Google account (if any), records
- * it via `Workspace.window.setAccount`, and kicks off the workspace's
- * project load — that's what flips the top-of-page sync status from skeleton
- * to "Saved in cache". Account identity lives in the central store
- * (`workspace.signals.account` / `signinLabel`), so an externally-revoked
- * grant — which the sync provider detects on an `invalid_grant` response and
- * pushes via `Workspace.window.clearAccount()` — re-renders this panel back to
- * unauthenticated automatically, with no provider event subscription here.
- */
 export default function Account(_p: AccountProps) {
-  // Account identity is global session state, not component-local: read the
-  // derived store signals. `account` is the usable signed-in account (uid +
-  // consented), `signinLabel` is the signed-out CTA text. Both are written via
-  // Workspace.window.setAccount()/clearAccount() — by the sign-in flow below
-  // and by the sync provider on out-of-band revocation.
   const account = workspace.signals.account.value;
   const signinLabel = workspace.signals.signinLabel.value;
   const [signoutOpen, setSignoutOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const accountRowRef = useRef<HTMLDivElement | null>(null);
 
-  // Close signout popup on outside click or Escape.
   useEffect(() => {
     if (!signoutOpen) return;
     const onClick = (e: MouseEvent) => {
@@ -112,10 +84,6 @@ export default function Account(_p: AccountProps) {
     }
   };
 
-  // DEV-ONLY: nuke the origin's OPFS (the local editor project) and reload.
-  // A replacement for the now-broken "OPFS Explorer" browser extension.
-  // Gated by `import.meta.env.DEV` at the render site below so it is tree-
-  // shaken out of production bundles.
   const handleClearOpfs = async () => {
     if (
       !window.confirm(
@@ -208,7 +176,6 @@ export default function Account(_p: AccountProps) {
     <div class="flex flex-1 flex-col">
       {account ? (
         <>
-          {/* Authenticated: elevated fab-bg buttons up top. */}
           <FabRow
             icon={<Download class="size-5" />}
             onClick={handleLoadRemoteProject}
@@ -222,7 +189,6 @@ export default function Account(_p: AccountProps) {
             Save Remote Project
           </FabRow>
           <div class="flex-1" />
-          {/* Account row + popup. */}
           <div ref={accountRowRef} class="relative">
             <button
               type="button"
@@ -267,7 +233,6 @@ export default function Account(_p: AccountProps) {
         </>
       ) : (
         <>
-          {/* Hidden file input for Import Project. */}
           <input
             ref={fileInputRef}
             type="file"
@@ -298,10 +263,7 @@ export default function Account(_p: AccountProps) {
           </Row>
         </>
       )}
-      {/* DEV-ONLY utility: clear this origin's OPFS workspace and reload.
-          `import.meta.env.DEV` is Vite's build-time boolean — `false` in
-          production page builds, so this branch is tree-shaken out and the
-          button never ships. Replaces the broken "OPFS Explorer" extension. */}
+
       {import.meta.env.DEV ? (
         <Row icon={<Trash class="size-5" />} onClick={handleClearOpfs}>
           Clear OPFS (dev)
@@ -311,10 +273,6 @@ export default function Account(_p: AccountProps) {
   );
 }
 
-/** Transparent-bg row with hover/press overlay. Matches sparkle's
- *  `<s-button color="transparent" text-color="fab-fg" p="16 24" spacing="24"
- *  size="lg" width="100%">` — also resolves the previous regression where
- *  Import Project had no hover state. */
 function Row({
   icon,
   onClick,
@@ -340,8 +298,6 @@ function Row({
   );
 }
 
-/** Elevated `fab-bg` row used for the authenticated CTAs. Replaces the
- *  legacy `<s-button bg-color="fab-bg" shadow="1">`. */
 function FabRow({
   icon,
   onClick,

@@ -1,10 +1,3 @@
-// Trailing `--` / `//` line comments on struct/style value lines must NOT leak
-// into the compiled value. The grammar's unquoted value rules (`StylingValue`
-// / `UnquotedStringFieldValue`) end the value node before the comment, and the
-// struct lowerers read that node (quoted values keep a `--`/`//` inside their
-// quotes).
-// See project_sparkle_element_line_comments.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -42,9 +35,9 @@ describe("Sparkle struct/style value trailing comments", () => {
   test("values without a whitespace-delimited comment are untouched", () => {
     const style = compile(
       `style card with\n` +
-        `  transition = all 0.2s ease-in\n` + // spaces, no marker
-        `  grid-template = auto-fill\n` + // single hyphen
-        `  bg = url(http://x.com/y)\n` + // `//` after `:` is not a comment
+        `  transition = all 0.2s ease-in\n` +
+        `  grid-template = auto-fill\n` +
+        `  bg = url(http://x.com/y)\n` +
         `end\n`,
     ).styles?.["card"];
     expect(style?.["transition"]).toBe("all 0.2s ease-in");
@@ -59,12 +52,6 @@ describe("Sparkle struct/style value trailing comments", () => {
     expect(style?.["quip"]).toBe("a -- b");
   });
 
-  // The element-line "is this a block header?" test is `<stuff>:` followed by
-  // end-of-line or a comment. It used to accept a BARE `//` there, so the `:` in
-  // a `://` URL looked like a block-opening colon with `//rest-of-url` as its
-  // trailing comment — the line was reparsed as a header and the prop value came
-  // back as the fragment `"https`. `//` only opens a comment when followed by
-  // whitespace/end-of-line, so the header test now requires that too.
   test("a `://` URL in a prop value is not mistaken for a block header", () => {
     const layouts = (
       compile(

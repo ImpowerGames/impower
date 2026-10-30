@@ -51,7 +51,6 @@ export const parseLayerName = (source: string): ParsedLayerName => {
       !options.length ||
       options.some((option) => !ATTRIBUTE_WORD.test(option))
     ) {
-      // An invalid name is never partially interpreted as a different condition.
       result.conditions = [];
       return invalid(
         `Layer "${source}" has invalid condition "${part}"; write group.option and put default last.`,

@@ -1,11 +1,3 @@
-// The debugger served from the program engine (#702,
-// docs/engine/binary-program.md, sections 8 and 9): a breakpoint is a set of
-// addresses `addressAt(uri, line)` gives, checked by integer comparison; a
-// stack frame is named from its symbol and stands on the line of the
-// statement it runs or called from; each frame shows its own temporaries; and
-// the lines a breakpoint can sit on come from the chunks' line tables, which
-// put a statement of logic in a scene (an assignment, a tunnel, a call) on its
-// own line.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -30,8 +22,6 @@ const scriptFiles = (texts: Record<string, string>) =>
     languageId: "sparkdown",
   }));
 
-/** The program of a compile configured as the player's worker configures
- *  its compiler. */
 function compile(texts: Record<string, string>) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -47,8 +37,6 @@ interface Recorded {
   params: any;
 }
 
-/** A game of `texts` on the program engine, with every notification it
- *  emits recorded. */
 function debugGame(texts: string | Record<string, string>) {
   const { program } = compile(
     typeof texts === "string" ? { [MAIN]: texts } : texts,
@@ -56,7 +44,6 @@ function debugGame(texts: string | Record<string, string>) {
   expect(program.chunks).toBeDefined();
   const game = new Game({
     now: () => 0,
-    // No timer fires, so nothing advances the game while a case inspects it.
     setTimeout: (() => 0) as never,
     resolve: (path: string) => path,
     fetch: async () => "",
@@ -69,14 +56,12 @@ function debugGame(texts: string | Record<string, string>) {
     emitted.push(message as unknown as Recorded);
   });
   const of = (method: string) => emitted.filter((m) => m.method === method);
-  /** The line the last stop, at a breakpoint or after a step, reported. */
   const stoppedAt = () =>
     emitted
       .filter(
         (m) => m.method === "game/hitBreakpoint" || m.method === "game/stepped",
       )
       .at(-1)?.params?.location?.range?.start?.line as number | undefined;
-  /** Continues until the game reports a breakpoint, at most `times` times. */
   const continueToBreakpoint = (times = 8) => {
     const hits = of("game/hitBreakpoint").length;
     for (let i = 0; i < times; i += 1) {
@@ -91,37 +76,37 @@ function debugGame(texts: string | Record<string, string>) {
 }
 
 const NESTED = [
-  "store health = 100", //       0
-  "store result = 0", //         1
-  "-> main", //                  2
-  "scene main", //               3
-  "  local mainLoc = 111", //    4
-  "  Main here.", //             5
-  "  health = health - 25", //   6
-  "  -> sub ->", //              7
-  "  result = add(2, 3)", //     8
-  "  Back in main {result}.", // 9
-  "  done", //                   10
-  "end", //                      11
-  "scene sub", //                12
-  "  local subLoc = 222", //     13
-  "  Sub here.", //              14
-  "  More sub.", //              15
-  "  ->->", //                   16
-  "end", //                      17
-  "function add(a, b)", //       18
-  "  local sum = a + b", //      19
-  "  return sum", //             20
-  "end", //                      21
+  "store health = 100",
+  "store result = 0",
+  "",
+  "scene main",
+  "  local mainLoc = 111",
+  "  Main here.",
+  "  health = health - 25",
+  "  -> sub ->",
+  "  result = add(2, 3)",
+  "  Back in main {result}.",
+  "  done",
+  "end",
+  "scene sub",
+  "  local subLoc = 222",
+  "  Sub here.",
+  "  More sub.",
+  "  ->->",
+  "end",
+  "function add(a, b)",
+  "  local sum = a + b",
+  "  return sum",
+  "end",
+  "scene start",
+  "  -> main",
+  "end",
   "",
 ].join("\n");
 
 const names = (vars: { name: string; value: string }[]) =>
   vars.map((v) => `${v.name}=${v.value}`);
 
-/** Counts each write watch the game installs on the story's variables
- *  (`VariablesState.writeWatch`, #1664), and each write the engine reports
- *  to it. */
 function countWriteWatch(story: ProgramStory) {
   const variables = story.state.variablesState;
   const counts = { variables, installs: 0, calls: 0 };
@@ -156,7 +141,6 @@ describe("the debugger on the program engine", () => {
     h.game.continue();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(14);
-    // The beat has not displayed: continuing finishes it and waits there.
     h.game.continue();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.of("game/awaitingInteraction").at(-1)?.params.location.range.start.line).toBe(14);
@@ -195,7 +179,6 @@ describe("the debugger on the program engine", () => {
     ]);
     const lines = trace.stackFrames.map((f) => f.location?.range.start.line);
     expect(trace.stackFrames.map((f) => f.name)).toEqual(["sub", "main"]);
-    // The caller stands on the tunnel that pushed the frame above it.
     expect(lines).toEqual([15, 7]);
     expect(h.game.getThreads()).toEqual([{ id: 0, name: "sub" }]);
   });
@@ -214,16 +197,12 @@ describe("the debugger on the program engine", () => {
     expect(page(0)).toEqual(["1:sub", "0:main"]);
     expect(page(0, 1)).toEqual(["1:sub"]);
     expect(page(1, 1)).toEqual(["0:main"]);
-    // A level count past the stack, or none (0, as the protocol says), is
-    // the rest of the stack.
     expect(page(0, 20)).toEqual(["1:sub", "0:main"]);
     expect(page(0, 0)).toEqual(["1:sub", "0:main"]);
     expect(page(1)).toEqual(["0:main"]);
     expect(page(2, 1)).toEqual([]);
   });
 
-  /** Stops in `add` on its first line (where a function breakpoint stops),
-   *  then steps over each line to `line`. */
   const stopInAdd = (h: ReturnType<typeof debugGame>, line: number) => {
     h.game.setFunctionBreakpoints([{ name: "add" }]);
     h.game.start();
@@ -258,22 +237,22 @@ describe("the debugger on the program engine", () => {
     expect(h.game.load(save)).toBe(true);
     const trace = h.frames();
     expect(trace.totalFrames).toBe(2);
-    // A save keeps no last instruction, so the frame stands where the
-    // runtime record the save carried last ran.
     expect(trace.stackFrames.map((f) => f.location?.range.start.line)).toEqual([14, 7]);
   });
 
   it("places the frame of a checkpoint loaded in place on the beat it shows, as a load of its save does (#1200)", () => {
     const script = [
-      "choose",
-      "  First.",
-      "  & aside()",
-      "  * One",
-      "end",
-      "choose",
-      "  Second.",
-      "  & aside()",
-      "  * Two",
+      "scene start",
+      "  choose",
+      "    First.",
+      "    & aside()",
+      "    * One",
+      "  end",
+      "  choose",
+      "    Second.",
+      "    & aside()",
+      "    * Two",
+      "  end",
       "end",
       "function aside()",
       '  print("Aside.")',
@@ -301,8 +280,8 @@ describe("the debugger on the program engine", () => {
     expect(inPlace.game.story.currentText).toBe("First.\n");
     const fromJson = debugGame(script);
     expect(fromJson.game.load(inPlace.game.checkpointJson(checkpoint)!)).toBe(true);
-    expect(topLine(fromJson)).toBe(1);
-    expect(topLine(inPlace)).toBe(1);
+    expect(topLine(fromJson)).toBe(2);
+    expect(topLine(inPlace)).toBe(2);
   });
 
   it("shows the temporaries of the frame that runs, and of the frame below it", () => {
@@ -336,11 +315,9 @@ describe("the debugger on the program engine", () => {
     const h = debugGame(NESTED);
     stopInAdd(h, 19);
     expect(h.frames().totalFrames).toBe(2);
-    // Over: the next line of `add`, in the same frame.
     h.game.step("over");
     expect(h.stoppedAt()).toBe(20);
     expect(h.frames().totalFrames).toBe(2);
-    // Out: back in `main`, which called it.
     h.game.step("out");
     expect(h.frames().totalFrames).toBe(1);
     expect(h.stoppedAt()).toBe(8);
@@ -358,10 +335,6 @@ describe("the debugger on the program engine", () => {
     expect(h.frames().stackFrames[0]?.moduleId).toBe("function");
   });
 
-  // A method of a define written in a function reads the function's local
-  // through a global cell the compiler names (`DefineCellBinding`, I-823),
-  // which the Vars scope leaves out as Temps leaves out the compiler's
-  // temporaries.
   it("leaves out of the globals the cell a define's method reads a function's local through", () => {
     const h = debugGame(
       [
@@ -375,10 +348,13 @@ describe("the debugger on the program engine", () => {
         "  end",
         "  return thing.get()",
         "end",
-        "-> main",
+        "",
         "scene main",
         "  Got {outer(7)}.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -389,7 +365,6 @@ describe("the debugger on the program engine", () => {
     expect(variablesState.GlobalVariableExistsWithName("__cell$$thing$get$a")).toBe(true);
     const shown = names(h.game.getVarVariables());
     expect(shown).toContain("health=100");
-    // A scoped define's key starts with its `$` and stays.
     expect(shown.filter((entry) => entry.split("=")[0]!.indexOf("$") > 0)).toEqual([]);
   });
 
@@ -401,17 +376,11 @@ describe("the debugger on the program engine", () => {
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     const health = h.game.getVarVariables().find((v) => v.name === "health");
-    // It is placed where the global is declared, and stops once an
-    // assignment has written it, on the assignment's line.
     expect(set[0]!.location?.range.start.line).toBe(0);
     expect(h.stoppedAt()).toBe(6);
     expect(health?.value).toBe("75");
   });
 
-  // A breakpoint stops the game part way through a line, which the game
-  // keeps in progress to finish when continued. A save taken there is of the
-  // beat the line started from, and leaves the line to finish as it would
-  // have (#1693).
   it("saves while a breakpoint holds a line in progress, and finishes the line after", () => {
     const h = debugGame(NESTED);
     h.game.setBreakpoints([{ file: MAIN, line: 14 }]);
@@ -426,7 +395,6 @@ describe("the debugger on the program engine", () => {
     expect(errors.map((m) => m.params?.message)).toEqual([]);
     expect(JSON.parse(save).story).toBeTruthy();
 
-    // The line still finishes, as it does when nothing saved.
     expect(h.game.story.asyncContinueComplete).toBe(false);
     h.game.continue();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
@@ -435,7 +403,6 @@ describe("the debugger on the program engine", () => {
       g.getVarVariables().find((v) => v.name === "health")?.value;
     expect(health(h.game)).toBe("75");
 
-    // The save is the beat before the line, which continues to that line.
     const loaded = debugGame(NESTED);
     expect(loaded.game.load(save)).toBe(true);
     expect(health(loaded.game)).toBe("100");
@@ -462,8 +429,6 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(9);
   });
 
-  // A step in stops once the function's entry code has bound every
-  // parameter, at the `EnterBlock` a function breakpoint stops at (#1743).
   it("steps in to a function once it has bound every parameter", () => {
     const h = debugGame(NESTED);
     h.game.setBreakpoints([{ file: MAIN, line: 8 }]);
@@ -474,23 +439,22 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
   });
 
-  /** The script of `main` calling `call`, with `functions` after it: the
-   *  call is on line 4 and the first function starts on line 7. */
   const calling = (call: string, functions: string[]) =>
     [
-      "store result = 0", //          0
-      "-> main", //                   1
-      "scene main", //                2
-      "  Before.", //                 3
-      `  result = ${call}`, //        4
-      "  done", //                    5
-      "end", //                       6
+      "store result = 0",
+      "",
+      "scene main",
+      "  Before.",
+      `  result = ${call}`,
+      "  done",
+      "end",
       ...functions,
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
 
-  /** Steps in from the call on line 4, returning where the game stopped and
-   *  the temporaries it shows there. */
   const stepInFromCall = (script: string) => {
     const h = debugGame(script);
     h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
@@ -581,19 +545,21 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(19);
   });
 
-  // A temporary named like a global shadows it, for reading and for writing.
   const SHADOWED = [
-    "store health = 100", //      0
-    "-> main", //                 1
-    "scene main", //              2
-    "  local health = 10", //     3
-    "  local count = 0", //       4
-    "  First.", //                5
-    "  health = health - 1", //   6
-    "  count = count + 1", //     7
-    "  Second {health}.", //      8
-    "  done", //                  9
-    "end", //                     10
+    "store health = 100",
+    "",
+    "scene main",
+    "  local health = 10",
+    "  local count = 0",
+    "  First.",
+    "  health = health - 1",
+    "  count = count + 1",
+    "  Second {health}.",
+    "  done",
+    "end",
+    "scene start",
+    "  -> main",
+    "end",
     "",
   ].join("\n");
 
@@ -608,7 +574,6 @@ describe("the debugger on the program engine", () => {
     expect(set[0]!.location?.range.start.line).toBe(7);
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-    // It stops once the write has run, on the line that wrote it.
     expect(h.stoppedAt()).toBe(7);
     expect(names(h.game.getTempVariables())).toContain("count=1");
   });
@@ -617,7 +582,6 @@ describe("the debugger on the program engine", () => {
     const h = debugGame(SHADOWED);
     const set = h.game.setDataBreakpoints([{ dataId: "health" }]);
     expect(set[0]!.verified).toBe(true);
-    // Placed where the global is declared.
     expect(set[0]!.location?.range.start.line).toBe(0);
     h.game.start();
     h.game.continue();
@@ -626,7 +590,6 @@ describe("the debugger on the program engine", () => {
     const global = (h.game.story as unknown as ProgramStory).state
       .variablesState.GetGlobalVariableValue("health") as { value?: unknown };
     expect(global.value).toBe(100);
-    // The temporary's own breakpoint does stop there.
     const local = debugGame(SHADOWED);
     local.game.setDataBreakpoints([{ dataId: "main.health" }]);
     local.game.start();
@@ -637,20 +600,23 @@ describe("the debugger on the program engine", () => {
 
   it("stops at a breakpoint inside a function a builtin calls, and records the lines it ran", () => {
     const text = [
-      "store order = \"\"", //               0
-      "-> main", //                          1
-      "scene main", //                       2
-      "  local t = {3, 1, 2}", //            3
-      "  Before.", //                        4
-      "  & table.sort(t, less)", //          5
-      "  order = table.concat(t, \",\")", // 6
-      "  Sorted {order}.", //                7
-      "  done", //                           8
-      "end", //                              9
-      "function less(a, b)", //              10
-      "  local before = a < b", //           11
-      "  return before", //                  12
-      "end", //                              13
+      "store order = \"\"",
+      "",
+      "scene main",
+      "  local t = {3, 1, 2}",
+      "  Before.",
+      "  & table.sort(t, less)",
+      "  order = table.concat(t, \",\")",
+      "  Sorted {order}.",
+      "  done",
+      "end",
+      "function less(a, b)",
+      "  local before = a < b",
+      "  return before",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const free = debugGame(text);
@@ -661,23 +627,16 @@ describe("the debugger on the program engine", () => {
       .ranges as number[];
     const holds = (line: number) =>
       ran.some((_, k) => k % 2 === 0 && ran[k]! <= line && line <= ran[k + 1]!);
-    // The comparator's lines ran inside the step that called `table.sort`.
     expect(holds(11)).toBe(true);
     expect(holds(12)).toBe(true);
     const h = debugGame(text);
     h.game.setBreakpoints([{ file: MAIN, line: 11 }]);
     h.game.start();
     h.continueToBreakpoint();
-    // The comparator runs inside the one step that calls `table.sort`, and
-    // the game stops once that step returns, standing on the last line the
-    // comparator ran.
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(12);
   });
 
-  // A divert to a function, in a scene the story never enters, is a
-  // construct the program cannot compile: an error at the divert, and no
-  // chunks, so a game cannot be given the program.
   it("reports a divert to a function at its line, and makes no chunks", () => {
     const text = `${NESTED}scene unused\n  -> add\nend\n`;
     const { program } = compile({ [MAIN]: text });
@@ -688,13 +647,9 @@ describe("the debugger on the program engine", () => {
         d.range.start.line,
         typeof d.message === "string" ? d.message : d.message.value,
       ]);
-    // `NESTED` holds lines 0 to 21, so the scene starts on line 22 and the
-    // divert is line 23. The divert's own error is the one error on that
-    // line (#1708): the program's unsupported-construct report is not
-    // added on top of it.
-    expect(errors.filter(([line]) => line === 23)).toEqual([
+    expect(errors.filter(([line]) => line === 26)).toEqual([
       [
-        23,
+        26,
         "A function can't be diverted to: call `add` instead, as `& add()` on a line of its own or `{add()}` in a line.",
       ],
     ]);
@@ -704,25 +659,26 @@ describe("the debugger on the program engine", () => {
   it("keeps a temporary's data breakpoint on its binding while an inner block shadows it", () => {
     const h = debugGame(
       [
-        "-> main", //                 0
-        "scene main", //              1
-        "  local health = 10", //     2
-        "  First.", //                3
-        "  do", //                    4
-        "    local health = 99", //   5
-        "    Inner {health}.", //     6
-        "  end", //                   7
-        "  health = health - 1", //   8
-        "  Second {health}.", //      9
-        "  done", //                  10
-        "end", //                     11
+        "",
+        "scene main",
+        "  local health = 10",
+        "  First.",
+        "  do",
+        "    local health = 99",
+        "    Inner {health}.",
+        "  end",
+        "  health = health - 1",
+        "  Second {health}.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
     h.game.start();
     expect(h.game.setDataBreakpoints([{ dataId: "main.health" }])[0]!.verified).toBe(true);
-    // The inner declaration, and the block's end, write no value to the
-    // outer `health`.
     h.game.continue();
     expect(h.game.story.currentText).toBe("Inner 99.\n");
     expect(h.of("game/hitBreakpoint")).toHaveLength(0);
@@ -732,24 +688,25 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("health=9");
   });
 
-  // A `local function` in a scene is declared as a function of its own; a
-  // function value is written in its statement's chunk.
   it.each([["local function bump()"], ["local bump = function()"]])(
     "fires a data breakpoint on a temporary of a function written inside a scene: %s",
     (header) => {
     const text = [
-      "-> main", //                    0
-      "scene main", //                 1
-      `  ${header}`, //                2
-      "    local n = 0", //            3
-      "    n = n + 1", //              4
-      "    return n", //               5
-      "  end", //                      6
-      "  Start.", //                   7
-      "  local r = bump()", //         8
-      "  Got {r}.", //                 9
-      "  done", //                     10
-      "end", //                        11
+      "",
+      "scene main",
+      `  ${header}`,
+      "    local n = 0",
+      "    n = n + 1",
+      "    return n",
+      "  end",
+      "  Start.",
+      "  local r = bump()",
+      "  Got {r}.",
+      "  done",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const paused = debugGame(text);
@@ -774,28 +731,29 @@ describe("the debugger on the program engine", () => {
     },
   );
 
-  // Both functions show as `<anonymous>` (#1729); each keeps a scope of
-  // its own, so a data breakpoint on one's local is not the other's.
   it("keeps the data breakpoint of one anonymous function's temporary off another's of the same name", () => {
     const text = [
-      "-> main", //                    0
-      "scene main", //                 1
-      "  local first = function()", // 2
-      "    local n = 0", //            3
-      "    n = n + 1", //              4
-      "    return n", //               5
-      "  end", //                      6
-      "  local second = function()", // 7
-      "    local n = 0", //            8
-      "    n = n + 2", //              9
-      "    return n", //               10
-      "  end", //                      11
-      "  Start.", //                   12
-      "  local b = second()", //       13
-      "  local a = first()", //        14
-      "  Got {a} {b}.", //             15
-      "  done", //                     16
-      "end", //                        17
+      "",
+      "scene main",
+      "  local first = function()",
+      "    local n = 0",
+      "    n = n + 1",
+      "    return n",
+      "  end",
+      "  local second = function()",
+      "    local n = 0",
+      "    n = n + 2",
+      "    return n",
+      "  end",
+      "  Start.",
+      "  local b = second()",
+      "  local a = first()",
+      "  Got {a} {b}.",
+      "  done",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const paused = debugGame(text);
@@ -815,31 +773,31 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(9);
     expect(names(h.game.getTempVariables())).toContain("n=2");
-    // The other function's write to its own `n` does not stop.
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
   });
 
   it("fires a data breakpoint on a temporary a closure captured, when the closure writes it", () => {
     const text = [
-      "-> main", //                       0
-      "scene main", //                    1
-      "  Start.", //                      2
-      "  Got {outer()}.", //              3
-      "  done", //                        4
-      "end", //                           5
-      "function outer()", //              6
-      "  local n = 0", //                 7
-      "  local bump = function()", //     8
-      "    n = n + 1", //                 9
-      "    return n", //                  10
-      "  end", //                         11
-      "  return bump()", //               12
-      "end", //                           13
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {outer()}.",
+      "  done",
+      "end",
+      "function outer()",
+      "  local n = 0",
+      "  local bump = function()",
+      "    n = n + 1",
+      "    return n",
+      "  end",
+      "  return bump()",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
-    // Stopped in `outer` once `n` is declared, the Variables view names it
-    // `outer.n`; the closure writes that variable.
     const h = debugGame(text);
     h.game.setBreakpoints([{ file: MAIN, line: 12 }]);
     h.game.start();
@@ -853,7 +811,6 @@ describe("the debugger on the program engine", () => {
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
     expect(h.stoppedAt()).toBe(9);
-    // `outer`'s frame, below the closure's, shows the value it wrote.
     const frames = h.frames().stackFrames;
     expect(frames.map((f) => f.name).slice(-2)).toEqual(["outer", "main"]);
     const outerFrame = frames.find((f) => f.name === "outer")!;
@@ -862,25 +819,28 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint when a callback writes the variable and declares another of its name", () => {
     const text = [
-      "-> main", //                                0
-      "scene main", //                             1
-      "  Start.", //                               2
-      "  Got {outer()}.", //                       3
-      "  done", //                                 4
-      "end", //                                    5
-      "function outer()", //                       6
-      "  local n = 0", //                          7
-      "  local less = function(a, b)", //          8
-      "    n = n + 1", //                          9
-      "    do", //                                 10
-      "      local n = 99", //                     11
-      "    end", //                                12
-      "    return a < b", //                       13
-      "  end", //                                  14
-      "  local t = {2, 1}", //                     15
-      "  table.sort(t, less)", //                  16
-      "  return n", //                             17
-      "end", //                                    18
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {outer()}.",
+      "  done",
+      "end",
+      "function outer()",
+      "  local n = 0",
+      "  local less = function(a, b)",
+      "    n = n + 1",
+      "    do",
+      "      local n = 99",
+      "    end",
+      "    return a < b",
+      "  end",
+      "  local t = {2, 1}",
+      "  table.sort(t, less)",
+      "  return n",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -891,8 +851,6 @@ describe("the debugger on the program engine", () => {
     expect(h.game.setDataBreakpoints([{ dataId: "outer.n" }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
     h.continueToBreakpoint();
-    // The comparator runs inside the step that calls `table.sort`, writes
-    // `outer`'s `n` and declares a temporary `n` of its own.
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
     const outerFrame = h.frames().stackFrames.find((f) => f.name === "outer")!;
     expect(names(h.game.getTempVariables(0, outerFrame.id))).toContain("n=1");
@@ -901,16 +859,19 @@ describe("the debugger on the program engine", () => {
   it("does not take a temporary declared again in its own block for a write to it", () => {
     const h = debugGame(
       [
-        "-> main", //              0
-        "scene main", //           1
-        "  local n = 1", //        2
-        "  First.", //             3
-        "  local n = 2", //        4
-        "  Second.", //            5
-        "  n = n + 1", //          6
-        "  Third {n}.", //         7
-        "  done", //               8
-        "end", //                  9
+        "",
+        "scene main",
+        "  local n = 1",
+        "  First.",
+        "  local n = 2",
+        "  Second.",
+        "  n = n + 1",
+        "  Third {n}.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -925,31 +886,30 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("n=3");
   });
 
-  // The engine reports the write to the watched binding (#1664): a recursive
-  // call of the watched function inside one builtin step declares its own
-  // `n` in another invocation, which is not the variable watched, and the
-  // comparator's write to the watched invocation's `n` still stops.
   it("fires a data breakpoint on a write to a watched temporary when a recursive call in the same step declares its name", () => {
     const text = [
-      "-> main", //                                0
-      "scene main", //                             1
-      "  Start.", //                               2
-      "  Got {outer(true)}.", //                   3
-      "  done", //                                 4
-      "end", //                                    5
-      "function outer(recurse)", //                6
-      "  local n = 0", //                          7
-      "  if recurse then", //                      8
-      "    local less = function(a, b)", //        9
-      "      n = n + 1", //                        10
-      "      outer(false)", //                     11
-      "      return a < b", //                     12
-      "    end", //                                13
-      "    local t = {2, 1}", //                   14
-      "    table.sort(t, less)", //                15
-      "  end", //                                  16
-      "  return n", //                             17
-      "end", //                                    18
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {outer(true)}.",
+      "  done",
+      "end",
+      "function outer(recurse)",
+      "  local n = 0",
+      "  if recurse then",
+      "    local less = function(a, b)",
+      "      n = n + 1",
+      "      outer(false)",
+      "      return a < b",
+      "    end",
+      "    local t = {2, 1}",
+      "    table.sort(t, less)",
+      "  end",
+      "  return n",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -960,11 +920,7 @@ describe("the debugger on the program engine", () => {
     expect(h.game.setDataBreakpoints([{ dataId: "outer.n" }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
     h.game.continue();
-    // The comparator wrote `outer`'s `n`: the game stops after the step
-    // that ran `table.sort`, before the beat that shows it.
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
-    // The watched invocation, the outermost `outer` frame, shows the value
-    // the comparator wrote; the recursive invocation has returned.
     const outerFrames = h
       .frames()
       .stackFrames.filter((f) => f.name === "outer");
@@ -976,32 +932,30 @@ describe("the debugger on the program engine", () => {
     ).toMatch(/^n=[1-9]\d*$/);
   });
 
-  // A self-recursive `local function` is lowered as a declaration of its
-  // name and an assignment of its closure, which is the declaration's
-  // initializer (#1720): it binds a new variable, so a data breakpoint on a
-  // variable of the same name declared before it does not stop there, and a
-  // later write to the name does.
   it("does not fire a data breakpoint on a self-recursive local function's declaration, and fires on a later write", () => {
     const text = [
-      "-> main", //                       0
-      "scene main", //                    1
-      "  Start.", //                      2
-      "  Got {outer()}.", //              3
-      "  done", //                        4
-      "end", //                           5
-      "function outer()", //              6
-      "  local f = 1", //                 7
-      "  local g = 2", //                 8
-      "  local function f(x)", //         9
-      "    if x > 0 then", //             10
-      "      return f(x - 1)", //         11
-      "    end", //                       12
-      "    return 0", //                  13
-      "  end", //                         14
-      "  local r = f(2)", //              15
-      "  f = 5", //                       16
-      "  return r", //                    17
-      "end", //                           18
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {outer()}.",
+      "  done",
+      "end",
+      "function outer()",
+      "  local f = 1",
+      "  local g = 2",
+      "  local function f(x)",
+      "    if x > 0 then",
+      "      return f(x - 1)",
+      "    end",
+      "    return 0",
+      "  end",
+      "  local r = f(2)",
+      "  f = 5",
+      "  return r",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1011,8 +965,6 @@ describe("the debugger on the program engine", () => {
     expect(h.stoppedAt()).toBe(8);
     const set = h.game.setDataBreakpoints([{ dataId: "outer.f" }]);
     expect(set[0]!.verified).toBe(true);
-    // Placed on the first write to the name, which the declaration's
-    // initializer is not.
     expect(set[0]!.location?.range.start.line).toBe(16);
     h.game.setBreakpoints([]);
     h.game.continue();
@@ -1021,26 +973,26 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getTempVariables())).toContain("f=5");
   });
 
-  // A closure's frame binds the variable it captured to the cell that
-  // outlived the function that declared it; a write in the closure reaches
-  // the cell, and only the call that writes it stops.
   it("fires a data breakpoint on a captured variable in its closure's frame, through the cell its function left", () => {
     const text = [
-      "-> main", //                       0
-      "scene main", //                    1
-      "  Start.", //                      2
-      "  Got {count()}.", //              3
-      "  Then {count()}.", //             4
-      "  done", //                        5
-      "end", //                           6
-      "function make()", //               7
-      "  local n = 0", //                 8
-      "  return function()", //           9
-      "    n = n + 1", //                 10
-      "    return n", //                  11
-      "  end", //                         12
-      "end", //                           13
-      "store count = make()", //          14
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {count()}.",
+      "  Then {count()}.",
+      "  done",
+      "end",
+      "function make()",
+      "  local n = 0",
+      "  return function()",
+      "    n = n + 1",
+      "    return n",
+      "  end",
+      "end",
+      "store count = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1053,42 +1005,39 @@ describe("the debugger on the program engine", () => {
     const dataId = `${n.scopePath}.${n.name}`;
     expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
-    // The rest of the first call reads `n`, and the beat shows it; the
-    // second call writes it.
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
     expect(h.stoppedAt()).toBe(10);
     expect(names(h.game.getTempVariables())).toContain("n=2");
   });
 
-  // The watch keeps the cell while no frame of the closure runs, so a later
-  // call of the closure inside a builtin step, which runs and returns
-  // within the step, stops on its write; another closure of the same
-  // function, with a cell of its own, does not.
   it("fires a data breakpoint on a captured variable's cell when a builtin calls its closure again", () => {
     const text = [
-      "-> main", //                         0
-      "scene main", //                      1
-      "  Start.", //                        2
-      "  local first = less(1, 2)", //      3
-      "  First {first}.", //                4
-      "  local t = {2, 1}", //              5
-      "  & table.sort(t, other)", //        6
-      "  Between.", //                      7
-      "  local u = {2, 1}", //              8
-      "  & table.sort(u, less)", //         9
-      "  After.", //                        10
-      "  done", //                          11
-      "end", //                             12
-      "function make()", //                 13
-      "  local n = 0", //                   14
-      "  return function(a, b)", //         15
-      "    n = n + 1", //                   16
-      "    return a < b", //                17
-      "  end", //                           18
-      "end", //                             19
-      "store less = make()", //             20
-      "store other = make()", //            21
+      "",
+      "scene main",
+      "  Start.",
+      "  local first = less(1, 2)",
+      "  First {first}.",
+      "  local t = {2, 1}",
+      "  & table.sort(t, other)",
+      "  Between.",
+      "  local u = {2, 1}",
+      "  & table.sort(u, less)",
+      "  After.",
+      "  done",
+      "end",
+      "function make()",
+      "  local n = 0",
+      "  return function(a, b)",
+      "    n = n + 1",
+      "    return a < b",
+      "  end",
+      "end",
+      "store less = make()",
+      "store other = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1101,27 +1050,15 @@ describe("the debugger on the program engine", () => {
     const dataId = `${n.scopePath}.${n.name}`;
     expect(h.game.setDataBreakpoints([{ dataId }])[0]!.verified).toBe(true);
     h.game.setBreakpoints([]);
-    // The rest of the call returns to the beat that shows it.
     h.game.continue();
     expect(h.game.story.currentText).toBe("First true.\n");
-    // `other`'s comparator writes its own cell.
     h.game.continue();
     expect(h.game.story.currentText).toBe("Between.\n");
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-    // `less`'s comparator writes the watched cell inside the sort's step.
     h.game.continue();
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
   });
 
-  // A load reads a captured variable's cell anew. A save written while the
-  // watch holds the cell names it by the id the save gave it, and the load
-  // binds the watch to the cell it read under that id, so a builtin's call
-  // of the closure right after the load stops on its write with no frame of
-  // the closure run between steps; another closure of the same function,
-  // with a cell of its own, does not. The cases load a closure init built, whose cell the
-  // save anchors; one a step built and a global holds, whose cell the save
-  // names by an id of its own; and one a step built and a temporary of the
-  // running scene holds.
   const closures = {
     "built by init": {
       lines: ["  Ready.", "  Set."],
@@ -1139,28 +1076,31 @@ describe("the debugger on the program engine", () => {
   for (const [held, { lines, declarations }] of Object.entries(closures)) {
     it(`keeps a captured variable's watch across a load, for a closure ${held}`, () => {
       const text = [
-        "-> main", //                         0
-        "scene main", //                      1
-        "  Start.", //                        2
-        ...lines, //                          3, 4
-        "  local first = less(1, 2)", //      5
-        "  First {first}.", //                6
-        "  local t = {2, 1}", //              7
-        "  & table.sort(t, other)", //        8
-        "  Between.", //                      9
-        "  local u = {2, 1}", //              10
-        "  & table.sort(u, less)", //         11
-        "  After.", //                        12
-        "  done", //                          13
-        "end", //                             14
-        "function make()", //                 15
-        "  local n = 0", //                   16
-        "  return function(a, b)", //         17
-        "    n = n + 1", //                   18
-        "    return a < b", //                19
-        "  end", //                           20
-        "end", //                             21
-        ...declarations, //                   22, 23
+        "",
+        "scene main",
+        "  Start.",
+        ...lines,
+        "  local first = less(1, 2)",
+        "  First {first}.",
+        "  local t = {2, 1}",
+        "  & table.sort(t, other)",
+        "  Between.",
+        "  local u = {2, 1}",
+        "  & table.sort(u, less)",
+        "  After.",
+        "  done",
+        "end",
+        "function make()",
+        "  local n = 0",
+        "  return function(a, b)",
+        "    n = n + 1",
+        "    return a < b",
+        "  end",
+        "end",
+        ...declarations,
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n");
       const h = debugGame(text);
@@ -1176,28 +1116,19 @@ describe("the debugger on the program engine", () => {
       h.game.continue();
       expect(h.game.story.currentText).toBe("First true.\n");
       expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-      // A save of the state, loaded back through `Game.loadProgramSave`.
       const save = h.game.save();
       expect(h.game.load(save)).toBe(true);
-      // A second load of the save finds the watch on the cell the first
-      // load bound it to, which the note names too.
       expect(h.game.load(save)).toBe(true);
       expect(h.game.story.currentText).toBe("First true.\n");
-      // `other`'s comparator writes its own cell.
       h.game.continue();
       expect(h.game.story.currentText).toBe("Between.\n");
       expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-      // `less`'s comparator writes the cell the load read for the watched
-      // one, inside the sort's step.
       h.game.continue();
       expect(h.of("game/hitBreakpoint")).toHaveLength(2);
       expect(h.stoppedAt()).toBe(19);
-      // The save named the watched cell by its id.
       expect(JSON.parse(save).watchedCells).toEqual([
         { dataId, cell: expect.any(Number), tag: expect.any(String) },
       ]);
-      // A save whose note is malformed still loads, and binds the watch to
-      // no cell: the sort's comparator writes after the load do not stop.
       const parsed = JSON.parse(save);
       parsed.watchedCells = [
         { dataId, cell: String(parsed.watchedCells[0].cell), tag: 1 },
@@ -1213,37 +1144,35 @@ describe("the debugger on the program engine", () => {
     });
   }
 
-  // A save names the cell its watch held when it was written. A watch that
-  // holds another cell at the load, here `other`'s, which the watch bound
-  // when a frame of `other` ran after the save, is not the watch the save
-  // noted, so the load binds it to none: the saved `less`'s comparator, the
-  // cell the save noted for the same data id, does not stop.
   it("carries no watch that holds another cell since the save to the cell the save noted", () => {
     const text = [
-      "-> main", //                         0
-      "scene main", //                      1
-      "  Start.", //                        2
-      "  local first = less(1, 2)", //      3
-      "  First {first}.", //                4
-      "  local t = {2, 1}", //              5
-      "  & table.sort(t, other)", //        6
-      "  Between.", //                      7
-      "  local u = {2, 1}", //              8
-      "  & table.sort(u, less)", //         9
-      "  After.", //                        10
-      "  local second = other(3, 4)", //    11
-      "  Second {second}.", //              12
-      "  done", //                          13
-      "end", //                             14
-      "function make()", //                 15
-      "  local n = 0", //                   16
-      "  return function(a, b)", //         17
-      "    n = n + 1", //                   18
-      "    return a < b", //                19
-      "  end", //                           20
-      "end", //                             21
-      "store less = make()", //             22
-      "store other = make()", //            23
+      "",
+      "scene main",
+      "  Start.",
+      "  local first = less(1, 2)",
+      "  First {first}.",
+      "  local t = {2, 1}",
+      "  & table.sort(t, other)",
+      "  Between.",
+      "  local u = {2, 1}",
+      "  & table.sort(u, less)",
+      "  After.",
+      "  local second = other(3, 4)",
+      "  Second {second}.",
+      "  done",
+      "end",
+      "function make()",
+      "  local n = 0",
+      "  return function(a, b)",
+      "    n = n + 1",
+      "    return a < b",
+      "  end",
+      "end",
+      "store less = make()",
+      "store other = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1257,16 +1186,12 @@ describe("the debugger on the program engine", () => {
     h.game.setBreakpoints([]);
     h.game.continue();
     expect(h.game.story.currentText).toBe("First true.\n");
-    // The save notes `less`'s cell.
     const save = h.game.save();
-    // `less`'s comparator stops the watch.
     h.game.continue();
     expect(h.game.story.currentText).toBe("Between.\n");
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     h.continueToBreakpoint();
     expect(h.of("game/hitBreakpoint")).toHaveLength(2);
-    // Then a frame of `other` binds the watch to `other`'s cell. A stop
-    // inside a step leaves no text to read until the step ends.
     const shown = () => {
       try {
         return h.game.story.currentText;
@@ -1289,34 +1214,33 @@ describe("the debugger on the program engine", () => {
     expect(h.game.story.currentText).toBe("After.\n");
   });
 
-  // A save written before the watch was set names no cell for it, so a
-  // load binds the watch to none, however the loaded story reaches its
-  // closures: here `less` held another closure when the save was written,
-  // and that closure's comparator write after the load does not stop.
   it("carries no captured variable's watch to another closure's variable across a load of a save written before the watch", () => {
     const text = [
-      "-> main", //                         0
-      "scene main", //                      1
-      "  & less = make()", //               2
-      "  & other = make()", //              3
-      "  Start.", //                        4
-      "  local t = {2, 1}", //              5
-      "  & table.sort(t, less)", //         6
-      "  Sorted.", //                       7
-      "  & less = other", //                8
-      "  local first = less(1, 2)", //      9
-      "  First {first}.", //                10
-      "  done", //                          11
-      "end", //                             12
-      "function make()", //                 13
-      "  local n = 0", //                   14
-      "  return function(a, b)", //         15
-      "    n = n + 1", //                   16
-      "    return a < b", //                17
-      "  end", //                           18
-      "end", //                             19
-      "store less = nil", //                20
-      "store other = nil", //               21
+      "",
+      "scene main",
+      "  & less = make()",
+      "  & other = make()",
+      "  Start.",
+      "  local t = {2, 1}",
+      "  & table.sort(t, less)",
+      "  Sorted.",
+      "  & less = other",
+      "  local first = less(1, 2)",
+      "  First {first}.",
+      "  done",
+      "end",
+      "function make()",
+      "  local n = 0",
+      "  return function(a, b)",
+      "    n = n + 1",
+      "    return a < b",
+      "  end",
+      "end",
+      "store less = nil",
+      "store other = nil",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1326,7 +1250,6 @@ describe("the debugger on the program engine", () => {
     expect(JSON.parse(save).watchedCells).toBeUndefined();
     h.game.continue();
     expect(h.game.story.currentText).toBe("Sorted.\n");
-    // The call of `less`, which holds `other`'s closure now.
     h.game.setBreakpoints([{ file: MAIN, line: 17 }]);
     h.continueToBreakpoint();
     expect(h.stoppedAt()).toBe(17);
@@ -1340,34 +1263,33 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.game.load(save)).toBe(true);
     expect(h.game.story.currentText).toBe("Start.\n");
-    // The loaded `less` is the closure the watch never watched.
     h.game.continue();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.game.story.currentText).toBe("Sorted.\n");
   });
 
-  // While the function that declared the variable still runs, the closure's
-  // frame binds it through an open pointer to that function's block scope,
-  // which the watch follows while the closure's frame is gone.
   it("fires a data breakpoint on a captured variable in its closure's frame when a builtin calls the closure again", () => {
     const text = [
-      "-> main", //                                0
-      "scene main", //                             1
-      "  Start.", //                               2
-      "  Got {outer()}.", //                       3
-      "  done", //                                 4
-      "end", //                                    5
-      "function outer()", //                       6
-      "  local n = 0", //                          7
-      "  local less = function(a, b)", //          8
-      "    n = n + 1", //                          9
-      "    return a < b", //                       10
-      "  end", //                                  11
-      "  local first = less(1, 2)", //             12
-      "  local t = {2, 1}", //                     13
-      "  table.sort(t, less)", //                  14
-      "  return n", //                             15
-      "end", //                                    16
+      "",
+      "scene main",
+      "  Start.",
+      "  Got {outer()}.",
+      "  done",
+      "end",
+      "function outer()",
+      "  local n = 0",
+      "  local less = function(a, b)",
+      "    n = n + 1",
+      "    return a < b",
+      "  end",
+      "  local first = less(1, 2)",
+      "  local t = {2, 1}",
+      "  table.sort(t, less)",
+      "  return n",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1375,7 +1297,6 @@ describe("the debugger on the program engine", () => {
     h.game.start();
     h.continueToBreakpoint();
     expect(h.stoppedAt()).toBe(10);
-    // The closure's own frame names the variable it captured.
     const frames = h.frames().stackFrames;
     expect(frames.map((f) => f.name).slice(-2)).toEqual(["outer", "main"]);
     expect(frames[0]!.name).not.toBe("outer");
@@ -1393,17 +1314,20 @@ describe("the debugger on the program engine", () => {
   it("fires a global's data breakpoint when a function writes it through _G", () => {
     const h = debugGame(
       [
-        "store health = 100", //          0
-        "-> main", //                     1
-        "scene main", //                  2
-        "  First.", //                    3
-        "  & hurt()", //                  4
-        "  Second {health}.", //          5
-        "  done", //                      6
-        "end", //                         7
-        "function hurt()", //             8
-        "  _G.health = health - 1", //    9
-        "end", //                         10
+        "store health = 100",
+        "",
+        "scene main",
+        "  First.",
+        "  & hurt()",
+        "  Second {health}.",
+        "  done",
+        "end",
+        "function hurt()",
+        "  _G.health = health - 1",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1417,18 +1341,21 @@ describe("the debugger on the program engine", () => {
   it("fires a function breakpoint on a named function written inside another function", () => {
     const h = debugGame(
       [
-        "-> main", //                       0
-        "scene main", //                    1
-        "  Start.", //                      2
-        "  Got {outer()}.", //              3
-        "  done", //                        4
-        "end", //                           5
-        "function outer()", //              6
-        "  local function inner()", //      7
-        "    return 1", //                  8
-        "  end", //                         9
-        "  return inner()", //              10
-        "end", //                           11
+        "",
+        "scene main",
+        "  Start.",
+        "  Got {outer()}.",
+        "  done",
+        "end",
+        "function outer()",
+        "  local function inner()",
+        "    return 1",
+        "  end",
+        "  return inner()",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1440,13 +1367,9 @@ describe("the debugger on the program engine", () => {
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
     expect(h.stoppedAt()).toBe(7);
     expect(h.frames().stackFrames[0]?.moduleId).toBe("function");
-    // Stopped in `inner`'s own frame, above `outer`'s and `main`'s.
     expect(h.frames().totalFrames).toBe(3);
   });
 
-  // `outer` and the functions written in it start on one line: the
-  // breakpoint takes the function whose name it gives, not the first one
-  // that starts on its line.
   it.each([
     ["is never called", "return 0", 0],
     ["is called", "return inner()", 1],
@@ -1455,13 +1378,16 @@ describe("the debugger on the program engine", () => {
     (_case, tail, hits) => {
       const h = debugGame(
         [
-          "-> main", //                     0
-          "scene main", //                  1
-          "  Start.", //                    2
-          "  Got {outer()}.", //            3
-          "  done", //                      4
-          "end", //                         5
-          `function outer() local function inner() local function deep() return 2 end return 1 end ${tail} end`, // 6
+          "",
+          "scene main",
+          "  Start.",
+          "  Got {outer()}.",
+          "  done",
+          "end",
+          `function outer() local function inner() local function deep() return 2 end return 1 end ${tail} end`,
+          "scene start",
+          "  -> main",
+          "end",
           "",
         ].join("\n"),
       );
@@ -1472,12 +1398,8 @@ describe("the debugger on the program engine", () => {
       if (hits) {
         h.continueToBreakpoint();
         expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-        // In `inner`'s frame, not `outer`'s (2 frames) or `deep`'s, which
-        // nothing calls.
         expect(h.frames().totalFrames).toBe(3);
       } else {
-        // The continue from `Start.` runs `outer` and on to the beat that
-        // shows what it returned, with no stop.
         h.game.continue();
         expect(h.game.story.currentText).toBe("Got 0.\n");
         expect(h.of("game/hitBreakpoint")).toHaveLength(0);
@@ -1487,17 +1409,20 @@ describe("the debugger on the program engine", () => {
 
   it("offers and stops at the lines of a function written in a declaration", () => {
     const text = [
-      "store handler = function()", // 0
-      "  local x = 1", //               1
-      "  return x + 1", //              2
-      "end", //                         3
-      "-> main", //                     4
-      "scene main", //                  5
-      "  Start.", //                    6
-      "  local v = handler()", //       7
-      "  Got {v}.", //                  8
-      "  done", //                      9
-      "end", //                         10
+      "store handler = function()",
+      "  local x = 1",
+      "  return x + 1",
+      "end",
+      "",
+      "scene main",
+      "  Start.",
+      "  local v = handler()",
+      "  Got {v}.",
+      "  done",
+      "end",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1526,8 +1451,6 @@ describe("the debugger on the program engine", () => {
     h.game.start();
     h.continueToBreakpoint();
     const stepped = h.of("game/stepped").length;
-    // The rest of the beat is on the same line: stepping over it ends where
-    // the beat waits for the player.
     expect(h.game.step("over")).toBe(true);
     expect(h.of("game/stepped")).toHaveLength(stepped + 1);
     expect(h.game.story.currentText).toBe("Sub here.\n");
@@ -1537,14 +1460,16 @@ describe("the debugger on the program engine", () => {
     const h = debugGame(
       [
         "store total = 0",
-        "for i = 1, 3 do",
-        "  total = total + i",
+        "scene start",
+        "  for i = 1, 3 do",
+        "    total = total + i",
+        "  end",
+        "  Total {total}.",
         "end",
-        "Total {total}.",
         "",
       ].join("\n"),
     );
-    h.game.setBreakpoints([{ file: MAIN, line: 2 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
     h.game.start();
     const seen: string[] = [];
     for (let i = 0; i < 3; i += 1) {
@@ -1574,27 +1499,22 @@ describe("the debugger on the program engine", () => {
   it("offers the lines a breakpoint can sit on from the line tables", () => {
     const search = { uri: MAIN, range: { start: { line: 0 }, end: { line: 100 } } };
     const program = debugGame(NESTED).game.possibleBreakpointLines(search);
-    // Each header, each beat and each line of the function is offered.
-    const beats = [3, 5, 9, 12, 14, 15, 18, 19, 20];
+    const beats = [3, 5, 9, 12, 14, 15, 18, 19, 20, 22];
     expect(program.filter((line) => beats.includes(line))).toEqual(beats);
-    // So is each statement of logic, on its own line, the divert on line 2
-    // among them; and no declaration, which runs before a debugger can stop
-    // the story.
     const logic = program.filter((line) => !beats.includes(line));
-    expect(logic).toEqual([2, 4, 6, 7, 8, 10, 13, 16]);
-    // A breakpoint on each of those lines and on each beat stays on it; one
-    // on a scene's header moves to the scene's first statement.
+    expect(logic).toEqual([4, 6, 7, 8, 10, 13, 16, 23]);
     const h = debugGame(NESTED);
     const set = h.game.setBreakpoints(program.map((line) => ({ file: MAIN, line })));
     expect(set.map((b) => b.location?.range.start.line)).toEqual(
-      program.map((line) => (line === 3 ? 4 : line === 12 ? 13 : line)),
+      program.map((line) =>
+        line === 3 ? 4 : line === 12 ? 13 : line === 22 ? 23 : line,
+      ),
     );
   });
 
   it("calls no execution hook and builds no string per step while no breakpoint is set", () => {
     const h = debugGame(NESTED);
     const story = h.game.story as unknown as ProgramStory;
-    // Count every call of whatever hook the game installs.
     let hookCalls = 0;
     let installed: ((address: number) => void) | null = story.onExecute;
     Object.defineProperty(story, "onExecute", {
@@ -1619,7 +1539,6 @@ describe("the debugger on the program engine", () => {
     const stepsBefore = story.stepCount;
     const executed: number[] = [];
     h.game.start();
-    // The variables of the story the game started.
     const writes = countWriteWatch(story);
     const stepsWatched = story.stepCount;
     try {
@@ -1634,17 +1553,12 @@ describe("the debugger on the program engine", () => {
     expect(steps).toBeGreaterThan(40);
     expect(installed).toBeNull();
     expect(hookCalls).toBe(0);
-    // The story wrote variables in those steps (`health`, `result`, the
-    // locals), and reported none of them: no write watch was installed.
     expect(story.state.variablesState).toBe(writes.variables);
     expect(story.stepCount - stepsWatched).toBeGreaterThan(20);
     expect(writes.installs).toBe(0);
     expect(writes.calls).toBe(0);
-    // What a beat's checkpoint serializes is per beat, not per step.
     expect(strings).toBeLessThan(steps / 4);
-    // The game still records each step it takes.
     expect(executed.every((size) => size > 0)).toBe(true);
-    // The same counters see the watch a data breakpoint installs.
     const watched = debugGame(NESTED);
     const watchedStory = watched.game.story as unknown as ProgramStory;
     watched.game.setDataBreakpoints([{ dataId: "result" }]);
@@ -1664,7 +1578,6 @@ describe("the debugger on the program engine", () => {
       records.push(h.of("game/executed").at(-1)?.params.executedLines);
       h.game.continue();
     }
-    // Each continue's record holds the beat it stopped at.
     for (const [i, beat] of [5, 14, 15, 9].entries()) {
       const ranges = records[i]![MAIN]!.ranges;
       const holds = ranges.some(
@@ -1677,14 +1590,17 @@ describe("the debugger on the program engine", () => {
   it("shows a table's entries, its array part in order and then its keys, and a nested table's too", () => {
     const h = debugGame(
       [
-        "-> main", //                                      0
-        "scene main", //                                   1
-        "  Start.", //                                     2
-        "  local t = {2, 1}", //                           3
-        "  local n = {10, name = 'a', inner = {x = 1}}", // 4
-        "  After.", //                                     5
-        "  done", //                                       6
-        "end", //                                          7
+        "",
+        "scene main",
+        "  Start.",
+        "  local t = {2, 1}",
+        "  local n = {10, name = 'a', inner = {x = 1}}",
+        "  After.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1707,20 +1623,22 @@ describe("the debugger on the program engine", () => {
     expect(names(h.game.getChildVariables(inner.variablesReference))).toEqual([
       "x=1",
     ]);
-    // A table is still left out of the context the editor evaluates against.
     expect(Object.keys(h.game.getEvaluationContext())).not.toContain("t");
   });
 
   it("shows a table's keys that a JavaScript object would take for its own", () => {
     const h = debugGame(
       [
-        "-> main", //                                                           0
-        "scene main", //                                                        1
-        "  Start.", //                                                          2
-        "  local k = {['__proto__'] = 1, ['$x'] = 2, ['$type'] = 'list.var'}", // 3
-        "  After.", //                                                          4
-        "  done", //                                                            5
-        "end", //                                                               6
+        "",
+        "scene main",
+        "  Start.",
+        "  local k = {['__proto__'] = 1, ['$x'] = 2, ['$type'] = 'list.var'}",
+        "  After.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1740,13 +1658,16 @@ describe("the debugger on the program engine", () => {
   it("lists a table's array part before its other integer keys, up to the first hole", () => {
     const h = debugGame(
       [
-        "-> main", //                                                     0
-        "scene main", //                                                  1
-        "  Start.", //                                                    2
-        "  local s = {'one', 'two', name = 'n', [0] = 'zero', [4] = 'four'}", // 3
-        "  After.", //                                                    4
-        "  done", //                                                      5
-        "end", //                                                         6
+        "",
+        "scene main",
+        "  Start.",
+        "  local s = {'one', 'two', name = 'n', [0] = 'zero', [4] = 'four'}",
+        "  After.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1767,22 +1688,25 @@ describe("the debugger on the program engine", () => {
   it("shows a deeply nested table one level at a time, and a table that holds itself", () => {
     const h = debugGame(
       [
-        "-> main", //                           0
-        "scene main", //                        1
-        "  Start.", //                          2
-        "  local d = deep()", //                3
-        "  local c = {name = 'c'}", //          4
-        "  c.self = c", //                      5
-        "  After.", //                          6
-        "  done", //                            7
-        "end", //                               8
-        "function deep()", //                   9
-        "  local t = {}", //                    10
-        "  for i = 1, 20000 do", //             11
-        "    t = {child = t}", //               12
-        "  end", //                             13
-        "  return t", //                        14
-        "end", //                               15
+        "",
+        "scene main",
+        "  Start.",
+        "  local d = deep()",
+        "  local c = {name = 'c'}",
+        "  c.self = c",
+        "  After.",
+        "  done",
+        "end",
+        "function deep()",
+        "  local t = {}",
+        "  for i = 1, 20000 do",
+        "    t = {child = t}",
+        "  end",
+        "  return t",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1806,11 +1730,7 @@ describe("the debugger on the program engine", () => {
   });
 });
 
-// The Variables view shows what the frame selected in the Call Stack sees
-// (#1727).
 describe("the variables of a selected frame", () => {
-  // The function's entry code binds one parameter an instruction, the last
-  // first, and the game stops after the instruction at the breakpoint runs.
   it("shows every parameter of a function where its breakpoint stops", () => {
     const h = debugGame(NESTED);
     h.game.setFunctionBreakpoints([{ name: "add" }]);
@@ -1818,33 +1738,30 @@ describe("the variables of a selected frame", () => {
     h.continueToBreakpoint();
     expect(h.stoppedAt()).toBe(18);
     expect(names(h.game.getTempVariables()).sort()).toEqual(["a=2", "b=3"]);
-    // The caller's frame, selected below it, shows the caller's.
     const caller = h.frames().stackFrames.find((f) => f.name === "main")!;
     expect(names(h.game.getTempVariables(0, caller.id))).toEqual([
       "mainLoc=111",
     ]);
   });
 
-  // A pointer is bound in a function's frame (a captured variable, or one
-  // passed by reference), and a thread forks only in a scene, so no script
-  // leaves one in a frame of a thread another thread suspended; the case
-  // binds it there, to read it as the Variables view would once the client
-  // selects that thread (#1667).
   it("reads a temporary bound to a pointer in the frames of its own thread, not the running one's", () => {
     const h = debugGame(
       [
-        "-> main", //              0
-        "scene main", //           1
-        "  local n = 1", //        2
-        "  Before.", //            3
-        "  <- side", //            4
-        "  After {n}.", //         5
-        "  done", //               6
-        "end", //                  7
-        "scene side", //           8
-        "  In side.", //           9
-        "  done", //               10
-        "end", //                  11
+        "",
+        "scene main",
+        "  local n = 1",
+        "  Before.",
+        "  <- side",
+        "  After {n}.",
+        "  done",
+        "end",
+        "scene side",
+        "  In side.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1861,7 +1778,6 @@ describe("the variables of a selected frame", () => {
     const suspended = callStack.ThreadWithIndex(0)!;
     const running = callStack.currentThread;
     expect(running.threadIndex).toBe(1);
-    // The fork runs with a copy of the frame, whose `n` it changed.
     running.callstack[0]!.temporaryScopes[0]!.set("n", new IntValue(5));
     const open = new VariablePointerValue("n", 1);
     open.scopeIndex = 0;
@@ -1875,22 +1791,22 @@ describe("the variables of a selected frame", () => {
       "q=7",
     ]);
     expect(names(h.game.getTempVariables(1))).toEqual(["n=5"]);
-    // With no thread named, the running thread's frame.
     expect(names(h.game.getTempVariables())).toEqual(["n=5"]);
   });
 
-  // The Vars scope shows the globals, and the Temps scope the temporaries:
-  // a temporary of a global's name is shown in the Temps alone.
   it("shows a global in the Vars scope while a temporary of its name shadows it", () => {
     const h = debugGame(
       [
-        "store health = 100", //   0
-        "-> main", //              1
-        "scene main", //           2
-        "  local health = 10", //  3
-        "  First.", //             4
-        "  done", //               5
-        "end", //                  6
+        "store health = 100",
+        "",
+        "scene main",
+        "  local health = 10",
+        "  First.",
+        "  done",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1903,25 +1819,26 @@ describe("the variables of a selected frame", () => {
     expect(names(h.game.getTempVariables())).toEqual(["health=10"]);
   });
 
-  // Hover and Watch evaluate against the frame selected in the Call Stack,
-  // as the Variables view reads it (#1740).
   it("evaluates a caller's temporary in the caller's frame while the running frame holds one of its name", () => {
     const h = debugGame(
       [
-        "store health = 100", //   0
-        "-> main", //              1
-        "scene main", //           2
-        "  local n = 1", //        3
-        "  Start.", //             4
-        "  local r = twice(3)", // 5
-        "  Done {r}.", //          6
-        "  done", //               7
-        "end", //                  8
-        "function twice(k)", //    9
-        "  local health = 10", //  10
-        "  local n = k * 2", //    11
-        "  return n", //           12
-        "end", //                  13
+        "store health = 100",
+        "",
+        "scene main",
+        "  local n = 1",
+        "  Start.",
+        "  local r = twice(3)",
+        "  Done {r}.",
+        "  done",
+        "end",
+        "function twice(k)",
+        "  local health = 10",
+        "  local n = k * 2",
+        "  return n",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1943,10 +1860,7 @@ describe("the variables of a selected frame", () => {
     expect(names(h.game.getTempVariables(threadId, running.id))).toContain(
       "n=6",
     );
-    /** The `n` and the `health` a context gives. */
     const read = (context: any) => ({ health: context.health, n: context.n });
-    // The caller reads the global `health`, which only the running frame
-    // shadows with a temporary.
     expect(read(h.game.getEvaluationContext(threadId, caller.id))).toEqual({
       health: 100,
       n: 1,
@@ -1955,8 +1869,6 @@ describe("the variables of a selected frame", () => {
       health: 10,
       n: 6,
     });
-    // With no frame named, or a thread or frame the call stack no longer
-    // has, the frame that runs, as before the frame could be named.
     const today = h.game.getEvaluationContext();
     expect(read(today)).toEqual({ health: 10, n: 6 });
     expect(h.game.getEvaluationContext(threadId)).toEqual(today);
@@ -1965,25 +1877,26 @@ describe("the variables of a selected frame", () => {
     expect(h.game.getEvaluationContext(99, caller.id)).toEqual(today);
   });
 
-  // A closure's captured variable is a pointer in its frame; hover and
-  // Watch read the value it points to, as the Temps scope shows it (#1740).
   it("evaluates a captured variable as the value it points to, in the closure's frame and the frame that declared it", () => {
     const h = debugGame(
       [
-        "-> main", //                       0
-        "scene main", //                    1
-        "  Start.", //                      2
-        "  Got {outer()}.", //              3
-        "  done", //                        4
-        "end", //                           5
-        "function outer()", //              6
-        "  local n = 0", //                 7
-        "  local bump = function()", //     8
-        "    n = n + 1", //                 9
-        "    return n", //                  10
-        "  end", //                         11
-        "  return bump()", //               12
-        "end", //                           13
+        "",
+        "scene main",
+        "  Start.",
+        "  Got {outer()}.",
+        "  done",
+        "end",
+        "function outer()",
+        "  local n = 0",
+        "  local bump = function()",
+        "    n = n + 1",
+        "    return n",
+        "  end",
+        "  return bump()",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n"),
     );
@@ -2003,21 +1916,16 @@ describe("the variables of a selected frame", () => {
   });
 });
 
-// A `choose` block's caption runs on until something shows; when the line
-// after it shows first, the caption's continue ends at the cut and carries
-// that step to the next continue (docs/engine/binary-program.md, section 6).
-// The step's lines are reported with the beat that shows them, so the line
-// an editor follows stays on the caption while the preview shows it alone
-// (#1686); a breakpoint on the carried line still stops before the caption's
-// beat displays.
 const CAPTION = [
-  "choose", //                       0
-  "  Pick.", //                      1
-  "  if true then", //               2
-  "    Something shows first.", //   3
-  "  end", //                        4
-  "  * One", //                      5
-  "end", //                          6
+  "scene start",
+  "  choose",
+  "    Pick.",
+  "    if true then",
+  "      Something shows first.",
+  "    end",
+  "    * One",
+  "  end",
+  "end",
   "",
 ].join("\n");
 
@@ -2038,26 +1946,23 @@ describe("a choose block's caption on the program engine", () => {
     });
     h.game.start();
     expect(reports).toEqual([
-      { text: "Pick.\n", lines: { ranges: [1, 1], last: 1 }, follow: 1 },
+      { text: "Pick.\n", lines: { ranges: [2, 2], last: 2 }, follow: 2 },
     ]);
     h.game.continue();
     expect(reports.slice(1)).toEqual([
       {
         text: "Something shows first.\n",
-        lines: { ranges: [2, 3], last: 3 },
-        follow: 3,
+        lines: { ranges: [3, 4], last: 4 },
+        follow: 4,
       },
     ]);
     h.game.continue();
     expect(h.game.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
-  // PLAY from a line loads the route's checkpoint, a durable save taken at
-  // the caption's beat, which carries the step's addresses in their durable
-  // form.
   it("reports the carried step's lines after a start from the route's checkpoint at the caption", () => {
     const sim = debugGame(CAPTION);
-    sim.game.setStartFrom({ file: MAIN, line: 1 });
+    sim.game.setStartFrom({ file: MAIN, line: 2 });
     const to = sim.game.startAddress!;
     const route = Game.planRoute(
       sim.game.story,
@@ -2086,17 +1991,14 @@ describe("a choose block's caption on the program engine", () => {
     h.game.continue();
     expect(reports.at(-1)).toEqual({
       text: "Something shows first.\n",
-      lines: { ranges: [2, 3], last: 3 },
-      follow: 3,
+      lines: { ranges: [3, 4], last: 4 },
+      follow: 4,
     });
   });
 
-  // A route to the carried line ends when that line is reported, with the
-  // beat that shows it, so a preview of the line shows the line and not the
-  // caption.
   it("ends a route to the carried line on the beat that shows it", () => {
     const sim = debugGame(CAPTION);
-    sim.game.setStartFrom({ file: MAIN, line: 3 });
+    sim.game.setStartFrom({ file: MAIN, line: 4 });
     const to = sim.game.startAddress!;
     const route = Game.planRoute(
       sim.game.story,
@@ -2109,13 +2011,11 @@ describe("a choose block's caption on the program engine", () => {
     expect(sim.game.story.currentText).toBe("Something shows first.\n");
   });
 
-  // A save at that breakpoint writes the beat before the line and puts the
-  // line in progress back, with what it holds for the next beat.
   it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
-    expect(h.stoppedAt()).toBe(3);
+    expect(h.stoppedAt()).toBe(4);
     expect(typeof h.game.save()).toBe("string");
     const reports: { text: string | null; lines: unknown; follow: unknown }[] =
       [];
@@ -2137,14 +2037,11 @@ describe("a choose block's caption on the program engine", () => {
     ]);
     expect(reports[1]).toEqual({
       text: "Something shows first.\n",
-      lines: { ranges: [2, 3], last: 3 },
-      follow: 3,
+      lines: { ranges: [3, 4], last: 4 },
+      follow: 4,
     });
   });
 
-  // The caption's continue runs on into the next line's condition and cuts
-  // it, so the last instruction the story ran stands on that line while the
-  // game shows only the caption (#1756).
   it("waits on the caption's line, and on the carried line with the beat that shows it", () => {
     const h = debugGame(CAPTION);
     const waits: { line: unknown; frame: unknown }[] = [];
@@ -2159,60 +2056,56 @@ describe("a choose block's caption on the program engine", () => {
     });
     h.game.start();
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(waits).toEqual([{ line: 1, frame: 1 }]);
+    expect(waits).toEqual([{ line: 2, frame: 2 }]);
     h.game.continue();
     expect(h.game.story.currentText).toBe("Something shows first.\n");
-    expect(waits.slice(1)).toEqual([{ line: 3, frame: 3 }]);
+    expect(waits.slice(1)).toEqual([{ line: 4, frame: 4 }]);
   });
 
-  // A refused load changes nothing of the game, so the beat still waits.
   it("keeps the running frame on the caption's line through a refused load", () => {
     const h = debugGame(CAPTION);
     h.game.start();
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     expect(h.game.load("{not json")).toBe(false);
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
   });
 
-  // A host's call into the story, as a layout binding's or an event
-  // handler's, runs instructions of its own and leaves the beat waiting.
   it("keeps the running frame on the caption's line through a host's call into the story", () => {
     const h = debugGame(
       [CAPTION.trimEnd(), "function quiet()", "  return 1", "end", ""].join("\n"),
     );
     h.game.start();
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     h.game.story.EvaluateFunction("quiet");
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
   });
 
-  // Both captions' continues run on into the line glued to them and cut at
-  // the same instruction of `aside`, so the story's last address cannot
-  // tell one caption's wait from the other's.
   it("does not stand a loaded checkpoint's frame on the beat the game waited on before the load", () => {
     const h = debugGame(
       [
-        "choose", //                 0
-        "  First.", //               1
-        "  & aside()", //            2
-        "  * One", //                3
-        "end", //                    4
-        "choose", //                 5
-        "  Second.", //              6
-        "  & aside()", //            7
-        "  * Two", //                8
-        "end", //                    9
-        "function aside()", //       10
-        '  print("Aside.")', //      11
-        "end", //                    12
+        "scene start",
+        "  choose",
+        "    First.",
+        "    & aside()",
+        "    * One",
+        "  end",
+        "  choose",
+        "    Second.",
+        "    & aside()",
+        "    * Two",
+        "  end",
+        "end",
+        "function aside()",
+        '  print("Aside.")',
+        "end",
         "",
       ].join("\n"),
     );
     h.game.start();
     expect(h.game.story.currentText).toBe("First.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     const first = h.game.newestCheckpoint();
     expect(first == null).toBe(false);
     for (let i = 0; i < 8 && h.game.story.currentText !== "Second.\n"; i += 1) {
@@ -2223,18 +2116,18 @@ describe("a choose block's caption on the program engine", () => {
       }
     }
     expect(h.game.story.currentText).toBe("Second.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(6);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(7);
     expect(h.game.loadCheckpoint(first!)).toBe(true);
     expect(h.game.story.currentText).toBe("First.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).not.toBe(6);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).not.toBe(7);
   });
 
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-    expect(h.stoppedAt()).toBe(3);
+    expect(h.stoppedAt()).toBe(4);
     expect(h.of("game/awaitingInteraction")).toHaveLength(0);
   });
 });

@@ -1,11 +1,3 @@
-// #815 — what a running game reports when the story raises a runtime error or
-// warning.
-//
-// A warning marks something the runtime recovered from, so the story plays on
-// past it; an error ends the story. Either way, the report names the statement
-// that raised it (not the statement that ran before it) and carries the bare
-// message, since the location travels separately.
-
 import { describe, expect, test } from "vitest";
 import type { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
@@ -16,7 +8,6 @@ const CONTINUES_WARNING =
 const runtimeErrors = (messages: any[]) =>
   messages.filter((m) => m.method === "game/runtimeError").map((m) => m.params);
 
-/** Connect the game and start playing it from the top, as PLAY does. */
 const play = async (source: string) => {
   const h = createHarness(source, 0);
   await h.ready;
@@ -25,49 +16,46 @@ const play = async (source: string) => {
   return h;
 };
 
-/** The 0-based line the game last executed. */
 const executingLine = (h: { game: Game }) =>
   h.game.getLastExecutedDocumentLocation()?.range.start.line;
 
 describe("a runtime warning", () => {
-  const SOURCE = `store x = 0\nA\n& x = 1\n.. B\nC\n`;
+  const SOURCE = `store x = 0\nscene start\n  A\n  & x = 1\n  .. B\n  C\nend\n`;
 
   test("leaves the game running, and the next step executes", async () => {
     const h = await play(SOURCE);
     expect(runtimeErrors(h.messages)).toEqual([]);
-    // The beat after `A` shows `B`, whose `..` the line before did not offer
-    // to join.
     h.game.continue();
     const warnings = runtimeErrors(h.messages);
     expect(warnings.map((w) => [w.type, w.message])).toEqual([
       [2, CONTINUES_WARNING],
     ]);
-    expect(warnings[0].location.range.start.line).toBe(3);
+    expect(warnings[0].location.range.start.line).toBe(4);
     expect(h.game.state).toBe("running");
     expect(h.game.story.canContinue).toBe(true);
 
     h.reset();
     h.game.continue();
     expect(runtimeErrors(h.messages)).toEqual([]);
-    expect(executingLine(h)).toBe(4);
+    expect(executingLine(h)).toBe(5);
   });
 
   test("in a block body, one for each line that begins with a lone `..`, on that line", async () => {
-    const h = await play(`A.\nHERO:\n  B\n  .. C\n  .. D\nE.\n`);
+    const h = await play(`scene start\n  A.\n  HERO:\n    B\n    .. C\n    .. D\n  E.\nend\n`);
     h.game.continue();
     const warnings = runtimeErrors(h.messages);
     expect(
       warnings.map((w) => [w.location.range.start.line, w.message]),
     ).toEqual([
-      [3, CONTINUES_WARNING],
       [4, CONTINUES_WARNING],
+      [5, CONTINUES_WARNING],
     ]);
   });
 });
 
 describe("a runtime error", () => {
   test("ends the story", async () => {
-    const h = await play(`A\nB {error("boom")}\nC\n`);
+    const h = await play(`scene start\n  A\n  B {error("boom")}\n  C\nend\n`);
     h.game.continue();
     const errors = runtimeErrors(h.messages);
     expect(errors.map((e) => [e.type, e.message])).toEqual([[1, "boom"]]);
@@ -75,16 +63,16 @@ describe("a runtime error", () => {
   });
 
   test("raised in a display line is reported on that line", async () => {
-    const h = await play(`A\n{error("boom")} B\nC\n`);
+    const h = await play(`scene start\n  A\n  {error("boom")} B\n  C\nend\n`);
     h.game.continue();
     const errors = runtimeErrors(h.messages);
-    expect(errors[0].location.range.start.line).toBe(1);
+    expect(errors[0].location.range.start.line).toBe(2);
     expect(errors.map((e) => e.message)).toEqual(["boom"]);
   });
 
   test("raised inside a function a display line calls is reported where the function raised it", async () => {
     const h = await play(
-      `function f()\n  error("deep")\nend\n\nA\nB {f()}\nC\n`,
+      `function f()\n  error("deep")\nend\n\nscene start\n  A\n  B {f()}\n  C\nend\n`,
     );
     h.game.continue();
     const errors = runtimeErrors(h.messages);
@@ -92,32 +80,23 @@ describe("a runtime error", () => {
     expect(errors.map((e) => e.message)).toEqual(["deep"]);
   });
 
-  // A handler runs between steps, so the last step the game ran says nothing
-  // about where the handler's function raised its error. The error ends the
-  // story, and it is the only report: what the ended evaluation throws after
-  // it is not reported again at the last step's line.
   test("raised inside a function a click handler calls is reported once, where the function raised it", async () => {
     const h = createHarness(
-      `A\nB\nC\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud with\n  button "Heal" @click=heal\nend\n`,
+      `scene start\n  A\n  B\n  C\nend\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud with\n  button "Heal" @click=heal\nend\n`,
       0,
     );
     await h.ready;
     h.game.start();
-    expect(executingLine(h)).toBe(0);
+    expect(executingLine(h)).toBe(1);
     const button = h.observedElementIds()[0]!;
     h.reset();
     h.emitEvent("click", button);
     const errors = runtimeErrors(h.messages);
     expect(errors.map((e) => [e.location.range.start.line, e.message])).toEqual(
-      [[7, "broken heal"]],
+      [[9, "broken heal"]],
     );
   });
 
-  // A metamethod and a comparator are called from host code (a builtin, or
-  // the runtime's index lookup), which restores its caller's position as the
-  // error unwinds through it. The report still names the statement inside the
-  // callback, whether a click handler's function or a display line's step
-  // reached it (#1691).
   const METAMETHOD = `store obj = setmetatable({}, { __index = function(t, k)\n  error("bad index")\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n`;
   const COMPARATOR = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nfunction sort_items()\n  table.sort(items, compare)\nend\n`;
 
@@ -145,14 +124,14 @@ describe("a runtime error", () => {
     source.split("\n").findIndex((line) => line.includes(text));
 
   test("raised inside a metamethod a click handler reaches is reported where the metamethod raised it", async () => {
-    const source = `A\nB\n\n${METAMETHOD}\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
+    const source = `scene start\n  A\n  B\nend\n\n${METAMETHOD}\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
     expect(await clickReports(source)).toEqual([
       [lineOf(source, `error("bad index")`), "bad index"],
     ]);
   });
 
   test("raised inside a comparator a click handler's sort calls is reported where the comparator raised it", async () => {
-    const source = `A\nB\n\n${COMPARATOR}\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
+    const source = `scene start\n  A\n  B\nend\n\n${COMPARATOR}\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
     expect(await clickReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),
@@ -162,14 +141,14 @@ describe("a runtime error", () => {
   });
 
   test("raised inside a metamethod a display line reaches is reported where the metamethod raised it", async () => {
-    const source = `${METAMETHOD}\nA\nB {read_item()}\nC\n`;
+    const source = `${METAMETHOD}\nscene start\n  A\n  B {read_item()}\n  C\nend\n`;
     expect(await stepReports(source)).toEqual([
       [lineOf(source, `error("bad index")`), "bad index"],
     ]);
   });
 
   test("raised inside a comparator a display line's sort calls is reported where the comparator raised it", async () => {
-    const source = `${COMPARATOR}\nA\nB {sort_items()}\nC\n`;
+    const source = `${COMPARATOR}\nscene start\n  A\n  B {sort_items()}\n  C\nend\n`;
     expect(await stepReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),
@@ -178,10 +157,8 @@ describe("a runtime error", () => {
     ]);
   });
 
-  // The comparator runs inside the metamethod's call, so two callbacks unwind:
-  // the report names the innermost statement, not the metamethod's sort.
   test("raised inside a comparator a metamethod's sort calls is reported where the comparator raised it", async () => {
-    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nA\nB\n`;
+    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nscene start\n  A\n  B\nend\n`;
     expect(await clickReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),
@@ -191,7 +168,7 @@ describe("a runtime error", () => {
   });
 
   test("carries no runtime location prefix in its message", async () => {
-    const h = await play(`A\nB {error("boom")}\nC\n`);
+    const h = await play(`scene start\n  A\n  B {error("boom")}\n  C\nend\n`);
     h.game.continue();
     for (const { message } of runtimeErrors(h.messages)) {
       expect(message).not.toMatch(/^RUNTIME (ERROR|WARNING):/);

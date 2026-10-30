@@ -4,7 +4,6 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 
 export interface DiagnosticsSettledParams {
   textDocument: TextDocumentIdentifier;
-  /** Reject a response for an older document revision. */
   version?: number;
 }
 export interface DiagnosticsSettledResult {

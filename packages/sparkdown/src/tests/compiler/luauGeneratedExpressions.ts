@@ -1,24 +1,12 @@
-// Generated Luau expressions for the structural oracle of #1285: every binary
-// and unary operator in Luau's precedence table, every pair of binary
-// operators in both orders, unary operators beside each binary operator,
-// parentheses, every call form and its sugar, indexing, method calls, table
-// constructors, function expressions, `if` expressions, interpolated strings,
-// and the literals' spellings. Each is read inside a function whose
-// parameters `a`, `b`, `c` and `...` are locals, so names resolve both ways.
-
-/** Luau's binary operators, in the order of `BinaryOp`. */
 export const BINARY_OPERATORS = ["+", "-", "*", "/", "//", "%", "^", "..", "~=", "==", "<", "<=", ">", ">=", "and", "or"];
 
-/** Luau's unary operators, as written before an operand. */
 export const UNARY_OPERATORS = ["not ", "-", "#"];
 
 export interface GeneratedExpression {
-  /** What the expression covers, for the test's name. */
   group: string;
   expression: string;
 }
 
-/** The document an expression is read in: a function whose parameters are some of the expression's names. */
 export function expressionDocument(expression: string): string {
   return `function g(a, b, c, ...)\n  local x = ${expression}\n  return x\nend\n`;
 }

@@ -1,15 +1,3 @@
-// Layout/screen directive + reference validation. The UI sublanguage:
-//  - `layout NAME [in SCREEN] with … end` defines a mountable element tree;
-//  - `screen NAME with … end` defines a navigation group (holds layouts);
-//  - `[[open/close LAYOUT]]` and `[[navigate SCREEN to LAYOUT]]` flow through the
-//    shared `[[…]]` (image-command) grammar.
-// The validators must treat these as UI directives, not image directives:
-//  - ValidationAnnotator accepts open/close/navigate as valid `[[…]]` controls;
-//  - ReferenceAnnotator resolves open/close targets + navigate destinations as
-//    `layout <name>` defines, the navigate group + `in <screen>` clause as
-//    `screen <name>` defines (not as image layers).
-// So a valid directive stays clean, and a typo lights up precisely.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -41,6 +29,8 @@ function diagnosticsFor(source: string): string[] {
   return out;
 }
 
+const inStart = (line: string) => `scene start\n  ${line}\nend\n`;
+
 const LAYOUT = `layout hud with
   text "HP"
 end
@@ -48,45 +38,42 @@ end
 
 describe("layout lifecycle directive validation ([[open/close LAYOUT]])", () => {
   test("[[open hud]] for a defined layout produces no diagnostics", () => {
-    expect(diagnosticsFor(LAYOUT + `[[open hud]]\n`)).toEqual([]);
+    expect(diagnosticsFor(LAYOUT + inStart("[[open hud]]"))).toEqual([]);
   });
 
   test("[[close hud]] for a defined layout produces no diagnostics", () => {
-    expect(diagnosticsFor(LAYOUT + `[[close hud]]\n`)).toEqual([]);
+    expect(diagnosticsFor(LAYOUT + inStart("[[close hud]]"))).toEqual([]);
   });
 
   test("open/close inherit the with/over/after/wait clauses cleanly", () => {
     expect(
-      diagnosticsFor(LAYOUT + `[[open hud with fade over 1s after 0.2s]]\n`),
+      diagnosticsFor(LAYOUT + inStart("[[open hud with fade over 1s after 0.2s]]")),
     ).toEqual([]);
     expect(
-      diagnosticsFor(LAYOUT + `[[close hud with fade over 0.5s wait]]\n`),
+      diagnosticsFor(LAYOUT + inStart("[[close hud with fade over 0.5s wait]]")),
     ).toEqual([]);
   });
 
   test("the `ease` clause is validated (parity with images)", () => {
     expect(
-      diagnosticsFor(LAYOUT + `[[open hud ease not_an_ease]]\n`).some((m) =>
+      diagnosticsFor(LAYOUT + inStart("[[open hud ease not_an_ease]]")).some((m) =>
         m.includes("ease"),
       ),
     ).toBe(true);
   });
 
   test("opening an undefined layout warns about the layout", () => {
-    const diags = diagnosticsFor(LAYOUT + `[[open ghost]]\n`);
+    const diags = diagnosticsFor(LAYOUT + inStart("[[open ghost]]"));
     expect(diags.some((m) => m.includes("Cannot find layout"))).toBe(true);
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(false);
   });
 
   test("a control verb used in the wrong bracket still warns", () => {
-    // `stop` is an audio verb; in `[[…]]` (visual brackets) it's invalid.
-    const diags = diagnosticsFor(LAYOUT + `[[stop hud]]\n`);
+    const diags = diagnosticsFor(LAYOUT + inStart("[[stop hud]]"));
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(true);
   });
 });
 
-// A `menu` SCREEN holding two layouts. `[[navigate <screen> to <layout>]]`: the
-// FIRST token is the navigation SCREEN, the destination LAYOUT follows `to`.
 const MENU = `screen menu with
 end
 layout pause in menu with
@@ -99,40 +86,39 @@ end
 
 describe("screen navigation directive validation ([[navigate SCREEN to LAYOUT]])", () => {
   test("a defined screen + in-screen layouts produce no diagnostics", () => {
-    expect(diagnosticsFor(MENU + `[[navigate menu to settings]]\n`)).toEqual([]);
+    expect(diagnosticsFor(MENU + inStart("[[navigate menu to settings]]"))).toEqual([]);
   });
 
   test("clauses after the destination validate cleanly", () => {
     expect(
-      diagnosticsFor(MENU + `[[navigate menu to settings with fade over 1s]]\n`),
+      diagnosticsFor(MENU + inStart("[[navigate menu to settings with fade over 1s]]")),
     ).toEqual([]);
   });
 
   test("`to` followed by a layout name does NOT trigger the numeric-`to` error", () => {
-    const diags = diagnosticsFor(MENU + `[[navigate menu to settings]]\n`);
+    const diags = diagnosticsFor(MENU + inStart("[[navigate menu to settings]]"));
     expect(diags.some((m) => m.includes("should be followed by a number"))).toBe(
       false,
     );
   });
 
   test("navigating to an undefined layout warns about the layout", () => {
-    const diags = diagnosticsFor(MENU + `[[navigate menu to ghost]]\n`);
+    const diags = diagnosticsFor(MENU + inStart("[[navigate menu to ghost]]"));
     expect(diags.some((m) => m.includes("Cannot find layout"))).toBe(true);
   });
 
   test("an undefined screen warns about the screen", () => {
-    const diags = diagnosticsFor(MENU + `[[navigate nogroup to settings]]\n`);
+    const diags = diagnosticsFor(MENU + inStart("[[navigate nogroup to settings]]"));
     expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
   });
 
   test("a LAYOUT name used as the screen warns it's not a screen", () => {
-    // `pause` is a defined layout, not a screen → flag the mistake.
-    const diags = diagnosticsFor(MENU + `[[navigate pause to settings]]\n`);
+    const diags = diagnosticsFor(MENU + inStart("[[navigate pause to settings]]"));
     expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
   });
 
   test("a bare [[navigate SCREEN]] (no `to`) warns it's incomplete", () => {
-    const diags = diagnosticsFor(MENU + `[[navigate menu]]\n`);
+    const diags = diagnosticsFor(MENU + inStart("[[navigate menu]]"));
     expect(diags.some((m) => m.includes("Incomplete"))).toBe(true);
   });
 });
@@ -140,7 +126,7 @@ describe("screen navigation directive validation ([[navigate SCREEN to LAYOUT]])
 describe("layout `in SCREEN` clause validation", () => {
   test("`in` referencing a defined screen is clean", () => {
     expect(
-      diagnosticsFor(`screen menu with\nend\nlayout pause in menu with\n  text "x"\nend\n`),
+      diagnosticsFor(`screen menu with\nend\nlayout pause in menu with\n  text "x"\nend\n\nscene start\nend\n`),
     ).toEqual([]);
   });
 

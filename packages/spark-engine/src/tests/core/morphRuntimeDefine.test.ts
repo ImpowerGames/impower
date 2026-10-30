@@ -1,7 +1,3 @@
-// A `morph` block registers a runtime `__def` under the builtin `morph` type,
-// so the engine reads it from the live story like any other define: its own
-// fields as written (with literal state names) over the type's `$default`.
-
 import { describe, expect, test } from "vitest";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 import { createHarness } from "../ui/harness/uiTestHarness";
@@ -37,7 +33,7 @@ const SRC = `morph blink with
   }
 end
 
--> start
+
 scene start
   Hello.
 end

@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 
-/**
- * A game given `requestFrame` ticks on a clock of its own, as PLAY's game does
- * in the player's worker (#682). `now` is the shared clock, in milliseconds,
- * and a clock reads seconds.
- */
 describe("a game's own clock", () => {
   const program = compileProgram(["The line.", ""].join("\n"));
 

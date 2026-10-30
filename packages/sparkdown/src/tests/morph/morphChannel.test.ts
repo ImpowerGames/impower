@@ -9,10 +9,8 @@ const URI = "file:///main.sd";
 
 interface CompileOptions {
   svg?: string;
-  /** Serve the artwork from the asset service instead of inline. */
   served?: boolean;
   skipValidation?: boolean;
-  /** The image's name, `bunny` unless given. */
   name?: string;
 }
 
@@ -52,9 +50,7 @@ describe("morph channel", () => {
     const refs = channel.variants["bunny"]!;
     expect(refs).toHaveLength(1);
     expect(refs[0]).toMatchObject({ morph: "blink", image: "bunny", selection: "{}", groups: ["eyes"] });
-    // Inline artwork bakes in process, so there is no asset-service URL.
     expect(refs[0]!.src).toBeUndefined();
-    // Explicitly closed eyes stay closed: that variant is dormant and gets none.
     expect(channel.variants["bunny~eyes.closed"]).toBeUndefined();
   });
 

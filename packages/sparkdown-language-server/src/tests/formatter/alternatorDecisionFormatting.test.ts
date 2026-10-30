@@ -1,7 +1,3 @@
-// A structural word whose rule holds no arms names a value (I-1310), so
-// formatting leaves it as the call or name it is, and only an alternator's
-// own form is rewritten or kept tight.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
@@ -19,7 +15,6 @@ describe("formatting a structural word that names a value", () => {
     });
   }
 
-  // Each word formats as any other name in its place does.
   for (const word of ["queue", "cycle", "chain", "shuffle", "match", "plural"]) {
     test(`formats a call of ${word} as a call of another name`, () => {
       const source = (name: string) => `function f()\n  local s = ${name}(function ()\n  return 1\n end, {\n a = 1 })\n  ${name}(\n 2\n  )\n  return s\nend\n`;
@@ -32,8 +27,6 @@ describe("formatting a structural word that names a value", () => {
     expect(formatSource(source)).toBe(source);
   });
 
-  // A table after the condition is a call's argument in Luau, not arms, so
-  // formatting never turns the call into an alternator.
   test("a table after a call of the word stays the call's", () => {
     const source = "function choose()\n  local match = function (n)\n    return function (t) return t.one end\n  end\n  return match(1){ one = \"is\", other = \"are\" }\nend\n";
     expect(formatSource(source)).toBe(source);

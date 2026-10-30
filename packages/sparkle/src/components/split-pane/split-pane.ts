@@ -23,9 +23,6 @@ const DEFAULT_TRANSFORMERS = {
   step: getCssSize,
 };
 
-/**
- * Split Panes display two panels side-by-side and allows the user to adjust their size relative to one another.
- */
 export default class SplitPane extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

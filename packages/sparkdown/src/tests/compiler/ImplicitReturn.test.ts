@@ -1,9 +1,3 @@
-// ImplicitReturn (I-610): a function that returns a value on one path and can
-// reach its end without one. The upstream cases are in
-// `luau-conformance/LintCandidatesStyle.test.ts` (ImplicitReturn,
-// ImplicitReturnInfiniteLoop); these are the controls around them and the
-// Sparkdown forms.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
@@ -54,9 +48,6 @@ describe("ImplicitReturn", () => {
     expect(messages(implicit("function f(a)\n while true do\n  if a then return 1 end\n  if a then break end\n end\nend\n"))).toEqual([falls("f", 3)]);
   });
 
-  // Sparkdown adaptation: Luau reads only `true` as a guard that never ends a
-  // `while`. A number or string is as truthy (0 and "" included), so such a
-  // loop without a break cannot fall through either.
   test.each(["1", "0", '""', '"x"'])("a while %s without a break cannot fall through", (guard) => {
     const source = (exit: string) => `function f(a)\n while ${guard} do\n  if a then return 1 end${exit}\n end\nend\n`;
     expect(messages(implicit(source("")))).toEqual([]);
@@ -71,10 +62,6 @@ describe("ImplicitReturn", () => {
     expect(messages(implicit("if true\n & return 1\nend\nHello.\n"))).toEqual([]);
   });
 
-  // As in Luau, a function value is named only as a table field's value.
-  // Luau's linter reads a `repeat` body that ends in a return as never
-  // leaving the loop, even past an earlier `break` or `continue`; luau-analyze
-  // 0.721 is silent for each of these.
   test.each(["until true", "until false", "until a"])("a repeat that breaks before its final return, %s, is silent as in Luau", (until) => {
     expect(messages(implicit(`function f(a)\n repeat\n  if a then break end\n  return 1\n ${until}\nend\n`))).toEqual([]);
   });
@@ -84,9 +71,6 @@ describe("ImplicitReturn", () => {
   });
 });
 
-// Recovery can read statements the author did not write (a missing `then`
-// still reads as an `if` with the `return` in its body), so a function
-// holding a syntax error is left alone, as the neighbouring rules leave it.
 describe("a function holding a syntax error", () => {
   test("does not report ImplicitReturn when then is missing", () => {
     const source = "function reward(flag)\n  if flag\n    return 1\n  end\nend\n\nHello!\n";
@@ -119,9 +103,6 @@ describe("a function holding a syntax error", () => {
   });
 });
 
-// The type checker's FunctionExitsWithoutReturning reads the same walk
-// (`getFallthrough`) with Luau's own guard: only a literal `true` keeps a
-// `while` from ending, so `while 1` still falls through there.
 describe("the type checker's return paths", () => {
   const URI = "inmemory:///main.sd";
   const codepaths = (loop: string) => {
@@ -142,8 +123,6 @@ describe("the type checker's return paths", () => {
   });
 });
 
-// Luau's linter does not walk into types, so a function written in one is not
-// checked (I-1358).
 describe("a function inside a type", () => {
   test.each([
     ["a type alias in a function", "function f()\n type T = typeof(function(a) if a then return 1 end end)\nend\n"],

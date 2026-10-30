@@ -3,14 +3,6 @@ import { describe, expect, test } from "vitest";
 import { getReferences } from "../../utils/providers/getReferences";
 import { getRenameEdits } from "../../utils/providers/getRenameEdits";
 
-// End-to-end (provider) contract for the de-staled define/struct references.
-// getReferences / getRenameEdits / getSymbol / getSymbolIds must locate a define
-// symbol at the cursor and match it against its uses by the symbol-IDs the
-// ReferenceAnnotator emits. Built on a worker-free registry (no compiled
-// program needed — these references resolve by plain symbol-ID equality /
-// interdependency), with a minimal workspace shim exposing only what the
-// providers read.
-
 const URI = "file:///provider.sd";
 
 function makeWorkspace(source: string) {
@@ -32,13 +24,12 @@ function makeWorkspace(source: string) {
   return { documents, workspace };
 }
 
-// Offset of the Nth (1-based) occurrence of `needle`, plus an in-token nudge.
 function posAt(source: string, needle: string, occurrence = 1) {
   let idx = -1;
   for (let i = 0; i < occurrence; i++) {
     idx = source.indexOf(needle, idx + 1);
   }
-  const offset = idx + 1; // inside the token
+  const offset = idx + 1;
   const before = source.slice(0, offset);
   const line = before.split("\n").length - 1;
   const character = offset - (before.lastIndexOf("\n") + 1);
@@ -68,7 +59,6 @@ raffles: Hello.
       },
     );
     expect(references && references.length).toBeGreaterThanOrEqual(2);
-    // One reference is the define (line 0), one is the cue (line 3).
     const lines = references!.map((r) => r.range.start.line).sort();
     expect(lines).toContain(0);
     expect(lines).toContain(3);
@@ -111,7 +101,7 @@ end
       documents.tree(URI),
       undefined,
       workspace,
-      posAt(source, "backdrop", 1), // the screen layer
+      posAt(source, "backdrop", 1),
       {
         searchOtherFiles: false,
         includeDeclaration: true,
@@ -120,7 +110,6 @@ end
       },
     );
     const lines = (references ?? []).map((r) => r.range.start.line);
-    // The screen layer is on line 1; the `style backdrop` block name on line 5.
     expect(lines).toContain(1);
     expect(lines).toContain(5);
   });

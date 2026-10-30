@@ -1,13 +1,3 @@
-// The scopes of a `choose` block on the program engine (#1575,
-// docs/engine/binary-program.md, section 4): the program engine scopes a
-// block as Luau does, where the current engine's weave differs. A `local`
-// is visible from its declaration to the end of the block that holds it: a
-// gated branch's scope closes where the branch ends, before the next
-// choice's condition, a `do` block's local is gone after its `end`, and a
-// `then` clause runs after the block it belongs to, once. The depth of
-// scopes at every offset of the chunk is exact, so a position restored or
-// landed on inside a choice's entry or body derives it from the block stack
-// and the chunk's code.
 import { describe, expect, it } from "vitest";
 import {
   expectExactDepth,
@@ -18,13 +8,9 @@ import {
 } from "./programScopes";
 
 describe("a gated choice's branch on the program engine", () => {
-  // The branch's `local open` is visible in the branch, to the choices it
-  // gates and their bodies, and nowhere else: the later choice's condition,
-  // its body and the line after the block read the global.
   const GATED = [
     "store open = false",
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     "    if true then",
     "      local open = true",
@@ -51,8 +37,7 @@ describe("a gated choice's branch on the program engine", () => {
   it("drops the branch's local after the block when a choice the branch gated is taken", () => {
     const text = [
       "store open = false",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      local open = true",
@@ -77,8 +62,7 @@ describe("a do block of a choose block's preamble on the program engine", () => 
   it("drops its local at its end, so a choice's condition, text and body and the line after the block read the global", () => {
     const text = [
       "store x = \"global\"",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      local x = \"local\"",
@@ -98,14 +82,9 @@ describe("a do block of a choose block's preamble on the program engine", () => 
 });
 
 describe("then clauses of blocks written in a preamble on the program engine", () => {
-  // Three blocks, each written in the preamble of the one around it. A
-  // clause runs after a choice of its own block is taken (a choice an `if`
-  // of the block gates included), once, and then the clause of the block
-  // around it; never while the choices are presented.
   const NESTED = (gated: boolean) =>
     [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    choose",
       "      choose",
@@ -148,8 +127,7 @@ describe("then clauses of blocks written in a preamble on the program engine", (
   it("runs a clause inside the branch its block is written in, with the branch's locals", () => {
     const text = [
       "store inner = 0",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      local inner = 3",
@@ -176,12 +154,9 @@ describe("then clauses of blocks written in a preamble on the program engine", (
 });
 
 describe("the depth of scopes inside a choose chunk", () => {
-  // A gate that does not hold before a gated choice: on an upper bound, the
-  // choice's body would count the scope of the branch that did not run.
   const RESTORED = [
     "store open = false",
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     "    if false then",
     "      * Hidden",
@@ -232,17 +207,12 @@ describe("the depth of scopes inside a choose chunk", () => {
     });
   });
 
-  // A jump from after the block lands on the `then` clause's label and on a
-  // named gated choice's entry, whose depth the landing derives; a `while`
-  // loop of the preamble, whose pass scope the engine closes, leaves the
-  // count read in order at the depth after it.
   for (const preamble of [[], ["    while false do", "      local unused = 0", "    end"]]) {
     it(`is exact where a jump lands on a named choice's entry and on a then clause's label${preamble.length ? ", after a while loop of the preamble" : ""}`, () => {
       const text = [
         "store open = false",
         "store n = 0",
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         ...preamble,
         "    if n > 5 then",

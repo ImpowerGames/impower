@@ -1,9 +1,3 @@
-// An if expression whose `then` ends its line takes its then arm's value from
-// the next line, as Luau reads it, wherever that value begins: at column 0
-// as well as indented (#1522). A line after the `then` that begins a
-// statement still ends the arm empty, which Luau reports as a missing value.
-// The fixture is `__snapshots__/grammar/luau-function/` in the corpus, so
-// scopeEquality also holds the two engines to the same scopes.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +21,8 @@ const fixture = readFileSync(FIXTURE, "utf8").replace(/\r\n?/g, "\n");
 
 const URI = "inmemory:///main.sd";
 
-function readings(text: string) {
+function readings(functions: string) {
+  const text = `${functions}\nscene start\nend\n`;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -43,7 +38,6 @@ function readings(text: string) {
   return { errors, official: official.map((error) => error.message) };
 }
 
-/** The offset of the first `text` at or after the line that starts with `linePrefix`. */
 function offsetOf(linePrefix: string, text: string): number {
   const lineStart = `\n${fixture}`.indexOf(`\n${linePrefix}`);
   expect(lineStart, `line ${JSON.stringify(linePrefix)}`).toBeGreaterThanOrEqual(0);
@@ -52,7 +46,6 @@ function offsetOf(linePrefix: string, text: string): number {
   return at;
 }
 
-/** The rule names around the character at `offset` in the tree, innermost last. */
 function treeRulesAt(offset: number): string[] {
   const names: string[] = [];
   for (let node: SyntaxNode | null = parseSource(fixture).resolveInner(offset, 1); node; node = node.parent) {
@@ -63,7 +56,6 @@ function treeRulesAt(offset: number): string[] {
 
 const isElseKeyword = (stack: string[]) => stack.at(-1) === "keyword.control.else.luau";
 
-// Each case is one function of the fixture, named by the line that opens it.
 const VALUE_CASES = [
   ["a while condition", "function a(c)", "else true do"],
   ["a call argument", "function b(c)", "else 2)"],
@@ -95,19 +87,14 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
     expect(result.errors).toEqual([]);
   });
 
-  // A story line's brace reads its if expression with the same rules, and
-  // shows the arm's value.
   test.each([
     ["true", "Hello a there.\n"],
     ["false", "Hello b there.\n"],
   ])("is the value a story brace shows when the condition is %s", (value, text) => {
-    const { program } = compileScript(`store c = ${value}\nHello {if c then\n"a"\nelse "b"} there.\n`);
+    const { program } = compileScript(`store c = ${value}\nscene start\n  Hello {if c then\n"a"\nelse "b"} there.\nend\n`);
     expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((beat) => beat.text)).toEqual([text]);
   });
 
-  // The `then` or `do` that ends such a line after the arm's value is the
-  // keyword of the statement whose condition the expression is, not the
-  // arm's own `then`, so the next line is that statement's body.
   test.each([
     ["an if statement's `then`", "if if c then c then"],
     ["a while loop's `do`", "while if c then c do"],
@@ -122,8 +109,6 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
     expect(treeRulesAt(keyword)).not.toContain("LuauTernaryExpression");
   });
 
-  // A comment whose text ends like a glued `then` is not one: the arm, whose
-  // value is already behind it, ends at the next line's start as before.
   test.each([
     "local y = if c then 1 -- )then",
     "local z = if c then 1 -- ]then",

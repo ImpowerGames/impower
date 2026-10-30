@@ -1,8 +1,3 @@
-// PLAY's game in the worker shares the thread with the compiler, and a compile
-// re-parents the runtime containers of every flow it reuses into its new story
-// (#682). PLAY's game runs a story of its own, written out from the program
-// once, so a compile in the middle of a run leaves the run exactly as it would
-// have been.
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
@@ -10,7 +5,7 @@ import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarn
 
 const SOURCE = `store mood = 0
 
--> start
+
 
 scene start
   HERO:
@@ -33,8 +28,6 @@ const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(
 const FIRST = lineOf("The first line.");
 const THIRD = lineOf("The third line");
 
-/** The message as a run sends it, without the ids requests are given fresh
- *  in every run, its own and those of the requests a batch carries. */
 const comparable = (message: any): any => {
   const { id: _id, ...rest } = message;
   if (Array.isArray(rest.params?.messages)) {
@@ -46,18 +39,12 @@ const comparable = (message: any): any => {
   return rest;
 };
 
-/** PLAY from the first line, advanced by a click and a second of frames at a
- *  time to the last line. With `compileAt`, the author edits a later line and the
- *  worker compiles the edit after that many clicks. Answers everything PLAY's
- *  game sent the page. */
 const run = async (compileAt?: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
     manualClock: true,
   });
-  // A run that ends stops the game, which waits a frame this page does not
-  // draw.
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   try {
@@ -82,14 +69,10 @@ const run = async (compileAt?: number) => {
             text: "An edited third line",
           },
         ]);
-        // The worker compiles the edit while the game runs. The page is not
-        // handed the program, so nothing restarts the run.
         compiled = await h.page.sendRequest(CompileProgramMessage.type, {
           textDocument: { uri: MAIN_URI },
           startFrom: { file: MAIN_URI, line: FIRST },
         });
-        // The compile gave the previewing game its program and replayed its
-        // route in the new story.
         expect(h.workerState.gameState.game!.program).not.toBe(before);
       }
       h.controller._app.emit(
@@ -98,7 +81,6 @@ const run = async (compileAt?: number) => {
       await settle(10);
       await h.tick(1000 / 60, 60);
     }
-    // The same game ran throughout, on a story no compile built.
     expect(h.workerState.gameState.running).toBe(running);
     expect(running.story).not.toBe(h.workerState.gameState.game!.story);
     const sent = h.toRouter.slice(sentBefore).map(comparable);
@@ -114,15 +96,11 @@ describe("a compile in the middle of PLAY in the worker", () => {
     const undisturbed = await run();
     const disturbed = await run(1);
 
-    // The compile did compile the edit, and the run went past the line it
-    // edited, showing the line as the run's own program has it.
     expect(disturbed.compiled.program).toBeTruthy();
     expect(undisturbed.text).toContain("The third line, 2.");
     expect(undisturbed.text).toContain("The last line.");
     expect(disturbed.text).not.toContain("An edited third line");
 
-    // The first message the two runs disagree on, if any: a whole-stream
-    // comparison of two long streams that differ is too large to report.
     const length = Math.max(disturbed.sent.length, undisturbed.sent.length);
     let first = -1;
     for (let i = 0; i < length && first < 0; i++) {

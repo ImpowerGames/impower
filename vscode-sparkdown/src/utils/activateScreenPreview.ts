@@ -109,7 +109,6 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
               const screenDependencyRanges =
                 getAllScreenDependencyRanges(document);
               const ranges = [screenRange, ...screenDependencyRanges];
-              // TODO: Only update if change affects screen, screen view/css dependency, or screen variable
               updateWebviewContent(screenPreviewPanel.panel, document, ranges);
             }
           }
@@ -119,12 +118,8 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
   );
 }
 
-// The UI blocks a preview can be opened on: a `layout` declares the element
-// tree, and a `screen` names the navigation group those layouts belong to.
 const PREVIEWABLE_NODES = nodeNameSet(["LuauLayout", "LuauScreen"]);
 
-// Shared blocks a previewed layout can draw on, sent along so the preview
-// renders with the same components and styling as the running game.
 const DEPENDENCY_NODES = nodeNameSet([
   "LuauComponent",
   "LuauStyle",

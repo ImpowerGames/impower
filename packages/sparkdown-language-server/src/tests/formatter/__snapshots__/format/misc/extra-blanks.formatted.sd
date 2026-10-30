@@ -1,5 +1,7 @@
-N: First line.
+scene start
+  N: First line.
 
-N: Second line.
+  N: Second line.
 
-N: Third line.
+  N: Third line.
+end

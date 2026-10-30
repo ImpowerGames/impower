@@ -1,9 +1,3 @@
-// Pins what scripts/check-node-names.mjs recognises and what it deliberately
-// does not, so that a change to its patterns or its file filter shows up as a
-// failing expectation instead of a quietly narrower scan.
-//
-//   node --test scripts/check-node-names.test.mjs
-
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
@@ -45,10 +39,6 @@ test("every comparison and lookup shape is recognised", () => {
   assert.deepEqual(names(`if (n.name === 'X') {}`), ["1:X"]);
 });
 
-// A set with no legal member is left alone on purpose: it is either another
-// grammar's names or not node names at all, and a set whose every member has
-// gone stale at once is the price of not flagging those. Sets built with
-// `nodeNameSet` are checked by tsc regardless.
 test("a constant set is checked only when it holds node names", () => {
   const legal = new Set(["Scene"]);
   const set = (body) => nodeNameLiterals(`const S = new Set(${body});`, legal).map((f) => f.name);
@@ -114,7 +104,6 @@ test("the file filter keeps the files the check exists for", () => {
     assert.ok(!p.startsWith("packages/sparkdown/src/inkjs/"), `${p} belongs to the ink engine`);
     assert.ok(!p.startsWith("packages/textmate-grammar-tree/"), `${p} has no sparkdown names`);
   }
-  // The typecheck fixture holds names the grammar cannot produce on purpose.
   assert.ok(
     !files.includes("packages/sparkdown-language-server/src/tests/types/nodeNameTyping.typecheck.ts"),
     "the typecheck fixture must not be scanned",

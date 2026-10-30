@@ -1,5 +1,3 @@
-// A CDP observer for Electron's worker and webview targets. Playwright owns
-// the workbench UI; this connection only reaches targets in that owned host.
 export async function connectCDP(endpoint) {
   const response = await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`CDP discovery failed: ${response.status}`);

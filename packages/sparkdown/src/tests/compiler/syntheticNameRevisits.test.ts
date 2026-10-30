@@ -1,7 +1,3 @@
-// A synthetic name minted from a source offset must come out of an
-// incremental compile as a cold compile of the same text names it, including
-// in one of several scripts of a project and in a Sparkle layout, whose binding
-// evaluators are named by offset.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -49,12 +45,9 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
 }
 
 type Compiled = {
-  // The program and its Sparkle trees.
   text: string;
   sparkle: any;
-  // The `span` of each binding handle from `main.sd`, in serialization order.
   spans: { line: number; from: number; to: number }[];
-  // The scripts the program was compiled from.
   scripts: string[];
 };
 
@@ -76,9 +69,6 @@ function compiled(compiler: SparkdownCompiler): Compiled {
   return { text, sparkle: program.sparkle, spans, scripts: Object.keys(program.scripts) };
 }
 
-// Compiles `project`, inserts `insert` into the file `name` at `offset`, and
-// returns the compile before the edit, the incremental compile of the edited
-// project and a cold compile of it.
 function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled, Compiled] {
   return quiet(() => {
     const compiler = testCompiler();
@@ -112,7 +102,6 @@ function diagnostics(program: any): string[] {
   );
 }
 
-// The value the evaluator behind a layout's first binding returns.
 function firstBindingValue(program: any, layout: string): unknown {
   const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding\$\w+/)?.[0];
   expect(id).toBeDefined();
@@ -122,7 +111,6 @@ function firstBindingValue(program: any, layout: string): unknown {
 
 describe("synthetic names after an edit", () => {
   it("a method-call temp in one of several scripts keeps the cold name", () => {
-    // `shared.sd`'s scene is reached from `main.sd` and from `chapter.sd`.
     const project: Project = {
       main: [
         "store a = { add = function(self, n) return self end }",
@@ -139,13 +127,8 @@ describe("synthetic names after an edit", () => {
       pre: ["scene pre_one", "  Before the shared script.", "end", ""].join("\n"),
       shared: ["scene shared_one", "& r = a:add(1):add(2)", "end", ""].join("\n"),
     };
-    // A temp in `pre.sd`, which comes before `shared.sd` in the project, comes
-    // ahead of the shared temps. It goes after the line already in its scene,
-    // so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
     const [, incremental, cold] = incrementalAndCold(project, "pre", pre.lastIndexOf("end"), "& r = a:add(5):add(6)\n");
-    // Every script is part of both programs, so the temps compared include
-    // the ones of `pre.sd` and `shared.sd`.
     for (const program of [incremental, cold]) {
       expect(program.scripts).toEqual(["main", "chapter", "pre", "shared"].map(uriOf));
     }
@@ -175,12 +158,8 @@ describe("synthetic names after an edit", () => {
         "",
       ].join("\n"),
     };
-    // The scenes between keep the layout outside the region the edit
-    // reparses, so the incremental compile carries its chunk unlowered.
     const at = project["main"]!.indexOf("  First line.") + 2;
     const [before, incremental, cold] = incrementalAndCold(project, "main", at, "Longer ");
-    // The layout's tree is the one the first compile lowered, so its chunk was
-    // carried and not lowered again.
     expect(incremental.sparkle.layouts.la).toBe(before.sparkle.layouts.la);
     expect(incremental.spans).toEqual(cold.spans);
     expect(incremental.spans).toHaveLength(1);
@@ -218,8 +197,6 @@ describe("synthetic names after an edit", () => {
       configure(compiler, { main: text }, 1);
       const first = compiled(compiler);
       expect(first.spans).toEqual([spanOf(text)]);
-      // Lengthen a line, add a line, then remove what was added: the carried
-      // layout moves down twice and then back up.
       const edits: [number, number, string][] = [
         [text.indexOf("  First line.") + 2, 0, "Longer "],
         [text.indexOf("  Second line.") + 2 + "Longer ".length, 0, "Added line.\n  "],
@@ -267,9 +244,6 @@ describe("synthetic names after an edit", () => {
 
 describe("binding evaluator names", () => {
   it("two layouts of one file get an evaluator each", () => {
-    // Each binding sits at the same place within its own layout, and the two
-    // chunks hash alike under 32-bit FNV-1a, so a name taken from a hash of
-    // the chunk's text would give both layouts one evaluator.
     const program = compileOnce(
       [
         "store a = 1",
@@ -306,9 +280,6 @@ describe("binding evaluator names", () => {
   });
 
   it("layouts declared in two files whose paths hash alike get an evaluator each", () => {
-    // The two paths hash alike under 32-bit FNV-1a, so a name taken from a
-    // hash of the path would give both files' bindings one evaluator. A layout
-    // of one name in two files is an error, so each file names its own.
     const program = compileOnce(["store a = 1", "store b = 2", ""].join("\n"), {
       f19349: ["layout shared_a with", '  text "{a}"', "end", ""].join("\n"),
       f1238112: ["", "", "layout shared_b with", '  text "{b}"', "end", ""].join("\n"),

@@ -1,8 +1,3 @@
-// A compile's answer carries what the worker's route search to the program's
-// start point established (`RouteSearchLog.report`): the page takes it with
-// the program, and PLAY starts from it (`playStartsFromWorkerRoute.test.ts`).
-// The worker writes it into the compile's event, so the compile answers with
-// that event's fields.
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";

@@ -1,5 +1,7 @@
-{six() + two()}
-done
+scene start
+  {six() + two()}
+  done
+end
 
 function two()
   return 2

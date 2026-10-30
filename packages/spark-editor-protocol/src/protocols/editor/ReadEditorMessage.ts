@@ -10,7 +10,6 @@ export interface ReadEditorResult {
   selection: Range;
   coordinates: { left: number; right: number; top: number; bottom: number } | null;
 }
-/** Read the active script's model and optional measured position. */
 export class ReadEditorMessage {
   static readonly method = "editor/read";
   static readonly type = new MessageProtocolRequestType<

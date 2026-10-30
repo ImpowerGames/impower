@@ -1,11 +1,3 @@
-// Phase 3 I3: reactive if/match control flow.
-//
-// Each conditional mounts its active branch's children DIRECTLY into the parent
-// at the region's slot (wrapperless — positional `ui/create` with a `before`
-// target). When the selected branch changes, the old branch's elements are torn
-// down and the new branch is mounted at the same slot (anchored before the next
-// live sibling), so sibling order is preserved with no wrapper element.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -39,17 +31,14 @@ end
       { reactive: true },
     );
     await h.ready;
-    // dead=false, hp=100 → else branch.
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("OK");
 
-    // hp drops below 10 → elseif branch (old branch torn down, new mounted).
     h.reset();
     set(h, "hp", 5);
     refresh(h);
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("Low");
     expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
 
-    // dead becomes true → first (if) branch takes precedence.
     h.reset();
     set(h, "dead", true);
     refresh(h);
@@ -73,7 +62,6 @@ end
     );
     await h.ready;
     h.reset();
-    // hp unchanged → same branch → no create/destroy churn.
     refresh(h);
     expect(h.snapshotFiltered("ui/create")).toEqual([]);
     expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
@@ -105,7 +93,6 @@ end
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("Mage");
     expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
 
-    // No matching case → else arm.
     h.reset();
     set(h, "cls", "rogue");
     refresh(h);
@@ -129,11 +116,10 @@ end
     await h.ready;
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("HP: 100");
 
-    // hp still > 0 → same branch, but the nested {hp} span updates.
     h.reset();
     set(h, "hp", 42);
     refresh(h);
-    expect(h.snapshotFiltered("ui/create")).toEqual([]); // no branch swap
+    expect(h.snapshotFiltered("ui/create")).toEqual([]);
     const update = h
       .snapshotFiltered("ui/update")
       .find(

@@ -1,12 +1,3 @@
-// String-table reseeding (#314, kept for the statement chunks).
-//
-// The table every program a compiler builds reads (`ProgramTable`) is
-// append-only, so the chunks a compile keeps still read the ids they were
-// built with, which means it grows: every edited statement interns strings
-// for its changed lines, and those are dead immediately (measured ~1 per
-// keystroke on raffles-and-bunny). The compiler bounds it by reseeding it
-// (`maybeReseedBinaryTable`), which the chunk store's roots cross
-// (`ChunkStore.reseed`).
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -70,8 +61,6 @@ function corpus(tag: string): string {
 
 describe("string-table reseeding", () => {
   it("keeps the table bounded instead of growing per keystroke", () => {
-    // The leak this policy exists for: each edit interns strings for the line
-    // it changed, and they are dead on the next keystroke.
     const text = corpus("a");
     const c = quiet(() => makeCompiler(text));
     quiet(() => c.compile({ textDocument: { uri: URI } } as never));
@@ -81,7 +70,7 @@ describe("string-table reseeding", () => {
 
     const NL = String.fromCharCode(10);
     let current = text;
-    const EDITS = 900; // enough to exceed the minimum slack and trip the ratio
+    const EDITS = 900;
     for (let i = 0; i < EDITS; i += 1) {
       const anchor = "Action 2 a";
       const at = current.indexOf(anchor);
@@ -104,12 +93,9 @@ describe("string-table reseeding", () => {
       quiet(() => c.compile({ textDocument: { uri: URI } } as never));
     }
 
-    // Unbounded growth would be baseline + EDITS. The policy must hold it well
-    // under that; the exact figure depends on where the ratio last tripped.
     expect(table.strings.length).toBeLessThan(baseline + EDITS);
     expect(table.strings.length).toBeLessThan(baseline * 2 + 600);
 
-    // And the program is still correct after however many reseeds happened.
     const program = quiet(
       () => c.compile({ textDocument: { uri: URI } } as never).program,
     );

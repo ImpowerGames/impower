@@ -23,8 +23,6 @@ function socketRequest(socket, id, method, params = {}) {
   });
 }
 
-// Start the two servers with the committed driver before running this test.
-// An ephemeral browser context keeps the test out of the driver's saved project.
 test("open, settle, hover, and read through both editor protocol transports", { timeout: 180_000 }, async () => {
   await withEditor(async ({ page, url }) => {
     await openEditorPage(page, url);
@@ -47,7 +45,6 @@ test("open, settle, hover, and read through both editor protocol transports", { 
     const seeded = await seedProject(page, fixture);
     assert.equal(seeded.storage, "replaced", seeded.reason);
     assert.equal(seeded.files, 36);
-    // Match the driver: reload immediately, before waiting for any cache work.
     await page.reload({ waitUntil: "domcontentloaded" });
     assert.ok((await waitForEditor(page)).textDocument.uri);
     assert.ok(await page.evaluate(async () => {
@@ -101,7 +98,6 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       await once(socket, "open");
       assert.deepEqual((await socketRequest(socket, "socket-project", "window/loadedProjectId")).result, result.project);
       assert.equal((await socketRequest(socket, "socket-editor", "editor/read")).result?.textDocument?.uri, result.uri, "the socket must be owned by this test's editor");
-      // Reload migrates root-level images into the project's assets directory.
       const fileResponse = await socketRequest(socket, "socket-file", "workspace/readFile", { file: { uri: "file://local/assets/zz.png" } });
       assert.ok(fileResponse.result, JSON.stringify(fileResponse));
       assert.deepEqual(Buffer.from(fileResponse.result.$sparkBuffer, "base64"), Buffer.from(png, "base64"));
@@ -120,8 +116,6 @@ test("open, settle, hover, and read through both editor protocol transports", { 
       observer.on("message", receive);
       try {
         await once(observer, "open");
-        // Clients receive editor notifications only after subscribing; subscribe
-        // to all so an echo would arrive if the bridge reflected injections.
         for (const client of [socket, observer]) client.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: {} }));
         socket.send(JSON.stringify({ jsonrpc: "2.0", method: "test/noEffect", params: {} }));
         await socketRequest(socket, "sender-barrier", "window/loadedProjectId");
@@ -137,7 +131,6 @@ test("open, settle, hover, and read through both editor protocol transports", { 
     assert.equal((await shotOf(page, "hover", screenshot)).screenshot, screenshot);
     await page.screenshot({ path: path.join(fixture, "editor.png") });
     console.log("Protocol evidence:", fixture);
-    // A waiting tab must take over without a reload once its owning tab closes.
     const replacement = await page.context().newPage();
     await openEditorPage(replacement, url);
     await replacement.waitForFunction(() => window.__editorProtocol != null);

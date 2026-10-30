@@ -1,7 +1,3 @@
-// #1703: a divert target to DONE or END used as a value (`-> DONE`,
-// `-> END`) can't be stored, passed or held. The compile reports that on the
-// target's name, where a divert reports `target not found`, and still builds
-// its program, rather than throwing with no diagnostic and no program.
 import { describe, expect, it } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -54,8 +50,6 @@ function diagnostics(program: any): Found[] {
   }));
 }
 
-/** Where `target` (the target's name) is written on `line` of `text`: its
- *  line and columns. */
 function rangeOf(text: string, line: number, target: string) {
   const lineText = text.split("\n")[line]!;
   const start = lineText.indexOf(target);
@@ -65,18 +59,18 @@ function rangeOf(text: string, line: number, target: string) {
 
 describe("a divert target to DONE or END used as a value", () => {
   it.each([
-    ["a store", "store route = -> DONE\n\nHello.\n", 0, "DONE"],
-    ["a store to END", "store route = -> END\n\nHello.\n", 0, "END"],
+    ["a store", "store route = -> DONE\n\nscene start\n  Hello.\nend\n", 0, "DONE"],
+    ["a store to END", "store route = -> END\n\nscene start\n  Hello.\nend\n", 0, "END"],
     [
       "a local in a scene",
-      "-> main\n\nscene main\n  local r = -> DONE\n  Hello.\nend\n",
-      3,
+      "scene start\n  local r = -> DONE\n  Hello.\nend\n",
+      1,
       "DONE",
     ],
     [
       "an argument",
-      "function f(x)\nend\n\n& f(-> END)\n\nHello.\n",
-      3,
+      "function f(x)\nend\n\nscene start\n  & f(-> END)\n  Hello.\nend\n",
+      4,
       "END",
     ],
   ])(
@@ -90,18 +84,16 @@ describe("a divert target to DONE or END used as a value", () => {
     },
   );
 
-  // The next keystroke: an edit elsewhere in the script compiles again with
-  // the error still reported, and on the line the target moved to.
   it.each([
     ["below the target", "  Hello.", "  Hello again."],
-    ["above the target", "-> main", "-> main\n"],
+    ["above the target", "scene start", "\nscene start"],
   ])(
     "an edit %s keeps the error on the target",
     (_name, before, after) => {
-      const text = "-> main\n\nscene main\n  local r = -> DONE\n  Hello.\nend\n";
+      const text = "scene start\n  local r = -> DONE\n  Hello.\nend\n";
       const compiler = compilerFor(text);
       expect(diagnostics(compileWith(compiler))).toEqual([
-        { message: MESSAGE, ...rangeOf(text, 3, "DONE") },
+        { message: MESSAGE, ...rangeOf(text, 1, "DONE") },
       ]);
       const edited = text.replace(before, after);
       compiler.updateDocument({
@@ -119,7 +111,7 @@ describe("a divert target to DONE or END used as a value", () => {
 
   it("a divert target to a scene still compiles with no diagnostic", () => {
     const program = compile(
-      "store route = -> main\n\n-> main\n\nscene main\n  Hello.\nend\n",
+      "store route = -> start\n\nscene start\n  Hello.\nend\n",
     );
     expect(diagnostics(program)).toEqual([]);
     expect(program.chunks).toBeDefined();

@@ -5,13 +5,6 @@ import { MessageProtocolRequestType } from "./MessageProtocolRequestType";
 
 export type InitializeMethod = typeof InitializeMessage.method;
 
-/**
- * What a client sends the language server at startup. Everything the server
- * does not consume itself is handed straight to the compiler, so the compiler's
- * own configuration is part of this shape — apart from the two fields declared
- * differently here: files arrive as uris the server resolves, and definitions
- * are supplied by the host rather than typed against the compiler's tables.
- */
 export interface InitializationOptions extends Omit<
   SparkdownCompilerConfig,
   "files" | "definitions"
@@ -32,11 +25,8 @@ export interface InitializationOptions extends Omit<
   };
   files?: { uri: string; src?: string; text?: string }[];
   uri?: string;
-  /** Drop image data from the program the server relays back to the client. */
   omitImageData?: boolean;
-  /** Relay a reduced program on change notifications instead of the whole one. */
   slimProgramNotifications?: boolean;
-  /** How long the server waits after a change before recompiling, in ms. */
   compileDebounceDelay?: number;
 }
 

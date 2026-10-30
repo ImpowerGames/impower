@@ -1,10 +1,3 @@
-// A movie on a layer, on the page (I-1380): a video name shown on a layer
-// becomes a `<video class="object">` in the layer's span, loading the asset
-// cache's object URL when the file is resident and the file otherwise. Play
-// starts it once the layer shows; a preview shows its first frame and never
-// starts it. It pauses, resumes and skips with the game, and a hide stops it
-// and lets its media go.
-
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { WriteImageInstruction } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
@@ -28,15 +21,11 @@ import {
 } from "./domTestHarness";
 import { fakeAudioContext, stubMedia } from "./mediaStubs";
 
-// A real game compiles, replays its route and, beside a morph, bakes for
-// each test here; on a busy machine that can outlast the default timeout.
 vi.setConfig({ testTimeout: 60_000 });
 
 const WAVE = "/file:/proj/bunny_wave.webm?v=1";
 const RAIN = "/file:/proj/rain.webm?v=1";
 
-// The builtin `main` layout, as real projects render: its portrait clears on
-// continue and its backdrop stays up until something replaces it.
 const SOURCE = `define bunny_wave as video with
   src = "${WAVE}"
 end
@@ -45,7 +34,7 @@ define rain as video with
   src = "${RAIN}"
 end
 
--> start
+
 
 scene start
   [[show portrait bunny_wave]]
@@ -62,11 +51,8 @@ end
 const lineOf = (text: string) =>
   SOURCE.split("\n").findIndex((l) => l.includes(text));
 
-/** The page's application: the stub the harness built. */
 const appOf = (h: { ui: any }) => h.ui.app as any;
 
-/** A page whose game plays on, with the asset cache able to fetch a video
- *  into an object URL when `resident` holds. */
 async function playing(opts: { resident?: boolean; source?: string } = {}) {
   const h = createDOMHarness(opts.source ?? SOURCE, 0, { compose: true });
   const media = stubMedia(h.overlay);
@@ -117,8 +103,6 @@ describe("a movie on a layer, in play", () => {
     expect(video!.loop).toBe(true);
     expect(video!.muted).toBe(false);
     expect(media.of(video, "play")).toBe(1);
-    // The `object` style hides an image's sizing element; a movie paints
-    // itself.
     expect(video!.style.visibility).toBe("visible");
   });
 
@@ -158,7 +142,6 @@ describe("a movie on a layer, in play", () => {
     expect(media.of(video, "play")).toBe(2);
     h.ui.onSkip(0.5);
     expect(video.currentTime).toBe(1.5);
-    // A looping movie skips around its loop, either way.
     h.ui.onSkip(2);
     expect(video.currentTime).toBeCloseTo(0.5);
     h.ui.onSkip(-1);
@@ -167,25 +150,19 @@ describe("a movie on a layer, in play", () => {
 
   test("skips from where the game clock puts the movie, not from where a seek held it", async () => {
     const { h } = await playing();
-    // The game clock's elapsed time, which stops while the game is paused
-    // and which a skip does not add to.
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     (video as any).__duration = 30;
-    // Half a second of game time later, a seek still decoding holds the
-    // element at 0.2: the step goes from 0.5, where the clock puts it.
     clock.elapsedTime = 10.5;
     video.currentTime = 0.2;
     h.ui.onSkip(0.1);
     expect(video.currentTime).toBeCloseTo(0.6);
-    // And the next step from 0.6 plus the game time since.
     clock.elapsedTime = 10.6;
     video.currentTime = 0.45;
     h.ui.onSkip(0.1);
     expect(video.currentTime).toBeCloseTo(0.8);
-    // Back past the start of a loop wraps to its end.
     h.ui.onSkip(-1);
     expect(video.currentTime).toBeCloseTo(29.8);
   });
@@ -205,7 +182,6 @@ describe("a movie on a layer, in play", () => {
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays);
     expect(video.paused).toBe(true);
-    // Back inside it, it plays on with the game.
     h.ui.onPause();
     h.ui.onSkip(-1.5);
     expect(video.currentTime).toBe(1.5);
@@ -224,21 +200,17 @@ describe("a movie on a layer, in play", () => {
     (video as any).__duration = 3;
     clock.elapsedTime = 11;
     video.currentTime = 1;
-    // Pause at 1 s and skip past the end: it holds at 3 s on resume.
     h.ui.onPause();
     h.ui.onSkip(5);
     expect(video.currentTime).toBe(3);
     const plays = media.of(video, "play");
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays);
-    // Rewind 1.5 s from its end, not from where the skip aimed past it.
     h.ui.onPause();
     h.ui.onSkip(-1.5);
     expect(video.currentTime).toBe(1.5);
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays + 1);
-    // Played through to its end on its own, much later in game time, a
-    // rewind still lands inside it and it plays on.
     clock.elapsedTime = 40;
     video.currentTime = 3;
     (video as any).__ended = true;
@@ -246,7 +218,6 @@ describe("a movie on a layer, in play", () => {
     h.ui.onPause();
     h.ui.onSkip(-1);
     expect(video.currentTime).toBe(2);
-    // The seek back leaves the end.
     (video as any).__ended = false;
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays + 2);
@@ -260,7 +231,6 @@ describe("a movie on a layer, in play", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     (video as any).__duration = 3;
-    // 3.2 s of game time later, a slow start left it at 2.2 s.
     clock.elapsedTime = 13.2;
     video.currentTime = 2.2;
     const plays = media.of(video, "play");
@@ -268,7 +238,6 @@ describe("a movie on a layer, in play", () => {
     h.ui.onUnpause();
     expect(media.of(video, "play")).toBe(plays + 1);
     expect(video.currentTime).toBe(2.2);
-    // And a skip goes from where it stood when the game paused.
     h.ui.onPause();
     h.ui.onSkip(0.5);
     expect(video.currentTime).toBeCloseTo(2.7);
@@ -281,7 +250,6 @@ describe("a movie on a layer, in play", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.loop).toBe(true);
-    // The stub reports no duration, as a file without one does.
     expect(Number.isFinite(video.duration)).toBe(false);
     clock.elapsedTime = 11;
     video.currentTime = 1;
@@ -292,11 +260,6 @@ describe("a movie on a layer, in play", () => {
     expect(video.currentTime).toBe(0.5);
   });
 
-  // Where the game clock puts a movie and where its element stands must
-  // agree after every skip, whatever the movie is: looping or not, with a
-  // known duration or none, skipped before its start, inside it or past
-  // its end, and then back the other way. `place` is that rule written out
-  // on its own, as the oracle.
   const place = (loop: boolean, duration: number, time: number) => {
     const span = Number.isFinite(duration) && duration > 0 ? duration : undefined;
     if (loop && span !== undefined) {
@@ -334,8 +297,6 @@ describe("a movie on a layer, in play", () => {
         const expected = place(loop, duration, time + seconds);
         h.ui.onSkip(seconds);
         expect(video.currentTime).toBeCloseTo(expected.element);
-        // A skip of nothing places the element where the clock has the
-        // movie: unchanged when the two agree.
         h.ui.onSkip(0);
         expect(video.currentTime).toBeCloseTo(expected.element);
         time = expected.anchor;
@@ -343,11 +304,6 @@ describe("a movie on a layer, in play", () => {
     },
   );
 
-  // A skip made before the browser knows a movie's duration, which it then
-  // learns (3 s): the browser clamps the element into the movie and fires
-  // `durationchange`, and the movie must stand where the clock has it.
-  // Expected positions are written out by hand: paused at 1 s, a first skip
-  // and then a skip back the other way.
   test.each([
     { loop: true, from: NaN, landing: "before its start", skips: [-2, 0.5], expected: [0, 0.5] },
     { loop: true, from: NaN, landing: "inside it", skips: [0.5, -0.3], expected: [1.5, 1.2] },
@@ -376,8 +332,6 @@ describe("a movie on a layer, in play", () => {
       appOf(h).paused = true;
       h.ui.onPause();
       h.ui.onSkip(skips[0]!);
-      // The metadata arrives: the browser keeps the element within the
-      // movie and reports its duration.
       (video as any).__duration = 3;
       video.currentTime = Math.min(Math.max(0, video.currentTime), 3);
       video.dispatchEvent(
@@ -400,24 +354,17 @@ describe("a movie on a layer, in play", () => {
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.loop).toBe(false);
     expect(Number.isFinite(video.duration)).toBe(false);
-    // Three seconds of game time later it reaches its end at 2.9 s.
     clock.elapsedTime = 13;
     video.currentTime = 2.9;
     (video as any).__ended = true;
     video.dispatchEvent(new (h.overlay.ownerDocument.defaultView as any).Event("ended"));
-    // A skip back goes from its end, not from the 3 s the clock projects.
     h.ui.onSkip(-1);
     expect(video.currentTime).toBeCloseTo(1.9);
-    // And a skip forward past it stops at its end.
     (video as any).__ended = false;
     h.ui.onSkip(5);
     expect(video.currentTime).toBeCloseTo(2.9);
   });
 
-  // A seek past the end of a file the browser still reports no duration
-  // for, which the browser stops at the movie's true end (3 s) and settles
-  // there with no `durationchange`: that landing is where the movie ends.
-  // Paused at 1 s, a skip of 4.5 s and then one back.
   test.each([
     { loop: true, expected: [2.5, 1.5] },
     { loop: false, expected: [3, 2] },
@@ -452,7 +399,6 @@ describe("a movie on a layer, in play", () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
-    // Started at its first frame at game time 10.
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     (video as any).__duration = 3;
@@ -460,23 +406,16 @@ describe("a movie on a layer, in play", () => {
       video.dispatchEvent(
         new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
       );
-    // The clock's frames, which update the page with a current reading.
     const frame = () => h.ui.onUpdate(clock as any);
-    // At 13.4 the loop has come round, and the browser's seek back to its
-    // start stalled: the element stands at 0.05 where the clock has 0.4. That
-    // is playback; the page does not seek it.
     clock.elapsedTime = 13.4;
     video.currentTime = 0.05;
     seeked();
     frame();
     expect(video.currentTime).toBe(0.05);
-    // With no frames (a hidden page) the clock's reading stays at 13.5 while
-    // the movie plays on and comes round again: nothing is placed by it.
     clock.elapsedTime = 13.5;
     video.currentTime = 0.001;
     seeked();
     expect(video.currentTime).toBe(0.001);
-    // The next skip goes from where the clock has it: 13.6 is 0.6 round.
     clock.elapsedTime = 13.6;
     frame();
     h.ui.onSkip(0);
@@ -490,8 +429,6 @@ describe("a movie on a layer, in play", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     (video as any).__duration = 3;
-    // The browser reports the end of the loop, its last frame, as the game
-    // pauses.
     clock.elapsedTime = 13;
     video.currentTime = 3;
     appOf(h).paused = true;
@@ -505,13 +442,10 @@ describe("a movie on a layer, in play", () => {
     const { h } = await playing();
     const clock = { elapsedTime: 10 };
     appOf(h).clock = clock;
-    // Started at its first frame at game time 10, with no duration.
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.loop).toBe(true);
     const frame = () => h.ui.onUpdate(clock as any);
-    // With no frames (a hidden page) the clock's reading stays at 10.5 while
-    // the movie plays on to 2 s, where the browser learns its 3 s duration.
     clock.elapsedTime = 10.5;
     (video as any).__duration = 3;
     video.currentTime = 2;
@@ -519,7 +453,6 @@ describe("a movie on a layer, in play", () => {
       new (h.overlay.ownerDocument.defaultView as any).Event("durationchange"),
     );
     expect(video.currentTime).toBe(2);
-    // Frames come back at 12.02: the clock has it at 2.02, in step.
     clock.elapsedTime = 12.02;
     frame();
     expect(video.currentTime).toBe(2);
@@ -532,15 +465,11 @@ describe("a movie on a layer, in play", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.loop).toBe(true);
-    // Paused at 1 s before its duration is known, and skipped 5 s: the
-    // clock has it at 6 s, exactly twice round a 3 s movie.
     clock.elapsedTime = 11;
     video.currentTime = 1;
     appOf(h).paused = true;
     h.ui.onPause();
     h.ui.onSkip(5);
-    // The metadata arrives: the browser holds the element at the movie's end
-    // (its last frame) and reports its duration.
     (video as any).__duration = 3;
     video.currentTime = 6;
     expect(video.currentTime).toBe(3);
@@ -562,14 +491,11 @@ describe("a movie on a layer, in play", () => {
     clock.elapsedTime = 11;
     h.ui.onSkip(2);
     expect(video.currentTime).toBe(3);
-    // It took 0.3 s of game time to decode, and landed at 3: another seek
-    // would only lose that time again.
     clock.elapsedTime = 11.3;
     video.dispatchEvent(
       new (h.overlay.ownerDocument.defaultView as any).Event("seeked"),
     );
     expect(video.currentTime).toBe(3);
-    // The clock keeps that time: the next skip goes from 3.3.
     h.ui.onSkip(0);
     expect(video.currentTime).toBeCloseTo(3.3);
   });
@@ -612,8 +538,6 @@ describe("a movie on a layer, in play", () => {
   });
 });
 
-/** A page with one layer, `layer`, holding `image` and `mask` content, and
- *  the write that shows `src` on it as a movie. */
 function pageWithLayer() {
   const { overlay } = installJSDOM();
   const media = stubMedia(overlay);
@@ -659,7 +583,6 @@ describe("a movie on a layer, across runs", () => {
     const video = overlay.querySelector("video.object") as HTMLVideoElement;
     expect(media.of(video, "play")).toBe(1);
     video.currentTime = 1.5;
-    // STOP, then a new run whose restore writes the same movie.
     first.onDispose();
     expect(video.paused).toBe(true);
     const next = new UIManager(app);
@@ -669,7 +592,6 @@ describe("a movie on a layer, across runs", () => {
     expect(video.currentTime).toBe(0);
     expect(media.of(video, "play")).toBe(2);
     expect(video.paused).toBe(false);
-    // And the new run's clock reaches it.
     next.onPause();
     expect(video.paused).toBe(true);
   });
@@ -743,7 +665,7 @@ define rain as video with
   src = "${RAIN}"
 end
 
--> start
+
 
 scene start
   HERO:
@@ -811,7 +733,6 @@ end
   });
 });
 
-/** The page's audio graph, over a fake context, for `h`'s page. */
 function soundOf(h: { ui: any }) {
   const { context, sources } = fakeAudioContext();
   const app = appOf(h);
@@ -821,7 +742,6 @@ function soundOf(h: { ui: any }) {
   return { audio, sources };
 }
 
-/** A page whose audio graph is the real `AudioManager` over a fake context. */
 async function playingWithSound(source: string) {
   const { h, media, cache } = await playing({ source });
   return { h, media, cache, ...soundOf(h) };
@@ -835,7 +755,7 @@ define movie as mixer with
   gain = 0.25
 end
 
--> start
+
 
 scene start
   [[show portrait bunny_wave]]
@@ -857,12 +777,10 @@ describe("a movie's sound", () => {
     expect(mixerNode).toBeTruthy();
     expect(routed[0].outputs).toEqual([mixerNode]);
     expect(mixerNode.gain.value).toBe(0.25);
-    // The mixer's volume, set later, is the movie's.
     await audio.onReceiveRequest(
       ConfigureAudioMixerMessage.type.request({ mixer: "movie", gain: 0.5 }),
     );
     expect(mixerNode.gain.value).toBe(0.5);
-    // Paused and resumed with the game, it is routed once.
     h.ui.onPause();
     h.ui.onUnpause();
     expect(sources.filter((s) => s.mediaElement === video)).toHaveLength(1);
@@ -896,7 +814,6 @@ describe("a movie's sound", () => {
     await playNext(h);
     const video = movieOn(h.overlay, "portrait")!;
     const [source] = sources.filter((s) => s.mediaElement === video);
-    // The next application's audio graph, over the same shared context.
     const app = appOf(h);
     const next = new AudioManager(app);
     app.audio = next;
@@ -910,7 +827,6 @@ describe("a movie's sound", () => {
   test("a movie playing before the audio context runs goes through its mixer once it does", async () => {
     const { h } = await playing({ source: SOUND_SOURCE });
     const app = appOf(h);
-    // The page's application before its audio context runs.
     const { context, sources } = fakeAudioContext();
     const audio = new AudioManager(app);
     Object.assign(app, {
@@ -925,7 +841,6 @@ describe("a movie's sound", () => {
         return app._audioContext;
       },
     });
-    // The game configures its mixers on restore, before there is a graph.
     for (const [mixer, gain] of [
       ["main", 0.8],
       ["movie", 0.25],
@@ -938,15 +853,12 @@ describe("a movie's sound", () => {
     const video = movieOn(h.overlay, "portrait")!;
     expect(video.paused).toBe(false);
     expect(sources).toHaveLength(0);
-    // The context starts running while the movie plays on.
     Application.prototype.setAudioContext.call(app, context);
     const routed = sources.filter((s) => s.mediaElement === video);
     expect(routed).toHaveLength(1);
     const movie = (audio as any)._audioMixers.get("movie");
     const main = (audio as any)._audioMixers.get("main");
     expect(routed[0].outputs).toEqual([movie.volumeNode]);
-    // The movie's mixer and `main` each start at their own configured gain:
-    // 0.25 into 0.8, not the movie's gain applied twice.
     expect(movie.volumeNode.gain.value).toBe(0.25);
     expect(main.volumeNode.gain.value).toBe(0.8);
     expect(movie.analyser.outputs).toEqual([main.volumeNode]);
@@ -1007,7 +919,6 @@ describe("a movie's sound", () => {
 
 describe("a movie on a layer, in preview", () => {
   test("shows the first frame: metadata only, never played", async () => {
-    // The show is a beat of its own, and the portrait clears on the next.
     const line = lineOf("[[show portrait bunny_wave]]");
     const h = createDOMHarness(SOURCE, line);
     const media = stubMedia(h.overlay);
@@ -1019,7 +930,6 @@ describe("a movie on a layer, in preview", () => {
     expect(video!.getAttribute("preload")).toBe("metadata");
     expect(video!.getAttribute("src")).toBe(WAVE);
     expect(media.of(video, "play")).toBe(0);
-    // The game's clock does not reach a preview's movie.
     h.ui.onUnpause();
     h.ui.onSkip(1);
     expect(media.of(video, "play")).toBe(0);

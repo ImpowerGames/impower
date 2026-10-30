@@ -1,5 +1,4 @@
 // agent-tooling-timeout-ms: 600000
-// Ran 219 s on a Windows runner with four checks in flight (#1937).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,7 +17,6 @@ import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,continuationPrompt,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
 const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args}),get jobRoot(){return scratch;},get repos(){return OFF;}};
-// Launches run with the switch off, from a copy of the repos file, unless a case names the on copy.
 const runHandoff=(file,options={})=>actualRunHandoff(file,{repos:OFF,...options});
 const runReviewWorker=(dir,options={})=>actualRunWorker(dir,{repos:OFF,...options});
 const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
@@ -48,13 +46,9 @@ try {
   assert.equal(fs.existsSync(plan.journal),false);
   console.log('PASS: automatic mode cannot silently run as awaited mode');
   {
-    // Without the test seam the root is <main checkout>.review-jobs, here the
-    // fixture repository's; a job directory outside it is refused before the
-    // job's files or the worktree freeze exist.
     const outsideDir=path.join(scratch,'outside-job');
     const input={worktree:repo,jobDir:outsideDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
     const host={preflight:async()=>({supported:true})};
-    // Only the job root goes unseamed; the switch stays pinned off like every other case.
     const unseamed={validateArgs:fixtureValidation.validateArgs,repos:OFF};
     await assert.rejects(actualCreate(input,host,unseamed),error=>error.message.includes(`under ${path.join(fs.realpathSync.native(scratch),'repo.review-jobs')} `)&&/jobDir .*outside-job/.test(error.message)&&/review correctness prompt/.test(error.message));
     assert.equal(fs.existsSync(outsideDir),false,'a refused job directory must not be created');
@@ -62,8 +56,6 @@ try {
     const inside=path.join(fs.realpathSync.native(scratch),'repo.review-jobs','pr-547','round-1');fs.mkdirSync(inside,{recursive:true});
     const insidePrompt=path.join(inside,'prompt.txt');fs.writeFileSync(insidePrompt,'fixture');
     assert.doesNotThrow(()=>actualValidate({...input,jobDir:path.join(inside,'job'),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),'a plan inside the default root is accepted');
-    // The review-job readers never enter a reviewer workspace or tool home, so
-    // a job directory there would hide its journal from the checkpoint and gate.
     for(const name of ['reviewer-supervisor','codex-home-x'])assert.throws(()=>actualValidate({...input,jobDir:path.join(inside,name),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),new RegExp(`must not lie inside a reviewer workspace.*jobDir .*${name}`),`a job directory named ${name} is refused`);
     console.log('PASS: the supervised route refuses a job directory or prompt outside the default job root before writing anything');
   }
@@ -85,7 +77,6 @@ try {
     return{jobDir,p,input,host,complete,get sends(){return sends;},get delivered(){return delivered;},disconnect(){state='disconnected';}};
   };
   {
-    // A review entry's lens reaches the launcher plan, which grants the editor for an author-experience lens.
     const plain=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
     assert.equal(Object.hasOwn(readJson(path.join(plain.jobDir,'handoff.json')).steps.correctness,'lens'),false,'a review entry without a lens leaves the launcher step without one');
     const lensed=await fixture({reviews:[{...plain.input.reviews[0],lens:'author-experience'}]});fs.unlinkSync(worktreePaths(repo).freeze);
@@ -328,15 +319,12 @@ try {
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);
     const lost=await fixture();let captured,closed=false;
     const originalSpawn=childProcess.spawn;
-    // The route probe pipes its output; only the reviewer launch writes to its log file.
     childProcess.spawn=(...args)=>{if(args[2]?.stdio?.[1]==='pipe')return originalSpawn(...args);captured=originalSpawn(...args);captured.once('close',()=>{closed=true;});fs.unlinkSync(path.join(lost.jobDir,'mutation.lock'));return captured;};syncBuiltinESMExports();
     try{
       await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
       assert.equal(closed,true,'post-spawn admission cleanup failure must retain and await the actual child handle');
       assert.equal(fs.existsSync(worktreePaths(repo).lock),false,'worktree release follows confirmed close');
     }finally{childProcess.spawn=originalSpawn;syncBuiltinESMExports();if(captured&&!closed){const ended=new Promise(resolve=>captured.once('close',resolve));captured.kill();await ended;}}
-    // With the switch on, the supervised plan names the internal ticket; it reaches the
-    // launcher plan, and the worker reads each report by id from the internal repository.
     const ticketed=await fixture();fs.unlinkSync(worktreePaths(repo).freeze);
     const onValidation={...fixtureValidation,repos:ON};
     assert.throws(()=>actualValidate(ticketed.input,onValidation),/Supply ticket/,'the switch on needs the internal ticket');

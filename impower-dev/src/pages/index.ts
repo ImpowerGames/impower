@@ -3,19 +3,11 @@ import SparkEditor from "../modules/spark-editor/index";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
-  // Wire the LSP worker/connection before any SparkdownScriptEditor
-  // instance mounts (Controller reads these at construction time).
   setScriptEditorLanguageServer({
     worker: Workspace.ls.worker,
     connection: Workspace.ls.connection,
   });
   await SparkEditor.init();
-  // Reveal the page now that web components are registered. The
-  // `<style id="ssg-css">` block stays in <head> permanently — it
-  // carries the spec-component normalize (scrollbar styling, base
-  // resets), impower-ui Tailwind, and the unlayered overrides. Removing
-  // it (the legacy did, on the assumption sparkle's adoptAll had
-  // replaced it) leaves the page unstyled now that sparkle is gone.
   window.requestAnimationFrame(() => {
     document.documentElement.style["opacity"] = "1";
   });
@@ -23,20 +15,11 @@ const load = async () => {
 
 load();
 
-// DEV-only: when the browser refuses the service worker (some embedded /
-// proxied browsers fail `register()` outright), `/file:/` asset URLs would all
-// 404. Mirror the OPFS files to the dev server instead, which serves those
-// URLs itself (see devAssetMirror.ts + the vite.config.ts middleware). Kicked
-// off on registration failure, and re-checked periodically so files written
-// after boot (imports, saves) reach the mirror too.
 let devAssetMirrorStarted = false;
 const startDevAssetMirror = () => {
   if (!import.meta.env.DEV || devAssetMirrorStarted) {
     return;
   }
-  // `?nomirror=1` opts out for a session — the mirror moves the whole project
-  // over HTTP, so it has to be possible to take it out of the picture when
-  // diagnosing something else.
   if (new URLSearchParams(location.search).get("nomirror") === "1") {
     console.warn("[dev-asset-mirror] disabled via ?nomirror=1");
     return;
@@ -48,10 +31,6 @@ const startDevAssetMirror = () => {
   });
 };
 
-// Ask the browser to protect this origin's storage from best-effort
-// eviction. Where granted, OPFS/Cache Storage survive storage pressure and
-// browser lifecycle; where denied (embedded browsers commonly refuse), the
-// dev asset mirror's restore path is the safety net.
 navigator.storage?.persist?.().then((granted) => {
   if (!granted) {
     console.warn(
@@ -70,12 +49,6 @@ if ("serviceWorker" in navigator) {
       startDevAssetMirror();
     },
   );
-  // Belt-and-suspenders for a registration that resolves but never produces a
-  // working worker. Gate on `ready` (an ACTIVE registration for this scope),
-  // NOT on `controller`: a first load is legitimately uncontrolled until the
-  // next navigation, so testing `controller` declared every healthy browser
-  // broken on its first visit and had it mirror the whole project — hundreds
-  // of megabytes of pointless upload.
   if (import.meta.env.DEV) {
     Promise.race([
       navigator.serviceWorker.ready.then(() => true),
@@ -89,21 +62,6 @@ if ("serviceWorker" in navigator) {
       }
     });
   }
-  // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
-  // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
-  // Reload to pick up a NEW worker version (so the PWA auto-updates to the latest
-  // engine code without the user clicking "update") — but ONLY in PRODUCTION, and
-  // only when this page was already controlled by a previous worker (a genuine
-  // update). Two reasons to skip this in dev:
-  //   1. The dev SW only intercepts /file:/ OPFS (sw.ts gates everything else on
-  //      production), so there is never a dev "update" worth reloading for.
-  //   2. Reloading on controllerchange in dev spins into an endless loop whenever
-  //      a second worker keeps claiming the origin — e.g. the same-origin preview
-  //      iframe mistakenly registering a competing /sw.js (fixed in the player's
-  //      main.ts; this gate is the belt-and-suspenders).
-  // On an UNCONTROLLED load the controller goes null→worker (the initial claim);
-  // reloading on THAT also loops (the reload fires before the new worker persists
-  // as the saved controller), so we additionally require an existing controller.
   if (import.meta.env.PROD && navigator.serviceWorker.controller) {
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {

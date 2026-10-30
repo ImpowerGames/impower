@@ -1,9 +1,3 @@
-// #316 — a comment after a define property's value is not part of the value.
-// The compile-time struct (`program.context`) once read each value's text to
-// the end of its line, comment and all, so `count = 5 -- note` became the
-// string "5 -- note" while the runtime table kept the number. The two now
-// agree on every typed value.
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf } from "../program/programHarness";
@@ -15,7 +9,9 @@ const script = `define thing with
   ["key"] = 2 -- bracket key
 end
 
-{type(thing.count)} {thing.count + 1} {type(thing.hidden)} {thing.hidden} {thing.label} {thing.key}
+scene start
+  {type(thing.count)} {thing.count + 1} {type(thing.hidden)} {thing.hidden} {thing.label} {thing.key}
+end
 `;
 
 describe("a define property with a trailing comment", () => {

@@ -1,15 +1,9 @@
-// A `%` before a letter or digit that is not a character class matches that
-// character itself, inside and outside a set, as Luau's lstrlib does
-// (I-1398). The translator once emitted these as JavaScript regex escapes, so
-// `%t` matched a tab, `%B` matched nowhere and `[%0]` matched NUL.
-
 import { describe, expect, test } from "vitest";
 import { executeLuaPattern, luaPatternToJs } from "../../runtime/LuaPatterns";
 import { fengariGmatch } from "../luau-conformance/_fengariOracle";
 
 const run = (p: string, s: string) => executeLuaPattern(luaPatternToJs(p), s, 0);
 
-/** Every match of `pattern` across `s`, as `string.gmatch` yields them. */
 const gmatch = (pattern: string, s: string): string[] => {
   const compiled = luaPatternToJs(pattern);
   const out: string[] = [];
@@ -54,8 +48,6 @@ describe("percent-escaped letters that are not classes", () => {
   });
 });
 
-// The sweep below found `%c` missing DEL, which C `iscntrl` (and so Luau)
-// counts as a control character.
 describe("%c matches DEL", () => {
   const DEL = String.fromCharCode(0x7f);
   test.each(["%c", "[%c]"])("%s", (p) => {
@@ -67,8 +59,6 @@ describe("%c matches DEL", () => {
 });
 
 describe("agrees with Lua on every alphanumeric escape", () => {
-  // Outside a set `%b`, `%f` and the digits are pattern items with their own
-  // tests; everything else is a class or the character itself.
   const outside = ALNUM.filter((c) => !/[bf0-9]/.test(c));
   test.each(outside)("%%%s", (c) => {
     expect(gmatch("%" + c, ASCII)).toEqual(fengariGmatch(ASCII, "%" + c));

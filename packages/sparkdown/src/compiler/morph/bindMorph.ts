@@ -14,19 +14,9 @@ type ImageContext = { [type: string]: { [name: string]: any } };
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 
-/** What a morph's keyframes ask of the artwork. */
 export interface MorphRequirements {
-  /** Groups some keyframe sets a `state` for, with every state it names. */
   groups: Map<string, Set<string>>;
-  /**
-   * The state each group starts from: the one the first keyframe gives it, if
-   * the first keyframe gives it one. A variant resting in another state is
-   * left alone. A first keyframe that leaves the group out starts from the
-   * variant's own resting state, as a CSS keyframe that omits a property
-   * starts from the element's underlying value, so it constrains nothing.
-   */
   rest: Map<string, string>;
-  /** Layer labels the morph names: `layers:` keys, clip labels, posed layers. */
   labels: Set<string>;
 }
 
@@ -69,58 +59,35 @@ export function morphRequirements(morph: Record<string, unknown>): MorphRequirem
   return { groups, rest, labels };
 }
 
-/** One way a variant can be unusable for a morph. */
 export interface MorphVariantProblem {
   group: string;
   message: string;
 }
 
 export interface MorphVariantBinding {
-  /** The variant's context key: an image name or a `filtered_image` name. */
   name: string;
-  /** The attribute selection the variant was written with. */
   selection: AttributeSelection;
-  /**
-   * `active`: the morph plays on this variant. `dormant`: the variant rests in
-   * a different state than the morph starts from (explicitly closed eyes stay
-   * closed). `skipped`: the variant cannot rest where the morph needs it to.
-   */
   status: "active" | "dormant" | "skipped";
-  /**
-   * The concrete resting state of each driven group in each visible folder
-   * that has layers for it, keyed by folder. An authored `open-wide` stays
-   * `open-wide` here even when the morph starts at `open`.
-   */
   rest: Record<string, Record<string, string>>;
   problems: MorphVariantProblem[];
 }
 
 export interface MorphCandidate {
-  /** The image's context key. */
   image: string;
   type: "image" | "layered_image";
   uri?: string;
   vocabulary: AttributeVocabulary;
-  /** Driven groups this image has no layers for. */
   missingGroups: string[];
-  /** Driven states this image's group has no option for. */
   missingStates: { group: string; state: string }[];
-  /** True when the image has every driven group and state. */
   compatible: boolean;
   variants: MorphVariantBinding[];
 }
 
 export interface MorphBinding {
   requirements: MorphRequirements;
-  /**
-   * Images that have at least one driven group, before full compatibility is
-   * tested. When the morph drives no group yet, every image with groups.
-   */
   candidates: MorphCandidate[];
 }
 
-/** Whether an image's group can show `state`: an option it names, or a
- *  hyphenated refinement of one (`open-wide` satisfies an `open` layer). */
 export function groupHasState(
   vocabulary: AttributeVocabulary,
   group: string,
@@ -131,7 +98,6 @@ export function groupHasState(
   );
 }
 
-/** Images in the context with an attribute vocabulary, by context key. */
 export function morphImages(context: ImageContext): {
   name: string;
   type: "image" | "layered_image";
@@ -150,8 +116,6 @@ export function morphImages(context: ImageContext): {
   return images;
 }
 
-// The resting choices a folder makes for a group: the selection when there is
-// one, otherwise the nearest folder default, otherwise `off` for a switch.
 function restChoices(
   vocabulary: AttributeVocabulary,
   selection: AttributeSelection,
@@ -172,7 +136,6 @@ function restChoices(
   return vocabulary.groups[group]?.switch ? ["off"] : [];
 }
 
-/** Bind one variant by its effective resting state, folder by folder. */
 export function bindVariant(
   vocabulary: AttributeVocabulary,
   name: string,
@@ -235,16 +198,6 @@ export function bindVariant(
   };
 }
 
-/**
- * Find the images a morph applies to. Candidates are the images with at least
- * one of the groups its keyframes drive; a candidate is compatible only when it
- * has every driven group and every state named for it. Each compatible
- * candidate's variants (the image itself and every `filtered_image` selection
- * of it) are bound by their effective resting state, folder by folder.
- *
- * Binding evaluates selections only to classify variants; it never publishes
- * the attribute diagnostics a hypothetical selection would raise.
- */
 export function bindMorph(
   context: ImageContext,
   morph: Record<string, unknown>,
@@ -293,7 +246,6 @@ export function bindMorph(
   return { requirements, candidates };
 }
 
-/** Every layer label in an image's artwork. */
 export function morphImageLabels(vocabulary: AttributeVocabulary): Set<string> {
   const labels = new Set<string>();
   for (const layer of vocabulary.layers) {

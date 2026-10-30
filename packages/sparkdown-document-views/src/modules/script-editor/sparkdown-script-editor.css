@@ -1,9 +1,3 @@
-/* Custom-element host box — only present when this component is consumed
-   via its <sparkdown-script-editor> custom-element wrapper (e.g.
-   vscode-sparkdown). When rendered directly as a Preact component (e.g.
-   impower-dev), the `.sparkdown-script-editor-root` element below is the
-   box instead, so every other rule is keyed on that class rather than the
-   tag and works in both consumption modes. */
 sparkdown-script-editor {
   display: flex;
   flex: 1;
@@ -24,10 +18,6 @@ sparkdown-script-editor {
   touch-action: pan-y;
 }
 
-/* spec-component normalize sets `* { user-select: none }` on every
-   element inside a spec-component host (and that rule leaks down into
-   the light-DOM tree mounted underneath one). Re-assert user-select
-   for the CodeMirror content + gutter so text can be selected. */
 .sparkdown-script-editor-root .cm-content,
 .sparkdown-script-editor-root .cm-content *,
 .sparkdown-script-editor-root .cm-gutters,
@@ -36,13 +26,6 @@ sparkdown-script-editor {
   -webkit-user-select: text;
 }
 
-/* Sparkle's normalize sets `* { max-width: 100% }` on everything,
-   which collapses CodeMirror's selection/cursor SVG layers: the layer
-   itself is `position: absolute` with no explicit size (its children
-   carry inline width/height set by CM), so it computes to 0×0 — and
-   then `max-width: 100%` caps every descendant's width to 0, hiding
-   the painted selection rectangle. Restore `max-width: none` for the
-   CM tree so CM's own absolute layout wins. */
 .sparkdown-script-editor-root .cm-editor,
 .sparkdown-script-editor-root .cm-editor * {
   max-width: none;
@@ -124,7 +107,6 @@ sparkdown-script-editor {
   display: none;
 }
 
-/* scrollbar-color and scrollbar-width is only supported in Firefox */
 .sparkdown-script-editor-root * {
   scrollbar-width: var(--theme-scrollbar-thickness, thin);
   scrollbar-color: var(--theme-color-scrollbar-thumb, hsl(0 0% 0% / 25%))

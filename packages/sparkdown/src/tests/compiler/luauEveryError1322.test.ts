@@ -1,9 +1,3 @@
-// Every syntax error Luau reports inside a function is reported, in Luau's
-// words at Luau's range, and a stray root `end` or text after a scene or
-// branch header is reported (I-1322, closing I-674, I-774, I-775, I-779,
-// I-780, I-1287, I-1288, I-1348 and I-1350). A form in a function is checked
-// against the official parser over the function's Luau: Sparkdown's syntax
-// errors are its errors, each message at its range, no more and no fewer.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -16,7 +10,7 @@ import { diagnoseFilesDetailed } from "../luau-conformance/diagnosticTestHarness
 const URI = "inmemory:///main.sd";
 const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
-const STORY = "After {run()}.\n";
+const STORY = "scene start\n  After {run()}.\nend\n";
 
 function compile(text: string) {
   const compiler = new SparkdownCompiler();
@@ -26,7 +20,6 @@ function compile(text: string) {
   return compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [];
 }
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
 function sparkdownErrors(text: string): string[] {
   return compile(text)
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
@@ -35,12 +28,6 @@ function sparkdownErrors(text: string): string[] {
 }
 
 
-/**
- * A form in a function with a story line after it: the tree holds no
- * unfinished node, the function ends at its own `end`, and Sparkdown's
- * syntax errors are the official parser's for the function. A missing
- * type's range ends with the line it is missing from (`range`, by message).
- */
 function expectOfficial(form: string, { reported = true, range = {} }: { reported?: boolean; range?: Record<string, string> } = {}): void {
   const luau = `${HEADER}${form}${FOOTER}`;
   const text = `${luau}${STORY}`;
@@ -57,8 +44,6 @@ function expectOfficial(form: string, { reported = true, range = {} }: { reporte
 }
 
 describe("every syntax error Luau reports inside a function is reported (I-1322)", () => {
-  // A reserved word as a table constructor key, and a table type with two
-  // indexers (I-1287).
   describe("table constructors and table types", () => {
     for (const form of [
       "local t = {nil=1}",
@@ -70,15 +55,12 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
   });
 
-  // A function without a valid name (I-1288).
   describe("a function without a valid name", () => {
     for (const form of ["function +() local _ = true end", "local function () end\n  local function () end"]) {
       test(JSON.stringify(form), () => expectOfficial(form));
     }
   });
 
-  // A parameter that follows another with no comma (I-779), and the forms
-  // that stay valid.
   describe("a missing comma between parameters", () => {
     for (const form of [
       "local function f(a: number b) end",
@@ -99,7 +81,6 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
   });
 
-  // A `.name` after a table constructor or a string literal (I-1348).
   describe("a member access after a value no access path reads", () => {
     for (const form of ["local b = {}.x", 'local b = "s".x', "local b = {}[1]", 'local b = "s"[1]', 'local t = { "a" ["k"] = 1 }']) {
       test(JSON.stringify(form), () => expectOfficial(form));
@@ -109,7 +90,6 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
   });
 
-  // A header whose condition is `nil` before a colon (I-1350).
   describe("nil before a colon", () => {
     for (const form of ["while nil:do end", "if nil:then end", "local b = nil:do", "for k in nil:then do end", "for k = nil:then do end"]) {
       test(JSON.stringify(form), () => expectOfficial(form));
@@ -119,25 +99,17 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
   });
 
-  // The errors of Luau's recovery after an unfinished statement (the
-  // I-1318 writer's evidence on I-1322).
   describe("an incomplete statement", () => {
     test(JSON.stringify("(::"), () => expectOfficial("(::", { range: { "Expected type, got 'end'": "1:5-2:0" } }));
     test(JSON.stringify("repeat\n  t."), () => expectOfficial("repeat\n  t."));
   });
 
-  // A block that takes the function's `end` leaves the function open in
-  // Luau's reading, which reports it, with the block it suspects of taking
-  // the `end` (Luau's `endMismatchSuspect`).
   describe("a function whose `end` a block took", () => {
     for (const form of ["while true", "while true d", "for x in t", "if x then\n    y()\n      end\n  while true d"]) {
       test(JSON.stringify(form), () => expectOfficial(form));
     }
   });
 
-  // An element of a table on a later line in the column of the one before
-  // it is the next element, with its comma missing; any other is the end of
-  // the table, with its `}` missing.
   describe("a table element without its comma", () => {
     for (const form of [
       "local t = { a = 1 b = 2 }",
@@ -150,27 +122,19 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
   });
 
-  // A method call whose name is on the next line, read as Luau reads it
-  // (I-780): the story line is part of the function.
   describe("a method name on the next line", () => {
     for (const form of [
       "if flag:\nHello there.\n  then return 1 end",
       "flag:\nHello there.",
-      // Luau reads past blank lines and comments to the name.
       "if flag:\n\nHello there.\n  then return 1 end",
       "if flag:\n  -- a note\nHello there.\n  then return 1 end",
       "if flag: -- a note\nHello there.\n  then return 1 end",
-      // A token that is no name, where a comment leaves the reading, is
-      // read as what it is, and Luau's errors are reported at it.
       "flag:\n  --[[note]] (1)",
       "flag:\n  --[[note]] 1",
       "if flag:\n  --[[note]] then return 1 end",
     ]) {
       test(JSON.stringify(form), () => expectOfficial(form));
     }
-    // A method call across the line break is one, across blank lines and
-    // comments too, and a `for` loop variable's `:` before a type on the
-    // next line is the type's.
     for (const form of [
       "local t = {}\n  t:\n    m()",
       "local t = {}\n  local x = t:\n    m()\n  return x",
@@ -184,14 +148,13 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
 
     test("the control without the colon still plays", () => {
-      const ctx = makeRuntimeStoryFromSource("function f(flag)\n  if flag\n  then return 1 end\nend\nBefore {f(true)}.\n");
+      const ctx = makeRuntimeStoryFromSource("function f(flag)\n  if flag\n  then return 1 end\nend\nscene start\n  Before {f(true)}.\nend\n");
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.ContinueMaximally()).toBe("Before 1.\n");
     });
   });
 });
 
-/** The diagnostics with a message, as `line:character message`. */
 function errorsMatching(text: string, pattern: RegExp): string[] {
   return compile(text)
     .filter((d) => pattern.test(messageOf(d)))
@@ -200,18 +163,19 @@ function errorsMatching(text: string, pattern: RegExp): string[] {
 
 describe("an end at the script root that closes nothing is reported (I-774)", () => {
   const EOF = /^Expected <eof>, got 'end'$/;
+  const VALUE = "scene start\n  Value {f(true)}.\nend\n";
   test.each([
-    ["an extra end after a function", "Value {f(true)}.\nfunction f(c)\n  return 1\nend\n  return 2\nend\n", 5],
-    ["a one-line if expression written as a statement", "Value {f(true)}.\nfunction f(c)\n  local g = if c then 2 else 3 end\n  return g\nend\n", 4],
+    ["an extra end after a function", `${VALUE}function f(c)\n  return 1\nend\n  return 2\nend\n`, 7],
+    ["a one-line if expression written as a statement", `${VALUE}function f(c)\n  local g = if c then 2 else 3 end\n  return g\nend\n`, 6],
     [
       "an indented if expression written as a statement",
-      "Value {f(true)}.\nfunction f(c)\n  local a, g = 1,\n    if c then\n      2\n    else\n      3\n    end\n  return g\nend\n",
-      9,
+      `${VALUE}function f(c)\n  local a, g = 1,\n    if c then\n      2\n    else\n      3\n    end\n  return g\nend\n`,
+      11,
     ],
     [
       "an unindented if expression written as a statement",
-      "Value {f(true)}.\nfunction f(c)\n  local a, g = 1,\nif c then\n  2\nelse\n  3\nend\n  return g\nend\n",
-      9,
+      `${VALUE}function f(c)\n  local a, g = 1,\nif c then\n  2\nelse\n  3\nend\n  return g\nend\n`,
+      11,
     ],
   ])("%s", (_name, text, line) => {
     expect(errorsMatching(text, EOF)).toEqual([`${line}:0-${line}:3 Expected <eof>, got 'end'`]);
@@ -240,8 +204,6 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
     expect(errorsMatching(text, /<eof>/)).toEqual([]);
   });
 
-  // Luau's parser stops at a stray `end`, but a `.sd` document's functions
-  // after it are compiled on their own, and their errors are reported.
   test.each([
     ["1 + ;", "6:16-6:17 Expected identifier when parsing expression, got ';'"],
     ["?", "6:12-6:13 Expected identifier when parsing expression, got '?'"],
@@ -250,8 +212,6 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
     expect(sparkdownErrors(text)).toContain(error);
   });
 
-  // Each function that stops is read as Luau reads it alone: its errors are
-  // its own, those after its own stop left out, whatever stopped before it.
   test("a second function that stops has the errors it has alone", () => {
     const stops = (name: string) => `function ${name}()\n  do\n    until true\n  end\nend\n`;
     const both = sparkdownErrors(`${stops("f")}${stops("g")}${STORY}`);
@@ -262,22 +222,18 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
 });
 
 describe("text after a scene or branch header is reported on the header line (I-674)", () => {
-  // A script whose header line (line 1) is a branch's in a scene, or a
-  // scene's after a line of story.
-  const scene = (header: string) => `Hi.\n${header}\n  Hello.\nend\n`;
+  const scene = (header: string) => `// Hi.\n${header}\n  Hello.\nend\nscene start\nend\n`;
   const branch = (header: string) => `scene start\n${header}\n    Hello.\n  end\nend\n`;
-  // The diagnostics on the header's line.
   const onHeaderLine = (source: string) =>
     compile(source)
       .filter((d) => d.range.start.line === 1)
       .map((d) => `${d.range.start.character}-${d.range.end.character} ${messageOf(d)}`);
 
   test.each([
-    ["a word after a scene's parameters", scene("scene start(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
-    ["a word after a scene's name", scene("scene start oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a scene's parameters", scene("scene intro(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a scene's name", scene("scene intro oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
     ["a word after a branch's name", branch("  branch side oops"), "14-18 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
     ["a word after a branch's parameters", branch("  branch side(k) oops"), "17-21 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
-    // A name that is the header's keyword is still the only name.
     ["a word after a scene named `scene`", scene("scene scene oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
     ["a word after a branch named `branch`", branch("  branch branch oops"), "16-20 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
   ])("%s is reported", (_name, source, expected) => {
@@ -285,12 +241,12 @@ describe("text after a scene or branch header is reported on the header line (I-
   });
 
   test.each([
-    ["a comment after a scene's parameters", scene("scene start(n: number) -- a note")],
-    ["a comment after a scene's name", scene("scene start -- a note")],
+    ["a comment after a scene's parameters", scene("scene intro(n: number) -- a note")],
+    ["a comment after a scene's name", scene("scene intro -- a note")],
     ["a comment after a branch's name", branch("  branch side -- a note")],
     ["a comment after a branch's parameters", branch("  branch side(k) --[[ a note ]]")],
-    ["a header alone", scene("scene start(n: number)")],
-    ["tags after a scene's name", scene("scene start # arc")],
+    ["a header alone", scene("scene intro(n: number)")],
+    ["tags after a scene's name", scene("scene intro # arc")],
     ["tags and a comment after a branch's parameters", branch("  branch side(k) # arc -- a note")],
     ["a scene named `scene`", scene("scene scene")],
     ["a branch named `branch`", branch("  branch branch")],
@@ -299,13 +255,6 @@ describe("text after a scene or branch header is reported on the header line (I-
   });
 });
 
-// A `store` declaration is Sparkdown's own (`isCheckedLuau`), in story or
-// in a function, and its value's errors are reported as a story
-// statement's: Luau's first error at a token the grammar left unread, with
-// the errors that follow from it, as before. Each is Luau's for the same
-// value in a `local` (`store` and `local` are one length, so the columns
-// agree). A function value in a store is left open with Sparkdown's report
-// alone, as before.
 describe("a store declaration's value keeps Luau's first error", () => {
   const store = "store t = {1 ? 2}";
   test("a store in story", () => {
@@ -325,14 +274,10 @@ describe("a store declaration's value keeps Luau's first error", () => {
   });
 });
 
-// Luau's errors name the lines of the document they stand on, as the
-// official parser's do over the same text, a unit's comments and blank
-// lines counted.
 describe("a syntax error's message names the document's lines", () => {
   test.each([
     ["a function after a comment and a blank line", "-- intro\n\nfunction f()\n  -- body comment\n  if x then\n    y()\n      end\n  while true d\nend\n"],
     ["a function after blank lines", "\n\nfunction f()\n  while true d\nend\n"],
-    // The token found is the author's, whatever it reads.
     ["a string token that reads like a line reference", "\n\nfunction f()\n  local \"(to close 'function' at line 999)\" = 1\nend\n"],
   ])("%s", (_label, text) => {
     const errors = sparkdownErrors(`${text}${STORY}`);
@@ -346,8 +291,6 @@ describe("a syntax error's message names the document's lines", () => {
     expect(messages).toContain("Redefinition of type 'T', previously defined at line 5");
   });
 
-  // Only the places a message names a line are lines: a string's text that
-  // reads like one is the author's.
   test("a string that reads like a line reference is left as written", () => {
     const text = '---\ntypecheck: strict\n---\n\nfunction f()\n  local x: "at line 999" = "other"\n  return x\nend\n';
     const messages = compile(`${text}${STORY}`).map(messageOf);
@@ -355,9 +298,6 @@ describe("a syntax error's message names the document's lines", () => {
   });
 });
 
-// A `.luau` file is Luau from its first line to its last, read on its own
-// or through a `run`: its errors are the official parser's for the file,
-// no more and no fewer, each at its range.
 describe("a .luau file's errors are the official parser's", () => {
   const errorsIn = (sources: Record<string, string>) =>
     diagnoseFilesDetailed(sources)
@@ -365,21 +305,16 @@ describe("a .luau file's errors are the official parser's", () => {
       .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`)
       .sort();
   for (const snippet of [
-    // I-775's snippet, and I-780's next-line method name.
     "local flag = true\nif flag:\n  print(1)\nend\n",
     "local flag = true\nif flag:\nHello there.\nend\n",
     "local b = nil:do\n",
     "while true do\n  x()\n",
     "local t = {nil=1}\n",
-    // A root `end`, and nothing after the first, where Luau's parser stops.
     "end\nend\n",
     "function f()\n  do\n    until true\n  end\nend\n",
-    // A line that reads like a scene's header is Luau's, after the root
-    // `end` where Luau's parser stops.
     "end\nscene start oops\nend\n",
     "scene start oops\n",
     "branch side oops\n",
-    // A token that reads like a line reference is the author's.
     "local \"(to close 'function' at line 999)\" = 1\n",
     "function f(\"(to close 'function' at line 999)\") end\n",
   ]) {
@@ -391,8 +326,6 @@ describe("a .luau file's errors are the official parser's", () => {
     });
   }
 
-  // Text after an `end` on its line is a statement to Luau, which reports
-  // it; a `.luau` file holds no story text to warn about.
   test("text after an end is Luau's statement, not story text", () => {
     const messages = diagnoseFilesDetailed({ "snippet.luau": "function f()\nend x\n" })
       .filter((d) => d.file === "snippet.luau")

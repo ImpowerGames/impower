@@ -1,10 +1,3 @@
-// #863: an element in an author's layout whose class is the name of a builtin
-// text or image target (`text.title "Inventory"`) shows its content. A target
-// resolves to the elements named exactly as it is, so the story's writes and
-// clears of `title` reach the builtin `title` element and leave the author's
-// `text title` alone. A target no element is named after reaches the elements
-// that carry its classes, never a content element such as `text title`.
-
 import { describe, expect, test } from "vitest";
 import {
   createHarness,
@@ -19,8 +12,10 @@ const inventory = (element: string) => `layout inventory with
   }
 end
 
-[[open inventory]]
-You rummage through your pack.
+scene start
+  [[open inventory]]
+  You rummage through your pack.
+end
 `;
 
 async function run(source: string) {
@@ -112,9 +107,11 @@ describe("an author's element whose class names a builtin target", () => {
   }
 end
 
-^: Chapter One
+scene start
+  ^: Chapter One
 
-You rummage through your pack.
+  You rummage through your pack.
+end
 `,
     );
     const [authored] = idsNamed("text title");
@@ -126,10 +123,6 @@ You rummage through your pack.
 });
 
 describe("a target no element is named after", () => {
-  // The coordinator's decision for #863, with the #1813 rule
-  // (spark-web-player workerConnectRestore.test.ts): in a layout that
-  // replaces `main`, a container carrying a target's name as a class is that
-  // target's slot, and its text is a placeholder the story's write replaces.
   test("takes a container carrying its class as its slot in a layout that replaces `main`", async () => {
     const { h, writes, idsNamed, created } = await run(
       `layout main with
@@ -139,9 +132,11 @@ describe("a target no element is named after", () => {
   }
 end
 
-^: Chapter One
+scene start
+  ^: Chapter One
 
-You rummage through your pack.
+  You rummage through your pack.
+end
 `,
     );
     const [slot] = idsNamed("row title");
@@ -169,7 +164,9 @@ You rummage through your pack.
   }
 end
 
-You rummage through your pack.
+scene start
+  You rummage through your pack.
+end
 `,
     );
     const [indicator] = idsNamed("text continue_indicator");
@@ -201,8 +198,10 @@ define HERO as image with
   src = "https://example.com/hero.png"
 end
 
-[[show avatar HERO]]
-You rummage through your pack.
+scene start
+  [[show avatar HERO]]
+  You rummage through your pack.
+end
 `,
     );
     const [layer] = idsNamed("box avatar");

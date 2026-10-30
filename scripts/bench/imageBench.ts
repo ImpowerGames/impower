@@ -1,22 +1,3 @@
-// A route search node's cost on the program engine (#699): an image of the
-// engine's state against the JSON round trip of the whole state.
-//
-// Run through engine-bench.mjs, one candidate per process, with the
-// configuration as one JSON argument: { project, candidate, samples, warmup,
-// json }. A candidate is how a search node holds the state it runs from:
-// `json`, the state as `story.state.toJson()` writes it, claimed by the hash of
-// that text and loaded back with `LoadJson`, as the route planner held it; or
-// `image`, an image the engine takes (`ProgramStory.capture`), claimed by its
-// digest (`imageDigest`) and restored in place (`ProgramStory.restore`). Each
-// candidate runs scene MAIN of the chunks scene from its top to its end on the
-// program engine, taking the first choice whenever the story stops at one, and
-// after every line does what a search node and its sibling do: forks the state
-// and claims the fork site by the state's key, runs on to the next line and
-// forks there, and restores the first fork to run the sibling from it, so that
-// a restore undoes a run as a sibling's does. Only the forks and the restores
-// are timed. Each reports a digest of every line it produced, which
-// engine-bench.mjs requires to be equal, so that neither candidate changed what
-// the story did.
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -44,8 +25,6 @@ interface Run {
   nodes: number;
   nodeMs: number;
   keys: number;
-  /** What the images held, summed over the nodes: whole state for the JSON
-   *  candidate is its length in characters. */
   held: number;
 }
 
@@ -72,10 +51,6 @@ function main() {
       while (story.canContinue) {
         story.Continue();
         lines.push(story.currentText ?? "");
-        // One search node and its sibling: fork the state and claim the
-        // site by its key; run the node on to the next line and fork there;
-        // then run the sibling from the first fork, which restores it with
-        // the node's run to undo. Only the forks and the restore are timed.
         if (!story.canContinue) break;
         let t0 = performance.now();
         let fork: unknown;

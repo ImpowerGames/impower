@@ -54,12 +54,6 @@ const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",
   },
-  // The server's preview markup sizes its own thumbnail with an inline
-  // `height`, and VS Code sizes it from the same markup. Restating a height
-  // here would make that number inert on this surface alone and let the two
-  // surfaces drift, so height is left to the markup. Width is bounded only so
-  // an unusually wide asset cannot push the panel past its container;
-  // `contain` keeps the aspect ratio when that bound bites.
   "& .cm-tooltip.cm-completionInfo img": {
     maxWidth: "100%",
     objectFit: "contain",
@@ -129,13 +123,11 @@ const positionInfo = (
   if (left && spaceLeft < Math.min(infoWidth, spaceRight)) left = false;
   else if (!left && spaceRight < Math.min(infoWidth, spaceLeft)) left = true;
   if (infoWidth <= (left ? spaceLeft : spaceRight)) {
-    // Wide screen
     offset =
       Math.max(space.top, Math.min(list.top, space.bottom - infoHeight)) -
       list.top;
     maxWidth = Math.min(Info.Width, left ? spaceLeft : spaceRight);
   } else {
-    // Narrow screen
     narrow = true;
     maxWidth = Math.min(
       Info.Width,
@@ -143,11 +135,9 @@ const positionInfo = (
     );
     let spaceBelow = space.bottom - list.bottom;
     if (spaceBelow >= infoHeight || spaceBelow > list.top) {
-      // Show info below the completion
       vertical = "below";
       offset = list.bottom - list.top;
     } else {
-      // Show info above the completion
       vertical = "above";
       side = "bottom";
       offset = list.bottom - list.top;
@@ -196,16 +186,9 @@ export const getServerCompletionContext = (
 };
 
 export interface ServerCompletionsConfig {
-  /// By default, the completion source that asks the language server
-  /// for completions is added as a regular source, in addition to any
-  /// other sources. Set this to true to make it replace all
-  /// completion sources.
   override?: boolean;
 }
 
-/// Register the [language server completion
-/// source](#lsp-client.serverCompletionSource) as an autocompletion
-/// source.
 export function serverCompletions(
   config: ServerCompletionsConfig = {},
 ): LSPClientExtension {
@@ -278,8 +261,6 @@ function getCompletions(
   >("textDocument/completion", params);
 }
 
-/// A completion source that requests completions from a language
-/// server.
 export const serverCompletionSource: CompletionSource = (context) => {
   const plugin = context.view && LSPPlugin.get(context.view);
   if (!plugin) return null;
@@ -316,15 +297,6 @@ export const serverCompletionSource: CompletionSource = (context) => {
       const ranges = items.map((item) =>
         getEditRange(item, itemDefaults, state.doc, pos),
       );
-      // CodeMirror filters one word for the whole list, from the list's start
-      // to the cursor. The list starts where the first item naming a server
-      // range starts, so the word is the server's even when it holds a
-      // trigger character; without a server range it starts after the last
-      // trigger character. Only the text before the cursor is the word: a
-      // suffix the edit will replace (`far-|right`) must not hide the
-      // choices offered for the prefix. Each item replaces its own range,
-      // suffix included, and an item naming none replaces the list's word
-      // (see `serverCompletionOption`).
       const first = ranges.find((r) => r != null);
       const range = { from: first?.from ?? active?.from ?? pos, to: pos };
       const options = items.map((item, index) =>
@@ -333,9 +305,6 @@ export const serverCompletionSource: CompletionSource = (context) => {
           item: ranges[index] ?? range,
         }),
       );
-      // No start moves while the list lives (see `keepsRanges`), so the
-      // latest of them is fixed; `end` is the end of the list's word, the
-      // cursor, as each change moves it.
       const floor = Math.max(
         range.from,
         ...ranges.map((r) => r?.from ?? range.from),
@@ -358,7 +327,7 @@ export const serverCompletionSource: CompletionSource = (context) => {
     (err): null => {
       if (
         "code" in err &&
-        (err as lsp.ResponseError).code == -32800 /* RequestCancelled */
+        (err as lsp.ResponseError).code == -32800
       )
         return null;
       throw err;
@@ -366,32 +335,16 @@ export const serverCompletionSource: CompletionSource = (context) => {
   );
 };
 
-/** A range of the document as offsets. */
 interface OffsetRange {
   from: number;
   to: number;
 }
 
-/** The ranges a completion request settled on, as offsets into the document
- *  it was asked for: the list's word, from its start to the cursor, which is
- *  the range CodeMirror replaces, and the range this item's edit replaces. */
 interface CompletionRequestRange {
   result: OffsetRange;
   item: OffsetRange;
 }
 
-/**
- * Whether a list whose word ends at `end` still holds after `changes`. The
- * items' ranges are kept as distances from the word's start and from the
- * cursor at its end, which hold only while every change types at the end of
- * the word or deletes back from it no further than `floor`, the latest start
- * of the word or of any item's range: an edit anywhere else (another cursor,
- * the suffix an item replaces, text before the word, a deletion across an
- * item's start) would move a range without moving those anchors, or leave a
- * range ending before it starts. Such an edit drops the list, and CodeMirror
- * asks for it again when the author next types, with the server's ranges for
- * the document as it then stands.
- */
 function keepsRanges(floor: number, end: number, changes: ChangeDesc) {
   let kept = true;
   changes.iterChangedRanges((fromA, toA) => {
@@ -402,12 +355,6 @@ function keepsRanges(floor: number, end: number, changes: ChangeDesc) {
   return kept;
 }
 
-/**
- * The range `item`'s edit replaces, from its own `textEdit` or the list's
- * default `editRange`, or null when it names none. For an insert/replace edit
- * it is the replace range. A range LSP does not allow here (one not on a
- * single line or not holding the cursor) is ignored rather than trusted.
- */
 function getEditRange(
   item: lsp.CompletionItem,
   itemDefaults: lsp.CompletionList["itemDefaults"],
@@ -428,13 +375,6 @@ function getEditRange(
   return from <= pos && pos <= to ? { from, to } : null;
 }
 
-/**
- * Whether a list asked for while `typed` stood before the cursor still holds
- * for the text now before it: the author has only typed or deleted characters
- * that are not trigger characters. Typing or deleting a trigger character
- * changes what the server would offer, so the list is asked for again, as it
- * was when the word itself stopped at every trigger character.
- */
 function keepsWord(typed: string, triggerCharacters: string[] | undefined) {
   const triggers = new Set(triggerCharacters ?? []);
   return (_text: string, from: number, _to: number, state: EditorState) => {
@@ -448,11 +388,6 @@ function keepsWord(typed: string, triggerCharacters: string[] | undefined) {
   };
 }
 
-/** The CodeMirror option for one language-server completion item, as
- *  `serverCompletionSource` offers it. `plugin` supplies the documentation
- *  panel; without it the option has none. `request` places the item's edit
- *  relative to the range CodeMirror replaces; without it the item replaces
- *  that range. */
 export function serverCompletionOption(
   item: lsp.CompletionItem,
   index: number,
@@ -482,9 +417,6 @@ export function serverCompletionOption(
   if (plugin && item.documentation) {
     option.info = () => renderDocInfo(plugin, item.documentation!);
   } else if (plugin && item.data && canResolveCompletions(plugin)) {
-    // Documentation was withheld by the server to keep the list cheap;
-    // fetch it only when this item is actually highlighted. CodeMirror
-    // accepts a promise here and drops it if the user moves on first.
     option.info = () =>
       resolveCompletionItem(plugin, item).then((resolved) =>
         resolved?.documentation
@@ -492,13 +424,6 @@ export function serverCompletionOption(
           : null,
       );
   }
-  // The edit alone, kept apart from the command that follows it, so a
-  // preview can compute what accepting would insert without running
-  // anything else acceptance does. `from` and `to` are the list's word as
-  // CodeMirror holds it now, from its start to the cursor; the item's own
-  // range sits at the same distance from each end as it did when the list
-  // was asked for, since the list survives only edits at the end of its word
-  // (see `keepsRanges`).
   const edit: CompletionEdit = (view, completion, listFrom, listTo) => {
     const from =
       listFrom + (request ? request.item.from - request.result.from : 0);
@@ -534,7 +459,6 @@ export function serverCompletionOption(
   return option;
 }
 
-/** Dispatches the edit accepting a completion makes, and nothing else. */
 type CompletionEdit = (
   view: Pick<EditorView, "state" | "dispatch">,
   completion: Completion,
@@ -542,32 +466,11 @@ type CompletionEdit = (
   to: number,
 ) => void;
 
-/** What `serverCompletionSource` knows about each option it produced: the
- *  ranges its request settled on, or, for an option built without them, the
- *  pattern that decides the start of the replaced range; and the edit. */
 const previewableCompletions = new WeakMap<
   Completion,
   { validFor: RegExp; edit: CompletionEdit; request?: CompletionRequestRange }
 >();
 
-/**
- * The changes accepting `completion` would make to `state`, or null when they
- * cannot be known.
- *
- * Acceptance hands the option the completion result's range, from its start
- * to the cursor. CodeMirror keeps that range privately, so it is recomputed
- * here. For an option with a request range, the start is where the request
- * put it: the list survives only edits at the end of its word (see
- * `keepsRanges`), which never move its start. An option built without a
- * request range starts where `validFor` stops matching before the cursor,
- * which stays put while CodeMirror keeps the result. The edit then runs
- * against a view that records the
- * transaction instead of dispatching it, so the changes are the ones
- * acceptance itself makes (snippet placeholders, every cursor of a multiple
- * selection, the text after the cursor left in place) rather than a second
- * account of them. Only options from `serverCompletionSource` are known; for
- * any other the answer is null rather than a guess.
- */
 export function completionChanges(
   state: EditorState,
   completion: Completion,
@@ -584,12 +487,6 @@ export function completionChanges(
         previewable.validFor,
       )?.from ?? head);
   const to = head;
-  // No transaction may be created, not even one that is never dispatched:
-  // creating one runs the state's transaction extenders, and a host's extender
-  // can announce the change to everything listening (the web editor's reports
-  // the document as edited and saved). So `update` is intercepted as well as
-  // `dispatch` (snippets build their transaction with `state.update`), and the
-  // changes are taken from the spec.
   let recorded: TransactionSpec | undefined;
   const unapplied = {};
   const recordingState = new Proxy(state, {
@@ -626,31 +523,12 @@ export function completionChanges(
 }
 
 export interface CompletionPreviewEvent {
-  /** `focus`: an option is highlighted. `close`: the list closed. */
   state: "focus" | "close";
-  /** Increases each time the list opens. */
   session: number;
-  /** `focus` only: what accepting the highlighted option would change, or null
-   *  when that cannot be known (see `completionChanges`). */
   changes?: ChangeSet | null;
-  /** `close` only: the transaction that accepted an option, when the list
-   *  closed because one was accepted. */
   accepted?: Transaction;
 }
 
-/**
- * Report every newly highlighted autocomplete option, and the list closing.
- *
- * An option counts as newly highlighted when it is highlighted first, when the
- * highlight moves to it (including back to one highlighted before), and when
- * the document changes under it, since the edit accepting it would make has
- * changed with the document. While the list waits for fresh results nothing is
- * highlighted and nothing is reported; the list is still open, so neither is a
- * close. A view destroyed while its list is open reports the close, since no
- * later update will.
- *
- * `state` is the editor state the event describes.
- */
 export function completionPreview(
   listener: (event: CompletionPreviewEvent, state: EditorState) => void,
 ): Extension {
@@ -716,9 +594,6 @@ function canResolveCompletions(plugin: LSPPlugin) {
   return provider?.resolveProvider === true;
 }
 
-/// Ask the server to fill in the expensive parts of a completion item
-/// (documentation). Resolves to null on failure so a dead request just
-/// means "no info panel" rather than a thrown error in the tooltip.
 function resolveCompletionItem(
   plugin: LSPPlugin,
   item: lsp.CompletionItem,
@@ -740,29 +615,29 @@ function renderDocInfo(plugin: LSPPlugin, doc: string | lsp.MarkupContent) {
 }
 
 const kindToType: { [kind: number]: string } = {
-  1: "text", // Text
-  2: "method", // Method
-  3: "function", // Function
-  4: "constructor", // Constructor
-  5: "field", // Field
-  6: "variable", // Variable
-  7: "class", // Class
-  8: "interface", // Interface
-  9: "module", // Module
-  10: "property", // Property
-  11: "unit", // Unit
-  12: "value", // Value
-  13: "enum", // Enum
-  14: "keyword", // Keyword
-  15: "snippet", // Snippet
-  16: "color", // Color
-  17: "file", // File
-  18: "reference", // Reference
-  19: "folder", // Folder
-  20: "enumMember", // EnumMember
-  21: "constant", // Constant
-  22: "struct", // Struct
-  23: "event", // Event
-  24: "operator", // Operator
-  25: "typeParameter", // TypeParameter
+  1: "text",
+  2: "method",
+  3: "function",
+  4: "constructor",
+  5: "field",
+  6: "variable",
+  7: "class",
+  8: "interface",
+  9: "module",
+  10: "property",
+  11: "unit",
+  12: "value",
+  13: "enum",
+  14: "keyword",
+  15: "snippet",
+  16: "color",
+  17: "file",
+  18: "reference",
+  19: "folder",
+  20: "enumMember",
+  21: "constant",
+  22: "struct",
+  23: "event",
+  24: "operator",
+  25: "typeParameter",
 };

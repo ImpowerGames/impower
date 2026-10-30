@@ -1,6 +1,3 @@
-// A scene or a branch with nothing between its header and its `end` has an
-// address of its own, which its header and its `end` resolve to rather than
-// to the first line of the flow below it (I-1618).
 import { describe, expect, it } from "vitest";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { testCompiler } from "../engineUnderTest";
@@ -27,7 +24,6 @@ function compile(text: string) {
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
-/** Where the address of each line stands: its line and its scene. */
 const resolved = (text: string, lines: number[]) => {
   const program = compile(text);
   const locator = programLocator(program);

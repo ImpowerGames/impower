@@ -7,34 +7,6 @@ import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 import { lineTextSpan, makeSource } from "./validateDefineStructure";
 
-// The structure errors of the declaration blocks that share the define's
-// shape, `KEYWORD NAME … with` ending at `end` (`style`, `layout`, `screen`,
-// `component`, `animation`, `theme` and `morph`), none of which is a parse
-// error:
-//
-//   - A header the grammar stops reading on its own line, with no `end`, cuts
-//     the block off there: `style s:`, `layout main with junk`, a dotted
-//     name, or a name the grammar cannot read at all (`style 2s with` stops
-//     after `style`). The rest of the line and the body below it parse as
-//     top-level lines, where the properties are dropped and the block's `end`
-//     closes nothing. That shape is reported on the readable part of the
-//     header.
-//   - A body line the grammar cannot read stops the block the same way,
-//     below its header: in a layout, an `else` left outside its `for` by a
-//     `}` typed inside the loop. The lines from there to the block's `end`
-//     parse as top-level lines, so the block is reported as missing its
-//     `end`, on its header line.
-//   - Otherwise the grammar ends the block at its `end` keyword or, failing
-//     that, at the next `scene` / `branch` beat or the end of the document,
-//     so a missing `end` makes the block swallow every top-level line up to
-//     that point (a `store x = 1` below it is read as a body line). A block
-//     whose `_end` holds no `end` keyword is reported on its header line.
-//
-// As in `validateDefineStructure`, the checks read only the block's own
-// node, so they run in the lowerer and are rebuilt with the block on every
-// edit that changes them. Past the header-line check, a block without a
-// readable name is left to its lowerer, which drops it.
-
 const HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> = {
   LuauStyle: "`style NAME [as PARENT] with`",
   LuauLayout: "`layout NAME [as PARENT] [in SCREEN] with`",
@@ -45,8 +17,6 @@ const HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> = {
   LuauMorph: "`morph NAME [as PARENT] with`",
 };
 
-// A block's `_end`, each named literally so the grammar node-name check sees
-// every name.
 function blockEnd(node: GrammarSyntaxNode<SparkdownNodeName>) {
   switch (node.name) {
     case "LuauStyle":
@@ -68,8 +38,6 @@ function blockEnd(node: GrammarSyntaxNode<SparkdownNodeName>) {
   }
 }
 
-/** The missing-`end` and unreadable-header errors of a `style`, `layout`,
- *  `screen`, `component`, `animation`, `theme` or `morph` block. */
 export function validateBlockStructure(
   node: GrammarSyntaxNode<SparkdownNodeName>,
   ctx: LowerContext,

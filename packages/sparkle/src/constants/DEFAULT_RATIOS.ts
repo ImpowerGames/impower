@@ -1,10 +1,5 @@
 import { RatioName } from "../types/ratioName";
 
-/**
- * Ratio names that are supported by default.
- *
- * @summary RatioName
- */
 export const DEFAULT_RATIOS: RatioName[] = [
   "square",
   "landscape",

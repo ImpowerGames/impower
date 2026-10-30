@@ -1,9 +1,3 @@
-// The player decides each `..` join as the story runs, and the screenplay
-// export prints every branch of the script, so the export cannot know which
-// line a mark joins: it prints every line on its own, with its own kind and
-// cue, and prints no glue mark. Where a mark stood at a line's start or end,
-// no space is left over. A `..` that is text prints as written.
-
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
 

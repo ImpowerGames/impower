@@ -7,6 +7,10 @@
 ## A quick look
 
 ```sparkdown
+scene start
+  A storm rolls in. You have {hp} health.
+end
+
 store hp = 0
 
 layout main with
@@ -22,6 +26,7 @@ end
 
 Here's what each piece does:
 
+- **The story** starts in the scene named `start`, and its lines run in order.
 - **State** lives in a `store` variable — here, `hp` starts at `0`.
 - **Layouts** hold a tree of UI. A layout named `main` shows automatically.
 - **Elements** (`text`, `button`) build the parts; **layout classes** (`row`, `column`) arrange them.

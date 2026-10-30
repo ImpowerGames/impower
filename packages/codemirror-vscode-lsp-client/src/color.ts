@@ -102,13 +102,10 @@ export function rgbaToCSS(rgba: {
 export function getColorPresentationType(text: string) {
   const s = text.trim().toLowerCase();
 
-  // 1. Handle Hex
   if (s.startsWith("#")) {
-    // Distinguish between shorthand (#f00) and full (#ff0000)
     return s.length <= 5 ? "hex-short" : "hex-long";
   }
 
-  // 2. Extract function name (rgb, rgba, hsl, hsla, etc.)
   const match = s.match(/^([a-z]+)\(/);
   const func = match ? match[1] : "name";
 
@@ -116,12 +113,9 @@ export function getColorPresentationType(text: string) {
     return "keyword";
   }
 
-  // 3. Detect Separator Style
-  const isLegacy = s.includes(","); // Commas = Legacy
-  const hasAlphaSeparator = s.includes("/"); // Slash = Modern Alpha
+  const isLegacy = s.includes(",");
+  const hasAlphaSeparator = s.includes("/");
 
-  // 4. Create a unique key for this specific syntax "flavor"
-  // Example: "rgba-legacy" or "rgb-modern-alpha"
   return `${func}-${isLegacy ? "legacy" : "modern"}-${hasAlphaSeparator ? "alpha" : "noalpha"}`;
 }
 
@@ -134,7 +128,6 @@ export function getBestPresentationMatch(
   }
   const inputFingerprint = getColorPresentationType(text);
 
-  // Try to find a perfect structural match
   const bestMatch = presentations.find(
     (p) => getColorPresentationType(p.label) === inputFingerprint,
   );
@@ -143,8 +136,6 @@ export function getBestPresentationMatch(
     return bestMatch;
   }
 
-  // Fallback: If no perfect match (e.g. user had hsla legacy but server only offers hsl modern),
-  // try to at least match the base function (hsl/rgb/hex)
   const baseFunc = inputFingerprint.split("-")[0];
   const looseMatch = presentations.find((p) =>
     getColorPresentationType(p.label).startsWith(baseFunc!),
@@ -368,8 +359,6 @@ export async function updateDocumentColors(client: LSPClient, uri: string) {
   >("textDocument/documentColor", {
     textDocument: { uri },
   });
-  // A result for a version the editor has moved past is dropped: the change
-  // that moved it pulled again (#1785).
   if (client.workspace.getFile(uri)?.version !== version) return;
   if (LSPPlugin.get(view) !== plugin) return;
   view.dispatch(

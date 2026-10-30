@@ -1,18 +1,3 @@
-// The workers' esbuild --watch rebuilds from file system change notifications
-// (scripts/esbuild-watch.mjs) instead of esbuild's ctx.watch(), which polls
-// the build graph's files: about 2,000 file opens a second per idle watcher on
-// Windows. The helper watches the directories of the last build's inputs,
-// outside node_modules, plus a plugin's extra inputs; refreshes that set after
-// every build; rebuilds once per burst of changes to an input, or when a file
-// appears in a watched directory; keeps watching after a failed rebuild, adding
-// the files its errors name; and never calls ctx.watch().
-// Run:
-//   node scripts/esbuild-watch.test.mjs
-//
-// A stand-in context answers rebuild() with a metafile listing whatever graph
-// the check sets, over real files in a scratch directory, so the change events
-// are the system's own. Node's built-in assert only.
-
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -28,7 +13,6 @@ const write = (rel, text = `// ${rel} ${Date.now()} ${Math.random()}\n`) => {
   fs.writeFileSync(at(rel), text);
 };
 for (const rel of ["src/a.ts", "src/b.ts", "src/notes.txt", "lib/c.ts", "raw/data.txt", "node_modules/dep/index.js", "extra/e.ts", "worker/w.ts", "broken/x.ts"]) write(rel);
-// Windows paths compare without case, as the helper's do.
 const key = (dir) => (process.platform === "win32" ? path.resolve(dir).toLowerCase() : path.resolve(dir));
 const dirs = (...rels) => rels.map((rel) => key(at(rel))).sort();
 
@@ -49,14 +33,11 @@ const ctx = {
 const errors = [];
 const extra = new Set([at("worker", "w.ts")]);
 
-// Waits until `builds` reaches `count`, then a little longer, so a second,
-// unwanted rebuild would be counted too.
 async function settle(count) {
   for (let i = 0; i < 100 && builds < count; i++) await sleep(50);
   await sleep(400);
   return builds;
 }
-// A short wait in which nothing may rebuild.
 async function quiet() {
   const before = builds;
   await sleep(600);

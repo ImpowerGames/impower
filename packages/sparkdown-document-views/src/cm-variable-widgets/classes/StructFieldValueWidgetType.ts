@@ -251,7 +251,6 @@ export default class StructFieldValueWidgetType extends WidgetType {
         valueEl.contains(event.target as Node) &&
         typeof this.startValue === "boolean"
       ) {
-        // If clicked without dragging, toggle boolean
         const newIndex = startIndex >= maxIndex ? 0 : startIndex + 1;
         const newValue = options[newIndex];
         const insert = getValueText(newValue, step);

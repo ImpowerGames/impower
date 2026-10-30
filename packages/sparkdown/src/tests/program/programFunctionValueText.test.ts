@@ -24,9 +24,11 @@ describe("a function value written into a line", () => {
           "  return 1",
           "end",
           "",
-          "local g = f",
-          "Value {g} and {f}, {tostring(g)}.",
-          "done",
+          "scene start",
+          "  local g = f",
+          "  Value {g} and {f}, {tostring(g)}.",
+          "  done",
+          "end",
         ].join("\n"),
       ),
     ).toEqual(["Value function: f and function: f, function: f."]);
@@ -40,9 +42,11 @@ describe("a function value written into a line", () => {
           "  return 1",
           "end",
           "",
-          "local t = { [f] = 42, [tostring(f)] = 99 }",
-          "Keys {t[f]} and {t[tostring(f)]}.",
-          "done",
+          "scene start",
+          "  local t = { [f] = 42, [tostring(f)] = 99 }",
+          "  Keys {t[f]} and {t[tostring(f)]}.",
+          "  done",
+          "end",
         ].join("\n"),
       ),
     ).toEqual(["Keys 42 and 99."]);
@@ -52,20 +56,20 @@ describe("a function value written into a line", () => {
     expect(
       texts(
         [
-          "local n = 1",
-          "local function h()",
-          "  return n",
-          "end",
+          "scene start",
+          "  local n = 1",
+          "  local function h()",
+          "    return n",
+          "  end",
           "",
-          "Value {h}, {tostring(h)}.",
-          "done",
+          "  Value {h}, {tostring(h)}.",
+          "  done",
+          "end",
         ].join("\n"),
       ),
     ).toEqual(["Value function: h, function: h."]);
   });
 
-  // Round 1 of the review of #2116 (report 6305108271): a multiple value, a
-  // closure and a builtin printed their table text in a line.
   it("prints the first of several returned values as a function", () => {
     expect(
       texts(
@@ -78,8 +82,10 @@ describe("a function value written into a line", () => {
           "  return f, 2",
           "end",
           "",
-          "Value {pair()}.",
-          "done",
+          "scene start",
+          "  Value {pair()}.",
+          "  done",
+          "end",
         ].join("\n"),
       ),
     ).toEqual(["Value function: f."]);
@@ -93,11 +99,13 @@ describe("a function value written into a line", () => {
           "  return function() return n end",
           "end",
           "",
-          "local h = make(1)",
-          "local p = print",
-          "Values {h} and {p}.",
-          "Strings {tostring(h)} and {tostring(p)}.",
-          "done",
+          "scene start",
+          "  local h = make(1)",
+          "  local p = print",
+          "  Values {h} and {p}.",
+          "  Strings {tostring(h)} and {tostring(p)}.",
+          "  done",
+          "end",
         ].join("\n"),
       ),
     ).toEqual([
@@ -117,13 +125,15 @@ describe("a function value written into a line", () => {
         "  return f, 2",
         "end",
         "",
-        "choose",
-        "  + Use {f}",
-        "    ok",
-        "  + Use {pair()}",
-        "    ok",
+        "scene start",
+        "  choose",
+        "    + Use {f}",
+        "      ok",
+        "    + Use {pair()}",
+        "      ok",
+        "  end",
+        "  done",
         "end",
-        "done",
       ].join("\n"),
     );
     const story = new ProgramStory(program.chunks!);
@@ -134,16 +144,10 @@ describe("a function value written into a line", () => {
     ]);
   });
 
-  // `program-save-function-key.json` is the state main's engine (9c826c4b1)
-  // saved after the first line of this script: it holds `t[f]` under the key
-  // text saves have always held a function under, the class name of the
-  // deleted object engine around the label.
   it("still finds t[f] in a save that holds it under the old key text", () => {
     const { program } = compileScript(
       [
         "store t = nil",
-        "",
-        "-> start",
         "",
         "scene start",
         "  & t = { [f] = 42, [tostring(f)] = 99 }",
@@ -157,15 +161,19 @@ describe("a function value written into a line", () => {
         "",
       ].join("\n"),
     );
-    const saved = readFileSync(
-      join(HERE, "fixtures", "program-save-function-key.json"),
-      "utf-8",
+    const saved = JSON.parse(
+      readFileSync(
+        join(HERE, "fixtures", "program-save-function-key.json"),
+        "utf-8",
+      ),
     );
-    expect(Object.keys(JSON.parse(saved).variablesState.t.obj)).toContain(
+    expect(Object.keys(saved.variablesState.t.obj)).toContain(
       "DivertTargetValue(" + "f)",
     );
+    saved.position[0] -= 1;
+    saved.previousAddress -= 1 << 21;
     const story = new ProgramStory(program.chunks!);
-    story.state.LoadJson(saved);
+    story.state.LoadJson(JSON.stringify(saved));
     expect(story.Continue()).toBe("Keys 42 and 99.\n");
   });
 });

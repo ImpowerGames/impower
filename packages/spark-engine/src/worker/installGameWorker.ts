@@ -46,26 +46,14 @@ export class NoGameError extends Error implements ResponseError {
   code = -32900;
 }
 
-/** How long a game waits for the page's next frame once the page has sent
- *  one, before it ticks anyway: a hidden page renders no frames. */
 export const PAGE_FRAME_TIMEOUT_MS = 100;
 
 export function installGameWorker(connection: MessageConnection) {
   console.log("running spark-engine v1.0");
 
-  // The games tick when the page has finished rendering a frame
-  // (`PageFramedMessage`), so what a tick posts reaches a page that is not
-  // rendering. A message that arrives while the page renders waits for the
-  // whole frame, which in the editor cost a beat most of its lead: a worker's
-  // own animation frames begin with the page's, and a timer's ticks land in a
-  // frame about as often as the page spends rendering (#811). Until the page
-  // sends a frame, and after it stops for longer than
-  // `PAGE_FRAME_TIMEOUT_MS`, the games tick on a timer at the rate the clock
-  // runs at.
   const frames: {
     waiting: FrameRequestCallback[];
     timer?: number;
-    /** The page has sent a frame since the timer last ran one. */
     paged: boolean;
   } = { waiting: [], paged: false };
   const runFrame = () => {
@@ -87,11 +75,7 @@ export function installGameWorker(connection: MessageConnection) {
 
   const systemConfiguration: SystemConfiguration = {
     now: sharedNow,
-    // Every game this worker holds shows its beats whole (#1820).
     composeBeats: true,
-    // Called as methods of this configuration, which a browser refuses for
-    // the global's own functions ("Illegal invocation"), so each is called
-    // on the global here.
     setTimeout: (handler: Function, timeout?: number, ...args: any[]) =>
       self.setTimeout(handler as TimerHandler, timeout, ...args),
     requestFrame: (callback: FrameRequestCallback) => {
@@ -105,16 +89,12 @@ export function installGameWorker(connection: MessageConnection) {
       return handle;
     },
     resolve: (path: string) => {
-      // TODO: resolve import and load paths to url
       return path;
     },
     fetch: async (url: string): Promise<string> => {
       const response = await fetch(url);
       const text = await response.text();
       return text;
-      // TODO: Differentiate between script text response and asset blob response
-      // const buffer = await response.arrayBuffer();
-      // return buffer;
     },
     log: (message: unknown, severity: "info" | "warning" | "error") => {
       if (severity === "error") {
@@ -127,10 +107,6 @@ export function installGameWorker(connection: MessageConnection) {
     },
   };
 
-  // What the editor last asked of the debugger, which every game built here
-  // starts with. Until there is a game, a setter records the request and
-  // resolves no breakpoint: only a game's program can say where one lands,
-  // as a host that owns its game answers with none before it has one.
   const pending: {
     debugging?: boolean;
     breakpoints?: { file: string; line: number }[];
@@ -139,10 +115,6 @@ export function installGameWorker(connection: MessageConnection) {
     startingValues?: StartingValues;
   } = {};
 
-  /** Build a game for this worker to hold, with its system configuration
-   *  and with what the editor has asked of the debugger so far, as a host
-   *  that owns its game gives each game it builds the same settings. Every
-   *  game this worker holds is built here. */
   const createGame = (
     options: { program: SparkProgram } & GameConfiguration,
   ): Game => {
@@ -175,10 +147,7 @@ export function installGameWorker(connection: MessageConnection) {
 
   const state: {
     systemConfiguration: SystemConfiguration;
-    /** The game the worker creates, previews and simulates routes in. */
     game?: Game;
-    /** A game that runs beside `game` while it does: the one the page shows,
-     *  hears from and debugs until it goes. */
     running?: Game;
     createGame: typeof createGame;
     setStartingValues: typeof setStartingValues;
@@ -191,10 +160,8 @@ export function installGameWorker(connection: MessageConnection) {
     hasStartingValues,
   };
 
-  /** The game the page talks to: the running one while there is one. */
   const target = () => state.running ?? state.game;
 
-  /** Every game the worker holds. */
   const games = () =>
     [state.running, state.game].filter((game): game is Game => !!game);
 
@@ -206,14 +173,10 @@ export function installGameWorker(connection: MessageConnection) {
       return;
     }
     if (isResponse(message)) {
-      // A response answers the game that asked, and no other game holds its
-      // id.
       for (const game of games()) {
         game.connection.receive(message);
       }
     } else if (isNotification(message)) {
-      // What the page reports (input, its audio clock) is for the game it
-      // shows.
       target()?.connection.receive(message);
     }
     if (InitializeMessage.type.isRequest(message)) {
@@ -276,7 +239,6 @@ export function installGameWorker(connection: MessageConnection) {
         }
         await state.game.connect((msg: Message, transfer?: ArrayBuffer[]) => {
           if (isRequest(msg) || isNotification(msg)) {
-            // Forward requests and notifications
             connection.postMessage(msg, transfer);
           }
         });
@@ -446,8 +408,6 @@ export function installGameWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        // The frame the debugger selected, or the one that runs when the
-        // request names none.
         const { threadId, frameId } = message.params;
         return { context: game.getEvaluationContext(threadId, frameId) };
       });
@@ -507,8 +467,6 @@ export function installGameWorker(connection: MessageConnection) {
         const { scope, variablesReference, value, threadId, frameId } =
           message.params;
         if (scope === "temps") {
-          // The frame the debugger selected, or the one that runs when the
-          // request names none.
           const variables = game.getTempVariables(threadId, frameId);
           return { variables };
         }

@@ -1,12 +1,3 @@
-// Glue has a `..` on each side: a line that ends with `..` joins the next
-// line shown when that line begins with `..`, keeping the spaces written
-// before the first mark, so `A ..` then `.. B` joins with a space and `A..`
-// then `..B` with none, and `A .. >` then `.. B` clicks and carries on in the
-// same box. The spaces are the author's, so the formatter keeps the whitespace
-// written before a `..` that ends a line or a part and inserts none into
-// `A..`, and it leaves a `..` that begins a line's text, after a cue's colon
-// too, and the spaces after it as written.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
@@ -59,9 +50,6 @@ describe("formatting a leading `..`", () => {
     });
   }
 
-  // After an interpolation on its line the mark is text the player sees, and
-  // so are the spaces on either side of it: the line is one display line
-  // (#1746).
   test("keeps the spaces around a `..` that follows an interpolation", () => {
     for (const source of [
       `{3} ..   and more.\n`,
@@ -84,8 +72,6 @@ test("load keyword formatting keeps ordinary action boundaries", () => {
   }
 });
 
-// An inline-glued alternator right after a cue's or heading's colon keeps
-// the text after its closing `..` as written, spaces included.
 describe("formatting the text after a glued alternator that begins a line", () => {
   for (const [source, tail] of [
     [`BUNNY: .. queue | Hi | Hello ..   there.\n`, `..   there.\n`],

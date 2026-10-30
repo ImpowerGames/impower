@@ -155,16 +155,10 @@ export const Component = <
       this.#context = value;
     }
 
-    /**
-     * Returns the default lowercase tag for this component.
-     */
     static get tag() {
       return spec.tag;
     }
 
-    /**
-     * A map of each camelCased property name to its corresponding kebab-cased attribute name
-     */
     static get attrs() {
       return propToAttrMap;
     }
@@ -173,33 +167,21 @@ export const Component = <
       return propToAttrMap;
     }
 
-    /**
-     * Attributes that will cause attributeChangedCallback to be called whenever they are added, removed, or changed.
-     */
     static get observedAttributes() {
       const observed = Object.values(this.attrs);
       return observed;
     }
 
-    /**
-     * The css to adopt for this component.
-     */
     get css() {
       return this.#css;
     }
     #css = spec.css;
 
-    /**
-     * The css that is shared between this component and others.
-     */
     get sharedCSS() {
       return this.#sharedCSS;
     }
     #sharedCSS = spec.sharedCSS;
 
-    /**
-     * The innerHTML for this component.
-     */
     get html() {
       return spec.html({
         graphics: this.graphics,
@@ -253,7 +235,6 @@ export const Component = <
       const html = this.html;
       this.#html = html;
 
-      // Fetch from cache (parses only if it's the first time this exact string is seen)
       const template = this.#getTemplate(this.#html);
       const fragment = template.content.cloneNode(true);
 
@@ -360,10 +341,6 @@ export const Component = <
       }, {} as RefMap<S>);
     }
 
-    /**
-     * The callback that is invoked each time one of the element's attributes is added, removed, or changed.
-     * Which attributes to notice change for is specified in a static get observedAttributes method
-     */
     attributeChangedCallback(
       name: string,
       oldValue: string,
@@ -377,15 +354,8 @@ export const Component = <
       }
     }
 
-    /**
-     * Invoked each time one of the element's attributes is added, removed, or changed.
-     * Which attributes to notice change for is specified in a static get observedAttributes method
-     */
     onAttributeChanged(_name: string, _newValue: string): void {}
 
-    /**
-     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
-     */
     shouldAttributeTriggerUpdate(
       _name: string,
       _oldValue: string,
@@ -394,10 +364,6 @@ export const Component = <
       return false;
     }
 
-    /**
-     * The callback that is invoked each time the custom element is appended into a document-connected element.
-     * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
-     */
     connectedCallback(): void {
       this.rebindRefs();
       if (!this.#initialized) {
@@ -412,15 +378,8 @@ export const Component = <
       this.onConnected();
     }
 
-    /**
-     * Invoked each time the custom element is appended into a document-connected element.
-     * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
-     */
     onConnected(): void {}
 
-    /**
-     * The callback that is invoked each time the custom element is disconnected from the document's DOM.
-     */
     disconnectedCallback(): void {
       if (this.stores) {
         Object.values(this.stores).forEach((store) => {
@@ -433,15 +392,8 @@ export const Component = <
       this.onDisconnected();
     }
 
-    /**
-     * Invoked each time the custom element is disconnected from the document's DOM.
-     */
     onDisconnected(): void {}
 
-    /**
-     * Invoked the first time the custom element is connected.
-     * (Is not called during subsequent updates.)
-     */
     onInit() {}
 
     reduce(args: { props: Props; stores: Stores }) {
@@ -469,20 +421,10 @@ export const Component = <
       }
     };
 
-    /**
-     * Invoked when any store has been updated.
-     */
     onStoreUpdate(): void {}
 
-    /**
-     * Invoked when the component's context has been updated.
-    
-     */
     onContextChanged(_oldContext: Context, _newContext: Context): void {}
 
-    /**
-     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to true.
-     */
     shouldContextTriggerUpdate(
       _oldContext: Context,
       _newContext: Context,
@@ -490,10 +432,6 @@ export const Component = <
       return true;
     }
 
-    /**
-     * Re-renders the component if it has changed.
-     * (Debounced so that updates can be batched, and the component will render at most once per frame.)
-     */
     update() {
       if (this.#renderFrameHandle) {
         window.cancelAnimationFrame(this.#renderFrameHandle);
@@ -514,7 +452,6 @@ export const Component = <
     }
 
     render(morph: boolean) {
-      // Fetch from cache (parses only if it's the first time this exact string is seen)
       const template = this.#getTemplate(this.#html);
       const fragment = template.content.cloneNode(true);
 
@@ -555,9 +492,6 @@ export const Component = <
             return true;
           },
           beforeNodeMorphed: (oldNode: Node, newNode: Node): boolean => {
-            // idiomorph reports text nodes too; only elements carry the
-            // attributes and hooks below, and a non-element is morphed as
-            // normal, which is what returning true asks for.
             if (!(oldNode instanceof Element) || !(newNode instanceof Element)) {
               return true;
             }
@@ -609,16 +543,8 @@ export const Component = <
       this.#refs = this.getRefMap(this.selectors);
     }
 
-    /**
-     * Invoked when the component is rendered.
-     */
     onRender(): void {}
 
-    /**
-     * Dispatches a cancelable, composed, bubbling event.
-     * Returns true if either event's cancelable attribute value is false
-     * or its preventDefault() method was not invoked, and false otherwise.
-     */
     emit<T>(event: string, detail?: T): boolean {
       return emit(event, detail, this);
     }

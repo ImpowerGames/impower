@@ -1,8 +1,3 @@
-// The engine composes each display and each played beat into one `ui/beat`
-// (#1820): the page gets everything the beat changes on the screen in one
-// message, and puts it up in one frame at the instant its text starts
-// revealing. A host opts in with `composeBeats`, as the worker does.
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test, vi } from "vitest";
 import { type Clock } from "../../game/core/classes/Clock";
@@ -33,7 +28,7 @@ end
 `;
 
 const STORY = `${LAYOUT}
--> start
+
 
 scene start
   HERO: The first line.
@@ -63,7 +58,7 @@ layout hud with
 end
 
 ${LAYOUT}
--> start
+
 
 scene start
   HERO:
@@ -86,10 +81,8 @@ const tick = (deltaMS = 0) => ({ deltaMS }) as Clock;
 const beats = (messages: any[]) =>
   messages.filter((m) => m.method === "ui/beat").map((m) => m.params);
 
-/** Every op a beat carries, its batches opened. */
 const opsOf = (beat: any) => flattenMessages(beat.messages);
 
-/** The text writes a beat carries for `target`, in order. */
 const writesOf = (beat: any, target: string) =>
   opsOf(beat)
     .filter((m: any) => m.method === "ui/write-text" && m.params.target === target)
@@ -111,7 +104,6 @@ async function play(h: ReturnType<typeof createHarness>, settle?: () => Promise<
   await (settle ? settle() : flushMicrotasks(10));
 }
 
-/** Answer the held font loads until none is left. */
 async function releaseFonts(h: ReturnType<typeof createHarness>) {
   for (let i = 0; i < 5; i += 1) {
     h.releaseAssets();
@@ -123,7 +115,6 @@ describe("a composed display (#1820)", () => {
   test("a preview's display reaches the page as one beat, at its sweep", async () => {
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
-    // Connected, restored: nothing has reached the page's screen yet.
     expect(screenOps(h.messages)).toEqual([]);
     expect(beats(h.messages)).toEqual([]);
 
@@ -134,10 +125,8 @@ describe("a composed display (#1820)", () => {
     expect(more).toEqual([]);
     expect(beat.sweep).toBe(true);
     expect(beat.time).toBeUndefined();
-    // The pass opens first, and the screen is built inside the beat.
     expect(beat.messages[0].method).toBe("ui/reconcile-begin");
     expect(opsOf(beat).some((m: any) => m.method === "ui/create")).toBe(true);
-    // The targets the display leaves empty are cleared in it.
     expect(writesOf(beat, "dialogue").map((w: any) => w.instructions)).toEqual([[]]);
     expect(screenOps(h.messages)).toEqual([]);
   });
@@ -153,19 +142,15 @@ describe("a composed display (#1820)", () => {
     const [beat, ...more] = beats(h.messages);
     expect(more).toEqual([]);
     expect(typeof beat.time).toBe("number");
-    // Each target is cleared, then written, in the order the beat sent them.
     for (const target of ["dialogue", "character_name"]) {
       const writes = writesOf(beat, target);
       expect(writes.map((w: any) => w.instructions.length > 0)).toEqual([false, true]);
       expect(typeof writes[1].time).toBe("number");
     }
-    // Nothing of the beat went to the page as it happened.
     expect(screenOps(h.messages)).toEqual([]);
   });
 
   test("a target cleared, written, cleared and written again keeps each op in its place", async () => {
-    // Round 6, class 1: the beat carries its ops in the order they were sent,
-    // so the page judges each clear as it reaches it.
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
     const ui = h.game.module.ui;
@@ -186,9 +171,6 @@ describe("a composed display (#1820)", () => {
   });
 
   test("a display a newer connect takes over never reaches the page, PLAY's included", async () => {
-    // Round 7, class 2: impossible by construction. An abandoned display's
-    // composition is dropped by the next connect, so PLAY's connect has
-    // nothing of it to put up.
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
     void h.game.module.ui.text.write("dialogue", [{ text: "ABANDONED" } as any], true);
@@ -199,14 +181,12 @@ describe("a composed display (#1820)", () => {
     await flushMicrotasks(20);
 
     expect(JSON.stringify(h.messages)).not.toContain("ABANDONED");
-    // PLAY's connect builds its screen as it goes.
     expect(screenOps(h.messages).some((m) => m.method === "ui/create")).toBe(true);
   });
 });
 
 describe("a composed beat that opens a layout whose font is loading (#1820)", () => {
   test("waits for the layout's mount and carries it", async () => {
-    // Round 6, class 3.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -232,8 +212,6 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
   });
 
   test("waits for a mount a directive before it holds back", async () => {
-    // Round 7, class 4: `[[close hud]]` runs first, and only then does the
-    // open start waiting for the font.
     const h = createHarness(hudStory("[[close hud]] [[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -256,8 +234,6 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
   });
 
   test("makes no mount once a newer connect has begun", async () => {
-    // Round 7, class 5: the mount, superseded while it waited for its font,
-    // must not write into the newer stream.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -266,7 +242,6 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
     });
     await h.ready;
     h.jumpToFlow("start");
-    // A checkpoint from before the beat opens the layout.
     const before = h.game.save() as string;
     const beat = h.nextBeat();
     const coordinator = new Coordinator(h.game, beat!);
@@ -274,8 +249,6 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
       await flushMicrotasks(20);
       coordinator.onUpdate(tick());
     }
-    // A newer connect to that checkpoint begins while the beat's layout
-    // waits for its font.
     h.game.load(before);
     void h.reconnect();
     await flushMicrotasks(20);
@@ -291,9 +264,6 @@ describe("a composed beat that opens a layout whose font is loading (#1820)", ()
   });
 
   test("a directive chain a newer connect superseded makes no later mount (#1218)", async () => {
-    // `[[open hud]] [[close hud]] [[open hud]]` runs as one chain. Its first
-    // open waits on the font; a newer connect begins; the rest of the chain
-    // belongs to the superseded stream and must not mount into the newer one.
     const h = createHarness(hudStory("[[open hud]] [[close hud]] [[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -337,8 +307,6 @@ const SPRITE: File = {
 
 describe("composition, round 1 of PR #1865", () => {
   test("a mount an abandoned display left waiting does not hold a newer display back", async () => {
-    // A beat opens a layout whose font is held; a newer preview, connected
-    // to a checkpoint from before it, sweeps a display with no layouts.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -363,15 +331,10 @@ describe("composition, round 1 of PR #1865", () => {
     h.game.module.ui.sweepReconcile();
     await flushMicrotasks(40);
 
-    // The newer display goes up although the old font is still held.
     expect(beats(h.messages.slice(mark)).filter((b) => b.sweep)).toHaveLength(1);
   });
 
   test("a played beat that starts while the last one waits on what it realizes gets a beat of its own, and takes that work over", async () => {
-    // The last beat waits on work that has not settled (a layout's font);
-    // the next beat starts. The last goes as it is, with its own writes; the
-    // next takes the unfinished work over, waits for it, and is sent on its
-    // own once it is done (the maintainer's decision).
     const h = createHarness(STORY, 0, { beforeConnect: playing });
     await h.ready;
     h.reset();
@@ -391,7 +354,6 @@ describe("composition, round 1 of PR #1865", () => {
     void ui.text.write("dialogue", [{ text: "Second" }], true);
     void ui.endCompose({ time: 200 });
     await flushMicrotasks(20);
-    // The first went as it was; the second waits for the work it took over.
     expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
 
     finish();
@@ -433,11 +395,8 @@ describe("composition, round 1 of PR #1865", () => {
     await play(h);
     await play(h);
 
-    // Both beats were composed and went to the page.
     expect(beats(h.messages).filter((b: any) => b.time != null)).toHaveLength(2);
     const ui: any = h.game.module.ui;
-    // No change signal is left waiting (round 5, U1: the one a composing
-    // beat subscribes to, `_realizationChange`).
     expect(ui._realizationChange).toBeUndefined();
   });
 });
@@ -447,8 +406,6 @@ describe("composition, round 2 of PR #1865", () => {
     ops.some((m) => m.method === "ui/create" && m.params?.name === "hud");
 
   test("a mount the last beat still waits for goes up with the next beat, which waits for it", async () => {
-    // D1: the next beat takes over the unfinished font mount (the
-    // maintainer's decision) instead of leaving it to land outside both.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -477,8 +434,6 @@ describe("composition, round 2 of PR #1865", () => {
   });
 
   test("a close in the next beat calls off a mount still waiting on its font", async () => {
-    // D1: without it, the open the last beat started mounted the layout
-    // after the next beat had closed it.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -506,10 +461,6 @@ describe("composition, round 2 of PR #1865", () => {
   });
 
   test("a closing layout's exit transition does not hold the beat; its element goes once the page reports the transition played", async () => {
-    // The maintainer's decision: a composed beat covers mounts and content;
-    // the layout leaves the mounted set at the commit, its exit plays from
-    // the commit, and its element is destroyed when the page reports the
-    // exit finished.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       autoOpenAll: false,
@@ -529,7 +480,6 @@ describe("composition, round 2 of PR #1865", () => {
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
 
-    // The beat went without waiting for the exit, carrying it.
     const [beat, ...more] = beats(h.messages);
     expect(more).toEqual([]);
     const exit = opsOf(beat).find(
@@ -542,7 +492,6 @@ describe("composition, round 2 of PR #1865", () => {
         .some((m: any) => m.method === "ui/destroy" && m.params.element === hudId);
     expect(destroyed()).toBe(false);
 
-    // The page reports the exit played.
     h.game.connection.receive({
       jsonrpc: "2.0",
       id: exit.id,
@@ -551,8 +500,6 @@ describe("composition, round 2 of PR #1865", () => {
     } as any);
     await flushMicrotasks(20);
     expect(destroyed()).toBe(true);
-    // In a batch of its own, every op marked as a retired layout's, which a
-    // beat waiting for its commit on the page lets by (round 3, class 2).
     const batch = h.messages.find(
       (m: any) =>
         m.method === "ui/batch" &&
@@ -563,7 +510,6 @@ describe("composition, round 2 of PR #1865", () => {
 });
 
 describe("the retirement path, round 3 of PR #1865", () => {
-  /** A page showing the hud, as an instant open leaves it. */
   async function hudShown(opts: { holdAssets?: boolean } = {}) {
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
@@ -578,13 +524,11 @@ describe("the retirement path, round 3 of PR #1865", () => {
     return { h, ui, hudId: ui._mountedLayouts.get("hud").element.id as string };
   }
 
-  /** The exit animation of `id` a sent beat carries. */
   const exitOf = (h: ReturnType<typeof createHarness>, id: string) =>
     beats(h.messages)
       .flatMap((b: any) => opsOf(b))
       .find((m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === id);
 
-  /** The page reports the animation `msg` played, or failed. */
   const answer = (h: ReturnType<typeof createHarness>, msg: any, reply: object) =>
     h.game.connection.receive({ jsonrpc: "2.0", id: msg.id, method: msg.method, ...reply } as any);
 
@@ -594,8 +538,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
   ];
 
   test("an exit that finishes after a connect leaves the screen that connect built alone", async () => {
-    // Class 3: the connect rebuilds the screen, and its ids start again, so
-    // the hud it mounts has the retiring hud's id.
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
     ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
@@ -617,7 +559,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
   });
 
   test("a layout closed and reopened in one beat keeps its fonts pinned once the old element has gone", async () => {
-    // Class 4: the retiring hud holds its fonts under a pin of its own.
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
     ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
@@ -634,7 +575,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
     const released = at((m) => m.method === "assets/release" && m.params?.pins?.includes("layout:hud"));
     expect(pinned.length).toBeGreaterThan(0);
     expect(Math.max(...pinned)).toBeGreaterThan(Math.max(-1, ...released));
-    // The old element's own pin went with it.
     expect(
       h.messages.some(
         (m: any) =>
@@ -645,8 +585,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
   });
 
   test("a close calls off every open of the layout still waiting on its font", async () => {
-    // Class 5: two beats each open the hud while its font is held; a third
-    // closes it.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -674,8 +612,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
   });
 
   test("a composition a connect drops lets go of the animations it carried", async () => {
-    // U1: the beat closing the hud waits on other work when a connect drops
-    // it, so the page never gets its exit.
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
     let closed = false;
@@ -698,7 +634,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
   });
 
   test("a captured animation the page fails is reported, as one sent on its own is", async () => {
-    // U4: the composed path reports what `Module.emitSettled` reports.
     const { h, ui, hudId } = await hudShown();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -721,9 +656,6 @@ describe("the retirement path, round 3 of PR #1865", () => {
 
 describe("the retirement path, round 4 of PR #1865", () => {
   test("an open a close calls off lets go of the layout's fonts", async () => {
-    // R4-3: the open waits on the hud's font; a close calls it off before the
-    // font arrives. Nothing of the hud is mounted, and its fonts are no
-    // longer pinned for it.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       holdAssets: true,
@@ -757,8 +689,6 @@ describe("the retirement path, round 4 of PR #1865", () => {
 
 describe("round 5 of PR #1865", () => {
   test("a retired layout goes when its exit has played, past a beat still being composed, and its fonts' pin after it", async () => {
-    // R5-2: beat A closes the hud; beat B is still composing (it waits on
-    // work of its own) when the page reports A's exit played.
     const h = createHarness(hudStory("[[open hud]]"), 0, {
       assets: FONTS,
       autoOpenAll: false,
@@ -787,7 +717,6 @@ describe("round 5 of PR #1865", () => {
     h.game.connection.receive({ jsonrpc: "2.0", id: exit.id, method: exit.method, result: [0] } as any);
     await flushMicrotasks(20);
 
-    // The destroy went to the page on its own, not into B.
     const at = h.messages.findIndex(
       (m: any) =>
         m.method === "ui/batch" &&
@@ -799,7 +728,6 @@ describe("round 5 of PR #1865", () => {
         .flatMap((m: any) => flattenMessages([m]))
         .some((m: any) => m.method === "ui/destroy" && m.params.element === hudId),
     ).toBe(false);
-    // Its pin went after it.
     const released = h.messages.findIndex(
       (m: any) =>
         m.method === "assets/release" &&
@@ -809,7 +737,6 @@ describe("round 5 of PR #1865", () => {
   });
 
   test("a beat's screen change that fails is reported, and the beat still goes", async () => {
-    // R5-U2.
     const h = createHarness(STORY, 0, { beforeConnect: playing });
     await h.ready;
     h.reset();

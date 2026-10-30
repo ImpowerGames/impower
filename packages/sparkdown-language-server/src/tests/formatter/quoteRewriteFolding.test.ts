@@ -2,10 +2,6 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { expect, test } from "vitest";
 import { resolveFormattingConflicts } from "../../utils/providers/getDocumentFormattingEdits";
 
-// `resolveFormattingConflicts` folds quote rewrites in after the other
-// edits are resolved: an edit touching a rewrite is joined to it, and an
-// edit overlapping it gives way.
-
 const source = "local s = 'x'  .. 'y'\n";
 const doc = new SparkdownDocument("test://fold.sd", "sparkdown", 1, source);
 
