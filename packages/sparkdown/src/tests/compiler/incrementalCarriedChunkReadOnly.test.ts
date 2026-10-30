@@ -17,9 +17,9 @@ import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object
 const URI = "inmemory:///main.sd";
 
 const SCRIPT = [
-  "-> act_one",
   "",
-  "scene act_one",
+  "",
+  "scene start",
   "  Beat before.",
   "  choose",
   "  + [Press on]",

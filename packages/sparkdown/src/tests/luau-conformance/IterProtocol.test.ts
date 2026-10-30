@@ -52,8 +52,10 @@ function compileAndCapture(source: string): {
 describe("generalized iteration", () => {
   test("__iter metamethod and implicit table iteration", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = {}
@@ -78,8 +80,10 @@ end
 
   test("non-iterables raise; nil-iterator __iter raises call-a-nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local ok, err = pcall(function() for x in 42 do end end)

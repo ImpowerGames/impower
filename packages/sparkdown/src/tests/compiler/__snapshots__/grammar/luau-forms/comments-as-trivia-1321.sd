@@ -9,4 +9,6 @@ function f(c)
   return w
 end -- trailing
 store done = true
-Values {m()} {k(1)}.
+scene start
+  Values {m()} {k(1)}.
+end

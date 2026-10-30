@@ -1,3 +1,5 @@
-choose
-  + [Answers.] -> WishAnswers
+scene start
+  choose
+    + [Answers.] -> WishAnswers
+  end
 end

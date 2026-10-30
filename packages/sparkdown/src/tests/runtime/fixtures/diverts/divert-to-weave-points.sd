@@ -1,4 +1,6 @@
--> knot.stitch.gather
+scene start
+  -> knot.stitch.gather
+end
 
 scene knot
   branch stitch

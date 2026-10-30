@@ -1,1 +1,3 @@
-N: this is \*not italic\* here
+scene start
+  N: this is \*not italic\* here
+end

@@ -1,4 +1,6 @@
 store function g() end
-if true then
-  store function k() end
+scene start
+  if true then
+    store function k() end
+  end
 end

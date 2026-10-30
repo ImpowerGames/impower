@@ -10,7 +10,7 @@ import { programContent } from "../programListing";
 
 const URI = "inmemory:///main.sd";
 
-const SOURCE = `scene main
+const SOURCE = `scene start
   Hello.
 end
 

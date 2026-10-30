@@ -1,4 +1,4 @@
-sparkdown [0..15]
+sparkdown [0..33]
  ├─ LuauFunctionAttributes [0..8]
  │   ├─ LuauFunctionAttributes_begin 0
  │   │   └─ LuauFunctionAttributes_begin_c1 0
@@ -11,22 +11,39 @@ sparkdown [0..15]
  │   │   │   └─ LuauAttribute_c3 7
  │   │   └─ Newline [7..8]: "\n"
  │   └─ LuauFunctionAttributes_end 8
- ├─ ImplicitAction [8..14]
- │   ├─ ImplicitAction_begin 8
- │   │   └─ ImplicitAction_begin_c1 8
- │   │       └─ OptionalWhitespace 8
- │   ├─ ImplicitAction_content [8..14]
- │   │   └─ ActionLineEnd [8..14]
- │   │       ├─ ActionLineEnd_begin 8
- │   │       │   └─ ActionLineEnd_begin_c1 8
- │   │       │       └─ OptionalWhitespace 8
- │   │       ├─ ActionLineEnd_content [8..14]
- │   │       │   └─ TextChunk [8..14]
- │   │       │       ├─ TextChunk_begin 8
- │   │       │       ├─ TextChunk_content [8..14]
- │   │       │       │   ├─ Word [8..13]: "Hello"
- │   │       │       │   └─ Punctuation [13..14]: "."
- │   │       │       └─ TextChunk_end 14
- │   │       └─ ActionLineEnd_end 14
- │   └─ ImplicitAction_end 14
- └─ Newline [14..15]: "\n"
+ ├─ Scene [8..19]
+ │   ├─ Scene_begin [8..14]
+ │   │   ├─ Scene_begin_c1 8
+ │   │   │   └─ OptionalWhitespace 8
+ │   │   ├─ Scene_begin_c2 [8..13]
+ │   │   │   └─ SceneKeyword [8..13]: "scene"
+ │   │   └─ Scene_begin_c3 [13..14]
+ │   │       └─ RequiredWhitespace [13..14]: " "
+ │   ├─ Scene_content [14..19]
+ │   │   └─ SceneWithoutParametersDeclaration [14..19]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [14..19]
+ │   │       │   └─ SceneDeclarationName [14..19]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 19
+ │   └─ Scene_end 19
+ ├─ Newline [19..20]: "\n"
+ ├─ ImplicitAction [20..28]
+ │   ├─ ImplicitAction_begin [20..22]
+ │   │   └─ ImplicitAction_begin_c1 [20..22]
+ │   │       └─ OptionalWhitespace [20..22]: "  "
+ │   ├─ ImplicitAction_content [22..28]
+ │   │   └─ ActionLineEnd [22..28]
+ │   │       ├─ ActionLineEnd_begin 22
+ │   │       │   └─ ActionLineEnd_begin_c1 22
+ │   │       │       └─ OptionalWhitespace 22
+ │   │       ├─ ActionLineEnd_content [22..28]
+ │   │       │   └─ TextChunk [22..28]
+ │   │       │       ├─ TextChunk_begin 22
+ │   │       │       ├─ TextChunk_content [22..28]
+ │   │       │       │   ├─ Word [22..27]: "Hello"
+ │   │       │       │   └─ Punctuation [27..28]: "."
+ │   │       │       └─ TextChunk_end 28
+ │   │       └─ ActionLineEnd_end 28
+ │   └─ ImplicitAction_end 28
+ ├─ Newline [28..29]: "\n"
+ ├─ LuauEndKeyword [29..32]: "end"
+ └─ Newline [32..33]: "\n"

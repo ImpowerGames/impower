@@ -1,1 +1,3 @@
-opts["color"]
+scene start
+  opts["color"]
+end

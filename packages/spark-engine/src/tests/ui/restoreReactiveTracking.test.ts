@@ -32,7 +32,7 @@ layout main with
   }
 end
 
--> start
+
 scene start
   Hello.
 end
@@ -188,7 +188,7 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     // in, a rewind reproduces it. (A compiled program always carries the
     // `sparkle` channel — even with no authored layout — so mount itself
     // decides via the same `program.sparkle.layouts` presence check.)
-    const h = createHarness(`-> start\nscene start\n  Hello.\nend\n`);
+    const h = createHarness(`\nscene start\n  Hello.\nend\n`);
     await h.ready;
     const atMount = depsEnabled(h.game);
     (h.game as any).rewindStory();

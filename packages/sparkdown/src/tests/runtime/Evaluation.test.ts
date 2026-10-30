@@ -173,8 +173,7 @@ describe("Evaluation (ported from inkjs)", () => {
     // The `EvaluateFunction` JS API calls a function by name and
     // returns its return value to the host. A function whose body is
     // `return -> place` produces the path string "-> place".
-    const src = `-> main
-scene main
+    const src = `scene start
   Top level content
   -> DONE
 end
@@ -199,8 +198,7 @@ end
     // returns `{output, returned}` where `output` is everything the
     // function printed and `returned` is the return value. Lets the
     // host run game logic without affecting the main flow.
-    const src = `-> main
-scene main
+    const src = `scene start
   -> DONE
 end
 

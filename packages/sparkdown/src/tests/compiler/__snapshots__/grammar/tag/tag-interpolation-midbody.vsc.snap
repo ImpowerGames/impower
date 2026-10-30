@@ -1,17 +1,24 @@
-text.source.sparkdown [0..19]
- ├─ comment.line.sd [0..18]
- │   └─ entity.tag.sd [0..18]
- │       └─ comment.line.sd [0..18]
- │           └─ entity.tag.sd [0..18]
- │               ├─ punctuation.definition.comment.sd [0..1]
- │               │   └─ comment.line.sd [0..1]
- │               │       └─ entity.tag.begin.sd [0..1]: "#"
- │               └─ punctuation.definition.comment.content.sd [1..18]
- │                   ├─ punctuation.definition.comment.content.sd [1..8]: " a tag "
- │                   ├─ meta.template.expression.luau [8..13]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [8..9]: "{"
- │                   │   ├─ meta.embedded.line.luau [9..12]
- │                   │   │   └─ variable.other.readwrite.luau [9..12]: "var"
- │                   │   └─ punctuation.definition.template-expression.end.sd [12..13]: "}"
- │                   └─ punctuation.definition.comment.content.sd [13..18]: " more"
- └─ Newline [18..19]: "\n"
+text.source.sparkdown [0..37]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ comment.line.sd [12..32]
+ │   └─ entity.tag.sd [12..32]
+ │       ├─ punctuation.whitespace.required.sd [12..14]: "  "
+ │       └─ comment.line.sd [14..32]
+ │           └─ entity.tag.sd [14..32]
+ │               ├─ punctuation.definition.comment.sd [14..15]
+ │               │   └─ comment.line.sd [14..15]
+ │               │       └─ entity.tag.begin.sd [14..15]: "#"
+ │               └─ punctuation.definition.comment.content.sd [15..32]
+ │                   ├─ punctuation.definition.comment.content.sd [15..22]: " a tag "
+ │                   ├─ meta.template.expression.luau [22..27]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [22..23]: "{"
+ │                   │   ├─ meta.embedded.line.luau [23..26]
+ │                   │   │   └─ variable.other.readwrite.luau [23..26]: "var"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [26..27]: "}"
+ │                   └─ punctuation.definition.comment.content.sd [27..32]: " more"
+ ├─ Newline [32..33]: "\n"
+ ├─ keyword.control.end.luau [33..36]: "end"
+ └─ Newline [36..37]: "\n"

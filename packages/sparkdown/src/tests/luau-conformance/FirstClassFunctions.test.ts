@@ -47,8 +47,10 @@ function compileAndCapture(source: string): {
 describe("anonymous function literals", () => {
   test("local f = function(x) return x * 2 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function(x) return x * 2 end
@@ -61,8 +63,10 @@ end
 
   test("pass anonymous fn as call arg", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function call_with_5(fn)
 return fn(5)
@@ -78,8 +82,10 @@ end
 
   test("anonymous fn returning multi-value composes with multi-target", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function() return 1, 2, 3 end
@@ -98,8 +104,10 @@ end
     // anonymous-function lowering shouldn't have broken named-function
     // first-class storage.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -116,8 +124,10 @@ end
 
   test("anonymous fn with two parameters", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local add = function(a, b) return a + b end
@@ -130,8 +140,10 @@ end
 
   test("multiple anonymous fns in same scope get unique names", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local doubler = function(x) return x * 2 end
@@ -148,8 +160,10 @@ end
 describe("bare knot names as values", () => {
   test("local f = double — bare function-knot reference works as value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -166,8 +180,10 @@ end
 
   test("pass bare knot name as a function argument", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -187,8 +203,10 @@ end
 
   test("multiple bare knot references in scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -219,8 +237,10 @@ end
 describe("closures (capture-by-value)", () => {
   test("simple capture: function() return n + 1 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -234,8 +254,10 @@ end
 
   test("closure with user arg AND captured upval", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -249,8 +271,10 @@ end
 
   test("two captures", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = 3
@@ -270,8 +294,10 @@ end
     // run's frame at closure-creation time and stays open while run
     // is on the call stack.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -290,8 +316,10 @@ end
     // This test would fail with a "Variable not found" warning at
     // closure definition if the scan over-captured params.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function(x)
@@ -313,8 +341,10 @@ describe("true lexical closures (open/close upvalues)", () => {
     // to outer's frame. Outer's read of `n` after the call sees the
     // updated value.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -337,8 +367,10 @@ end
     // object, so when `incr` writes through it, `read` sees the new
     // value.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -364,8 +396,10 @@ end
     // the current value into the pointer's `closedValue`, so the
     // closure can still read and write through it.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& driver()
-done
+scene start
+  & driver()
+  done
+end
 
 function driver()
 local g = make()
@@ -394,8 +428,10 @@ end
     // bump closure's writes are visible to the peek closure even
     // though both upvals are closed.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& driver()
-done
+scene start
+  & driver()
+  done
+end
 
 function driver()
 local pair = make_totaler()
@@ -425,8 +461,10 @@ end
 describe("nested named function definitions", () => {
   test("function defined inside another function is callable from its body", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 function helper()
@@ -441,8 +479,10 @@ end
 
   test("nested function takes args and returns a computed value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 function double(n)
@@ -457,9 +497,11 @@ end
 
   test("nested function with the same name in two different functions does not collide", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& a()
-& b()
-done
+scene start
+  & a()
+  & b()
+  done
+end
 
 function a()
 function helper()
@@ -481,8 +523,10 @@ end
 
   test("three-level nesting: function inside function inside function", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& outer()
-done
+scene start
+  & outer()
+  done
+end
 
 function outer()
 function middle()

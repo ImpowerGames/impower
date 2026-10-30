@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   <- side
   done

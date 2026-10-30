@@ -23,7 +23,7 @@ const SOURCE = [
   "store flag = false",
   "store total = 0",
   "store tally = 0",
-  "-> start",
+  "",
   "scene start",
   "  Opening beat.",
   "  for i = 1, 1500 do",
@@ -178,7 +178,7 @@ describe("a route search after an earlier one's level zero", () => {
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 10 do",
       "    total += 1",
@@ -223,7 +223,7 @@ describe("a route search after an earlier one's level zero", () => {
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 10 do",
       "    total += 1",

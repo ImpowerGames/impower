@@ -48,7 +48,7 @@ const square = (fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1
 /** `beats` beats of one click and one flash each. `startLine` is the line
  *  PLAY starts from, counting from one. */
 export function buildMetronomeFixture({ beats = 120 } = {}) {
-  const lines = ["-> MAIN", "", "scene MAIN", "  Ready.", ""];
+  const lines = ["scene start", "  Ready.", ""];
   for (let i = 0; i < beats; i++) lines.push(`  [[show backdrop flash_${i % 2 ? "b" : "a"}]]`, "  ((play sound click))", "  >", "");
   lines.push("end", "");
   const files = new Map();
@@ -56,15 +56,15 @@ export function buildMetronomeFixture({ beats = 120 } = {}) {
   files.set("assets/click.wav", clickWav());
   files.set("assets/flash_a.svg", square("#ffffff"));
   files.set("assets/flash_b.svg", square("#ffff00"));
-  return { files, startLine: 4, beats };
+  return { files, startLine: 2, beats };
 }
 
 /** A scene that offers `Left` and `Right` for ever. */
 export function buildInputFixture() {
-  const lines = ["-> MAIN", "", "scene MAIN", "  Ready.", "  -> PICK", "end", "", "scene PICK", "  choose", "    + [Left]", "    + [Right]", "  then", "  -> PICK", "  end", "end", ""];
+  const lines = ["scene start", "  Ready.", "  -> PICK", "end", "", "scene PICK", "  choose", "    + [Left]", "    + [Right]", "  then", "  -> PICK", "  end", "end", ""];
   const files = new Map();
   files.set("main.sd", lines.join("\n"));
-  return { files, startLine: 4, choices: ["Left", "Right"] };
+  return { files, startLine: 2, choices: ["Left", "Right"] };
 }
 
 /** Writes a fixture into `dir`, which must be missing or empty. */

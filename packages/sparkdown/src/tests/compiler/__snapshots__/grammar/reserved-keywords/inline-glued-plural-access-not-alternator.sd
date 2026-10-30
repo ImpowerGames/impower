@@ -1,1 +1,3 @@
-x .. plural.category(n) ..
+scene start
+  x .. plural.category(n) ..
+end

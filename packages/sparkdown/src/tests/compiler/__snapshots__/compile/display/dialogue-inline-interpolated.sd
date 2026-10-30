@@ -1,1 +1,3 @@
-N: Hi {name}, you have {count} messages.
+scene start
+  N: Hi {name}, you have {count} messages.
+end

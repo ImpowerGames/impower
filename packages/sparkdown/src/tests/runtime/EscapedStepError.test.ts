@@ -4,6 +4,10 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
+const source = ["scene start", "  Line one.", "  Line two.", "end", ""].join(
+  "\n",
+);
+
 const withFirstStepThrowing = (story: any) => {
   const original = story.ContinueSingleStep;
   let steps = 0;
@@ -18,7 +22,7 @@ const withFirstStepThrowing = (story: any) => {
 
 describe("an error thrown out of a story step", () => {
   test("leaves an asynchronous continue's open line cancellable", () => {
-    const ctx = makeRuntimeStoryFromSource(["Line one.", "Line two.", ""].join("\n"));
+    const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     const story: any = ctx.story;
     withFirstStepThrowing(story);
@@ -31,7 +35,7 @@ describe("an error thrown out of a story step", () => {
   });
 
   test("leaves a synchronous continue's story able to reset", () => {
-    const ctx = makeRuntimeStoryFromSource(["Line one.", "Line two.", ""].join("\n"));
+    const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     const story: any = ctx.story;
     withFirstStepThrowing(story);

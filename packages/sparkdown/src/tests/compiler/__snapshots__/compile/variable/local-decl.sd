@@ -1,1 +1,3 @@
-local result = compute(input)
+scene start
+  local result = compute(input)
+end

@@ -1,4 +1,3 @@
--> start
 scene start
   local lit = false
   choose

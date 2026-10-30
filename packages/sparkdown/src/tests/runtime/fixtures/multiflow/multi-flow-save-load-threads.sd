@@ -1,5 +1,7 @@
-Default line 1
-Default line 2
+scene start
+  Default line 1
+  Default line 2
+end
 
 scene red
   Hello I'm red

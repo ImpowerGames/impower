@@ -110,7 +110,7 @@ function displayCallSteps(
 
 describe("display statements", () => {
   test("a line with a # tag carries the tag in its table", () => {
-    const [step] = displayCallSteps(`The bell rings. # ominous\ndone\n`, [
+    const [step] = displayCallSteps(`scene start\n  The bell rings. # ominous\n  done\nend\n`, [
       ["The bell rings.\n", ["ominous"]],
     ]);
     expect(step!.tags).toEqual(["ominous"]);
@@ -120,7 +120,7 @@ describe("display statements", () => {
   });
 
   test("a dialogue line with two tags", () => {
-    const [step] = displayCallSteps(`HERO: Goodbye. # final # quiet\ndone\n`, [
+    const [step] = displayCallSteps(`scene start\n  HERO: Goodbye. # final # quiet\n  done\nend\n`, [
       ["Goodbye.\n", ["final", "quiet"]],
     ]);
     expect(step!.tags).toEqual(["final", "quiet"]);
@@ -137,21 +137,21 @@ describe("display statements", () => {
   // The body's interpolation runs before the tag's, as written.
   test("a tag is evaluated after the line's text", () => {
     const [step] = displayCallSteps(
-      `store x = 0\nSay {bump()} # {x}\ndone\n\nfunction bump()\nx += 1\nreturn "Hello"\nend\n`,
+      `store x = 0\nscene start\n  Say {bump()} # {x}\n  done\nend\n\nfunction bump()\nx += 1\nreturn "Hello"\nend\n`,
       [["Say Hello\n", ["1"]]],
     );
     expect(step!.tags).toEqual(["1"]);
   });
 
   test("a write with no layer names no target", () => {
-    const [step] = displayCallSteps(`@: Layerless line.\ndone\n`, [
+    const [step] = displayCallSteps(`scene start\n  @: Layerless line.\n  done\nend\n`, [
       ["Layerless line.\n", []],
     ]);
     expect(step!.tables).toEqual([{ text: "Layerless line." }]);
   });
 
   test("an empty body keeps its own step with empty text", () => {
-    const [empty, next] = displayCallSteps(`$:\nNext.\ndone\n`, [
+    const [empty, next] = displayCallSteps(`scene start\n  $:\n  Next.\n  done\nend\n`, [
       ["\n", []],
       ["Next.\n", []],
     ]);
@@ -160,7 +160,7 @@ describe("display statements", () => {
   });
 
   test("a load line is a table with a load field", () => {
-    const [load, next] = steps(`load overworld\nThe world appears.\ndone\n`);
+    const [load, next] = steps(`scene start\n  load overworld\n  The world appears.\n  done\nend\n`);
     expect(load!.flatText).toBe("");
     expect(load!.tables).toEqual([{ load: "overworld" }]);
     expect(next!.tables).toEqual([
@@ -169,13 +169,13 @@ describe("display statements", () => {
   });
 
   test("a load line's names may interpolate", () => {
-    const [load] = steps(`store w = "overworld"\nload {w} underworld\ndone\n`);
+    const [load] = steps(`store w = "overworld"\nscene start\n  load {w} underworld\n  done\nend\n`);
     expect(load!.tables).toEqual([{ load: "overworld underworld" }]);
   });
 
   test("a mid-line divert joins the target's first line", () => {
     const [step] = displayCallSteps(
-      `-> a\n\nscene a\n  We hurried home to -> b\nend\n\nscene b\n  Savile Row.\n  done\nend\n`,
+      `scene start\n  We hurried home to -> b\nend\n\nscene b\n  Savile Row.\n  done\nend\n`,
       [["We hurried home to Savile Row.\n", []]],
     );
     expect(step!.text).toBe("We hurried home to Savile Row.\n");
@@ -187,7 +187,7 @@ describe("display statements", () => {
 
   test("a mid-line load divert keeps its load step", () => {
     const run = displayCallSteps(
-      `-> a\n\nscene a\n  We hurried home to -> load b\nend\n\nscene b\n  Savile Row.\n  done\nend\n`,
+      `scene start\n  We hurried home to -> load b\nend\n\nscene b\n  Savile Row.\n  done\nend\n`,
       [
         ["We hurried home to\n", []],
         ["[[load b]]\n", []],
@@ -205,7 +205,7 @@ describe("display statements", () => {
 describe("producers outside display statements", () => {
   test("a standalone asset line", () => {
     const [step] = displayCallSteps(
-      `[[show backdrop BG]] ((play music M))\nNext.\ndone\n`,
+      `scene start\n  [[show backdrop BG]] ((play music M))\n  Next.\n  done\nend\n`,
       [
         ["[[show backdrop BG]]((play music M))\n", []],
         ["Next.\n", []],
@@ -218,7 +218,7 @@ describe("producers outside display statements", () => {
 
   test("a load arrow's directive is its own step", () => {
     const [load, next] = displayCallSteps(
-      `-> load b\n\nscene b\n  Here.\n  done\nend\n`,
+      `scene start\n  -> load b\nend\n\nscene b\n  Here.\n  done\nend\n`,
       [
         ["[[load b]]\n", []],
         ["Here.\n", []],
@@ -229,7 +229,7 @@ describe("producers outside display statements", () => {
   });
 
   test("a single-line block alternator arm, with its tag", () => {
-    const [step] = displayCallSteps(`queue | A # t | B end\ndone\n`, [
+    const [step] = displayCallSteps(`scene start\n  queue | A # t | B end\n  done\nend\n`, [
       ["A\n", ["t"]],
     ]);
     expect(step!.tags).toEqual(["t"]);
@@ -239,13 +239,13 @@ describe("producers outside display statements", () => {
   // A line that starts with an interpolation is an action line like any other
   // (#1746), so its table names the action target, as `Here.` above does.
   test("a bare {expr} line", () => {
-    const [step] = displayCallSteps(`{1 + 2}\ndone\n`, [["3\n", []]]);
+    const [step] = displayCallSteps(`scene start\n  {1 + 2}\n  done\nend\n`, [["3\n", []]]);
     expect(step!.tables).toEqual([{ target: "action", text: "3" }]);
   });
 
   test("a {x}{y} chain is one call", () => {
     const [step] = displayCallSteps(
-      `store x = 5\nstore y = 4\n{x}{y}\ndone\n`,
+      `store x = 5\nstore y = 4\nscene start\n  {x}{y}\n  done\nend\n`,
       [["54\n", []]],
     );
     expect(step!.tables).toEqual([{ target: "action", text: "54" }]);
@@ -253,7 +253,7 @@ describe("producers outside display statements", () => {
 
   test("print() pushes a table on the default target", () => {
     const run = displayCallSteps(
-      `& f()\nNext.\ndone\n\nfunction f()\nprint("hi", 2)\nprint("two")\nend\n`,
+      `scene start\n  & f()\n  Next.\n  done\nend\n\nfunction f()\nprint("hi", 2)\nprint("two")\nend\n`,
       [
         ["hi 2\n", []],
         ["two\n", []],
@@ -265,7 +265,7 @@ describe("producers outside display statements", () => {
 
   test("print() inside an interpolation lands in the enclosing line's text", () => {
     const [step] = steps(
-      `Say {f()} now.\ndone\n\nfunction f()\nprint("hi")\nreturn "!"\nend\n`,
+      `scene start\n  Say {f()} now.\n  done\nend\n\nfunction f()\nprint("hi")\nreturn "!"\nend\n`,
     );
     expect(step!.flatText).toBe("");
     expect(step!.tables).toEqual([{ target: "action", text: "Say hi! now." }]);
@@ -273,7 +273,7 @@ describe("producers outside display statements", () => {
 
   test("a picked choice echoes its text", () => {
     const run = displayCallSteps(
-      `choose\n  * Take it\n    Taken.\nend\ndone\n`,
+      `scene start\n  choose\n    * Take it\n      Taken.\n  end\n  done\nend\n`,
       [
         ["", []],
         ["Take it\n", []],
@@ -289,7 +289,7 @@ describe("producers outside display statements", () => {
 
   test("a picked choice with bracketed text echoes the start and inner text", () => {
     const run = displayCallSteps(
-      `choose\n  * Take[ it] now\n    Taken.\nend\ndone\n`,
+      `scene start\n  choose\n    * Take[ it] now\n      Taken.\n  end\n  done\nend\n`,
       [
         ["", []],
         ["Take now\n", []],
@@ -301,7 +301,7 @@ describe("producers outside display statements", () => {
 
   test("a picked choice with a tag carries it in the echo's table", () => {
     const run = displayCallSteps(
-      `choose\n  * Take it # picked\n    Taken.\nend\ndone\n`,
+      `scene start\n  choose\n    * Take it # picked\n      Taken.\n  end\n  done\nend\n`,
       [
         ["", []],
         ["Take it\n", ["picked"]],
@@ -315,7 +315,7 @@ describe("producers outside display statements", () => {
 
   test("a bracketed picked choice with a tag after the brackets", () => {
     const run = displayCallSteps(
-      `choose\n  * Take[ it] now # picked\n    Taken.\nend\ndone\n`,
+      `scene start\n  choose\n    * Take[ it] now # picked\n      Taken.\n  end\n  done\nend\n`,
       [
         ["", []],
         ["Take now\n", ["picked"]],
@@ -330,7 +330,7 @@ describe("producers outside display statements", () => {
   // A tag before the brackets runs before the chosen-only text, as written.
   test("a tag in a choice's start content is evaluated before its chosen-only text", () => {
     const run = displayCallSteps(
-      `store x = 0\nchoose\n  * Take # {{bump}}[ label] {x}\n    Taken.\nend\ndone\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
+      `store x = 0\nscene start\n  choose\n    * Take # {{bump}}[ label] {x}\n      Taken.\n  end\n  done\nend\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
       [
         ["", []],
         ["Take 2\n", ["2"]],
@@ -343,7 +343,7 @@ describe("producers outside display statements", () => {
 
   test("tags between a choice's words keep their evaluation order", () => {
     const run = displayCallSteps(
-      `store x = 0\nchoose\n  * {bump()} # {x}[ label] {bump()} # {x}\n    Taken.\nend\ndone\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
+      `store x = 0\nscene start\n  choose\n    * {bump()} # {x}[ label] {bump()} # {x}\n      Taken.\n  end\n  done\nend\n\nfunction bump()\nx += 1\nreturn x\nend\n`,
       [
         ["", []],
         ["2 3\n", ["2", "3"]],
@@ -355,7 +355,7 @@ describe("producers outside display statements", () => {
 
   test("a picked choice ending in an inline divert joins the target's line", () => {
     const run = displayCallSteps(
-      `-> a\n\nscene a\n  choose\n    * Take it -> b\n  end\nend\n\nscene b\n  now.\n  done\nend\n`,
+      `scene start\n  choose\n    * Take it -> b\n  end\nend\n\nscene b\n  now.\n  done\nend\n`,
       [
         ["", []],
         ["Take it now.\n", []],

@@ -36,10 +36,12 @@ function errorRanges(source: string): unknown[] {
     .map((d) => (d as { range?: unknown }).range);
 }
 
-const store = "store g = function named() return 7 end\nValue {g()}.\n";
-const storeList = "store a, g = 1, function named() return 7 end\nValue {g()}.\n";
+const store =
+  "store g = function named() return 7 end\n\nscene start\n  Value {g()}.\nend\n";
+const storeList =
+  "store a, g = 1, function named() return 7 end\n\nscene start\n  Value {g()}.\nend\n";
 const local =
-  "Value {f()}.\nfunction f()\n  local g = function named() return 7 end\n  return g()\nend\n";
+  "scene start\n  Value {f()}.\nend\nfunction f()\n  local g = function named() return 7 end\n  return g()\nend\n";
 
 describe("named function in a value position", () => {
   test.each([
@@ -67,7 +69,7 @@ describe("named function in a value position", () => {
     ["dotted", "a.f"],
     ["method", "a:f"],
   ])("%s name: reports an error at the whole name", (_name, fnName) => {
-    const source = `store a = 999\nstore g = function ${fnName}() return 7 end\nValue {g()}.\n`;
+    const source = `store a = 999\nstore g = function ${fnName}() return 7 end\n\nscene start\n  Value {g()}.\nend\n`;
     const { errorMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([
       `Expected '(' when parsing function, got '${fnName}'`,
@@ -79,16 +81,19 @@ describe("named function in a value position", () => {
 
   test("a compound assignment that lowers its target twice reports once", () => {
     const { errorMessages } = collectDiagnostics(
-      "Value {f()}.\nfunction f()\n  local t = {}\n  t[function named() return 1 end] = 1\n  t[function named() return 1 end] += 1\n  return 1\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local t = {}\n  t[function named() return 1 end] = 1\n  t[function named() return 1 end] += 1\n  return 1\nend\n",
     );
     expect(errorMessages).toEqual([MESSAGE, MESSAGE]);
   });
 
   test.each([
-    ["anonymous value", "store g = function() return 7 end\nValue {g()}.\n"],
+    [
+      "anonymous value",
+      "store g = function() return 7 end\n\nscene start\n  Value {g()}.\nend\n",
+    ],
     [
       "inline body starting with an access path",
-      "store t = {}\nstore g = function() t.x = 1 return 7 end\nValue {g()}.\n",
+      "store t = {}\nstore g = function() t.x = 1 return 7 end\n\nscene start\n  Value {g()}.\nend\n",
     ],
   ])("%s reports nothing", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);

@@ -4,28 +4,28 @@ import { collectDiagnostics, makeRuntimeStoryFromSource } from "./runtimeTestHar
 describe("Luau casts to type targets (#877)", () => {
   test.each(["return 55", "local b = 55\nreturn b", "if true then return 55 end"])
     ("preserves unindented statement after unfinished qualification: %s", (statement) => {
-      const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a = 55 :: types.Number. --[[c]]\n${statement}\nend\n`);
+      const ctx = makeRuntimeStoryFromSource(`function f()\n  local a = 55 :: types.Number. --[[c]]\n${statement}\nend\nscene start\n  Value {f()}.\nend\n`);
       // Sparkdown's hint first, then Luau's recovery errors (I-1322).
       expect(ctx.errorMessages[0]).toEqual(expect.stringContaining("takes at most one module prefix"));
       expect(ctx.story.ContinueMaximally()).toBe("Value 55.\n");
     });
   test.each(["types --[[c]] .Number?", "types. --[[c]] Array<number>", "types --[====[long\ncomment]====] .Number?", "types. --[====[long\ncomment]====] Number?"])
     ("preserves following return after %s", (target) => {
-      const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a = 55 :: ${target}\n  return a\nend\n`);
+      const ctx = makeRuntimeStoryFromSource(`function f()\n  local a = 55 :: ${target}\n  return a\nend\nscene start\n  Value {f()}.\nend\n`);
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.ContinueMaximally()).toBe("Value 55.\n");
     });
   test.each([["number | string", "<= 55"], ["(number | string)", "< 56"]])
     ("compares a cast to %s with %s", (target, comparison) => {
       const ctx = makeRuntimeStoryFromSource(
-        `Value {f()}.\nfunction f()\n  local a = 55 :: ${target} ${comparison}\n  return a\nend\n`,
+        `function f()\n  local a = 55 :: ${target} ${comparison}\n  return a\nend\nscene start\n  Value {f()}.\nend\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.ContinueMaximally()).toBe("Value true.\n");
     });
   test("reports an unclosed function target", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "Value {f()}.\nfunction f()\n  local a = nil :: (number -> string\n  return 55\nend\n",
+      "function f()\n  local a = nil :: (number -> string\n  return 55\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(ctx.errorMessages.some((message) => message.includes("Expected ')'"))).toBe(true);
   });
@@ -43,7 +43,7 @@ describe("Luau casts to type targets (#877)", () => {
   });
   test("preserves the value cast to an optional type", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "Value {f()}.\nfunction f()\n  local a = 55 :: number?\n  return a\nend\n",
+      "function f()\n  local a = 55 :: number?\n  return a\nend\nscene start\n  Value {f()}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 55.\n");

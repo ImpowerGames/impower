@@ -1,1 +1,3 @@
-& inventory.stars += 1
+scene start
+  & inventory.stars += 1
+end

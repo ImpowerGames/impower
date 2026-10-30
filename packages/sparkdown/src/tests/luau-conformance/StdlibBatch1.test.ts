@@ -45,8 +45,10 @@ function compileAndCapture(source: string): {
 describe("table.foreach", () => {
   test("calls fn(k, v) for every entry in insertion order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { a = 1, b = 2, c = 3 }
@@ -62,8 +64,10 @@ end
 
   test("non-nil return breaks the loop and is returned", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3, 4, 5 }
@@ -81,8 +85,10 @@ end
 describe("table.foreachi", () => {
   test("walks the array portion only, calls fn(i, v)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "a", "b", "c", name = "ignored" }
@@ -98,8 +104,10 @@ end
 
   test("stops at first gap in the array portion", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -118,8 +126,10 @@ end
 describe("utf8.codes", () => {
   test("yields (byte_position, codepoint) for ASCII", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("abc") do
@@ -140,8 +150,10 @@ end
     // (invalid UTF-8). 'B' is 1 byte; '€' (U+20AC, > 0xFF) encodes
     // automatically.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("\\xC3\\xA9B€") do
@@ -157,8 +169,10 @@ end
 
   test("empty string yields nothing", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for p, c in utf8.codes("") do

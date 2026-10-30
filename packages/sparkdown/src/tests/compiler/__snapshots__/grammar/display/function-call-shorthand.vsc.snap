@@ -1,56 +1,65 @@
-text.source.sparkdown [0..84]
- ├─ string.display.text.chunk.sd [0..32]
- │   ├─ markup.raw.text.sd [0..3]: "The"
- │   ├─ markup.raw.space.sd [3..4]: " "
- │   ├─ markup.raw.text.sd [4..8]: "hero"
- │   ├─ markup.raw.space.sd [8..9]: " "
- │   ├─ markup.raw.text.sd [9..14]: "yells"
- │   ├─ markup.raw.space.sd [14..15]: " "
- │   ├─ meta.template.expression.function-shorthand.luau [15..24]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [15..16]: "{"
- │   │   ├─ punctuation.definition.template-expression.begin.sd [16..17]: "{"
- │   │   ├─ meta.embedded.line.luau [17..22]
- │   │   │   └─ variable.other.readwrite.luau [17..22]: "shout"
- │   │   ├─ punctuation.definition.template-expression.end.sd [22..23]: "}"
- │   │   └─ punctuation.definition.template-expression.end.sd [23..24]: "}"
- │   ├─ markup.raw.space.sd [24..25]: " "
- │   ├─ markup.raw.text.sd [25..31]: "loudly"
- │   └─ markup.raw.punctuation.sd [31..32]: "."
- ├─ Newline [32..33]: "\n"
- ├─ string.display.dialogue.inline.sd [33..73]
- │   ├─ entity.name.type.dialogue.character.name.sd [33..39]
- │   │   └─ markup.raw.text.sd [33..39]: "Damage"
- │   ├─ meta.template.expression.operator.colon.sd [39..40]: ":"
- │   ├─ punctuation.whitespace.required.sd [40..41]: " "
- │   ├─ meta.template.expression.function-shorthand.luau [41..65]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [41..42]: "{"
- │   │   ├─ punctuation.definition.template-expression.begin.sd [42..43]: "{"
- │   │   ├─ meta.embedded.line.luau [43..63]
- │   │   │   ├─ punctuation.whitespace.extra.sd [43..44]: " "
- │   │   │   ├─ entity.name.function.luau [44..51]: "compute"
- │   │   │   ├─ meta.parameter.luau [51..62]
- │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [51..52]: "("
- │   │   │   │   ├─ constant.numeric.decimal.luau [52..53]: "5"
- │   │   │   │   ├─ keyword.operator.comma.luau [53..54]: ","
- │   │   │   │   ├─ punctuation.whitespace.optional.sd [54..55]: " "
- │   │   │   │   ├─ string.quoted.double.luau [55..61]
- │   │   │   │   │   ├─ punctuation.definition.string.double.begin.sd [55..56]: "\""
- │   │   │   │   │   ├─ markup.raw.text.sd [56..60]: "fire"
- │   │   │   │   │   └─ punctuation.definition.string.double.end.sd [60..61]: "\""
- │   │   │   │   └─ punctuation.definition.template-expression.end.sd [61..62]: ")"
- │   │   │   └─ punctuation.whitespace.extra.sd [62..63]: " "
- │   │   ├─ punctuation.definition.template-expression.end.sd [63..64]: "}"
- │   │   └─ punctuation.definition.template-expression.end.sd [64..65]: "}"
- │   └─ string.display.text.chunk.sd [65..73]
- │       ├─ markup.raw.space.sd [65..66]: " "
- │       ├─ markup.raw.text.sd [66..72]: "points"
- │       └─ markup.raw.punctuation.sd [72..73]: "."
- ├─ Newline [73..74]: "\n"
- ├─ meta.template.expression.function-shorthand.luau [74..83]
- │   ├─ punctuation.definition.template-expression.begin.sd [74..75]: "{"
- │   ├─ punctuation.definition.template-expression.begin.sd [75..76]: "{"
- │   ├─ meta.embedded.line.luau [76..81]
- │   │   └─ variable.other.readwrite.luau [76..81]: "shout"
- │   ├─ punctuation.definition.template-expression.end.sd [81..82]: "}"
- │   └─ punctuation.definition.template-expression.end.sd [82..83]: "}"
- └─ Newline [83..84]: "\n"
+text.source.sparkdown [0..106]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..46]
+ │   ├─ markup.raw.text.sd [14..17]: "The"
+ │   ├─ markup.raw.space.sd [17..18]: " "
+ │   ├─ markup.raw.text.sd [18..22]: "hero"
+ │   ├─ markup.raw.space.sd [22..23]: " "
+ │   ├─ markup.raw.text.sd [23..28]: "yells"
+ │   ├─ markup.raw.space.sd [28..29]: " "
+ │   ├─ meta.template.expression.function-shorthand.luau [29..38]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [29..30]: "{"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [30..31]: "{"
+ │   │   ├─ meta.embedded.line.luau [31..36]
+ │   │   │   └─ variable.other.readwrite.luau [31..36]: "shout"
+ │   │   ├─ punctuation.definition.template-expression.end.sd [36..37]: "}"
+ │   │   └─ punctuation.definition.template-expression.end.sd [37..38]: "}"
+ │   ├─ markup.raw.space.sd [38..39]: " "
+ │   ├─ markup.raw.text.sd [39..45]: "loudly"
+ │   └─ markup.raw.punctuation.sd [45..46]: "."
+ ├─ Newline [46..47]: "\n"
+ ├─ string.display.dialogue.inline.sd [47..89]
+ │   ├─ punctuation.whitespace.optional.sd [47..49]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [49..55]
+ │   │   └─ markup.raw.text.sd [49..55]: "Damage"
+ │   ├─ meta.template.expression.operator.colon.sd [55..56]: ":"
+ │   ├─ punctuation.whitespace.required.sd [56..57]: " "
+ │   ├─ meta.template.expression.function-shorthand.luau [57..81]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [57..58]: "{"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [58..59]: "{"
+ │   │   ├─ meta.embedded.line.luau [59..79]
+ │   │   │   ├─ punctuation.whitespace.extra.sd [59..60]: " "
+ │   │   │   ├─ entity.name.function.luau [60..67]: "compute"
+ │   │   │   ├─ meta.parameter.luau [67..78]
+ │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [67..68]: "("
+ │   │   │   │   ├─ constant.numeric.decimal.luau [68..69]: "5"
+ │   │   │   │   ├─ keyword.operator.comma.luau [69..70]: ","
+ │   │   │   │   ├─ punctuation.whitespace.optional.sd [70..71]: " "
+ │   │   │   │   ├─ string.quoted.double.luau [71..77]
+ │   │   │   │   │   ├─ punctuation.definition.string.double.begin.sd [71..72]: "\""
+ │   │   │   │   │   ├─ markup.raw.text.sd [72..76]: "fire"
+ │   │   │   │   │   └─ punctuation.definition.string.double.end.sd [76..77]: "\""
+ │   │   │   │   └─ punctuation.definition.template-expression.end.sd [77..78]: ")"
+ │   │   │   └─ punctuation.whitespace.extra.sd [78..79]: " "
+ │   │   ├─ punctuation.definition.template-expression.end.sd [79..80]: "}"
+ │   │   └─ punctuation.definition.template-expression.end.sd [80..81]: "}"
+ │   └─ string.display.text.chunk.sd [81..89]
+ │       ├─ markup.raw.space.sd [81..82]: " "
+ │       ├─ markup.raw.text.sd [82..88]: "points"
+ │       └─ markup.raw.punctuation.sd [88..89]: "."
+ ├─ Newline [89..90]: "\n"
+ ├─ punctuation.whitespace.optional.sd [90..92]: "  "
+ ├─ meta.template.expression.function-shorthand.luau [92..101]
+ │   ├─ punctuation.definition.template-expression.begin.sd [92..93]: "{"
+ │   ├─ punctuation.definition.template-expression.begin.sd [93..94]: "{"
+ │   ├─ meta.embedded.line.luau [94..99]
+ │   │   └─ variable.other.readwrite.luau [94..99]: "shout"
+ │   ├─ punctuation.definition.template-expression.end.sd [99..100]: "}"
+ │   └─ punctuation.definition.template-expression.end.sd [100..101]: "}"
+ ├─ Newline [101..102]: "\n"
+ ├─ keyword.control.end.luau [102..105]: "end"
+ └─ Newline [105..106]: "\n"

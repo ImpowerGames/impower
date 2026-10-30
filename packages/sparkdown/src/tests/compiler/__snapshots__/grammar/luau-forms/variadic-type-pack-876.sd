@@ -6,4 +6,6 @@ function g()
   f3<<number...>>()
 end
 & type G = () -> ...number
-Hello.
+scene start
+  Hello.
+end

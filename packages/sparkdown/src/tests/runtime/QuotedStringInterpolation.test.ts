@@ -17,7 +17,7 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 function run(literal: string): { out: string; errors: string[] } {
   const src =
     `store who = "world"\nstore n = 2\n` +
-    `-> start\nscene start\n  {${literal}}\nend\n`;
+    `scene start\n  {${literal}}\nend\n`;
   const ctx = makeRuntimeStoryFromSource(src);
   let out = "";
   while (ctx.story.canContinue) out += ctx.story.Continue() ?? "";

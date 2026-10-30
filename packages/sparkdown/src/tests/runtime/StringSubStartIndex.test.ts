@@ -9,7 +9,9 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function probe(body: string): string {
-  const ctx = makeRuntimeStoryFromSource(`Got {run()}.
+  const ctx = makeRuntimeStoryFromSource(`scene start
+  Got {run()}.
+end
 function run()
   local ok, e = pcall(function() return ${body} end)
   return tostring(ok) .. " " .. tostring(e)

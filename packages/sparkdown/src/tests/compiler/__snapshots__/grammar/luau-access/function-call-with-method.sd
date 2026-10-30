@@ -1,1 +1,3 @@
-& x = math.abs(-1)
+scene start
+  & x = math.abs(-1)
+end

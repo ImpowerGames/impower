@@ -1,2 +1,4 @@
-N: Onward.
-->   next_scene
+scene start
+  N: Onward.
+  ->   next_scene
+end

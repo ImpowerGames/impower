@@ -1,8 +1,15 @@
-text.source.sparkdown [0..15]
+text.source.sparkdown [0..33]
  ├─ keyword.operator.attribute.luau [0..1]: "@"
  ├─ storage.type.attribute.luau [1..7]: "native"
  ├─ Newline [7..8]: "\n"
- ├─ string.display.text.chunk.sd [8..14]
- │   ├─ markup.raw.text.sd [8..13]: "Hello"
- │   └─ markup.raw.punctuation.sd [13..14]: "."
- └─ Newline [14..15]: "\n"
+ ├─ keyword.control.scene.sd [8..13]: "scene"
+ ├─ punctuation.whitespace.required.sd [13..14]: " "
+ ├─ keyword.control.section.sd [14..19]: "start"
+ ├─ Newline [19..20]: "\n"
+ ├─ punctuation.whitespace.optional.sd [20..22]: "  "
+ ├─ string.display.text.chunk.sd [22..28]
+ │   ├─ markup.raw.text.sd [22..27]: "Hello"
+ │   └─ markup.raw.punctuation.sd [27..28]: "."
+ ├─ Newline [28..29]: "\n"
+ ├─ keyword.control.end.luau [29..32]: "end"
+ └─ Newline [32..33]: "\n"

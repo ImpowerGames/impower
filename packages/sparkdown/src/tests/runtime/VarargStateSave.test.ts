@@ -16,8 +16,7 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function source(callArgs: string): string {
   return `external host_record(v)
--> main
-scene main
+scene start
   & f(${callArgs})
   done
 end

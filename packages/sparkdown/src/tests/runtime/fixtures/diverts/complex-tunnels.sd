@@ -1,5 +1,7 @@
--> one(1) -> two(2) ->
-three (3)
+scene start
+  -> one(1) -> two(2) ->
+  three (3)
+end
 
 scene one(num)
   one ({num})

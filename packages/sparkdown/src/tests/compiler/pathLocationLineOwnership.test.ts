@@ -39,19 +39,30 @@ function compile(text: string) {
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
+const inStart = (body: string): string =>
+  [
+    "scene start",
+    ...body
+      .trimEnd()
+      .split("\n")
+      .map((line) => (line === "" ? line : `  ${line}`)),
+    "end",
+    "",
+  ].join("\n");
+
 /** The reproduction from issue #490: an action line below a dialogue block. */
-const FLAT = `RAFFLES:
+const FLAT = inStart(`RAFFLES:
   Wow.
 
 With an indignant pivot, Raffles glides briskly ahead.
 
 BUNNY:
   Okay, okay!
-`;
+`);
 
 /** The topology the ticket's real case has: the action line sits in the body of
  *  a `choose … then`, one blank line under a dialogue block. */
-const NESTED = `RAFFLES:
+const NESTED = inStart(`RAFFLES:
   Wow.
 
 choose
@@ -68,13 +79,13 @@ then
 
   RAFFLES:
     Fine.
-`;
+`);
 
 /** Statements packed with no blank line between them, and line types other than
  *  dialogue and action: a heading and a transition. Nothing separates one
  *  statement's end from the next statement's start here, so every range is one
  *  that would reach onto the next line unpulled. */
-const TIGHT = `RAFFLES:
+const TIGHT = inStart(`RAFFLES:
   Wow.
 Raffles turns on his heel.
 $:
@@ -82,7 +93,7 @@ $:
 > CUT TO:
 BUNNY:
   Wait!
-`;
+`);
 
 /** The range of each address a line of main.sd resolves to, once each, as
  *  `[address, location]`. */
@@ -195,7 +206,7 @@ describe("addresses own only their own lines (#490)", () => {
   it("an incremental compile records the same ranges as a cold one", () => {
     const before = FLAT;
     const find = "With an indignant pivot, Raffles glides briskly ahead.";
-    const replace = "With an indignant pivot, Raffles glides briskly away.\n\nHe does not look back.";
+    const replace = "With an indignant pivot, Raffles glides briskly away.\n\n  He does not look back.";
     const offset = before.indexOf(find);
     expect(offset).toBeGreaterThanOrEqual(0);
     const posAt = (text: string, at: number) => {

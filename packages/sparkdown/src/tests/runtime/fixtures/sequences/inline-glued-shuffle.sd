@@ -1,10 +1,12 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   Got .. shuffle queue|A|B|C .. !
   & i = i + 1
   if i < 5 then
-    -> start
+    -> again
   end
   fin
 

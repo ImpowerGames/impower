@@ -1,1 +1,3 @@
-queue | apple | banana | cherry end
+scene start
+  queue | apple | banana | cherry end
+end

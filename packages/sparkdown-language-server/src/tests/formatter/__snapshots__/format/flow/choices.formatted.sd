@@ -1,3 +1,5 @@
-* Go left.
-* Go right.
-+ Stay.
+scene start
+  * Go left.
+  * Go right.
+  + Stay.
+  end

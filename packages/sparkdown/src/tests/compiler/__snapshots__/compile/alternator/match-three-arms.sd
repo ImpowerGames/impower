@@ -1,5 +1,7 @@
-match (player_class)
-  | warrior = -> Warrior
-  | mage = -> Mage
-  | other = -> Other
+scene start
+  match (player_class)
+    | warrior = -> Warrior
+    | mage = -> Mage
+    | other = -> Other
+  end
 end

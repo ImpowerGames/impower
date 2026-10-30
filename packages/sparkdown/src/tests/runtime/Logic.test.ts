@@ -15,8 +15,8 @@ describe("Logic (ported from inkjs)", () => {
   // (`& foo()`) using a function that mutates a global instead.
   test("bare function-call statement (`& func()`)", () => {
     const src = `store counter = 0
--> main
-scene main
+
+scene start
   & inc()
   & inc()
   & inc()

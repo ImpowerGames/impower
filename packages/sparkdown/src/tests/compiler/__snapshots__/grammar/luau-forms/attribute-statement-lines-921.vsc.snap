@@ -1,4 +1,4 @@
-text.source.sparkdown [0..191]
+text.source.sparkdown [0..209]
  ├─ meta.function.luau [0..14]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -114,16 +114,23 @@ text.source.sparkdown [0..191]
  ├─ meta.function.luau [172..175]
  │   └─ keyword.control.end.luau [172..175]: "end"
  ├─ Newline [175..176]: "\n"
- ├─ string.display.text.chunk.sd [176..190]
- │   ├─ markup.raw.text.sd [176..181]: "Value"
- │   ├─ markup.raw.space.sd [181..182]: " "
- │   ├─ meta.template.expression.luau [182..189]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [182..183]: "{"
- │   │   ├─ meta.embedded.line.luau [183..188]
- │   │   │   ├─ entity.name.function.luau [183..186]: "run"
- │   │   │   └─ meta.parameter.luau [186..188]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [186..187]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [187..188]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [188..189]: "}"
- │   └─ markup.raw.punctuation.sd [189..190]: "."
- └─ Newline [190..191]: "\n"
+ ├─ keyword.control.scene.sd [176..181]: "scene"
+ ├─ punctuation.whitespace.required.sd [181..182]: " "
+ ├─ keyword.control.section.sd [182..187]: "start"
+ ├─ Newline [187..188]: "\n"
+ ├─ punctuation.whitespace.optional.sd [188..190]: "  "
+ ├─ string.display.text.chunk.sd [190..204]
+ │   ├─ markup.raw.text.sd [190..195]: "Value"
+ │   ├─ markup.raw.space.sd [195..196]: " "
+ │   ├─ meta.template.expression.luau [196..203]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [196..197]: "{"
+ │   │   ├─ meta.embedded.line.luau [197..202]
+ │   │   │   ├─ entity.name.function.luau [197..200]: "run"
+ │   │   │   └─ meta.parameter.luau [200..202]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [200..201]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [201..202]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [202..203]: "}"
+ │   └─ markup.raw.punctuation.sd [203..204]: "."
+ ├─ Newline [204..205]: "\n"
+ ├─ keyword.control.end.luau [205..208]: "end"
+ └─ Newline [208..209]: "\n"

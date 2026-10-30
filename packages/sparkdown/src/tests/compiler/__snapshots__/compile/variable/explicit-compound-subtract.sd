@@ -1,1 +1,3 @@
-& trust -= 1
+scene start
+  & trust -= 1
+end

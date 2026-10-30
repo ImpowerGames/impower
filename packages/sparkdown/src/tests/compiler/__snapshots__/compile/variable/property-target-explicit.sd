@@ -1,1 +1,3 @@
-& opts.color = "red"
+scene start
+  & opts.color = "red"
+end

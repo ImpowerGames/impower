@@ -50,7 +50,7 @@ end
   });
 
   test("a branch is checked in its scene, seeing the scene's parameters as typed and none of the scene's locals or an earlier branch's", () => {
-    const program = compile(`scene start(n: number)
+    const program = compile(`scene intro(n: number)
   local value: number = n
   branch inner(k: number)
     local copy: number = value + k
@@ -60,6 +60,8 @@ end
     local seen: number = copy
     local typed: string = n
   end
+end
+scene start
 end
 `);
     // A branch runs in a scope of its own beside its scene's lines (I-1674):
@@ -341,12 +343,14 @@ end
   });
 
   test("a parameter list whose type the grammar has no rule for is read whole", () => {
-    const program = compile(`scene start(a: number)
+    const program = compile(`scene intro(a: number)
   branch inner(f: (...any) -> (), k: number)
     & f()
     & print(any)
     local wrong: string = k
   end
+end
+scene start
 end
 `);
     // The list reads `...any` as a variadic type (#876, #1924) and goes on

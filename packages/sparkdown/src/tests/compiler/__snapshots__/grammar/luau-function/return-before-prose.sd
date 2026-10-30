@@ -1,5 +1,7 @@
-& return
-Hello there.
+scene start
+  & return
+  Hello there.
+end
 
 scene a
   & return

@@ -1,11 +1,3 @@
-// A screenplay made of the constructs the writer emits for logic (#695):
-// global declarations of every kind, one block statement among them that
-// declares a constant and a variable (which the story initializes apart, with
-// the other constants between them), locals, expressions and operators,
-// interpolation of every value type, tables with computed keys, property
-// stores, multiple assignment, `if` blocks with `elseif` and `else`, the
-// four loops with `break` and `continue` from inside nested blocks, nested
-// scopes that shadow a name, and display lines between them.
 export function logicScreenplay(scenes = 5): string {
   const L: string[] = [
     "store count = 0",
@@ -14,17 +6,17 @@ export function logicScreenplay(scenes = 5): string {
     "store flag = true",
     "store ratio = 1.5",
     "store nothing = nil",
-    "if true then",
-    "  const INNER = 2",
-    "  store inner_total = INNER + LIMIT",
-    "end",
+    "const INNER = 2",
+    "store inner_total = INNER + LIMIT",
     "const LIMIT = 3",
     "const DOUBLE_LIMIT = LIMIT * 2",
     "define hero as character with",
     "  name = \"Hero\"",
     "end",
     "",
-    "Before any scene {count}.",
+    "scene start",
+    "  Before any scene {count}.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {

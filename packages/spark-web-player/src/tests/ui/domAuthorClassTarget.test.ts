@@ -18,7 +18,7 @@ const SOURCE = `layout inventory with
   }
 end
 
--> start
+
 
 scene start
   [[open inventory]]
@@ -75,7 +75,7 @@ describe("an author's element whose class names a builtin target", () => {
   }
 end
 
--> start
+
 
 scene start
   ^: Chapter One

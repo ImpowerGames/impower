@@ -54,12 +54,12 @@ describe("an unknown global read inside a function", () => {
   });
 });
 
-describe("an unknown global read at the top level", () => {
+describe("an unknown global read in a marked line of a scene", () => {
   test.each(["& print(foo)", "& local x = foo", "  & print(1 + foo)"])(
     "%j is reported on the name",
     (line) => {
-      const source = `${line}\n`;
-      expect(rangesOf(source, FOO)).toEqual([nameRange(source, 0, "foo")]);
+      const source = `scene start\n  ${line}\nend\n`;
+      expect(rangesOf(source, FOO)).toEqual([nameRange(source, 1, "foo")]);
     },
   );
 });
@@ -94,9 +94,9 @@ describe("an unknown global read in a block statement", () => {
     ],
     ["a match in a scene", "scene start()\n  match (foo)\n    | other = A recruit.\n  end\nend\n", 1],
     [
-      "a top-level match after a scene",
-      "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
-      4,
+      "a match after a display line in a scene",
+      "scene start()\n  Hello.\n  match (foo)\n    | other = A recruit.\n  end\nend\n",
+      2,
     ],
   ])("%s is reported on the name", (_name, source, line) => {
     expect(rangesOf(source, FOO)).toEqual([nameRange(source, line, "foo")]);

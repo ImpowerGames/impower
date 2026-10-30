@@ -9,9 +9,11 @@ const source = [
   "store x = 0",
   "store y = 0",
   "",
-  "x = 1",
-  "y = 2",
-  "Line one.",
+  "scene start",
+  "  x = 1",
+  "  y = 2",
+  "  Line one.",
+  "end",
   "",
 ].join("\n");
 

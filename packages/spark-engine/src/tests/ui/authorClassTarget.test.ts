@@ -19,8 +19,10 @@ const inventory = (element: string) => `layout inventory with
   }
 end
 
-[[open inventory]]
-You rummage through your pack.
+scene start
+  [[open inventory]]
+  You rummage through your pack.
+end
 `;
 
 async function run(source: string) {
@@ -112,9 +114,11 @@ describe("an author's element whose class names a builtin target", () => {
   }
 end
 
-^: Chapter One
+scene start
+  ^: Chapter One
 
-You rummage through your pack.
+  You rummage through your pack.
+end
 `,
     );
     const [authored] = idsNamed("text title");
@@ -139,9 +143,11 @@ describe("a target no element is named after", () => {
   }
 end
 
-^: Chapter One
+scene start
+  ^: Chapter One
 
-You rummage through your pack.
+  You rummage through your pack.
+end
 `,
     );
     const [slot] = idsNamed("row title");
@@ -169,7 +175,9 @@ You rummage through your pack.
   }
 end
 
-You rummage through your pack.
+scene start
+  You rummage through your pack.
+end
 `,
     );
     const [indicator] = idsNamed("text continue_indicator");
@@ -201,8 +209,10 @@ define HERO as image with
   src = "https://example.com/hero.png"
 end
 
-[[show avatar HERO]]
-You rummage through your pack.
+scene start
+  [[show avatar HERO]]
+  You rummage through your pack.
+end
 `,
     );
     const [layer] = idsNamed("box avatar");

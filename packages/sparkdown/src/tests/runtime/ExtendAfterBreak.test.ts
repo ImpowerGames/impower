@@ -32,10 +32,21 @@ interface Table {
   glue?: boolean;
 }
 
+const inStart = (body: string, declarations = "") => {
+  const lines = body
+    .trimEnd()
+    .split("\n")
+    .map((line) => (line ? `  ${line}` : line));
+  return `${declarations}scene start\n${lines.join("\n")}\nend\n`;
+};
+
 // Every step that shows something, as its tables, and the warnings the run
 // raised.
-function run(source: string): { steps: Table[][]; warnings: string[] } {
-  const ctx = makeRuntimeStoryFromSource(source);
+function run(
+  body: string,
+  declarations = "",
+): { steps: Table[][]; warnings: string[] } {
+  const ctx = makeRuntimeStoryFromSource(inStart(body, declarations));
   expect(ctx.errorMessages).toEqual([]);
   const warnings: string[] = [];
   ctx.story.onError = (message) => {
@@ -76,7 +87,7 @@ const text = (step: Table[]) => step.map((table) => table.text ?? "").join("");
 describe("a `..` on each side of a break carries on in the box after the click", () => {
   // Each spelling: the step the break ends, which offers the box, then the
   // continuation's own step, which takes it.
-  test.each([
+  test.each<[string, string, string, string, string?]>([
     ["in one line", `A .. > .. B\nAfter.\n`, "A ", "B"],
     ["touching the words", `A.. >..B\nAfter.\n`, "A", "B"],
     ["across two lines", `A .. >\n.. B\nAfter.\n`, "A ", "B"],
@@ -102,18 +113,20 @@ describe("a `..` on each side of a break carries on in the box after the click",
     ],
     [
       "a continuation at the top of another scene",
-      `A .. >\n-> s\n\nscene s\n  .. B\n  After.\nend\n`,
+      `A .. >\n-> s\n`,
       "A ",
       "B",
+      `scene s\n  .. B\n  After.\nend\n\n`,
     ],
     [
       "an interpolation line",
-      `store n = 3\n{n} .. >\n.. B\nAfter.\n`,
+      `{n} .. >\n.. B\nAfter.\n`,
       "3 ",
       "B",
+      `store n = 3\n`,
     ],
-  ])("%s", (_label, source, first, second) => {
-    const { steps, warnings } = run(source);
+  ])("%s", (_label, source, first, second, declarations) => {
+    const { steps, warnings } = run(source, declarations);
     expect(warnings).toEqual([]);
     expect(steps).toHaveLength(3);
     const [before, after, last] = steps as [Table[], Table[], Table[]];
@@ -164,7 +177,7 @@ describe("a `..` on each side of a break carries on in the box after the click",
 
   test("logic, blank lines and comments between the two parts run at the click", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `store mood = "calm"\nA .. >\n\n// note\n& mood = "happy"\n.. B\n`,
+      inStart(`A .. >\n\n// note\n& mood = "happy"\n.. B\n`, `store mood = "calm"\n`),
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("A\n");
@@ -244,10 +257,10 @@ describe("an edit inside the block before a line", () => {
   // from an earlier compile carries what a cold compile gives it. The edit
   // changes the block's length, which moves the continuation below it.
   test("compiles as a cold compile of the same text does", () => {
-    const pad = Array.from({ length: 20 }, (_, i) => `Filler ${i}.`).join("\n");
-    const base = `${pad}\nA .. >\nif false then\n  B\nend\n.. C\n${pad}\n`;
-    const find = "  B\n";
-    const replace = "  .. B .. >\n";
+    const pad = Array.from({ length: 20 }, (_, i) => `  Filler ${i}.`).join("\n");
+    const base = `scene start\n${pad}\n  A .. >\n  if false then\n    B\n  end\n  .. C\n${pad}\nend\n`;
+    const find = "    B\n";
+    const replace = "    .. B .. >\n";
     const offset = base.indexOf(find);
     const after = base.slice(0, offset) + replace + base.slice(offset + find.length);
     const position = (text: string, at: number) => {
@@ -295,7 +308,7 @@ describe("the preview's lines", () => {
   // The lines of the first part resolve to its step, and the continuation's
   // lines to the continuation's.
   test("each part's lines belong to its own step", () => {
-    const source = `CHARACTER:\n  [[a]]\n  First .. >\n  .. [[b]]\n  second.\n`;
+    const source = inStart(`CHARACTER:\n  [[a]]\n  First .. >\n  .. [[b]]\n  second.\n`);
     const compiler = testCompiler();
     compiler.configure({
       files: [
@@ -335,7 +348,7 @@ describe("the preview's lines", () => {
     }
     expect(lines).toHaveLength(2);
     const [first, second] = lines as [number[], number[]];
-    expect(first).toEqual([1, 2]);
-    expect(second).toEqual(expect.arrayContaining([3, 4]));
+    expect(first).toEqual([2, 3]);
+    expect(second).toEqual(expect.arrayContaining([4, 5]));
   });
 });

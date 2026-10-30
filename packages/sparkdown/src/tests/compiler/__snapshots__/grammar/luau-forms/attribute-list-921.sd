@@ -1,4 +1,6 @@
-Value {g()}.
+scene start
+  Value {g()}.
+end
 function g()
   @[deprecated]
   local function f()

@@ -1,173 +1,190 @@
-sparkdown [0..84]
- ├─ ImplicitAction [0..32]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..32]
- │   │   └─ ActionLineEnd [0..32]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..32]
- │   │       │   └─ TextChunk [0..32]
- │   │       │       ├─ TextChunk_begin 0
- │   │       │       ├─ TextChunk_content [0..32]
- │   │       │       │   ├─ Word [0..3]: "The"
- │   │       │       │   ├─ Space [3..4]: " "
- │   │       │       │   ├─ Word [4..8]: "hero"
- │   │       │       │   ├─ Space [8..9]: " "
- │   │       │       │   ├─ Word [9..14]: "yells"
- │   │       │       │   ├─ Space [14..15]: " "
- │   │       │       │   ├─ LuauFunctionCallShorthand [15..24]
- │   │       │       │   │   ├─ LuauFunctionCallShorthand_begin [15..17]
- │   │       │       │   │   │   ├─ LuauFunctionCallShorthand_begin_c1 [15..16]
- │   │       │       │   │   │   │   └─ PunctuationBraceOpen [15..16]: "{"
- │   │       │       │   │   │   └─ LuauFunctionCallShorthand_begin_c2 [16..17]
- │   │       │       │   │   │       └─ PunctuationBraceOpen [16..17]: "{"
- │   │       │       │   │   ├─ LuauFunctionCallShorthand_content [17..22]
- │   │       │       │   │   │   └─ LuauAccessPath [17..22]
- │   │       │       │   │   │       ├─ LuauAccessPath_begin 17
- │   │       │       │   │   │       ├─ LuauAccessPath_content [17..22]
- │   │       │       │   │   │       │   └─ LuauAccessPart [17..22]
- │   │       │       │   │   │       │       └─ LuauVariable [17..22]
- │   │       │       │   │   │       │           └─ LuauVariable_c1 [17..22]
- │   │       │       │   │   │       │               └─ LuauVariableName [17..22]: "shout"
- │   │       │       │   │   │       └─ LuauAccessPath_end 22
- │   │       │       │   │   │           └─ LuauAccessPath_end_c1 22
- │   │       │       │   │   └─ LuauFunctionCallShorthand_end [22..24]
- │   │       │       │   │       ├─ LuauFunctionCallShorthand_end_c1 [22..23]
- │   │       │       │   │       │   └─ PunctuationBraceClose [22..23]: "}"
- │   │       │       │   │       └─ LuauFunctionCallShorthand_end_c2 [23..24]
- │   │       │       │   │           └─ PunctuationBraceClose [23..24]: "}"
- │   │       │       │   ├─ Space [24..25]: " "
- │   │       │       │   ├─ Word [25..31]: "loudly"
- │   │       │       │   └─ Punctuation [31..32]: "."
- │   │       │       └─ TextChunk_end 32
- │   │       └─ ActionLineEnd_end 32
- │   └─ ImplicitAction_end 32
- ├─ Newline [32..33]: "\n"
- ├─ InlineDialogue [33..73]
- │   ├─ InlineDialogue_begin [33..41]
- │   │   ├─ InlineDialogue_begin_c1 33
- │   │   │   └─ OptionalWhitespace 33
- │   │   ├─ InlineDialogue_begin_c2 [33..39]
- │   │   │   └─ DialogueCharacter [33..39]
- │   │   │       ├─ DialogueCharacter_c1 33
- │   │   │       ├─ DialogueCharacter_c2 [33..39]
- │   │   │       │   └─ DialogueCharacterName [33..39]
- │   │   │       │       └─ DialogueCharacterName_c1 [33..39]
- │   │   │       │           └─ Word [33..39]: "Damage"
- │   │   │       ├─ DialogueCharacter_c3 39
- │   │   │       ├─ DialogueCharacter_c4 39
- │   │   │       ├─ DialogueCharacter_c5 39
- │   │   │       ├─ DialogueCharacter_c6 39
- │   │   │       └─ DialogueCharacter_c7 39
- │   │   ├─ InlineDialogue_begin_c3 [39..40]
- │   │   │   └─ ColonSeparator [39..40]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [40..41]
- │   │   │   └─ RequiredWhitespace [40..41]: " "
- │   │   └─ InlineDialogue_begin_c5 41
- │   ├─ InlineDialogue_content [41..73]
- │   │   └─ LineEnd [41..73]
- │   │       ├─ LineEnd_begin 41
- │   │       │   └─ LineEnd_begin_c1 41
- │   │       │       └─ OptionalWhitespace 41
- │   │       ├─ LineEnd_content [41..73]
- │   │       │   ├─ LuauFunctionCallShorthand [41..65]
- │   │       │   │   ├─ LuauFunctionCallShorthand_begin [41..43]
- │   │       │   │   │   ├─ LuauFunctionCallShorthand_begin_c1 [41..42]
- │   │       │   │   │   │   └─ PunctuationBraceOpen [41..42]: "{"
- │   │       │   │   │   └─ LuauFunctionCallShorthand_begin_c2 [42..43]
- │   │       │   │   │       └─ PunctuationBraceOpen [42..43]: "{"
- │   │       │   │   ├─ LuauFunctionCallShorthand_content [43..63]
- │   │       │   │   │   ├─ ExtraWhitespace [43..44]: " "
- │   │       │   │   │   ├─ LuauAccessPath [44..62]
- │   │       │   │   │   │   ├─ LuauAccessPath_begin 44
- │   │       │   │   │   │   ├─ LuauAccessPath_content [44..62]
- │   │       │   │   │   │   │   └─ LuauAccessPart [44..62]
- │   │       │   │   │   │   │       └─ LuauFunctionCall [44..62]
- │   │       │   │   │   │   │           ├─ LuauFunctionCall_begin [44..51]
- │   │       │   │   │   │   │           │   ├─ LuauFunctionCall_begin_c1 [44..51]
- │   │       │   │   │   │   │           │   │   └─ LuauFunctionName [44..51]: "compute"
- │   │       │   │   │   │   │           │   └─ LuauFunctionCall_begin_c2 51
- │   │       │   │   │   │   │           ├─ LuauFunctionCall_content [51..62]
- │   │       │   │   │   │   │           │   └─ LuauFunctionCallParameters [51..62]
- │   │       │   │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [51..52]
- │   │       │   │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [51..52]
- │   │       │   │   │   │   │           │       │       └─ PunctuationParenOpen [51..52]: "("
- │   │       │   │   │   │   │           │       ├─ LuauFunctionCallParameters_content [52..61]
- │   │       │   │   │   │   │           │       │   ├─ LuauNumericDecimal [52..53]
- │   │       │   │   │   │   │           │       │   │   ├─ LuauNumericDecimal_c1 [52..53]: "5"
- │   │       │   │   │   │   │           │       │   │   └─ LuauNumericDecimal_c2 53
- │   │       │   │   │   │   │           │       │   ├─ LuauCommaSeparator [53..55]
- │   │       │   │   │   │   │           │       │   │   ├─ LuauCommaSeparator_c1 53
- │   │       │   │   │   │   │           │       │   │   ├─ LuauCommaSeparator_c2 [53..54]: ","
- │   │       │   │   │   │   │           │       │   │   └─ LuauCommaSeparator_c3 [54..55]
- │   │       │   │   │   │   │           │       │   │       └─ LuauCommaSeparator_c3 [54..55]
- │   │       │   │   │   │   │           │       │   │           └─ OptionalWhitespace [54..55]: " "
- │   │       │   │   │   │   │           │       │   └─ LuauDoubleQuotedString [55..61]
- │   │       │   │   │   │   │           │       │       ├─ LuauDoubleQuotedString_begin [55..56]
- │   │       │   │   │   │   │           │       │       │   └─ LuauDoubleQuotedString_begin_c1 [55..56]
- │   │       │   │   │   │   │           │       │       │       └─ PunctuationStringDoubleQuoteOpen [55..56]: "\""
- │   │       │   │   │   │   │           │       │       ├─ LuauDoubleQuotedString_content [56..60]
- │   │       │   │   │   │   │           │       │       │   └─ Word [56..60]: "fire"
- │   │       │   │   │   │   │           │       │       └─ LuauDoubleQuotedString_end [60..61]
- │   │       │   │   │   │   │           │       │           ├─ LuauDoubleQuotedString_end_c1 [60..61]
- │   │       │   │   │   │   │           │       │           │   └─ PunctuationStringDoubleQuoteClose [60..61]: "\""
- │   │       │   │   │   │   │           │       │           └─ LuauDoubleQuotedString_end_c2 61
- │   │       │   │   │   │   │           │       └─ LuauFunctionCallParameters_end [61..62]
- │   │       │   │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [61..62]
- │   │       │   │   │   │   │           │               └─ PunctuationParenClose [61..62]: ")"
- │   │       │   │   │   │   │           └─ LuauFunctionCall_end 62
- │   │       │   │   │   │   └─ LuauAccessPath_end 62
- │   │       │   │   │   │       └─ LuauAccessPath_end_c1 62
- │   │       │   │   │   └─ ExtraWhitespace [62..63]: " "
- │   │       │   │   └─ LuauFunctionCallShorthand_end [63..65]
- │   │       │   │       ├─ LuauFunctionCallShorthand_end_c1 [63..64]
- │   │       │   │       │   └─ PunctuationBraceClose [63..64]: "}"
- │   │       │   │       └─ LuauFunctionCallShorthand_end_c2 [64..65]
- │   │       │   │           └─ PunctuationBraceClose [64..65]: "}"
- │   │       │   └─ TextChunk [65..73]
- │   │       │       ├─ TextChunk_begin 65
- │   │       │       ├─ TextChunk_content [65..73]
- │   │       │       │   ├─ Space [65..66]: " "
- │   │       │       │   ├─ Word [66..72]: "points"
- │   │       │       │   └─ Punctuation [72..73]: "."
- │   │       │       └─ TextChunk_end 73
- │   │       └─ LineEnd_end 73
- │   └─ InlineDialogue_end 73
- ├─ Newline [73..74]: "\n"
- ├─ ImplicitAction [74..83]
- │   ├─ ImplicitAction_begin 74
- │   │   └─ ImplicitAction_begin_c1 74
- │   │       └─ OptionalWhitespace 74
- │   ├─ ImplicitAction_content [74..83]
- │   │   └─ ActionLineEnd [74..83]
- │   │       ├─ ActionLineEnd_begin 74
- │   │       │   └─ ActionLineEnd_begin_c1 74
- │   │       │       └─ OptionalWhitespace 74
- │   │       ├─ ActionLineEnd_content [74..83]
- │   │       │   └─ LuauFunctionCallShorthand [74..83]
- │   │       │       ├─ LuauFunctionCallShorthand_begin [74..76]
- │   │       │       │   ├─ LuauFunctionCallShorthand_begin_c1 [74..75]
- │   │       │       │   │   └─ PunctuationBraceOpen [74..75]: "{"
- │   │       │       │   └─ LuauFunctionCallShorthand_begin_c2 [75..76]
- │   │       │       │       └─ PunctuationBraceOpen [75..76]: "{"
- │   │       │       ├─ LuauFunctionCallShorthand_content [76..81]
- │   │       │       │   └─ LuauAccessPath [76..81]
- │   │       │       │       ├─ LuauAccessPath_begin 76
- │   │       │       │       ├─ LuauAccessPath_content [76..81]
- │   │       │       │       │   └─ LuauAccessPart [76..81]
- │   │       │       │       │       └─ LuauVariable [76..81]
- │   │       │       │       │           └─ LuauVariable_c1 [76..81]
- │   │       │       │       │               └─ LuauVariableName [76..81]: "shout"
- │   │       │       │       └─ LuauAccessPath_end 81
- │   │       │       │           └─ LuauAccessPath_end_c1 81
- │   │       │       └─ LuauFunctionCallShorthand_end [81..83]
- │   │       │           ├─ LuauFunctionCallShorthand_end_c1 [81..82]
- │   │       │           │   └─ PunctuationBraceClose [81..82]: "}"
- │   │       │           └─ LuauFunctionCallShorthand_end_c2 [82..83]
- │   │       │               └─ PunctuationBraceClose [82..83]: "}"
- │   │       └─ ActionLineEnd_end 83
- │   └─ ImplicitAction_end 83
- └─ Newline [83..84]: "\n"
+sparkdown [0..106]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..46]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..46]
+ │   │   └─ ActionLineEnd [14..46]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..46]
+ │   │       │   └─ TextChunk [14..46]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..46]
+ │   │       │       │   ├─ Word [14..17]: "The"
+ │   │       │       │   ├─ Space [17..18]: " "
+ │   │       │       │   ├─ Word [18..22]: "hero"
+ │   │       │       │   ├─ Space [22..23]: " "
+ │   │       │       │   ├─ Word [23..28]: "yells"
+ │   │       │       │   ├─ Space [28..29]: " "
+ │   │       │       │   ├─ LuauFunctionCallShorthand [29..38]
+ │   │       │       │   │   ├─ LuauFunctionCallShorthand_begin [29..31]
+ │   │       │       │   │   │   ├─ LuauFunctionCallShorthand_begin_c1 [29..30]
+ │   │       │       │   │   │   │   └─ PunctuationBraceOpen [29..30]: "{"
+ │   │       │       │   │   │   └─ LuauFunctionCallShorthand_begin_c2 [30..31]
+ │   │       │       │   │   │       └─ PunctuationBraceOpen [30..31]: "{"
+ │   │       │       │   │   ├─ LuauFunctionCallShorthand_content [31..36]
+ │   │       │       │   │   │   └─ LuauAccessPath [31..36]
+ │   │       │       │   │   │       ├─ LuauAccessPath_begin 31
+ │   │       │       │   │   │       ├─ LuauAccessPath_content [31..36]
+ │   │       │       │   │   │       │   └─ LuauAccessPart [31..36]
+ │   │       │       │   │   │       │       └─ LuauVariable [31..36]
+ │   │       │       │   │   │       │           └─ LuauVariable_c1 [31..36]
+ │   │       │       │   │   │       │               └─ LuauVariableName [31..36]: "shout"
+ │   │       │       │   │   │       └─ LuauAccessPath_end 36
+ │   │       │       │   │   │           └─ LuauAccessPath_end_c1 36
+ │   │       │       │   │   └─ LuauFunctionCallShorthand_end [36..38]
+ │   │       │       │   │       ├─ LuauFunctionCallShorthand_end_c1 [36..37]
+ │   │       │       │   │       │   └─ PunctuationBraceClose [36..37]: "}"
+ │   │       │       │   │       └─ LuauFunctionCallShorthand_end_c2 [37..38]
+ │   │       │       │   │           └─ PunctuationBraceClose [37..38]: "}"
+ │   │       │       │   ├─ Space [38..39]: " "
+ │   │       │       │   ├─ Word [39..45]: "loudly"
+ │   │       │       │   └─ Punctuation [45..46]: "."
+ │   │       │       └─ TextChunk_end 46
+ │   │       └─ ActionLineEnd_end 46
+ │   └─ ImplicitAction_end 46
+ ├─ Newline [46..47]: "\n"
+ ├─ InlineDialogue [47..89]
+ │   ├─ InlineDialogue_begin [47..57]
+ │   │   ├─ InlineDialogue_begin_c1 [47..49]
+ │   │   │   └─ OptionalWhitespace [47..49]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [49..55]
+ │   │   │   └─ DialogueCharacter [49..55]
+ │   │   │       ├─ DialogueCharacter_c1 49
+ │   │   │       ├─ DialogueCharacter_c2 [49..55]
+ │   │   │       │   └─ DialogueCharacterName [49..55]
+ │   │   │       │       └─ DialogueCharacterName_c1 [49..55]
+ │   │   │       │           └─ Word [49..55]: "Damage"
+ │   │   │       ├─ DialogueCharacter_c3 55
+ │   │   │       ├─ DialogueCharacter_c4 55
+ │   │   │       ├─ DialogueCharacter_c5 55
+ │   │   │       ├─ DialogueCharacter_c6 55
+ │   │   │       └─ DialogueCharacter_c7 55
+ │   │   ├─ InlineDialogue_begin_c3 [55..56]
+ │   │   │   └─ ColonSeparator [55..56]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [56..57]
+ │   │   │   └─ RequiredWhitespace [56..57]: " "
+ │   │   └─ InlineDialogue_begin_c5 57
+ │   ├─ InlineDialogue_content [57..89]
+ │   │   └─ LineEnd [57..89]
+ │   │       ├─ LineEnd_begin 57
+ │   │       │   └─ LineEnd_begin_c1 57
+ │   │       │       └─ OptionalWhitespace 57
+ │   │       ├─ LineEnd_content [57..89]
+ │   │       │   ├─ LuauFunctionCallShorthand [57..81]
+ │   │       │   │   ├─ LuauFunctionCallShorthand_begin [57..59]
+ │   │       │   │   │   ├─ LuauFunctionCallShorthand_begin_c1 [57..58]
+ │   │       │   │   │   │   └─ PunctuationBraceOpen [57..58]: "{"
+ │   │       │   │   │   └─ LuauFunctionCallShorthand_begin_c2 [58..59]
+ │   │       │   │   │       └─ PunctuationBraceOpen [58..59]: "{"
+ │   │       │   │   ├─ LuauFunctionCallShorthand_content [59..79]
+ │   │       │   │   │   ├─ ExtraWhitespace [59..60]: " "
+ │   │       │   │   │   ├─ LuauAccessPath [60..78]
+ │   │       │   │   │   │   ├─ LuauAccessPath_begin 60
+ │   │       │   │   │   │   ├─ LuauAccessPath_content [60..78]
+ │   │       │   │   │   │   │   └─ LuauAccessPart [60..78]
+ │   │       │   │   │   │   │       └─ LuauFunctionCall [60..78]
+ │   │       │   │   │   │   │           ├─ LuauFunctionCall_begin [60..67]
+ │   │       │   │   │   │   │           │   ├─ LuauFunctionCall_begin_c1 [60..67]
+ │   │       │   │   │   │   │           │   │   └─ LuauFunctionName [60..67]: "compute"
+ │   │       │   │   │   │   │           │   └─ LuauFunctionCall_begin_c2 67
+ │   │       │   │   │   │   │           ├─ LuauFunctionCall_content [67..78]
+ │   │       │   │   │   │   │           │   └─ LuauFunctionCallParameters [67..78]
+ │   │       │   │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [67..68]
+ │   │       │   │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [67..68]
+ │   │       │   │   │   │   │           │       │       └─ PunctuationParenOpen [67..68]: "("
+ │   │       │   │   │   │   │           │       ├─ LuauFunctionCallParameters_content [68..77]
+ │   │       │   │   │   │   │           │       │   ├─ LuauNumericDecimal [68..69]
+ │   │       │   │   │   │   │           │       │   │   ├─ LuauNumericDecimal_c1 [68..69]: "5"
+ │   │       │   │   │   │   │           │       │   │   └─ LuauNumericDecimal_c2 69
+ │   │       │   │   │   │   │           │       │   ├─ LuauCommaSeparator [69..71]
+ │   │       │   │   │   │   │           │       │   │   ├─ LuauCommaSeparator_c1 69
+ │   │       │   │   │   │   │           │       │   │   ├─ LuauCommaSeparator_c2 [69..70]: ","
+ │   │       │   │   │   │   │           │       │   │   └─ LuauCommaSeparator_c3 [70..71]
+ │   │       │   │   │   │   │           │       │   │       └─ LuauCommaSeparator_c3 [70..71]
+ │   │       │   │   │   │   │           │       │   │           └─ OptionalWhitespace [70..71]: " "
+ │   │       │   │   │   │   │           │       │   └─ LuauDoubleQuotedString [71..77]
+ │   │       │   │   │   │   │           │       │       ├─ LuauDoubleQuotedString_begin [71..72]
+ │   │       │   │   │   │   │           │       │       │   └─ LuauDoubleQuotedString_begin_c1 [71..72]
+ │   │       │   │   │   │   │           │       │       │       └─ PunctuationStringDoubleQuoteOpen [71..72]: "\""
+ │   │       │   │   │   │   │           │       │       ├─ LuauDoubleQuotedString_content [72..76]
+ │   │       │   │   │   │   │           │       │       │   └─ Word [72..76]: "fire"
+ │   │       │   │   │   │   │           │       │       └─ LuauDoubleQuotedString_end [76..77]
+ │   │       │   │   │   │   │           │       │           ├─ LuauDoubleQuotedString_end_c1 [76..77]
+ │   │       │   │   │   │   │           │       │           │   └─ PunctuationStringDoubleQuoteClose [76..77]: "\""
+ │   │       │   │   │   │   │           │       │           └─ LuauDoubleQuotedString_end_c2 77
+ │   │       │   │   │   │   │           │       └─ LuauFunctionCallParameters_end [77..78]
+ │   │       │   │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [77..78]
+ │   │       │   │   │   │   │           │               └─ PunctuationParenClose [77..78]: ")"
+ │   │       │   │   │   │   │           └─ LuauFunctionCall_end 78
+ │   │       │   │   │   │   └─ LuauAccessPath_end 78
+ │   │       │   │   │   │       └─ LuauAccessPath_end_c1 78
+ │   │       │   │   │   └─ ExtraWhitespace [78..79]: " "
+ │   │       │   │   └─ LuauFunctionCallShorthand_end [79..81]
+ │   │       │   │       ├─ LuauFunctionCallShorthand_end_c1 [79..80]
+ │   │       │   │       │   └─ PunctuationBraceClose [79..80]: "}"
+ │   │       │   │       └─ LuauFunctionCallShorthand_end_c2 [80..81]
+ │   │       │   │           └─ PunctuationBraceClose [80..81]: "}"
+ │   │       │   └─ TextChunk [81..89]
+ │   │       │       ├─ TextChunk_begin 81
+ │   │       │       ├─ TextChunk_content [81..89]
+ │   │       │       │   ├─ Space [81..82]: " "
+ │   │       │       │   ├─ Word [82..88]: "points"
+ │   │       │       │   └─ Punctuation [88..89]: "."
+ │   │       │       └─ TextChunk_end 89
+ │   │       └─ LineEnd_end 89
+ │   └─ InlineDialogue_end 89
+ ├─ Newline [89..90]: "\n"
+ ├─ ImplicitAction [90..101]
+ │   ├─ ImplicitAction_begin [90..92]
+ │   │   └─ ImplicitAction_begin_c1 [90..92]
+ │   │       └─ OptionalWhitespace [90..92]: "  "
+ │   ├─ ImplicitAction_content [92..101]
+ │   │   └─ ActionLineEnd [92..101]
+ │   │       ├─ ActionLineEnd_begin 92
+ │   │       │   └─ ActionLineEnd_begin_c1 92
+ │   │       │       └─ OptionalWhitespace 92
+ │   │       ├─ ActionLineEnd_content [92..101]
+ │   │       │   └─ LuauFunctionCallShorthand [92..101]
+ │   │       │       ├─ LuauFunctionCallShorthand_begin [92..94]
+ │   │       │       │   ├─ LuauFunctionCallShorthand_begin_c1 [92..93]
+ │   │       │       │   │   └─ PunctuationBraceOpen [92..93]: "{"
+ │   │       │       │   └─ LuauFunctionCallShorthand_begin_c2 [93..94]
+ │   │       │       │       └─ PunctuationBraceOpen [93..94]: "{"
+ │   │       │       ├─ LuauFunctionCallShorthand_content [94..99]
+ │   │       │       │   └─ LuauAccessPath [94..99]
+ │   │       │       │       ├─ LuauAccessPath_begin 94
+ │   │       │       │       ├─ LuauAccessPath_content [94..99]
+ │   │       │       │       │   └─ LuauAccessPart [94..99]
+ │   │       │       │       │       └─ LuauVariable [94..99]
+ │   │       │       │       │           └─ LuauVariable_c1 [94..99]
+ │   │       │       │       │               └─ LuauVariableName [94..99]: "shout"
+ │   │       │       │       └─ LuauAccessPath_end 99
+ │   │       │       │           └─ LuauAccessPath_end_c1 99
+ │   │       │       └─ LuauFunctionCallShorthand_end [99..101]
+ │   │       │           ├─ LuauFunctionCallShorthand_end_c1 [99..100]
+ │   │       │           │   └─ PunctuationBraceClose [99..100]: "}"
+ │   │       │           └─ LuauFunctionCallShorthand_end_c2 [100..101]
+ │   │       │               └─ PunctuationBraceClose [100..101]: "}"
+ │   │       └─ ActionLineEnd_end 101
+ │   └─ ImplicitAction_end 101
+ ├─ Newline [101..102]: "\n"
+ ├─ LuauEndKeyword [102..105]: "end"
+ └─ Newline [105..106]: "\n"

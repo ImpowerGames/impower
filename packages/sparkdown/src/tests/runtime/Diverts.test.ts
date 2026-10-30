@@ -53,7 +53,7 @@ describe("Diverts (ported from inkjs)", () => {
     // `program.diagnostics` and the harness flattens it into
     // `errorMessages`.
     const { errorMessages } = collectDiagnostics(
-      `-> main\nscene main\n  -> nowhere\n`,
+      `\nscene start\n  -> nowhere\n`,
     );
     expect(errorMessages.some((m) => m.includes("not found"))).toBe(true);
   });
@@ -64,7 +64,7 @@ describe("Diverts (ported from inkjs)", () => {
     // warning. The fallback-choice form `* ->` is handled in
     // `lowerChoice` and doesn't trip this check.
     const { warningMessages } = collectDiagnostics(
-      `-> main\nscene main\n  text\n  ->\n  more\n`,
+      `\nscene start\n  text\n  ->\n  more\n`,
     );
     expect(warningMessages.some((m) => /Empty diverts/.test(m))).toBe(true);
   });

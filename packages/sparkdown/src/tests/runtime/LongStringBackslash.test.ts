@@ -7,7 +7,9 @@ describe("Luau long strings treat backslashes as literal text", () => {
   local s = [${level}[a\\]${level}]
   return #s
 end
-: {f()}
+scene start
+  : {f()}
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story).trim()).toBe("2");
@@ -19,7 +21,9 @@ end
   local other = [[later]]
   return #s + #other + #[[\\n\\t]]
 end
-: {f()}
+scene start
+  : {f()}
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story).trim()).toBe("11");

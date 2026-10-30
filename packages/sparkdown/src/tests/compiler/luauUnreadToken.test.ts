@@ -22,10 +22,12 @@ const URI = "inmemory:///main.sd";
 // `export` inside a function as Luau does since that pin).
 const official = await loadOfficialLuau("typecheck");
 
+const withStart = (text: string) => (/^scene start\b/m.test(text) ? text : `${text}\nscene start\nend\n`);
+
 function compiler(text: string) {
   const c = new SparkdownCompiler();
   c.configure({
-    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" }],
   } as never);
   return c;
 }
@@ -71,7 +73,7 @@ function read(text: string): Reading {
   try {
     const c = compiler(text);
     const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
-    const output = makeRuntimeStoryFromSource(text).story.ContinueMaximally();
+    const output = makeRuntimeStoryFromSource(withStart(text)).story.ContinueMaximally();
     return { errors: errorsOf(program), functions: functionSpans(program), output, warnings, tree: c.documents.tree(URI)! };
   } finally {
     warn.mockRestore();
@@ -79,75 +81,70 @@ function read(text: string): Reading {
 }
 
 interface Case {
-  /** The script: a function, then the story line it is called from. */
   text: string;
   /** The function's name and its first and last lines (its `end`). */
   fn: [string, number, number];
   output: string;
-  /** Its Luau, given to the official parser, and the script line the Luau's first line stands on. */
   luau: string;
-  line?: number;
 }
 
 const CASES: Record<string, Case> = {
   "#921 a function marked with an attribute list": {
-    text: "Value {g()}.\nfunction g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
-    fn: ["g", 1, 7],
+    text: "function g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\nscene start\n  Value {g()}.\nend\n",
+    fn: ["g", 0, 6],
     output: "Value 1.\n",
     luau: "function g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
-    line: 1,
   },
   "#921 an attribute list with an argument": {
-    text: 'Value {g()}.\nfunction g()\n  @[deprecated{ reason = "x" }]\n  local function f()\n    return 1\n  end\n  return f()\nend\n',
-    fn: ["g", 1, 7],
+    text: 'function g()\n  @[deprecated{ reason = "x" }]\n  local function f()\n    return 1\n  end\n  return f()\nend\nscene start\n  Value {g()}.\nend\n',
+    fn: ["g", 0, 6],
     output: "Value 1.\n",
     luau: 'function g()\n  @[deprecated{ reason = "x" }]\n  local function f()\n    return 1\n  end\n  return f()\nend\n',
-    line: 1,
   },
   "#1258 a semicolon inside a call's parentheses": {
-    text: "function f(t)\n  print(1;)\nend\nAfter.\n",
+    text: "function f(t)\n  print(1;)\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 2],
     output: "After.\n",
     luau: "function f(t)\n  print(1;)\nend\n",
   },
   "#1261 a table type field written as an assignment": {
-    text: "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\nAfter.\n",
+    text: "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 6],
     output: "After.\n",
     luau: "function f(t)\n  local x: {\n    bar\n    baz = 1 +\n  } = {}\n  2\nend\n",
   },
   "#1290 a stray closing parenthesis": {
-    text: "function f()\n  local a = 1\n  )\n  return 5\nend\nValue {f()}.\n",
+    text: "function f()\n  local a = 1\n  )\n  return 5\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 0, 4],
     output: "Value 5.\n",
     luau: "function f()\n  local a = 1\n  )\n  return 5\nend\n",
   },
   "#1290 a stray closing bracket": {
-    text: "function f()\n  local a = 1\n  ]\n  return 5\nend\nValue {f()}.\n",
+    text: "function f()\n  local a = 1\n  ]\n  return 5\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 0, 4],
     output: "Value 5.\n",
     luau: "function f()\n  local a = 1\n  ]\n  return 5\nend\n",
   },
   "#1290 a stray closing brace": {
-    text: "function f()\n  local a = 1\n  }\n  return 5\nend\nValue {f()}.\n",
+    text: "function f()\n  local a = 1\n  }\n  return 5\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 0, 4],
     output: "Value 5.\n",
     luau: "function f()\n  local a = 1\n  }\n  return 5\nend\n",
   },
   "#1290 a closing parenthesis after a semicolon": {
-    text: "function f()\n  local a = 1; )\n  return 5\nend\nValue {f()}.\n",
+    text: "function f()\n  local a = 1; )\n  return 5\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 0, 3],
     output: "Value 5.\n",
     luau: "function f()\n  local a = 1; )\n  return 5\nend\n",
   },
   "#1318 export inside a function": {
-    text: "function f()\n  export local a = 1\n  return a\nend\n: {f()}\n",
+    text: "function f()\n  export local a = 1\n  return a\nend\nscene start\n  : {f()}\nend\n",
     fn: ["f", 0, 3],
     output: "1\n",
     luau: "function f()\n  export local a = 1\n  return a\nend\n",
   },
   "#1318 another language's operators": {
-    text: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n: {f(true, false)}\n",
+    text: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\nscene start\n  : {f(true, false)}\nend\n",
     fn: ["f", 0, 4],
     output: "false\n",
     luau: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n",
@@ -156,73 +153,73 @@ const CASES: Record<string, Case> = {
   // stay open (the story form of #1199, a top-level or `store` attributed
   // function, an intersection inside `<< >>`).
   "#1199 an if condition ending in a method colon, in a function": {
-    text: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\nAfter.\n",
+    text: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 5],
     output: "After.\n",
     luau: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\n",
   },
   "#1329 an attribute list on a function value in a function": {
-    text: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\nValue {run()}.\n",
+    text: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\nscene start\n  Value {run()}.\nend\n",
     fn: ["run", 0, 3],
     output: "Value 7.\n",
     luau: "function run()\nlocal f = @[native] function() return 7 end\nreturn f()\nend\n",
   },
   "#1376 a union inside explicit instantiation": {
-    text: "function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nValue {f()}.\n",
+    text: "function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 1, 4],
     output: "Value 1.\n",
     luau: "function g<T>() end\nfunction f()\n  g<<number | string>>()\n  return 1\nend\n",
   },
   "#1370 a generic alias as an array element": {
-    text: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\nValue {f()}.\n",
+    text: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 1, 4],
     output: "Value 1.\n",
     luau: "type Box<T> = {value: T}\nfunction f()\n  local x: {Box<number>} = {}\n  return 1\nend\n",
   },
   "#1382 a line break inside typeof": {
-    text: "function f()\n  type T = typeof(1\n  )\n  return 1\nend\nValue {f()}.\n",
+    text: "function f()\n  type T = typeof(1\n  )\n  return 1\nend\nscene start\n  Value {f()}.\nend\n",
     fn: ["f", 0, 4],
     output: "Value 1.\n",
     luau: "function f()\n  type T = typeof(1\n  )\n  return 1\nend\n",
   },
   "#1596 a then on its own line": {
-    text: "function f(c)\nthen\nend\nAfter.\n",
+    text: "function f(c)\nthen\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 2],
     output: "After.\n",
     luau: "function f(c)\nthen\nend\n",
   },
   "#1596 a then after an if expression's arm line": {
-    text: "function f(c)\nx = if c then 1 else 2\nthen 1\nend\nAfter.\n",
+    text: "function f(c)\nx = if c then 1 else 2\nthen 1\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 3],
     output: "After.\n",
     luau: "function f(c)\nx = if c then 1 else 2\nthen 1\nend\n",
   },
   "#1596 a then glued after a closing parenthesis": {
-    text: "function f(c)\nx = (if c)then\nprint(x)\nend\nAfter.\n",
+    text: "function f(c)\nx = (if c)then\nprint(x)\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 3],
     output: "After.\n",
     luau: "function f(c)\nx = (if c)then\nprint(x)\nend\n",
   },
   "#1647 a multiline if expression after a block comment": {
-    text: "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+    text: "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nscene start\n  Value {f(true)}.\nend\n",
     fn: ["f", 0, 5],
     output: "Value 1.\n",
     luau: "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\n",
   },
   "#1647 the same after return": {
-    text: "function f(c)\n  return --[[ c ]] if c then\n    1\n  else 2\nend\nValue {f(true)}.\n",
+    text: "function f(c)\n  return --[[ c ]] if c then\n    1\n  else 2\nend\nscene start\n  Value {f(true)}.\nend\n",
     fn: ["f", 0, 4],
     output: "Value 1.\n",
     luau: "function f(c)\n  return --[[ c ]] if c then\n    1\n  else 2\nend\n",
   },
   "#1647 the same inside parentheses": {
-    text: "function f(c)\n  local x = (--[[ c ]] if c then\n    1\n  else 2)\n  return x\nend\nValue {f(true)}.\n",
+    text: "function f(c)\n  local x = (--[[ c ]] if c then\n    1\n  else 2)\n  return x\nend\nscene start\n  Value {f(true)}.\nend\n",
     fn: ["f", 0, 5],
     output: "Value 1.\n",
     luau: "function f(c)\n  local x = (--[[ c ]] if c then\n    1\n  else 2)\n  return x\nend\n",
   },
   "#1647 the same after an operator": {
-    text: "function f(c)\n  local x = 1 + --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
+    text: "function f(c)\n  local x = 1 + --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nscene start\n  Value {f(true)}.\nend\n",
     fn: ["f", 0, 5],
     output: "Value 2.\n",
     luau: "function f(c)\n  local x = 1 + --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\n",
@@ -236,7 +233,7 @@ describe("a function holding Luau the grammar has no rule for keeps its own end"
       const [path, first, last] = c.fn;
       expect(reading.functions.filter((f) => f.path === path)).toEqual([{ path, lines: [0, first, last] }]);
       expect(reading.output).toBe(c.output);
-      expect(reading.errors).toEqual(officialErrors(c.luau, c.line));
+      expect(reading.errors).toEqual(officialErrors(c.luau));
       expect(reading.warnings.filter((w) => w.includes("empty matches"))).toEqual([]);
     });
   }
@@ -280,7 +277,7 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
   });
 
   it("a line in a function that is not Luau reports what Luau reports for it", () => {
-    const text = "function greet(n)\n  Hello there, friend.\n  return n\nend\nValue {greet(1)}.\n";
+    const text = "function greet(n)\n  Hello there, friend.\n  return n\nend\nscene start\n  Value {greet(1)}.\nend\n";
     const reading = read(text);
     expect(reading.errors).toEqual(officialErrors("function greet(n)\n  Hello there, friend.\n  return n\nend\n"));
     expect(reading.errors).toEqual([
@@ -318,7 +315,9 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
 
   it("a token no rule of a define's body reads is reported", () => {
     // As in a function's body, at the same place.
-    expect(read("define X with\n  !\nend\nAfter.\n").errors).toEqual(read("function X()\n  !\nend\nAfter.\n").errors);
+    expect(read("define X with\n  !\nend\nscene start\n  After.\nend\n").errors).toEqual(
+      read("function X()\n  !\nend\nscene start\n  After.\nend\n").errors,
+    );
     expect(read("define X with\n  a = 1 !\n  b = 2\nend\n").errors).toEqual(read("function X()\n  a = 1 !\n  b = 2\nend\n").errors);
   });
 });
@@ -341,11 +340,12 @@ describe("each error has one reader", () => {
   it("an alternator's arm holding a token no rule reads has the errors of its reading as an expression", () => {
     // The type checker reads an alternator as a value of any type, not its
     // arms; before, this line reported only a malformed interpolation.
-    expect(read('Value {cycle "a" | ! | "b" end}.\n').errors).toContain("0:19-0:20 Unexpected '!'; did you mean 'not'?");
+    expect(read('scene start\n  Value {cycle "a" | ! | "b" end}.\nend\n').errors).toContain("1:21-1:22 Unexpected '!'; did you mean 'not'?");
     // Inside a bracket of the arm too.
     for (const arm of ["(!true)", "{!true}", "tostring(!true)"]) {
-      const at = `Value {cycle "a" | ${arm} | "b" end}.\n`.indexOf("!");
-      expect(read(`Value {cycle "a" | ${arm} | "b" end}.\n`).errors).toContain(`0:${at}-0:${at + 1} Unexpected '!'; did you mean 'not'?`);
+      const line = `  Value {cycle "a" | ${arm} | "b" end}.`;
+      const at = line.indexOf("!");
+      expect(read(`scene start\n${line}\nend\n`).errors).toContain(`1:${at}-1:${at + 1} Unexpected '!'; did you mean 'not'?`);
     }
   });
 
@@ -359,7 +359,7 @@ describe("each error has one reader", () => {
     expect(officialErrors("local f = function() @ x = (if c) end\n")).toEqual(luau(21).sort());
     const shifted = (line: number, at: number) => luau(at).map((e) => e.replace(/^0:(\d+)-0:/, `${line}:$1-${line}:`)).sort();
     expect(read("layout main with\n  button @click={ @ x = (if c) }\nend\n").errors).toEqual(shifted(1, 18));
-    expect(read('Value {cycle | function() @ x = (if c) end | "b" end}.\n').errors).toEqual(shifted(0, 26));
+    expect(read('scene start\n  Value {cycle | function() @ x = (if c) end | "b" end}.\nend\n').errors).toEqual(shifted(1, 28));
   });
 
   it("a sparkle closure's body is read as a function's body", () => {
@@ -422,7 +422,7 @@ describe("each error has one reader", () => {
     const alone = read("function f(c)\n         local y = (if c)\nend\n").errors;
     expect(alone).toHaveLength(1);
     for (const before of ["@ x = 1; ", "@ x = 1  "]) {
-      const errors = read(`function f(c)\n${before}local y = (if c)\nend\nAfter.\n`).errors;
+      const errors = read(`function f(c)\n${before}local y = (if c)\nend\nscene start\n  After.\nend\n`).errors;
       expect(errors).toContain(alone[0]);
       expect(errors.filter((e) => e.includes("Attribute name is missing"))).toEqual(["1:0-1:1 Attribute name is missing"]);
     }
@@ -438,7 +438,7 @@ describe("each error has one reader", () => {
       "function f(c)\nx = (if c) --[[ note ]] then\nprint(x)\nend\n",
       "function f(c)\n@ x = (if c)\nprint(x)\nend\n",
     ]) {
-      expect(read(`${luau}After.\n`).errors).toEqual(officialErrors(luau));
+      expect(read(`${luau}scene start\n  After.\nend\n`).errors).toEqual(officialErrors(luau));
     }
   });
 });
@@ -448,7 +448,7 @@ describe("the syntax tree holds the whole function", () => {
     const { tree } = read(CASES["#921 a function marked with an attribute list"]!.text);
     const top: string[] = [];
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) top.push(node.name);
-    expect(top.filter((n) => n !== "Newline")).toEqual(["ImplicitAction", "LuauFunctionDefinition"]);
+    expect(top.filter((n) => n !== "Newline")).toEqual(["LuauFunctionDefinition", "Scene", "ImplicitAction", "LuauEndKeyword"]);
     expect(errorNodes(tree)).toEqual([]);
     // The list's own rule reads it since #1924 (`LuauAttributeList`).
     const at = tree.topNode.resolveInner(CASES["#921 a function marked with an attribute list"]!.text.indexOf("@"), 1);
@@ -501,7 +501,7 @@ describe("a body or bracket closes only at its closer, a bail-out of its own or 
     ];
     for (const body of bodies) {
       const luau = `function f(c, t)\n${body}\n  return 1\nend\n`;
-      const reading = read(`${luau}Value {f(true, {})}.\n`);
+      const reading = read(`${luau}scene start\n  Value {f(true, {})}.\nend\n`);
       expect(reading.functions, body).toEqual([{ path: "f", lines: [0, 0, 3] }]);
       expect(reading.output, body).toBe("Value 1.\n");
       expect(reading.errors, body).toEqual(officialErrors(luau));
@@ -510,7 +510,7 @@ describe("a body or bracket closes only at its closer, a bail-out of its own or 
   });
 
   it("an end inside a bracket closes the bracket and the block the end belongs to", () => {
-    const reading = read("function f()\n  print(1\nend\nAfter.\n");
+    const reading = read("function f()\n  print(1\nend\nscene start\n  After.\nend\n");
     expect(reading.functions).toEqual([{ path: "f", lines: [0, 0, 2] }]);
     expect(reading.output).toBe("After.\n");
   });

@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("Luau varargs", () => {
   test("function with only `...` captures all args", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...) return select("#", ...) end
@@ -55,8 +58,11 @@ end
 
   test("function with regular params plus `...`", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(a, b, ...)
@@ -71,8 +77,11 @@ end
 
   test("missing regular params bind to nil on variadic call", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(a, ...)
@@ -88,8 +97,11 @@ end
 
   test("select(n, ...) returns nth and following extras", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...) return select(2, ...) end
@@ -102,8 +114,11 @@ end
 
   test("`{...}` packs varargs into a table in source order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...)
@@ -121,8 +136,11 @@ end
 
   test("`return ...` propagates all varargs via multi-target assignment", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...) return ... end
@@ -138,8 +156,11 @@ end
 
   test("`...` as last call-arg spreads into receiving stdlib", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...)

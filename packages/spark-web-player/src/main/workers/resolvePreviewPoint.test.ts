@@ -9,13 +9,16 @@ import { resolvePreviewPoint } from "./resolvePreviewPoint";
 
 const MAIN = "file:///local/main.sd";
 
-/** A program compiled from a script with a line of story on each of `lines`
- *  and nothing on any other line, so that each of those lines owns an
- *  address of its own and no other line does. */
 const programOf = (lines: number[]): SparkProgram => {
   const last = Math.max(0, ...lines);
   const text = Array.from({ length: last + 2 }, (_, line) =>
-    lines.includes(line) ? `Line ${line}.` : "",
+    line === 0
+      ? "scene start"
+      : line === last + 1
+        ? "end"
+        : lines.includes(line)
+          ? `  Line ${line}.`
+          : "",
   ).join("\n");
   const compiler = new SparkdownCompiler();
   compiler.configure({

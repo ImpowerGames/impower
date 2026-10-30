@@ -1,5 +1,4 @@
 store x = "global"
--> start
 scene start
   choose
     do
