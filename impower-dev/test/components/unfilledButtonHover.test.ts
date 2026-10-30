@@ -94,5 +94,13 @@ describe.each(["ghost", "outline"] as const)(
       expect(opacityWhen("hover")).toContain(0.05);
       expect(opacityWhen("active")).toContain(0.12);
     });
+
+    it("lets pointer events through the overlay to the button's content", async () => {
+      const rules = await rulesFor(classes());
+      const overlay = rules.filter(({ selector }) => /::?after\b/.test(selector));
+      expect(
+        overlay.some(({ style }) => style.getPropertyValue("pointer-events") === "none"),
+      ).toBe(true);
+    });
   },
 );

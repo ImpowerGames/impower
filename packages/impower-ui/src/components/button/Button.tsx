@@ -11,7 +11,7 @@ const FILLED_SHADOW =
   "active:shadow-none";
 
 const UNFILLED_OVERLAY =
-  "after:absolute after:inset-0 after:rounded-[inherit] after:bg-current after:opacity-0 " +
+  "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:bg-current after:opacity-0 " +
   "hover:after:opacity-[0.05] active:after:opacity-[0.12]";
 
 export const buttonVariants = cva(
