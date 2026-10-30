@@ -214,6 +214,24 @@ describe("a story that ends", () => {
     );
   });
 
+  it("runs and announces nothing for a debugger step or continue requested after the end", async () => {
+    const h = await play("scene start\n  Last frame.\n  fin\nend\n");
+    h.game.clickedToContinue();
+    await flushMicrotasks(20);
+    expect(h.game.ending?.kind).toBe("fin");
+    const endedAt = h.game.getLastExecutedDocumentLocation();
+    expect(endedAt?.range.start.line).toBe(2);
+    h.reset();
+    for (const traversal of ["over", "in", "out", "continue"] as const) {
+      expect(h.game.step(traversal)).toBe(true);
+    }
+    expect(h.game.continue()).toBe(true);
+    await flushMicrotasks(20);
+    expect(gameMessages(h.messages)).toEqual([]);
+    expect(h.game.getLastExecutedDocumentLocation()).toEqual(endedAt);
+    expect(h.game.ending?.kind).toBe("fin");
+  });
+
   it("leaves a held choice on the page when it is clicked after an error ended the story", async () => {
     const h = await play(
       [

@@ -370,9 +370,21 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ContinueResponse,
     _args: DebugProtocol.ContinueArguments,
   ) {
+    if (await this.answerEnded(response)) {
+      return;
+    }
     await this._connection.emit(UnpauseGameMessage.type.request({}));
     await this._connection.emit(ContinueGameMessage.type.request({}));
     this.sendResponse(response);
+  }
+
+  protected async answerEnded(response: DebugProtocol.Response): Promise<boolean> {
+    if (this._launchState !== "ended") {
+      return false;
+    }
+    this.sendResponse(response);
+    await this.sendStoppedEvent("end");
+    return true;
   }
 
   protected override async reverseContinueRequest(
@@ -386,6 +398,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.NextResponse,
     _args: DebugProtocol.NextArguments,
   ) {
+    if (await this.answerEnded(response)) {
+      return;
+    }
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "over",
@@ -398,6 +413,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepInResponse,
     _args: DebugProtocol.StepInArguments,
   ) {
+    if (await this.answerEnded(response)) {
+      return;
+    }
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "in",
@@ -410,6 +428,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepOutResponse,
     _args: DebugProtocol.StepOutArguments,
   ) {
+    if (await this.answerEnded(response)) {
+      return;
+    }
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "out",

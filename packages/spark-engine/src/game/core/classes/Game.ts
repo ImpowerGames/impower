@@ -2595,6 +2595,9 @@ export class Game<T extends M = {}> {
   }
 
   continue(preserveExecutionInfo?: boolean) {
+    if (this._ending) {
+      return true;
+    }
     if (!preserveExecutionInfo) {
       this._runtimeState = new RuntimeState();
     }
@@ -2638,6 +2641,9 @@ export class Game<T extends M = {}> {
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
+    if (this._ending) {
+      return true;
+    }
     this.cancelPreview();
     this._awaiting = null;
     this.resetExecutionBudget();

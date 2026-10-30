@@ -53,7 +53,8 @@ const session = () => {
   (s as any).sendResponse = () => events.push({ event: "response", body: null });
   const notify = (message: any) => (s as any).onReceiveNotification(message);
   const restart = () => (s as any).restartRequest({ body: {} }, {});
-  return { notify, events, sent, restart };
+  const request = (name: string) => (s as any)[name]({ body: {} }, {});
+  return { notify, events, sent, restart, request };
 };
 
 describe("the debug adapter at the end of the story", () => {
@@ -108,6 +109,34 @@ describe("the debug adapter at the end of the story", () => {
     ]);
     await notify(GameReloadedMessage.type.notification({}));
     expect(events).toHaveLength(4);
+  });
+
+  it("answers a step or continue on an ended run with the end stop, and sends the game nothing", async () => {
+    const { notify, events, sent, request } = await session();
+    await notify(launch("ended"));
+    for (const name of [
+      "nextRequest",
+      "stepInRequest",
+      "stepOutRequest",
+      "continueRequest",
+    ]) {
+      events.length = 0;
+      await request(name);
+      expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+        ["response", null],
+        ["stopped", "end"],
+      ]);
+    }
+    expect(sent.map((m) => m.method)).toEqual([
+      "game/threads",
+      "game/threads",
+      "game/threads",
+      "game/threads",
+    ]);
+    await notify(launch("play"));
+    events.length = 0;
+    await request("nextRequest");
+    expect(sent.map((m) => m.method)).toContain("game/step");
   });
 
   it("sends no continued event while launch states change without leaving an ended run", async () => {
