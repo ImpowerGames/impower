@@ -1,16 +1,3 @@
-// Derives the production runtime dependency closure for the Docker runtime
-// image by scanning the built API bundle (out/api/index.js) for the bare module
-// specifiers it leaves external, then emitting a minimal package.json with those
-// deps pinned to the ranges declared in impower-dev/package.json.
-//
-// build.ts bundles the entire server into out/api/index.js and externalizes only
-// a handful of packages (fastify + several @fastify/* plugins, registered via
-// `import(`@fastify/...`)`, plus the auto-externalized dotenv / googleapis). This
-// script reads that set from the artifact itself so the runtime image never
-// drifts from what the bundle actually requires.
-//
-// Usage: node scripts/collect-runtime-deps.mjs <bundle> <pkgJson> <outPkgJson>
-
 import fs from "fs";
 import { builtinModules } from "module";
 
@@ -26,8 +13,6 @@ const src = fs.readFileSync(bundlePath, "utf8");
 const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
 const builtins = new Set(builtinModules);
 
-// Match `from "x"`, `import("x")`, `require("x")` with any quote style
-// (single, double, or backtick — the bundle uses backticks for dynamic imports).
 const re = /(?:from|import|require)\s*\(?\s*[`'"]([^`'"]+)[`'"]/g;
 
 const names = new Set();

@@ -709,7 +709,7 @@ export class GamePlayerController {
                 params.simulationFailure,
               ) ?? "",
             scene:
-              flow != null && flow !== "0" && params.simulateLocation
+              flow != null && params.simulateLocation
                 ? flow
                 : undefined,
             start:

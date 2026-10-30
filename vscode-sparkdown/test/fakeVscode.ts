@@ -1,10 +1,3 @@
-/**
- * A stand-in for the parts of the `vscode` module the completion preview uses,
- * so tests can load the extension's own modules and drive VS Code's events.
- * `vi.mock("vscode", ...)` returns `fakeVscode()`; the test then fires events
- * through `emitters` and inspects `registered` and `commands.executed`.
- */
-
 type Listener<T> = (value: T) => unknown;
 
 export class EventEmitter<T> {
@@ -56,8 +49,6 @@ export class SnippetString {
   constructor(readonly value: string) {}
 }
 
-/** A text document holding `text`, at `uri`, in a workspace folder unless
- *  `outside` is set. */
 export const document = (
   uri: string,
   text: string,
@@ -133,7 +124,6 @@ export const fakeVscode = () => {
 
 export type FakeVscode = ReturnType<typeof fakeVscode>;
 
-/** An editor showing `doc` with `selections`, the first being the primary. */
 export const editor = (doc: FakeDocument, selections: Selection[]) => ({
   document: doc,
   selection: selections[0]!,

@@ -14,20 +14,10 @@ export type OptionButtonProps = Omit<
   "size" | "type" | "variant" | "asChild"
 > & {
   size?: OptionButtonSize;
-  /** Tailwind classes appended after the base layout. */
   class?: string;
   children?: ComponentChildren;
 };
 
-/**
- * List-row button for the share/assets/logic panes. Full-width, fixed
- * height (56px default), left-aligned leading content + right-aligned
- * trailing content via children's flex layout.
- *
- * Wraps the impower-ui `<Button variant="ghost">` so it inherits the
- * standard ripple + hover/active overlays automatically. The size
- * variant adds the row-specific height + padding on top.
- */
 export default function OptionButton({
   size = "default",
   class: className = "",

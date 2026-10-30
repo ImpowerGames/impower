@@ -3,16 +3,13 @@ import * as vscode from "vscode";
 export async function activateVirtualDeclarations(
   context: vscode.ExtensionContext,
 ) {
-  // Fetch global declarations
   const globalDeclarations = await getGlobalDeclarations(context);
   if (!globalDeclarations) {
     return;
   }
 
-  // Run once on activation
   await updateAllWorkspacesIfNeeded(globalDeclarations);
 
-  // Watch for workspace folders changing
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async (event) => {
       for (const folder of event.added) {
@@ -21,7 +18,6 @@ export async function activateVirtualDeclarations(
     }),
   );
 
-  // Watch for creating .ts, .sd, or .json
   const fileWatcher =
     vscode.workspace.createFileSystemWatcher("**/*.{ts,sd,json}");
   context.subscriptions.push(fileWatcher);
@@ -32,7 +28,6 @@ export async function activateVirtualDeclarations(
     }
   });
 
-  // Watch for deleting declarations file
   const declarationsWatcher = vscode.workspace.createFileSystemWatcher(
     getUserDeclarationsLocalFilePath().join("/"),
   );
@@ -52,7 +47,6 @@ async function getGlobalDeclarations(context: vscode.ExtensionContext) {
     "data",
     "spark.d.ts",
   );
-  // The runtime build works without the optional editor type bundle.
   const declarationsFile = await vscode.workspace.fs.readFile(declarationsUri).then(
     file => file,
     (error: unknown) => {
@@ -62,7 +56,6 @@ async function getGlobalDeclarations(context: vscode.ExtensionContext) {
       ) {
         return undefined;
       }
-      // The served workbench's HTTP filesystem wraps a 404 as Unknown.
       if (
         error && typeof error === "object" && "code" in error &&
         error.code === "Unknown" && "message" in error &&

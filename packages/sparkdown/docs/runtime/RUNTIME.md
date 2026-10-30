@@ -23,7 +23,7 @@ The program engine and the compile side that builds its programs live in `progra
 | [`program/ProgramChunk.ts`](../../src/program/ProgramChunk.ts) | A chunk's header, tables and block rows, and the address helpers (`addressOf`, `chunkOfAddress`, `offsetOfAddress`) |
 | [`program/ProgramRoot.ts`](../../src/program/ProgramRoot.ts) | One version of the whole program: sequences, flows, symbol definitions, the declaration chunks (`initialization`), `addressAt` and `locationOf` |
 | [`program/ProgramTable.ts`](../../src/program/ProgramTable.ts) | The string, number and symbol tables shared across compiles |
-| [`program/ProgramSymbols.ts`](../../src/program/ProgramSymbols.ts) | Symbol kinds, `ROOT_FLOW_NAME`, and `readableSymbolLabel` |
+| [`program/ProgramSymbols.ts`](../../src/program/ProgramSymbols.ts) | Symbol kinds, `START_FLOW_NAME`, and `readableSymbolLabel` |
 | [`program/BinaryProgramWriter.ts`](../../src/program/BinaryProgramWriter.ts) | Emits one statement's chunk; `describeInstruction` prints an instruction as text |
 | [`program/BinaryProgramReader.ts`](../../src/program/BinaryProgramReader.ts) | Iterates a sequence's statements and a chunk's instructions in place; `listing` prints a sequence |
 | [`program/ProgramEmitter.ts`](../../src/program/ProgramEmitter.ts) | The interface a parsed object's `EmitProgram` writes through |
@@ -60,10 +60,10 @@ The parsed objects that emit chunks are the classes under `inkjs/compiler/Parser
 - **A chunk is one statement.** Ten header words (code length, table sizes, chunk id, the source fingerprint and the layout hash), then the code, then four tables: lines, exports, blocks and references. Nothing writes a chunk after the writer builds it.
 - **An instruction is two words.** Word 0 holds the opcode (bits 0 to 7), flags (8 to 15) and a 16-bit `aux`; word 1 is a signed 32-bit `arg`. Offsets count words, so instructions sit at even offsets.
 - **A body is a sequence.** A block statement (`if`, `choose`, a loop, a function) is one chunk whose code says `EnterBlock k` where a body runs; the body's statements are chunks of their own in a sequence that the chunk's block table names. When the body runs out, the owner resumes at the block row's resume offset.
-- **A flow is a sequence too.** The top-level content is the flow named `""` (`ROOT_FLOW_NAME`); scenes, branches and top-level functions are flows under their qualified names. A flow's first chunk binds its parameters.
+- **A flow is a sequence too.** Scenes, branches and top-level functions are flows under their qualified names, and a flow's first chunk binds its parameters. A script's top level holds declarations, which belong to no flow. The story starts in the scene named `start` (`START_FLOW_NAME`), wherever it is declared: `ResetState` runs the declarations, then positions the story at the top of `start`, or nowhere when the program has no such scene.
 - **Anything outside the chunk is a symbol.** A jump inside a chunk is relative; a target in another chunk is a symbol id that the root resolves ([section 2](../../../../docs/engine/binary-program.md#2-symbols)). Names the compiler generates hold a `$` (`__synth$<flow>$<n>`, `__group$<flow>$<n>`, `__binding$...`), which no author's name can, and an author sees a generated function as `<anonymous>` ([Generated names](../../../../docs/engine/binary-program.md#generated-names)).
-- **Declarations run first.** `store`, `const` and `define` statements are chunks of their script's declaration sequence; `ResetState` runs them (`root.initialization`) before the story starts.
-- **A position outside the engine is a number.** An address is `chunkId * 2^21 + offset` (`ProgramAddress`, `compiler/types/ProgramAddress.ts`); `root.locationOf(address)` gives its script and range, and `root.addressAt(uri, line)` the reverse ([section 8](../../../../docs/engine/binary-program.md#8-addresses)). A line with no address starts a run at `TOP_LEVEL_START`, which is -1.
+- **Declarations run first.** `store`, `const` and `define` statements and a top-level `run` line are chunks of their script's declaration sequence; `ResetState` runs them (`root.initialization`) before the story starts. A `.luau` script compiled as the program keeps its code in its declaration sequence too, but a Luau file's code runs only where a `run` line calls it, so such a program runs nothing: the compile marks its root (`ProgramStoryTables.luauEntry`), `ResetState` runs none of its declarations, its own or any other script's, and the story stands nowhere.
+- **A position outside the engine is a number.** An address is `chunkId * 2^21 + offset` (`ProgramAddress`, `compiler/types/ProgramAddress.ts`); `root.locationOf(address)` gives its script and range, and `root.addressAt(uri, line)` the reverse ([section 8](../../../../docs/engine/binary-program.md#8-addresses)). A line with no address, and no line below it in its script that has one, starts a run at `TOP_LEVEL_START`, which is -1 and which the story resolves to the top of `start` (`ProgramStory.ChooseStart`).
 
 The instructions are listed in [section 3](../../../../docs/engine/binary-program.md#3-the-instruction-set) with their effect on the eval stack, the output, the call stack and the counts, and in `Op` with a comment each. [What replaces the runtime objects](../../../../docs/engine/binary-program.md#what-replaces-the-runtime-objects) maps each control command of the deleted object engine to its instruction, which helps when reading older tickets.
 
@@ -76,17 +76,19 @@ store gold = 3
 function double(n)
   return n * 2
 end
-You have {double(gold)} coins.
-if gold > 2 then
-  Rich.
+scene start
+  You have {double(gold)} coins.
+  if gold > 2 then
+    Rich.
+  end
 end
 ```
 
 compiles to these chunks, as `BinaryProgramReader.listing` prints them (offset, then `describeInstruction`'s text; a jump shows its target offset, not its relative operand):
 
 ```
-top-level flow ""
-0 (line 5, 1 rows)
+flow "start"
+0 (line 6, 1 rows)
   0: LineStart
   2: Str "target"
   4: Str "action"
@@ -100,7 +102,7 @@ top-level flow ""
   20: EndString
   22: MakeTable 2
   24: CallStd display/1 flags 1
-1 (line 6, 1 rows)
+1 (line 7, 1 rows)
   0: GetVar gold
   2: Int 2
   4: Native >/2
@@ -111,10 +113,12 @@ top-level flow ""
   14: EndScope
   16: Jump 18
   block 0
-    0 (line 7, 1 rows)
+    0 (line 8, 1 rows)
       0: LineStart
       ...
       12: CallStd display/1 flags 1
+2 (line 10, 0 rows)
+  0: Done
 
 flow "double"
 0 (line 2, 1 rows)
@@ -135,6 +139,7 @@ and the declaration sequence holds `Int 3`, `SetVar gold` with the declare and g
 - The display line is one statement. Its `LineStart` names the beat's address. The table `{ target = "action", text = ... }` is built by pushing its keys and values and `MakeTable 2` (two pairs). The text is a capture: `BeginString` opens it, `Text` and `Out` write into it, `EndString` pushes the captured string. `CallStd display/1` calls the `display` builtin with one argument; flag 1 is `CALL_DISCARD`, so nothing is pushed back.
 - `Call "double"/1` enters the flow `double` with one argument. Its first chunk binds `n` (`SetVar` with the declare flag), enters the function body (`EnterBlock 0`), and the body's `Return` returns `6` to the caller, which `Out` writes into the capture.
 - The `if` is one chunk: the condition, a `JumpIfFalse` with the decision-site flag (2, `JUMP_DECISION`), a scope around the branch body (`BeginScope` ... `EndScope`), and the body as block 0. `Native TRUTHY/1` normalizes the condition to Luau truthiness.
+- The last chunk is the `Done` the compiler ends a scene with when its own last statement does not leave it, on the line of its closing `end`, with no line row.
 
 To get the same listing for any script, see §11.
 
@@ -347,7 +352,7 @@ import { compileScript } from "./programHarness"; // tests/program/
 
 const root = compileScript(source).program.chunks!;
 const reader = new BinaryProgramReader(root);
-console.log(reader.listing(root.flowNamed("")!).join("\n"));
+console.log(reader.listing(root.flowNamed("start")!).join("\n"));
 ```
 
 prints a flow's statements as in §2, with each block's body under it. `flowListings` and `programListing` (`tests/programListing.ts`) give every flow's instructions, and the declarations', as lists of strings a test can search. If the listing is wrong, the bug is in lowering or emitting; if it is right and the run is wrong, it is in the engine or the value layer. A compile that holds a construct the writer has no emit path for makes no program (`program.chunks` is absent) and reports the construct at its statement's line (`compiler/utils/unsupportedConstructMessage.ts`).

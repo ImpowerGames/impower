@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 
-/** Discovery is relative to each workspace root, including hidden checkouts. */
 export const isWorkspaceProjectFile = (uri: vscode.Uri): boolean => {
   const folder = vscode.workspace.getWorkspaceFolder(uri);
   if (!folder) return false;

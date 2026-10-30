@@ -56,14 +56,11 @@ import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
 import { SparkdownRoutePinsManager } from "./SparkdownRoutePinsManager";
 
-/** The empty message the game webview posts once its script has loaded. */
 const isWebviewHello = (message: unknown) =>
   message != null &&
   typeof message === "object" &&
   Object.keys(message).length === 0;
 
-/** Where the extension keeps which kinds the Game Preview's route list
- *  shows, for the author in every workspace. */
 const ROUTE_TOGGLES_STATE_KEY = "sparkdown.gamePreview.routeToggles";
 
 export class SparkdownPreviewGamePanelManager {
@@ -80,11 +77,6 @@ export class SparkdownPreviewGamePanelManager {
     return this._panel;
   }
 
-  /**
-   * The script the preview is showing, which is the last one an editor
-   * selection was reported for. Undefined until a selection has been
-   * reported, and again once that file is closed.
-   */
   get document(): vscode.TextDocument | undefined {
     const uri = this._selected?.uri;
     if (!uri) {
@@ -103,20 +95,10 @@ export class SparkdownPreviewGamePanelManager {
     return this._connected;
   }
 
-  /** The project's files, read as the panel's webview loads so the player's
-   *  initialization does not wait for the read after it has mounted. Taken by
-   *  the first initialization; a reloaded webview reads them again. */
   protected _workspaceFilesReading?: ReturnType<typeof getWorkspaceFiles>;
 
-  /** A file was created, changed or deleted since that read began, so what
-   *  it found may be out of date: the initialization reads again. */
   protected _workspaceFilesStale = false;
 
-  /** Counts the initializations begun, each webview script that loads, and
-   *  the panel closing. Requests go to whichever webview the panel holds
-   *  now, so an initialization overtaken by any of them (a webview reloaded
-   *  while the first read was still under way) stops rather than initialize
-   *  the new player as well. */
   protected _initializations = 0;
 
   _fileWatchersRegistered = false;
@@ -147,19 +129,11 @@ export class SparkdownPreviewGamePanelManager {
   protected _gameRunning = false;
 
   protected _onDidDisposePanel = new vscode.EventEmitter<void>();
-  /** Fires when the panel closes. */
   readonly onDidDisposePanel = this._onDidDisposePanel.event;
 
   protected _onDidConnectPanel = new vscode.EventEmitter<void>();
-  /** Fires when the player in the panel has been initialized, the first time
-   *  and each time the webview reloads. */
   readonly onDidConnectPanel = this._onDidConnectPanel.event;
 
-  /**
-   * Whether autocomplete highlights should be sent to the preview: it is
-   * open, has been initialized and is not playing. The preview itself still
-   * decides whether it takes part (a hidden panel does not).
-   */
   get canPreviewCompletions() {
     return this._panel != null && this._connected && !this._gameRunning;
   }
@@ -222,7 +196,6 @@ export class SparkdownPreviewGamePanelManager {
     document: vscode.TextDocument | undefined,
     canvasHeight?: number,
   ) {
-    // Setup document and panel
     this._panel = panel;
     panel.iconPath = {
       light: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
@@ -238,24 +211,11 @@ export class SparkdownPreviewGamePanelManager {
       this._initializations += 1;
       this._onDidDisposePanel.fire();
     });
-    // Read while the webview loads: its player asks for initialization only
-    // once it has mounted, and on a large project the read is a few tenths
-    // of a second it would otherwise wait for (#1875). Watching starts first,
-    // so a file that changes meanwhile is not lost.
     this.registerFileWatchers();
     this.readWorkspaceFiles();
     panel.webview.html = this.getWebviewContent(panel.webview, context);
     panel.webview.onDidReceiveMessage(async (message) => {
       if (isWebviewHello(message)) {
-        // A webview's script has loaded: on first load, or in place of a
-        // webview vscode reloaded. Its player has not mounted yet, since the
-        // script says so before registering it (`game-webview.ts`), so an
-        // initialization still under way is for the webview this one
-        // replaced, and would otherwise go on to initialize this one's player
-        // before that player asks (#1874): it is overtaken. Answer, so the
-        // panel activates after deserialization. Answering every message
-        // instead doubled the traffic of a cold start, which sends a request
-        // for each of the project's files.
         this._initializations += 1;
         panel.webview.postMessage({});
       }
@@ -263,19 +223,7 @@ export class SparkdownPreviewGamePanelManager {
         ConnectedPreviewMessage.type.isNotification(message) &&
         message.params.type === "game"
       ) {
-        // The player mounted and asks to be initialized. This happens on
-        // first load and also whenever the webview is reloaded by vscode
-        // (e.g. when its tab is moved to another editor group or undocked
-        // into a new window): each reload spins up a fresh webview instance
-        // that must be initialized again. Nothing else the webview sends
-        // starts an initialization. The empty message it posts when its
-        // script has loaded used to start one too, so the player was
-        // initialized twice at once: it read and compiled the whole project
-        // twice, and the burst of programs that followed could leave the
-        // preview black for good (#1874).
         this._connected = false;
-        // Which kinds the route list shows, as the author left them in any
-        // window.
         this.sendRequest(SetRouteTogglesMessage.type, {
           toggles: context.globalState.get<RouteTogglesParams>(
             ROUTE_TOGGLES_STATE_KEY,
@@ -286,8 +234,6 @@ export class SparkdownPreviewGamePanelManager {
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
         } catch (e) {
-          // The player waits for this, so a failure would otherwise leave
-          // the panel black with nothing said (#1874).
           const reason =
             e instanceof Error ? e.message : (e as any)?.message ?? String(e);
           console.error("Game Preview could not start", e);
@@ -318,7 +264,6 @@ export class SparkdownPreviewGamePanelManager {
         }
       }
       if (ShowDocumentMessage.type.isRequest(message)) {
-        // A line the route list links to.
         const { uri, selection, takeFocus } = message.params;
         let success = false;
         try {
@@ -344,11 +289,6 @@ export class SparkdownPreviewGamePanelManager {
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
-        // Always answer. `executeLanguageCommand` returns undefined for an
-        // unrecognized command and for a missing/non-string uri, and the
-        // webview player awaits this request — skipping the response leaves
-        // it waiting for the life of the panel (#332). `null` is the
-        // JSON-RPC "no value" result.
         const result = await executeLanguageCommand(params);
         this.sendResponse(
           ExecuteCommandMessage.type,
@@ -417,9 +357,6 @@ export class SparkdownPreviewGamePanelManager {
         this._gameRunning = false;
       }
       if (GameWorkerRestartedMessage.type.isNotification(message)) {
-        // The player restarted its worker because the script did not yield
-        // (#679). The line is in the Problems panel too, but the author did
-        // not ask for anything, so say what happened.
         const { location } = message.params;
         const showLine = "Show Line";
         vscode.window
@@ -463,8 +400,6 @@ export class SparkdownPreviewGamePanelManager {
     const initialization = ++this._initializations;
     const overtaken = () => initialization !== this._initializations;
     this.registerFileWatchers();
-    // The read begun as the webview loaded, unless a file has changed since
-    // it began, when what it found may be out of date.
     const reading =
       this._workspaceFilesReading && !this._workspaceFilesStale
         ? this._workspaceFilesReading
@@ -481,16 +416,11 @@ export class SparkdownPreviewGamePanelManager {
     await this.sendRequest(InitializeMessage.type, {
       initializationOptions: {
         settings,
-        // Each file with the address the webview loads it from, which the
-        // player would otherwise ask for file by file: a request each, before
-        // it could start compiling (#1875).
         files: Object.values(files).map((file) => ({
           ...file,
           src: file.src ?? this.getWebviewSrc(file.uri),
         })),
         definitions: {
-          // builtins now come from the implicitly-imported builtins prelude
-          // (useBuiltinsPrelude is the compiler default).
           optionals: DEFAULT_OPTIONAL_DEFINITIONS,
           schemas: DEFAULT_SCHEMA_DEFINITIONS,
           descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
@@ -506,9 +436,6 @@ export class SparkdownPreviewGamePanelManager {
     if (overtaken()) {
       return;
     }
-    // Scripts open in an editor reach the preview as edits, so it must know
-    // them as open: their saves are then not mistaken for outside changes to
-    // the file, and their text is the editor's, unsaved edits included.
     for (const openDocument of vscode.workspace.textDocuments) {
       this.notifyOpenedTextDocument(openDocument);
     }
@@ -524,14 +451,6 @@ export class SparkdownPreviewGamePanelManager {
     this._onDidConnectPanel.fire();
   }
 
-  /** Watch the project's files, once per manager lifetime: initialization
-   *  runs again every time the webview is reloaded (e.g. moved or undocked),
-   *  and re-creating watchers each time would leak them and duplicate
-   *  listeners. Watching starts before the panel's first read of the files,
-   *  so a file created, changed or deleted after that read began is not lost:
-   *  the read is marked out of date, and the initialization reads again
-   *  (#1874). Each change is also sent to the player as it happens; one that
-   *  reaches it before its initialization waits for the project there. */
   protected registerFileWatchers() {
     if (this._fileWatchersRegistered) {
       return;
@@ -556,18 +475,13 @@ export class SparkdownPreviewGamePanelManager {
     }
   }
 
-  /** Start reading the project's files for the next initialization. */
   protected readWorkspaceFiles() {
     this._workspaceFilesStale = false;
     const reading = getWorkspaceFiles();
-    // Awaited by the initialization, which reports a failure; a panel closed
-    // before its player mounted never takes it.
     reading.catch(() => {});
     this._workspaceFilesReading = reading;
   }
 
-  /** The address the panel's webview loads `uri` from, as
-   *  `sparkdown.getFileSrc` answers it. */
   protected getWebviewSrc(uri: string) {
     return this._panel?.webview.asWebviewUri(vscode.Uri.parse(uri)).toString();
   }
@@ -588,7 +502,6 @@ export class SparkdownPreviewGamePanelManager {
       const document = editor.document;
       if (document.languageId === "sparkdown") {
         if (!vscode.debug.activeDebugSession && !this._gameRunning) {
-          // TODO: Preview new file?
         }
       }
     }
@@ -617,8 +530,6 @@ export class SparkdownPreviewGamePanelManager {
     });
   }
 
-  /** A Sparkdown document that is one of the project's files, not a view of
-   *  one (a diff or an older revision) under another scheme. */
   protected isProjectScript(document: vscode.TextDocument) {
     return (
       document.languageId === "sparkdown" &&
@@ -682,7 +593,6 @@ export class SparkdownPreviewGamePanelManager {
     };
   }
 
-  /** An autocomplete list highlighted a suggestion, or closed. */
   notifyPreviewCompletion(params: PreviewCompletionParams) {
     this.sendNotification(PreviewCompletionMessage.type, params);
   }
@@ -787,7 +697,7 @@ export class SparkdownPreviewGamePanelManager {
     ]);
     const styleNonce = getNonce();
     const scriptNonce = getNonce();
-    return /*html*/ `
+    return `
       <!DOCTYPE html>
       <html class="theme-dark se-theme" lang="en">
         <head>

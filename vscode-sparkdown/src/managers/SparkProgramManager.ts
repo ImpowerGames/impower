@@ -15,17 +15,11 @@ import {
   LanguageClient,
 } from "vscode-languageclient/browser";
 
-/**
- * Notified when a script's program has been recompiled. With slim
- * notifications the program itself is not pushed, so `program` may be
- * undefined -- consumers that need it should pull via `getOrCompile()`.
- */
 type ProgramCompiledListener = (
   uri: vscode.Uri,
   program: SparkProgram | undefined,
 ) => void;
 
-/** The projection relayed by slim `compiler/didCompile` notifications. */
 export interface SlimProgram {
   uri: string;
   scripts: SparkProgram["scripts"];
@@ -85,12 +79,6 @@ export class SparkProgramManager {
     this.updateResourceContexts();
   }
 
-  /**
-   * Handle a slim `compiler/didCompile` notification: the full program was
-   * NOT pushed (that clone cost ~9MB per keystroke on a large project), so
-   * drop any cached full program for the affected scripts and let consumers
-   * pull a fresh one on demand via `getOrCompile()`.
-   */
   updateSlim(uri: vscode.Uri, program: SlimProgram) {
     this._lastCompiledUri = uri.toString();
     for (const scriptUri of Object.keys(program.scripts)) {
@@ -160,9 +148,6 @@ export class SparkProgramManager {
     this._resolveLanguageClientReady(languageClient);
   }
 
-  /** The address of the beat or statement on a line of a script
-   *  (`ProgramLocator.addressAt`), which the language server answers from the
-   *  program it compiled: the extension holds no program's locations. */
   async addressAt(
     uri: vscode.Uri,
     line: number,
@@ -177,8 +162,6 @@ export class SparkProgramManager {
     return address ?? undefined;
   }
 
-  /** Where an address stands (`ProgramLocator.locationOf`) in the program
-   *  the language server compiled for the script `uri`. */
   async locationOf(
     uri: vscode.Uri,
     address: ProgramAddress,
@@ -194,8 +177,6 @@ export class SparkProgramManager {
 
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
-    // This is the PULL path: whoever called `getOrCompile` wants the whole
-    // program, which the slim per-keystroke notifications leave out.
     const params: CompileProgramParams = {
       textDocument: { uri: uri.toString() },
     };
@@ -205,8 +186,6 @@ export class SparkProgramManager {
       CancellationToken.None,
     );
     if (program?.scripts) {
-      // Cache the pulled program so bursts of readers don't re-request it;
-      // the next slim didCompile invalidates these entries.
       for (const scriptUri of Object.keys(program.scripts)) {
         this._compiledPrograms.set(scriptUri, program);
         this._playRefusals.set(scriptUri, playRefusalOf(program));

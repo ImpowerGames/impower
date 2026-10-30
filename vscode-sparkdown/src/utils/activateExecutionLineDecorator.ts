@@ -205,7 +205,6 @@ const highlightLines = (
 };
 
 const updateDecorations = (editor: vscode.TextEditor) => {
-  // Apply decorations
   editor.setDecorations(
     currentlyExecutedLineDecoration,
     Array.from(currentlyExecutedLines).map(

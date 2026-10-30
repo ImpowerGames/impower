@@ -21,7 +21,6 @@ export const exportCsv = async (): Promise<void> => {
     return;
   }
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("csv");
-  // TODO: include all scripts relative to main.sd
   const script = editor.document.getText();
   const parser = new ScreenplayParser();
   const tokens = parser.parseAll([script]);

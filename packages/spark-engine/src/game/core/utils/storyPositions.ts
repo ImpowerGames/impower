@@ -31,7 +31,7 @@ const programPositions = (story: ProgramStory): StoryPositions => ({
   stack: () => story.stackAddresses(),
   jumpTo: (address) => {
     if (address === TOP_LEVEL_START) {
-      story.ChoosePathString("0");
+      story.ChooseStart();
     } else {
       story.ChooseAddress(address);
     }

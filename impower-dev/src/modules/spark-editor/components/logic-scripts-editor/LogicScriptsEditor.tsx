@@ -9,21 +9,6 @@ import LogicScriptEditor from "../logic-script-editor/LogicScriptEditor";
 export const propDefaults = {};
 export type LogicScriptsEditorProps = Partial<typeof propDefaults>;
 
-/**
- * Multi-script editor frame. Used when the user opens a script from
- * the Scripts list — replaces the list view with a header (back button
- * + rename input) and the actual script editor underneath.
- *
- *   <FileEditorNavigation onBack={...}>   ← Preact, callback API
- *     <input>                                (rename, controlled)
- *   </FileEditorNavigation>
- *   <se-logic-script-editor />            ← Preact; receives `filename`.
- *
- * The rename input is a controlled `<input>` rather than the legacy
- * `<s-input>`. The file-options "delete" handler the legacy class
- * carried referenced an event that no markup actually emits here, so
- * it's been left out.
- */
 export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   const filename = useComputed(() => {
     return (
@@ -32,9 +17,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
     );
   }).value;
 
-  // Split the active filename into folder / basename / ext so the header shows
-  // just the name (e.g. "intro", not "scripts/intro") while a rename still
-  // preserves the folder the script lives in.
   const lastSlash = filename.lastIndexOf("/");
   const dir = lastSlash >= 0 ? filename.slice(0, lastSlash) : "";
   const base = lastSlash >= 0 ? filename.slice(lastSlash + 1) : filename;
@@ -43,12 +25,8 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   const oldExt = lastDot > 0 ? base.slice(lastDot + 1) : "";
   const displayName = oldName;
 
-  // Color the rename header in red/yellow when the open script has
-  // errors/warnings — same severity → color mapping the sub-tab uses.
   const diagnosticColor = useDiagnosticColor(filename);
 
-  // Controlled input value. Reset whenever the active filename changes
-  // so navigating between scripts shows the right name.
   const [draftName, setDraftName] = useState(displayName);
   useLayoutEffect(() => {
     setDraftName(displayName);
@@ -63,7 +41,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
 
   const commitRename = async () => {
     if (!draftName || draftName === oldName) return;
-    // Rebuild the full path: keep the folder + extension, swap only the name.
     const newBase = oldExt ? `${draftName}.${oldExt}` : draftName;
     const newFilename = dir ? `${dir}/${newBase}` : newBase;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -85,17 +62,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   return (
     <div class="flex flex-1 flex-col min-h-0">
       <FileEditorNavigation onBack={handleBack}>
-        {/* Wrapper carries the tap ripple + hover tint, mirroring main's
-            `<s-input ripple-color="white">`. `text-foreground` (white) pins
-            the <Ripple/> wave to white regardless of the input's diagnostic
-            color (main's ripple-color="white" is likewise fixed); the input
-            keeps its own (possibly red/yellow) text color. overflow-hidden +
-            rounded clips the wave to the field box.
 
-            `inline-block` (NOT w-full) so the box hugs the input rather than
-            spanning the whole header — main's field is ~the input's default
-            ~20-char intrinsic width (its <s-input>'s inner <input> has no
-            size), centered by the title slot's text-center. */}
         <div class="relative inline-block h-10 overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
           <input
             ref={inputRef}
@@ -103,10 +70,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             value={draftName}
             aria-label={displayName}
             placeholder={displayName}
-            // `h-full` makes the input the full 40px box; a single-line input
-            // vertically centers its own text natively (no flex — sparkle's
-            // `* { flex-flow: column }` reset would flip an inline-flex box to
-            // a column and break items-center, top-aligning the text).
             class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-engine-700 ${
               diagnosticColor || "text-foreground"
             }`}

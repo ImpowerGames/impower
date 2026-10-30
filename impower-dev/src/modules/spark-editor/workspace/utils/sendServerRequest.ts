@@ -19,8 +19,6 @@ const sendServerRequest = async <K extends keyof ResponseTypeMap>(
       xhr.open(method, url, true);
       xhr.responseType = responseType;
       if (typeof body === "string") {
-        // When body is a string, 'Content-Type' must be set manually.
-        // (defaults to 'text/plain' if none specified)
         xhr.setRequestHeader("Content-Type", contentType || "text/plain");
       }
       xhr.setRequestHeader("X-Requested-With", "XmlHttpRequest");

@@ -1,27 +1,9 @@
-// Pure folder-tree model for the file manager. Turns a flat list of
-// project-relative paths (the keys of the workspace `Record<uri, FileData>`,
-// stripped to relative paths) into a nested tree, and flattens the *expanded*
-// tree into a linear list of rows for the (windowed) virtualizer in FileList.
-//
-// Deliberately dependency-free and DOM-free so it is unit-testable in isolation:
-// the component layer owns selection/expansion state and rendering; this module
-// owns only the structural math.
-
-/**
- * Hidden marker file that persists an (otherwise empty) folder. OPFS dirs are
- * implicit — they exist only while they contain a file — so creating an empty
- * folder writes this sentinel. buildFileTree treats it as a folder marker and
- * never renders it as a file.
- */
 export const FOLDER_SENTINEL = ".folder";
 
 export interface FileTreeNode {
-  /** Project-relative path. For a folder this is the path WITHOUT a trailing slash. */
   path: string;
-  /** Last path segment — the display name. */
   name: string;
   isDirectory: boolean;
-  /** Folders first, then files; each group sorted case-insensitively. Empty for files. */
   children: FileTreeNode[];
 }
 
@@ -29,28 +11,13 @@ export interface FileTreeRow {
   path: string;
   name: string;
   isDirectory: boolean;
-  /** 0 = top level; increments per folder depth (drives indentation). */
   depth: number;
-  /** A folder with at least one child (drives the disclosure chevron). */
   hasChildren: boolean;
-  /** A folder whose path is in the expanded set (drives chevron direction). */
   expanded: boolean;
 }
 
 export interface BuildFileTreeOptions {
-  /**
-   * Basenames treated as empty-folder sentinels: they materialize their parent
-   * folder but are NOT shown as files. OPFS dirs are implicit (they only exist
-   * while they contain a file), so an empty folder is persisted by writing a
-   * sentinel like `.folder`. Default: `[".folder"]`.
-   */
   sentinelNames?: string[];
-  /**
-   * Optional comparator applied to FILE siblings only (folders always sort
-   * first, by name). Lets the file list sort by modified/size/type — the
-   * comparator closes over the per-path metadata. When omitted, files fall back
-   * to the default extension-then-name grouping.
-   */
   compareFiles?: (a: FileTreeNode, b: FileTreeNode) => number;
 }
 
@@ -61,7 +28,6 @@ interface MutableNode {
   children: Map<string, MutableNode>;
 }
 
-/** Lowercased final extension of a basename, or `""` when it has none. */
 const extOf = (name: string): string => {
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
@@ -70,13 +36,9 @@ const extOf = (name: string): string => {
 const makeSortNodes =
   (compareFiles?: (a: FileTreeNode, b: FileTreeNode) => number) =>
   (a: FileTreeNode, b: FileTreeNode): number => {
-    // Folders always sort first.
     if (a.isDirectory !== b.isDirectory) {
       return a.isDirectory ? -1 : 1;
     }
-    // Files: defer to the caller's comparator (sort by modified/size/type) when
-    // provided; otherwise group by extension first (all `.png` together, then
-    // `.sd`, …) then alphabetically. Folders always sort by name.
     if (!a.isDirectory && !b.isDirectory && compareFiles) {
       const c = compareFiles(a, b);
       if (c !== 0) {
@@ -91,7 +53,6 @@ const makeSortNodes =
     const bn = b.name.toLowerCase();
     if (an < bn) return -1;
     if (an > bn) return 1;
-    // Stable, deterministic tiebreak for names differing only by case.
     return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
   };
 
@@ -108,11 +69,6 @@ const toSortedNodes = (
     }))
     .sort(sorter);
 
-/**
- * Build a nested folder tree from a flat list of project-relative paths.
- * Intermediate folders are created implicitly and deduped, so passing only leaf
- * file paths (e.g. `chapters/intro.sd`) is enough.
- */
 export const buildFileTree = (
   paths: string[],
   options?: BuildFileTreeOptions,
@@ -127,8 +83,6 @@ export const buildFileTree = (
     }
     const leaf = segments[segments.length - 1]!;
     const isSentinel = sentinels.has(leaf);
-    // For a sentinel, every kept segment is a folder (the sentinel itself is
-    // dropped); otherwise the last segment is a file and the rest are folders.
     const kept = isSentinel ? segments.slice(0, -1) : segments;
 
     let level = root;
@@ -143,8 +97,6 @@ export const buildFileTree = (
         node = { name: segment, path: nodePath, isDirectory, children: new Map() };
         level.set(segment, node);
       } else if (isDirectory) {
-        // A folder segment always wins over a same-named file leaf (degenerate
-        // input where a name is used as both a file and a folder).
         node.isDirectory = true;
       }
       level = node.children;
@@ -155,12 +107,6 @@ export const buildFileTree = (
   return toSortedNodes(root, makeSortNodes(options?.compareFiles));
 };
 
-/**
- * Flatten the tree into the linear, display-ordered rows the virtualizer
- * renders. A folder's children are emitted only when its path is in `expanded`,
- * unless `expandAll` is set (used while searching, so matches buried in
- * collapsed folders are revealed).
- */
 export const flattenVisibleRows = (
   roots: FileTreeNode[],
   expanded: ReadonlySet<string>,
@@ -189,12 +135,6 @@ export const flattenVisibleRows = (
   return rows;
 };
 
-/**
- * Direct children of the folder `scopePath` (`""` = project root). Walks the
- * path segment by segment; returns `null` when `scopePath` doesn't resolve to a
- * folder (e.g. it was deleted while scoped into it). Sibling names are unique
- * within a folder, so name-matching per level is exact.
- */
 const childrenOf = (
   roots: FileTreeNode[],
   scopePath: string,
@@ -212,23 +152,11 @@ const childrenOf = (
   return node ? node.children : roots;
 };
 
-/**
- * Child nodes of the folder `prefix` (e.g. the contents of `scripts/`), used to
- * ROOT a FileList at a subtree: the tree is built from full project-relative
- * paths, then we descend past the `scripts`/`assets` node so the panel shows its
- * contents (not the wrapper folder). `""` returns the whole forest; a prefix
- * that doesn't resolve to a folder returns `[]` (an empty subtree → empty panel).
- */
 export const subtreeChildren = (
   roots: FileTreeNode[],
   prefix: string,
 ): FileTreeNode[] => (prefix ? (childrenOf(roots, prefix) ?? []) : roots);
 
-/**
- * The "dive mode" rows: the direct children of `scopePath`, each as a depth-0
- * row (mobile shows one folder level at a time, so there is no indentation).
- * Returns `[]` when `scopePath` no longer resolves to a folder.
- */
 export const childrenRows = (
   roots: FileTreeNode[],
   scopePath: string,
@@ -247,11 +175,6 @@ export const childrenRows = (
   }));
 };
 
-/**
- * Breadcrumb trail for `scopePath`, shallowest → deepest, as `{ name, path }`
- * (the cumulative path each crumb scopes to). Excludes the root — the UI renders
- * its own root/home crumb. `""` → `[]`.
- */
 export const breadcrumbSegments = (
   scopePath: string,
 ): { name: string; path: string }[] => {
@@ -265,12 +188,6 @@ export const breadcrumbSegments = (
   return trail;
 };
 
-/**
- * The deepest existing ancestor of `scopePath` (itself included) that still
- * resolves to a folder in `roots`. Recovers the dive-mode scope after the
- * scoped folder — or one of its ancestors — is deleted or renamed; `""` (root)
- * always resolves.
- */
 export const resolveScopePath = (
   roots: FileTreeNode[],
   scopePath: string,
@@ -289,11 +206,6 @@ export const resolveScopePath = (
   return valid;
 };
 
-/**
- * Every descendant node path (files AND subfolders) beneath `folderPath`, NOT
- * including `folderPath` itself. `""` / a path that doesn't resolve to a folder
- * → `[]`. Used to cascade a folder's checkbox selection to everything inside it.
- */
 export const descendantPaths = (
   roots: FileTreeNode[],
   folderPath: string,
@@ -328,20 +240,10 @@ export interface StickyRow {
   path: string;
   name: string;
   depth: number;
-  /** Index of the folder's row in the flattened list (for scroll-to-on-click). */
   index: number;
-  /** Vertical px offset within the pinned stack (slot top, minus push-out). */
   offset: number;
 }
 
-/**
- * VS Code "sticky scroll": the expanded ancestor folders of whatever row sits at
- * the top of the scroller, to be pinned as headers. Walks the flattened `rows`
- * back from the top row to collect its ancestor folder at each shallower depth
- * (shallow → deep), then slides the DEEPEST header up as its folder's contents
- * scroll past (so it eases out instead of popping). Tree mode only — the caller
- * passes `[]`/skips it in dive mode.
- */
 export const computeStickyRows = (
   rows: FileTreeRow[],
   scrollOffset: number,
@@ -358,8 +260,6 @@ export const computeStickyRows = (
   if (!topRow) {
     return [];
   }
-  // Ancestor folder rows (shallow → deep): the nearest preceding row at each
-  // shallower depth (which, by tree construction, is always a folder).
   const stack: { row: FileTreeRow; index: number }[] = [];
   let depth = topRow.depth;
   for (let i = topIndex - 1; i >= 0 && depth > 0; i -= 1) {
@@ -368,9 +268,6 @@ export const computeStickyRows = (
       depth -= 1;
     }
   }
-  // If the top row is itself an OPEN folder whose own row has started scrolling
-  // off the top, pin it too — so a folder sticks the moment it reaches the top,
-  // not only once its first child does.
   if (
     topRow.isDirectory &&
     topRow.hasChildren &&
@@ -382,8 +279,6 @@ export const computeStickyRows = (
   if (stack.length === 0) {
     return [];
   }
-  // Push the deepest header up (eventually clipped above the stack) as the
-  // bottom of its subtree scrolls past, so it eases out instead of popping.
   const deepest = stack[stack.length - 1]!;
   let lastDescendant = deepest.index;
   for (let i = deepest.index + 1; i < rows.length; i += 1) {
@@ -405,11 +300,6 @@ export const computeStickyRows = (
   }));
 };
 
-/**
- * Case-insensitive substring filter over the full relative path. Because the
- * tree is rebuilt from the surviving paths, a match keeps its ancestor folders
- * automatically (typing a folder name reveals everything beneath it).
- */
 export const filterPaths = (paths: string[], query: string): string[] => {
   const q = query.trim().toLowerCase();
   if (!q) {
@@ -418,15 +308,6 @@ export const filterPaths = (paths: string[], query: string): string[] => {
   return paths.filter((path) => path.toLowerCase().includes(q));
 };
 
-/**
- * Compute the `{ from, to }` relative-path moves needed to relocate
- * `fromFolder` (and everything beneath it) so it becomes `toFolder`. Drives
- * WorkspaceFileSystem.moveFolder, which renames each file across directories.
- * Returns `[]` when nothing lives under `fromFolder`.
- *
- * Example: relocating `chapters` -> `archive/chapters` rewrites
- * `chapters/intro.sd` to `archive/chapters/intro.sd`.
- */
 export const computeFolderMoves = (
   relativePaths: string[],
   fromFolder: string,
@@ -439,11 +320,6 @@ export const computeFolderMoves = (
     .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };
 
-// The category roots a project's files are organized under. `assets/urls/`
-// (remote refs) nests inside `assets/`, so it must be listed BEFORE `assets/`:
-// stripCategoryPrefix tries them in order and the nested root has to win, else
-// `assets/urls/x` would strip to `urls/x` instead of `x`. A bare top-level
-// `urls/` is tolerated too (an older layout that put `.url` files there).
 export const CATEGORY_PREFIXES = [
   "assets/urls/",
   "scripts/",
@@ -451,7 +327,6 @@ export const CATEGORY_PREFIXES = [
   "urls/",
 ];
 
-/** Strip a leading category root from a path (longest/nested match first). */
 const stripCategoryPrefix = (p: string): string => {
   for (const prefix of CATEGORY_PREFIXES) {
     if (p.startsWith(prefix)) {
@@ -461,26 +336,6 @@ const stripCategoryPrefix = (p: string): string => {
   return p;
 };
 
-/**
- * Migrate a project layout to its category split: scripts under `scripts/`,
- * remote `.url` refs under `assets/urls/`, every other asset under `assets/`.
- * Each file is placed under the path `subtreeFor(path)` returns (e.g.
- * `"scripts"`, `"assets"`, `"assets/urls"`), PRESERVING any sub-structure
- * (`chapters/act1.sd` → `scripts/chapters/act1.sd`).
- *
- * Re-categorizes a misfiled file too: a `.url` that an earlier layout put under
- * `assets/` (or a top-level `urls/`) moves to `assets/urls/` — the inner path is
- * kept; only the category root is corrected. That makes the function safe to run
- * on every load — idempotent once everything is correctly placed (target ===
- * current → no move).
- *
- * Left in place (returns no move for them):
- *  - `main.sd` — the entry point stays at the project root.
- *  - dotfiles — project metadata (`.name`, …) AND empty-folder sentinels
- *    (`.folder`); a `.`-prefixed basename is never a user script/asset.
- *
- * `subtreeFor(path)` decides the category (extension-based at the call site).
- */
 export const computeLayoutMigration = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,

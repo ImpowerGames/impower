@@ -13,13 +13,6 @@ declare const self: ServiceWorkerGlobalScope;
 
 const RESOURCE_PROTOCOL: string = "/file:/";
 
-// Generated filtered-SVG variants (#299), keyed by REQUEST URL. URL keying is
-// sound here only because asset urls are content-signature-stamped
-// (`?v=<mtime>-<size>`, #305): a byte change produces a NEW url, so an old
-// entry can never be served for changed content. (This SW can't use the
-// editor SW's file-signature keying — it never sees file metadata, only the
-// bytes relayed back from the editor page.) Superseded signatures of the same
-// path+attributes variant are pruned on write.
 const SW_FILTERED_CACHE_NAME: string = "filtered-svgs-attributes-v3";
 
 const _listeners: Set<(message: any) => void> = new Set();
@@ -50,14 +43,8 @@ async function sendRequest<M extends string, P, R>(
   });
 }
 
-/** Filtered-variant generations currently running, keyed by request url. */
 const inFlightFilteredSvgs: Map<string, Promise<string>> = new Map();
 
-/**
- * Relay the root svg's bytes from the editor, filter them, and cache the
- * variant. Resolves to the filtered SOURCE, so concurrent callers can each
- * build their own Response instead of sharing a tee'd body.
- */
 async function generateFilteredSvg(
   url: URL,
   path: string,
@@ -78,12 +65,6 @@ async function generateFilteredSvg(
   try {
     const cache = await caches.open(SW_FILTERED_CACHE_NAME);
     await cache.put(url.href, filteredSvgResponse(filtered));
-    // Prune superseded signatures of this exact variant AFTER responding: same
-    // path + same attributes at a DIFFERENT url means the file's `?v=` signature
-    // moved (an edit), so the old entry can never be requested again. Kept off
-    // the critical path because `cache.keys()` enumerates the whole bucket, and
-    // warming a project's whole variant set would make that O(n^2) on the
-    // thread serving the image the user is waiting for.
     void (async () => {
       try {
         const keys = await cache.keys();
@@ -110,18 +91,12 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
   const filename = path.split("/").at(-1);
   const contentType = guessType(filename || "");
 
-  // On-demand filtered SVG variants (#299): the round-trip only relays the
-  // PATH to the editor, so the attributes param must be honored here or
-  // filtered_src URLs silently render unfiltered.
   const attributesParam = url.searchParams.get("attributes");
   const filter =
     attributesParam && contentType === "image/svg+xml"
       ? parseImageFilterParam(attributesParam)
       : undefined;
 
-  // Serve a previously generated variant WITHOUT paying the SW -> page ->
-  // editor relay round-trip or re-running filterSVG (see the cache-name
-  // comment for why URL keying is sound).
   if (filter) {
     try {
       const cache = await caches.open(SW_FILTERED_CACHE_NAME);
@@ -130,12 +105,6 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         return cached;
       }
     } catch {}
-    // Showing an image asks for the variant TWICE at once — `createImage`
-    // writes the url as `background-image` and as a hidden <img>'s src — and a
-    // preload can race both. Nothing is cached until the first finishes, so
-    // without this every one of them pays the relay AND filterSVG again
-    // (#344). Sharing is best-effort: a failed generation falls through to the
-    // unfiltered relay below rather than failing every caller at once.
     const shared = inFlightFilteredSvgs.get(url.href);
     if (shared) {
       try {
@@ -157,7 +126,6 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
       try {
         return filteredSvgResponse(await generation);
       } finally {
-        // Only if it is still ours — see the shared generator's note.
         if (inFlightFilteredSvgs.get(url.href) === generation) {
           inFlightFilteredSvgs.delete(url.href);
         }

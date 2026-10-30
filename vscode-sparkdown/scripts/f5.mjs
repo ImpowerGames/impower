@@ -1,5 +1,3 @@
-// F5 owns the complete runtime build graph. Producers finish their first
-// build before the extension starts copying their workers; all stay watching.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

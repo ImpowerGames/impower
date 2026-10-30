@@ -80,9 +80,6 @@ export default class WorkspaceFileSystem {
 
   protected _files?: Record<string, FileData>;
 
-  // The Workspace singleton's language server and configuration, passed in
-  // rather than imported: Workspace.ts constructs this class at module load,
-  // so importing it back made the two modules a cycle (#1794).
   protected _ls: WorkspaceLanguageServer;
 
   protected _configuration: WorkspaceConfiguration;
@@ -100,10 +97,6 @@ export default class WorkspaceFileSystem {
       console.error(e);
     };
     this._worker.addEventListener("message", this.handleWorkerMessage);
-    // Observe the rejection: this promise gates language-server startup (it
-    // ends in `this._ls.start`), and an unobserved failure here used to be
-    // indistinguishable from "still loading" — the editor just silently ran
-    // without any program-dependent LSP features.
     void this._initialFilesRef.get(projectId).catch((e) => {
       console.error("[workspace] initial file load failed:", e);
     });
@@ -118,13 +111,6 @@ export default class WorkspaceFileSystem {
     let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
-    // One-time, idempotent migration to the project's category split: every
-    // script (except root `main.sd`) moves under `scripts/`, remote `.url` refs
-    // under `assets/urls/`, and every other asset under `assets/`, preserving
-    // substructure. Already-split projects yield no moves (cheap no-op); a `.url`
-    // left under `assets/` by an earlier layout is re-homed to `assets/urls/`.
-    // Run before the files load into `_files`/the LSP so everything downstream
-    // sees the new layout.
     const migration = computeLayoutMigration(
       files.map((f) => this.getRelativePath(projectId, f.uri)),
       (p) =>
@@ -177,24 +163,16 @@ export default class WorkspaceFileSystem {
         return this.executeCommand(params);
       },
     );
-    // Fire-and-forget on purpose (project load must not block on the language
-    // server initializing, which includes a full compile), but the failure has
-    // to be visible — a rejected `start()` previously vanished as an unhandled
-    // rejection and left every program-dependent LSP request erroring.
     void this._ls
       .start(this.getDirectoryUri(projectId), Object.values(this._files))
       .catch((e) => {
         console.error("[workspace] language server failed to start:", e);
       });
-    // Auto-expire old recycle-bin batches (>30 days). Fire-and-forget — it must
-    // not block the project load, and trash is local-only so there's no remote
-    // coordination.
     void this.purgeExpiredTrash(projectId);
     return result;
   }
 
   async executeCommand(params: ExecuteCommandParams) {
-    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
       const result = await this.getFileText(uri);
@@ -333,9 +311,6 @@ export default class WorkspaceFileSystem {
 
   getDisplayName(uri: string) {
     const fileName = this.getFilename(uri);
-    // Drop only the FINAL extension so multi-dot names keep interior dots
-    // (`sprite.idle.001.png` -> `sprite.idle.001`); a leading-dot dotfile has an
-    // empty display name (matches getName).
     const dot = fileName.lastIndexOf(".");
     if (dot <= 0) {
       return dot === 0 ? "" : fileName;
@@ -392,9 +367,6 @@ export default class WorkspaceFileSystem {
     const existingFiles = await this.getFiles(projectId);
     const unzipped = await this.unzipFiles({ data: content });
     const zipFilesToWrite = unzipped
-      // Skip directory entries / empty names — `getFileUri(projectId, "")`
-      // yields the project-root URI (no filename), which makes the OPFS
-      // worker call `getFileHandle("")` and throw "Name is not allowed".
       .filter(({ filename }) => filename && !filename.endsWith("/"))
       .map(({ filename, data }) => ({
         uri: this.getFileUri(projectId, filename),
@@ -472,7 +444,6 @@ export default class WorkspaceFileSystem {
     const existingFiles = await this.getFiles(projectId);
     const unzipped = await this.unzipFiles({ data: content });
     const zipFilesToWrite = unzipped
-      // Skip directory entries / empty names (see writeProjectZip).
       .filter(({ filename }) => filename && !filename.endsWith("/"))
       .map(({ filename, data }) => ({
         uri: this.getFileUri(projectId, filename),
@@ -508,10 +479,6 @@ export default class WorkspaceFileSystem {
     return chunks;
   }
 
-  /**
-   * Project-relative path for a file URI (the path after `file://<projectId>/`).
-   * Falls back to the bare filename for URIs outside the project directory.
-   */
   getRelativePath(projectId: string, uri: string): string {
     const prefix = `${this.getDirectoryUri(projectId)}/`;
     return uri.startsWith(prefix)
@@ -555,11 +522,6 @@ export default class WorkspaceFileSystem {
     return result;
   }
 
-  /**
-   * Create an (otherwise empty) folder by writing a hidden sentinel file —
-   * OPFS directories are implicit, so an empty folder needs a file to persist.
-   * `folderPath` is project-relative (e.g. `chapters` or `art/backgrounds`).
-   */
   async createFolder(projectId: string, folderPath: string) {
     const sentinelPath = `${folderPath.replace(/\/+$/, "")}/${FOLDER_SENTINEL}`;
     return this.createFiles({
@@ -572,7 +534,6 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /** Move/rename a single file to a new project-relative path (across folders). */
   async moveFile(projectId: string, fromPath: string, toPath: string) {
     return this.renameFiles({
       files: [
@@ -584,13 +545,6 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /**
-   * Rename an asset AND rewrite every script reference to it in one workspace
-   * edit (the language server computes the edit; the worker applies the text
-   * rewrites + the file rename atomically-in-order). Falls back to a plain
-   * {@link moveFile} when the asset has no references. Returns how many
-   * references in how many scripts were updated.
-   */
   async renameFileWithReferences(
     projectId: string,
     fromPath: string,
@@ -603,7 +557,6 @@ export default class WorkspaceFileSystem {
       (c): c is LSP.TextDocumentEdit => "edits" in c,
     );
     if (!edit || textEdits.length === 0) {
-      // No references to update — a plain move is enough.
       await this.moveFile(projectId, fromPath, toPath);
       return { referencesUpdated: 0, scriptsAffected: 0 };
     }
@@ -616,10 +569,6 @@ export default class WorkspaceFileSystem {
     return { referencesUpdated, scriptsAffected: textEdits.length };
   }
 
-  /**
-   * Relocate a folder and everything beneath it (e.g. `chapters` ->
-   * `archive/chapters`) by renaming each contained file across directories.
-   */
   async moveFolder(projectId: string, fromFolder: string, toFolder: string) {
     const files = await this.getFiles(projectId);
     const relativePaths = Object.keys(files).map((uri) =>
@@ -637,11 +586,6 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /**
-   * Delete a folder and everything beneath it (the empty dir then disappears).
-   * `mode` forwards to {@link deleteFiles} — user folder deletes pass `"trash"`
-   * so the whole subtree moves to the recycle bin as one restorable batch.
-   */
   async deleteFolder(
     projectId: string,
     folderPath: string,
@@ -658,7 +602,6 @@ export default class WorkspaceFileSystem {
     return this.deleteFiles({ files: toDelete, mode });
   }
 
-  /** Every recycle-bin batch (newest first). */
   async listTrash(projectId: string): Promise<TrashBatch[]> {
     const result = await this.sendRequest(TrashFilesMessage.type, {
       projectId,
@@ -667,7 +610,6 @@ export default class WorkspaceFileSystem {
     return result.batches ?? [];
   }
 
-  /** Restore a trash batch to its original locations; returns the restored files. */
   async restoreTrash(projectId: string, batchId: string): Promise<FileData[]> {
     const result = await this.sendRequest(TrashFilesMessage.type, {
       projectId,
@@ -677,7 +619,6 @@ export default class WorkspaceFileSystem {
     return result.restored ?? [];
   }
 
-  /** Permanently delete one trash batch. */
   async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {
     await this.sendRequest(TrashFilesMessage.type, {
       projectId,
@@ -686,7 +627,6 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /** Permanently empty the whole recycle bin. */
   async emptyTrash(projectId: string): Promise<void> {
     await this.sendRequest(TrashFilesMessage.type, {
       projectId,
@@ -694,7 +634,6 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /** Purge trash batches older than `retentionMs` (default 30 days). */
   async purgeExpiredTrash(
     projectId: string,
     retentionMs?: number,

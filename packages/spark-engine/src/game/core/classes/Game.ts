@@ -20,6 +20,7 @@ import {
   placeDurableAddress,
 } from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -1078,7 +1079,7 @@ export class Game<T extends M = {}> {
   }
 
   routeStartOf(address: ProgramAddress): string {
-    return this.sceneOf(address) ?? "0";
+    return this.sceneOf(address) ?? START_FLOW_NAME;
   }
 
   routesFromStartFirst(address: ProgramAddress): boolean {
@@ -1548,7 +1549,6 @@ export class Game<T extends M = {}> {
     const route = Game.planRouteInFlow(story, program, from, to, budget);
     if (
       route ||
-      from === "0" ||
       budget?.resumeFrom ||
       lastSearchStats.endReason !== "exhausted"
     ) {
@@ -1595,7 +1595,7 @@ export class Game<T extends M = {}> {
       | "pins"
     >,
   ) {
-    return planRoute(story, "0", to, {
+    return planRoute(story, START_FLOW_NAME, to, {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,

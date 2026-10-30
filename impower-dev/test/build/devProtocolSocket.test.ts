@@ -37,7 +37,6 @@ it("retains a closing owner until its pending requests have been failed", async 
   const request = read(editor), response = read(client);
   client.send(JSON.stringify({ jsonrpc: "2.0", id: "closing", method: "write", params: {} }));
   await request;
-  // Hold the server-side handshake before its close event, without a timer race.
   (accepted[0] as any)._readyState = WebSocket.CLOSING;
   const replacement = await connect("editor");
   const code = await Promise.race([
@@ -105,7 +104,6 @@ it("isolates duplicate ids from separate clients and forwards notifications", as
 });
 it("relays only subscribed notifications and tells the editor the union", async () => {
   const { connect } = await host();
-  // A subscription sent before any editor connects is published on connect.
   const early = await connect("client");
   early.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: ["editor/didLoad"] } }));
   await new Promise(resolve => setTimeout(resolve, 20));
@@ -137,7 +135,6 @@ it("relays only subscribed notifications and tells the editor the union", async 
     ["editor/didLoad"],
     [],
   ]);
-  // A subscriber that is replaced by a new editor is republished to it.
   early.send(JSON.stringify({ jsonrpc: "2.0", method: "$/subscribe", params: { methods: ["x"] } }));
   await settle();
   editor.close();

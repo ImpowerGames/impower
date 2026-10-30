@@ -8,35 +8,15 @@ import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/spa
 import { getStaleCacheNames } from "./swCaches";
 import { fileResponse } from "./swRanges";
 
-// Build-time values injected via Vite `define` (see getServiceWorkerDefine).
-// Read through a `typeof` guard so (a) an un-injected build falls back safely
-// instead of throwing, and (b) — crucially — the value can't be folded away by
-// an ambient `process.env` → `{}` replacement. The old `process?.env?.[...]`
-// reads minified to `{}.SW_VERSION` → always "v1", so the SW looked byte-
-// identical on every deploy and PWA auto-update silently never fired.
+// workaround(vite): client builds replace ambient `process.env` with `{}`, so `process.env.X` reads fold away; injected tokens avoid it
 declare const SW_VERSION_INJECTED: string | undefined;
 declare const SW_RESOURCES_INJECTED: string | undefined;
 declare const SW_NODE_ENV_INJECTED: string | undefined;
 const SW_VERSION: string =
   typeof SW_VERSION_INJECTED !== "undefined" ? SW_VERSION_INJECTED : "v1";
 const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
-// Generated image thumbnails. A FIXED (not version-scoped) cache name so the
-// opfs-workspace worker can write into the same bucket at import time without
-// knowing the SW version, and so thumbnails survive SW updates (they're keyed
-// by file signature, so they stay valid until the file itself changes). Bump
-// THUMB_VERSION (in the shared generator) to invalidate every thumbnail when
-// the generation logic changes. Kept across `activate`'s cache sweep.
 const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
-// On-demand filtered SVG variants (#299): same discipline as thumbnails — a
-// FIXED bucket surviving SW updates, keyed by file signature + canonical
-// filter param + FILTER_VERSION (see filters/filteredSvg), with superseded
-// signatures pruned on write.
 const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
-// Baked morph artifacts (src/morph/README.md): the same discipline again, keyed
-// by the file's content digest, the variant's selection, the recipe and the
-// bake format, with superseded signatures pruned on write. The service below
-// coalesces concurrent requests and reuses one artwork's geometry across its
-// variants while this worker lives.
 const SW_MORPH_CACHE_NAME: string = "morph-artifacts";
 const morphService = new MorphBakeService();
 const SW_RESOURCES: string[] = JSON.parse(
@@ -55,10 +35,8 @@ const cacheThenNetwork = async (url: string) => {
   const cache = await caches.open(SW_CACHE_NAME);
   const cachedResponse = await cache.match(url);
   if (cachedResponse) {
-    // Fetch from cache if exists.
     return cachedResponse;
   } else {
-    // Fallback to network
     return fetch(url);
   }
 };
@@ -79,12 +57,6 @@ async function handleLocalAssetRequest(request: Request) {
   const filename = path.split("/").at(-1);
   const contentType = file.type;
 
-  // Image rows can ask for a downscaled thumbnail via `?thumb=<maxWidthPx>`.
-  // We decode + resize here in the SW (its own thread) and cache the tiny webp,
-  // so the page never decodes multi-megapixel art just to paint a ~36px tile —
-  // that full-res decode is what janks the virtualized scroll. SVG is already
-  // vector/small, so it's served as-is. On any decode failure we fall through
-  // to the original bytes (the row's <img> still works or its onError fires).
   const thumbParam = url.searchParams.get("thumb");
   const isRaster =
     contentType.startsWith("image/") && contentType !== "image/svg+xml";
@@ -95,13 +67,6 @@ async function handleLocalAssetRequest(request: Request) {
     }
   }
 
-  // `filtered_image` variants resolve as `?attributes=<canonical>` on the root
-  // SVG's url (#299): apply filterSVG here (SVG-only) and cache the result by
-  // file signature + filter combo, so the program never has to embed SVG
-  // source just to make filtering possible. Garbage or no-op params fall
-  // through to the unfiltered original.
-  // A morph request is a variant's filtered url with the morph's recipe added
-  // (`&morph=…&key=…`): answer with the baked artifact, or its rest render.
   const morphRequest = parseMorphAssetRequest(url.searchParams);
   if (morphRequest && contentType === "image/svg+xml") {
     if (morphRequest === "invalid") {
@@ -111,7 +76,6 @@ async function handleLocalAssetRequest(request: Request) {
     try {
       cache = await caches.open(SW_MORPH_CACHE_NAME);
     } catch {
-      // Baking still works without Cache Storage, only slower.
     }
     return serveMorphAsset({
       service: morphService,
@@ -152,17 +116,6 @@ async function handleLocalAssetRequest(request: Request) {
   return fileResponse(file, request.headers.get("Range"), headers);
 }
 
-/**
- * Cached-or-freshly-generated downscaled webp thumbnail for an image file, or
- * `undefined` if generation fails (caller serves the original).
- *
- * A thin adapter over the shared generator: this supplies Cache Storage, the
- * generator owns sizing, encoding and the cache key. That key is the file's
- * STABLE signature (path + lastModified + size + width), NOT the request url —
- * urls are now signature-stamped too (`?v=<mtime>-<size>`), but the stamp can
- * fall back to a mint-time value when no mtime was known, so the cache keeps
- * deriving its key from the file itself rather than trusting url parsing.
- */
 async function getOrCreateThumbnail(
   path: string,
   file: File,
@@ -182,12 +135,6 @@ async function getOrCreateThumbnail(
   }
 }
 
-/**
- * Cached-or-freshly-filtered SVG variant, or `undefined` (caller serves the
- * unfiltered original). Same thin-adapter shape as `getOrCreateThumbnail`:
- * this supplies Cache Storage, the shared generator owns canonicalization,
- * the signature key, and superseded-signature pruning.
- */
 async function getOrCreateFilteredSvg(
   path: string,
   file: File,
@@ -282,11 +229,9 @@ self.addEventListener("fetch", async (event) => {
   }
   if (SW_NODE_ENV === "production") {
     if (event.request.mode === "navigate") {
-      // Fetching a page route
       event.respondWith(cacheThenNetwork("/"));
       return;
     } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
-      // Fetching a resource
       event.respondWith(cacheThenNetwork(event.request.url));
       return;
     }

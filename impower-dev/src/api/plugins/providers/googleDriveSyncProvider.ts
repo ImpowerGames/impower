@@ -5,14 +5,6 @@ import getSessionCookieData from "../../utils/getSessionCookieData";
 import isXmlHttpRequest from "../../utils/isXmlHttpRequest";
 import setSessionCookieData from "../../utils/setSessionCookieData";
 
-/**
- * The OAuth client `googleapis` constructs, which is also the one its service
- * factories accept. `google-auth-library` is installed twice — `googleapis-
- * common` pins an exact version below the one `googleapis` resolves — so the
- * `Auth` namespace names a different copy of this class than `google.drive`
- * and `google.people` will take, and naming it off the constructor keeps every
- * client in this file on the side that works.
- */
 type OAuthClient = InstanceType<typeof google.auth.OAuth2>;
 
 const FILE_FIELDS =
@@ -62,9 +54,6 @@ const hasSyncPermission = (scope: string = "") => {
   return grantedScopes.includes("https://www.googleapis.com/auth/drive.file");
 };
 
-/**
- * Only allow secure httpOnly sameSite requests
- */
 const secure = async <T>(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -87,9 +76,6 @@ const secure = async <T>(
   }
 };
 
-/**
- * Only allow authenticated requests (with valid session cookie)
- */
 const authenticated = async <T>(
   opts: GoogleDriveSyncProviderOptions,
   request: FastifyRequest,
@@ -118,7 +104,6 @@ const authenticated = async <T>(
 };
 
 const getAccountInfo = async (auth: OAuthClient) => {
-  // Get user profile info
   const peopleService = google.people({ version: "v1", auth });
   const peopleResult = await peopleService.people.get({
     resourceName: "people/me",
@@ -130,7 +115,6 @@ const getAccountInfo = async (auth: OAuthClient) => {
   const email =
     peopleResult.data.emailAddresses?.filter((n) => n.metadata?.primary)?.[0]
       ?.value || "";
-  // Get user id
   const res = await auth.refreshAccessToken();
   const token = res.credentials.access_token!;
   const expires = res.credentials.expiry_date ?? 0;
@@ -157,7 +141,6 @@ interface GoogleDriveSyncProviderOptions {
 const googleDriveSyncProvider: FastifyPluginAsync<
   GoogleDriveSyncProviderOptions
 > = async (app, opts) => {
-  // SIGN-IN
   app.post<{
     Body: {
       code: string;
@@ -182,14 +165,12 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // SIGN-OUT
   app.post("/api/auth/signout", async (request, reply) => {
     return secure(request, reply, async () => {
       deleteSessionCookie(request);
     });
   });
 
-  // GET ACCOUNT
   app.get("/api/auth/account", async (request, reply) => {
     return secure(request, reply, async () => {
       const sessionCookieData = getSessionCookieData(request);
@@ -225,7 +206,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // GET ACCESS
   app.get("/api/auth/access", async (request, reply) => {
     return authenticated(opts, request, reply, async (auth) => {
       const res = await auth.refreshAccessToken();
@@ -237,7 +217,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // UPLOAD NEW FILE
   app.post<{
     Params: {
       folderId: string;
@@ -269,7 +248,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // UPDATE EXISTING FILE
   app.put<{
     Params: {
       fileId: string;
@@ -304,7 +282,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
         return ERROR.FILE_UPLOAD_TOO_LARGE.data;
       }
       if (isZipFile) {
-        // Delete all other zip file revisions so that we only keep latest zip
         const revisionsResult = await drive.revisions.list({
           fileId,
           fields: "*",
@@ -333,7 +310,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // GET ALL REVISIONS
   app.get<{
     Params: {
       fileId: string;
@@ -350,7 +326,6 @@ const googleDriveSyncProvider: FastifyPluginAsync<
     });
   });
 
-  // GET SPECIFIC REVISION
   app.get<{
     Params: {
       fileId: string;

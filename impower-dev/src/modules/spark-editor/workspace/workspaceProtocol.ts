@@ -24,7 +24,6 @@ function protocolError(error: unknown) {
   return { code: -32603, message: String(error) };
 }
 
-/** The same page bus used by editor controls, available without a dev bridge. */
 export function registerWorkspaceProtocol() {
   const observer = new ProtocolObserver();
   observer.onRequest(DiagnosticsSettledMessage.type, async (message) => {

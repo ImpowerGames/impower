@@ -1298,8 +1298,8 @@ export class ProgramResolver {
 
     if (unit.kind === "flow") {
       const name = (flow: FlowBase, key: FlowBase | null) => {
-        if (flow._rootWeave) {
-          shape.naming.set(key, namedPointsOf(flow._rootWeave));
+        if (flow._weave) {
+          shape.naming.set(key, namedPointsOf(flow._weave));
         }
         for (const sub of flow._subFlowsByName.values()) {
           name(sub, sub);
@@ -1316,7 +1316,7 @@ export class ProgramResolver {
       this.nameFunction(at, flow, null);
       return;
     }
-    if (flow._rootWeave && at) {
+    if (flow._weave && at) {
       const gathers: ParsedObject[] = [];
       const choices: ParsedObject[] = [];
       for (const item of at.items) {
@@ -1326,9 +1326,9 @@ export class ProgramResolver {
           choices.push(...shape.choices);
         }
       }
-      flow._rootWeave.NameWeavePoints([...gathers, ...choices] as any[]);
-    } else if (flow._rootWeave) {
-      flow._rootWeave.ResolveWeavePointNaming();
+      flow._weave.NameWeavePoints([...gathers, ...choices] as any[]);
+    } else if (flow._weave) {
+      flow._weave.ResolveWeavePointNaming();
     }
     for (const sub of flow._subFlowsByName.values()) {
       this.nameFlow(sub);
@@ -1336,10 +1336,10 @@ export class ProgramResolver {
   }
 
   protected nameFunction(unit: Unit, flow: FlowBase, key: FlowBase | null): void {
-    if (flow._rootWeave) {
+    if (flow._weave) {
       const points = this.shape(unit).naming.get(key);
-      flow._rootWeave.NameWeavePoints(
-        (points ?? namedPointsOf(flow._rootWeave)) as any[],
+      flow._weave.NameWeavePoints(
+        (points ?? namedPointsOf(flow._weave)) as any[],
       );
     }
     for (const sub of flow._subFlowsByName.values()) {
@@ -1357,7 +1357,7 @@ export class ProgramResolver {
       !flow.isFunction &&
       (flow.flowLevel === FlowLevel.Knot ||
         flow.flowLevel === FlowLevel.Stitch ||
-        (flow.flowLevel === FlowLevel.Story && flow._rootWeave !== null))
+        (flow.flowLevel === FlowLevel.Story && flow._weave !== null))
     ) {
       let found: ParsedObject | null = null;
       for (const item of node.items) {

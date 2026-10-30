@@ -154,18 +154,13 @@ describe("a top-level declaration after a scene", () => {
   });
 });
 
-describe("a const function at the top level of a Luau file the story starts from", () => {
+describe("a const function at the top level of a Luau file a top-level run loads", () => {
   it("reads the file's locals", () => {
-    const LUAU = `${ROOT}main.luau`;
-    const { program } = quiet(() =>
-      programCompiler({
-        [LUAU]: lines("local n = 7", "const function f() return n end", "result = f()"),
-      }).compile(LUAU),
-    );
-    expect(errorsOf(program)).toEqual([]);
-    const story = new ProgramStory(program.chunks!);
-    expect(quiet(() => storyRun(story)).errors).toEqual([]);
-    expect((story.variablesState as any).$("result")).toBe(7);
+    const story = storyOf({
+      [MAIN]: lines('run "helpers"', "scene start", "  Result {result}.", "end"),
+      [HELPERS]: lines("local n = 7", "const function f() return n end", "result = f()"),
+    });
+    expect(beatsOf(story)).toEqual(["Result 7.\n"]);
   });
 });
 

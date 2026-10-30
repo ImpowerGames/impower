@@ -2344,8 +2344,8 @@ export class SparkdownCompiler {
           const flow = content[0];
           if (flow) {
             if (flow instanceof Knot) {
-              const rootWeave = flow._rootWeave
-                ? assemblyWeave(flow._rootWeave)
+              const rootWeave = flow._weave
+                ? assemblyWeave(flow._weave)
                 : new Weave([]);
               rootWeave.debugMetadata = flow.debugMetadata;
               const knot = new Knot(
@@ -2357,7 +2357,7 @@ export class SparkdownCompiler {
               knot._bodyClosed = flow._bodyClosed;
               knot._loweredFrom = flow;
               knot.debugMetadata = flow.debugMetadata;
-              knot._rootWeave = rootWeave;
+              knot._weave = rootWeave;
               knot.AddContent(rootWeave);
               for (const [subName, subFlow] of flow._subFlowsByName) {
                 knot._subFlowsByName.set(subName, subFlow);
@@ -2378,7 +2378,7 @@ export class SparkdownCompiler {
               stitch._bodyClosed = flow._bodyClosed;
               stitch._loweredFrom = flow;
               stitch.debugMetadata = flow.debugMetadata;
-              stitch._rootWeave = rootWeave;
+              stitch._weave = rootWeave;
               stitch.AddContent(rootWeave);
               rootWeave.debugMetadata = flow.debugMetadata;
               this._placedBy.set(stitch, compiledBlock);
@@ -2515,7 +2515,7 @@ export class SparkdownCompiler {
 
     const autoTerminate = (flow: FlowBase): void => {
       if (!flow.isFunction) {
-        const rootWeave = flow._rootWeave;
+        const rootWeave = flow._weave;
         if (rootWeave) {
           const last = rootWeave.content[rootWeave.content.length - 1];
           const alreadyTerminates =
@@ -3195,7 +3195,6 @@ export class SparkdownCompiler {
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
-      topLevelFlow: hasLuauExtension(uri),
       blockOf: (obj) => this._placedBy.get(obj),
       record: (block) =>
         this._statementRecords.get(block) ??
@@ -3231,7 +3230,7 @@ export class SparkdownCompiler {
         ),
       },
       !this._previewing && !flows.unsupported,
-      tables,
+      { ...tables, luauEntry: hasLuauExtension(uri) },
     );
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;

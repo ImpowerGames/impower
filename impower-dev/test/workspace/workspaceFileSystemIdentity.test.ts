@@ -1,15 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-// No Workspace mock: importing WorkspaceFileSystem must not evaluate the
-// Workspace singleton, so this file's result cannot depend on what an earlier
-// file in the same process loaded (#1794). We invoke pure identity helpers via
-// prototype.method.call — no instance constructed.
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const proto = WorkspaceFileSystem.prototype;
-// `self` carries the real prototype helpers that some methods call internally
-// (getDisplayName -> this.getFilename). Bind them so the methods see a complete
-// `this` while we still avoid constructing the (Worker-spawning) instance.
 const self = {
   _scheme: "file://",
   getFilename: proto.getFilename,
@@ -23,10 +16,6 @@ const getFileUri = (id: string, fn: string) =>
 const getFilename = (uri: string) => proto.getFilename.call(self, uri);
 const getDisplayName = (uri: string) => proto.getDisplayName.call(self, uri);
 const getUriFromPath = (p: string) => proto.getUriFromPath.call(self, p);
-
-// AREA 5: WorkspaceFileSystem identity (getFileUri / getFilename /
-// getDisplayName) — flat file://<projectId>/<filename> URIs that must
-// round-trip and handle nested paths.
 
 describe("WorkspaceFileSystem uri identity", () => {
   it("getDirectoryUri prefixes the scheme onto the projectId", () => {
@@ -69,9 +58,6 @@ describe("WorkspaceFileSystem uri identity", () => {
     expect(getUriFromPath("proj1/main.sd")).toBe("file://proj1/main.sd");
   });
 
-  // DESIRED: a multi-dot display name keeps interior dots, dropping only the
-  // final extension. getDisplayName uses split(".")[0], so for `a.b.c.png` it
-  // returns `a` instead of `a.b.c`.
   describe("known gaps on main", () => {
     it("getDisplayName keeps interior dots of a multi-dot filename", () => {
       expect(getDisplayName("file://proj1/sprite.idle.001.png")).toBe(

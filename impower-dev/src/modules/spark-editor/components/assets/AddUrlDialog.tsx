@@ -6,14 +6,9 @@ import { useMountTransition } from "../../hooks/useMountTransition";
 export type AddUrlDialogProps = {
   open: boolean;
   onClose: () => void;
-  /** Called with the entered URL + chosen asset name when the user confirms. */
   onSubmit: (url: string, name: string) => void;
 };
 
-/**
- * Default asset name from a URL: the last path segment with its extension
- * dropped (`https://cdn/x/hero.png?v=1` -> `hero`). Query/hash are ignored.
- */
 const deriveName = (url: string): string => {
   const path = url.split(/[?#]/)[0] ?? "";
   const base = path.split("/").filter(Boolean).pop() ?? "";
@@ -21,14 +16,6 @@ const deriveName = (url: string): string => {
   return (dot > 0 ? base.slice(0, dot) : base).trim();
 };
 
-/**
- * Modal for adding a remote/CDN asset by URL. On confirm it writes a
- * `<name>.url` file whose contents are the URL — the engine resolves `.url`
- * files straight to their remote `src` (see opfs-workspace `updateFileCache`),
- * so the asset renders in-game like a local import. The name auto-fills from the
- * URL until the user edits it. Portaled to <body> so the Assets Router's slide
- * transform doesn't clip the fixed overlay.
- */
 export default function AddUrlDialog({
   open,
   onClose,
@@ -40,7 +27,6 @@ export default function AddUrlDialog({
   const urlRef = useRef<HTMLInputElement | null>(null);
   const { mounted, visible } = useMountTransition(open, 200);
 
-  // Reset fields and focus the URL input each time the dialog opens.
   useEffect(() => {
     if (!open) return;
     setUrl("");
@@ -50,7 +36,6 @@ export default function AddUrlDialog({
     return () => cancelAnimationFrame(id);
   }, [open]);
 
-  // Escape closes.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

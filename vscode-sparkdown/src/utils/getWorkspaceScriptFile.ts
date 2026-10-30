@@ -11,7 +11,6 @@ export const getWorkspaceScriptFile = async (fileUri: vscode.Uri) => {
   const text = Buffer.from(buffer).toString("utf8");
   const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(fileUri));
   const version = doc?.version ?? null;
-  // A `.luau` file a `run` statement reads is registered as Luau (#1389).
   const languageId = ext === "luau" ? "luau" : (doc?.languageId ?? null);
   return { type: "script", uri, name, ext, text, version, languageId };
 };

@@ -4,13 +4,6 @@ export type TextPreviewProps = {
   src: string;
 };
 
-/**
- * Text-file preview: fetches the file's text and renders it in a scrollable
- * `<pre>`. (The old engine used `<object data=… type="text/plain">`, but Chrome
- * doesn't reliably render text/plain in an `<object>` — it shows a blank box —
- * so we fetch + render the text ourselves.) The body is selectable so the
- * content can be read/copied, even though the surrounding chrome is not.
- */
 export default function TextPreview({ src }: TextPreviewProps) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState(false);

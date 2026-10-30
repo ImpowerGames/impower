@@ -225,7 +225,7 @@ function flowToJson(typeName: "Knot" | "Stitch", flow: Knot | Stitch): unknown {
     args: flow.args?.map((a) => a.identifier?.name ?? null) ?? [],
     isFunction: flow.isFunction,
   };
-  const rootWeave = flow._rootWeave;
+  const rootWeave = flow._weave;
   if (rootWeave && rootWeave.content.length > 0) {
     result["body"] = rootWeave.content.map(parsedObjectToJson);
   }

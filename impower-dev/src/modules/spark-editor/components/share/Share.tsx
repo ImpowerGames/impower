@@ -16,12 +16,6 @@ export type ShareProps = Partial<typeof propDefaults>;
 
 type Panel = "game" | "screenplay";
 
-/**
- * Share pane wrapper. Top sub-tabs switch between Game and Screenplay
- * export options. Mirrors the legacy se-share's <s-router> behavior but
- * uses impower-ui's Tabs underneath for accessibility (roving tabindex,
- * arrow-key navigation, ARIA role wiring).
- */
 export default function Share(_props: ShareProps) {
   const panel = (workspace.state.value.panes?.share?.panel || "game") as Panel;
 

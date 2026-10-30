@@ -1,27 +1,3 @@
-/* Document-wide normalize for the impower editor. Replaces the legacy
-   spec-component normalize that defensively zeroed
-   pointer-events/touch-action/user-select/background-size/border on every
-   element (and expected each spec-component to opt back in via its own
-   scoped CSS). With the Preact + Tailwind port we no longer have that
-   opt-in surface, so the defensive resets just made every raw `<input>`,
-   `<a>`, and scrollable region unclickable / un-selectable until manually
-   annotated.
-
-   What stays:
-   - Global flex HYGIENE defaults (`flex-shrink: 0`, `min-width: 0`,
-     `max-width: 100%`). These don't conflict with Tailwind — a component
-     overrides them per-element with `shrink`/`flex-1`/`min-w-*`/`max-w-*`
-     (utility layer wins) — and the chrome relies on them broadly (notably
-     `flex-shrink: 0`: the bottom-nav icon+label column overlaps without it).
-     Kept global on purpose. (`flex-wrap: nowrap` was dropped — it's the
-     browser default, a no-op.)
-   - `flex-direction: column` is the ONE sparkle default that genuinely
-     surprises (Tailwind `flex` should mean row). Chrome components now declare
-     their direction explicitly (`flex-row`/`flex-col`), so it's removed from
-     the global `*`. The embedded sparkdown-document-views' internal CSS was
-     authored against the column default, so it stays SCOPED to their subtrees.
-   - Scrollbar styling, focus-outline suppression, `[hidden]`, `[popover]`. */
-
 @layer normalize {
   * {
     flex-shrink: 0;
@@ -36,7 +12,6 @@
   }
 }
 
-/* Scrollbars (Chromium + Firefox). */
 *::-webkit-scrollbar {
   width: var(--theme-scrollbar-size, 8px);
   height: var(--theme-scrollbar-size, 8px);
@@ -72,8 +47,6 @@
     var(--theme-color-scrollbar-track, hsl(0 0% 0% / 15%));
 }
 
-/* Suppress the platform-native focus ring + tap flash. Per-component
-   focus indicators (ring / outline tailwind utilities) replace this. */
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -87,7 +60,6 @@
   outline: none;
 }
 
-/* Hidden + popover utility resets. */
 [hidden] {
   display: none !important;
 }

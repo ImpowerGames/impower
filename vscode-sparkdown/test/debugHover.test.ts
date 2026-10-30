@@ -1,9 +1,3 @@
-// The debug hover shows a variable's value while the debugger is stopped
-// (#1845): the extension's evaluatable-expression provider names the
-// variable, or dotted path, under the cursor, and the debug adapter answers
-// a hover on a name the selected frame does not have with an error, so VS
-// Code shows the language hover instead of a debug hover reading
-// "undefined".
 import { describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
@@ -79,15 +73,13 @@ import { activateDebugger } from "../src/debugger/activateDebugger";
 import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
 
 const SCRIPT = [
-  "scene main", //                0
-  "  local n = 1", //             1
-  "  stats.health = n + 1", //    2
-  "  Start the frame check.", //  3
-  "end", //                       4
+  "scene main",
+  "  local n = 1",
+  "  stats.health = n + 1",
+  "  Start the frame check.",
+  "end",
 ].join("\n");
 
-/** The text the debug hover evaluates for a hover at `line`, `character`
- *  of `SCRIPT`, or undefined when the provider names nothing there. */
 const hoverAt = (line: number, character: number) => {
   if (!state.provider) {
     activateDebugger({ subscriptions: [] } as any, {} as any);
@@ -107,7 +99,6 @@ const hoverAt = (line: number, character: number) => {
 
 describe("the debug hover's expression", () => {
   it("is the variable under the cursor", () => {
-    // `n` in `local n = 1`, and in `n + 1`.
     expect(hoverAt(1, 8)).toBe("n");
     expect(hoverAt(2, 17)).toBe("n");
   });
@@ -118,14 +109,11 @@ describe("the debug hover's expression", () => {
   });
 
   it("is nothing off a name", () => {
-    // The space before `local`, and the `=`.
     expect(hoverAt(1, 1)).toBeUndefined();
     expect(hoverAt(1, 10)).toBeUndefined();
   });
 });
 
-/** A debug adapter over a game whose evaluation context is `context`,
- *  recording each response it sends. */
 const adapter = (context: Record<string, unknown>) => {
   const responses: any[] = [];
   const connection = {
