@@ -149,8 +149,6 @@ import {
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 
-/** Whether two values of a program's layout trees hold the same: the same
- *  object, or plain data of the same shape and values (#657). */
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
@@ -177,79 +175,39 @@ function sameValue(a: unknown, b: unknown): boolean {
   );
 }
 
-/** A layout a composed close took out of the mounted set, whose element
- *  stays on the page while its exit plays (#1820). */
 interface Retirement {
   element: Element;
-  /** The stream it was closed in. */
   epoch: number;
-  /** The pin holding its fonts until it has gone. */
   pin?: string;
 }
 
-/** What a display or a played beat changes on the screen, gathered for one
- *  `ui/beat` (#1820). */
 interface Composition {
-  /** A preview's display, from its connect to its sweep, or a played beat. */
   kind: "display" | "beat";
-  /** What the beat sends the page, in order. */
   messages: IMessage[];
-  /** Work it started whose screen changes belong in it: the layouts it
-   *  opens, closes or navigates. */
   realizing: { done: boolean }[];
-  /** Work to run once the beat has gone to the page, or been dropped. */
   afterSent: (() => void)[];
-  /** The ids of the animations it carries, which the page answers once
-   *  they have played. */
   expected: (string | number)[];
-  /** The beat is being sent once what it realizes is in. */
   ending?: boolean;
   time?: number;
   sweep?: boolean;
-  /** For a preview's display, the screen the page shows once it is sent. */
   standing?: StandingScreen;
-  /** For a beat-only display (#657), the elements known to show no written
-   *  text and no picture on the page, hidden as a clear leaves them: a clear
-   *  that reaches only those changes nothing, and is not sent. Any other
-   *  change to an element takes it out. */
   empty?: { text: Set<Element>; image: Set<Element> };
 }
 
-/** The layout tree a connect built (#657). */
 interface UITree {
   build: number;
-  /** The program it was built from. */
   program: Game["program"];
-  /** The game's run of the declarations it was built under
-   *  (`Game.declarationsRun`). */
   declarations: number;
-  /** Building it, and the restore after it, evaluated a call: a function,
-   *  a builtin or a native that is not an operator. A display keeps only a
-   *  tree whose bindings read variables and write text (#657). */
   calls: boolean;
-  /** Building it, and the restore after it, wrote none of the story's
-   *  state: a display that skips them runs the beat from the same state. */
   pure: boolean;
-  /** What each picture the tree resolved by name resolved to. */
   pictures: Map<string, string>;
 }
 
-/** The screen the page shows, as the display that composed it left it
- *  (#657): the tree it stands on, the program it showed, and whether its
- *  beat changed anything beyond written content. */
 export interface StandingScreen {
   build: number;
   program: Game["program"];
-  /** The beat wrote and cleared text and pictures and took choices off,
-   *  and changed nothing else: no element made, destroyed or moved, no
-   *  animation, no layout opened or closed, no binding's update, and no
-   *  layout left retiring or waiting on a font. */
   contentOnly: boolean;
-  /** The pictures the targets a connect does not clear show. */
   pictures: string[];
-  /** The targets that hold text or a picture: a target a connect clears
-   *  that is not among them was cleared by the last connect or beat, and
-   *  shows nothing. */
   holding: { text: string[]; image: string[] };
 }
 
@@ -258,36 +216,13 @@ export interface UIState {
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
-  /**
-   * The currently-open reactive layouts, in mount order (layering). Author
-   * `[[open/close/navigate]]` directives mutate the in-memory {@link
-   * UIModule._mountedLayouts}, which is NOT serializable; this mirror IS part of
-   * the serialized state, so a checkpoint/scrub-preview restore can re-mount the
-   * same layouts via {@link UIModule.onRestore} — exactly how `image` rides
-   * save/restore. `main` is excluded (it auto-mounts at connect). Each entry
-   * keeps only `name` (+ `screen` for diagnostics); the DOM is rebuilt from
-   * the layout AST + current reactive state, so nothing else needs persisting.
-   */
   layout?: { name: string; screen?: string }[];
 }
 
-/** Loop-variable bindings in effect for a scope: each enclosing `for` loop's
- *  variable name → its current iteration value. Empty at the layout root.
- *  Passed as args to a binding evaluator via {@link Binding.params}. The object
- *  reference is stable per for-iteration and mutated in place on re-eval, so
- *  event-handler closures read the latest values. */
 type ReactiveEnv = Record<string, unknown>;
 
-/** The globals + table identities a binding read, captured during its eval
- *  (Phase 4). A registration re-runs only when its deps intersect the turn's
- *  change-set — unless it's in a loop-iteration scope (its value depends on the
- *  per-iteration `env`, which isn't a tracked global/table), in which case it
- *  re-evaluates every turn (equality-gated). */
 type ReactiveDeps = { globals: Set<string>; tables: Set<object> };
 
-/** A reactive span: an inline element whose text comes (partly) from a `{expr}`
- *  binding, with the last resolved value for equality-gated updates + the deps
- *  that gate its re-eval. */
 interface ReactiveText {
   element: Element;
   content: ContentPart[];
@@ -295,12 +230,6 @@ interface ReactiveText {
   deps: ReactiveDeps;
 }
 
-/** A reactive element attribute (an input widget's `value`/`checked`) bound to a
- *  `{expr}` or an interpolated `"…{expr}…"` string — one-way (UI follows state);
- *  user write-back is via `@input`/`@change`. `propValue` is the whole bound
- *  value (a `binding` or interpolated `content`) re-resolved through
- *  {@link UIModule.resolveProp}. `last` is the last applied value for
- *  equality-gated updates. */
 interface ReactiveAttr {
   element: Element;
   prop: string;
@@ -310,10 +239,6 @@ interface ReactiveAttr {
   deps: ReactiveDeps;
 }
 
-/** A slider's engine-computed `--_fill-percentage` (spec §10.1): the filled
- *  fraction derived from its value/min/max props, re-applied when any of those
- *  change (so a custom track gradient can follow the value without an inline
- *  `oninput`). Registered only when at least one of value/min/max is bound. */
 interface ReactiveSliderFill {
   element: Element;
   value: PropValue;
@@ -323,12 +248,6 @@ interface ReactiveSliderFill {
   deps: ReactiveDeps;
 }
 
-/** An inline `#prop=value` on a GENERIC element (row/column/box/text/button/…),
- *  applied as an inline STYLE (spec §4.2: "#prop=value — the inline equivalent
- *  of a style rule"). The prop keeps its authored sparkle name; the renderer
- *  de-aliases + prop→CSS (+ px-ifies bare numeric lengths) via
- *  getCSSPropertyKeyValue/getCssEquivalent. Registered only when the value is a
- *  binding, so `#background-color={team_color}` re-applies when its deps change. */
 interface ReactiveStyle {
   element: Element;
   prop: string;
@@ -337,55 +256,27 @@ interface ReactiveStyle {
   deps: ReactiveDeps;
 }
 
-/** Wrapperless reactive regions (if/for/match) mount their content DIRECTLY
- *  into the real parent — no `display:contents` wrapper — so a constrained
- *  parent like `<select>` sees its `<option>`s as direct children. Positioning
- *  + teardown work off these ordered groups instead of a wrapper element. */
-
-/** An ordered child slot of a mount group: a concrete element or a nested
- *  region. `firstLiveElement` resolves a slot to its leading DOM element (for
- *  insertion anchors); `collectNodes` flattens a group's elements (for
- *  teardown). */
 type ReactiveItem = { el: Element } | { region: ReactiveRegion };
 type ReactiveGroup = ReactiveItem[];
 
-/** An if/match conditional (wrapperless). The active branch's children are
- *  mounted directly into `parent` at the region's slot; `siblings` is the group
- *  this region lives in (to resolve its insertion anchor — the next live element
- *  after it); `content` is the active branch's items (torn down + rebuilt on
- *  switch). `active` is the branch index (`-1` = else/no-match, `-2` = unmounted). */
 interface CondRegion {
   kind: "cond";
   parent: Element;
   node: IfNode | MatchNode;
   active: number;
   scope: ReactiveScope;
-  /** Deps of the branch-selection (the condition/expr/case-value reads), gating
-   *  whether `selectBranch` is re-run on a turn. */
   deps: ReactiveDeps;
   siblings: ReactiveGroup;
   content: ReactiveGroup;
-  /** The region whose content group this region lives in (set when nested in
-   *  another region's branch/iteration). `anchorFor` escalates to the owner's
-   *  anchor when nothing live follows in the local group. Undefined at a
-   *  real-element parent (layout / element / `<select>` children), where a null
-   *  anchor correctly means append-to-parent. */
   owner?: ReactiveRegion;
 }
 
-/** One rendered item of a reactive `for`: its reconciliation key (table identity
- *  for objects, scalar value for primitives, or the entry key for `k,v` loops),
- *  its child scope (whose `env` carries the loop var values, mutated in place on
- *  re-eval), and `content` — its body's ordered items, moved as a contiguous run
- *  on reorder and destroyed when the item is dropped. */
 interface ForIteration {
   key: unknown;
   scope: ReactiveScope;
   content: ReactiveGroup;
 }
 
-/** A reactive `for` (wrapperless): iterations mounted directly into `parent` at
- *  the region's slot, or — when the iterable is empty — the `else` arm. */
 interface ForRegion {
   kind: "for";
   parent: Element;
@@ -394,19 +285,10 @@ interface ForRegion {
   siblings: ReactiveGroup;
   elseScope?: ReactiveScope;
   elseContent?: ReactiveGroup;
-  /** The enclosing component body's slot map, carried so a `slot` inside this
-   *  loop still resolves. `ForRegion` holds no scope object to walk up to. */
   slots?: SlotMap;
-  /** See {@link CondRegion.owner}. */
   owner?: ReactiveRegion;
 }
 
-/** An authored-component instance (`card("x")`, spec §4.7), wrapperless like
- *  cond/for: the component's body is mounted directly into `parent` at the
- *  region's slot, in `scope` (whose `env` holds the param values, evaluated in
- *  the CALLER's env and mutated in place on re-eval). `node` is the call element
- *  (its `params` are the arg bindings; its children are the default-slot content
- *  + `fill`s, exposed to the body via `scope.slots`). */
 interface ComponentRegion {
   kind: "component";
   parent: Element;
@@ -418,10 +300,6 @@ interface ComponentRegion {
   owner?: ReactiveRegion;
 }
 
-/** A `slot` placeholder inside a component body: the caller's matching content
- *  (default children or a named `fill`) mounted at this position but registered
- *  in the CALLER's scope (so it reads caller vars, and refreshes with the
- *  caller, not the component). Structurally static — refresh is a no-op here. */
 interface SlotRegion {
   kind: "slot";
   parent: Element;
@@ -432,14 +310,8 @@ interface SlotRegion {
 
 type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
 
-/** Caller-supplied content for a component's slots, keyed by slot name (`""` =
- *  the default slot). Mounted in the CALLER's scope at each matching `slot`. */
 type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
 
-/** Reactive registrations produced by one mount pass, mirroring the mount tree
- *  so a subtree's spans + nested regions can be torn down together. `env` holds
- *  the loop-var bindings in effect for everything registered in this scope.
- *  `slots` is set only on a component body scope (caller content per slot). */
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
@@ -450,16 +322,6 @@ interface ReactiveScope {
   slots?: SlotMap;
 }
 
-/** Builtin form-control tags → the `<input>` type they render as, plus any
- *  fixed attributes that define the control. Their props
- *  (value/checked/min/max/placeholder/…) become attributes; value/checked also
- *  bind one-way + write back via @input/@change.
- *
- *  `switch` is a checkbox carrying `role="switch"` — the same shape Pico styles
- *  as a toggle. Authored props are applied AFTER these, so `input #type="email"`
- *  (and the other HTML input types Pico styles: password, number, search, tel,
- *  url, date, time, color, …) narrows the generic `input` without needing a
- *  dedicated tag per type. */
 const INPUT_WIDGETS: Record<
   string,
   { inputType: string; attributes?: Record<string, string> }
@@ -471,54 +333,15 @@ const INPUT_WIDGETS: Record<
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
-/**
- * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
- * `<div>` (the overlay's default box), which is still what `text`, `box`,
- * `image`, `mask` and the layout containers want.
- *
- * Names are READABLE rather than HTML jargon (`list`/`item`, not `ul`/`li`),
- * matching the rest of the vocabulary (`input`, `dropdown`, `slider`,
- * `divider`, `modal`). HTML tag names buy nothing for portability anyway — UI
- * Toolkit has no `ul`/`table`, so a Unity renderer maps `list`/`item` just as
- * easily, and readable names keep the model from biasing toward HTML.
- *
- * VISUAL inline styling is deliberately NOT here. `bold`, `italic`,
- * `underline`, `highlight` … are style CLASSES (`text bold "…"`, like
- * `text h1`), and styling WITHIN a line is done with rich-text tags
- * (`text "a <b>bold</b> word"` — see ui/utils/parseRichText.ts).
- *
- * SEMANTIC inline elements are the exception: `strong` and `emphasis` are tags,
- * because <strong>/<em> convey meaning to assistive tech while <b>/<i> are
- * explicitly stylistic-only. Same word, different job — `strong "Vital"` says
- * it matters, `text bold "Vital"` just makes it heavy.
- *
- * A name existing as a style CLASS is NOT a reason to keep it out. This comment
- * used to claim promoting one "would turn existing authoring like
- * `text small "…"` into a two-tags-on-one-line warning". It does not, and no
- * such diagnostic exists: the lookup below reads `node.tag`, the FIRST token on
- * the line, and every later token is a class it never consults. `strong` has
- * been in both roles all along — `text strong "A"` renders `<div class="text
- * strong">` with no complaint. Promoting a name is purely ADDITIVE, which is
- * why `h1`-`h6`, `small` and `code` could move here without touching a single
- * existing call site.
- *
- * Still genuinely not listed: LAYOUT classes (`nav`, `group`, `grid`, `muted`,
- * `container`, …). Those describe arrangement or appearance, not meaning, so
- * there is no element for them to be — `nav` is the one arguable case, and it
- * is deliberately a class because ours is a styled row, not a <nav> landmark.
- */
 const ELEMENT_TAGS: Record<string, string> = {
-  // Interactive / semantic controls
   link: "a",
   button: "button",
   label: "label",
   span: "span",
   divider: "hr",
-  // Lists
   list: "ul",
   ordered_list: "ol",
   item: "li",
-  // Tables. `table_row` rather than `row`, which is taken by the flex class.
   table: "table",
   table_header: "thead",
   table_body: "tbody",
@@ -526,69 +349,26 @@ const ELEMENT_TAGS: Record<string, string> = {
   table_row: "tr",
   head: "th",
   cell: "td",
-  // Text structure. `strong`/`emphasis` are ELEMENTS because they carry
-  // MEANING a screen reader acts on (importance / stress emphasis). Purely
-  // visual weight and slant are the `bold` / `italic` CLASSES instead — the
-  // same split HTML itself draws between <strong>/<em> and <b>/<i>.
   strong: "strong",
   emphasis: "em",
   quote: "blockquote",
   citation: "cite",
-  // Headings. A heading is the single element assistive tech navigates BY —
-  // jump-to-next-heading is how a screen-reader user skims a page at all — and
-  // a `<div class="h2">` supports none of it, nor does it contribute to the
-  // document outline. The visual size was never the point.
-  //
-  // These names already existed as style CLASSES, and still work as classes:
-  // the tag lookup below reads the FIRST token only, so `text h2 "…"` still
-  // renders a div and picks up `.h2`. Promoting is purely additive. An element
-  // also carries its own name as a class, so `h2 "…"` gets `<h2 class="h2">`
-  // and the existing `style h2` applies with no change.
   h1: "h1",
   h2: "h2",
   h3: "h3",
   h4: "h4",
   h5: "h5",
   h6: "h6",
-  // Inline semantics, same reasoning as strong/emphasis: each conveys meaning
-  // a screen reader acts on that no styling can carry.
   code: "code",
-  // `kbd` is user INPUT (keys to press); `code` is source.
   kbd: "kbd",
   preformatted: "pre",
-  // A real <p>, and the ONE element that ships with a bottom margin.
-  //
-  // `text` stays a margin-free div and remains the workhorse: it takes any
-  // children and gets its rhythm from a container's `child-gap`. `paragraph` is
-  // the opt-in document element for prose, where the space below is part of
-  // what a paragraph IS, not a layout decision made by its parent. Both rhythm
-  // models are available and each is explicit at the call site.
-  //
-  // <p> cannot legally contain BLOCK children. The DOM accepts it (we build by
-  // appendChild, not by parsing), so a `text` inside a `paragraph` renders --
-  // but it serializes to HTML that re-parses differently, which is exactly what
-  // the showcase dump does. Keep its children inline.
   paragraph: "p",
-  // `<small>` is side comment / fine print — legally, the small print. Ours is
-  // used for form hints and footnotes, which is that.
   small: "small",
-  // `sub`/`sup`/`kbd` keep the HTML spelling rather than following the
-  // spelled-out convention above (`emphasis`, `citation`, `picture`). Those
-  // renames buy clarity because the HTML name is cryptic or already taken;
-  // these three are the names everyone already knows, and the same spellings
-  // are what an author writes inline as `<sub>`/`<sup>` rich-text tags. Two
-  // names for one thing is the worse cost here.
   sub: "sub",
   sup: "sup",
-  // A figure is the captioned-media pairing, so `caption` is only meaningful
-  // inside one. The authored element is `picture`, NOT `image`: `image` is
-  // already the engine's own name for a backdrop LAYER, which is a container
-  // with children — mapping it to the void `<img>` silently reparents those
-  // children out of existence.
   figure: "figure",
   caption: "figcaption",
   picture: "img",
-  // Structure
   article: "article",
   section: "section",
   header: "header",
@@ -597,28 +377,15 @@ const ELEMENT_TAGS: Record<string, string> = {
   fieldset: "fieldset",
   legend: "legend",
   foldout: "details",
-  // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
-  // confused with the SCREENPLAY `dialogue` style (speech), which is a
-  // completely different thing one letter away.
   modal: "dialog",
   progress: "progress",
 };
 
-/**
- * Props that are HTML ATTRIBUTES rather than styling, on an otherwise generic
- * element. `#prop` normally lowers to an inline style (spec §4.2), which is
- * right for `#padding` / `#child-gap` / `#background-color` — but meaningless
- * for `#href` on a link or `#colspan` on a cell. Everything here (plus any
- * `aria-*` / `data-*`) is routed to an attribute instead.
- */
-/** Tags whose text content is a LABEL for their children rather than inline
- *  text, mounted as a real element of its own (see constructElement). */
 const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
   foldout: { type: "summary", name: "foldout_label" },
 };
 
 
-/** Seconds the music fades out over when a cutscene stops it. */
 const CUTSCENE_MUSIC_FADE = 0.5;
 
 export type UIMessageMap = AnimateElementsMessageMap &
@@ -641,33 +408,17 @@ export type UIMessageMap = AnimateElementsMessageMap &
 export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _root?: Element;
 
-  // Fire-and-forget UI ops (create/update/destroy/move/observe/unobserve/
-  // set-theme) accumulate here and flush as a single `ui/batch` notification —
-  // cutting the per-turn message volume the reactive runtime emits. A microtask
-  // is armed when the buffer goes empty→non-empty as a safety-net flush; the hot
-  // paths also flush synchronously (end of refreshLayouts, and before each
-  // AWAITED op so create-before-use ordering holds). See enqueueUI/flushUIBatch.
   protected _uiBatch: IMessage[] = [];
   protected _uiBatchScheduled = false;
 
-  /** The display or played beat whose screen changes are being composed into
-   *  one `ui/beat` (#1820), while there is one. */
   protected _compose?: Composition;
 
-  /** The composition each mount waiting on its fonts belongs to. A played
-   *  beat that ends before its mount is made hands it to the next. */
   protected _mountOwners = new Map<Promise<void>, Composition>();
 
-  /** The opens of each layout waiting on its fonts, so a close in the
-   *  meantime can call them off. */
   protected _pendingOpens = new Map<string, Set<{ cancelled: boolean }>>();
 
-  /** The layouts retiring on the page (#1820). */
   protected _retiring = new Set<Retirement>();
 
-  /** Settles at the next change of what a composing beat waits on: a
-   *  mount waiting on fonts, an animation playing, work it counts, for
-   *  {@link realized}. */
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
   protected _events: Partial<
@@ -676,64 +427,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _clearOnContinue: Set<string> = new Set();
 
-  // Phase 3 reactive runtime: render layouts from program.sparkle (the typed AST)
-  // instead of the static context.layout struct, with coarse per-turn binding
-  // re-eval. OFF by default — the static path stays the golden-master fallback
-  // until the AST path reaches parity. Flipped per-increment / via config.
   protected _reactive = false;
 
-  // One-shot dep-gate override for the first refresh after `start()` (see
-  // onStart). Cleared at the end of the next refreshLayouts walk.
   protected _refreshAll = false;
 
-  /** Every change to the screen beyond written content (#657): an element
-   *  made, destroyed or moved, an animation, a layout opened, closed or
-   *  navigated, a loading screen, a binding's update. A display whose beat
-   *  leaves it where its restore did changed only content. */
   protected _screenEdits = 0;
 
-  /** Whether an element carrying a display target's class was made or
-   *  destroyed since the display targets were last marked (I-1595). */
   protected _displayTargetsChanged = false;
 
-  /** The `DISPLAY_TARGET_ATTRIBUTE` value the page was last told each
-   *  element carries, null for none. */
   protected _displayTargetMarks = new WeakMap<Element, string | null>();
 
-  /** Whether `refreshLayouts` is applying the bindings' updates. */
   protected _refreshing = false;
 
-  /** The layout tree the last connect built (#657): the program it was
-   *  built from, the run of the declarations it was built under, whether
-   *  building and restoring it wrote any of the story's state, and what
-   *  each picture it resolved by name resolved to. */
   protected _tree?: UITree;
 
   protected _treeBuilds = 0;
 
-  /** The tree a connect is building, until its restore is done. */
   protected _building?: UITree & { writes: boolean };
 
-  /** `_screenEdits` once the restore of the display being shown was done. */
   protected _restoredEdits?: number;
 
-  /** The screen the page shows, once the display that composed it has gone
-   *  to the page (#657). */
   protected _standing?: StandingScreen;
 
-  /** What the last connect or redisplay cleared from the clear-on-continue
-   *  targets that showed a picture, by target, until the first beat after it
-   *  displays: that beat shows again those play keeps under it
-   *  (`keptTargets`) (#1662). */
   protected _clearedPictures?: Record<string, ImageState[]>;
 
-  /** Every message the module has sent the page, or composed for it, and
-   *  every event from the page that reached a handler. */
   protected _uiOps = 0;
 
-  /** `_uiOps` when the standing screen went to the page: a message sent
-   *  or an event handled since (a click, a binding it updated, an input's
-   *  value) changed the screen it records. */
   protected _standingOps?: number;
 
   constructor(game: Game) {
@@ -741,29 +460,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.initLayouts();
   }
 
-  /** Between `connect` (which re-mounts layouts on a reused game) and
-   *  `start()`, `system.simulating` is still set from the route simulation,
-   *  so every paint the mount produces is suppressed while each entry's
-   *  equality memo (`last`) records the freshly evaluated value. The renderer
-   *  is left showing the ABANDONED run's pixels, and the dep-gated per-beat
-   *  refresh can never repair that: it trusts `last`, which already matches
-   *  the new state. On a STOP → PLAY the game looked frozen at the old values
-   *  until handlers happened to walk the number past the stale paint (#365's
-   *  restart face). So the first refresh after a start re-evaluates AND
-   *  repaints every binding, ignoring both gates once. */
   override onStart(): void {
     this._refreshAll = true;
   }
 
-  /**
-   * Evaluate a reactive {@link Binding} to its live value by calling the hoisted
-   * nullary evaluator the compiler emitted (`__binding$<id>() return <expr>
-   * end`, lowerSparkleBody.ts). Guarded by HasFunction so a snapshot-only /
-   * never-hoisted binding returns `undefined` instead of throwing. MUST only be
-   * called between turns (EvaluateFunction asserts IfAsyncWeCant). The story
-   * already saves/restores its output stream around the call, so a pure binding
-   * read can't leak narrative text.
-   */
   protected evalBinding(binding: Binding, env?: ReactiveEnv): unknown {
     const exprId = binding?.exprId;
     if (!exprId) {
@@ -773,28 +473,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!story.HasFunction(exprId)) {
       return undefined;
     }
-    // For a binding inside a `for` loop, the evaluator takes the enclosing loop
-    // variables as parameters; pass their current values (raw runtime InkObjects
-    // for table elements are accepted directly — see StoryState
-    // .PassArgumentsToEvaluationStack). Non-loop bindings are nullary.
     const args = (binding.params ?? []).map((name) => env?.[name]);
-    // A binding that THROWS must not abort the mount. `text "{player.stats.hp}"`
-    // with `player.stats` nil compiles with zero diagnostics and then threw out
-    // of mountTextContent -> constructLayoutsFromAst -> onConnected ->
-    // Game.connect -> buildApp, with no try/catch anywhere on that chain: the
-    // whole preview went blank, nothing reached the wire, and no error was
-    // surfaced. The identical expression in DIALOGUE degrades gracefully, so
-    // the same text was fatal in one position and harmless in the other.
-    //
-    // `undefined` is already the not-evaluable answer here (see the guards
-    // above) and every consumer handles it.
     const reported = this._game.runtimeErrorsReported;
     try {
       return story.EvaluateFunction(exprId, args);
     } catch (e) {
       if (this._building) {
-        // The error ended the story: building the tree changed its state
-        // (#657).
         this._building.writes = true;
       }
       this.reportRuntimeError(
@@ -806,18 +490,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Surface a runtime error without unwinding the caller.
-   *
-   *  `story.onError` is the channel `Game.setupStory` wires to its own runtime
-   *  error notification, so this reaches the editor exactly like an ink runtime
-   *  error rather than dying silently in a console.
-   *
-   *  A function that raises a runtime error ends the story, and the story
-   *  reports that error itself, at the statement that raised it. What
-   *  `EvaluateFunction` throws afterwards is a consequence of that ending, so
-   *  a caller that evaluated a function passes the game's count of reported
-   *  errors from before the call, and when the game has reported one since,
-   *  this reports nothing. */
   protected reportRuntimeError(
     what: string,
     e: unknown,
@@ -830,8 +502,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const detail = e instanceof Error ? e.message : String(e);
-    // No SourceMetadata: a binding evaluation failure has no single ink source
-    // location to point at (the handler wires the message through unchanged).
     this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error, null);
   }
 
@@ -856,14 +526,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onPreview() {
-    // A preview that displayed no beat leaves nothing for a later one.
     this._clearedPictures = undefined;
   }
 
-  /** The targets whose cleared pictures `beat` shows again (#1662), as play
-   *  keeps them under it: those it writes to, or every one when it carries
-   *  on in the box before it (`extended`), which clears no picture; less
-   *  those it shows a picture of its own on, which replaces them. */
   protected keptTargets(
     beat: Pick<Instructions, "image" | "extended">,
   ): string[] {
@@ -881,8 +546,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** The pictures the first beat after a connect or redisplay shows again
-   *  (#1662). */
   clearedPictureNames(
     beat: Pick<Instructions, "image" | "extended">,
   ): string[] {
@@ -900,8 +563,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return names;
   }
 
-  /** Clear the pictures of the clear-on-continue `targets`, keeping what
-   *  they showed for the first beat after the clear (#1662). */
   protected clearTransientPictures(targets: string[]): Promise<void> {
     const cleared: Record<string, ImageState[]> = {};
     for (const target of targets) {
@@ -918,34 +579,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphEpoch += 1;
   }
 
-  /** Forget which images are currently displayed, without emitting anything.
-   *
-   *  A preview replays the story from the top of its scene, so what that replay
-   *  writes is the whole truth about the point being previewed. This record is
-   *  otherwise carried over from the preview before it — nothing resets it,
-   *  because during a real run a backdrop is *meant* to outlive the beat that
-   *  set it — and `onRestore` then puts the old image back up. That is how
-   *  previewing a line above a `[[show backdrop …]]` came up wearing whatever
-   *  backdrop the last preview had.
-   *
-   *  Only images: the renderer sweeps the layers that go unwritten during a
-   *  re-render ({@link sweepReconcile}), and forgetting a kind of content it
-   *  does not sweep would strand that content on screen with nothing left to
-   *  clear it. Text needs no equivalent — the textbox is a clear-on-continue
-   *  transient, wiped at every connect. */
   forgetDisplayedImages() {
     delete this._state.image;
   }
 
-  /** Close the reconcile pass this connect opened: the page removes what it
-   *  still shows that the stream did not emit again. Sent once the stream's
-   *  last write has gone out, after every op still buffered. */
   sweepReconcile() {
-    // What the page shows once this display is up (#657).
     const standing = this.standingScreen();
     if (this._compose) {
-      // The display was composed: the page puts it up whole, and sweeps
-      // with it (#1820). It stands once it has gone to the page.
       this._compose.standing = standing;
       void this.endCompose({ sweep: true });
       return;
@@ -956,8 +596,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._standingOps = this._uiOps;
   }
 
-  /** The screen the display being swept leaves on the page, read at its
-   *  sweep: none when no connect or redisplay restored it. */
   protected standingScreen(): StandingScreen | undefined {
     const tree = this._tree;
     if (!tree || this._restoredEdits === undefined) {
@@ -980,15 +618,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
-  /** The screen the page shows: the last display that composed it has gone
-   *  to the page, and no connect or redisplay has begun since (#657). */
   get standing(): StandingScreen | undefined {
     return this._standing;
   }
 
-  /** The pictures a restore writes for the targets a connect does not
-   *  clear: those the module's state shows. A cleared target (a portrait,
-   *  which shows only with the beat that writes it) is not restored. */
   restoredPictureNames(): string[] {
     const names: string[] = [];
     const imageState = this._state.image;
@@ -1008,17 +641,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return names;
   }
 
-  /**
-   * Why a display cannot leave the screen's structure standing and redo
-   * only its content (#657), or null when it can, as far as this module
-   * knows: the page shows the screen a display composed, whose beat changed
-   * nothing but written content, and nothing was sent the page since;
-   * building the tree under it, and restoring it, wrote none of the
-   * story's state; and the program now held builds the same tree: the same
-   * layout, screen and component trees, the same style, layout, component
-   * and screen channels, and every picture the tree resolved by name
-   * resolving as it did.
-   */
   beatOnlyRefusal(): string | null {
     const standing = this._standing;
     const tree = this._tree;
@@ -1028,9 +650,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!standing.contentOnly || this._uiOps !== this._standingOps) {
       return "screen";
     }
-    // The gate: the tree's bindings evaluated no call, so they read
-    // variables and write text. The watches behind it (`bindings`) catch
-    // what bindings with no call could still change or read.
     if (tree.calls) {
       return "calls";
     }
@@ -1042,9 +661,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (tree.declarations !== this._game.declarationsRun) {
       return "declarations";
     }
-    // The base of the context; the layer of this compile's implicit
-    // definitions moves with every picture a directive names, and what the
-    // tree resolved of it is checked below.
     const base = (program: Game["program"]) => {
       const revision = program?.contextRevision;
       return revision ? revision.slice(0, revision.lastIndexOf(":")) : undefined;
@@ -1052,10 +668,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (before !== after && (base(before) === undefined || base(before) !== base(after))) {
       return "context";
     }
-    // The compiler hands out the same tree for a declaration it did not
-    // lower again, and a structural copy of a built-in one (the prelude's,
-    // copied for every compile), so a tree is the same when it is the same
-    // object or holds the same values.
     const sameTrees = (
       a: Record<string, unknown> | undefined,
       b: Record<string, unknown> | undefined,
@@ -1088,17 +700,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return null;
   }
 
-  /**
-   * A beat-only display's part of the redisplay that takes the connect's
-   * place (#657): the screen's structure stands, and its content goes
-   * through the reconcile a connect's does. What an earlier display composed
-   * and never sent is dropped, the display is composed from here to its
-   * sweep, a content pass opens on the page, and the targets a connect
-   * clears are cleared, as the connect clears them: those that show
-   * something, since the last connect or beat cleared every other one. The
-   * tree, its handlers and the theme stand: `beatOnlyRefusal` holds that a
-   * connect would build them as they are.
-   */
   async onRedisplay() {
     const standing = this._standing;
     this.discardCompose();
@@ -1113,11 +714,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
     if (c && standing) {
-      // The targets a connect clears that hold nothing on the screen the
-      // page shows were cleared by the last connect or beat, and nothing has
-      // changed them since: that screen went to the page whole. An element
-      // a target that holds something resolves to is left out, since a
-      // clear of another target there reaches what it holds.
       const elementsOf = (targets: string[]) =>
         targets.flatMap((target) => this.findElements(target, true));
       const held = new Set([
@@ -1134,8 +730,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({ content: true }));
-    // The load's residue goes, as a construction discards it, so the beat's
-    // refresh sees what a full display's sees: what the beat changed.
     this._game.story.variablesState.takeReactiveChanges();
     await Promise.all([
       this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
@@ -1145,8 +739,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     ]);
   }
 
-  /** Whether a clear of `elements` would change nothing on the page: a
-   *  beat-only display knows each of them shows nothing (#657). */
   protected knownEmpty(kind: "text" | "image", elements: Element[]): boolean {
     const empty = this._compose?.empty?.[kind];
     return (
@@ -1156,7 +748,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** `elements` were written to (`empty` false) or cleared. */
   protected noteContent(
     kind: "text" | "image",
     elements: Element[],
@@ -1174,8 +765,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** The connect's or the redisplay's restore is done: what the beat
-   *  changes after it is the beat's own (#657). A connect's tree is built. */
   markRestored() {
     const building = this._building;
     if (building) {
@@ -1192,12 +781,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._restoredEdits = this._screenEdits;
   }
 
-  /** What a watch of the tree's building began from: the story's state the
-   *  write marks do not see, and the ambient reads made so far. */
   protected _buildWatch?: { unmarked: string; ambient: number; calls: number };
 
-  /** Begin watching what building the tree writes, and the values it reads
-   *  that no story state holds, from a clean change set. */
   protected watchBuild() {
     const vs = this._game.story.variablesState;
     vs.takeReactiveChanges();
@@ -1210,10 +795,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
-  /** The story's state that changes without a write mark: the seed and
-   *  last draw, which every random draw reads and advances; the visits
-   *  counted, which a call to a function raises; and the errors and
-   *  warnings a failing binding adds or reports. */
   protected unmarkedState(): string {
     const story = this._game.story;
     const state = story.state;
@@ -1227,13 +808,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     ].join(":");
   }
 
-  /** Whether the story's state was written while the tree was being built
-   *  or restored, or the building read a value no story state holds (the
-   *  host's clock, an object's identity), which evaluating the same bindings
-   *  again may read otherwise: `changes` is the reactive change set taken
-   *  then. A table a builtin changed in place (`rawset`) is in the write
-   *  marks and not in the change set, and a random draw, a visit and an
-   *  error are in none of them. */
   protected noteBuildWrites(changes: {
     globals: Set<string>;
     tables: Set<object>;
@@ -1263,19 +837,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override async onConnected() {
-    // A new page stream has none of the artifacts sent on an earlier one.
     this._morphSent.clear();
     this._morphWritten.clear();
-    // A bake still under way finishes and sends; the new stream's asks are
-    // answered regardless.
     this._morphBaking = new Set();
-    // The connect re-emits the whole screen, so the page reconciles it
-    // against what it already shows: every node becomes a candidate to reuse
-    // or sweep. Ahead of the root's create, in the connect's own stream.
-    //
-    // A preview's display is composed from here to its sweep (#1820), and
-    // what an earlier display composed but never sent is dropped: this
-    // connect rebuilds the screen from its own state.
     this.discardCompose();
     this._standing = undefined;
     this._restoredEdits = undefined;
@@ -1295,8 +859,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({}));
-    // A layout still retiring belongs to the screen this connect replaces,
-    // and goes with it, before the rebuild mints its ids again (#1820).
     for (const r of [...this._retiring]) {
       this._retiring.delete(r);
       this.destroyElement(r.element);
@@ -1307,37 +869,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
-    // Dropping the root restarts the deterministic structural id counters, so
-    // every id this connect mints has been used before. `_events` is keyed by
-    // those ids and was cleared only in `onReset()` — and this branch reuses
-    // the `Game` across live-preview edits, so from the second edit onward
-    // (the first still takes the `simulation === "fail"` reset path; later
-    // same-beat edits return early and reset nothing) a handler the author had
-    // DELETED kept firing under a re-minted id. Clearing here is safe because
-    // `mountEvent` re-registers every live handler during the replay below.
     this._events = {};
-    // Reactive layouts are the ONLY render path now (the `config.ui.reactive`
-    // opt-in was retired once `main` auto-opens and `[[open/close]]` mount the
-    // rest). The static `constructLayouts` path remains only as a fallback when a
-    // program somehow ships no Sparkle AST (program.sparkle.layouts) at all.
     this._reactive = true;
     this.constructStyles();
     if (this._game.program?.sparkle?.layouts) {
-      // `main` mounts here; its fonts must be resident first so its text never
-      // paints in a fallback face. A font-less `main` mounts synchronously so
-      // the construction stream stays one microtask burst.
       const fonts = this._game.module.assets?.prepareLayout("main");
       if (fonts) {
         await fonts;
-        // A newer connect began meanwhile and builds the screen itself.
         if (this.superseded(epoch)) {
           return;
         }
       }
       this.constructLayoutsFromAst();
     } else {
-      // The static fallback mounts synchronously; its fonts load alongside
-      // rather than ahead, since nothing else declares them any more.
       void this._game.module.assets?.prepareLayout("main");
       this.constructLayouts();
     }
@@ -1372,13 +916,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         tasks.push(this.attributes.restore(target));
       }
     }
-    // Re-mount author-opened reactive layouts recorded in the serialized state
-    // (mirrors image.restore). `onConnected` already mounted `main`; here we add
-    // the layouts that `[[open/navigate]]` opened on earlier beats, so a
-    // checkpoint/scrub-preview shows the correct layout set instead of just
-    // `main`. Mount instantly via constructLayoutFromAst (NOT openLayout) so no
-    // enter transition replays during a scrub. The story state is already loaded,
-    // so each layout's reactive bindings resolve against the restored values.
     if (this._state.layout) {
       let remounted = false;
       for (const { name } of this._state.layout) {
@@ -1392,15 +929,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const fonts = this._game.module.assets?.prepareLayout(name);
             if (fonts) {
               await fonts;
-              // A newer connect began meanwhile and restores its own layouts.
               if (this.superseded(epoch)) {
                 return;
               }
             }
             const vs = this._game.story.variablesState;
             if (this._building) {
-              // What this mount writes is part of what the tree's building
-              // wrote (#657).
               this.watchBuild();
             }
             this.constructLayoutFromAst(layout);
@@ -1413,8 +947,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
       if (remounted) {
-        // Settle load-time reactive residue (as openLayout does) and reveal the
-        // layouts layer so the re-mounted layouts are visible.
         this._game.story.variablesState.takeReactiveChanges();
         this.reveal();
       }
@@ -1422,32 +954,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     await Promise.all(tasks);
   }
 
-  /** Reduce an element's `name`/`type` to a path-segment token: only
-   *  `[A-Za-z0-9_]` survive (runs of anything else collapse to `_`), so a
-   *  segment can never contain the `-` we use as the path separator. */
   protected sanitizeIdPart(s: string): string {
     return s.trim().replace(/[^A-Za-z0-9]+/g, "_") || "el";
   }
 
-  /** Deterministic, structural element id (NOT a random uuid). An element's id
-   *  is its parent's id + a path segment derived from its `tag.classes` name
-   *  (idiomorph-style: identity follows tag+classes), disambiguated by a
-   *  monotonic per-base index from the parent. Because the index is a pure
-   *  function of the create-call sequence (not of which siblings are currently
-   *  live), a deterministic replay assigns the SAME ids every time — which is
-   *  what lets the player reconcile a live-preview re-render against the existing
-   *  DOM (reuse unchanged nodes) instead of tearing the whole tree down on every
-   *  edit. Content (dialogue/image) is keyed separately by stable target name,
-   *  so editing prose never perturbs these.
-   *
-   *  Format `parent-<base>-<index>` (index always present) is collision-free:
-   *  segments strictly alternate base/index after the `e` root, a base can never
-   *  contain `-`, and the index never repeats for a given (parent, base) — so
-   *  distinct elements always map to distinct ids, even under `for`/`if`
-   *  reconcile that mounts a new node before destroying the displaced one. */
   protected generateId(parent: Element | null, name: string, type: string): string {
     if (!parent) {
-      // Root element. Must start with a letter.
       return "e";
     }
     const base = this.sanitizeIdPart(name || type);
@@ -1455,13 +967,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${parent.id}-${base}-${index}`;
   }
 
-  /** Buffer a fire-and-forget UI op for the next `ui/batch` flush. Arms a
-   *  microtask safety-net flush on the empty→non-empty transition so an op never
-   *  lingers past the synchronous turn even on a path that forgets to flush.
-   *
-   *  A route replay buffers nothing: no one displays its beats, and a connect
-   *  that follows in the same turn rebuilds the page from the module state the
-   *  replay leaves, which the replay still changes as usual. */
   protected enqueueUI(msg: IMessage): void {
     if (this._game.replaying) {
       return;
@@ -1473,10 +978,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Emit the buffered ops as one `ui/batch` notification, in order. Called
-   *  synchronously at the hot boundaries (end of refreshLayouts; before each
-   *  AWAITED op, so the consumer applies create/update before a write/animate
-   *  targets them) and by the microtask net. No-op when the buffer is empty. */
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
@@ -1488,10 +989,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.emit(BatchElementsMessage.type.notification({ messages }));
   }
 
-  /** The elements a text or image write to a display target reaches. The
-   *  story writes each choice to `choice 0`, `choice 1` and so on, so
-   *  `choice` reaches what each of those reaches, for every index an element
-   *  carrying `choice` names. */
   protected displayTargetElements(root: Element, target: string): Element[] {
     if (target !== "choice") {
       return this.findElements(target, true);
@@ -1509,23 +1006,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Whether an element's classes name one of the display targets. */
   protected carriesDisplayTarget(element: Element): boolean {
     return element.name.split(" ").some((c) => DISPLAY_TARGETS.includes(c));
   }
 
-  /** Mark each element with the display targets whose writes reach it, as
-   *  the space-separated value of `DISPLAY_TARGET_ATTRIBUTE`, and unmark the
-   *  rest. The builtin style named after a target selects that target's name
-   *  in the value (I-1595), so a `row.dialogue.title` that is only the
-   *  `dialogue` slot takes the dialogue style and not the title style. Which
-   *  elements a target reaches depends on the whole tree: a container
-   *  carrying `title` is the target's slot only while no element is named
-   *  `title`. So the marks are worked out again before a batch goes whenever
-   *  an element carrying a target's class came or went, and go in that
-   *  batch, before the page paints. Each element that carries a target's
-   *  class is told its mark once, even unmarked: a live preview reuses a node
-   *  the last render may have marked. */
   protected markDisplayTargets(): void {
     if (!this._displayTargetsChanged || this._game.replaying) {
       return;
@@ -1553,8 +1037,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const mark = reached.get(element)?.join(" ") ?? null;
         if (this._displayTargetMarks.get(element) !== mark) {
           this._displayTargetMarks.set(element, mark);
-          // Sent as is rather than through `updateElement`: the mark is not
-          // a change to what the element shows (#657).
           this._uiBatch.push(
             UpdateElementMessage.type.request({
               element: element.id,
@@ -1570,23 +1052,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     visit(root);
   }
 
-  /**
-   * Start composing (#1820): until {@link endCompose}, what the module would
-   * send the page to change the screen is gathered instead, in the order it
-   * is sent, and the page gets it all in one `ui/beat`. A preview's display
-   * (`"display"`) composes from its connect to its sweep; a played beat
-   * (`"beat"`) from its first write to the end of what it realizes. Returns
-   * whether this call started a composition: a beat a preview displays is
-   * part of the preview's own.
-   *
-   * A played beat still waiting on what it realizes (a layout's font) when
-   * the next one starts goes to the page as it is, and hands what it still
-   * waits on to the next beat, which waits for it and carries what it puts
-   * on the screen.
-   *
-   * Only a host that asks for it composes (`composeBeats`). A route replay
-   * and a simulation show nothing, so they compose nothing.
-   */
   beginCompose(kind: "display" | "beat" = "beat"): boolean {
     if (
       !this.context?.system?.composeBeats ||
@@ -1608,7 +1073,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       expected: [],
     };
     if (open) {
-      // The open beat goes as it is; what it still realizes is the next's.
       next.realizing.push(...open.realizing.filter((e) => !e.done));
       for (const [mount, owner] of this._mountOwners) {
         if (owner === open) {
@@ -1621,10 +1085,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return true;
   }
 
-  /** Count `work` as part of the beat being composed: the beat is sent once
-   *  what it puts on the screen is in. */
   composeWait(work: Promise<unknown>): void {
-    // What fails is reported, composed or not, and the beat goes on.
     const settled = work.then(
       () => undefined,
       (e) => this.reportRuntimeError("Could not change the screen for this beat", e),
@@ -1641,10 +1102,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  /** Run `work` once the beat being composed has gone to the page, or been
-   *  dropped; at once when nothing is being composed. What a beat's writes
-   *  need on the page (the pictures its pins keep resident) is let go only
-   *  then. */
   afterCompose(work: () => void): void {
     const c = this._compose;
     if (c) {
@@ -1654,9 +1111,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Send the beat being composed, once what it realizes is in: the layouts
-   *  it opens mounted, their fonts loaded. A connect that begins meanwhile
-   *  drops it, and the page never sees any of it. */
   async endCompose(options: { time?: number; sweep?: boolean } = {}) {
     const c = this._compose;
     if (!c || c.ending) {
@@ -1674,7 +1128,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected sendCompose(c: Composition) {
     if (this._compose === c) {
-      // What is still buffered belongs to the beat.
       this.flushUIBatch();
       this._compose = undefined;
     }
@@ -1686,20 +1139,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }),
     );
     if (c.standing) {
-      // The display is on its way to the page, which shows it next (#657).
       this._standing = c.standing;
       this._standingOps = this._uiOps;
     }
     this.runAfterSent(c);
   }
 
-  /** Drop the beat being composed: a newer connect rebuilds the screen.
-   *  The animations it carries will never play, and what waits on them is
-   *  let go as the page lets go of a superseded stream's requests. */
   protected discardCompose() {
     const c = this._compose;
     if (c) {
-      // What is still buffered was the beat's.
       this._compose = undefined;
       this._uiBatch = [];
       for (const id of c.expected.splice(0)) {
@@ -1724,7 +1172,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Whether a mount `c` owns is still waiting on its fonts. */
   protected mountsWaiting(c: Composition): boolean {
     for (const owner of this._mountOwners.values()) {
       if (owner === c) {
@@ -1734,22 +1181,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return false;
   }
 
-  /**
-   * Settles once what the beat started has put its screen changes in: every
-   * piece of work counted for it has settled, and none of the mounts it owns
-   * is waiting on fonts. A layout's transition does not hold it: a composed
-   * open or close starts its animation and goes on, and the animation plays
-   * once the beat is on the page. It wakes on each change of that state,
-   * never in a spin.
-   */
   protected async realized(c: Composition): Promise<void> {
     for (;;) {
       if (this._compose !== c) {
         return;
       }
       if (!c.realizing.some((e) => !e.done) && !this.mountsWaiting(c)) {
-        // Work the settled work started may still be on its way; a turn of
-        // microtasks lets it register before the beat goes.
         await Promise.resolve();
         if (!c.realizing.some((e) => !e.done) && !this.mountsWaiting(c)) {
           return;
@@ -1760,7 +1197,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Settles at the next change of what a composing beat waits on. */
   protected realizationChanged(): Promise<void> {
     if (!this._realizationChange) {
       let resolve!: () => void;
@@ -1808,19 +1244,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return super.emitSettled(msg, transfer);
   }
 
-  /**
-   * Gather `msg` into the beat being composed, in its place, with the
-   * answer the page would give it. The beat's ops keep the order they were
-   * sent in, writes included, so the page applies them as it would have one
-   * at a time. An animation is answered by the page once it has played,
-   * after the beat is on the page. Returns undefined for a message that is
-   * not the beat's.
-   *
-   * Each op is kept as it was when sent, as the wire would have carried it
-   * (#1813): an op can hold the module's own state, which the rest of the
-   * beat goes on changing (a restored text target's saved text, which the
-   * beat's next line of it extends in place).
-   */
   protected capture(
     c: Composition,
     msg: IMessage,
@@ -1922,18 +1345,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (isRootElement) {
       this._root = undefined;
     }
-    // Drop the `@event` handlers registered for this element AND every element
-    // under it, and tell the renderer to detach each DOM listener. A handler
-    // usually sits below the element a region removes: a labelled widget's
-    // `<input>` inside its `<label>`, a button inside a removed row.
-    //
-    // Structural ids are MONOTONIC — `Element.nextChildIndex` never reuses a
-    // number even after removal — so an entry left behind is never overwritten
-    // by a later element. Each one retains its `scope.env` (loop values
-    // included) and, through the handler, the Story, so a keyed `for` that drops
-    // rows, a conditional that switches branch, or a layout that closes would
-    // grow `_events` without bound; `onReset` clears it, but only on a full game
-    // reset.
     const subtree: string[] = [];
     const collect = (el: Element) => {
       subtree.push(el.id);
@@ -1980,18 +1391,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Move an existing element to sit immediately before `before` among its
-   *  siblings (or to the end when `before` is null), emitting `ui/move`. Used by
-   *  keyed `for` reconciliation to relocate a retained item's subtree instead of
-   *  rebuilding it (preserving focus / scroll / in-flight animation). */
   protected moveElement(element: Element, before: Element | null): void {
     const parent = element.parent;
     if (!parent) {
       return;
     }
-    // No-op when already in place — the element immediately precedes `before`
-    // (or is already last when `before` is null). Keeps an unchanged `for` order
-    // from emitting redundant `ui/move`s during reconcile.
     const siblings = parent.children;
     const idx = siblings.indexOf(element);
     const beforeIdx = before ? siblings.indexOf(before) : siblings.length;
@@ -2014,11 +1418,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
     if (this._refreshing) {
-      // A binding's update: the screen no longer stands as the tree was
-      // built (#657).
       this._screenEdits += 1;
     }
-    // An element changed is no longer known to show nothing (#657).
     const empty = this._compose?.empty;
     if (empty) {
       empty.text.delete(element);
@@ -2042,8 +1443,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return [];
     }
     this._screenEdits += 1;
-    // Flush pending create/update ops so the elements this animation targets
-    // exist on the consumer before the animate request arrives.
     this.flushUIBatch();
     return this.emitSettled(
       AnimateElementsMessage.type.request({
@@ -2076,7 +1475,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   show(target: string): void {
-    // TODO: use transition classes to apply show style instead
     for (const targetEl of this.findElements(target)) {
       this.updateElement(targetEl, { style: { display: "flex" } });
     }
@@ -2089,7 +1487,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   hide(target: string): void {
-    // TODO: use transition classes to apply hide style instead
     for (const targetEl of this.findElements(target)) {
       this.updateElement(targetEl, {
         style: { display: "none" },
@@ -2114,20 +1511,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   getImageAssets(type: string, name: string): Image[] {
     const imageName = sortFilteredName(name);
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
-    // Resolve one matching type, once. Untyped fan-out used to include both
-    // the filtered result and its unfiltered root in the same asset list.
     return resolveImageLayers(this.context, image).map((layer) => ({
       $type: "image", $name: imageName, src: layer.src,
     }));
   }
 
-  /**
-   * The fonts a layout needs: every `font` the styles that apply to its
-   * elements reference, by name, by family, by `font.<name>` reference, or
-   * through the `--font-<name>` variable `constructStyles` emits. The global
-   * styles (`layouts`, `main`) apply everywhere, so they always count. A
-   * superset is fine: an extra font loads early, a missing one loads late.
-   */
   getFontNamesForLayout(layoutName: string): string[] {
     const fonts = this.context?.font;
     if (!fonts) {
@@ -2140,7 +1528,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
     const classes = new Set<string>(["layouts", "main", layoutName]);
-    // Inline `#prop=value` literals can name a font too.
     const propValues: string[] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {
@@ -2151,8 +1538,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const n = node as Record<string, any>;
         if (typeof n["tag"] === "string") {
           classes.add(n["tag"]);
-          // An authored component expands at mount from its own body, which
-          // the layout tree never inlines.
           const body = components[n["tag"]];
           if (body && !expanded.has(n["tag"])) {
             expanded.add(n["tag"]);
@@ -2184,8 +1569,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     visit(layout?.children);
-    // Several defines may share one family (a Latin subset and a Cyrillic
-    // one): a family reference means every face of it.
     const byFamily = new Map<string, string[]>();
     for (const fontName of fontNames) {
       const family = fonts[fontName]?.font_family;
@@ -2244,40 +1627,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [...referenced];
   }
 
-  /** Counts loads, restarts and resets: a portrait's morph starts at rest in each epoch. */
   protected _morphEpoch = 0;
 
-  /** The images whose morph claims have been reported as conflicting, so each is reported once. */
   protected _morphConflicts = new Set<string>();
 
-  /** Bakes the references the page cannot resolve itself, from the program's inline art. */
   protected _morphHost?: MorphHost;
 
-  /** The artifact keys sent on this connection. */
   protected _morphSent = new Set<string>();
 
-  /**
-   * Every inline-art reference written on this connection, by key: the only
-   * ones a page's `MorphNeedMessage` may ask for again.
-   */
   protected _morphWritten = new Map<string, MorphRef>();
 
-  /** The keys whose artifact is being baked to send on this connection. */
   protected _morphBaking = new Set<string>();
 
-  /**
-   * Sends the page the artifact for a reference with no asset service
-   * behind it: the art is inline in the program, which the page does not
-   * hold, so the game bakes it (`MorphArtifactMessage`). Once per key and
-   * connection; the write itself carries only the reference.
-   */
   protected deliverMorphArtifact(ref: MorphRef, again = false) {
     if (ref.src) {
       return;
     }
     this._morphWritten.set(ref.key, ref);
-    // A send under way answers any ask that arrives before it does: the
-    // page asks on every miss, including a first mount racing the first send.
     if (this._morphBaking.has(ref.key) || (this._morphSent.has(ref.key) && !again)) {
       return;
     }
@@ -2295,9 +1661,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     this._morphHost.resolve(ref).then(
       (handle) => {
-        // As plain JSON, the form an asset service's response takes: the
-        // bake's tables have no prototype, which a thread's copy would not
-        // keep.
         void send({ key: ref.key, artifact: JSON.parse(JSON.stringify(handle.artifact)) });
         handle.release();
       },
@@ -2307,22 +1670,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /**
-   * What an image write of `assets` carries for the morphs that play on its
-   * images: the reference, timing and definition of each image a morph
-   * plays on, with the image's place among the write's images bottom first
-   * (the order `background` lists them in reverse). Undefined when none
-   * does, so a write without morphs is the write it always was.
-   */
   getMorphContent(assets: string[]): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
     }
     const plays: MorphLayerPlay[] = [];
-    // Each asset's place is counted in the images of the CSS it is painted
-    // with, as the page splits the write's `background`: a literal may list
-    // several (`"linear-gradient(…), linear-gradient(…)"`).
     let next = 0;
     for (const asset of assets) {
       const first = next;
@@ -2341,9 +1694,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const index = first + offset;
         const refs = morphRefsForStruct(this.context, channel, layer.struct);
         if (refs.length > 1) {
-          // Each artifact draws the whole image, so two morphs cannot both
-          // play on it, and which one would is not the author's to infer
-          // from declaration order: the image stays still and says why.
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
           continue;
         }
@@ -2384,7 +1734,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   getImageSrcsByName(name: string) {
     const assets = this.getImageAssets("", name);
     const srcs = assets.length ? assets.map((asset) => asset.src) : null;
-    // What the tree being built resolves stays as it resolved it (#657).
     this._building?.pictures.set(name, JSON.stringify(srcs));
     return srcs;
   }
@@ -2404,8 +1753,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return undefined;
   }
 
-  /** The src of the video `name` names, when it names no image: a name that
-   *  is both is an image. */
   getVideoSrcByName(name: string): string | undefined {
     if (this.getImageSrcsByName(name)) {
       return undefined;
@@ -2414,9 +1761,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return typeof src === "string" && src ? src : undefined;
   }
 
-  /** The mixer a movie's sound plays through, the one the `movie` channel
-   *  names, and that mixer's gain, as the audio module resolves a channel's
-   *  mixer for a sound. */
   getMovieMixer(): { mixer: string; mixerGain: number } {
     const context = this.context as Record<string, any> | undefined;
     const named = context?.["channel"]?.["movie"]?.mixer;
@@ -2574,13 +1918,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         "": variablesStyle,
       },
     });
-    // Fonts are not declared here: the asset module hands each layout's font
-    // faces to the page as it mounts, so a face exists only while something
-    // needs it (docs/engine/asset-preloading-spec.md).
-    // Process Animations. `$`-prefixed entries are type metadata, not
-    // authored animations — the runtime define channel carries the type's
-    // `$default` (for `lookupContextValue` fallbacks), and emitting it here
-    // would generate a pointless empty `@keyframes` block for "$default".
     const animations = this.context?.animation;
     if (animations) {
       const authored = Object.fromEntries(
@@ -2599,7 +1936,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     content: ElementContent,
   ): Element | undefined {
     const style = {
-      // Required to prevent style content from rendering on screen on mobile
       display: "none",
     };
     const parent = this.getOrCreateRootStyleElement();
@@ -2689,56 +2025,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  // ---------------------------------------------------------------------------
-  // Reactive runtime (Phase 3): mount layouts from the typed Sparkle AST
-  // (program.sparkle.layouts) instead of the flattened context.layout struct.
-  //
-  // I1 — static mount: reproduce constructLayout's element tree byte-for-byte
-  // (named structural divs; text/stroke → inline span; image/mask → background
-  // span) so flag-ON output matches the static golden when no `{expr}` bindings
-  // are present.
-  // I2 — one-way binding eval: `{expr}` content is evaluated to its live value at
-  // mount, the bound span is registered, and `refreshLayouts()` re-evaluates +
-  // updates changed spans on the coarse per-turn boundary (Coordinator.display).
-  // I3 — if/match: each conditional mounts a PERSISTENT, layout-transparent
-  // wrapper (`display: contents`) that reserves its sibling position. Only the
-  // active branch's children live inside it; when the condition changes, the
-  // wrapper's contents are torn down and the new branch is mounted in place —
-  // so ordering survives even though ui/create is append-only. Reactive
-  // registrations are kept in a scope TREE that mirrors the mount tree, so a
-  // branch's spans/nested-regions are dropped together on unmount.
-  // I4 — for: a persistent wrapper holds one rendered item per iterable element.
-  // Loop-body bindings can't read loop vars as globals, so the compiler emits
-  // them as evaluator PARAMETERS (Binding.params) and each iteration's scope
-  // carries an `env` (loop var → value) passed as eval args. Reconcile is
-  // POSITIONAL for now (slot i renders element i; reorder = in-place content
-  // update, grow = append, shrink = drop tail) — keyed reconcile + MoveElement
-  // are Phase 4. slot/fill and #prop bindings land later.
-  // ---------------------------------------------------------------------------
-
-  /** Layouts that are currently MOUNTED (have live DOM + a reactive scope),
-   *  keyed by name. This is the source of truth for the reactive lifecycle:
-   *  `main` is mounted by default (auto-open); every other layout is mounted by
-   *  `[[open X]]` and removed by `[[close X]]` (true spawn/destroy). The roots of
-   *  the scope tree walked each turn by {@link refreshLayouts} are the `scope`s
-   *  of every entry. Each entry records its navigation `screen` (the `in SCREEN`
-   *  group) so `navigate` can close only the layouts in that screen. */
   protected _mountedLayouts: Map<
     string,
     { element: Element; scope: ReactiveScope; screen?: string }
   > = new Map();
 
-  /** Test/preview convenience: when set, {@link constructLayoutsFromAst} mounts
-   *  EVERY layout at connect (instant, no transition) instead of just `main`.
-   *  Off in production — only `main` auto-opens; everything else needs `[[open]]`.
-   *  The harness sets this so existing reactive tests keep their "layout is
-   *  mounted at connect" assumption. */
   _autoOpenAll = false;
 
-  /** Layouts the engine owns: `main` mounts at connect and holds the primary
-   *  subtree; `loading` is opened and closed by `load` beats. Neither is ever
-   *  navigated away from, recorded into a checkpoint, or re-mounted by a
-   *  restore. */
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
@@ -2747,19 +2040,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!layouts) {
       return;
     }
-    // Enable fine-grained dependency tracking for the whole reactive lifetime;
-    // mount captures each binding's read deps (Phase 4).
     const vs = this._game.story.variablesState;
     vs.reactiveDepsEnabled = true;
     if (this._building) {
-      // What the mount itself writes is told apart from the load's residue,
-      // which the end of the mount discards with it (#657).
       this.watchBuild();
     }
     const targetAllLayouts = !structNames || structNames.length === 0;
-    // Default: ONLY `main` is mounted/visible from the start (implicit auto-open).
-    // Every other layout stays unmounted (zero DOM / zero binding cost) until an
-    // explicit `[[open X]]`. The `_autoOpenAll` test flag mounts them all.
     const validLayoutNames = !targetAllLayouts
       ? structNames
       : this._autoOpenAll
@@ -2773,8 +2059,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    // Discard load-time change residue so the first per-turn refresh only sees
-    // changes produced after mount.
     const residue = vs.takeReactiveChanges();
     if (this._building) {
       this.noteBuildWrites(residue);
@@ -2804,17 +2088,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  /** A fresh reactive scope with the given loop env.
-   *
-   *  `parent` exists so the SLOT MAP survives a nested region. Only
-   *  `mountComponent` ever assigns `slots`, and it assigns it to the component
-   *  BODY's scope — so a `slot` sitting inside an `if`/`for`/`match` within that
-   *  body was looked up on a fresh, slot-less child scope, found nothing, and
-   *  rendered empty. There is no parent link on `ReactiveScope` to walk, so the
-   *  map has to be carried down at construction.
-   *
-   *  A nested component call must NOT inherit: it gets its own slot map from its
-   *  own caller, which is why `mountComponent` passes nothing here. */
   protected makeScope(env: ReactiveEnv, slots?: SlotMap): ReactiveScope {
     return {
       env,
@@ -2834,8 +2107,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element | ReactiveRegion | undefined {
     if (node.kind === "element") {
-      // An element whose tag resolves to an authored `component` is an instance:
-      // expand its body (with the call's args as params + children as slots).
       if (this._game.program?.sparkle?.components?.[node.tag]) {
         return this.mountComponent(parent, node, scope, before);
       }
@@ -2850,16 +2121,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.kind === "slot") {
       return this.mountSlot(parent, node, scope, before);
     }
-    // `fill` is consumed at the call site (into the component's slot map), never
-    // mounted standalone.
     return undefined;
   }
 
-  /** Mount an ordered list of body nodes into `parent`, building the sibling
-   *  group (elements + nested regions, in source order) that positional
-   *  anchoring (`anchorFor`) and teardown (`collectNodes`) operate on. Each
-   *  top-level node is inserted before `before` (null = append), so a whole
-   *  group can be placed at a region's slot with no wrapper. */
   protected mountChildren(
     parent: Element,
     children: BodyNode[],
@@ -2874,8 +2138,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         group.push({ el: created });
       } else if (created) {
         created.siblings = group;
-        // When this group is a region's content (owner set), a nested region
-        // that has nothing live after it locally escalates to the owner's anchor.
         created.owner = owner;
         group.push({ region: created });
       }
@@ -2889,43 +2151,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     scope: ReactiveScope,
     before: Element | null,
   ): Element {
-    // Element name = builtin tag joined with its bare-word classes, matching the
-    // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
     const name = [node.tag, ...node.classes].join(" ");
-    // Input widgets (input/slider/checkbox/radio/switch) render a real <input>
-    // with their value-surface props as attributes (and reactive
-    // value/checked), inside a <label> when they have content.
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
       return this.mountInputWidget(parent, node, scope, name, widget, before);
     }
-    // dropdown/option render as a real <select>/<option> (not void inputs):
-    // the dropdown carries option children and a selected `value`.
     if (node.tag === "dropdown") {
       return this.mountDropdown(parent, node, scope, name, before);
     }
-    // textarea is a real (non-void) element whose value is a live PROPERTY, so
-    // it can't ride the <input> path — but its props/binding surface is the same.
     if (node.tag === "textarea") {
       return this.mountTextarea(parent, node, scope, name, before);
     }
     if (node.tag === "option") {
       return this.mountOption(parent, node, scope, name, before);
     }
-    // Inline `#prop=value` on a generic element → an inline STYLE (spec §4.2:
-    // "the inline equivalent of a style rule"). The widget mounters route props
-    // to ATTRIBUTES; a plain container/leaf routes them to `style` instead (the
-    // spec's HUD/settings examples use `#gap`, `#background-color`,
-    // `#child-justify`, `#width` on containers). The renderer de-aliases +
-    // prop→CSS + px-ifies via getCSSPropertyKeyValue/getCssEquivalent, so the
-    // authored sparkle name is passed through as-is. Reactive props re-apply on
-    // refresh (scope.styles), mirroring scope.attrs.
-    //
-    // EXCEPT the props that are HTML ATTRIBUTES rather than styling: a `link`
-    // needs `#href`, `details`/`dialog` need `#open`, a `td` needs `#colspan`,
-    // and anything can carry `#role` / `#aria-*` / `#data-*`. Those have no
-    // meaning as CSS, so they're routed to attributes (and tracked in
-    // scope.attrs so a bound one stays live).
     const style: Record<string, string | null> = {};
     const attributes: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
@@ -2940,8 +2179,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (isAttributeProp(prop)) {
           const boolean = BOOLEAN_ATTRIBUTES.has(prop);
           const attrVal = this.propToAttr(resolved, boolean);
-          // A non-standard prop is authored bare (`#tooltip`) but written as
-          // `data-tooltip`, so the DOM stays conforming.
           const attr = toDataAttributeName(prop);
           attributes[attr] = attrVal;
           if (this.isReactiveProp(propValue)) {
@@ -2962,9 +2199,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    // Most builtins are boxes; the semantic ones (a / button / li / td / …)
-    // render as their real HTML tag so the tree is navigable and Pico's
-    // element-level expectations hold. Unlisted tags stay a <div>.
     const type = ELEMENT_TAGS[node.tag] ?? "div";
     const el = this.createElement(
       parent,
@@ -2982,14 +2216,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const r of reactiveAttrs) {
       scope.attrs.push({ element: el, ...r });
     }
-    // Builtin leaf semantics: image/mask render a background span; everything
-    // else with adjacency content (text/stroke, but also button/label/…) renders
-    // it as an inline span. Content-less structural elements get no span
-    // (mountTextContent no-ops), preserving constructLayout parity.
-    // An element whose CONTENT is a label for the children it reveals — the
-    // author writes `foldout "Label": …` rather than a separate label
-    // builtin, exactly as `button "Save"` labels a button. The label becomes a
-    // real <summary>, so the disclosure works natively.
     const implicitLabel = IMPLICIT_LABEL_TAGS[node.tag];
     if (implicitLabel && node.content && node.content.length > 0) {
       const labelEl = this.createElement(el, {
@@ -3007,21 +2233,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const ev of node.events) {
       this.mountEvent(el, ev, scope);
     }
-    // Children mount INTO this fresh element (always append — before=null).
     this.mountChildren(el, node.children, scope, null);
     return el;
   }
 
-  /** Mount a form-control widget as a real `<input>`: its props become initial
-   *  attributes, and `value`/`checked` bindings register for one-way reactive
-   *  updates (UI follows state; write-back is via the element's `@input`/
-   *  `@change` handler). Inputs are void, so quoted content is the widget's
-   *  LABEL: `slider "Master Volume"` mounts a real `<label>` holding the text
-   *  and the control, and that label is the widget's element. The label
-   *  carries the widget's name, classes and style props, so a class or prop
-   *  that hides, places, sizes or fades the widget acts on all of it. The
-   *  `<input>` inside, named `control`, takes the attribute props, bindings
-   *  and events, and the builtin control styles in builtins.sd draw it there. */
   protected mountInputWidget(
     parent: Element,
     node: ElementNode,
@@ -3051,14 +2266,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         reactiveStyles.push({ prop, propValue, last: val, deps });
       }
     }
-    // A checkbox, radio or switch reads as one row with its wording after the
-    // box; a text field or slider takes its label above, as `label "X" { … }`
-    // lays it out.
     const toggle = widget.inputType === "checkbox" || widget.inputType === "radio";
-    // The label is named exactly as the widget, with no classes of its own:
-    // the engine and the player both prefer an exact name match, so a
-    // labelled slider beside a bare one is found by `slider` as the bare one
-    // is. The builtin control styles draw the label through `&:where(label)`.
     const label = this.createElement(
       parent,
       {
@@ -3089,9 +2297,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return label;
   }
 
-  /** The `<input>` itself, with the widget's props, bindings and events.
-   *  `labelled` is a control inside a widget's label, which takes the pointer
-   *  from that label rather than for itself. */
   protected mountInputControl(
     parent: Element,
     node: ElementNode,
@@ -3102,34 +2307,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     labelled = false,
   ): Element {
     const vs = this._game.story.variablesState;
-    // The control's defining attributes first, so authored props can still
-    // narrow them (`input #type="email"`).
     const attributes: Record<string, string | null> = {
       type: widget.inputType,
       ...widget.attributes,
-      // The builtin styles find a labelled widget's control by this marker,
-      // which no author can write, so nothing an author builds is taken for
-      // it.
       ...(labelled ? { [WIDGET_CONTROL_ATTRIBUTE]: "" } : {}),
     };
     const reactive: Omit<ReactiveAttr, "element">[] = [];
-    // A control takes STYLE props too, exactly as a container does. Every prop
-    // used to become an attribute here, so `#margin-bottom=18` on an input
-    // emitted a literal `margin-bottom="18"` attribute -- valid-looking markup
-    // that the browser ignores entirely. It failed silently: no warning, no
-    // style, and an attribute sitting in the DOM to suggest it had worked.
-    //
-    // This matters because form controls carry no margin of their own (see
-    // builtins.sd), so stating the spacing at the call site is the ONLY way to
-    // space one -- and it was the one thing that could not be done.
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
-      // Every presence-semantics attribute, not just `checked`. HTML reads
-      // `disabled="false"` as DISABLED, so `#disabled={locked}` with
-      // `locked = false` produced a control that could never be enabled — and
-      // because `entry.boolean` is reused by `refreshScope`, flipping the store
-      // back could not clear it either.
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -3164,8 +2350,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const r of reactive) {
       scope.attrs.push({ element: el, ...r });
     }
-    // A range control also exposes `--_fill-percentage` (value/min/max → filled
-    // fraction), computed engine-side so a custom track can follow the value.
     if (widget.inputType === "range") {
       this.mountSliderFill(el, node, scope);
     }
@@ -3175,9 +2359,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  /** Compute a slider's `--_fill-percentage` from its value/min/max and set it
-   *  as a style; register a reactive entry when any of those is bound so the
-   *  fill follows the value (spec §10.1 — engine-computed, not inline oninput). */
   protected mountSliderFill(
     el: Element,
     node: ElementNode,
@@ -3186,7 +2367,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const value = node.props["value"];
     const min = node.props["min"];
     const max = node.props["max"];
-    if (!value) return; // no value surface → nothing to fill
+    if (!value) return;
     const minP: PropValue = min ?? { kind: "literal", value: 0 };
     const maxP: PropValue = max ?? { kind: "literal", value: 100 };
     const vs = this._game.story.variablesState;
@@ -3210,8 +2391,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** `((value - min) / (max - min)) * 100`, clamped to 0–100, as a `%` string.
-   *  A zero range (or non-numeric input) yields `0%`. */
   protected computeFillPercentage(
     value: PropValue,
     min: PropValue,
@@ -3229,15 +2408,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${Math.max(0, Math.min(100, pct))}%`;
   }
 
-  /** Mount a `dropdown` as a real `<select>`: non-value props become initial
-   *  attributes (reactive if bound), the `<option>` children are mounted, and
-   *  THEN the selected `value` is applied (a `<select>`'s value only selects an
-   *  option once its children exist) — one-way bound + written back via
-   *  `@change`. */
-  /** `textarea #value={notes} @input=set_notes` → a real `<textarea>`. Same
-   *  prop/binding surface as the `<input>` widgets (props become attributes,
-   *  `value` is routed to the live property by the renderer), but it is a
-   *  non-void element so it gets its own mounter rather than INPUT_WIDGETS. */
   protected mountTextarea(
     parent: Element,
     node: ElementNode,
@@ -3254,9 +2424,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
-      // A style prop is a STYLE, not an attribute. Routing everything to
-      // attributes emitted things like `margin-bottom="18"` into the DOM:
-      // markup that looks deliberate and does nothing at all.
       if (!isAttributeProp(prop)) {
         const val = resolved == null ? null : String(resolved);
         style[prop] = val;
@@ -3265,8 +2432,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         continue;
       }
-      // `readonly`/`disabled`/`required` are presence-semantics: passing them
-      // through as the string "false" READS AS TRUE in HTML.
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       const attrVal = this.propToAttr(resolved, boolean);
       attributes[toDataAttributeName(prop)] = attrVal;
@@ -3313,9 +2478,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
-      // A style prop is a STYLE, not an attribute. Routing everything to
-      // attributes emitted things like `margin-bottom="18"` into the DOM:
-      // markup that looks deliberate and does nothing at all.
       if (!isAttributeProp(prop)) {
         const val = resolved == null ? null : String(resolved);
         style[prop] = val;
@@ -3324,12 +2486,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         continue;
       }
-      // `multiple`/`disabled`/`required` on a <select> are presence-semantics;
-      // `value` never is, and is deferred below regardless.
       const attrVal = this.propToAttr(resolved, BOOLEAN_ATTRIBUTES.has(prop));
       if (prop === "value") {
-        // Defer until options are mounted (a <select>.value can't select an
-        // option that doesn't exist yet).
         selected = {
           ...(this.isReactiveProp(propValue) ? { propValue } : {}),
           last: attrVal,
@@ -3361,8 +2519,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
     }
-    // Options (incl. those produced by `for`/`if`) mount as DIRECT children of
-    // the <select> — wrapperless, so HTMLSelectElement.options enumerates them.
     this.mountChildren(el, node.children, scope, null);
     if (selected) {
       this.updateElement(el, { attributes: { value: selected.last } });
@@ -3386,9 +2542,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  /** Mount an `<option>` (a `dropdown` child). Its `value` attribute defaults to
-   *  the visible label text (so `dropdown #value={x}` matches `option "Easy"` by
-   *  text) unless an explicit `#value` is given; the label renders as content. */
   protected mountOption(
     parent: Element,
     node: ElementNode,
@@ -3401,8 +2554,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
-      // Every other prop becomes an attribute here, but not the ui's own
-      // reserved markers, which no author may write.
       if (isReservedAttribute(prop)) {
         continue;
       }
@@ -3418,9 +2569,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     if (!hasValue && node.content) {
-      // Default the value to the visible label. When the label is a single
-      // reactive `{expr}`, keep the value in lock-step with it (reuse the attr
-      // reactive path) so the selected value never desyncs from the shown text.
       const only = node.content.length === 1 ? node.content[0] : undefined;
       if (only && only.kind === "binding") {
         const propValue: PropValue = { kind: "binding", binding: only.binding };
@@ -3445,36 +2593,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  /** Resolve a `#prop=value` to its current value (literal, or a live binding
-   *  eval with the scope's loop env). */
   protected resolveProp(propValue: PropValue, env: ReactiveEnv): unknown {
     if (propValue.kind === "literal") {
       return propValue.value;
     }
     if (propValue.kind === "content") {
-      // Interpolated quoted string (`"Score is {score}"`): concatenate the
-      // literal + `{expr}` parts to a string, exactly like element display
-      // content (resolveContent). Each binding was lowered with the caller's
-      // loop vars, so it evaluates against the same `env` passed here.
       return this.resolveContent(propValue.content, env);
     }
     return this.evalBinding(propValue.binding, env);
   }
 
-  /** A prop is reactive (needs a {@link ReactiveAttr} so it re-resolves on
-   *  refresh) when it holds a live `{expr}` binding or an interpolated
-   *  `"…{expr}…"` content string — a plain literal never changes. */
   protected isReactiveProp(propValue: PropValue): boolean {
     return propValue.kind === "binding" || propValue.kind === "content";
   }
 
-  /** Map a resolved prop value to an attribute string: a presence-semantics
-   *  attribute ({@link BOOLEAN_ATTRIBUTES}) becomes `""`/absent; everything
-   *  else is stringified (nullish → absent).
-   *
-   *  Stringifying a presence attribute is never merely imprecise — HTML reads
-   *  `disabled="false"` as disabled, so `false` would produce exactly the
-   *  state it denies. */
   protected propToAttr(resolved: unknown, boolean: boolean): string | null {
     if (boolean) {
       return this.isTruthy(resolved) ? "" : null;
@@ -3482,23 +2614,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return resolved == null ? null : String(resolved);
   }
 
-  /** Opt an element with a handler into the pointer. The marker is matched by
-   *  a builtin `layouts` rule at the lowest specificity an element rule has,
-   *  never an inline style, so `interactable = false` on the element, as a
-   *  prop or from any class rule, outranks it, and a labelled widget's control
-   *  keeps taking its pointer from its label. */
   protected markHandler(el: Element): void {
     this.updateElement(el, { attributes: { [HANDLER_ATTRIBUTE]: "" } });
   }
 
-  /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
-   *  the handler when it fires, then flush reactive layouts. `@e=name` calls the
-   *  named Luau function; `@e=expr(args)` evaluates the call expression (its
-   *  side effects persist). Inline closures (`@e={ … }`) are a follow-up. The
-   *  callback is keyed by element id in `_events`, the same registry the static
-   *  `observe()` path and `onReceiveNotification` use. The handler reads
-   *  `scope.env` at fire time (mutated in place per for-iteration), so a handler
-   *  inside a `for` uses that row's current loop values. */
   protected mountEvent(
     el: Element,
     ev: EventBinding,
@@ -3506,24 +2625,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): void {
     const handler = ev.handler;
     const callback = (event: Event): void => {
-      // Build a Luau `event` table from the DOM event payload so write-back
-      // handlers can read event.value / event.checked / event.key (two-way
-      // binding). Bare refs receive it as their first arg; call/closure handlers
-      // read it via the reserved `event` evaluator param.
       const eventTable = this.buildEventTable(event);
       if (handler.kind === "ref") {
         this.runHandlerFunction(handler.name, eventTable);
       } else {
-        // call / closure: evaluate the hoisted handler binding for its effects,
-        // with `event` available alongside any enclosing loop vars.
         this.evalBinding(handler.binding, { ...scope.env, event: eventTable });
       }
       this.refreshLayouts();
     };
     this._events[ev.event] ??= {};
     this._events[ev.event]![el.id] = callback;
-    // Make the element clickable + ask the renderer to forward the DOM event
-    // (mirrors setEventListener's observe).
     this.markHandler(el);
     this.enqueueUI(
       ObserveElementMessage.type.notification({
@@ -3535,17 +2646,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Run a named Luau function (an `@event` `ref` handler) for its side effects,
-   *  guarded by HasFunction. The DOM `event` table is passed as the first arg
-   *  (a bare `@input=set_name` implicitly receives it; a no-param function just
-   *  ignores it). Safe between turns (EvaluateFunction asserts IfAsyncWeCant);
-   *  events fire when the story is idle. */
   protected runHandlerFunction(name: string, event?: AbstractValue): void {
     const story = this._game.story;
     if (story.HasFunction(name)) {
-      // Same containment as `evalBinding`: a handler that throws must not take
-      // down the click that ran it (and, through `refreshLayouts`, the rest of
-      // the UI).
       const reported = this._game.runtimeErrorsReported;
       try {
         story.EvaluateFunction(name, event !== undefined ? [event] : []);
@@ -3555,8 +2658,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Build a Luau `event` table (ObjectValue) from a DOM event payload, exposing
-   *  value / checked / key / type for write-back handlers. */
   protected buildEventTable(event: Event | undefined): ObjectValue {
     const payload = (event ?? {}) as {
       value?: unknown;
@@ -3566,10 +2667,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     const map = new Map<string, AbstractValue>();
     if (payload.value != null) {
-      // Preserve the control's value TYPE: a range/number input sends a JS
-      // number (getEventData), so `value = event.value` keeps a numeric store
-      // numeric instead of flipping it to a string (which would make ordered
-      // comparisons lexicographic). Text inputs send a string.
       map.set("value", this.toLuauValue(payload.value));
     }
     if (payload.checked != null) {
@@ -3584,8 +2681,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return new ObjectValue(map);
   }
 
-  /** Wrap a DOM-payload scalar in the matching Luau value, preserving type:
-   *  number → Int/Float, boolean → Bool, everything else → String. */
   protected toLuauValue(value: unknown): AbstractValue {
     if (typeof value === "number") {
       return Number.isInteger(value) ? new IntValue(value) : new FloatValue(value);
@@ -3596,10 +2691,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return new StringValue(String(value));
   }
 
-  /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
-   *  (matching constructLayout's `typeof v === "string"` guard); content with a
-   *  reactive `{expr}` binding registers the span in `scope` for per-turn
-   *  re-eval. */
   protected mountTextContent(
     parent: Element,
     content: ContentPart[] | undefined,
@@ -3609,10 +2700,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const { text, deps } = this.resolveContentTracked(content, scope.env);
-    // Inline rich-text tags (`<b>`, `<color=…>`, … — UI Toolkit's vocabulary)
-    // split the content into styled RUNS. Plain text parses to a single
-    // unstyled run and renders exactly as before (one span carrying the text),
-    // so only tagged content pays for child spans.
     const runs = parseRichText(text);
     const span = this.createElement(
       parent,
@@ -3632,10 +2719,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Render `text` into an already-mounted text span, as either a plain string
-   *  or a set of styled run children. Used on mount and on reactive refresh —
-   *  a bound value can change the TAG STRUCTURE, not just the characters, so
-   *  the previous runs are always torn down first. */
   protected renderRichText(el: Element, text: string): void {
     const runs = parseRichText(text);
     for (const child of [...el.children]) {
@@ -3645,20 +2728,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.updateElement(el, { content: { text: runs[0]?.text ?? "" } });
       return;
     }
-    // Clear any plain text the span was carrying before mounting runs.
     this.updateElement(el, { content: { text: "" } });
     this.mountRichTextRuns(el, runs);
   }
 
-  /** Realize parsed runs as inline child spans. */
   protected mountRichTextRuns(parent: Element, runs: RichTextRun[]): void {
     for (const run of runs) {
       this.createElement(parent, {
-        // A semantic run (`<sub>`) mounts as its real element; everything else
-        // is a styled span. `display: inline` still applies to both — the
-        // universal `display: flex` would otherwise break the run onto its own
-        // line — but the semantic tags take their sizing and baseline offset
-        // from the normalize sheet, so nothing else is forced here.
         type: run.tag ?? "span",
         content: { text: run.text },
         style: { display: "inline", ...(run.style ?? {}) },
@@ -3666,8 +2742,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Resolve content while capturing the union of its bindings' read deps, so
-   *  the span re-evaluates only when one of those deps changes (Phase 4). */
   protected resolveContentTracked(
     content: ContentPart[],
     env: ReactiveEnv,
@@ -3679,10 +2753,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return { text, deps };
   }
 
-  /** Mount an image/mask leaf's background span. Content (literal or `{expr}`)
-   *  is resolved to the asset value at mount; a content-less leaf yields the
-   *  empty background constructLayout also produces. (Per-turn re-eval of image
-   *  sources is deferred — image rebuild differs from a content update.) */
   protected mountImageContent(
     parent: Element,
     content: ContentPart[] | undefined,
@@ -3696,13 +2766,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.createImage(parent, [value], property);
   }
 
-  // --- if / match -----------------------------------------------------------
-
-  /** Mount an if/match conditional (wrapperless). The active branch's children
-   *  are mounted directly into `parent` at this region's slot (before `before`),
-   *  via a child scope inheriting the parent's loop env, and the region is
-   *  recorded in the parent scope. Returns the region so the caller records it in
-   *  its sibling group (for anchor resolution). */
   protected mountCondRegion(
     parent: Element,
     node: IfNode | MatchNode,
@@ -3713,7 +2776,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       kind: "cond",
       parent,
       node,
-      active: -2, // nothing mounted yet
+      active: -2,
       scope: this.makeScope(scope.env, scope.slots),
       deps: { globals: new Set(), tables: new Set() },
       siblings: [],
@@ -3724,10 +2787,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return region;
   }
 
-  /** Mount the currently-selected branch into `region.parent` before `before`,
-   *  recording `active` + the branch's content group + the branch-selection's
-   *  read deps (so refresh can skip re-selecting when nothing it reads changed).
-   *  `-1` = else/no-match (renders `else` children, or nothing). */
   protected activateBranch(region: CondRegion, before: Element | null): void {
     const vs = this._game.story.variablesState;
     vs.beginReactiveRead();
@@ -3744,8 +2803,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Index of the active branch: the first truthy `if`/`elseif` condition, the
-   *  first matching `match` case, or `-1` for else/no-match. */
   protected selectBranch(node: IfNode | MatchNode, env: ReactiveEnv): number {
     if (node.kind === "if") {
       for (let i = 0; i < node.branches.length; i += 1) {
@@ -3764,7 +2821,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return -1;
   }
 
-  /** Children of the selected branch (`-1` → `else` arm, or empty). */
   protected branchChildren(
     node: IfNode | MatchNode,
     selected: number,
@@ -3777,12 +2833,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       : node.cases[selected]!.children;
   }
 
-  // --- for ------------------------------------------------------------------
-
-  /** Mount a reactive `for` (wrapperless): one rendered run per iterable element,
-   *  mounted directly into `parent` at the region's slot. Returns the region so
-   *  the caller records it in its sibling group. Numeric `for` (no `each`) is a
-   *  follow-up. */
   protected mountForRegion(
     parent: Element,
     node: ForNode,
@@ -3795,8 +2845,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       node,
       iterations: [],
       siblings: [],
-      // Carried so a `slot` inside the loop body still resolves — every
-      // iteration builds a fresh scope, and there is no parent link to walk.
       slots: scope.slots,
     };
     scope.regions.push(region);
@@ -3804,8 +2852,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return region;
   }
 
-  /** Initial mount of every iteration (or the `else` arm if the iterable is
-   *  empty), into `region.parent` before `before`. */
   protected populateFor(
     region: ForRegion,
     parentEnv: ReactiveEnv,
@@ -3823,7 +2869,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Mount the `for`'s `else` arm (when the iterable is empty) into `parent`. */
   protected mountForElse(
     region: ForRegion,
     parentEnv: ReactiveEnv,
@@ -3843,10 +2888,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Mount one iteration's body directly into `region.parent` before `before`,
-   *  binding the loop variable(s) in a fresh per-iteration scope env. Returns the
-   *  iteration with its content group (a contiguous run reconcile moves as a
-   *  unit). */
   protected mountIteration(
     region: ForRegion,
     parentEnv: ReactiveEnv,
@@ -3871,14 +2912,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
-  /** Mount an authored-component instance (`card("Inventory")`, spec §4.7) into
-   *  `parent`. The call's positional args are evaluated in the CALLER's scope and
-   *  bound to the component's declared params in a fresh body scope `env`; the
-   *  body's `{param}` bindings read them via that env (the runtime feeds each as
-   *  the matching evaluator arg — same mechanism as `for`-loop vars). The call's
-   *  children (default content + `fill`s) become the body's slot map. Returns a
-   *  region (the body is wrapperless — multiple top-level nodes), or undefined if
-   *  the tag isn't a component (caller falls back to a plain element). */
   protected mountComponent(
     parent: Element,
     node: ElementNode,
@@ -3915,10 +2948,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return region;
   }
 
-  /** Evaluate the call's positional args in the caller env and write them onto
-   *  `env` keyed by the component's declared param names (extra args / missing
-   *  args are ignored / left undefined). Mutates `env` IN PLACE so a re-eval
-   *  keeps the same reference live for already-mounted body bindings/handlers. */
   protected applyComponentParams(
     comp: ComponentNode,
     node: ElementNode,
@@ -3932,9 +2961,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Build a component's slot map from the call's children: each `fill NAME`
-   *  supplies the named slot; all other children supply the default slot (`""`).
-   *  Content is paired with the CALLER scope so it renders with caller vars. */
   protected buildSlotMap(node: ElementNode, callerScope: ReactiveScope): SlotMap {
     const map: SlotMap = new Map();
     const defaultChildren: BodyNode[] = [];
@@ -3954,9 +2980,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return map;
   }
 
-  /** Mount a `slot` placeholder: the caller's matching content (from the body
-   *  scope's slot map), rendered in the CALLER's scope at this position. No
-   *  caller content → an empty placeholder region. */
   protected mountSlot(
     parent: Element,
     node: SlotNode,
@@ -3983,11 +3006,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return region;
   }
 
-  /** Reconciliation key for one iterable entry: the explicit `key` clause is a
-   *  follow-up, so default to the entry KEY for `k, v` loops (stable map key),
-   *  else the value's identity — a table by its backing Map (so reordering the
-   *  SAME objects reuses+moves their elements), a scalar by its value (so a
-   *  reordered `{a, b}` of equal scalars still matches). */
   protected keyForEntry(
     node: ForNode,
     entryKey: unknown,
@@ -4000,8 +3018,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return payload !== undefined ? payload : value;
   }
 
-  /** Bind a `for`'s loop variable(s) into `env`: `[v]` → value; `[k, v]` → key +
-   *  value (Luau pairs/ipairs style). Mutates `env` in place. */
   protected bindLoopVars(
     bindings: string[],
     env: ReactiveEnv,
@@ -4016,9 +3032,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** The ordered `[key, value]` entries a `for` iterates this turn — numeric
-   *  (`for i = from, to[, step]`) or generic (`for … in expr`). Both feed the
-   *  same keyed reconcile, so numeric `for` gets reuse/move/dep-gating for free. */
   protected forEntries(
     node: ForNode,
     env: ReactiveEnv,
@@ -4032,10 +3045,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
-  /** Expand a numeric range to `[i, i]` entries (key = value = the counter, so a
-   *  single-binding `for i` binds `i` and reconciles by the number). `step`
-   *  defaults to 1; a zero/non-finite bound yields no iterations. Capped to guard
-   *  against an accidental runaway range mounting unbounded DOM. */
   protected numericEntries(
     numeric: NonNullable<ForNode["numeric"]>,
     env: ReactiveEnv,
@@ -4065,9 +3074,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return entries;
   }
 
-  /** Normalize a `for` iterable's evaluated value to ordered `[key, value]`
-   *  entries. Luau tables come back as a `Map`; arrays are 1-indexed; plain
-   *  objects use their entries; anything else iterates as empty. */
   protected iterableEntries(collection: unknown): [unknown, unknown][] {
     if (collection instanceof Map) {
       return [...collection.entries()];
@@ -4081,11 +3087,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
-  // --- wrapperless positioning ----------------------------------------------
-
-  /** The DOM element a region's content must be inserted before to land at the
-   *  region's slot: the first live element of the next sibling after the region
-   *  in its group. `null` (append) when nothing live follows. */
   protected anchorFor(region: ReactiveRegion): Element | null {
     const group = region.siblings;
     const idx = group.findIndex(
@@ -4097,21 +3098,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return live;
       }
     }
-    // Nothing live follows us locally, so our slot IS the enclosing region's
-    // slot (we share its real parent — wrapperless) — escalate to the owner's
-    // anchor. At a real-element parent (no owner) null means append-to-parent.
     const owner = region.owner;
     if (!owner) {
       return null;
     }
     if (owner.kind === "for") {
-      // A `for`'s `siblings` is the group the LOOP lives in, so escalating
-      // straight to it jumps over every remaining iteration. Walk the rest of
-      // the loop first: `for x in list: text A; if x.visible: text B` toggled
-      // on the first row landed `text B` after the whole `for` instead of in
-      // its own row. (`firstLiveElement` already walks a for's iterations, but
-      // only when probing the loop from OUTSIDE as a sibling — nothing walked
-      // the later iterations when escalating from INSIDE one.)
       const idx = owner.iterations.findIndex(
         (it) => it.content === region.siblings,
       );
@@ -4133,16 +3124,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this.anchorFor(owner);
   }
 
-  /** The leading live DOM element of a group item: a concrete element, or the
-   *  first live element of a nested region's current content. `null` if nothing
-   *  is live (an empty branch / empty `for`). */
   protected firstLiveElement(item: ReactiveItem): Element | null {
     if ("el" in item) {
       return item.el;
     }
     const region = item.region;
     if (region.kind !== "for") {
-      // cond / component / slot: a single content group.
       return this.firstLiveOfGroup(region.content);
     }
     for (const it of region.iterations) {
@@ -4166,8 +3153,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return null;
   }
 
-  /** Flatten a group to its top-level DOM elements (recursing nested regions'
-   *  content), for teardown — destroying each cascades its own subtree. */
   protected collectNodes(group: ReactiveGroup): Element[] {
     const out: Element[] = [];
     for (const it of group) {
@@ -4184,15 +3169,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           out.push(...this.collectNodes(region.elseContent));
         }
       } else {
-        // cond / component / slot: a single content group.
         out.push(...this.collectNodes(region.content));
       }
     }
     return out;
   }
 
-  /** Luau truthiness: everything except `nil` and `false` is truthy (0 and ""
-   *  are truthy). */
   protected isTruthy(value: unknown): boolean {
     return value != null && value !== false;
   }
@@ -4201,9 +3183,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return content.some((p) => p.kind === "binding");
   }
 
-  /** Resolve ordered literal + `{expr}` content to a flat string. Each binding
-   *  is evaluated live via {@link evalBinding} with the scope's loop `env`; a
-   *  nullish result contributes the empty string. */
   protected resolveContent(content: ContentPart[], env: ReactiveEnv): string {
     let text = "";
     for (const part of content) {
@@ -4217,28 +3196,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return text;
   }
 
-  // --- per-turn refresh -----------------------------------------------------
-
-  /** Per-turn re-eval over the scope tree, called on the existing per-beat
-   *  boundary (Coordinator.display → updateUI). Fine-grained (Phase 4): the
-   *  turn's change-set (globals + tables written since the last refresh) is
-   *  taken once, and a binding re-evaluates only when its read deps intersect it
-   *  — EXCEPT inside a loop-iteration scope, where a binding's value comes from
-   *  the per-iteration `env` (not a tracked global/table), so it re-evaluates
-   *  every turn (equality-gated). The story is settled here, so
-   *  {@link evalBinding}'s EvaluateFunction is safe. No-op unless reactive. */
   refreshLayouts(): void {
     if (!this._reactive) {
       return;
     }
     if (this._game.context?.system?.simulating) {
-      // Route simulation replays beats on THIS game (a PLAY reuses the Game
-      // instance, layouts still mounted) with renderer paints suppressed.
-      // Re-evaluating here would advance each entry's equality memo (`last`)
-      // through the simulated values while the DOM never moves — wedging the
-      // gate so the post-start refresh paints nothing (#365's stale-restart
-      // face). Skip entirely; `onStart`'s force-all refresh trues the DOM up
-      // once the real run begins.
       return;
     }
     const changes = this._game.story.variablesState.takeReactiveChanges();
@@ -4251,15 +3213,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._refreshing = false;
       this._refreshAll = false;
     }
-    // Flush this turn's reactive ops synchronously so callers (and tests) see
-    // the `ui/batch` immediately after the refresh, not on a later microtask.
     this.flushUIBatch();
   }
 
   protected refreshScope(scope: ReactiveScope, changes: ReactiveDeps): void {
-    // A loop-iteration scope's bindings depend on the per-iteration env, which
-    // isn't a tracked global/table — re-evaluate them every turn (equality-
-    // gated). Top-level / conditional scopes dep-gate per registration.
     const envScope = this.scopeHasEnv(scope);
     for (const entry of scope.texts) {
       if (envScope || this.depsChanged(entry.deps, changes)) {
@@ -4329,21 +3286,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       } else if (region.kind === "component") {
         this.refreshComponentRegion(region, scope.env, changes);
       } else if (region.kind === "slot") {
-        // Slot content is registered in the CALLER scope (this scope or an
-        // ancestor) and refreshed there — nothing to do for the placeholder.
       } else {
         this.refreshCondRegion(region, changes, envScope);
       }
     }
   }
 
-  /** Re-evaluate a component instance's args in the caller env and update its
-   *  body `env` IN PLACE, then refresh the body scope. The body bindings are
-   *  env-scoped (their values come from params, not tracked globals), so they
-   *  re-evaluate every turn (equality-gated) and pick up the new param values —
-   *  giving reactive params (`card(player.title)`) for free. Structure is fixed
-   *  (params change values, not shape; any body `if`/`for` are regions inside the
-   *  body scope and refresh recursively). */
   protected refreshComponentRegion(
     region: ComponentRegion,
     callerEnv: ReactiveEnv,
@@ -4358,19 +3306,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     changes: ReactiveDeps,
     envScope: boolean,
   ): void {
-    // Re-run branch selection only when the condition's deps changed (or it's in
-    // a loop scope). When nothing it reads changed, the active branch can't have
-    // changed — skip the selectBranch eval and just refresh the live children.
     if (envScope || this.depsChanged(region.deps, changes)) {
       const vs = this._game.story.variablesState;
       vs.beginReactiveRead();
       const next = this.selectBranch(region.node, region.scope.env);
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
-        // Branch switched: tear down the old branch's elements + registrations,
-        // mount the new branch at the region's slot (anchored before the next
-        // live sibling). The env reference is reused so an enclosing
-        // for-iteration's values stay live.
         for (const el of this.collectNodes(region.content)) {
           this.destroyElement(el);
         }
@@ -4381,24 +3322,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.branchChildren(region.node, next),
           region.scope,
           this.anchorFor(region),
-          // This region owns the new branch's content (same as activateBranch),
-          // so a grandchild region toggled later escalates to THIS region's anchor.
           region,
         );
         return;
       }
     }
-    // Same branch still active — recurse to refresh its inner scope.
     this.refreshScope(region.scope, changes);
   }
 
-  /** Keyed `for` reconcile (Phase 4 I9): re-evaluate the iterable and match new
-   *  entries to existing iterations BY KEY — reuse a matched iteration (update
-   *  its env + refresh its scope), create for new keys, destroy unmatched ones —
-   *  then move retained element-runs into the new order (only the displaced ones,
-   *  via `ui/move`). So reordering the same objects preserves their element
-   *  subtrees (focus / scroll / in-flight animation), and changing an object's
-   *  field reuses its iteration (identity-stable) for an in-place update. */
   protected refreshForRegion(
     region: ForRegion,
     parentEnv: ReactiveEnv,
@@ -4407,7 +3338,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const entries = this.forEntries(region.node, parentEnv);
 
     if (entries.length === 0) {
-      // Becoming empty: drop all iterations, then show the `else` arm.
       for (const it of region.iterations) {
         this.destroyIteration(it);
       }
@@ -4420,7 +3350,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
 
-    // Non-empty: drop the `else` arm if it was showing.
     if (region.elseScope && region.elseContent) {
       for (const el of this.collectNodes(region.elseContent)) {
         this.destroyElement(el);
@@ -4429,7 +3358,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       region.elseContent = undefined;
     }
 
-    // Index existing iterations by key (FIFO queues handle duplicate keys).
     const oldByKey = new Map<unknown, ForIteration[]>();
     for (const it of region.iterations) {
       const q = oldByKey.get(it.key);
@@ -4440,25 +3368,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
 
-    // Build the new ordered list, reusing matched keys + creating the rest.
     const next: ForIteration[] = [];
     for (const [entryKey, value] of entries) {
       const key = this.keyForEntry(region.node, entryKey, value);
       const q = oldByKey.get(key);
       const reused = q && q.length > 0 ? q.shift() : undefined;
       if (reused) {
-        // Re-sync the OUTER loop vars first. `mountIteration` snapshots the
-        // enclosing env with a spread, so each iteration owns a private copy of
-        // every outer variable; `bindLoopVars` below only rewrites this loop's
-        // OWN bindings. Without this, a reused iteration keeps whatever the
-        // outer value was at mount time — so replacing an outer collection
-        // (`players = {…}`) leaves inner rows rendering the previous row's data,
-        // silently and forever.
-        //
-        // A prototype chain (`Object.create(parentEnv)`) would be tidier but is
-        // WRONG here: `mountEvent` spreads `{ ...scope.env, event }`, and a
-        // spread copies own properties only, so every outer var would vanish
-        // from event handlers inside the loop.
         for (const key of Object.keys(parentEnv)) {
           reused.scope.env[key] = parentEnv[key];
         }
@@ -4471,8 +3386,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(reused.scope, changes);
         next.push(reused);
       } else {
-        // New iterations mount at the region's slot; the reorder below settles
-        // their final position.
         next.push(
           this.mountIteration(
             region,
@@ -4485,19 +3398,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
 
-    // Destroy iterations whose keys are gone.
     for (const q of oldByKey.values()) {
       for (const it of q) {
         this.destroyIteration(it);
       }
     }
 
-    // Reorder element-runs into `next` order. Process iterations last→first and,
-    // WITHIN each run, elements last→first — moving each element before the
-    // sliding anchor (which becomes the element just placed). Moving relative to
-    // the run's own next element (not all to one outer anchor) means a run that's
-    // already contiguous + correctly placed emits zero moves (the no-op guard
-    // fires for every element), so a stable multi-element list doesn't churn.
     let anchor = this.anchorFor(region);
     for (let i = next.length - 1; i >= 0; i -= 1) {
       const run = this.collectNodes(next[i]!.content);
@@ -4510,11 +3416,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     region.iterations = next;
   }
 
-  /** Does any global/table dep intersect the turn's change-set? While a
-   *  force-all refresh is pending (see {@link onStart}) every dep counts as
-   *  changed, so each binding re-evaluates (and repaints — the paint gates
-   *  also honor `_refreshAll`, because a suppressed-paint mount leaves `last`
-   *  matching the new value while the DOM shows the old one). */
   protected depsChanged(deps: ReactiveDeps, changes: ReactiveDeps): boolean {
     if (this._refreshAll) {
       return true;
@@ -4532,7 +3433,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return false;
   }
 
-  /** True for a loop-iteration scope (its env binds loop variables). */
   protected scopeHasEnv(scope: ReactiveScope): boolean {
     for (const _ in scope.env) {
       return true;
@@ -4540,8 +3440,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return false;
   }
 
-  /** Destroy one for-iteration's element run (each cascades its subtree).
-   *  Dropping the iteration from `region.iterations` discards its scope. */
   protected destroyIteration(it: ForIteration): void {
     for (const el of this.collectNodes(it.content)) {
       this.destroyElement(el);
@@ -4620,24 +3518,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Layout lifecycle ([[open LAYOUT]] / [[close LAYOUT]])
-  //
-  // True spawn/destroy on the reactive render path: `[[open X]]` MOUNTS layout X
-  // (constructs its element tree, captures its reactive deps, registers its scope
-  // for per-turn refresh) and plays an enter transition; `[[close X]]` plays an
-  // exit transition then DESTROYS X's whole element subtree and drops its scope
-  // (so refreshLayouts stops touching it — zero binding cost while closed). `main`
-  // is auto-opened at connect; openLayout/closeLayout stay independent primitives
-  // (multiple layouts can be open) to leave room for a future goto/navigate.
-  // ---------------------------------------------------------------------------
-
-  /** Resolve a layout's enter (`open`) or exit (`close`) animation from the
-   *  directive clauses, exactly like the image path: a `with` that names a
-   *  `transition` uses its `on_show`/`on_hide`; a `with` that names an `animation`
-   *  (or a bare directive defaulting to the builtin `show`/`hide`) uses it
-   *  directly. Returns the resolved {@link Animation} (with after/over/ease
-   *  overrides applied) or undefined when nothing animatable resolves. */
   protected resolveLayoutAnimation(
     direction: "enter" | "exit",
     clauses: { with?: string; after?: number; over?: number; ease?: string },
@@ -4652,8 +3532,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         (typeof arm === "string" ? arm : arm?.$name) ||
         (direction === "enter" ? "show" : "hide");
     } else {
-      // A bare `with X` names an animation directly; with no `with`, fall back to
-      // the builtin `show`/`hide` reveal animations.
       name = withName || (direction === "enter" ? "show" : "hide");
     }
     return this.getAnimationDefinition(
@@ -4667,20 +3545,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Mount + reveal a layout (`[[open X]]`). No-op if already mounted. With
-   *  clauses, plays the resolved enter transition on the layout root; a bare
-   *  `[[open X]]` (or `instant`) just mounts + shows. The layout root is revealed
-   *  through the normal `reveal()` flow (root opacity). Returns once the enter
-   *  transition has settled, so a `wait` directive can block story advance;
-   *  in a composed beat (#1820), once the layout is mounted: its transition
-   *  starts after the beat's commit, and nothing waits for it. */
   async openLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
-      // Static path: layouts are all constructed at connect; just toggle hidden.
       this.showLayout(name);
       return;
     }
@@ -4691,12 +3561,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       name === "loading" &&
       (this.context.system.previewing || this.context.system.simulating)
     ) {
-      // The loading screen belongs to play: a preview never waits on assets,
-      // and a route replay shows nothing.
       return;
     }
     if (this._mountedLayouts.has(name)) {
-      // Already open — no-op (a future goto/navigate may re-run the transition).
       return;
     }
     const layouts = this._game.program?.sparkle?.layouts;
@@ -4704,31 +3571,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!layout) {
       return;
     }
-    // Mount captures the layout's reactive deps; settle the mount's own change
-    // residue afterwards so the first per-turn refresh only sees post-mount
-    // changes (mirrors constructLayoutsFromAst).
-    //
-    // But `takeReactiveChanges` is DESTRUCTIVE and this runs mid-beat:
-    // `Coordinator` applies layout instructions BEFORE `refreshLayouts`, so
-    // consuming the whole set here handed the refresh an empty one. A beat that
-    // wrote a store and ran `[[open X]]` left every already-mounted layout
-    // stale — permanently, because updates are equality-gated on the last
-    // emitted value, so a dropped change is never re-derived. Take the beat's
-    // changes aside, discard the mount's residue, hand them back.
-    // The layout's fonts first, so it never paints in a fallback face. The
-    // wait is bounded. A layout whose styles name no font mounts synchronously,
-    // which the open/close/navigate ordering depends on; one that names a
-    // font yields for the page's answer even when the face is already
-    // resident. The mount check repeats after a wait because another open of
-    // the same layout may have landed meanwhile, and the loading layout stays
-    // unmounted when the load it was opened for ended during the wait.
-    //
-    // While it waits, the mount is recorded with the beat being composed
-    // (`_mountOwners`), so that beat, or the next one it hands the mount to,
-    // waits for it and puts the layout up with the rest (#1820). A connect
-    // that begins meanwhile rebuilds the screen from its own state, and this
-    // mount, belonging to the stream it superseded, is not made; nor is one a
-    // `[[close]]` of the layout called off while it waited.
     const fonts = this._game.module.assets?.prepareLayout(name);
     let mounted: (() => void) | undefined;
     if (fonts) {
@@ -4765,9 +3607,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         (name === "loading" && !this._loading)
       ) {
         mounted?.();
-        // An open the story called off holds the layout's fonts for nothing
-        // once no instance of the layout is mounted and no other open of it
-        // waits (#1820).
         if (
           pendingOpen.cancelled &&
           !this._mountedLayouts.has(name) &&
@@ -4786,9 +3625,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       vs.takeReactiveChanges();
       vs.restoreReactiveChanges(pending);
       this.notifyMounted(name);
-      // The layouts layer's root opacity is revealed on the first beat
-      // anyway, but open it here too so a layout opened before any dialogue
-      // is visible.
       this.reveal();
     } finally {
       mounted?.();
@@ -4797,9 +3633,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (enter && !instant) {
       const entering = this.animateElements([{ element, animations: [enter] }]);
       if (this._compose) {
-        // The maintainer's decision (#1820): a composed beat covers mounts
-        // and content, and the enter transition starts after the commit, at
-        // the reveal instant. The beat does not wait for it.
         void entering;
         return;
       }
@@ -4807,26 +3640,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Play the exit transition then DESTROY a layout (`[[close X]]`): tears down
-   *  its whole DOM subtree (one `ui/destroy` on the root removes the children)
-   *  and drops its reactive scope so refreshLayouts no longer touches it. A
-   *  bare `[[close X]]` (or `instant`) destroys immediately. Every open of the
-   *  layout still waiting on its fonts is called off. Returns once the exit
-   *  transition has settled, so `wait` can block advance; in a composed beat
-   *  (#1820), at once: the layout retires, and goes once its exit has played
-   *  after the beat's commit. */
   async closeLayout(
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
-      // Static path: layouts are never torn down; just toggle hidden.
       this.hideLayout(name);
       return;
     }
-    // Every open of the layout still waiting on its fonts is called off: the
-    // story has closed the layout since (#1820).
     const opens = name ? this._pendingOpens.get(name) : undefined;
     for (const open of opens ?? []) {
       open.cancelled = true;
@@ -4837,16 +3659,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
-      // The maintainer's decision (#1820): a composed beat covers mounts and
-      // content. The layout leaves the mounted set at the commit, so a reopen
-      // in the same beat mounts a fresh element; structural ids are not
-      // reused within a connect, so that element's id is its own (a connect
-      // restarts them, and ends what is still retiring first). The closing element leaves
-      // the engine's tree now and stays on the page, retiring, while its exit
-      // transition plays from the commit; it is destroyed once the page
-      // reports the transition finished. The beat does not wait for it. The
-      // retiring element keeps the stream it was closed in and a pin of its
-      // own on its fonts, which a reopen pins again for itself.
       const retiring: Retirement = {
         element: entry.element,
         epoch: this._game.connection.epoch,
@@ -4863,27 +3675,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (exit && !instant) {
       await this.animateElements([{ element: entry.element, animations: [exit] }]);
     }
-    // Destroy the whole subtree (root destroy drops children) + drop the scope so
-    // refreshLayouts stops walking it. Closed = zero DOM + zero binding cost.
     this.destroyElement(entry.element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
   }
 
-  /**
-   * A retiring layout's exit has played (#1820): its element goes now, in a
-   * batch of its own. The batch is no part of any beat: it goes past one
-   * being composed (which keeps the ops it had buffered), and a beat waiting
-   * for its commit on the page lets it by. Its fonts' pin goes after it. One
-   * a connect has ended since is gone already: that connect rebuilt the
-   * screen, and may have given the element's id to another.
-   */
   protected retire(r: Retirement): void {
     if (!this._retiring.delete(r)) {
       return;
     }
     if (!this.superseded(r.epoch)) {
-      // What is buffered belongs to whatever is being composed.
       this.flushUIBatch();
       this.destroyElement(r.element, true);
       const messages = this._uiBatch;
@@ -4898,15 +3699,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // The loading layout, as a `load` beat drives it
-  // ---------------------------------------------------------------------------
-
-  /** Callers waiting for a layout to mount ({@link whenMounted}). */
   protected _mountWaiters = new Map<string, Array<() => void>>();
 
-  /** Resolves once the named layout is in the mounted set; at once if it
-   *  already is. */
   protected whenMounted(name: string): Promise<void> {
     if (this._mountedLayouts.has(name)) {
       return Promise.resolve();
@@ -4932,20 +3726,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _loading?: {
     openedAt: number;
     transition?: string;
-    /** The mount `beginLoading` started, so `endLoading` never closes a
-     *  layout that has not finished opening. */
     opening?: Promise<void>;
   };
 
-  /** The last `loaded/total` pair published to `game.loading`, so a repeated
-   *  progress report does not re-run bindings for nothing. */
   protected _loadingReported?: string;
 
-  /** Write fields of the live `game.loading` table, the engine state a layout
-   *  reads through bindings such as `{game.loading.percent}`. The values go
-   *  into the table in place and the table is recorded as a reactive change,
-   *  so on the next refresh only the bindings that read it re-run. Nothing
-   *  here is saved: `game` is a builtin define with no `store` props. */
   protected setLoadingState(
     fields: Partial<{
       active: boolean;
@@ -5000,10 +3785,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  /** Open the `loading` layout for a `load` beat (or adopt it if the author
-   *  already opened it), with the given transition or the configured one, and
-   *  publish the load's start to `game.loading`. Never in preview or
-   *  simulation. */
   beginLoading(transition?: string, scene?: string): void {
     if (this.context.system.previewing || this.context.system.simulating) {
       return;
@@ -5035,11 +3816,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Publish a load's progress to `game.loading` (`loaded`, `total`,
-   *  `progress` from 0 to 1, `percent` as a whole number) and refresh the
-   *  mounted layouts, so every binding that reads it follows, the built-in
-   *  bar's scale included. Accepted while a load is running or while the
-   *  author has the layout open themselves. */
   updateLoading(progress: { loaded: number; total: number }): void {
     if (!this._loading && !this._mountedLayouts.has("loading")) {
       return;
@@ -5060,24 +3836,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.refreshLayouts();
   }
 
-  /** Close the loading layout once it has been up for at least
-   *  `loading_min`, using the transition it opened with. */
   async endLoading(): Promise<void> {
     const loading = this._loading;
     this._loading = undefined;
     if (!loading) {
       return;
     }
-    // The mount may still be waiting on the layout's fonts; closing before
-    // it lands would be a no-op, and the layout would then mount over the
-    // game with nothing left to close it. Waiting for the mount alone (not
-    // the enter transition) is enough for the close to find it, and the open
-    // itself settling covers the case where it bailed out.
     if (loading.opening && !this._mountedLayouts.has("loading")) {
       await Promise.race([loading.opening, this.whenMounted("loading")]);
     }
-    // A load that never reported progress had nothing left to fetch: show it
-    // complete rather than leaving the bar at zero for the minimum display.
     this.setLoadingState(
       this._loadingReported === undefined
         ? { active: false, progress: 1, percent: 100 }
@@ -5100,15 +3867,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /**
-   * Play a `[[play NAME]]` cutscene and return a trigger that is ready once
-   * the page answers that its video ended or was skipped. When
-   * `movie.stop_music` is on, the `music` channel fades out as it starts and
-   * stays stopped after it ends, as Ren'Py's `stop_music` leaves it. A route
-   * replay records that stop and sends nothing; a preview, which plays no
-   * music, asks the page for the first frame. A name that is no video plays
-   * nothing.
-   */
   runCutscene(cutscene: CutsceneInstruction): number {
     const id = this.nextTriggerId();
     const src = this.getVideoSrcByName(cutscene.name);
@@ -5137,7 +3895,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     if (cutscene.with) {
       params.with = cutscene.with;
-      // A preview shows the first frame at once, with no transition.
       if (!previewing) {
         const clauses = { with: cutscene.with };
         const enter = this.resolveLayoutAnimation("enter", clauses, false);
@@ -5153,16 +3910,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (previewing) {
       params.preview = true;
     }
-    // The page answers once the video has ended or been skipped. A page that
-    // could not play it answers with an error, which is reported, and the
-    // story goes on all the same.
     void this.emitSettled(PlayCutsceneMessage.type.request(params)).then(() =>
       this.enableTrigger(id),
     );
     return id;
   }
 
-  /** End the cutscene the page is playing, as a click on it would. */
   skipCutscene(): void {
     if (this.context.system.simulating) {
       return;
@@ -5170,15 +3923,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.emit(SkipCutsceneMessage.type.notification({}));
   }
 
-  /** Navigate within a screen (`[[navigate <screen> to <layout>]]`): play
-   *  the exit transition on + destroy every currently-open layout IN THAT
-   *  SCREEN except the target, then open the target (its enter transition).
-   *  Layouts in other screens (and uncategorized layouts like a persistent
-   *  HUD) are left untouched. Composed from the open/close primitives — clauses
-   *  drive both the outgoing exit and the incoming enter (so a `with` transition
-   *  gives a crossfade). With no `screen`, falls back to replacing the whole
-   *  stack (close every open layout except the target). A missing target (an
-   *  incomplete `[[navigate <screen>]]`) is a no-op — the LSP warns. */
   async navigateScreen(
     name: string,
     screen?: string,
@@ -5186,27 +3930,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
-      // Static path: just show the target (layouts are all constructed at connect).
       if (name) {
         this.showLayout(name);
       }
       return;
     }
     if (!name) {
-      // Incomplete `[[navigate <screen>]]` — nothing to open. The LSP flags
-      // this; the runtime stays a no-op rather than dismissing the screen.
       return;
     }
-    // Close the open layouts this navigate replaces: scoped to `screen` when
-    // given (leave other screens/uncategorized layouts alone), else the whole
-    // stack. The target is always spared (it gets opened, not torn down).
-    // `main` is never navigated away from: it auto-mounts at connect and holds
-    // the primary subtree (textbox, stage, portrait, choices). Without this,
-    // an unscoped navigate — which is what `[[navigate to menu]]` produces,
-    // since `to` is consumed as the keyword and leaves `screen` empty — tore
-    // the whole session's UI down mid-beat. `saveLayoutState.recordOpen`
-    // already treats `main` as special; the asymmetry between the two was the
-    // tell that one of them had forgotten the invariant.
     const toClose = [...this._mountedLayouts.entries()]
       .filter(
         ([n, entry]) =>
@@ -5221,14 +3952,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     ]);
   }
 
-  /** Fold a layout directive into the serialized open-set (`_state.layout`),
-   *  mirroring `Image.saveState`. Runs for EVERY directive regardless of
-   *  `_reactive`/connection state — crucially, the route-simulation game that
-   *  builds scrub checkpoints (workspace.worker) is never connected, so its
-   *  `openLayout` short-circuits on the `!_reactive` guard and would never record
-   *  the open-set here. Recording at the fan-out keeps the checkpoint correct so
-   *  {@link onRestore} can re-mount the right layouts. `main` auto-mounts at
-   *  connect and is never recorded. */
   protected saveLayoutState(e: LayoutInstruction): void {
     const layouts = this._game.program?.sparkle?.layouts;
     const recordOpen = (name: string) => {
@@ -5251,13 +3974,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     if (e.control === "navigate") {
-      // Incomplete `[[navigate <screen>]]` (no destination) is a runtime
-      // no-op — leave the set untouched (matches navigateScreen).
       if (!e.name) {
         return;
       }
-      // Close the open layouts this navigate replaces: scoped to the screen
-      // when given (the target is spared), else the whole stack (legacy).
       if (this._state.layout) {
         this._state.layout = this._state.layout.filter((s) =>
           e.screen ? s.screen !== e.screen || s.name === e.name : s.name === e.name,
@@ -5266,27 +3985,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       recordOpen(e.name);
       return;
     }
-    recordOpen(e.name); // open
+    recordOpen(e.name);
   }
 
-  /** Apply a beat's `[[open/close/navigate]]` directives (Coordinator fan-out),
-   *  mirroring `image.write`/`audio.schedule`. Awaits all transitions so a beat
-   *  with a `wait` directive can hold advance until they settle. In a composed
-   *  beat (#1820) it awaits only the mounts: each transition plays from the
-   *  beat's commit, and nothing here waits for it (`openLayout`,
-   *  `closeLayout`). */
   async applyLayoutInstructions(
     instructions: LayoutInstruction[],
     instant: boolean,
   ): Promise<void> {
-    // Fold the open-set into serialized state FIRST (in directive order), so the
-    // checkpoint reflects the net result even when the (unconnected) simulation
-    // game can't run the reactive mount primitives below.
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
     if (instructions.length > 0) {
-      // The layouts mounted no longer stand as the tree was built (#657).
       this._screenEdits += 1;
     }
     const run = (e: LayoutInstruction): Promise<void> => {
@@ -5304,34 +4013,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return this.openLayout(e.name, clauses, instant);
     };
-    // A route replay applies its directives in authored order within the
-    // replay's own synchronous run. Its beats settle without transitions and a
-    // replay waits on no font, so each directive completes before it returns;
-    // awaiting between them would let the rest run after the replay has ended,
-    // where their operations would reach the page.
     if (this._game.replaying && instant) {
       for (const e of instructions) {
         void run(e);
       }
       return;
     }
-    // Directives for the SAME layout run in authored order; different layouts
-    // still run concurrently. `[[close X]] [[open X]]` in one beat used to
-    // race: `openLayout` tests `_mountedLayouts.has(name)` synchronously, so it
-    // no-opped while the close's exit animation was still awaiting, and the
-    // close then removed X. The DOM ended without X while the serialized state
-    // — folded sequentially above — recorded it open. It self-healed on
-    // restore, which is exactly what made the live beat's miss easy to miss.
-    // A `navigate` is additionally a BARRIER across names: it replaces the
-    // screen STACK, computing what to tear down from a live read of the whole
-    // `_mountedLayouts` set — so racing it against a concurrently-running
-    // `open`/`close` for a DIFFERENT layout made the outcome depend on how far
-    // that group's await chain had progressed (the same defect class the
-    // per-name grouping fixed, one level up). Everything before a navigate
-    // settles first, the navigate runs alone, then the remainder proceeds.
-    // The chain belongs to the stream it started in. A connect that begins
-    // while a directive waits (an open on its font) rebuilds the screen from
-    // its own state, so the directives still to run do nothing (#1218).
     const epoch = this._game.connection.epoch;
     const segments: LayoutInstruction[][] = [[]];
     for (const e of instructions) {
@@ -5375,15 +4062,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** The elements a target names. Elements named exactly as the target are
-   *  its own, so an author's element that only shares a class with it (`text
-   *  title` beside the builtin `title`) is left alone (#863). A target no
-   *  element is named after resolves to the elements that carry all its
-   *  classes (`dialogue action` for `dialogue`, its own text a placeholder).
-   *  For a text or image write (`writes`) that excludes content elements: a
-   *  write fills a target's `text`, `image`, `stroke` and `mask` children, so
-   *  `text title` is never one, while a style or visibility update still
-   *  reaches an author's `text continue_indicator`. */
   protected findElements(target: string, writes = false): Element[] {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
@@ -5443,15 +4121,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return element.findChildren(tag);
   }
 
-  /** The ids of the elements a text or image write to `target` reaches. */
   findIds(target: string): string[] {
     return this.findElements(target, true).map((c) => c.id);
   }
 
-  /** Whether a write to `target` names the elements it goes to: a composed
-   *  beat always does (#1820), and so does a write whose target resolved by
-   *  class, which the page cannot tell apart from an author's element with
-   *  the same classes. */
   protected namesWriteElements(target: string, elements: Element[]): boolean {
     const name = target.split("#")[0];
     return (
@@ -5487,19 +4160,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
       const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
-      // `fill`/`direction` (and the timing fields above) come from the
-      // animation's resolved `timing`, which is inherited from the `animation`
-      // type's `$default` at compile time (see
-      // SparkdownCompiler.populateDefinedDefaultProperties). So an authored
-      // `define pan_right as animation with keyframes = {...}` already carries
-      // `fill: "both"` here without needing a per-consumer default. These `??`
-      // are only a defensive floor for a context with no resolved timing.
       const fill = animation?.timing?.fill ?? "none";
       const direction = animation?.timing?.direction ?? "normal";
-      // Authored `define X as animation with keyframes = {...}` lowers to a
-      // single keyframe OBJECT, not an array (e.g. pan_left/pan_right's
-      // `{ background_position: "left" }`). AnimationPlayer expects an array, so
-      // wrap a lone keyframe into a one-element array.
       const rawKeyframes = animation?.keyframes;
       const keyframes = Array.isArray(rawKeyframes)
         ? rawKeyframes
@@ -5521,9 +4183,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return {
         $type: animation.$type,
         $name: animation.$name,
-        // `target` is optional when authoring (e.g. `define pan_left as
-        // animation with keyframes = {...}`), so default it to the animated
-        // element itself — matching `default_animation`.
         target: animation.target ?? { $type: "layer", $name: "self" },
         keyframes,
         timing,
@@ -5645,16 +4304,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
-        // [D14] The engine no longer builds per-glyph spans or per-letter
-        // reveal animations. It still owns the structural target element tree
-        // (so it can keep the flattened a11y `text` attribute + the reveal
-        // target's `display` toggle authoritative), but it delegates the
-        // span/whitespace/text-align decomposition AND the per-char reveal of
-        // the `text`/`stroke` content children to the consumer via a single
-        // `ui/write-text` message per target.
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("text", targetEls)) {
-          // A clear that changes nothing on the page (#657).
           return;
         }
         for (const targetEl of targetEls) {
@@ -5680,14 +4331,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (targetEls.length === 0) {
           return;
         }
-        // One message per write — the consumer rebuilds the `text`/`stroke`
-        // children and drives the reveal from each instruction's after/over
-        // timing. `await` here preserves the prior `await animateElements()`
-        // lifecycle: the write completes only once the reveal has finished.
-        // In a composed beat (#1820) it completes once the write is part of the
-        // beat: the page reveals it from the beat's commit, and nothing here
-        // waits for that. Flush pending create/update ops first so the target
-        // exists before the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteTextMessage.type.request({
@@ -5696,8 +4339,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
-            // A composed beat reaches the page with its structure: the write
-            // goes to the elements the target resolves to now (#1820).
             ...($.namesWriteElements(target, targetEls)
               ? { elements: targetEls.map((el) => el.id) }
               : {}),
@@ -5716,9 +4357,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 
-      /** `time` is when the beat starts on the shared clock (`sharedNow`),
-       *  for a write the page should show at that moment. The first `shown`
-       *  instructions are text already on the page, which appears at once. */
       async write(
         target: string,
         sequence: TextInstruction[],
@@ -5746,34 +4384,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const targetingContent = Boolean(event.assets?.length);
             if (targetingContent) {
               if (event.control === "show") {
-                // Clear all previous hide target events
                 state = state.filter(
                   (e) => !(e.control === "hide" && !e.assets?.length),
                 );
-                // Clear all previous content events
                 state = state.filter((e) => !e.assets?.length);
                 $._state.image ??= {};
                 $._state.image[target] = state;
               }
-              // TODO: If animate with none, clear all previous animation events
               state.push({
                 control: event.control,
                 with: event.with,
                 assets: event.assets,
                 over: 0,
-                // A restored movie plays as it was written.
                 ...(event.loop ? { loop: true } : {}),
                 ...(event.once ? { once: true } : {}),
                 ...(event.mute ? { mute: true } : {}),
               });
             } else {
-              // TODO: If animate with none, clear all previous animation events
               const changingVisibility = event.control !== "animate";
               const latestLayerVisibilityEvent = state.findLast(
                 (e) => !e.assets?.length && e.control !== "animate",
               );
               if (changingVisibility && latestLayerVisibilityEvent) {
-                // If we are just changing visibility, no need to create a new event
                 latestLayerVisibilityEvent.control = event.control;
                 latestLayerVisibilityEvent.with = event.with;
               } else {
@@ -5797,12 +4429,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      /** The first beat after a connect or redisplay: of the pictures that
-       *  clear took off the clear-on-continue targets, those play keeps
-       *  under `beat` (`keptTargets`) show again, at once, before the beat's
-       *  own writes (#1662). The rest stay cleared, as play clears them or
-       *  the beat's picture replaces them. A route replay presents nothing
-       *  and leaves them for the beat that does. */
       async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
         const cleared = $._clearedPictures;
         if (!cleared || $.context?.system?.simulating) {
@@ -5822,16 +4448,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
-      /**
-       * [D15] Resolve an `ImageInstruction[]` into a renderer-agnostic
-       * `WriteImageInstruction[]`. This keeps ALL engine-context lookups
-       * (transition resolution, `getAnimationDefinition`,
-       * `getBackgroundImageFromString`/src resolution) engine-side — it just
-       * ships the resolved CSS strings + `Animation` objects instead of
-       * building DOM and emitting per-element `ui/create`/`ui/animate`/
-       * `ui/destroy`. The consumer realizes the `instance` span(s) + drives the
-       * enter/exit/destroy lifecycle. Mirrors D14 (`getRevealAnimation`).
-       */
       protected resolve(
         sequence: ImageInstruction[],
         instant: boolean,
@@ -5841,7 +4457,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const out: WriteImageInstruction = { control: e.control };
           const targetAnimations: Animation[] = [];
           const affected: { target: string; animations: Animation[] }[] = [];
-          // Reveal target before showing content
           const isFirstContentReveal =
             e.control === "show" && e.assets && e.assets.length > 0;
           if (isFirstContentReveal) {
@@ -5858,7 +4473,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           const transitionWith = e.with || "";
           const transition = $.context?.transition?.[transitionWith];
-          // Calculate transition speed
           const transitionAnimations: Animation[] = [];
           if (transition) {
             for (const [k, v] of Object.entries(transition)) {
@@ -5887,7 +4501,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             transition && over != null && over > 0
               ? transitionDuration / over
               : 1;
-          // Calculate show settings
           const showWith =
             (transition
               ? typeof transition?.on_show === "string"
@@ -5902,7 +4515,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? showAnimationDuration / transitionSpeed
             : over;
           const showEase = e.ease;
-          // Calculate hide settings
           const hideWith =
             (transition
               ? typeof transition?.on_hide === "string"
@@ -5917,9 +4529,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? hideAnimationDuration / transitionSpeed
             : over;
           const hideEase = e.ease;
-          // Animate any other elements affected by the transition. These are
-          // arbitrary class selectors (e.g. `transitional`) → animation, so the
-          // consumer re-resolves the selector against the live DOM.
           if (transition) {
             for (const [k, v] of Object.entries(transition)) {
               if (!k.startsWith("$") && !k.startsWith("on_")) {
@@ -5943,13 +4552,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
           if (e.assets && e.assets.length > 0) {
-            // Resolve the content layer once (identical for image + mask
-            // content elements; only the CSS property differs, picked
-            // consumer-side). The consumer creates the `instance` span(s).
             const imageNames = e.assets.join(" ");
-            // A name that is not an image but is a video is a movie the
-            // layer plays, as the asset module resolves it
-            // (`resolveImageItems`); the first one plays.
             const videoSrcs = e.assets
               .map((a) => $.getVideoSrcByName(a))
               .filter((s): s is string => Boolean(s));
@@ -5966,8 +4569,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const src = imageAssets.flatMap((a) =>
               $.getImageSrcsFromValue(a),
             )[0];
-            // A `data:` src is inline and never fetched, so there is nothing
-            // to keep resident for it.
             const srcs = [
               ...new Set([
                 ...imageAssets
@@ -5997,8 +4598,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   : {}),
               };
             }
-            // Counted in the images the background paints, which a movie is
-            // not among.
             const morph = $.getMorphContent(imageAssets);
             if (morph) {
               content.morph = morph;
@@ -6061,8 +4660,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             out.content = content;
           } else {
-            // We are affecting the image wrapper (no assets): show/hide/animate
-            // the target element itself.
             if (e.control === "hide") {
               const hideEvent = {
                 name: hideWith,
@@ -6120,15 +4717,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
       ) {
-        // [D15] The engine no longer builds the per-layer `instance` span DOM,
-        // the crossfade enter/exit animations, or the prior-layer destroys. It
-        // still owns the structural target element tree (the `display` toggle on
-        // the `backdrop`/`portrait` wrapper) but delegates the image-layer
-        // realization + animation lifecycle to the consumer via a single
-        // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
-          // A clear that changes nothing on the page (#657).
           return;
         }
         for (const targetEl of targetEls) {
@@ -6148,15 +4738,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (targetEls.length === 0) {
           return;
         }
-        // One message per write — the consumer rebuilds the image/mask content
-        // children and drives the enter/exit/destroy lifecycle. `await` here
-        // preserves the prior `await animateElements()` lifecycle: the write
-        // completes only once the crossfade animations have finished (so
-        // auto-advance still waits on the reveal). In a composed beat (#1820)
-        // it completes once the write is part of the beat: the page plays the
-        // crossfade from the beat's commit, and nothing here waits for that.
-        // Flush pending create/update ops first so the target exists before
-        // the (awaited) write arrives.
         $.flushUIBatch();
         await $.emitSettled(
           WriteImageMessage.type.request({
@@ -6164,8 +4745,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instructions: sequence ? this.resolve(sequence, instant) : [],
             instant,
             ...(time != null ? { time } : {}),
-            // A composed beat reaches the page with its structure: the write
-            // goes to the elements the target resolves to now (#1820).
             ...($.namesWriteElements(target, targetEls)
               ? { elements: targetEls.map((el) => el.id) }
               : {}),
@@ -6184,8 +4763,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(targets.map((target) => this.clear(target)));
       }
 
-      /** `time` is when the beat starts on the shared clock (`sharedNow`),
-       *  for a write the page should show at that moment. */
       async write(
         target: string,
         sequence: ImageInstruction[],
@@ -6317,7 +4894,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReceiveNotification(msg: NotificationMessage): void {
     if (MorphNeedMessage.type.isNotification(msg)) {
-      // The page let an artifact go that it needs again.
       const ref = this._morphWritten.get(msg.params.key);
       if (ref) {
         this.deliverMorphArtifact(ref, true);
@@ -6329,8 +4905,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (params.currentTargetId) {
         const callback = this._events[params.type]?.[params.currentTargetId];
         if (callback) {
-          // What the viewer did may have changed the page by itself (an
-          // input's value), whether or not the handler sends anything.
           this._uiOps += 1;
           callback(params);
         }

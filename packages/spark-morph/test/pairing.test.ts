@@ -46,7 +46,6 @@ describe("pairShapes", () => {
       ["l1", "l2"],
       ["r1", "r2"],
     ]);
-    // Reordering the inputs does not change who pairs with whom.
     const again = pairShapes(from.slice().reverse(), to.slice().reverse());
     expect(again.pairs.map((p) => p.trackId).sort()).toEqual(r.pairs.map((p) => p.trackId).sort());
   });

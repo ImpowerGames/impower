@@ -1,11 +1,3 @@
-// #815 — what a running game reports when the story raises a runtime error or
-// warning.
-//
-// A warning marks something the runtime recovered from, so the story plays on
-// past it; an error ends the story. Either way, the report names the statement
-// that raised it (not the statement that ran before it) and carries the bare
-// message, since the location travels separately.
-
 import { describe, expect, test } from "vitest";
 import type { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
@@ -16,7 +8,6 @@ const CONTINUES_WARNING =
 const runtimeErrors = (messages: any[]) =>
   messages.filter((m) => m.method === "game/runtimeError").map((m) => m.params);
 
-/** Connect the game and start playing it from the top, as PLAY does. */
 const play = async (source: string) => {
   const h = createHarness(source, 0);
   await h.ready;
@@ -25,7 +16,6 @@ const play = async (source: string) => {
   return h;
 };
 
-/** The 0-based line the game last executed. */
 const executingLine = (h: { game: Game }) =>
   h.game.getLastExecutedDocumentLocation()?.range.start.line;
 
@@ -35,8 +25,6 @@ describe("a runtime warning", () => {
   test("leaves the game running, and the next step executes", async () => {
     const h = await play(SOURCE);
     expect(runtimeErrors(h.messages)).toEqual([]);
-    // The beat after `A` shows `B`, whose `..` the line before did not offer
-    // to join.
     h.game.continue();
     const warnings = runtimeErrors(h.messages);
     expect(warnings.map((w) => [w.type, w.message])).toEqual([
@@ -92,10 +80,6 @@ describe("a runtime error", () => {
     expect(errors.map((e) => e.message)).toEqual(["deep"]);
   });
 
-  // A handler runs between steps, so the last step the game ran says nothing
-  // about where the handler's function raised its error. The error ends the
-  // story, and it is the only report: what the ended evaluation throws after
-  // it is not reported again at the last step's line.
   test("raised inside a function a click handler calls is reported once, where the function raised it", async () => {
     const h = createHarness(
       `scene start\n  A\n  B\n  C\nend\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud with\n  button "Heal" @click=heal\nend\n`,
@@ -113,11 +97,6 @@ describe("a runtime error", () => {
     );
   });
 
-  // A metamethod and a comparator are called from host code (a builtin, or
-  // the runtime's index lookup), which restores its caller's position as the
-  // error unwinds through it. The report still names the statement inside the
-  // callback, whether a click handler's function or a display line's step
-  // reached it (#1691).
   const METAMETHOD = `store obj = setmetatable({}, { __index = function(t, k)\n  error("bad index")\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n`;
   const COMPARATOR = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nfunction sort_items()\n  table.sort(items, compare)\nend\n`;
 
@@ -178,8 +157,6 @@ describe("a runtime error", () => {
     ]);
   });
 
-  // The comparator runs inside the metamethod's call, so two callbacks unwind:
-  // the report names the innermost statement, not the metamethod's sort.
   test("raised inside a comparator a metamethod's sort calls is reported where the comparator raised it", async () => {
     const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nscene start\n  A\n  B\nend\n`;
     expect(await clickReports(source)).toEqual([

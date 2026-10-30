@@ -1,17 +1,10 @@
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { beforeEach, describe, expect, it } from "vitest";
 
-// Importing WorkspaceFileSystem does not load the Workspace singleton (#1794).
-// We never construct WorkspaceFileSystem (which would spawn a Worker) — we
-// invoke its methods via prototype.method.call(fakeThis, ...).
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "proj1";
 
-// Minimal `this` providing the helpers bundle/split actually touch. getFileUri,
-// getDirectoryUri, and getRelativePath are the REAL prototype implementations.
-// (bundleProjectText derives each script's project-relative path via
-// this.getRelativePath, so the fake must expose it.)
 function makeFakeFs(files: Record<string, FileData>) {
   return {
     _scheme: "file://",
@@ -104,16 +97,9 @@ describe("script bundle round-trip (bundleProjectText <-> splitProjectTextConten
     ]);
     const fs = makeFakeFs(files);
     const chunks = split(fs, await bundle(fs));
-    // bundleProjectText .trim()s the whole bundle; main body content (minus
-    // leading/trailing whitespace) must survive.
     expect(chunks[`file://${PROJECT}/main.sd`]).toBe(body.trim());
   });
 
-  // KNOWN GAP: two scripts sharing a basename but living in different folders.
-  // bundleProjectText writes only `${name}.${ext}` (the basename) into the
-  // separator, and splitProjectTextContent maps a separator filename straight to
-  // getFileUri(projectId, filename). So nested scripts collapse onto the same
-  // top-level uri and collide. DESIRED: the two distinct folder paths survive.
   describe("known gaps on main", () => {
     it("two scripts sharing a basename in different folders do NOT collide", async () => {
       const files = Object.fromEntries([
@@ -123,9 +109,6 @@ describe("script bundle round-trip (bundleProjectText <-> splitProjectTextConten
       ]);
       const fs = makeFakeFs(files);
       const chunks = split(fs, await bundle(fs));
-      // DESIRED: both nested scripts round-trip to their own uris with their own
-      // content. On main the separator drops the folder, so both map to
-      // file://proj1/intro.sd and one body is lost.
       expect(chunks[`file://${PROJECT}/scenes/intro.sd`]).toBe("INTRO BODY");
       expect(chunks[`file://${PROJECT}/acts/intro.sd`]).toBe(
         "ACTS INTRO BODY",

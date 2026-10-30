@@ -1,10 +1,3 @@
-// The engine keys its `_events` handler registry by the STRUCTURAL element id
-// (stamped as the `__sdId` JS property by UIManager), while the DOM `id`
-// attribute belongs to the author — `#id="save_btn"` legitimately overwrites
-// it. `getEventData` must therefore report the structural id, or an element
-// with both an authored `#id` and an `@event` has a handler that silently
-// never fires (the engine's `_events[type][currentTargetId]` lookup misses).
-
 import { describe, expect, it } from "vitest";
 import { getEventData } from "./getEventData";
 
@@ -17,8 +10,6 @@ const elementWith = (domId: string, structuralId?: string) => {
   return el;
 };
 
-/** Dispatch a real DOM event so `currentTarget` is populated during the
- *  listener, and capture what `getEventData` reports there. */
 const capture = (el: HTMLElement, event: Event): any => {
   let data: any;
   const listener = (e: Event) => {
@@ -53,8 +44,6 @@ describe("getEventData structural ids", () => {
   });
 
   it("keeps the structural id on the terminal fallback branch (scroll)", () => {
-    // The fallback must also carry `type` — `UIModule` dispatches on it, and
-    // omitting it made `@scroll` handlers never fire (#311.2).
     const el = elementWith("scroll_box", "e-layouts-0-main-0-scroller-0");
     const data = capture(el, new Event("scroll", { bubbles: true }));
     expect(data.type).toBe("scroll");

@@ -1,8 +1,3 @@
-// Every stream the game sends carries an epoch, and the page drops what an
-// older stream still had in flight once a newer one has begun. With the game
-// on another thread, a superseded preview's messages can arrive after the
-// preview that replaced it started; they must not paint over it.
-
 import { compileUI } from "@impower/spark-engine/src/tests/ui/harness/uiTestHarness";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
 import { describe, expect, test } from "vitest";
@@ -33,8 +28,6 @@ describe("stream epochs", () => {
     await h.ready;
     await flushMicrotasks(10);
 
-    // The game's second stream shows EARLIER; what it sends is kept, to
-    // arrive again once the third stream has begun.
     const late: any[] = [];
     await h.game.connect((message) => {
       const arrived = cloneMessage(message);
@@ -45,7 +38,6 @@ describe("stream epochs", () => {
     expect(late.length).toBeGreaterThan(0);
     expect(new Set(late.map((m) => m.epoch))).toEqual(new Set([2]));
 
-    // The third stream shows LATER.
     h.game.updateProgram(compileUI(LATER).program as any);
     await h.game.connect((message) => h.router.receive(cloneMessage(message)));
     await flushMicrotasks(10);
@@ -64,8 +56,6 @@ describe("stream epochs", () => {
     expect(serializeDOM(h.overlay)).toEqual(shown);
     expect(h.overlay.querySelector(".earlier_panel")).toBeNull();
 
-    // The same messages do paint on a page that has not seen the later
-    // stream: what kept them off this one is their epoch.
     const unaware = new MessageRouter(() => [h.ui], () => {});
     for (const message of late) {
       unaware.receive(message);

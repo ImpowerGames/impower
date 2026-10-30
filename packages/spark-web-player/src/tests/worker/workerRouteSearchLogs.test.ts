@@ -1,9 +1,3 @@
-// What the worker's route searches established is evidence only about the
-// path and the program each ran in (#680). The editor re-selects on every
-// cursor move, so a selection of the line the preview stands on must not
-// search it again (#489); and the page can
-// ask for the program it shows after a newer one has compiled, which must be
-// displayed from a route through its own story, not the newer program's.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
@@ -24,8 +18,6 @@ const FEEL = lineOf("I feel {mood}.");
 
 const text = (overlay: HTMLElement) => (overlay.textContent ?? "").replace(/\s+/g, " ").trim();
 
-/** Count the route searches the worker's game runs from now on: each starts
- *  by asking where the planned route can resume. */
 const countSearches = (h: any) => {
   const game = h.workerState.gameState.game;
   const searched: string[] = [];
@@ -63,8 +55,6 @@ describe("route searches for a selection", () => {
       await settle(40);
       expect(text(h.overlay)).toContain("I feel calm.");
 
-      // An edit whose compile throws: the game and the page keep the
-      // program before it.
       const at = TWO_LINES.split("\n")[TWO_MOOD]!.indexOf("calm");
       await h.edit([
         {
@@ -75,7 +65,6 @@ describe("route searches for a selection", () => {
           text: "angry",
         },
       ]);
-      // The parse throws, which any compile runs.
       const compiler: any = h.workerState.compilerState.compiler;
       const parseIncrementally = compiler.parseIncrementally;
       compiler.parseIncrementally = () => {
@@ -88,8 +77,6 @@ describe("route searches for a selection", () => {
       }
       expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
 
-      // The cursor moves to the next line, which the program shown still
-      // describes.
       const searched = countSearches(h);
       await h.select(STILL);
       await settle(40);
@@ -112,7 +99,6 @@ describe("route searches for a selection", () => {
       await settle(40);
       expect(text(h.overlay)).toContain("I feel calm.");
 
-      // The cursor moves along the line.
       const searched = countSearches(h);
       await h.select(FEEL);
       await settle(40);
@@ -137,9 +123,6 @@ describe("a program the page still shows", () => {
       await settle(40);
       expect(text(h.overlay)).toContain("I feel calm.");
 
-      // An edit above the line changes what the story holds there and leaves
-      // every path where it was. The worker compiles it; the page has not
-      // taken the new program yet.
       const at = SOURCE.split("\n")[MOOD]!.indexOf("calm");
       await h.edit([
         {
@@ -155,8 +138,6 @@ describe("a program the page still shows", () => {
         startFrom: { file: MAIN_URI, line: FEEL },
       });
 
-      // A display the page sent before the new program reached it names the
-      // program it shows, at the same line.
       const { displayed } = await h.link.request(DisplayPreviewMessage.type, {
         program: programIdentity(shown.program)!,
         file: MAIN_URI,

@@ -1,9 +1,3 @@
-/*
- * Helpers for authoring `Random<T>` specs with non-uniform distributions
- * and probabilistic on/off choices. See `ChanceSpec`, `PowSpec`,
- * `PowRangeSpec` in `../types/Random.ts` for the spec tuple shapes.
- */
-
 import {
   type ChanceSpec,
   type PowLerpSpec,

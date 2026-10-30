@@ -1,18 +1,3 @@
-// Jumping the preview to a line must display THAT line's beat.
-//
-// A display beat's recorded source range ends where the next statement begins,
-// which is column 0 of the following content line. `findClosestPathLocation`
-// matches a line against `startLine..endLine` without looking at the columns, so
-// a range that merely touches the start of the next content line used to swallow
-// it: clicking the action line after a dialogue block resolved to the DIALOGUE's
-// path, and the preview faithfully displayed the dialogue. The compiler now
-// pulls such a range back to the end of the previous line, so every content line
-// resolves to its own beat.
-//
-// Driven through the production scrub path: an UNCONNECTED game plans and
-// replays the route (what `workspace.worker` does) and its checkpoint is loaded
-// into a fresh CONNECTED game that previews the point (what the player does).
-
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
@@ -36,7 +21,6 @@ const lineOf = (needle: string): number => {
   return line;
 };
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -45,7 +29,6 @@ const writtenText = (harness: any): string =>
     )
     .join(" ");
 
-/** Scrub to `line` the way the editor does, and return what got written. */
 async function scrubTo(
   line: number,
 ): Promise<{ address: ProgramAddress | null; text: string }> {
@@ -71,8 +54,6 @@ describe("preview point resolution (#490)", () => {
   });
 
   test("the dialogue line above it still displays the dialogue", async () => {
-    // Positive control: the fix narrows the dialogue beat's range, so this is
-    // the assertion that would break if it were narrowed too far.
     const { text } = await scrubTo(lineOf("Wow."));
     expect(text).toContain("Wow.");
     expect(text).toContain("RAFFLES");

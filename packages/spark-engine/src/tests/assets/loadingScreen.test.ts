@@ -3,9 +3,6 @@ import { describe, expect, it } from "vitest";
 import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
 import { UIModule } from "../../game/modules/ui/classes/UIModule";
 
-// The `loading` layout is engine-managed: `load` beats drive it, nothing
-// else moves it, and a preview never shows it.
-
 const ASSETS: File[] = [
   {
     uri: "inmemory:///room.png",
@@ -32,7 +29,6 @@ scene B
 end
 `;
 
-/** The live `game.loading` table as a plain object. */
 const loadingTable = (game: any): Record<string, unknown> => {
   const table = game.story.variablesState.GetVariableWithName("game");
   const loading = table?.value?.get("loading");
@@ -111,7 +107,6 @@ describe("the loading layout", () => {
     h.flushTimers();
     await closing;
     expect(ui._mountedLayouts.has("loading")).toBe(false);
-    // The exit runs the transition it opened with, not the default hide.
     const exits = h.messages.filter((m) => m.method === "ui/animate");
     expect(exits.length).toBeGreaterThan(0);
     expect(JSON.stringify(exits.map((m) => m.params))).toContain("fade");
@@ -134,8 +129,6 @@ ${STORY}`,
       },
     );
     await h.ready;
-    // The builtin carries every field from the start, so a layout mounted
-    // before any load reads real values, not nil.
     expect(loadingTable(h.game)).toEqual({
       active: false,
       name: "",
@@ -166,17 +159,13 @@ ${STORY}`,
       progress: 0.25,
       percent: 25,
     });
-    // The bound text re-rendered from the table, and only it: the update is
-    // targeted, not a remount.
     const updates = h.snapshotFiltered("ui/update");
     expect(JSON.stringify(updates)).toContain("Loading 25%");
     expect(h.snapshotFiltered("ui/create")).toHaveLength(0);
-    // A repeated report changes nothing, so no binding re-runs.
     h.reset();
     ui.updateLoading({ loaded: 1, total: 4 });
     await flushMicrotasks(20);
     expect(h.snapshotFiltered("ui/update")).toHaveLength(0);
-    // Nothing of it is saved into a checkpoint.
     expect(h.game.save()).not.toContain("percent");
     const closing = ui.endLoading();
     await flushMicrotasks(20);

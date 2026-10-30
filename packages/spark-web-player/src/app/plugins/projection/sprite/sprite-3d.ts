@@ -12,7 +12,6 @@ import { Point3D } from "../transform/point";
 import { Transform3D } from "../transform/transform-3d";
 import type { SpriteBillboardType } from "./sprite-billboard-type";
 
-// Allocate these once and then reuse them
 const point = new Point3D();
 const cornerOffsets: [number, number][] = [
   [-1, -1],
@@ -34,49 +33,27 @@ const worldCorners = [
 ];
 const screenCorners = [new Point(), new Point(), new Point(), new Point()];
 
-/**
- * A sprite positioned in 3D space with billboarding and perspective scaling.
- */
 export class Sprite3D extends PerspectiveMesh {
-  /**
-   * The transform in 3D space.
-   */
   transform = new Transform3D();
 
-  /**
-   * @deprecated Use `transform.scale` instead
-   */
   override get scale() {
     return super.scale;
   }
 
-  /**
-   * @deprecated Use `transform.position` instead
-   */
   override get position() {
     return super.position;
   }
 
-  /**
-   * @deprecated Use `transform.rotation` instead
-   */
   override get rotation() {
     return super.rotation;
   }
 
   protected _camera: Camera;
-  /**
-   * The camera this sprite is rendered relative to.
-   */
   get camera() {
     return this._camera;
   }
 
   protected _billboardType: SpriteBillboardType = "none";
-  /**
-   * The billboard type to use when rendering the sprite.
-   * Used for making the sprite always face the viewer.
-   */
   get billboardType() {
     return this._billboardType;
   }
@@ -91,9 +68,6 @@ export class Sprite3D extends PerspectiveMesh {
     0.5,
     0.5,
   );
-  /**
-   * The anchor point of the sprite.
-   */
   get anchor() {
     return this._anchor;
   }
@@ -145,7 +119,6 @@ export class Sprite3D extends PerspectiveMesh {
     const ax = this._anchor.x;
     const ay = this._anchor.y;
 
-    // Use rotRight and rotUp to compute corners
     for (let i = 0; i < 4; i++) {
       const x = cornerOffsets[i]![0]! * w * 0.5 + (0.5 - ax) * w;
       const y = cornerOffsets[i]![1]! * h * 0.5 + (0.5 - ay) * h;
@@ -160,16 +133,11 @@ export class Sprite3D extends PerspectiveMesh {
     return out;
   }
 
-  /**
-   * Updates the sprite's 2D screen position, rotation, and scale based on the 3D transform.
-   */
   prerender() {
-    // Update local and world transform
     this.transform.updateTransform((this.parent as Container3D)?.transform);
 
     const spritePos = this.transform.worldTransform.position;
 
-    // Compute screen position of center
     const screenCenter = point;
     this._camera.worldToScreen(
       spritePos.x,
@@ -179,68 +147,53 @@ export class Sprite3D extends PerspectiveMesh {
     );
 
     if (Number.isNaN(screenCenter.x) || Number.isNaN(screenCenter.y)) {
-      // Invalid position, so no need to render
       this.visible = false;
       return;
     }
 
-    // Get view space Z for depth check
     const viewPos = point;
     this._camera.worldToView(spritePos.x, spritePos.y, spritePos.z, viewPos);
     const depth = -viewPos.z;
 
     if (depth <= 0) {
-      // Behind camera, so no need to render
       this.visible = false;
       return;
     }
 
-    // Get width and height in local 3D space (object space)
     const w =
       (this.texture.width * this.transform.scale.x) / this._pixelsPerUnit;
     const h =
       (this.texture.height * this.transform.scale.y) / this._pixelsPerUnit;
 
-    // Apply billboarding by modifying rotation in local space
     let rotRight = Vec3.right;
     let rotUp = Vec3.up;
 
     if (this._billboardType === "spherical") {
-      // Extract right and up vectors from camera's view matrix
       const view = this._camera.view.array;
 
-      // Camera's local right
       rotRight[0] = view[0]!;
       rotRight[1] = view[4]!;
       rotRight[2] = view[8]!;
 
-      // Camera's local up
       rotUp[0] = view[1]!;
       rotUp[1] = view[5]!;
       rotUp[2] = view[9]!;
 
-      // Project to screen space
       this.calculateWorldCorners(w, h, rotRight, rotUp, worldCorners);
     } else if (this._billboardType === "cylindrical") {
-      // Extract right vector from camera's view matrix (X column)
       const view = this._camera.view.array;
 
-      // Camera's local right
       rotRight[0] = view[0]!;
       rotRight[1] = view[4]!;
       rotRight[2] = view[8]!;
 
-      // Use world up as-is for cylindrical mode (locks Y axis)
       rotUp.set(Vec3.up);
 
-      // Project to screen space
       this.calculateWorldCorners(w, h, rotRight, rotUp, worldCorners);
     } else {
-      // No billboarding
       const ax = this._anchor.x;
       const ay = this._anchor.y;
 
-      // Transform to world space
       for (let i = 0; i < 4; i++) {
         const x = cornerOffsets[i]![0]! * w * 0.5 + (0.5 - ax) * w;
         const y = cornerOffsets[i]![1]! * h * 0.5 + (0.5 - ay) * h;
@@ -251,7 +204,6 @@ export class Sprite3D extends PerspectiveMesh {
       }
     }
 
-    // Check if any corners are behind the camera
     for (let i = 0; i < 4; i++) {
       const worldCorner = worldCorners[i]!;
       this._camera.worldToView(
@@ -262,13 +214,11 @@ export class Sprite3D extends PerspectiveMesh {
       );
       const depth = -viewPos.z;
       if (depth <= 0) {
-        // A corner is behind the camera
         this.visible = false;
         return;
       }
     }
 
-    // Project to screen space
     for (let i = 0; i < 4; i++) {
       const worldCorner = worldCorners[i]!;
       this._camera.worldToScreen(
@@ -279,19 +229,17 @@ export class Sprite3D extends PerspectiveMesh {
       );
     }
 
-    // Apply corners to mesh
     this.setCorners(
       screenCorners[3]!.x,
-      screenCorners[3]!.y, // top-left
+      screenCorners[3]!.y,
       screenCorners[2]!.x,
-      screenCorners[2]!.y, // top-right
+      screenCorners[2]!.y,
       screenCorners[1]!.x,
-      screenCorners[1]!.y, // bottom-right
+      screenCorners[1]!.y,
       screenCorners[0]!.x,
-      screenCorners[0]!.y, // bottom-left
+      screenCorners[0]!.y,
     );
 
-    // Sprites that are closer to camera should render ontop of others
     const anchorOffset = point.set(0, h * (0.5 - this._anchor.y), 0);
     this.transform.localToWorld(anchorOffset, anchorOffset);
     this._camera.worldToView(
@@ -302,7 +250,6 @@ export class Sprite3D extends PerspectiveMesh {
     );
     this.zIndex = viewPos.z;
 
-    // Sprite should render
     this.visible = true;
   }
 }

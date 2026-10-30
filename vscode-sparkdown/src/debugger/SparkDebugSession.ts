@@ -1,14 +1,6 @@
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
-/*
- * mockDebug.ts implements the Debug Adapter that "adapts" or translates the Debug Adapter Protocol (DAP) used by the client (e.g. VS Code)
- * into requests and events of the real "execution engine" or "debugger" (here: class MockRuntime).
- * When implementing your own debugger extension for VS Code, most of the work will go into the Debug Adapter.
- * Since the Debug Adapter is independent from VS Code, it can be used in any client (IDE) supporting the Debug Adapter Protocol.
- *
- * The most important class of the Debug Adapter is the MockDebugSession which implements many DAP requests by talking to the MockRuntime.
- */
 
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
@@ -77,20 +69,10 @@ export interface FileAccessor {
   getRootPath(path: string): string | undefined;
 }
 
-/**
- * This interface describes the mock-debug specific launch attributes
- * (which are not part of the Debug Adapter Protocol).
- * The schema for these attributes lives in the package.json of the mock-debug extension.
- * The interface should always match this schema.
- */
 interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
-  /** An absolute path to the "program" to debug. */
   program: string;
-  /** Automatically stop target after launch. If not specified, target does not stop. */
   stopOnEntry?: boolean;
-  /** enable logging the Debug Adapter Protocol */
   trace?: boolean;
-  /** run without debugging */
   noDebug?: boolean;
 }
 
@@ -101,20 +83,12 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _connection: Connection;
 
-  /** What a scope's handle names: the scope, and for the Temps the thread
-   *  and the frame, as the engine numbers them, whose temporaries it shows
-   *  (#1727). */
   private _variableHandles = new Handles<{
     scope: "temps" | "vars" | "defines";
     threadId?: number;
     frameId?: number;
   }>(-3);
 
-  /** The engine's thread and frame of each frame id given to the client.
-   *  The engine numbers each thread's frames from 0, so frames of two
-   *  threads share a number, and the protocol requires a frame's id to be
-   *  unique across threads: each (thread, frame) pair keeps the id it was
-   *  first given. */
   private _frames = new Map<number, { threadId: number; frameId: number }>();
   private _frameIds = new Map<string, number>();
 
@@ -123,10 +97,6 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _stoppedReason = new Map<number, string>();
 
-  /**
-   * Creates a new debug adapter that is used for one debug session.
-   * We configure the default implementation of a debug adapter here.
-   */
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
 
@@ -135,7 +105,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._connection = connection;
     this._connection.connectInput((msg) => this.onReceive(msg));
 
-    // this debugger uses zero-based lines and columns
     this.setDebuggerLinesStartAt1(false);
     this.setDebuggerColumnsStartAt1(false);
   }
@@ -226,7 +195,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     | { result: unknown; transfer?: ArrayBuffer[] }
     | undefined
   > {
-    // TODO
     return undefined;
   }
 
@@ -305,10 +273,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendEvent(errorLocationOutputEvent);
   }
 
-  /**
-   * The 'initialize' request is the first request called by the frontend
-   * to interrogate the features the debug adapter provides.
-   */
   protected override initializeRequest(
     response: DebugProtocol.InitializeResponse,
     args: DebugProtocol.InitializeRequestArguments,
@@ -317,73 +281,21 @@ export class SparkDebugSession extends LoggingDebugSession {
       this._useInvalidatedEvent = true;
     }
 
-    // build and return the capabilities of this debug adapter:
     response.body = response.body || {};
 
     response.body.supportsConfigurationDoneRequest = true;
-    // make VS Code support restarting
     response.body.supportsRestartRequest = true;
-    // make VS Code only support pause button
     response.body.supportSuspendDebuggee = true;
-    // make VS Code only support stop button
     response.body.supportTerminateDebuggee = true;
-    // make VS Code only support adding breakpoint at valid location
     response.body.supportsBreakpointLocationsRequest = true;
-    // make VS Code show "Add Function Breakpoint" plus button in "BREAKPOINTS" panel
     response.body.supportsFunctionBreakpoints = true;
-    // make VS Code show "LOADED SCRIPTS" panel
     response.body.supportsLoadedSourcesRequest = true;
 
-    // TODO
-    // make VS Code use 'evaluate' when hovering over source
     response.body.supportsEvaluateForHovers = true;
-    // make VS Code support "Break on Value Read", "Break on Value Change", or "Break on Value Access"
-    // In the context menu of the "BREAKPOINTS" panel
     response.body.supportsDataBreakpoints = true;
-    // // make VS Code send setVariable request
-    // response.body.supportsSetVariable = true;
-    // // make VS Code send setExpression request
-    // response.body.supportsSetExpression = true;
-
-    // // make VS Code show a 'step back' button
-    // response.body.supportsStepBack = true;
-    // // make VS Code support a restarting a frame
-    // supportsRestartFrame?: boolean;
-    // // make VS Code provide "Step in Target" functionality
-    // response.body.supportsStepInTargetsRequest = true;
-
-    // // the adapter defines two exceptions filters, one with support for conditions.
-    // response.body.supportsExceptionFilterOptions = true;
-    // response.body.exceptionBreakpointFilters = [
-    //   {
-    //     filter: "namedException",
-    //     label: "Named Exception",
-    //     description: `Break on named exceptions. Enter the exception's name as the Condition.`,
-    //     default: false,
-    //     supportsCondition: true,
-    //     conditionDescription: `Enter the exception's name`,
-    //   },
-    //   {
-    //     filter: "otherExceptions",
-    //     label: "Other Exceptions",
-    //     description: "This is a other exception",
-    //     default: true,
-    //     supportsCondition: false,
-    //   },
-    // ];
-    // // make VS Code send exceptionInfo request
-    // response.body.supportsExceptionInfoRequest = true;
-
-    // // make VS Code send cancel request
-    //  response.body.supportsCancelRequest = true;
-
-    // response.body.supportsGotoTargetsRequest = true;
 
     this.sendResponse(response);
 
-    // since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
-    // we request them early by sending an 'initializeRequest' to the frontend.
-    // The frontend will end the configuration sequence by calling 'configurationDone' request.
     this.sendEvent(new InitializedEvent());
   }
 
@@ -392,7 +304,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.DisconnectArguments,
     _request?: DebugProtocol.Request,
   ) {
-    // console.log("disconnectRequest", args);
     if (!args.restart) {
       await this._connection.emit(
         StopGameMessage.type.request({
@@ -409,7 +320,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse,
     args: IAttachRequestArguments,
   ) {
-    // console.log("attachRequest", args);
     return this.launchRequest(response, args);
   }
 
@@ -431,8 +341,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.LaunchResponse,
     args: ILaunchRequestArguments,
   ) {
-    // console.log("launchRequest", args);
-    // make sure to 'Stop' the buffered logging if 'trace' is not set
     logger.setup(
       args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
       false,
@@ -457,7 +365,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ContinueResponse,
     _args: DebugProtocol.ContinueArguments,
   ) {
-    // console.log("continueRequest", args);
     await this._connection.emit(UnpauseGameMessage.type.request({}));
     await this._connection.emit(ContinueGameMessage.type.request({}));
     this.sendResponse(response);
@@ -467,8 +374,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ReverseContinueResponse,
     _args: DebugProtocol.ReverseContinueArguments,
   ) {
-    // console.log("reverseContinueRequest", args);
-    // TODO
     this.sendResponse(response);
   }
 
@@ -476,7 +381,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.NextResponse,
     _args: DebugProtocol.NextArguments,
   ) {
-    // console.log("nextRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "over",
@@ -489,7 +393,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepInResponse,
     _args: DebugProtocol.StepInArguments,
   ) {
-    // console.log("stepInRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "in",
@@ -502,7 +405,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepOutResponse,
     _args: DebugProtocol.StepOutArguments,
   ) {
-    // console.log("stepOutRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "out",
@@ -515,8 +417,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepBackResponse,
     _args: DebugProtocol.StepBackArguments,
   ) {
-    // console.log("stepBackRequest", args);
-    // TODO
     this.sendResponse(response);
   }
 
@@ -524,14 +424,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepInTargetsResponse,
     _args: DebugProtocol.StepInTargetsArguments,
   ) {
-    // console.log("stepInTargetsRequest", args);
-    // TODO ?
-    // const targets = this._mockRuntime.getStepInTargets(args.frameId);
-    // response.body = {
-    //   targets: targets.map((t) => {
-    //     return { id: t.id, label: t.label };
-    //   }),
-    // };
     this.sendResponse(response);
   }
 
@@ -539,7 +431,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.LoadedSourcesResponse,
     _args: DebugProtocol.LoadedSourcesArguments,
   ) {
-    // console.log("loadedSourcesRequest", args);
     const { uris } = await this._connection.emit(
       GetGameScriptsMessage.type.request({}),
     );
@@ -555,7 +446,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments,
   ): Promise<void> {
-    // console.log("setBreakPointsRequest", args);
 
     const setBreakpoints: {
       file: string;
@@ -577,7 +467,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       }),
     );
 
-    // send back the actual breakpoint positions
     response.body = {
       breakpoints: (breakpoints || []).map((b) => ({
         ...b,
@@ -614,7 +503,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetFunctionBreakpointsArguments,
     _request?: DebugProtocol.Request,
   ) {
-    // console.log("setFunctionBreakPointsRequest", args);
 
     const setFunctionBreakpoints: {
       name: string;
@@ -634,7 +522,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       }),
     );
 
-    // send back the actual breakpoint positions
     response.body = {
       breakpoints: (functionBreakpoints || []).map((b) => ({
         ...b,
@@ -671,7 +558,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.BreakpointLocationsArguments,
     _request?: DebugProtocol.Request,
   ) {
-    // console.log("breakpointLocationsRequest", args);
 
     const { lines } = await this._connection.emit(
       GetGamePossibleBreakpointLocationsMessage.type.request({
@@ -693,7 +579,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       }),
     );
 
-    // send back the possible breakpoint positions
     response.body = {
       breakpoints: lines.map((l) => ({
         line: this.convertDebuggerLineToClient(l),
@@ -710,30 +595,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetExceptionBreakpointsResponse,
     _args: DebugProtocol.SetExceptionBreakpointsArguments,
   ): Promise<void> {
-    // console.log("setExceptionBreakPointsRequest", args);
-    // let namedException: string | undefined = undefined;
-    // let otherExceptions = false;
-
-    // if (args.filterOptions) {
-    //   for (const filterOption of args.filterOptions) {
-    //     switch (filterOption.filterId) {
-    //       case "namedException":
-    //         namedException = args.filterOptions[0]!.condition;
-    //         break;
-    //       case "otherExceptions":
-    //         otherExceptions = true;
-    //         break;
-    //     }
-    //   }
-    // }
-
-    // if (args.filters) {
-    //   if (args.filters.indexOf("otherExceptions") >= 0) {
-    //     otherExceptions = true;
-    //   }
-    // }
-
-    // this._mockRuntime.setExceptionsFilters(namedException, otherExceptions);
 
     this.sendResponse(response);
   }
@@ -742,7 +603,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ExceptionInfoResponse,
     _args: DebugProtocol.ExceptionInfoArguments,
   ) {
-    // console.log("exceptionInfoRequest", args);
     response.body = {
       exceptionId: "Exception ID",
       description: "This is a descriptive description of the exception.",
@@ -762,7 +622,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     const { threads } = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
-    // console.log("threadsRequest", threads);
     response.body = {
       threads,
     };
@@ -787,7 +646,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     for (const stackFrame of stackFrames) {
       const clientStackFrame: StackFrame =
         reason === "awaiting interaction"
-          ? // Show stackframe marker for entire line when awaiting interaction
+          ?
             {
               ...stackFrame,
               source: this.createSource(
@@ -826,8 +685,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
   }
 
-  /** The id the client knows the engine's frame `frameId` of thread
-   *  `threadId` by. */
   protected clientFrameId(threadId: number, frameId: number): number {
     const key = `${threadId}:${frameId}`;
     let id = this._frameIds.get(key);
@@ -843,9 +700,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ScopesResponse,
     args: DebugProtocol.ScopesArguments,
   ): void {
-    // console.log("scopesRequest", args);
-    // The Temps are those of the frame selected in the Call Stack. A frame
-    // id this session never gave reads the frame that runs.
     const frame = this._frames.get(args.frameId);
     response.body = {
       scopes: [
@@ -870,7 +724,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.VariablesArguments,
     _request?: DebugProtocol.Request,
   ): Promise<void> {
-    // console.log("variablesRequest", args);
 
     let vars: Variable[] = [];
 
@@ -921,19 +774,13 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.EvaluateResponse,
     args: DebugProtocol.EvaluateArguments,
   ): Promise<void> {
-    // console.log("evaluateRequest", args);
 
-    // Evaluate in the frame selected in the Call Stack, as the Temps scope
-    // reads it (#1740). A frame id this session never gave, or none, reads
-    // the frame that runs.
     const frame =
       args.frameId != null ? this._frames.get(args.frameId) : undefined;
     const { context } = await this._connection.emit(
       GetGameEvaluationContextMessage.type.request({ ...frame }),
     );
 
-    // Each segment names a variable or a table's key, never a property an
-    // object inherits (`constructor`, `__proto__`).
     const value = args.expression
       .split(".")
       .reduce(
@@ -946,9 +793,6 @@ export class SparkDebugSession extends LoggingDebugSession {
         context,
       );
 
-    // A hover on a name the frame does not have (a keyword, a word of
-    // prose) shows no debug hover, so the language hover shows instead
-    // (#1845).
     if (value === undefined && args.context === "hover") {
       this.sendErrorResponse(response, {
         id: 2001,
@@ -979,7 +823,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetVariableResponse,
     _args: DebugProtocol.SetVariableArguments,
   ) {
-    // console.log("setVariableRequest", args);
 
     this.sendResponse(response);
   }
@@ -988,7 +831,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.DataBreakpointInfoResponse,
     args: DebugProtocol.DataBreakpointInfoArguments,
   ) {
-    // console.log("dataBreakpointInfoRequest", args);
 
     response.body = {
       dataId: null,
@@ -997,13 +839,10 @@ export class SparkDebugSession extends LoggingDebugSession {
       canPersist: false,
     };
 
-    // NOTE: we currently don't support "read" or "readWrite" breakpoints
-
     if (args.variablesReference && args.name) {
       const handle = this._variableHandles.get(args.variablesReference);
       const scope = handle?.scope;
       if (scope === "temps") {
-        // The temporary of the frame the Variables view shows.
         const { variables } = await this._connection.emit(
           GetGameVariablesMessage.type.request({
             scope: "temps",
@@ -1050,7 +889,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetDataBreakpointsResponse,
     args: DebugProtocol.SetDataBreakpointsArguments,
   ) {
-    // console.log("setDataBreakpointsRequest", args);
 
     const { dataBreakpoints } = await this._connection.emit(
       SetGameDataBreakpointsMessage.type.request({
@@ -1058,7 +896,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       }),
     );
 
-    // send back the actual breakpoint positions
     response.body = {
       breakpoints: (dataBreakpoints || []).map((b) => ({
         ...b,
@@ -1094,29 +931,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetExpressionResponse,
     _args: DebugProtocol.SetExpressionArguments,
   ): void {
-    // console.log("setExpressionRequest", args);
-    // if (args.expression.startsWith("$")) {
-    //   const rv = this._mockRuntime.getLocalVariable(args.expression.substr(1));
-    //   if (rv) {
-    //     rv.value = this.convertToRuntime(args.value);
-    //     response.body = this.convertFromRuntime(rv);
-    //     this.sendResponse(response);
-    //   } else {
-    //     this.sendErrorResponse(response, {
-    //       id: 1002,
-    //       format: `variable '{lexpr}' not found`,
-    //       variables: { lexpr: args.expression },
-    //       showUser: true,
-    //     });
-    //   }
-    // } else {
-    //   this.sendErrorResponse(response, {
-    //     id: 1003,
-    //     format: `'{lexpr}' not an assignable expression`,
-    //     variables: { lexpr: args.expression },
-    //     showUser: true,
-    //   });
-    // }
     this.sendResponse(response);
   }
 
@@ -1124,13 +938,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     _response: DebugProtocol.CancelResponse,
     _args: DebugProtocol.CancelArguments,
   ) {
-    // console.log("cancelRequest", args);
-    // if (args.requestId) {
-    //   this._cancellationTokens.set(args.requestId, true);
-    // }
-    // if (args.progressId) {
-    //   this._cancelledProgressId = args.progressId;
-    // }
   }
 
   protected override customRequest(
@@ -1149,10 +956,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
   }
 
-  //---- helpers
-
   private createSource(filePath: string): Source {
-    // TODO: name should be path relative to workspace root
     const rootPath = this._fileAccessor.getRootPath(filePath);
     const name =
       this.getRelativePath(rootPath, filePath) ||

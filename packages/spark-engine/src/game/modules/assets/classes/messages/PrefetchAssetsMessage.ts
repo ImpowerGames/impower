@@ -3,7 +3,6 @@ import { type PrefetchAssetsParams } from "../../types/PrefetchAssetsParams";
 
 export type PrefetchAssetsMethod = typeof PrefetchAssetsMessage.method;
 
-/** Load these items in the background; nothing waits on them. */
 export class PrefetchAssetsMessage {
   static readonly method = "assets/prefetch";
   static readonly type = new MessageProtocolNotificationType<

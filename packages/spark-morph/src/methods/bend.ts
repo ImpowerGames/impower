@@ -21,54 +21,15 @@ import {
 } from "../geometry/cubic";
 import type { Cubic, MorphFailure, Point, SubpathTrack } from "../types";
 
-/**
- * Options for the bend method. Every default that is a distance is a
- * fraction of the drawing's own size, so art at any scale behaves alike;
- * the prototype's hand-tuned pixel values are approximated for the portrait
- * lashes, which span about 160 units.
- */
 export interface BendOptions {
-  /**
-   * Anchor count of the canonical loop: two per tip plus an even body count
-   * split across the two edges. Minimum 6.
-   */
   anchors?: number;
-  /**
-   * Distance in user units from each tip to its flanking anchors. When
-   * omitted, each loop uses 8% of its own tip-to-tip span.
-   */
   tipDistance?: number;
-  /**
-   * Blend the simplified canonical loop back to the authored art at the rest
-   * poses so the first and last frames match the drawing. Frames then become
-   * polylines of `handoffPoints` points.
-   */
   handoff?: boolean;
-  /** Points in each handoff polyline; values under 8 are raised to 8. */
   handoffPoints?: number;
-  /**
-   * Minimum angle, in degrees, by which the outline must fold back over a
-   * twentieth of the perimeter at each of the two tips. Sharp lash tips fold
-   * about 160 degrees and rounded tips about 140; the smooth end of a
-   * teardrop folds about 70 and is not a tip.
-   */
   tipFoldDegrees?: number;
-  /**
-   * The mid-morph area must stay at or above this fraction of the thinner
-   * endpoint's area, otherwise the correspondence is pinching.
-   */
   thicknessRatio?: number;
-  /**
-   * The canonical loop's area may differ from the authored loop's by at
-   * most this fraction, otherwise the tips did not describe the drawing.
-   */
   reconstructionTolerance?: number;
-  /**
-   * A nearly closed loop's ends are snapped together when within this
-   * fraction of its perimeter.
-   */
   seamTolerance?: number;
-  /** Progress values at which self-intersection and thickness are checked. */
   checkProgress?: number[];
 }
 
@@ -85,22 +46,14 @@ export const BEND_DEFAULTS: Required<BendOptions> = {
 };
 
 export interface TaperTips {
-  /** Loop fractions of the two tips. */
   f1: number;
   f2: number;
   p1: Point;
   p2: Point;
-  /** Fold angles in radians; PI is a full reversal. */
   fold1: number;
   fold2: number;
 }
 
-/**
- * The two tapered tips of a taper: the two best-separated places where the
- * outline folds back on itself. Candidates are always ranked, so a blob
- * still yields two "tips" with small fold angles; callers judge `fold1` and
- * `fold2` rather than trusting the positions.
- */
 export function findTips(loop: Cubic[]): TaperTips {
   const arc = new ArcLoop(loop);
   const N = 260,
@@ -133,29 +86,11 @@ export function findTips(loop: Cubic[]): TaperTips {
   return { f1: t1.f, f2: t2.f, p1: t1.pt, p2: t2.pt, fold1: t1.k, fold2: t2.k };
 }
 
-/**
- * The default tip distance as a fraction of each loop's own tip-to-tip span,
- * so a closed pose drawn at another size than the open one keeps its flanks
- * at the same place along its taper. On the portrait lashes, which span
- * about 160 units, it puts the flanks about 13 units in, near the
- * prototype's fixed 16 pixels; a larger fraction reaches past a rounded
- * tip's arc and the canonical loop drifts from the drawn area.
- */
 const TIP_DISTANCE_SPAN = 0.08;
 
-/**
- * Makes each nearly smooth anchor's two handles exactly collinear (the
- * drawing program's "convert node to smooth"), keeping each handle's own
- * length: authoring noise of a few degrees is removed so the node does not
- * kink. A node whose handles meet at a real angle, such as where a rounded
- * tip's arc joins the body edge or a cusp, is a corner the artist drew and
- * is left alone. Runs on the sparse authored curve.
- */
 export function smoothAnchors(loop: Cubic[], maxDegrees = 25): Cubic[] {
   const n = loop.length;
   const out = copyLoop(loop);
-  // |dirOut - dirIn| is 2cos(theta / 2) for the angle theta between the
-  // outgoing handle and the reversed incoming one; collinear handles give 2.
   const minSpread = 2 * Math.cos((maxDegrees * Math.PI) / 360);
   const tiny = 1e-9 * loopExtent(loop);
   for (let i = 0; i < n; i++) {
@@ -186,7 +121,6 @@ const unit = (a: Point, b: Point): Point => {
 };
 const fwd = (a: number, b: number) => (((b - a) % 1) + 1) % 1;
 
-/** Index layout of a canonical loop with `n1` body anchors per edge. */
 export const canonLayout = (anchors: number) => {
   const nBody = Math.max(0, anchors - 4),
     n1 = Math.floor(nBody / 2),
@@ -194,13 +128,6 @@ export const canonLayout = (anchors: number) => {
   return { n1, n2, tipIndices: [0, 1, 2 + n1, 3 + n1] as const };
 };
 
-/**
- * Resamples a taper loop into canonical order: tip one as a single bulged
- * cubic between its flanking anchors, `n1` fitted body anchors along the
- * first edge, tip two, then `n2` along the second edge. Index k of two
- * canonical loops correspond. `wind` fixes the winding sign; tip one is the
- * tip nearest `refTip` when given, otherwise the leftmost.
- */
 export function canonicalTaper(
   loop: Cubic[],
   anchors: number,
@@ -219,7 +146,6 @@ export function canonicalTaper(
   ].sort((a, b) =>
     refTip ? dist(a.T, refTip) - dist(b.T, refTip) || a.T[0] - b.T[0] : a.T[0] - b.T[0] || a.T[1] - b.T[1],
   );
-  // Fractions of a reversed loop run the other way round.
   const fL = tipList[0]!.f,
     fR = tipList[1]!.f,
     TL = tipList[0]!.T,
@@ -266,8 +192,6 @@ export function canonicalTaper(
       const reach = Math.hypot(Vx, Vy);
       let h = DD < 1e-9 ? chord / 3 : ((8 / 3) * (Vx * Dx + Vy * Dy)) / DD;
       h = Math.max(chord * 0.05, Math.min(h, Math.max(chord, reach) * 4));
-      // Handles that reach past each other tie a hairline knot inside the
-      // tip; shorten them until the tip curve is simple.
       const tipCubic = (len: number): Cubic => ({
         p0: P0,
         c1: [P0[0] + dA[0] * len, P0[1] + dA[1] * len],
@@ -292,8 +216,6 @@ export function canonicalTaper(
       out.push({ p0: P0, c1, c2, p1: P3 });
     }
   }
-  // Symmetrise body anchors so plain linear interpolation stays smooth; the
-  // four tip-flanking anchors keep their bulge tapers.
   const tipIdx = new Set<number>(tipIndices),
     nn = out.length;
   const sym = copyLoop(out);
@@ -319,8 +241,6 @@ export function canonicalTaper(
     sym[i]!.c1 = [P[0] + tx * len, P[1] + ty * len];
     sym[pi]!.c2 = [P[0] - tx * len, P[1] - ty * len];
   }
-  // Each flanking anchor's body-side handle points opposite its bulge handle
-  // at its own length; collinearity is restored per frame by `alignFlanks`.
   const alignFlank = (idx: number, aType: boolean) => {
     const pi = (idx - 1 + nn) % nn,
       P = sym[idx]!.p0;
@@ -342,12 +262,6 @@ export function canonicalTaper(
   return sym;
 }
 
-/**
- * Per frame, rotates each tip-flanking anchor's collinear handle pair so its
- * body-side handle aims at the point on the neighbouring handle line that is
- * equidistant from the flank anchor and its body neighbour. Keeps the corner
- * from bulging mid-swing.
- */
 export function alignFlanks(loop: Cubic[], n1: number): Cubic[] {
   const nn = loop.length,
     out = copyLoop(loop);
@@ -392,12 +306,6 @@ export function alignFlanks(loop: Cubic[], n1: number): Cubic[] {
   return out;
 }
 
-/**
- * Interpolates each facing pair of body anchors as a rigid rib: the centre
- * moves linearly while the half-offset rotates the short way and stretches,
- * so facing anchors orbit rather than pass through each other. Handles ride
- * along with their anchors.
- */
 export function ribInterpolate(loop: Cubic[], a: Cubic[], b: Cubic[], t: number): Cubic[] {
   const nn = loop.length;
   if (nn < 6) return loop;
@@ -440,31 +348,9 @@ export function ribInterpolate(loop: Cubic[], a: Cubic[], b: Cubic[], t: number)
   return out;
 }
 
-/**
- * The flank re-aim is eased in with a bump that is zero at both rest poses,
- * where the authored flanks must show, and full across the middle where the
- * bulge happens. This is a geometric weight, not a timeline easing.
- */
 export const flankAimWeight = (t: number): number => Math.sin(Math.PI * t) ** 2;
-/** Weight of the authored art in the handoff blend: full at the rest poses. */
 export const handoffWeight = (t: number): number => Math.cos(Math.PI * t) ** 2;
 
-/**
- * Shortens a curve's handles, both together, until the curve no longer
- * loops through itself. A tip curve whose handles reach past each other
- * ties a hairline knot; the rib and flank moves can create one mid-morph
- * even when both rest poses are simple.
- *
- * The shortening is continuous in the curve, so a frame never jumps where a
- * knot appears, deepens or leaves. The knot is judged exactly, on the
- * crossing `cubicDoublePoint` finds, by its margin: how far inside [0, 1]
- * both crossing parameters lie, negative once the crossing has left through
- * an end. Curves within `KNOT_MARGIN` of a knot count: bisection finds the
- * handle scale `s` at which the margin reaches `-KNOT_MARGIN`, and the
- * handles are scaled by `s` squared, which is the curve itself when the
- * crossing is just forming. As a crossing leaves through an end, the scale
- * eases back to 1 over the margin band instead of snapping there.
- */
 export function unknot(c: Cubic): Cubic {
   const margin = (k: Cubic): number => {
     const d = cubicDoublePoint(k);
@@ -489,10 +375,8 @@ export function unknot(c: Cubic): Cubic {
   return scaled(lo * lo + (1 - lo * lo) * leaving);
 }
 
-/** How far, in curve parameter, a crossing past an end still counts toward a knot. */
 const KNOT_MARGIN = 0.05;
 
-/** A canonical frame before any handoff blend. */
 export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   const n1 = Math.floor((a.length - 4) / 2);
   const raw = ribInterpolate(lerpLoops(a, b, t), a, b, t);
@@ -501,15 +385,6 @@ export function canonicalFrame(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   return frame;
 }
 
-/**
- * Picks the target's canonical loop from the candidates. Among candidates
- * whose score reaches `thicknessRatio` (they reconstruct the target, do
- * not self-intersect and hold thickness) the one whose anchors travel
- * least from `a` wins: a pairing that trades sides can inflate the
- * mid-morph area, so the largest ratio is not the right pick. When none
- * holds thickness the least-pinching one is kept, so the failure reports
- * how close it came. Ties fall to the earlier candidate.
- */
 export function selectCandidate(
   a: Cubic[],
   candidates: Cubic[][],
@@ -536,7 +411,6 @@ export function selectCandidate(
   return { candidate: best, score: bestS, travel: bestTravel };
 }
 
-/** An open polyline resampled to `count` points evenly spaced along it, both ends kept. */
 function resampleOpen(pts: Point[], count: number): Point[] {
   const lengths = [0];
   for (let i = 1; i < pts.length; i++) lengths.push(lengths[i - 1]! + dist(pts[i - 1]!, pts[i]!));
@@ -559,40 +433,17 @@ function resampleOpen(pts: Point[], count: number): Point[] {
 }
 
 export interface BendTrack extends SubpathTrack {
-  /**
-   * The canonical endpoint loops (two tip cubics plus the body anchors).
-   * `from` and `to` inherited from the track share the frames' topology,
-   * which with the handoff on is a polyline.
-   */
   canonicalFrom: Cubic[];
   canonicalTo: Cubic[];
-  /** Body anchors per edge in the canonical loops. */
   n1: number;
-  /** The canonical frame (six-ish anchors, curved) at `progress`. */
   canonical(progress: number): Cubic[];
-  /** Tip points at `progress`, in canonical order. */
   tips(progress: number): [Point, Point];
-  /**
-   * The two edges of the frame drawn at `progress` as polylines of `points`
-   * samples each, from tip one to tip two. Edge 0 runs along the first
-   * canonical edge. With the handoff on, at a rest pose they lie on the
-   * authored outline, and between the rest poses they are the drawn frame's
-   * own two halves, so they meet the drawing a player draws.
-   */
   edges(progress: number, points: number): [Point[], Point[]];
-  /** The thickness ratio the chosen correspondence achieved. */
   thickness: number;
 }
 
 export type BendResult = { ok: true; track: BendTrack } | { ok: false; failure: MorphFailure };
 
-/**
- * Builds a bend track from two authored closed loops, or reports why it
- * cannot. Preprocessing snaps the seam and smooths anchors as the prototype
- * did before its taper resample. A loop whose two best fold candidates do
- * not both fold sharply, or whose canonical reconstruction does not hold
- * the authored area, is not a taper and fails with `tips-not-found`.
- */
 export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions = {}): BendResult {
   const o = { ...BEND_DEFAULTS, ...options };
   if (!fromRaw.length || !toRaw.length) {
@@ -639,13 +490,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
       failure: { code: "tips-not-found", message: "the from loop's tips do not describe it: the canonical taper does not hold its area" },
     };
   }
-  // Correspondence by thickness search: which closed tip is tip one, and
-  // which winding, decides whether anchors pair edge-to-edge or trade sides.
-  // Among candidates that reconstruct the target, do not self-intersect and
-  // hold thickness, the one whose anchors travel least wins: a pairing that
-  // trades sides can inflate the mid-morph area, so the largest ratio is
-  // not the right pick. When none holds thickness, the least-pinching one
-  // is kept so the failure reports how close it came.
   const score = (b: Cubic[]) => {
     if (!faithful(b, closed)) return -2;
     if (o.checkProgress.some((tt) => selfIntersects(canonicalFrame(a, b, tt)))) return -1;
@@ -690,19 +534,12 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const fr = canonical(t);
     return [evalCubic(fr[0]!, 0.5), evalCubic(fr[2 + n1]!, 0.5)];
   };
-  // The handoff polylines share a winding and all start at tip one, so
-  // index i of the art, the target and the canonical frame sit at the same
-  // place along the ribbon whatever way it points.
   const poly = (loop: Cubic[], tip: Point) => {
     const L = withWinding(loop, 1);
     return loopToPolyline(L, handoffPoints, nearestFraction(L, tip));
   };
   const O = o.handoff ? poly(fromArt, tips(0)[0]) : null;
   const C = o.handoff ? poly(toArt, tips(1)[0]) : null;
-  // The canonical frame's tip one is the middle of its segment 0, which is
-  // its last segment once reversed, so its phase is exact. A nearest-point
-  // search would pick between neighbouring samples or between the two arms
-  // of a folded tip, and the frame would jump wherever the pick changes.
   const canonicalPoly = (fr: Cubic[]): Point[] => {
     const L = withWinding(fr, 1);
     const f = new ArcLoop(L).fractionAt(L === fr ? 0 : L.length - 1, 0.5);
@@ -721,10 +558,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     });
     return polylineLoop(pts);
   };
-  // The art's two edges at a rest pose, split at its tips: the first runs
-  // from tip one to tip two with the loop wound positively, the second the
-  // other way round. Sampled on the authored curves rather than the handoff
-  // polyline, and cached per point count since the art never moves.
   const artHalves = new Map<string, [Point[], Point[]]>();
   const halvesOf = (art: Cubic[], [T1, T2]: [Point, Point], points: number, key: string): [Point[], Point[]] => {
     const cached = artHalves.get(`${key}:${points}`);
@@ -735,7 +568,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const span = (((nearestFraction(L, T2) - f1) % 1) + 1) % 1;
     const along = (length: number) => Array.from({ length: points }, (_, i) => arc.pointAt(f1 + (length * i) / (points - 1)));
     const halves: [Point[], Point[]] = [along(span), along(span - 1)];
-    // Both halves end on the same point, not two roundings of it.
     halves[1][points - 1] = halves[0][points - 1]!;
     artHalves.set(`${key}:${points}`, halves);
     return halves;
@@ -745,16 +577,9 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const fr = canonical(t);
     const [T1, T2] = tips(t);
     const inner = Math.max(2, points - 2);
-    // Segment 0 is tip one, segments 1..1+n1 are edge one from tip one's
-    // flank to tip two's flank, segment 2+n1 is tip two, and the rest is
-    // edge two from tip two's flank back to tip one's flank.
     const e1 = [T1, ...chainToPolyline(fr.slice(1, 2 + n1), inner), T2];
     const e2 = [T2, ...chainToPolyline(fr.slice(3 + n1), inner), T1].reverse();
     if (!o.handoff) return [e1, e2];
-    // The canonical edges blended toward the art's by the weight `frame`
-    // uses, so at a rest pose they are the authored outline. Halves pair by
-    // winding as `frame` pairs its polylines, and the result keeps the
-    // canonical edge order.
     const w = handoffWeight(t);
     const forward = Math.sign(signedArea(fr) || 1) > 0;
     const open = halvesOf(fromArt, tips(0), e1.length, "from"),
@@ -767,11 +592,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
       });
     const blended: [Point[], Point[]] = forward ? [blend(e1, 0), blend(e2, 1)] : [blend(e1, 1), blend(e2, 0)];
     if (t <= 0 || t >= 1) return blended;
-    // Between the rest poses the drawn frame and the blend above part: each
-    // blends its own polylines point by point, and they space their points
-    // differently. The edges are the drawn frame's own two halves, split at
-    // its points nearest the blend's tips, so an aperture built on them meets
-    // the drawing the player draws.
     const drawn = frame(t).map((segment) => segment.p0);
     const nearest = (q: Point) => drawn.reduce((best, p, i) => (dist(p, q) < dist(drawn[best]!, q) ? i : best), 0);
     const i1 = nearest(blended[0][0]!),
@@ -790,8 +610,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     const meanDist = (a: Point[], b: Point[]) => a.reduce((sum, p, i) => sum + dist(p, b[i]!), 0) / a.length;
     return meanDist(ahead, blended[0]) <= meanDist(behind, blended[0]) ? [ahead, behind] : [behind, ahead];
   };
-  // `from` and `to` share the frames' topology: with the handoff on they
-  // are the rest-pose polylines, otherwise the canonical loops themselves.
   return {
     ok: true,
     track: {
@@ -809,7 +627,6 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
   };
 }
 
-/** Loop fraction of the point nearest `target`: a shared phase for handoff blends. */
 function nearestFraction(loop: Cubic[], target: Point): number {
   const arc = new ArcLoop(loop);
   let lf = 0,

@@ -76,7 +76,6 @@ const drawSoundWaveform = (
 
   ctx.clearRect(0, 0, 500, 500);
 
-  // Axis
   ctx.lineWidth = 1;
   ctx.strokeStyle = axisColor;
   ctx.beginPath();
@@ -85,7 +84,6 @@ const drawSoundWaveform = (
   ctx.stroke();
 
   if (pitchBuffer) {
-    // Frequency
     ctx.lineWidth = 1;
     ctx.fillStyle = frequencyColor;
     ctx.beginPath();
@@ -109,7 +107,6 @@ const drawSoundWaveform = (
   }
 
   if (volumeBuffer) {
-    // Volume
     ctx.lineWidth = 1;
     ctx.fillStyle = volumeColor;
     ctx.beginPath();
@@ -129,7 +126,6 @@ const drawSoundWaveform = (
   }
 
   if (referenceBuffer && (visible === "both" || visible === "reference")) {
-    // Reference Wave
     ctx.lineWidth = 1;
     ctx.strokeStyle = referenceColor;
     ctx.beginPath();
@@ -147,7 +143,6 @@ const drawSoundWaveform = (
   }
 
   if (soundBuffer && (visible === "both" || visible === "sound")) {
-    // Wave
     ctx.lineWidth = 1;
     ctx.strokeStyle = waveColor;
     ctx.beginPath();

@@ -1,14 +1,3 @@
-// C1: authored components (`component NAME(params) with … end`) invoked with
-// paren args (`card("x")`), rendering their body with the args bound to the
-// declared params, plus `slot`/`fill` content projection (spec §4.7).
-//
-// A component instance is wrapperless (its body mounts directly into the parent).
-// Args are evaluated in the CALLER's scope and fed to the body's `{param}`
-// bindings as evaluator args (same mechanism as `for`-loop vars), so a reactive
-// arg (`badge(score)`) updates the body on the per-turn refresh. `slot` projects
-// the caller's children (default slot) or a matching `fill NAME` (named slot),
-// rendered in the caller's scope.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -171,7 +160,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // `"Score is {score}"` interpolated at the call site → passed to the param.
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("Score is 0");
 
     h.reset();

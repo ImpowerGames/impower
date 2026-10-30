@@ -22,7 +22,6 @@ function timeAgo(ms: number): string {
   return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
-// A single-file delete shows the file name; a folder/multi delete shows a count.
 function batchLabel(batch: TrashBatch): string {
   if (batch.entries.length === 1) {
     const rel = batch.entries[0]!.relPath;
@@ -31,11 +30,9 @@ function batchLabel(batch: TrashBatch): string {
   return `${batch.entries.length} items`;
 }
 
-// The common parent folder of a batch's entries (blank = project root).
 function batchLocation(batch: TrashBatch): string {
   const rel = batch.entries[0]?.relPath ?? "";
   const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
-  // For a multi-item batch, walk up to the shared prefix.
   if (batch.entries.length > 1) {
     const common = dir.split("/");
     for (const e of batch.entries) {
@@ -56,19 +53,12 @@ type Confirm =
   | { kind: "empty" }
   | null;
 
-/**
- * Project-wide recycle bin. Lists every trash batch (one delete action each,
- * newest first) with Restore + Delete-permanently, plus an Empty action.
- * Driven by the global `workspace.trashOpen` signal; portaled to <body>.
- */
 export default function TrashPanel() {
   const open = useComputed(() => workspace.trashOpen.value).value;
   const { mounted, visible } = useMountTransition(open, 200);
   const [batches, setBatches] = useState<TrashBatch[] | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
-  // Synchronous latch — `busy` only disables the buttons after a re-render, so
-  // a fast double-tap could fire a worker op twice before that lands.
   const busyRef = useRef(false);
 
   const close = () => {
@@ -115,12 +105,10 @@ export default function TrashPanel() {
       if (pid) {
         const { Workspace } = await import("../../workspace/Workspace");
         await Workspace.fs.restoreTrash(pid, batchId);
-        // The restored files re-enter the project — mark it dirty for sync.
         await Workspace.window.recordScriptChange();
         await Workspace.window.recordAssetChange();
       }
     } catch {
-      // A lost race (batch already gone) is fine — the list just refreshes.
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -139,7 +127,6 @@ export default function TrashPanel() {
         await Workspace.fs.deleteTrashBatch(pid, batchId);
       }
     } catch {
-      // ignore — refresh below reflects the real state
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -159,7 +146,6 @@ export default function TrashPanel() {
         await Workspace.fs.emptyTrash(pid);
       }
     } catch {
-      // ignore — refresh below reflects the real state
     } finally {
       busyRef.current = false;
       setBusy(false);

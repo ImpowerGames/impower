@@ -1,11 +1,3 @@
-// Presence-semantics attributes on the form-control widgets.
-//
-// HTML reads `disabled="false"` as DISABLED. Any path that stringifies one of
-// these props produces exactly the state the author denied — and since the
-// reactive entry caches the same decision, flipping the store back can't undo
-// it. The generic element path already used the shared set; the four widget
-// mounters each had their own narrower rule (or none).
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -67,7 +59,6 @@ end
     expect(opt.disabled).toBe(false);
   });
 
-  // A true value must still work — the fix must not invert the rule.
   test("input #disabled={true} is still disabled", async () => {
     const h = await render(`store locked = true
 layout main with

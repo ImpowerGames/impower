@@ -1,17 +1,3 @@
-// [[open SCREEN]] / [[close SCREEN]] screen-lifecycle directives (reactive path).
-//
-// Default lifecycle: only `main` is mounted/visible at connect (implicit
-// auto-open). Every other screen stays unmounted (zero DOM / zero binding cost)
-// until `[[open X]]` mounts it, and `[[close X]]` destroys it (the whole subtree
-// + its reactive scope). Clauses (with/over/after/ease/wait) reuse the image
-// directive's parsing + animation machinery: `with` = enter/exit animation,
-// `over` = duration, `after` = start delay, `ease` = easing, `wait` = block
-// story advance until the transition settles.
-//
-// These tests pass `autoOpenAll: false` to exercise the REAL default (the
-// harness otherwise auto-opens every screen so the legacy reactive tests keep
-// their "mounted at connect" assumption).
-
 import { describe, expect, test } from "vitest";
 import {
   createHarness,
@@ -19,8 +5,6 @@ import {
   MAIN_URI,
 } from "./harness/uiTestHarness";
 
-// A program with TWO screens: the builtin-overriding `main` (auto-opens) and a
-// `hud` (only mounts on `[[open hud]]`). The scene emits the directives.
 const SOURCE = `store hp = 100
 layout main with
   textbox {
@@ -41,7 +25,6 @@ scene start
 end
 `;
 
-/** ui/create names emitted so far. */
 const createdNames = (h: ReturnType<typeof createHarness>): unknown[] =>
   h.snapshotFiltered("ui/create").map((m: any) => m.params?.name);
 
@@ -50,18 +33,13 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     const names = createdNames(h);
-    // `main` and its structural children are mounted...
     expect(names).toContain("main");
-    // ...but `hud` is NOT (it needs an explicit [[open hud]]).
     expect(names).not.toContain("hud");
   });
 
   test("`main` is visible without an explicit open (reveal flow)", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
-    // The screens layer is revealed (root opacity:1) through the normal flow;
-    // run a beat so updateUI's reveal() fires, then assert main exists + the
-    // screens layer is not concealed.
     const mainCreate = h
       .snapshotFiltered("ui/create")
       .find((m: any) => m.params?.name === "main") as any;
@@ -73,15 +51,12 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    // hud is NOT mounted before the directive runs.
     expect(ui._mountedLayouts.has("hud")).toBe(false);
     h.reset();
-    // The `[[open hud]]` directive is its own beat (before the "Hello." textbox).
     const beat = h.nextBeat();
     expect(beat?.layout?.["hud"]?.[0]?.control).toBe("open");
     await h.display(beat!, true);
     await flushMicrotasks();
-    // hud + its bound span are now created.
     const names = createdNames(h);
     expect(names).toContain("hud");
     expect(ui._mountedLayouts.has("hud")).toBe(true);
@@ -102,8 +77,6 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
-    // Drive beats until hud is open (the [[open hud]] beat), then one more for
-    // the "Hello." textbox so the close directive is the next beat.
     const drive = async () => {
       const beat = h.nextBeat();
       if (beat) {
@@ -112,22 +85,18 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
       }
       return beat;
     };
-    await drive(); // [[open hud]]
+    await drive();
     expect(ui._mountedLayouts.has("hud")).toBe(true);
-    await drive(); // "Hello."
+    await drive();
 
-    // Next: the [[close hud]] beat.
     h.reset();
     const closeBeat = h.nextBeat();
     expect(closeBeat?.layout?.["hud"]?.[0]?.control).toBe("close");
     await h.display(closeBeat!, true);
     await flushMicrotasks();
-    // A ui/destroy was emitted and hud is gone from the tracking map.
     expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
     expect(ui._mountedLayouts.has("hud")).toBe(false);
 
-    // After close, mutating hud's bound global must not produce any update for
-    // hud's span (its scope is no longer refreshed).
     h.reset();
     (h.game.story as any).variablesState.$("hp", 7);
     ui.refreshLayouts();
@@ -165,20 +134,16 @@ end
     await h.ready;
     h.jumpToFlow("start");
     h.reset();
-    // Non-instant display so the enter animation is emitted (ui/animate).
     const beat = h.nextBeat();
-    await h.display(beat!, /* instant */ false);
+    await h.display(beat!, false);
     await flushMicrotasks();
     const animate = h
       .snapshotFiltered("ui/animate")
       .find((m: any) => m.params?.effects?.length) as any;
     expect(animate).toBeTruthy();
     const anim = animate.params.effects[0].animations[0];
-    // over=0.5s → duration override; after=0.2s → delay override.
     expect(anim.timing.duration).toBe("0.5s");
     expect(anim.timing.delay).toBe("0.2s");
-    // ease=ease_out → the resolved timing function (a cubic-bezier from the
-    // builtin `ease_out` ease), not the default "ease".
     expect(anim.timing.easing).not.toBe("ease");
   });
 
@@ -207,11 +172,7 @@ end
     h.reset();
     const beat = h.nextBeat();
     expect(beat).toBeTruthy();
-    // `wait` made the directive block: the beat carries a non-zero end (the
-    // 1s transition), which is the Coordinator's auto-advance gate. Without
-    // `wait` a bare open beat has end=0.
     expect(beat!.end).toBeGreaterThanOrEqual(1);
-    // The screen instruction itself carries the wait flag + resolved clauses.
     const ev = Object.values(beat!.layout ?? {})[0]?.[0] as any;
     expect(ev?.control).toBe("open");
     expect(ev?.name).toBe("hud");
@@ -231,15 +192,10 @@ end
     expect(ev?.name).toBe("hud");
     expect(ev?.with).toBeUndefined();
     expect(ev?.wait).toBeUndefined();
-    // No wait → no inflated duration.
     expect(beat!.end).toBe(0);
   });
 });
 
-// [[navigate <container> to <screen>]] — container-scoped routing: close every
-// open screen IN THAT CONTAINER except the target, then open the target. Screens
-// in OTHER containers (and uncategorized screens) are left untouched. Containers
-// are declared with `layout NAME in CONTAINER with … end`. Composes open/close.
 const NAV_SOURCE = `store hp = 100
 layout main with
   textbox {
@@ -285,9 +241,9 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpToFlow("start");
-    await drive(h); // [[open hud]]
-    await drive(h); // [[open pause]]
-    await drive(h); // "Hello."
+    await drive(h);
+    await drive(h);
+    await drive(h);
     h.reset();
     const navBeat = h.nextBeat();
     const ev = Object.values(navBeat!.layout ?? {})[0]?.[0] as any;
@@ -302,22 +258,18 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
 
-    await drive(h); // [[open hud]]   (overlay container)
-    await drive(h); // [[open pause]] (menu container)
-    await drive(h); // "Hello."
-    // Before navigate: main (uncategorized, auto-open), hud (overlay), pause (menu).
+    await drive(h);
+    await drive(h);
+    await drive(h);
     expect(ui._mountedLayouts.has("main")).toBe(true);
     expect(ui._mountedLayouts.has("hud")).toBe(true);
     expect(ui._mountedLayouts.has("pause")).toBe(true);
 
-    await drive(h); // [[navigate menu to settings]]
-    // Within the `menu` container: pause closed, settings opened.
+    await drive(h);
     expect(ui._mountedLayouts.has("settings")).toBe(true);
     expect(ui._mountedLayouts.has("pause")).toBe(false);
-    // Other containers / uncategorized are UNTOUCHED.
-    expect(ui._mountedLayouts.has("hud")).toBe(true); // overlay container
-    expect(ui._mountedLayouts.has("main")).toBe(true); // uncategorized (persistent)
-    // The container teardown emitted ui/destroy (pause's subtree).
+    expect(ui._mountedLayouts.has("hud")).toBe(true);
+    expect(ui._mountedLayouts.has("main")).toBe(true);
     expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
   });
 
@@ -326,13 +278,12 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    await drive(h); // [[open hud]]
-    await drive(h); // [[open pause]]
-    await drive(h); // "Hello."
-    await drive(h); // [[navigate menu to settings]]
+    await drive(h);
+    await drive(h);
+    await drive(h);
+    await drive(h);
     expect(ui._mountedLayouts.get("settings")?.screen).toBe("menu");
     expect(ui._mountedLayouts.get("hud")?.screen).toBe("overlay");
-    // Uncategorized screens have no container.
     expect(ui._mountedLayouts.get("main")?.screen).toBeUndefined();
   });
 
@@ -361,10 +312,8 @@ end
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    await drive(h); // [[open pause]]
+    await drive(h);
     expect(ui._mountedLayouts.has("pause")).toBe(true);
-    // Bare navigate: parsed with container but no destination → no-op. It does
-    // NOT dismiss the container (that requires `to <screen>`); the LSP warns.
     h.reset();
     const navBeat = h.nextBeat();
     const ev = Object.values(navBeat!.layout ?? {})[0]?.[0] as any;
@@ -373,18 +322,10 @@ end
     expect(ev?.name).toBe("");
     await h.display(navBeat!, true);
     await flushMicrotasks();
-    // pause stays open — nothing was torn down.
     expect(ui._mountedLayouts.has("pause")).toBe(true);
   });
 });
 
-// Scrub/restore: reactive screens must survive a checkpoint save→load→restore so
-// the editor's cursor-scrub preview shows the screens that earlier [[open]]/
-// [[navigate]] beats opened — not just the connect-time builtin `main`. The fix
-// mirrors images: openLayout/closeLayout record the open set into the serialized
-// UIState (`_state.layout`), and onRestore re-mounts it (the image.restore
-// analog). Without this, a scrub restores story+text+image but drops author
-// screens because `_mountedLayouts` is in-memory only.
 describe("screen scrub/restore (reactive screens survive checkpoint restore)", () => {
   const drive = async (h: ReturnType<typeof createHarness>) => {
     const beat = h.nextBeat();
@@ -400,10 +341,9 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    // Nothing recorded before any [[open]] (main auto-mounts but isn't recorded).
     expect(ui._state.layout ?? []).toEqual([]);
-    await drive(h); // [[open hud]]   (overlay container)
-    await drive(h); // [[open pause]] (menu container)
+    await drive(h);
+    await drive(h);
     expect(ui._state.layout).toEqual([
       { name: "hud", screen: "overlay" },
       { name: "pause", screen: "menu" },
@@ -411,15 +351,14 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
   });
 
   test("closeLayout removes it from the serialized set", async () => {
-    // SOURCE: main + hud (no container). open hud, then close hud.
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    await drive(h); // [[open hud]]
+    await drive(h);
     expect(ui._state.layout).toEqual([{ name: "hud" }]);
-    await drive(h); // "Hello."
-    await drive(h); // [[close hud]]
+    await drive(h);
+    await drive(h);
     expect(ui._state.layout).toEqual([]);
   });
 
@@ -428,11 +367,10 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     await h.ready;
     h.jumpToFlow("start");
     const ui: any = h.game.module.ui;
-    await drive(h); // [[open hud]]
-    await drive(h); // [[open pause]]
-    await drive(h); // "Hello."
-    await drive(h); // [[navigate menu to settings]]
-    // hud (overlay) untouched; within `menu`, pause replaced by settings.
+    await drive(h);
+    await drive(h);
+    await drive(h);
+    await drive(h);
     expect(ui._state.layout).toEqual([
       { name: "hud", screen: "overlay" },
       { name: "settings", screen: "menu" },
@@ -443,16 +381,14 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h1.ready;
     h1.jumpToFlow("start");
-    await drive(h1); // [[open hud]]
-    await drive(h1); // [[open pause]]
+    await drive(h1);
+    await drive(h1);
     const ui1: any = h1.game.module.ui;
     expect(ui1._mountedLayouts.has("hud")).toBe(true);
     expect(ui1._mountedLayouts.has("pause")).toBe(true);
     const cp = h1.game.save();
     expect(typeof cp).toBe("string");
 
-    // Fresh game: load the checkpoint, THEN connect (onConnected mounts `main`,
-    // onRestore re-mounts the recorded author screens) — the editor scrub flow.
     const h2 = createHarness(NAV_SOURCE, 0, {
       reactive: true,
       autoOpenAll: false,
@@ -460,19 +396,19 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     });
     await h2.ready;
     const ui2: any = h2.game.module.ui;
-    expect(ui2._mountedLayouts.has("main")).toBe(true); // connect-time
-    expect(ui2._mountedLayouts.has("hud")).toBe(true); // restored
-    expect(ui2._mountedLayouts.has("pause")).toBe(true); // restored
+    expect(ui2._mountedLayouts.has("main")).toBe(true);
+    expect(ui2._mountedLayouts.has("hud")).toBe(true);
+    expect(ui2._mountedLayouts.has("pause")).toBe(true);
   });
 
   test("restore after navigate shows the destination, not the closed source", async () => {
     const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h1.ready;
     h1.jumpToFlow("start");
-    await drive(h1); // [[open hud]]
-    await drive(h1); // [[open pause]]
-    await drive(h1); // "Hello."
-    await drive(h1); // [[navigate menu to settings]]
+    await drive(h1);
+    await drive(h1);
+    await drive(h1);
+    await drive(h1);
     const cp = h1.game.save();
 
     const h2 = createHarness(NAV_SOURCE, 0, {
@@ -482,22 +418,17 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     });
     await h2.ready;
     const ui2: any = h2.game.module.ui;
-    expect(ui2._mountedLayouts.has("hud")).toBe(true); // overlay, untouched
-    expect(ui2._mountedLayouts.has("settings")).toBe(true); // menu destination
-    expect(ui2._mountedLayouts.has("pause")).toBe(false); // menu source closed
+    expect(ui2._mountedLayouts.has("hud")).toBe(true);
+    expect(ui2._mountedLayouts.has("settings")).toBe(true);
+    expect(ui2._mountedLayouts.has("pause")).toBe(false);
   });
 
   test("UNCONNECTED route simulation records the open-set (real production scrub path)", async () => {
-    // The editor's scrub checkpoint is built by workspace.worker's Game, which is
-    // NEVER connected — so `_reactive` stays false and openLayout short-circuits.
-    // The open-set must be recorded at the fan-out (saveLayoutState), not behind
-    // the _reactive guard. This reproduces that exact path: a `connect: false`
-    // game runs the route sim, and its checkpoint must still carry the screens.
     const h1 = createHarness(NAV_SOURCE, 0, { connect: false });
     const g1: any = h1.game;
-    g1.setStartFrom({ file: MAIN_URI, line: 27 }); // "Bye." — after navigate
+    g1.setStartFrom({ file: MAIN_URI, line: 27 });
     g1.simulate();
-    expect(g1.module.ui._reactive).toBe(false); // never connected
+    expect(g1.module.ui._reactive).toBe(false);
     expect(g1.module.ui._state.layout).toEqual([
       { name: "hud", screen: "overlay" },
       { name: "settings", screen: "menu" },
@@ -505,7 +436,6 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     const cp = g1.save();
     expect(typeof cp).toBe("string");
 
-    // Load that checkpoint into a fresh CONNECTED game → onRestore re-mounts.
     const h2 = createHarness(NAV_SOURCE, 0, {
       autoOpenAll: false,
       loadCheckpoint: cp as string,

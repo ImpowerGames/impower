@@ -5,34 +5,18 @@ import type { SimulationError } from "@impower/sparkdown/src/compiler/types/Simu
 export type PlayMethod = typeof PlayMessage.method;
 
 export interface PlayParams {
-  /** The program to play, by `programIdentity`: the runnable one the page
-   *  holds the summary of. */
   program: string;
-  /** Where PLAY starts, if anywhere but the top. */
   startFrom?: { file: string; line: number };
-  /** The run replaces one that an edit restarted. */
   restarted?: boolean;
 }
 
 export interface PlayResult {
-  /** A game is built for the program, or the worker no longer holds it. */
   built: boolean;
-  /** The program holds compiled story content to run. */
   compiled?: boolean;
-  /** The run the game belongs to, which the requests that connect, start
-   *  and stop it name. */
   run?: number;
-  /** The runtime errors and warnings the route to the start point raised,
-   *  which begin PLAY's run. */
   errors?: SimulationError[];
 }
 
-/**
- * Build PLAY's game in the worker, beside the game that previews: its own
- * story from the program the page names, put at the start point along the
- * route the worker replayed there. The game runs once the page has connected
- * to it (`player/connectPlay`) and asks it to (`player/startPlay`).
- */
 export class PlayMessage {
   static readonly method = "player/play";
   static readonly type = new MessageProtocolRequestType<

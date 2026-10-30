@@ -5,8 +5,6 @@ export const default_animation: Create<Animation> = (obj) => ({
   $type: "animation",
   $name: "$default",
   ...obj,
-  // Merge over the default rather than replacing it: a caller supplying only
-  // part of the target would otherwise leave the rest undefined.
   target: { $type: "layer", $name: "self", ...(obj?.target ?? {}) },
   keyframes: obj?.keyframes ?? [],
   timing: {

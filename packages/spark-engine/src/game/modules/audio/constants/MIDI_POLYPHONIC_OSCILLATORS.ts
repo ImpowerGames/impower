@@ -19,7 +19,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
   b?: number;
   c?: number;
 }[][] = [
-  // 1-8 : Piano
   [
     { shape: "sine", volume: 0.4, envelope: { decay: 0.7, release: 0.1 } },
     {
@@ -134,7 +133,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 9-16 : Chromatic Perc*/
   [
     {
       shape: "sine",
@@ -246,7 +244,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 17-24 : Organ */
   [
     {
       shape: "jitter",
@@ -372,7 +369,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 25-32 : Guitar */
   [
     {
       shape: "sine",
@@ -464,7 +460,7 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       tone: -1,
       g: 1,
     },
-  ], //[{w:"triangle",v:0.35,d:1,f:1,},{w:"square",v:7,f:-1,d:0.3,s:0.5,g:1,}],
+  ],
   [
     {
       shape: "triangle",
@@ -496,7 +492,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 33-40 : Bass */
   [
     {
       shape: "sine",
@@ -612,7 +607,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 41-48 : Strings */
   [
     {
       shape: "sawtooth",
@@ -725,7 +719,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 49-56 : Ensamble */
   [
     {
       shape: "sawtooth",
@@ -875,7 +868,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       tone: -0.5,
     },
   ],
-  /* 57-64 : Brass */
   [
     {
       shape: "square",
@@ -1016,7 +1008,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 65-72 : Reed */
   [
     {
       shape: "square",
@@ -1124,7 +1115,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 73-80 : Pipe */
   [
     {
       shape: "sine",
@@ -1239,7 +1229,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 81-88 : SynthLead */
   [
     {
       shape: "square",
@@ -1362,7 +1351,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 89-96 : SynthPad */
   [
     {
       shape: "triangle",
@@ -1527,7 +1515,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 97-104 : FX */
   [
     {
       shape: "sawtooth",
@@ -1652,7 +1639,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 105-112 : Ethnic */
   [
     {
       shape: "sawtooth",
@@ -1763,7 +1749,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       g: 1,
     },
   ],
-  /* 113-120 : Percussive */
   [
     {
       shape: "sine",
@@ -1872,7 +1857,6 @@ export const MIDI_POLYPHONIC_OSCILLATORS: {
       pitch: { frequency: 0.5 },
     },
   ],
-  /* 121-128 : SE */
   [
     {
       shape: "sine",

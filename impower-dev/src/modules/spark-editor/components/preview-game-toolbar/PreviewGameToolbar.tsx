@@ -28,21 +28,6 @@ import workspace from "../../workspace/WorkspaceStore";
 export const propDefaults = {};
 export type PreviewGameToolbarProps = Partial<typeof propDefaults>;
 
-/**
- * Top toolbar inside the game preview pane. Three visual states driven
- * by workspace.preview.modes.game:
- *
- *   loading=true  → spinner (left) + "Game Preview" title + mode toggle
- *   running=false → PLAY button + title + mode toggle
- *   running=true  → STOP button + playback controls + settings dropdown
- *
- * The Animate portraits toggle shows in every state.
- *
- * The step-backward/forward and fast-backward/forward buttons hold-to-
- * scrub via requestAnimationFrame + throttled stepGameClock — matches the
- * legacy spec-component's UX (pointerdown starts the rAF loop, pointerup
- * cancels it).
- */
 export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   const game = workspace.state.value.preview?.modes?.game;
   const running = !!game?.running;
@@ -52,13 +37,8 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   const loading = !!game?.loading;
   const animatePortraits = workspace.animatePortraits.value;
 
-  // Hold-to-scrub rAF id, kept in a ref so the cleanup function can cancel
-  // even after the component re-renders.
   const controllingPlayback = useRef<number>(0);
 
-  // Cleanup the rAF on unmount so a dangling pointerdown without a
-  // pointerup (e.g. mid-drag tab switch) doesn't leave the game stepping
-  // forever.
   useEffect(() => {
     return () => {
       if (controllingPlayback.current) {
@@ -119,8 +99,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
   return (
     <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-engine-900">
-      {/* Run-toggle button — always visible. Loading state shows spinner;
-          ready state shows PLAY/STOP depending on `running`. */}
+
       <RunToggle
         loading={loading}
         running={running}
@@ -129,9 +108,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
       <span class="flex-1" />
 
-      {/* Middle slot: title when stopped, playback controls when running.
-          Wrapped in flex-1 spacers on both sides so the controls stay
-          centered. */}
+
       {ended ? (
         <Button
           variant="ghost"
@@ -186,9 +163,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
       <span class="flex-1" />
 
-      {/* Right slot: the portrait-motion preference, which holds stopped or
-          playing, then the mode toggle when stopped or the settings dropdown
-          when running. */}
+
       <Button
         variant="ghost"
         size="icon-lg"
@@ -246,10 +221,6 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
     </div>
   );
 }
-
-// ----------------------------------------------------------------------------
-// Local sub-components
-// ----------------------------------------------------------------------------
 
 function RunToggle({
   loading,
@@ -338,9 +309,6 @@ function PointerHoldButton({
   );
 }
 
-// Loading spinner — three dots that bounce vertically. Inlined as a
-// dedicated SVG (the legacy version was an inline <svg> with <animate>
-// elements; we keep the exact same animation so the pacing matches).
 function Spinner() {
   return (
     <svg

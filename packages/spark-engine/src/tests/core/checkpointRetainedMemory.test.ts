@@ -1,18 +1,3 @@
-// #1694 — the memory a route simulation retains grows with its beats, not
-// with their square.
-//
-// A game checkpoints every beat of a simulated route, a keyframe every
-// `baseInterval` beats and deltas between. The record of the positions the
-// route executed grows with every beat, so a keyframe that held it whole (in
-// its save and again in its runtime collections) made the checkpoints
-// together quadratic in the beats: a 10,000-beat scene left 964 MB of the
-// test's 1024 MB heap live after `patchAndSimulateRoute`.
-//
-// What must hold: doubling a scene's beats at most about doubles what the
-// simulation leaves live once its garbage is collected; and every
-// checkpoint still gives back the runtime collections its beat had, now
-// that a keyframe holds only their changes.
-
 import { describe, expect, test } from "vitest";
 import v8 from "node:v8";
 import vm from "node:vm";
@@ -27,15 +12,12 @@ const gc = vm.runInNewContext("gc") as () => void;
 
 const URI = "inmemory:///main.sd";
 
-/** Live heap after a forced collection, in bytes. */
 const liveHeap = () => {
   gc();
   gc();
   return process.memoryUsage().heapUsed;
 };
 
-// Built in its own function, so that nothing holds the compiler while the
-// heap is read.
 function compileScene(beats: number) {
   const lines = ["-> start", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
@@ -64,8 +46,6 @@ function compileScene(beats: number) {
   );
 }
 
-/** What simulating the route to the scene's last beat leaves live, in
- *  bytes, with the game still held. */
 function retainedBySimulation(beats: number) {
   const program = compileScene(beats);
   const game = new Game({
@@ -84,21 +64,15 @@ function retainedBySimulation(beats: number) {
   game.patchAndSimulateRoute(route!);
   const after = liveHeap();
   expect(anyGame._simulation).toBe("success");
-  // A checkpoint for every beat the route passed.
   expect(anyGame._checkpoints.length).toBeGreaterThan(beats - 10);
   return after - before;
 }
 
-/** A store that keeps images, over a live runtime record the test drives:
- *  each capture records what the record held, which the checkpoint must
- *  give back. */
 function imageStore() {
   const live = { state: new RuntimeState() };
   const store = new CheckpointStore(
     {
       captureImage: (keyframe: boolean) => ({ keyframe }),
-      // As `Game.buildSave` writes it for a checkpoint: the collections
-      // emptied.
       saveWithoutStory: () =>
         JSON.stringify({
           modules: {},
@@ -120,8 +94,6 @@ function imageStore() {
   return { live, store, expected, capture, runtimeOf };
 }
 
-/** Runs beat `n`: a position of its own, a revisit of an earlier one, and
- *  every seventh beat a choice and a condition. */
 function runBeat(state: RuntimeState, n: number) {
   state.recordExecution(1000 + n);
   state.recordExecution(1000 + Math.floor(n / 3));
@@ -141,8 +113,6 @@ describe("a checkpoint's runtime collections are its beat's", () => {
     for (let i = 0; i < store.length; i += 1) {
       expect(runtimeOf(i)).toBe(expected[i]);
     }
-    // The keyframe at 40 holds that beat's changes, not the 41 positions run
-    // so far, and its save holds no collections.
     const entry = (store as any)._entries[40];
     expect(entry.keyframe).toBe(true);
     expect(entry.rt.pe.length).toBeLessThan(3);
@@ -155,7 +125,6 @@ describe("a checkpoint's runtime collections are its beat's", () => {
       runBeat(live.state, n);
       capture();
     }
-    // A reset just before the keyframe at 20 (a route started again).
     live.state = new RuntimeState();
     for (let n = 20; n < 35; n += 1) {
       runBeat(live.state, n);
@@ -173,15 +142,12 @@ describe("a checkpoint's runtime collections are its beat's", () => {
       runBeat(live.state, n);
       capture();
     }
-    // Resume at checkpoint 24, as a route resumed there loads its save.
     store.truncate(25);
     live.state = RuntimeState.fromJSON(runtimeOf(24));
     for (let n = 25; n < 52; n += 1) {
       runBeat(live.state, n + 100);
       capture();
     }
-    // The loaded record replaced the one the store drained, so the first
-    // checkpoint after it holds it whole (#1701).
     expect((store as any)._entries[25].chainStart).toBe(true);
     for (let i = 0; i < store.length; i += 1) {
       expect(runtimeOf(i)).toBe(expected[i]);
@@ -193,8 +159,6 @@ describe("a route simulation retains memory linear in its beats", () => {
   test("doubling the beats at most about doubles what the simulation keeps", () => {
     const small = retainedBySimulation(2_000);
     const large = retainedBySimulation(4_000);
-    // Linear growth doubles (about 2.0 measured); the quadratic store this
-    // replaces more than tripled (3.2 between 2,500 and 5,000 beats).
     const mb = (bytes: number) => `${Math.round(bytes / 1048576)} MB`;
     expect(
       large / small,

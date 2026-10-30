@@ -6,51 +6,14 @@ import { importDroppedFiles } from "../../utils/importDroppedFiles";
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
 
-/**
- * Window-level file-drop catcher. Two jobs:
- *
- *  1. ZIP = whole-project import. A single `.zip` dragged anywhere imports the
- *     project on drop.
- *  2. Loose files = fallback. A drop ONTO a file list is claimed by that list
- *     (it routes the files into the hovered folder / current scope — see
- *     useExternalFileDrop). This window handler only catches loose-file drops
- *     that land OUTSIDE any list (e.g. on the editor or preview pane), routing
- *     them by type: scripts -> `scripts/`, everything else -> `assets/`.
- *
- * Detection spans the whole window; only the OVERLAY is scoped. It shows for
- * any file drag, so dragging onto the editor gives feedback rather than
- * nothing, but stays hidden while the drag is over a `[data-file-drop-target]`
- * list — that list rings the target folder itself, and two affordances at once
- * reads as a bug.
- *
- * The wording is the same whichever kind of drag it is. Distinguishing them
- * was tried and reverted: host-relayed drags (the game preview iframe) carry
- * no MIME info, so they could only ever guess, and the label flipped between
- * panes for the same file. One consistent phrase beats a label that is
- * sometimes precise and sometimes wrong, and it reads correctly either way —
- * importing a project, or importing files into your project.
- *
- * Also handles DraggedFilesIn/Over/Out/DroppedFiles protocol messages relayed by
- * an embedding host (e.g. VS Code), which can't carry MIME info, so those keep
- * the overlay + the by-type fallback routing.
- */
 export default function FileDropzone(_props: FileDropzoneProps) {
   const [dragging, setDragging] = useState(false);
-  // Keep the latest setter reachable from imperative listeners without
-  // re-binding them on every render.
   const draggingRef = useRef(dragging);
   draggingRef.current = dragging;
 
   useEffect(() => {
     let disposeProtocol: (() => void) | undefined;
 
-    // Host-relayed drags (the game-preview iframe, or an embedding editor).
-    // These carry no MIME info, so they always present as a project import.
-    //
-    // They get the same self-clearing timeout as the window path: a relayed
-    // "over" can stop arriving without a matching "out" -- the drag ends
-    // inside the iframe, or the host stops relaying -- and without this the
-    // overlay stays up forever with no drag behind it.
     const relayDragging = () => {
       setDragging(true);
       if (overlayTimer) clearTimeout(overlayTimer);
@@ -64,9 +27,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     };
     const dragOver = () => relayDragging();
 
-    // Loose-file fallback (drops outside any list, + host-relayed protocol
-    // drops). A single .zip is a whole-project import; otherwise route by type so
-    // the file lands in the folder whose pane shows it.
     const handleDrop = async (
       items: { name: string; getBuffer: () => Promise<ArrayBuffer> }[],
     ) => {
@@ -98,20 +58,10 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       );
     };
 
-    // Only react to drags carrying OS files. An INTERNAL element drag (e.g.
-    // dragging a row to move it within the file tree) advertises `text/plain`,
-    // not `Files`, so it must not trigger the overlay or steal the drop.
     const carriesFiles = (e: DragEvent) =>
       Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
-    // The overlay is kept alive by the continuous `dragover` stream and cleared by
-    // a short idle timeout. This is robust against BOTH the interior-boundary
-    // flicker (every element the cursor crosses fires a spurious `dragleave`, which
-    // a naive setDragging(false) would flash off) AND an abandoned drag (ESC /
-    // leaving the window fire no `drop`) — dragover simply stops and the timer
-    // clears it. So there's no native `dragleave` handler at all.
     let overlayTimer = 0;
-    // A drag sitting over a file list belongs to that list's own highlight.
     const overFileList = (e: DragEvent) =>
       e.target instanceof Element &&
       !!e.target.closest("[data-file-drop-target]");
@@ -120,8 +70,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       const show = !overFileList(e);
       setDragging(show);
       if (overlayTimer) clearTimeout(overlayTimer);
-      // dragover stops firing the moment the pointer leaves the window, so the
-      // overlay has to time itself out rather than wait for a dragleave.
       overlayTimer = show
         ? window.setTimeout(() => setDragging(false), 150)
         : 0;
@@ -133,8 +81,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     };
     const onDragOver = (e: DragEvent) => {
       if (!carriesFiles(e)) return;
-      // preventDefault keeps window a valid drop target for files that miss every
-      // list (so the browser doesn't navigate to the dropped file).
       e.preventDefault();
       refreshOverlay(e);
     };
@@ -146,8 +92,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         files.map((f) => ({ name: f.name, getBuffer: () => f.arrayBuffer() })),
       );
     };
-    // Capture phase so the overlay always clears even when a list claims the drop
-    // and stops it from bubbling up to the window `drop` handler above.
     const clearOverlay = () => {
       if (overlayTimer) clearTimeout(overlayTimer);
       overlayTimer = 0;
@@ -159,8 +103,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     window.addEventListener("drop", onDrop);
     window.addEventListener("drop", clearOverlay, true);
 
-    // Lazy-load protocol message types — workspace transports them when a
-    // hosting parent (e.g. an embedding window) relays drag state to us.
     Promise.all([
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/window/DraggedFilesInMessage"),
@@ -180,8 +122,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
           onProtocolMessage(DraggedFilesOutMessage.type, () => dragLeave()),
           onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
           onProtocolMessage(DroppedFilesMessage.type, (m) => {
-            // Host relayed already-read buffers — wrap each as a resolved
-            // getBuffer so handleDrop runs its uniform pipeline.
             void handleDrop(
               m.params.files.map((f) => ({
                 name: f.name,
@@ -204,29 +144,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     };
   }, []);
 
-  // The overlay sits above every other layer. At z-[2] it cleared none of
-  // them, so a drag left the page looking half-covered instead of presenting
-  // one drop target.
-  //
-  // The full stack it has to clear, lowest first: the z-10 chrome (header,
-  // sticky tab bars, split divider), the editor's search/goto panels
-  // (`.cm-panels-top`, z-30 -- EDITOR_THEME.ts), dialogs (z-50), toasts
-  // (z-[60]). Nothing between the editor's panels and <body> establishes a
-  // stacking context, so those editor layers compete here at the root rather
-  // than staying inside the editor -- which is also why the theme pins them
-  // deliberately low (gutters 1, panels 2, top panels 30) instead of leaving
-  // CodeMirror's defaults of 200/300.
-  //
-  // 400 keeps a wide margin over that whole stack.
-  //
-  // `absolute inset-0` fills whichever container this is mounted in --
-  // currently MainWindow's middle region, so the overlay covers the content
-  // area and leaves the header above and tab bar below visible. Scoping it by
-  // MOUNT POINT rather than by offsetting a full-viewport overlay means there
-  // is no header height duplicated here to drift out of sync.
-  //
-  // `pointer-events-none` so the drag and drop events still reach the
-  // window-level handlers underneath.
   return (
     <div class="pointer-events-none absolute inset-0 z-[400] flex flex-col">
       {dragging && (

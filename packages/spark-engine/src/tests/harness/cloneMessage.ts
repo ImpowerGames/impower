@@ -1,12 +1,3 @@
-// The loopback the message suites connect the game and the page through.
-//
-// A message that crosses a thread boundary arrives as a structured clone:
-// `postMessage` refuses a function outright, and silently turns a class
-// instance into a plain object, drops a getter the prototype carried, and
-// loses symbol keys. Passing every message in both directions through
-// `cloneMessage` makes a suite fail on any of those while the game still
-// runs on the page, where nothing would otherwise notice.
-
 import { isDeepStrictEqual } from "node:util";
 
 const label = (message: unknown): string => {
@@ -14,8 +5,6 @@ const label = (message: unknown): string => {
   return typeof method === "string" ? `\`${method}\`` : "a message";
 };
 
-/** The path to the first place `copy` differs from `original`, for the
- *  failure message. */
 const firstDifference = (
   original: unknown,
   copy: unknown,
@@ -58,8 +47,6 @@ const firstDifference = (
   return `${path || "(root)"}: differs`;
 };
 
-/** Deliver `message` the way a `postMessage` would, and throw if what
- *  arrives is not deep-equal to what was sent, prototypes included. */
 export function cloneMessage<T>(message: T): T {
   let copy: T;
   try {

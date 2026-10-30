@@ -31,7 +31,6 @@ describe("iconForPath", () => {
     expect(iconForPath("chapters", true, false)).toBe(Folder);
     expect(iconForPath("chapters", true, true)).toBe(FolderOpen);
     expect(iconForPath("a/b/deeply/nested", true)).toBe(Folder);
-    // A directory whose name happens to look like a file still gets a folder.
     expect(iconForPath("weird.png", true)).toBe(Folder);
     expect(iconForPath("weird.png", true, true)).toBe(FolderOpen);
   });
@@ -83,14 +82,13 @@ describe("iconForPath", () => {
   });
 
   it("keys off the FINAL extension for multi-dot names", () => {
-    expect(iconForPath("archive.tar.gz", false)).toBe(FileText); // gz unknown
+    expect(iconForPath("archive.tar.gz", false)).toBe(FileText);
     expect(iconForPath("scene.backup.png", false)).toBe(Photo);
   });
 
   it("falls back to FileText for unknown / missing extensions", () => {
     expect(iconForPath("LICENSE", false)).toBe(FileText);
     expect(iconForPath("weird.xyz", false)).toBe(FileText);
-    // A dotfile has no extension (leading dot only) → fallback.
     expect(iconForPath(".folder", false)).toBe(FileText);
   });
 });

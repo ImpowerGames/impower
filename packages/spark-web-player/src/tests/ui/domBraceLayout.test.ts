@@ -1,7 +1,3 @@
-// #1224: a layout written with brace blocks and dotted classes renders the DOM
-// its indented form renders: the same elements, with the same names and
-// classes, in the same places.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 

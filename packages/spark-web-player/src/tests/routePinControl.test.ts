@@ -1,13 +1,3 @@
-// #1657 — the route list's choice entries expand to the pin control: what
-// the preview did at the stop, the options offered there in script order with
-// the one taken marked, each with Pin or Pinned, and Unpin. The player asks
-// the host to change the pins (`preview/changeRoutePins`); a host that does
-// not save the change returns the control to its previous state with a note.
-// The list offers Clear pins while any pin exists, lists the pins whose line
-// holds no option with Remove, and says when a pin was not followed. The
-// route button shows the pin when pins steered the route and nothing was
-// forced or clipped.
-
 import { afterEach, describe, expect, test } from "vitest";
 import {
   MessageProtocol,
@@ -29,7 +19,6 @@ const at = (line: number, uri = URI) => ({
   },
 });
 
-/** A pin on the 1-based `line` at its `offer`-th offer. */
 const pin = (line: number, offer = 1) => ({ uri: URI, line: line - 1, offer });
 
 const options = (pinned?: number) =>
@@ -44,7 +33,6 @@ const options = (pinned?: number) =>
     ...(pinned === line ? { pinned: true as const } : {}),
   }));
 
-/** #1655's example at line 21 with "Tell the truth." pinned. */
 const pinnedRoute = (): PreviewRoute => ({
   start: { scene: "interrogation", location: at(4) },
   target: at(21),
@@ -61,8 +49,6 @@ const pinnedRoute = (): PreviewRoute => ({
   ],
 });
 
-/** #1655's example at line 11 with "Lie." pinned, which the route did not
- *  follow. */
 const notFollowedRoute = (): PreviewRoute => ({
   start: { scene: "interrogation", location: at(4) },
   target: at(11),
@@ -117,15 +103,12 @@ function player() {
       simulation: "success",
       route,
     });
-  /** The host sends its pins, as it does when the player connects. */
   const hostPins = (pins: ReturnType<typeof pin>[]) =>
     (controller as any).handleSetRoutePins(
       SetRoutePinsMessage.type.request({ pins }),
     );
   const open = () =>
     routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
-  /** Expand the first choice entry, which the list renders on its next
-   *  pass. */
   const expand = async () => {
     routeList
       .querySelector<HTMLButtonElement>(".route-entry-toggle")!
@@ -142,7 +125,6 @@ function player() {
     )!;
   const requests = () =>
     sent.filter((m) => ChangeRoutePinsMessage.type.isRequest(m));
-  /** The host answers the last pin request. */
   const answer = (result: { pins: ReturnType<typeof pin>[] } | "error") => {
     const request = requests().at(-1)!;
     sendProtocolMessage(
@@ -195,7 +177,6 @@ describe("the pin control", () => {
     expect(entry.querySelector(".route-badge")!.textContent).toBe("Pinned");
     expect(p.routeList.querySelector(".route-pin-control")).toBeNull();
     entry.querySelector<HTMLButtonElement>(".route-entry-toggle")!.click();
-    // The list renders the expansion on its next pass.
     await settle();
     expect(
       p.routeList.querySelector(".route-pin-sentence")!.textContent,
@@ -224,7 +205,6 @@ describe("the pin control", () => {
     p.button("Pin", p.option("Lie."))!.click();
     const [request] = p.requests();
     expect(request!.params).toEqual({ add: [pin(12)], remove: [pin(8)] });
-    // The control shows the change while the host saves it.
     expect(p.button("Pinned", p.option("Lie."))).toBeDefined();
     expect(p.button("Pin", p.option("Tell the truth."))).toBeDefined();
     p.answer({ pins: [pin(12)] });
@@ -242,8 +222,6 @@ describe("the pin control", () => {
     p.button("Pin", p.option("Lie."))!.click();
     p.answer({ pins: [pin(12)] });
     await settle();
-    // The preview shows the line again by the route the pin makes, which
-    // takes "Lie." at this stop.
     const [choice, ...rest] = pinnedRoute().decisions;
     p.report({
       ...pinnedRoute(),
@@ -266,9 +244,6 @@ describe("the pin control", () => {
   });
 
   test("the pin control stays open when the pin closes a gate on the first option there", async () => {
-    // `* if key [Show the key.]` on line 5 before `* [Wait.]` on line 7, with
-    // `key` false: pinning Wait. leaves the gate false, so the menu offers
-    // Wait. alone.
     const gated = (): PreviewRoute => ({
       start: { scene: "s", location: at(3) },
       target: at(10),
@@ -321,8 +296,6 @@ describe("the pin control", () => {
   });
 
   test("a pin on an option the menu did not offer is replaced by pinning another option there, and Unpin removes it", async () => {
-    // `* if key [Show the key.]` on line 5 is pinned, but the route to a line
-    // inside Wait. leaves its gate false, so the menu offers Wait. alone.
     const p = player();
     await p.hostPins([pin(5)]);
     p.report({
@@ -342,7 +315,6 @@ describe("the pin control", () => {
       ],
     });
     p.open();
-    // A stop whose pin was not followed opens expanded.
     p.button("Unpin")!.click();
     expect(p.requests().at(-1)!.params).toEqual({ remove: [pin(5)] });
     p.answer({ pins: [pin(5)] });
@@ -403,7 +375,6 @@ describe("the pin control", () => {
       );
     reject(first);
     await settle();
-    // The change still waiting for the host stays on the list.
     expect(p.button("Pinned", p.option("Show the photograph."))).toBeDefined();
     expect(p.button("Pin", p.option("Lie."))).toBeDefined();
     reject(second);

@@ -104,7 +104,6 @@ import {
 } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import {
-  ROOT_FLOW_NAME,
   START_FLOW_NAME,
   SymbolKind,
   UNDEFINED_KIND,
@@ -455,6 +454,7 @@ export class ProgramStory implements StoryEngine {
       !this._declarationsClean ||
       root.generation !== before.generation ||
       !sameChunks(before.initialization, root.initialization) ||
+      !before.tables?.luauEntry !== !root.tables?.luauEntry ||
       !sameNames(before.tables?.constantNames, root.tables?.constantNames)
     ) {
       return null;
@@ -953,8 +953,7 @@ export class ProgramStory implements StoryEngine {
       this.land(place, [], 0);
       this._start = { symbol: start!, ...place };
     } else {
-      const root = this.root.flowNamed(ROOT_FLOW_NAME);
-      this._state.position = root ? { sequence: root, entry: 0, offset: 0 } : null;
+      this._state.position = null;
       this._start = null;
     }
     if (this._imagesOn) {
@@ -1022,6 +1021,14 @@ export class ProgramStory implements StoryEngine {
       throw new StoryException(`Path not found: '${path}'`);
     }
     this.choose(target, resetCallstack, args);
+  }
+
+  ChooseStart(): void {
+    if (this.startSymbol() === undefined) {
+      this.ResetCallstack();
+      return;
+    }
+    this.ChoosePathString(START_FLOW_NAME);
   }
 
   ChooseAddress(address: number, resetCallstack = true): void {
@@ -1508,14 +1515,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   flowName(flow: number): string {
-    if (flow < 0) {
-      return "global decl";
-    }
-    if (this.root.kindOf(flow) === SymbolKind.Root) {
-      return "0";
-    }
-    const name = this.root.labelOf(flow);
-    return name === ROOT_FLOW_NAME ? "0" : name;
+    return flow < 0 ? "global decl" : this.root.labelOf(flow);
   }
 
   debugFrames(threadIndex: number): DebugFrame[] | undefined {
@@ -3046,7 +3046,8 @@ export class ProgramStory implements StoryEngine {
     this.beatLog = null;
     const depth = state.callStack.elements.length;
     this._declarationDepth = depth;
-    for (const chunk of this.root.initialization) {
+    const initialization = this.root.tables?.luauEntry ? [] : this.root.initialization;
+    for (const chunk of initialization) {
       this._declarationRunning = chunkId(chunk);
       this._declarationGlobals = 0;
       const at = this.root.position(chunkId(chunk));
@@ -3165,14 +3166,13 @@ export class ProgramStory implements StoryEngine {
   ending: StoryEnding | null = null;
 
   protected startSymbol(): number | undefined {
+    if (this.root.tables?.luauEntry) {
+      return undefined;
+    }
     const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
     return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
       ? symbol
       : undefined;
-  }
-
-  protected startName(): string {
-    return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
   }
 
   protected _start: {
@@ -3185,8 +3185,7 @@ export class ProgramStory implements StoryEngine {
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
-    const name = path === "0" ? this.startName() : path;
-    const symbol = this.root.table.symbolIds.get(name);
+    const symbol = this.root.table.symbolIds.get(path);
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     if (
       symbol !== undefined &&

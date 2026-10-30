@@ -1,8 +1,3 @@
-// The game a worker runs calls the timer and frame functions it was given as
-// methods of its configuration. A browser refuses to run its global's own
-// functions on any other receiver ("Illegal invocation"), which is what a
-// display from the player's worker hit the first time the asset module
-// waited on a timer (#680).
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
 import { EnableGameDebugMessage } from "../game/core/classes/messages/EnableGameDebugMessage";
@@ -53,8 +48,6 @@ describe("a game the worker creates", () => {
         breakpoints: [{ file: program.uri, line }],
       }),
     );
-    // With no game, nothing says where the breakpoint lands, so it is not
-    // answered as a resolved breakpoint.
     expect(answers).toEqual([{ breakpoints: [] }]);
     await send(EnableGameDebugMessage.type.request({}));
     await send(CreateGameMessage.type.request({ program }));
@@ -62,8 +55,6 @@ describe("a game the worker creates", () => {
     const game = state.game as any;
     expect(game).toBeDefined();
     expect(game.context.system.debugging).toBe(true);
-    // The lines the game stops on: the program engine holds a line's
-    // breakpoint as the address it stops at, placed by its locator.
     const stops = [...(game._lineBreakAddresses as Set<number>)].map(
       (address) => game.locator.locationOf(address)?.startLine,
     );
@@ -71,9 +62,6 @@ describe("a game the worker creates", () => {
   });
 });
 
-// The Variables view shows the temporaries of the frame selected in the Call
-// Stack, which the request names by its thread and frame (#1727), and hover
-// and Watch evaluate in it (#1740).
 describe("a request for a game's temporaries", () => {
   test("answers with the frame it names, and with the running frame when it names none", async () => {
     vi.stubGlobal("self", {
@@ -139,12 +127,9 @@ describe("a request for a game's temporaries", () => {
           GetGameVariablesMessage.type.request({ scope: "temps", ...params }),
         )
       ).variables.map((v: { name: string; value: string }) => `${v.name}=${v.value}`);
-    // The caller's frame, selected in the Call Stack.
     expect(await temps({ threadId: 0, frameId: 0 })).toEqual(["mainLoc=111"]);
     expect(await temps({ threadId: 0, frameId: 1 })).toEqual(["subLoc=222"]);
-    // A request from a client that names no frame reads the running one.
     expect(await temps({})).toEqual(["subLoc=222"]);
-    // Hover and Watch evaluate in the frame the request names too (#1740).
     const context = async (params: object) =>
       (await ask(GetGameEvaluationContextMessage.type.request(params))).context;
     expect(await context({ threadId: 0, frameId: 0 })).toMatchObject({
@@ -158,8 +143,6 @@ describe("a request for a game's temporaries", () => {
   });
 });
 
-// Sparkdown has no list type (#1752), so the protocol names no Lists scope
-// (#1805); an extension built before that still asks for one.
 describe("a request for the Lists scope", () => {
   test("answers with no variables rather than an error", async () => {
     vi.stubGlobal("self", {
@@ -198,8 +181,6 @@ describe("a request for the Lists scope", () => {
 describe("the configuration a worker gives its game", () => {
   test("runs the timer and frame functions on the worker's global", () => {
     const calls: string[] = [];
-    // A global whose functions throw on any receiver but itself, as a
-    // browser's do.
     const global: any = {
       setTimeout(this: unknown, handler: Function, timeout?: number) {
         if (this !== global) throw new TypeError("Illegal invocation");
@@ -228,13 +209,7 @@ describe("the configuration a worker gives its game", () => {
   });
 });
 
-// A message that reaches the page while it renders waits for the whole frame.
-// A worker's animation frames begin with the page's, which left a beat's
-// sound reaching the page after its stamp on about one beat in three (#811),
-// so the games tick when the page says it has finished a frame.
 describe("when the games a worker holds tick", () => {
-  /** A worker whose timers are run by the test, and a way to post it a
-   *  message as the page does. */
   const createWorker = () => {
     const calls: string[] = [];
     const timers = new Map<number, { handler: () => void; timeout?: number }>();
@@ -295,8 +270,6 @@ describe("when the games a worker holds tick", () => {
     expect(ticks).toBe(0);
     worker.pageFramed();
 
-    // Both waiting callbacks ran on that frame, and the timer that would
-    // have run them if it had not come is gone.
     expect(ticks).toBe(2);
     expect(worker.timers.size).toBe(0);
   });

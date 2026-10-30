@@ -2,18 +2,6 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { describe, expect, it } from "vitest";
 import { applyBuiltinDefaults, inheritDefaults } from "./applyBuiltinDefaults";
 
-/**
- * `inheritDefaults`/`applyBuiltinDefaults` deep-fill a context's defines
- * from their type's `$default` (#268). `buildDefinesContext` runs this over
- * the runtime channel after assembly — the deep-fill is what repairs
- * instances whose `__index` chain runs through the wrong parent when a type
- * NAME is prelude-dual-defined (see contextChannelEquivalence.test.ts).
- */
-
-/** The real builtin `$default`s, sourced from the compiled builtins prelude
- *  (the aggregate JS definitions object was retired with the prelude
- *  migration). Compiled once per suite — the prelude parse is cached
- *  process-wide by the compiler. */
 let _builtinContext: Record<string, any> | undefined;
 const builtinContext = (): Record<string, any> => {
   if (!_builtinContext) {
@@ -56,7 +44,6 @@ describe("inheritDefaults", () => {
 
   it("never lets a default overwrite an authored value", () => {
     const result = inheritDefaults({ a: 0 }, { a: 99 });
-    // 0 is authored, and falsy -- a `||` merge would have clobbered it.
     expect(result.a).toBe(0);
   });
 
@@ -160,9 +147,6 @@ describe("applyBuiltinDefaults", () => {
   });
 
   it("is a no-op for types whose $default carries no real properties", () => {
-    // The structural UI types -- style/screen/component -- are meant to be
-    // sparse; being sparse IS the semantics of a cascade. Their `$default`
-    // holds only `$`-prefixed metadata, so they must come out untouched.
     const context: any = {
       style: {
         $default: { $type: "style", $name: "$default", $recursive: true },
@@ -189,20 +173,12 @@ describe("applyBuiltinDefaults", () => {
 });
 
 describe("against the real builtin definitions", () => {
-  /**
-   * #268 was reported for synths, but nothing inherited -- these are the other
-   * types with real defaults to lose. Pinning a few of the worst so a
-   * regression shows up as a named failure rather than as mysteriously wrong
-   * pacing.
-   */
   it("completes a partially-authored define for every type with defaults", () => {
     const builtins: any = builtinContext();
     const context: any = {};
     const typesWithDefaults: string[] = [];
     for (const [type, structs] of Object.entries<any>(builtins)) {
       const dflt = structs?.["$default"];
-      // Only struct-typed defaults participate in inheritance; the prelude
-      // context also carries scalar-valued types (colors, eases-as-arrays).
       if (!dflt || typeof dflt !== "object" || Array.isArray(dflt)) {
         continue;
       }
@@ -216,8 +192,6 @@ describe("against the real builtin definitions", () => {
         partial: { $type: type, $name: "partial" },
       };
     }
-    // Guards the loop itself: if this collapses to a handful, the assertions
-    // below stop meaning anything.
     expect(typesWithDefaults.length).toBeGreaterThan(15);
 
     applyBuiltinDefaults(context);
@@ -233,8 +207,6 @@ describe("against the real builtin definitions", () => {
   });
 
   it("gives a partial typewriter the real pause scales", () => {
-    // These are the numbers InterpreterModule's inline fallbacks got wrong by
-    // 5-16x, which is what made this class of bug invisible.
     const context: any = {
       typewriter: {
         $default: builtinContext()["typewriter"]?.$default,

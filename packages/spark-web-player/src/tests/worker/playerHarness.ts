@@ -1,10 +1,3 @@
-// The Game Preview end to end in one process: the player's controller on a
-// jsdom page, the player's worker (`installPlayerWorker`) with its compiler and
-// game, and between them a connection that delivers every message as a
-// structured clone, one task after it was sent, in order, as a worker's port
-// does. Only the pixi `Application` is replaced, by an application that routes
-// the game's stream into the page's real managers the way `Application` does
-// (`MessageRouter`), so the overlay DOM is the one the player builds.
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -44,13 +37,9 @@ import {
 
 export const MAIN_URI = "file:///local/main.sd";
 
-/** One end of a port: what it posts arrives at its peer as a structured
- *  clone, one task later, in the order it was posted. */
 export class LoopbackConnection extends MessageConnection {
   peer?: LoopbackConnection;
 
-  /** Delivers nothing either way from now on, as a worker that is stuck
-   *  answers nothing and hears nothing. */
   closed = false;
 
   protected _listeners = new Set<(e: MessageEvent) => void>();
@@ -82,11 +71,6 @@ export class LoopbackConnection extends MessageConnection {
   }
 }
 
-/** A `BroadcastChannel` in one process: what one posts arrives at every other
- *  open channel of its name as a structured clone, one task later, in the
- *  order it was posted, so PLAY's stream keeps the timing and order the
- *  loopback port gives the rest. Only the worker posts on one here, so
- *  `onPost` sees everything the worker sends on a channel. */
 function loopbackBroadcastChannel(onPost: (message: any) => void) {
   const open = new Map<string, Set<LoopbackBroadcastChannel>>();
   class LoopbackBroadcastChannel {
@@ -130,8 +114,6 @@ export const settle = async (tasks = 20) => {
   }
 };
 
-/** Hold the first application the controller builds inside its `init`,
- *  and record every application it builds. */
 export const holdFirstInit = (h: any) => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
@@ -151,9 +133,6 @@ export const holdFirstInit = (h: any) => {
   return { apps, release };
 };
 
-/** The text a run wrote to the screen, in order, from what its game sent the
- *  page (`toRouter`): a line is written a character at a time, and a played
- *  beat's writes reach the page inside its composed beat (#1820). */
 export const writtenText = (sent: any[]): string => {
   const texts: string[] = [];
   const collect = (value: any) => {
@@ -176,20 +155,13 @@ export const writtenText = (sent: any[]): string => {
 export interface PlayerHarnessOptions {
   files: { uri: string; text: string }[];
   startFrom: { file: string; line: number };
-  /** Decide when an image the page loads finishes; by default at once. */
   holdImage?: (src: string) => Promise<void> | undefined;
-  /** Keep every message in `toPage` and `toRouter` (the default), or none,
-   *  for a run whose memory is measured. */
   recordMessages?: boolean;
-  /** Games the worker builds read the time from `tick` and get a frame only
-   *  when it runs, so a run is the same run every time. */
   manualClock?: boolean;
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const { win, overlay, restore: restoreDOM } = installJSDOM();
-  // The controller dispatches events on the page's elements, and an event is
-  // dispatched only on a target of its own realm.
   const g = globalThis as any;
   const { Event, CustomEvent, BroadcastChannel } = g;
   g.Event = win.Event;
@@ -200,10 +172,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     g.BroadcastChannel = BroadcastChannel;
     restoreDOM();
   };
-  // Everything the worker sends the page, as the page receives it.
   const toPage: any[] = [];
   const recordMessages = options.recordMessages !== false;
-  // What the worker sends on a channel rather than the connection.
   const onChannel: any[] = [];
   g.BroadcastChannel = loopbackBroadcastChannel((message) => {
     if (recordMessages) {
@@ -211,13 +181,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       onChannel.push(message);
     }
   });
-  // The worker's clock, when the test drives it: the time in milliseconds,
-  // and the frame callbacks waiting for the next tick.
   const clock = { now: 1_000_000, frames: [] as (() => void)[] };
   const versions = new Map(options.files.map((f) => [f.uri, 1]));
 
-  /** Start a player's worker, as the page's workspace does, and again when
-   *  it restarts one (`hang`). */
   const createWorker = () => {
     const page = new LoopbackConnection();
     const worker = new LoopbackConnection((message) => {
@@ -236,7 +202,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     return { page, workerState };
   };
 
-  /** Give a started worker the project. */
   const initialize = async (page: LoopbackConnection) => {
     await page.sendRequest(CompilerInitializeMessage.type, {
       profilerId: "test",
@@ -273,11 +238,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   let programVersion = 0;
   let completionRequest = 0;
   let selected = options.startFrom;
-  // The worker's answer to the last real program the page reported taking.
   let held: Promise<void> = Promise.resolve();
   const link = new WorkerGameLink(page);
-  // What the player's workspace offers the controller when its worker stops
-  // answering (#679); `hang` restarts the worker as it does.
   const hangListeners = new Set<(hang: WorkerHang) => void>();
   const setAsidePoints = new SetAsidePoints((): string =>
     SetAsidePoints.revision(
@@ -288,7 +250,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const workspace = {
     gameLink: link,
     filesRevision: 0,
-    /** Counts edits to open documents, as the player's workspace does. */
     documentsRevision: 0,
     addWorkerHangListener: (listener: (hang: WorkerHang) => void) => {
       hangListeners.add(listener);
@@ -312,8 +273,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         .sendRequest(ProgramHeldMessage.type, { program })
         .then(() => undefined)),
     compileTextDocument: async () => {},
-    // The selections the page asks the editor for, as STOP asks for the
-    // line the game stopped at.
     selections: [] as any[],
     selectTextDocument: async (params: any) => {
       workspace.selections.push(params);
@@ -321,8 +280,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   };
   setWorkspace(workspace as any);
 
-  // The page's managers, and an application that connects them to the
-  // worker's game the way `Application` does.
   const refs: any = {
     viewport: win.document.createElement("div"),
     gameView: win.document.createElement("div"),
@@ -338,16 +295,12 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   win.document.body.append(host);
   const controller: any = new GamePlayerController(host, refs);
   controller._mounted = true;
-  // As `setup` does, which the harness does not run.
   controller._stopHearingHangs = workspace.addWorkerHangListener(
     controller.handleWorkerHang,
   );
   const createImage = (): ImageTarget => createFakeImage(options.holdImage);
-  // Every message the worker's games send the page's managers.
   const toRouter: any[] = [];
   let ui: UIManager | undefined;
-  // The controller's own slot handling runs; only the application it builds
-  // is a stand-in, and the page has no audio.
   controller.ensureAudioContext = async () => {};
   controller.createApp = (endpoint: GameEndpoint) => {
     const stubApp = createStubApp(
@@ -365,9 +318,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     const app = {
       initializing: new Promise<void>((resolve) => (resolveInit = resolve)),
       paused: false,
-      // The application's own clock, which pause, unpause and a clock step
-      // move as `Application` moves it, telling the managers. It reads the
-      // harness's clock and ticks on its frames (`tick`).
       clock: new Clock(
         {
           get currentTime() {
@@ -379,7 +329,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           return clock.frames.length;
         },
       ),
-      /** Send the game what the page reports, as input does. */
       emit: (message: any) => endpoint.receive(structuredClone(message)),
       pause() {
         app.paused = true;
@@ -404,9 +353,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       destroys: 0,
       destroyed: false,
       destroying: undefined as Promise<void> | undefined,
-      // As `Application.destroy`: one teardown, begun at the first call and
-      // finished once the application has initialized, which every call
-      // waits for.
       destroy() {
         app.destroying ??= (async () => {
           app.destroyed = true;
@@ -425,8 +371,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           if (recordMessages) toRouter.push(copy);
           router.receive(copy);
         }),
-      // As `Application.init`: initialization is over whether it succeeded
-      // or failed.
       async init() {
         try {
           await Promise.all(managers.map((m) => m.onInit()));
@@ -438,9 +382,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     };
     return app;
   };
-  /** PLAY's game in the worker, while it runs. */
   const playing = () => workerState.gameState.running;
-  // What the page relays to the editor.
   const toEditor: any[] = [];
   host.addEventListener("jsonrpc", (e: Event) => toEditor.push((e as CustomEvent).detail));
 
@@ -449,27 +391,16 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     workspace,
     overlay,
     refs,
-    /** The page's end of the worker, which a restart replaces. */
     get page() {
       return page;
     },
     link,
-    /** What the worker installed, which a restart replaces. */
     get workerState() {
       return workerState;
     },
-    /** The worker stops answering, as one running a story that never
-     *  yields does; what the page sends it from now on waits. */
     stall() {
       page.closed = true;
     },
-    /** The page's workspace hears from the stalled worker that it has run a
-     *  story for `busy.busyMs`, and restarts it as `SparkdownGameWorkspace`
-     *  does: `respondToWorkerHang` sets aside what the new worker must not
-     *  route to and tells the page's listeners; then a worker starts in the
-     *  old one's place, the game link moves to it, whatever was waiting on
-     *  the old one settles, and only then is the new one given the project,
-     *  as `restartCompiler` orders it. */
     async hang(busy: WorkerBusyParams) {
       page.closed = true;
       const hang = respondToWorkerHang(busy, {
@@ -492,9 +423,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     toEditor,
     toRouter,
     playing,
-    /** Advance the worker's manual clock by `ms` and run each frame
-     *  waiting for it, `frames` times, letting what the games send arrive
-     *  in between. */
     async tick(ms = 1000 / 60, frames = 1) {
       for (let i = 0; i < frames; i++) {
         clock.now += ms;
@@ -503,9 +431,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         await settle(4);
       }
     },
-    /** Record the program each PLAY from now on builds its game from. The
-     *  worker builds PLAY's game beside the game that previews, so a game it
-     *  builds with that one there is PLAY's. */
     recordPlays() {
       const played: any[] = [];
       const createGame = workerState.gameState.createGame;
@@ -518,11 +443,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       return played;
     },
     snapshotDOM: () => serializeDOM(overlay),
-    /** Settles once the worker has answered the last real program the page
-     *  reported taking (`player/programHeld`). */
     held: () => held,
-    /** Compile the main script and hand the result to the controller, as the
-     *  workspace's `compiler/didCompile` does. */
     async compile(): Promise<any> {
       let result: CompiledProgramParams;
       try {
@@ -531,8 +452,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           startFrom: selected,
         });
       } catch (e) {
-        // The worker answered the compile with an error, which the page's
-        // workspace would log; the preview keeps what it shows.
         return { error: String((e as Error)?.message ?? e) };
       }
       result.program.version = ++programVersion;
@@ -540,7 +459,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       await settle();
       return result;
     },
-    /** Edit the main script, as the editor's change notification does. */
     async edit(contentChanges: any[]) {
       const version = versions.get(MAIN_URI)! + 1;
       versions.set(MAIN_URI, version);
@@ -551,8 +469,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       return version;
     },
     version: () => versions.get(MAIN_URI)!,
-    /** Select a line and answer once the selection has reached the
-     *  controller, with the preview it started still under way. */
     async selectWithoutWaiting(line: number): Promise<{ previewed: Promise<void> }> {
       selected = { file: MAIN_URI, line };
       const result = await page.sendRequest(SelectCompilerDocumentMessage.type, {
@@ -563,8 +479,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       });
       return { previewed: controller.handleSelectedCompilerDocument({ params: result }) };
     },
-    /** Select a line of the main script, or of another script of the
-     *  project, as the editor's cursor does. */
     async select(line: number, uri = MAIN_URI): Promise<any> {
       selected = { file: uri, line };
       let result;
@@ -582,9 +496,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       await settle();
       return result;
     },
-    /** Highlight a suggestion that would make `contentChanges`, as the
-     *  editor's `textDocument/previewCompletion` does, and wait until the
-     *  preview has acted on it. */
     async suggest(contentChanges: any[] | null, line: number) {
       await controller.handlePreviewCompletion({
         params: {
@@ -598,7 +509,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       });
       await settle(40);
     },
-    /** Close the suggestion list without accepting. */
     async closeSuggestions() {
       await controller.handlePreviewCompletion({
         params: {

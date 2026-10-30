@@ -1,19 +1,3 @@
-// #376 — a planned route used to carry its own history in every step: step N
-// stored the paths of steps 1..N joined together, so a route of N steps held
-// O(N²) characters. `Game.simulateRoute` keys a map by those strings, which
-// forces V8 to flatten each one into its own copy, so the cost was paid in
-// live memory: 241 MB of strings at 5,786 steps on a real project, ~1.8 GB at
-// 15,831, and an out-of-memory kill (taking the editor's renderer with it) at
-// ~23,800.
-//
-// The identity is only ever compared for equality — it tells a re-plan which
-// steps of the previous plan are still valid, so their checkpoints can be
-// reused — so it is now a fixed-width hash of the history. What must hold:
-//   - identity semantics: same history in, same value out; different history,
-//     different value (otherwise `patchRoute` resumes from a checkpoint that
-//     belongs to a different story position);
-//   - the size of a step's identity does not grow with how deep it sits.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { extendSeq } from "@impower/sparkdown/src/compiler/utils/planRoute";
@@ -43,7 +27,6 @@ function compileSrc(src: string) {
   return requireChunks(result.program);
 }
 
-/** A scene with `beats` display lines, so a route to the end has many steps. */
 function longScene(beats: number): string {
   const lines = ["", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
@@ -63,16 +46,12 @@ describe("step identity is a fixed-width hash of the history", () => {
   test("a different history yields a different identity", () => {
     const base = extendSeq(extendSeq("", 1), 2);
     expect(extendSeq(base, 3)).not.toBe(extendSeq(base, 4));
-    // Order matters: the same paths in a different sequence are a different
-    // position in the story.
     const forward = extendSeq(extendSeq("", 1), 2);
     const reversed = extendSeq(extendSeq("", 2), 1);
     expect(forward).not.toBe(reversed);
   });
 
   test("a revisit is distinguished from a first visit", () => {
-    // A loop that comes back to the same path must not look like the first
-    // time it was there, or a re-plan would resume from the wrong checkpoint.
     const first = extendSeq(extendSeq("", 10), 11);
     const second = extendSeq(extendSeq(first, 10), 11);
     expect(second).not.toBe(first);
@@ -90,11 +69,6 @@ describe("step identity is a fixed-width hash of the history", () => {
 });
 
 describe("identity still drives checkpoint reuse across a re-plan", () => {
-  // This is what step identity EXISTS for: when the cursor moves and the route
-  // is planned again, the shared prefix must be recognised so its checkpoints
-  // are reused instead of re-simulated. Identity that changed shape (or
-  // collided) would silently break this — the preview would still be correct,
-  // just re-simulated from scratch every time, so nothing else would notice.
   const LINEAR = `store score = 0
 
 
@@ -135,15 +109,10 @@ end
     const program = compileSrc(LINEAR);
     const game = newGame(program);
 
-    // Simulate out to the third beat.
     const deep = planTo(game, program as any, 10);
     expect(deep).toBeTruthy();
     game.patchAndSimulateRoute(deep!);
 
-    // Re-plan to an EARLIER beat. Its steps are a prefix of the deep route, so
-    // every one of them must carry the identity it had in the first plan —
-    // that equality is the whole mechanism by which a re-plan recognises work
-    // it has already done.
     const shallow = planTo(game, program as any, 6);
     expect(shallow).toBeTruthy();
     expect(shallow!.steps.length).toBeGreaterThan(1);
@@ -152,9 +121,6 @@ end
       expect(shallow!.steps[i]!.seq).toBe(deepSeqs[i]);
     }
 
-    // The simulated route holds the identities the re-plan produces at the
-    // same indexes, which is where a re-plan looks for the work already done
-    // (`stepCheckpoint` reads the step at the index it expects).
     const planned: { seq: string }[] = (game as any)._plannedRoute.steps;
     expect(planned.length).toBe(deep!.steps.length);
     shallow!.steps.forEach((step, i) => {
@@ -163,21 +129,10 @@ end
   });
 
   test("a re-plan RESUMES from a checkpoint instead of re-simulating", () => {
-    // The end-to-end property identity exists to serve. If identities stopped
-    // matching across plans, everything above could still pass while every
-    // preview silently re-simulated its scene from the top — so assert the
-    // resume itself: the engine loads a checkpoint, and only once it has a
-    // simulated prefix to resume from.
-    //
-    // The scene has to be long enough for the first pass to capture
-    // checkpoints at all (they are captured per beat, so a four-beat fixture
-    // can finish with none and nothing to reuse).
     const program = compileSrc(longScene(120));
     const game = newGame(program);
     const anyGame = game as any;
 
-    // A resume restores the checkpoint (`restoreCheckpoint`): the program
-    // engine puts its beat image back. Counted when it restores.
     let loads = 0;
     const realRestore = anyGame.restoreCheckpoint.bind(anyGame);
     anyGame.restoreCheckpoint = (...args: unknown[]) => {
@@ -188,20 +143,15 @@ end
       return restored;
     };
 
-    // First preview: nothing to resume from.
     game.patchAndSimulateRoute(planTo(game, program as any, 44)!);
     expect(loads).toBe(0);
     expect(anyGame._checkpoints.length).toBeGreaterThan(1);
 
-    // Second preview, deeper in the same scene: the shared prefix was already
-    // simulated, so this one resumes rather than starting over.
     game.patchAndSimulateRoute(planTo(game, program as any, 84)!);
     expect(loads).toBe(1);
   });
 
   test("steps reached before any checkpoint report no checkpoint", () => {
-    // They used to record -1, which sent `getCheckpoint` to the store for
-    // index -1 and got null back — a real absence dressed up as a lookup miss.
     const program = compileSrc(LINEAR);
     const game = newGame(program);
     const route = planTo(game, program as any, 10)!;
@@ -211,7 +161,6 @@ end
         expect(step.checkpoint).toBeGreaterThanOrEqual(0);
       }
     }
-    // And the great majority of a simulated route does resolve to one.
     const resolved = route.steps.filter(
       (s, i) => game.getCheckpoint(s.seq, { address: s.address, index: i }) != null,
     ).length;
@@ -220,15 +169,6 @@ end
 });
 
 describe("branches do not share an identity", () => {
-  // A fork usually happens with no pending step recorded, so the child node
-  // has to inherit the PARENT's identity. Restarting the chain at a fork gave
-  // two sibling branches identical identities for every path they later share,
-  // which a re-plan would read as "already simulated" and resume from the
-  // wrong branch's checkpoint.
-  //
-  // A route forces a condition only where the program's own verdict does not
-  // reach the target, so the choice before the condition is what sends the
-  // two routes down different sides of it to the beats they share.
   const BRANCHY = `store flag = false
 
 
@@ -294,8 +234,6 @@ end
     expect(viaTrue.length).toBeGreaterThan(1);
     expect(viaFalse.length).toBeGreaterThan(1);
 
-    // Wherever the two routes reach the SAME path having taken different
-    // branches, their identities must differ.
     const trueByPath = new Map(viaTrue.map((s) => [s.address, s.seq]));
     let comparedAnySharedPath = false;
     for (const step of viaFalse) {
@@ -307,7 +245,6 @@ end
         comparedAnySharedPath = true;
       }
     }
-    // At minimum the routes must not be identity-identical end to end.
     const trueTail = viaTrue.at(-1)!.seq;
     const falseTail = viaFalse.at(-1)!.seq;
     if (JSON.stringify(viaTrue.map((s) => s.address)) !==
@@ -330,7 +267,6 @@ describe("a planned route does not grow quadratically", () => {
         return 0;
       }) as any,
     } as any);
-    // Target the last beat so the route spans the whole scene.
     game.setStartFrom({ file: URI, line: 400 });
     const toPath = game.startAddress!;
     const route = Game.planRoute(
@@ -346,15 +282,9 @@ describe("a planned route does not grow quadratically", () => {
     const totalSeqChars = steps.reduce((n, s) => n + s.seq.length, 0);
     const longestSeq = Math.max(...steps.map((s) => s.seq.length));
 
-    // Joining the history would put the deepest step's identity at roughly
-    // `steps.length * pathLength` characters on its own, and the total at the
-    // square of that. A fixed-width identity keeps every step small and the
-    // total linear.
     expect(longestSeq).toBeLessThan(20);
     expect(totalSeqChars).toBeLessThan(steps.length * 20);
 
-    // Identities still have to be unique per step, or checkpoint reuse would
-    // resume from the wrong place.
     expect(new Set(steps.map((s) => s.seq)).size).toBe(steps.length);
   });
 });

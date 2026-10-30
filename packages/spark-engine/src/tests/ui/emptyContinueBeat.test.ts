@@ -1,8 +1,3 @@
-// A continue returns at its line's newline, so the next one can complete with
-// nothing to show: it runs through logic to the choices, to the story's end, or
-// on into more of the story. Choices alone make a beat of their own; a continue
-// that brings nothing makes no beat, and no checkpoint.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
@@ -46,7 +41,6 @@ layout main with
 end
 `;
 
-/** A display table as the runtime hands it to the interpreter. */
 const table = (fields: Record<string, string | boolean>) =>
   new ObjectValue(
     new Map<string, AbstractValue>(
@@ -59,17 +53,12 @@ const table = (fields: Record<string, string | boolean>) =>
     ),
   );
 
-/** The cue a beat shows, if any. */
 const cue = (beat: any): string =>
   ((beat?.text?.character_name ?? []) as any[])
     .map((event: any) => event.text ?? "")
     .join("");
 
 describe("a beat of choices alone", () => {
-  // A glued continuation's beat after a break inherits the routing of the
-  // beat its group names, while that beat is the one just queued. The beat of
-  // choices between them carries no table, so it names no routing of its own
-  // and the continuation still inherits.
   const inheritedCue = async (between: ObjectValue[]) => {
     const harness = createHarness(`${DEFS}\n-> start\n\nscene start\n  Hi.\nend\n`);
     await harness.ready;
@@ -177,9 +166,6 @@ describe("a route replay", () => {
       toPath,
     )!;
     expect(route).toBeTruthy();
-    // A target the replay never reaches, so it runs on to the story's end,
-    // where the continue after the last line ends the story with nothing to
-    // flush.
     route.to = 2 ** 40;
 
     const anyGame = game as any;
@@ -197,8 +183,6 @@ describe("a route replay", () => {
       checkpoints += 1;
       return checkpoint();
     };
-    // The continues the replay completed with nothing to show, read from
-    // the story itself.
     let empty = 0;
     const story: any = game.story;
     const continueAsync = story.ContinueAsync.bind(story);

@@ -44,7 +44,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
   getChildren(): vscode.ProviderResult<vscode.TreeItem[]> {
     const elements: vscode.TreeItem[] = [];
 
-    // Export Pdf Command
     {
       const uri = this._commandUris.pdf;
       const stat = this._commandStats[this._commandUris.pdf?.path || ""];
@@ -61,7 +60,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
       );
     }
 
-    // Export Html Command
     {
       const uri = this._commandUris.html;
       const stat = this._commandStats[this._commandUris.html?.path || ""];
@@ -78,7 +76,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
       );
     }
 
-    // Export CSV Command
     {
       const uri = this._commandUris.csv;
       const stat = this._commandStats[this._commandUris.csv?.path || ""];
@@ -95,7 +92,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
       );
     }
 
-    // Export JSON Command
     {
       const uri = this._commandUris.json;
       const stat = this._commandStats[this._commandUris.json?.path || ""];
@@ -112,7 +108,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
       );
     }
 
-    // Preview Screenplay Command
     const treePreviewScreenplay = new vscode.TreeItem("Preview Screenplay");
     treePreviewScreenplay.iconPath = new vscode.ThemeIcon("open-preview");
     treePreviewScreenplay.command = {
@@ -121,7 +116,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
     };
     elements.push(treePreviewScreenplay);
 
-    // Preview Game Command
     const treePreviewGame = new vscode.TreeItem("Preview Game");
     treePreviewGame.iconPath = new vscode.ThemeIcon("open-preview");
     treePreviewGame.command = {
@@ -129,15 +123,6 @@ export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider
       title: "",
     };
     elements.push(treePreviewGame);
-
-    // Show Statistics Command
-    // const statistics = new vscode.TreeItem("View Statistics");
-    // statistics.iconPath = new vscode.ThemeIcon("pulse");
-    // statistics.command = {
-    //   command: "sparkdown.statistics",
-    //   title: "",
-    // };
-    // elements.push(statistics);
 
     return elements;
   }

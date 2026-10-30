@@ -11,19 +11,9 @@ import { createDomAssetCacheDeps } from "../assets/domAssetCacheDeps";
 import { Manager } from "../Manager";
 import { pendingBeatImageSrcs } from "./UIManager";
 
-/**
- * The page's side of the asset protocol (docs/engine/asset-preloading-spec.md).
- *
- * The engine decides what to load, in what order, pinned under which pin, and
- * what to wait for; this manager hands those decisions to the shared
- * `AssetCache`, answers every `assets/load` (an unanswered request would hang
- * the engine's wait), reports progress back, and tells the cache what the page
- * itself keeps alive: the images in the overlay and the audio that is playing.
- */
 export default class AssetManager extends Manager {
   protected _cache?: AssetCache;
 
-  /** Pins this manager has been asked to hold, released on dispose. */
   protected _pins = new Set<string>();
 
   protected _unsubscribe?: () => void;
@@ -34,8 +24,6 @@ export default class AssetManager extends Manager {
 
   protected _exposedProbe?: () => unknown;
 
-  /** What this manager installed on the shared cache, so dispose withdraws
-   *  exactly that and never a successor's. */
   protected _derivedPinsProvider?: () => Iterable<string>;
 
   protected _audioDecoder?: (
@@ -63,11 +51,6 @@ export default class AssetManager extends Manager {
     this.exposeProbe();
   }
 
-  /** What the page keeps alive on its own: every layer of every image in
-   *  the overlay, every video in it, and every audio player that is playing.
-   *  A displayed image paints all its layers through its span's background,
-   *  and only the first layer has an element, so the layers come from the
-   *  srcs the write that built the span resolved (`__sdSrcs`). */
   derivedPins(): Set<string> {
     const keys = new Set<string>();
     const overlay = this.app.overlay;
@@ -97,7 +80,6 @@ export default class AssetManager extends Manager {
         }
       }
     }
-    // A beat waiting for its commit paints its images in no layer yet.
     for (const src of pendingBeatImageSrcs(overlay)) {
       keys.add(src);
     }
@@ -108,8 +90,6 @@ export default class AssetManager extends Manager {
   }
 
   protected queueProgress(params: AssetsProgressParams): void {
-    // Coalesce per pin per turn: a burst of settlements becomes one
-    // notification per pin.
     this._pendingProgress.set(params.pin, params);
     if (this._flushScheduled) {
       return;
@@ -125,18 +105,12 @@ export default class AssetManager extends Manager {
     });
   }
 
-  /** `window.__assetCache()` reports what is resident, like `__audioProbe`:
-   *  a plain global, so anyone at a console can ask without finding a
-   *  setting first. */
   protected exposeProbe(): void {
     if (typeof window === "undefined") {
       return;
     }
     this._exposedProbe = () => this.cache.stats();
     (window as any).__assetCache = this._exposedProbe;
-    // The application and cache behind the stats, for a console that needs
-    // to poke at the live page (same audience as `__audioProbe`). Neither
-    // reaches into the game, so this works wherever the game runs.
     (window as any).__assetProbe = () => ({ app: this.app, cache: this.cache });
   }
 
@@ -167,17 +141,12 @@ export default class AssetManager extends Manager {
   }
 
   override onDispose(): void {
-    // Unpin without dropping: the cache outlives this application (STOP then
-    // PLAY must not re-fetch), and the next one re-pins what it needs.
     if (this._pins.size > 0) {
       this.cache.release([...this._pins], false);
       this._pins.clear();
     }
     this._unsubscribe?.();
     this._unsubscribe = undefined;
-    // The cache outlives this application: what it was told about this one
-    // (its overlay, its audio graph) must go with it, and a failure caused by
-    // the teardown must not blacklist the next session's first requests.
     if (this._cache) {
       if (this._derivedPinsProvider) {
         this._cache.clearDerivedPins(this._derivedPinsProvider);

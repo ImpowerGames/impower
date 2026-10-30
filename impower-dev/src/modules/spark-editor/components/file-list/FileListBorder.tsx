@@ -1,10 +1,5 @@
 import type { ComponentChildren } from "preact";
 
-/**
- * Dashed-border empty-state container for FileList. Mirrors the legacy
- * `<se-file-list-border>` slot — centered icon + label inside a rounded
- * dashed-border box with 70% opacity.
- */
 export default function FileListBorder({
   children,
 }: {

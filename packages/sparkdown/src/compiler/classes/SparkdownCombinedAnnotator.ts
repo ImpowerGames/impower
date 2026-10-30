@@ -470,6 +470,8 @@ export class SparkdownCombinedAnnotator {
           iteratingFrom,
           iteratingTo,
           new Set<keyof SparkdownAnnotators>(["validations"]),
+          undefined,
+          wide.from > 0 ? text.lineAt(wide.from - 1).from : 0,
         );
       }
     }
@@ -595,10 +597,11 @@ export class SparkdownCombinedAnnotator {
     iteratingTo: number,
     annotate?: Set<keyof SparkdownAnnotators>,
     changes?: ChangeDesc,
+    walkFrom: number = windowFrom,
   ) {
     const filterTo = windowTo ?? Infinity;
     for (const [key, add] of Object.entries(
-      this.annotate(tree, windowFrom, windowTo, annotate),
+      this.annotate(tree, walkFrom, windowTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator: SparkdownAnnotator<SparkdownAnnotation<any>> =

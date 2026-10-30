@@ -1,12 +1,5 @@
-/**
- * The type of input device used for a pointer event.
- */
 type PointerType = "mouse" | "pen" | "touch";
 
-/**
- * Stores the internal state of pointer interaction,
- * including drag state and pointer coordinates.
- */
 export interface InputState {
   down: boolean;
   dragging: boolean;
@@ -15,9 +8,6 @@ export interface InputState {
   dragThresholds: Record<PointerType, number>;
 }
 
-/**
- * A collection of callback functions for various pointer interaction events.
- */
 export interface InputEventCallbacks {
   onDown?: (e: PointerEvent) => void;
   onMove?: (e: PointerEvent) => void;
@@ -36,9 +26,6 @@ export interface InputEventCallbacks {
   onKeyUp?: (e: KeyboardEvent) => void;
 }
 
-/**
- * Creates a new InputState with default drag thresholds.
- */
 export function createInputState(): InputState {
   return {
     down: false,
@@ -53,15 +40,6 @@ export function createInputState(): InputState {
   };
 }
 
-/**
- * Attaches pointer event listeners to a canvas element.
- * Handles down, move, up, drag, and tap detection.
- *
- * @param canvas - The HTML canvas element to attach listeners to
- * @param state - A PointerState object for tracking pointer interaction
- * @param callbacks - Optional callback hooks for each interaction phase
- * @returns A cleanup function to detach the listeners
- */
 export function attachInputEvents(
   canvas: HTMLElement | null,
   state: InputState,

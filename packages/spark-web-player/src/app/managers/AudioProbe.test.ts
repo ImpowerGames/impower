@@ -2,20 +2,11 @@ import { describe, expect, it } from "vitest";
 import type AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioProbe, { enableOnsetTap } from "./AudioProbe";
 
-/**
- * The probe is what makes audio answerable by someone who cannot hear it
- * (#273), so its bookkeeping had better be right. `AudioProbe` takes its
- * mixers by injection and only ever calls `readLevels()`, so none of this
- * needs Web Audio -- a fake mixer is enough.
- */
-
-/** A mixer whose output we drive by hand. */
 const fakeMixer = (levels: { rms: number; peak: number }) =>
   ({
     readLevels: () => levels,
   }) as unknown as AudioMixer;
 
-/** A probe over mixers we can swap between samples, with a clock we control. */
 const createProbe = () => {
   const mixers = new Map<string, AudioMixer>();
   let now = 1000;
@@ -46,7 +37,6 @@ describe("AudioProbe", () => {
     });
 
     it("passes peak through alongside rms", () => {
-      // Peak catches a single click that barely moves the rms average.
       const h = createProbe();
       h.set("main", 0.001, 0.9);
 
@@ -72,8 +62,6 @@ describe("AudioProbe", () => {
     });
 
     it("survives the mixer falling silent again", () => {
-      // The whole point of the field: a level read a moment too late is zero,
-      // but this still says the sound happened, and when.
       const h = createProbe();
       h.set("main", 0.3);
       h.probe.sample();
@@ -100,8 +88,6 @@ describe("AudioProbe", () => {
     });
 
     it("treats denormal noise as silence", () => {
-      // Guards against a probe that calls anything above literal zero a
-      // sound, which would make `lastNonSilentAt` meaningless.
       const h = createProbe();
       h.set("main", 1e-9);
 
@@ -138,8 +124,6 @@ describe("AudioProbe", () => {
   });
 
   describe("startOnsetTap", () => {
-    // In this order: the switch is module state, and a file runs in an
-    // environment of its own.
     it("refuses until a development build enables it", async () => {
       const h = createProbe();
       h.set("main", 0);
@@ -165,7 +149,6 @@ describe("AudioProbe", () => {
     });
 
     it("can be sampled without starting the frame loop", () => {
-      // How a one-off console query works: no rAF, just a reading.
       const h = createProbe();
       h.set("main", 0.3);
 
