@@ -974,8 +974,6 @@ export class ChunkStore {
       let chunk = chunkOf.get(declaration);
       if (!chunk) {
         try {
-          // A declaration that declares no global, a member function's
-          // write, runs its statement as written (`programFlows`).
           chunk = this.emit(declaration, (input) =>
             declaration.globals.length === 0
               ? this._writer.write(input)
