@@ -1,8 +1,3 @@
-// A structural block (`animation`, `theme`, `morph`) written `as PARENT`
-// inherits at runtime from the member of its own type table named PARENT,
-// builtin or authored, and is registered under its keyword type: the engine
-// reads its own fields, then the parent's, then the type's `$default`.
-
 import { describe, expect, test } from "vitest";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 import { compileUI, createHarness } from "../ui/harness/uiTestHarness";
@@ -22,8 +17,6 @@ const storyOf = async (source: string) => {
 const contextOf = async (source: string) =>
   buildDefinesContext(await storyOf(source)) as any;
 
-// The `__define` names along a runtime table's `__index` chain, stopping at
-// the first table seen twice.
 const chainOf = (story: any, global: string): string[] => {
   const names: string[] = [];
   const seen = new Set<unknown>();
@@ -52,15 +45,12 @@ end
       $name: "slow_fade",
       target: ctx.animation?.fadein?.target,
       keyframes: [{ opacity: "0" }, { opacity: "1" }],
-      // Its own duration; every other timing field from `fadein`.
       timing: { ...ctx.animation?.fadein?.timing, duration: 3 },
     });
     expect(ctx.fadein).toBeUndefined();
   });
 
   test("the builtin entering animations start from transparent", async () => {
-    // A lone `opacity = "1"` keyframe would animate from the entering
-    // instance's own opacity, which is already 1.
     const ctx = await contextOf("");
     expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
     expect(ctx.animation?.waitin?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
@@ -95,7 +85,6 @@ end
       { offset: 1, opacity: "1" },
     ]);
     expect(quick?.timing).toMatchObject({ duration: 0.5, easing: "linear" });
-    // Fields neither block sets come from the type's `$default`.
     expect(quick?.timing?.fill).toBe(ctx.animation?.$default?.timing?.fill);
     expect(ctx.glow).toBeUndefined();
   });
@@ -272,16 +261,12 @@ morph b as a with
   fallback = cut
 end
 `);
-    // `a` runs first and waits for `b`; `b` links to `a`; linking `a` to `b`
-    // would close the loop, so `a` keeps inheriting from its type.
     expect(chainOf(story, "$morph_a")).toEqual(["a", "morph"]);
     expect(chainOf(story, "$morph_b")).toEqual(["b", "a", "morph"]);
     const ctx = buildDefinesContext(story) as any;
     expect(ctx.morph?.b).toMatchObject({ fallback: "cut", method: "bend" });
   });
 
-  // A runtime table's OWN value for `key` (not one inherited through
-  // `__index`), as plain JS.
   const ownValue = (story: any, global: string, key: string): unknown =>
     story.state.variablesState.GetVariableWithName(global)?.value?.get(key)
       ?.value;
@@ -377,7 +362,6 @@ define quiet_leaf as quiet with
 end
 `);
     expect(ctx.parent?.sibling?.marker).toBe("parent");
-    // The nearer value wins even where that level does not repeat `store`.
     expect(ctx.quiet?.quiet_leaf?.marker).toBe("quiet");
   });
 

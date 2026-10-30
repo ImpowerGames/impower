@@ -1,6 +1,3 @@
-// The editor's debugger talks to the player, which forwards each request to
-// PLAY's game in the worker (#682), and answers the editor from it: where
-// the game stopped, what it holds, and what each step and continue did.
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
@@ -41,19 +38,14 @@ const FIRST = lineOf("The first line.");
 const SECOND = lineOf("The second line.");
 const THIRD = lineOf("The third line.");
 
-/** Where an answered stack trace says the game stands, and the story's
- *  `mood` then. */
 const standing = (asked: any) => ({
   line: asked.stack.result.stackFrames[0]?.location?.range.start.line,
   mood: asked.context.result.context.mood,
 });
 
-/** The answer a handler gave, without the id of the request it answered. */
 const answer = (response: any) =>
   "error" in response ? { error: response.error } : { result: response.result };
 
-/** PLAY from the first line with the debugger on and a breakpoint on the
- *  second, advanced by a click, then every request the debugger makes. */
 const debugSession = async () => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -95,8 +87,6 @@ const debugSession = async () => {
       ),
     );
 
-    // The player clicks to advance, and the game runs on toward the second
-    // line.
     c._app.emit(EventMessage.type.notification({ type: "pointerdown", button: 0 } as never));
     await settle(10);
     await h.tick(1000 / 60, 60);
@@ -162,8 +152,6 @@ const debugSession = async () => {
     );
     await settle(10);
     answers.afterContinue = await ask();
-    // What the game told the editor along the way: where it stopped, and
-    // what it stepped through.
     answers.reported = h.toEditor
       .filter((m) => /^game\/(hitBreakpoint|stepped|started|finished)/.test(m.method))
       .map((m) => ({ method: m.method, params: m.params }));
@@ -178,7 +166,6 @@ describe("the debugger during PLAY", () => {
   it("answers each request from the worker", async () => {
     const on = await debugSession();
 
-    // Every request was answered, none with an error.
     const asked = [
       "stopped",
       "afterStepOver",
@@ -201,12 +188,9 @@ describe("the debugger during PLAY", () => {
     for (const [key, value] of answers) {
       expect({ [key]: "error" in value ? value.error : "answered" }).toEqual({ [key]: "answered" });
     }
-    // The game is the one thread, and the stack traces ask about it.
     for (const key of asked) {
       expect(on[key].threads.result.threads).toHaveLength(1);
     }
-    // The line breakpoint and the data breakpoint on `mood` are verified;
-    // the function breakpoint names no function in the program.
     expect(on.setBreakpoints.result.breakpoints).toHaveLength(1);
     expect(on.setBreakpoints.result.breakpoints[0].verified).toBe(true);
     expect(on.setBreakpoints.result.breakpoints[0].location.range.start.line).toBe(SECOND);
@@ -214,41 +198,22 @@ describe("the debugger during PLAY", () => {
     expect(on.setFunctionBreakpoints.result.functionBreakpoints[0].verified).toBe(false);
     expect(on.setDataBreakpoints.result.dataBreakpoints).toHaveLength(1);
     expect(on.setDataBreakpoints.result.dataBreakpoints[0].verified).toBe(true);
-    // On the program engine a global's data breakpoint is placed where the
-    // global is declared (docs/engine/binary-program.md, What is built, #702).
     expect(on.setDataBreakpoints.result.dataBreakpoints[0].location.range.start.line).toBe(DECLARE);
-    // Each step runs until it stops somewhere, and says so.
     expect(on.stepIn.result.done).toBe(true);
     expect(on.stepOut.result.done).toBe(true);
-    // The Variables view lists the story's `mood` with its value.
     const mood = (key: string) =>
       on[key].variables.vars.result.variables.find((v: any) => v.name === "mood")?.value;
-    // The worker runs the program engine (#703), whose data breakpoint
-    // watches the variable and stops after a step that wrote another value
-    // to it, wherever that write is (docs/engine/binary-program.md, What is
-    // built, #702).
     expect(mood("stopped")).toBe("1");
     expect(mood("afterStepOut")).toBe("2");
 
-    // The click runs the first line on to the line that writes `mood`,
-    // where the data breakpoint stops the game after the write; the Debug
-    // Console reads the story's variable by name.
     expect(standing(on.stopped)).toEqual({ line: WRITE, mood: 1 });
     expect(on.stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
-    // Stepping over runs to the breakpoint on the second line.
     expect(standing(on.afterStepOver)).toEqual({ line: SECOND, mood: 1 });
-    // Stepping in there runs the rest of that line, which calls nothing,
-    // to where it waits for the player.
     expect(standing(on.afterStepIn)).toEqual({ line: SECOND, mood: 1 });
-    // Stepping out runs on to the next write to `mood`, where the data
-    // breakpoint stops it.
     expect(standing(on.afterStepOut)).toEqual({ line: WRITE_AGAIN, mood: 2 });
-    // Continuing runs on to the third line, which waits for the player.
     expect(standing(on.afterContinue)).toEqual({ line: THIRD, mood: 2 });
     expect(on.stepOver.result.done).toBe(true);
     expect(on.continue.result.done).toBe(true);
-    // The editor heard where the game stopped and where each step stopped:
-    // a step that ran into a breakpoint is reported as the breakpoint.
     expect(
       (on.reported as any[]).map((m) => [m.method, m.params.location?.range.start.line]),
     ).toEqual([

@@ -1,8 +1,3 @@
-// `define assets as config` rides the same override path as `config.ui`: an
-// authored key replaces the builtin's value, the keys left out keep theirs,
-// and the compile-time context agrees with the runtime table. The TypeScript
-// mirror the engine falls back on must match the prelude.
-
 import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/assets/assetsBuiltinDefinitions";
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -53,7 +48,6 @@ describe("overriding the assets config", () => {
     const runtime = (h.game as any)?.context?.config?.assets;
     const mirror = assetsBuiltinDefinitions().config.assets;
     expect(runtime).toMatchObject(mirror);
-    // Both ways: a key added to one side and not the other is a drift.
     const runtimeKeys = Object.keys(runtime ?? {})
       .filter((k) => !k.startsWith("$"))
       .sort();

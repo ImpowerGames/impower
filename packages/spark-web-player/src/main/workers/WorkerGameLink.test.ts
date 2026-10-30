@@ -1,15 +1,9 @@
-// While PLAY's game is attached, its stream comes on a channel of its own, and
-// the page tells the player's worker when it has finished rendering a frame,
-// which the worker's games tick on, so what a tick posts reaches a page that
-// is not rendering (#811). The stopped preview never ticks, so its sink keeps
-// the connection and sends nothing.
 import { PageFramedMessage } from "@impower/spark-engine/src/game/core/classes/messages/PageFramedMessage";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { WorkerGameLink } from "./WorkerGameLink";
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** A link whose page frames and timers the test runs. */
 const createLink = () => {
   const posted: any[] = [];
   let frames: (() => void)[] = [];
@@ -40,10 +34,8 @@ const createLink = () => {
     },
     postMessage: (message: any) => posted.push(message),
   } as any);
-  /** A game message arriving on the connection, or on the last channel. */
   const fromConnection = (data: any) => connectionListener({ data } as MessageEvent);
   const fromChannel = (data: any) => channels.at(-1)!.onmessage!({ data } as MessageEvent);
-  /** Render one frame: its callbacks, then the tasks they queued. */
   const frame = () => {
     const running = frames;
     frames = [];
@@ -85,7 +77,6 @@ describe("the page's frames", () => {
   });
 });
 
-/** A game message of a stream's `epoch`. */
 const streamed = (text: string, epoch: number) => ({
   jsonrpc: "2.0",
   method: "ui/update",
@@ -94,9 +85,6 @@ const streamed = (text: string, epoch: number) => ({
 });
 
 describe("PLAY's sink", () => {
-  // The connection and the channel keep no order between them, and each
-  // game numbers its epochs from one, so a preview message arriving after
-  // PLAY's could supersede PLAY's whole stream at the router.
   test("hears only PLAY's channel, whatever arrives on the connection meanwhile", () => {
     const { link, fromConnection, fromChannel } = createLink();
     const heard: string[] = [];

@@ -30,7 +30,6 @@ export const generateAnimatedSVGTextures = async (
   let time = 0;
   for (let i = 0; i < textureCount; i++) {
     if (i > 0 && i % batchCount === 0) {
-      // Wait so we don't generate too many textures in the same frame
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
     }
     const frameTexture = generateAnimatedSVGTexture(
@@ -43,7 +42,6 @@ export const generateAnimatedSVGTextures = async (
     time += secondsPerTexture;
   }
 
-  // Wait to so we don't generate too many textures in the same frame
   await new Promise((resolve) => window.requestAnimationFrame(resolve));
 
   return textures;

@@ -10,15 +10,6 @@ export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,
 ): [string, string] => {
-  // A custom property keeps its name, but NOT its old early return: the value
-  // still goes through the resolution below, so a resolved token object becomes
-  // `var(--theme-color-…)` rather than stringifying to `[object Object]`.
-  //
-  // Aliases like `#spinner-color` are deliberately NOT renamed here. They are
-  // declared in CSS_UTILITIES, which renames AND runs the colour transformer in
-  // one place; doing the rename here as well produced a prop that emitted
-  // `--spinner-color: sky_60` — the right name carrying an unresolved token,
-  // because the value transformer keys off the AUTHORED name and never saw it.
   const cssProp = name.startsWith("--") ? name : getCSSPropertyName(name);
   const cssValue =
     typeof value === "object" &&

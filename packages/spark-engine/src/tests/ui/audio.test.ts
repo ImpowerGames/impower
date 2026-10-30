@@ -1,12 +1,3 @@
-// Golden-master: audio scheduling stream.
-//
-// `Coordinator.display()` (non-instant) fans `instructions.audio` out to
-// `audio.schedule(channel, events)`, which emits `audio/load` (one per asset,
-// warming the player + reading back outputLatency) and `audio/update` (the
-// control timeline). Two audio sources are covered: an explicit `((sound))`
-// SFX directive, and the implicit typewriter synth tones the interpreter
-// derives from voiced dialogue. This locks the audio message stream.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -42,7 +33,7 @@ async function runBeat(body: string) {
   harness.jumpToFlow("start");
   harness.reset();
   const beat = harness.nextBeat();
-  await harness.display(beat!, /* instant */ false);
+  await harness.display(beat!, false);
   await flushMicrotasks();
   return { harness, beat };
 }
@@ -56,7 +47,6 @@ describe("audio", () => {
 
   test("typewriter synth tones scheduled for voiced dialogue", async () => {
     const { harness, beat } = await runBeat(`  HERO: Hello.`);
-    // The interpreter derives a typewriter-channel synth tone instruction.
     expect(Object.keys(beat?.audio ?? {})).toContain("typewriter");
     expect(harness.snapshotFiltered("audio/")).toMatchSnapshot();
   });

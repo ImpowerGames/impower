@@ -53,7 +53,6 @@ function getAllDependencies(
   return seen;
 }
 
-// Get input paths from the tsconfig includes
 function getInputPathsFromTsConfig(): string[] {
   return project.getSourceFiles().map((file) => file.getFilePath());
 }
@@ -92,11 +91,7 @@ function bundleTypes() {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) console.error(LOG_PREFIX + "Failed:", err.message);
-    // The bundled .d.ts is best-effort editor intellisense, not a build input.
-    // If dts-bundle-generator failed (e.g. on TS-version type noise) it writes
-    // no file, so only post-process when one exists — otherwise the unguarded
-    // read below would throw ENOENT and crash the whole extension build (and,
-    // in watch mode, take the parallel worker-copy task down with it).
+    // workaround(dts-bundle-generator): fails on TypeScript-version type noise and then writes no .d.ts file, so post-processing checks the file exists
     if (fs.existsSync(outputPath)) {
       removeShadowingInterfaces(outputPath);
     } else {
@@ -113,12 +108,10 @@ function removeShadowingInterfaces(outputFilePath: string) {
   const classRegex = /(?:declare\s+)?class\s+(\w+)/g;
   let match;
 
-  // First, find all declared classes
   while ((match = classRegex.exec(content)) !== null) {
     classNames.add(match[1]!);
   }
 
-  // Remove interfaces that shadow those classes
   for (const className of classNames) {
     const interfaceRegex = new RegExp(
       `export\\s+interface\\s+${className}(?!\\w)[^{]*[{][^{}]*[}]`,
@@ -126,7 +119,7 @@ function removeShadowingInterfaces(outputFilePath: string) {
     );
     content = content.replace(interfaceRegex, (match) => {
       console.log(LOG_PREFIX + `removed shadowing interface: ${className}`);
-      return ""; // remove the matched interface
+      return "";
     });
   }
 
@@ -158,7 +151,6 @@ async function watchDependencies() {
   });
 }
 
-// --- Start ---
 bundleTypes();
 
 if (WATCH) {

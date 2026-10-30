@@ -12,32 +12,18 @@ export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
   simulateFlow?: string | null;
-  /** The lines the executed positions cover, by script uri. Absent from the
-   *  report of a displayed suggestion. */
   executedLines?: Record<string, ExecutedLines>;
-  /** The location of the first executed position that has one. */
   firstLocation?: DocumentLocation;
-  /** The location of the last executed position that has one. */
   lastLocation?: DocumentLocation;
-  /** The address of the last position executed, located or not, which is
-   *  opaque (`ProgramLocator`): a host compares it with another, or asks
-   *  where it is. Absent from the report of a displayed suggestion. */
   lastExecutedAddress?: ProgramAddress;
-  /** Empty in the report of a displayed suggestion. */
   conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
   state: "initial" | "running" | "previewing" | "paused";
   restarted?: boolean;
   simulation?: "none" | "simulating" | "success" | "fail";
-  /** Only meaningful alongside `simulation: "fail"`, and always sent with it. */
   simulationFailure?: SimulationFailure;
-  /** Where the route that failed was to start (the flow `simulateFlow`
-   *  names) and to end (the start point), sent with `simulation: "fail"`, for
-   *  a page that labels the failure and holds no program. */
   simulateLocation?: DocumentLocation;
   startLocation?: DocumentLocation;
-  /** The route the preview took to the line it shows, sent with every
-   *  report of a preview a route reached (`Game.previewRoute`). */
   route?: PreviewRoute;
 }
 

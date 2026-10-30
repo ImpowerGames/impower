@@ -1,10 +1,3 @@
-// An input widget's quoted content is its visible label (Widgets.md §5.1):
-// `slider "Master Volume"` labels the slider. The widget renders as a real
-// <label> holding the text and the <input>, so the text names the control and a
-// click on it reaches the control. The label is the widget's element: it
-// carries the widget's name, classes and style props, and the <input> inside
-// it takes the attributes, bindings and events.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -14,7 +7,6 @@ const creates = (h: UIHarness): any[] =>
 const createdOfType = (h: UIHarness, type: string): any[] =>
   creates(h).filter((p) => p.type === type);
 
-/** Every text a span under `id` carries, in creation order. */
 const textsUnder = (h: UIHarness, id: string): string[] => {
   const all = creates(h);
   const under = new Set([id]);
@@ -114,7 +106,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // One query, so creates and updates share one id numbering.
     const ui = (): any[] => h.snapshotFiltered("ui/").map((m: any) => m);
     const label = ui().find(
       (m) => m.method === "ui/create" && m.params.type === "label",
@@ -122,13 +113,10 @@ end
     const input = ui().find(
       (m) => m.method === "ui/create" && m.params.type === "input",
     ).params;
-    // The label holds the control, so hiding the label hides both.
     expect(label.style?.displayed).toBe("true");
     expect(input.parent).toBe(label.element);
     expect(input.style?.displayed).toBeUndefined();
 
-    // Ids are numbered in first-seen order, so messages sent after a point
-    // keep the numbering of the creates above.
     let seen = ui().length;
     (h.game.story as any).variablesState.$("shown", false);
     (h.game.module.ui as any).refreshLayouts();
@@ -141,7 +129,6 @@ end
 
     seen = ui().length;
     (h.game.module.ui as any).hide("slider");
-    // A direct UI call's messages go out on the next microtask.
     await Promise.resolve();
     const hiddenByName = ui()
       .slice(seen)
@@ -209,9 +196,6 @@ end
     const input = ui().find(
       (m) => m.method === "ui/create" && m.params.type === "input",
     ).params;
-    // The label's wording would otherwise activate the control natively. The
-    // control inherits the label's pointer setting through its builtin style
-    // (the `&:where(label)` rule of each control style in builtins.sd).
     expect(label.style?.interactable).toBe("false");
     expect(input.name).toBe("control");
     expect(input.style?.interactable).toBeUndefined();
@@ -253,13 +237,8 @@ end
     const [label] = createdOfType(h, "label");
     const [control, bare] = createdOfType(h, "input");
     expect(control.parent).toBe(label.element);
-    // An inline opt-in on the control would outrank the lock it inherits from
-    // the label, so a locked widget's box would still toggle.
     expect(pointerStyles(control.element)).toEqual([]);
-    // Neither does a bare control: it opts in through the handler marker,
-    // which the builtin rule leaves out for a labelled widget's control.
     expect(pointerStyles(bare.element)).toEqual([]);
-    // Both controls are still observed for their handlers.
     expect(h.observedElementIds()).toHaveLength(2);
 
     (h.game.story as any).variablesState.$("locked", true);
@@ -291,16 +270,11 @@ end
     );
     await h.ready;
     const [control, bare] = createdOfType(h, "input");
-    // The builtin styles tell a labelled widget's control from anything an
-    // author builds by this attribute.
     expect(control.attributes?.["data-widget-control"]).toBe("");
     expect(bare.attributes?.["data-widget-control"]).toBeUndefined();
     const box = creates(h).find((p) => p.name === "box");
     expect(box.attributes?.["data-other"]).toBe("kept");
 
-    /** Elements given the marker in any spelling (HTML attribute names are
-     *  case-insensitive), with the value given, across creates and updates,
-     *  beside the labelled controls, from one query so ids agree. */
     const markedAndLabelled = () => {
       const params = h.snapshotFiltered("ui/").map((m: any) => m.params);
       const marked = params.flatMap((p: any) =>
@@ -316,8 +290,6 @@ end
         .map((p: any) => [p.element, ""]);
       return { marked, labelled };
     };
-    // Only the two labelled controls, each with the ui's own empty value: no
-    // authored spelling, bound value or option prop reaches the attribute.
     const before = markedAndLabelled();
     expect(before.labelled).toHaveLength(2);
     expect(before.marked).toEqual(before.labelled);
@@ -463,9 +435,6 @@ end
     expect(input.style?.["transition-duration"]).toBeUndefined();
   });
 
-  // `#translate` is not among them: `translate` is an HTML attribute, so the
-  // prop is one on every element. A style's `translate` reaches the label as a
-  // class does.
   test("a labelled widget's opacity, transforms, width and animation act on all of it", async () => {
     const h = createHarness(
       `store fade = 0.5
@@ -516,8 +485,6 @@ end
     await h.ready;
     const all = creates(h);
     const classed = all.filter((p) => p.name?.split(" ").includes("concealed"));
-    // One element carries the class, and it holds both the wording and the
-    // control, so the style hides them together.
     expect(classed).toHaveLength(1);
     const [outer] = classed;
     expect(textsUnder(h, outer.element)).toEqual(["Secret volume"]);
@@ -537,8 +504,6 @@ end
     await h.ready;
     const [label] = createdOfType(h, "label");
     expect(label.name).toBe("checkbox big");
-    // The control inside it is named `control`, so the widget's name finds the
-    // label alone.
     const found = (h.game.module.ui as any)
       .findElements("checkbox big")
       .map((el: any) => el.type);
@@ -558,9 +523,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // A bare slider is named exactly `slider`, so the labelled one must be an
-    // exact match too or `[[hide slider]]` would skip it. The player resolves a
-    // transition's targets by the same rule against the created names.
     const found = (h.game.module.ui as any)
       .findElements("slider")
       .map((el: any) => [el.type, el.name]);
@@ -588,7 +550,6 @@ end
     expect(input.style?.["background-color"]).toBeUndefined();
     expect(label.style?.["margin-bottom"]).toBe("18");
     expect(input.style?.["margin-bottom"]).toBeUndefined();
-    // The control is the one element observed for events.
     const observed = h.observedElementIds();
     expect(observed).toHaveLength(1);
     h.emitEvent("input", observed[0]!, { value: 30 });

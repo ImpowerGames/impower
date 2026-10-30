@@ -12,9 +12,7 @@ export const DEFAULT_MONOPHONIC_INSTRUMENT: SynthConfig = {
   },
 };
 
-/** Each percussion instrument can only be played at one pitch */
 const MIDI_MONOPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
-  /* 0-33 : None */
   "00": { name: "" },
   "01": { name: "" },
   "02": { name: "" },
@@ -50,7 +48,6 @@ const MIDI_MONOPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   "32": { name: "" },
   "33": { name: "" },
 
-  /* 34-80 : Percussion */
   percussion_drum_bass_acoustic: { name: "Acoustic Bass Drum" },
   percussion_drum_bass_1: { name: "Bass Drum 1" },
   percussion_drum_stick: { name: "Side Stick" },

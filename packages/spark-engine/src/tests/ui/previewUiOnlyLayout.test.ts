@@ -1,17 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
-// A UI-only screen (no narrative flow) has, as its only path-located flows, the
-// synthetic `__binding$<id>` evaluators the compiler hoists for
-// `{interpolations}` and `@event` handlers. `preview(file, line)` DIVERTS to the
-// closest path (`ChoosePathString`); if that resolves to a binding FUNCTION, the
-// story runs the function's `return` outside a call context — the ink runtime
-// error "Found function return statement (return), when expected end of flow" —
-// and the screen never mounts.
-//
-// Regression: findClosestPath must exclude `__binding$*` paths from preview
-// candidates. Reproduced only via the preview mount path (`game.preview`), not
-// the connect path (the earlier harness default), which is why it slipped past.
 describe("preview a UI-only reactive layout emits no ink flow error", () => {
   const previewClean = async (label: string, src: string) => {
     const errs: string[] = [];

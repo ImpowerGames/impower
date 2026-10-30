@@ -44,7 +44,6 @@ export const randomizeProperties = <T>(
     const first = v[0];
     const second = v[1];
 
-    // [boolean, percentage]
     if (
       v.length === 2 &&
       typeof first === "boolean" &&
@@ -54,7 +53,6 @@ export const randomizeProperties = <T>(
       return;
     }
 
-    // pow (lerp) — [min, max, exponent, "lerp"]
     if (
       v.length === 4 &&
       v[3] === RANDOM_LERP &&
@@ -69,7 +67,6 @@ export const randomizeProperties = <T>(
       return;
     }
 
-    // powRange — [min, max, exponent]
     if (
       v.length === 3 &&
       typeof first === "number" &&
@@ -84,13 +81,11 @@ export const randomizeProperties = <T>(
     }
 
     if (typeof first === "number") {
-      // Uniform range — [min, max]
       const value = clampedRandom(first, second, rng);
       setProperty(obj, k, roundForSchema(value, validation, k, first, second));
       return;
     }
 
-    // Otherwise pick uniformly from the array
     setProperty(obj, k, pick(v, rng));
   });
 

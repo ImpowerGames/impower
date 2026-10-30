@@ -10,13 +10,8 @@ import { programIdentity } from "../utils/programIdentity";
 
 const URI = "file://proj/main.sd";
 
-/** The last compiled program, which the game holds. */
 const PROGRAM = { uri: URI, scripts: { [URI]: 1 }, filesEpoch: 1 };
 
-/** Where each line of the fixture script resolves to, as the real game's
- *  locator (`ProgramLocator.addressAt`) would resolve it on the current
- *  engine: its first beat, and its last. Line 3 is blank and resolves to line
- *  2's address; line 4 holds three beats that a `>` breaks. */
 const ADDRESS_AT_LINE: Record<number, { first: ProgramAddress; last: ProgramAddress }> = {
   2: { first: 2, last: 2 },
   3: { first: 2, last: 2 },
@@ -25,10 +20,6 @@ const ADDRESS_AT_LINE: Record<number, { first: ProgramAddress; last: ProgramAddr
   8: { first: 8, last: 8 },
 };
 
-/** A game that records what was asked of it, standing where the worker's real
- *  one stands: on the last compiled program. Its start address follows its start
- *  point, as the real game's does, so a route search that read the address before
- *  the point was moved would read the previous line's. */
 function recordingGame() {
   const calls: string[] = [];
   const game = {
@@ -48,9 +39,6 @@ function recordingGame() {
   return game;
 }
 
-/** A context whose last route search was run for `address` in the program
- *  `programId` names: by default the search for line 2, in the program the
- *  game holds. */
 function context(
   game: ReturnType<typeof recordingGame> | undefined,
   address: ProgramAddress = 2,
@@ -73,7 +61,6 @@ function context(
       rememberStartFrom: (startFrom: { file: string; line: number }) => {
         remembered.push(startFrom);
       },
-      // Records what it established, as the real search does.
       searchRouteTo: (g: RoutableGame, to: ProgramAddress) => {
         searched.push(to);
         routeSearches.record({
@@ -105,16 +92,11 @@ describe("planning a route for a selection (#489)", () => {
     planRouteForSelection(selection(8, true), ctx);
 
     expect(searched).toEqual([]);
-    // The game's own start point is left where it was, so nothing downstream
-    // reads an address resolved in the outdated program either.
     expect(game.calls).toEqual([]);
     expect(game.startFrom).toEqual({ file: URI, line: 2 });
   });
 
   test("sends no checkpoint back with an outdated selection", () => {
-    // The checkpoint is a story state the player loads wholesale. One replayed
-    // in the pre-edit program puts the preview at the wrong beat even after the
-    // fresh program has arrived.
     const { ctx } = context(recordingGame());
     const params = selection(2, true);
 
@@ -125,9 +107,6 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("still records the selection as where the next compile starts", () => {
-    // Without this the held selection would be lost: the compile the edit
-    // scheduled would start from wherever it started before, and the line the
-    // author actually clicked would never be previewed.
     const { remembered, ctx } = context(recordingGame());
 
     planRouteForSelection(selection(8, true), ctx);
@@ -155,9 +134,6 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("reuses the standing search when the start point did not move", () => {
-    // The editor re-selects on every cursor move, including one that only
-    // changes the column, and the search already run for that address still
-    // describes it.
     const game = recordingGame();
     const { searched, ctx } = context(game);
     const params = selection(2, false);
@@ -169,8 +145,6 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("reuses the standing search for another line that resolves to its address", () => {
-    // A blank line previews the line before it, and the search for that
-    // line's address already describes it.
     const { searched, ctx } = context(recordingGame());
     const params = selection(3, false);
 
@@ -181,9 +155,6 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("searches again when the standing search was for the line's other beat", () => {
-    // PLAY from a line that `>` breaks routes to its first beat, and the
-    // preview of the same line shows its last (#721): the line did not move,
-    // but the address did.
     const game = recordingGame();
     game.setStartFrom({ file: URI, line: 4 }, "first");
     const { searched, ctx } = context(game, 40);
@@ -196,8 +167,6 @@ describe("planning a route for a selection (#489)", () => {
   });
 
   test("searches again when the standing search ran in another program", () => {
-    // An address survives edits that change what the story does at it, so
-    // a search is evidence only about the program it ran in.
     const other = programIdentity({ ...PROGRAM, filesEpoch: 2 });
     const { searched, ctx } = context(recordingGame(), 2, other);
     const params = selection(2, false);

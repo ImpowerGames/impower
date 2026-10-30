@@ -1,8 +1,3 @@
-// #1224: a layout written with brace blocks and dotted classes mounts the
-// elements its indented form mounts, with the same names and classes, and the
-// engine emits the same message stream for both (ids are normalized in
-// first-seen order, so the same creation order gives the same ids).
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
@@ -85,7 +80,6 @@ describe("a brace-form layout mounts with its declared tree", () => {
         .map((m: any) => m.params?.name)
         .filter((name: string) => name !== undefined);
     const names = created(braced);
-    // The elements the layout declares, with their classes in their names.
     for (const name of [
       "hud",
       "column panel",

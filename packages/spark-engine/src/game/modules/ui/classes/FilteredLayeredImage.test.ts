@@ -1,18 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UIModule } from "./UIModule";
 
-/**
- * #302: a `filtered_image` whose root is a `layered_image` resolves to the
- * SUBSET of layers the filter leaves behind, not to a single flattened src.
- *
- * `getImageSrcsByName` used to check only `filtered_src` -- which the layered
- * branch of `filterImage` never sets -- then fall through to lookups keyed by
- * the FILTERED name, miss both, and return null. So a filtered layered image
- * drew nothing at all, and the layer set the compiler computed had no reader
- * on this path.
- */
-
-/** Exposes the resolution path under test without booting a Game. */
 class ProbeUIModule extends UIModule {
   constructor(context: any) {
     super({} as any);
@@ -30,7 +18,6 @@ const image = (name: string) => ({
   src: `/file:/local/assets/${name}.png?v=1`,
 });
 
-/** The shape the compiler emits: bare references carry `$type: ""`. */
 const ref = (name: string) => ({ $type: "", $name: name });
 
 const context = {
@@ -91,9 +78,6 @@ describe("filtered image over a layered root", () => {
   });
 
   it("terminates when a layer points back at the filtered image", () => {
-    // `portrait` lists `p` as a layer, and `p` filters `portrait` -- authorable,
-    // and the untyped fan-out re-enters getImageAssets, so an unguarded
-    // recursion blows the stack instead of rendering a missing image.
     const cyclic = structuredClone(context) as any;
     cyclic.layered_image.portrait.assets = { 0: ref("p") };
     const ui = new ProbeUIModule(cyclic);
@@ -101,9 +85,6 @@ describe("filtered image over a layered root", () => {
   });
 
   it("keeps a surviving layer that is itself a group", () => {
-    // Layers are bare references carrying an empty `$type`, and one can name a
-    // layered_image rather than an image -- resolving them with a direct
-    // `context.image` lookup drops the whole group.
     const nested = structuredClone(context) as any;
     nested.image.eyes__open = image("eyes__open");
     nested.image.eyes__brow = image("eyes__brow");

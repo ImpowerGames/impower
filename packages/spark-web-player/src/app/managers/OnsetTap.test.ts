@@ -7,15 +7,6 @@ import {
   type OnsetTapOptions,
 } from "./OnsetTap";
 
-/**
- * The tap is what the driver's metronome reads each click's first audible
- * sample from (#683), so the frame it reports has to be the exact frame a
- * sound starts on. These tests run the processor's own worklet source in a
- * deterministic stand-in for an audio worklet's global scope and render a
- * known signal through it in 128-frame render quanta, as an audio context
- * does: a click placed at a chosen frame must come back as that frame.
- */
-
 const QUANTUM = 128;
 
 interface Posted {
@@ -23,11 +14,6 @@ interface Posted {
   peak: number;
 }
 
-/**
- * Loads the tap's worklet source and renders `channels` through it, one
- * render quantum at a time, from context frame `startFrame`. Every channel
- * must be the same length. Returns what the processor posted.
- */
 const render = (
   channels: Float32Array[],
   {
@@ -37,7 +23,6 @@ const render = (
   }: {
     startFrame?: number;
     options?: OnsetTapOptions;
-    /** Quanta with nothing connected, before the signal. */
     silentQuanta?: number;
   } = {},
 ): Posted[] => {
@@ -47,8 +32,6 @@ const render = (
   }
   let Processor: any;
   let currentFrame = startFrame;
-  // The worklet scope provides `currentFrame` as a global, which the source
-  // reads by its bare name.
   Object.defineProperty(globalThis, "currentFrame", {
     configurable: true,
     get: () => currentFrame,
@@ -78,11 +61,8 @@ const render = (
   return posted;
 };
 
-/** One second of silence at 48 kHz. */
 const silence = () => new Float32Array(48_000);
 
-/** A click like the fixture's: full level on its first frame, then a
- *  decaying 1 kHz tone lasting `frames`. */
 const addClick = (signal: Float32Array, at: number, frames = 1920) => {
   for (let i = 0; i < frames && at + i < signal.length; i += 1) {
     const envelope = Math.exp(-i / 192);
@@ -104,7 +84,6 @@ describe("the onset tap's processor", () => {
   });
 
   it("counts frames from wherever the context's render stream is", () => {
-    // A context that has been running for ten seconds is on frame 480,000.
     const posted = render([addClick(silence(), 777)], { startFrame: 480_000 });
 
     expect(posted.map((p) => p.frame)).toEqual([480_777]);
@@ -117,8 +96,6 @@ describe("the onset tap's processor", () => {
   });
 
   it("reports one onset for a sound, however often its waveform crosses zero", () => {
-    // A tone crosses zero twice a cycle; each crossing back above the
-    // threshold must not read as a new sound.
     const signal = silence();
     for (let i = 0; i < 9600; i += 1) {
       signal[3000 + i] = Math.sin((2 * Math.PI * 440 * i) / 48_000) * 0.5;
@@ -127,14 +104,12 @@ describe("the onset tap's processor", () => {
     const posted = render([signal]);
 
     expect(posted).toHaveLength(1);
-    // The sine's first sample is zero; its first audible one is the onset.
     expect(posted[0]!.frame).toBe(3001);
   });
 
   it("reports a second click once the silence before it is long enough", () => {
     const { gapFrames } = DEFAULT_ONSET_TAP_OPTIONS;
     const signal = addClick(silence(), 1000, 400);
-    // Late enough that more than `gapFrames` of silence precede it.
     const second = 1000 + 400 + gapFrames + 50;
     addClick(signal, second, 400);
 
@@ -171,7 +146,6 @@ describe("the onset tap's processor", () => {
   });
 
   it("counts quanta with nothing connected as silence before the first sound", () => {
-    // Before the mixer first plays, the tap's input carries no channels.
     const posted = render([addClick(silence(), 50)], {
       silentQuanta: 3,
       startFrame: 0,
@@ -190,7 +164,6 @@ describe("OnsetTap", () => {
     delete (globalThis as { AudioWorkletNode?: unknown }).AudioWorkletNode;
   });
 
-  /** A context and worklet node that record what the tap does with them. */
   const fakes = () => {
     const addModule = vi.fn(async (_url: string) => {});
     const context = {
@@ -239,7 +212,6 @@ describe("OnsetTap", () => {
   });
 
   it("loads the processor into a context once, however many taps it has", async () => {
-    // A name registers once per worklet scope; a second registration throws.
     const { context, addModule, source } = fakes();
 
     await OnsetTap.create(context, source);

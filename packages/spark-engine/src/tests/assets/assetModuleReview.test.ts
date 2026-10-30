@@ -1,11 +1,3 @@
-// Behaviour the adversarial review found untested or wrong: a load with
-// nothing to fetch still shows its screen; a beat's pin lasts until the beat
-// is written; destroy cancels gates and releases what it held; a timeout of 0
-// means none and the configured one is the one used; names parsed at runtime
-// are noticed; the caller of a real tunnel stays pinned; a silent game emits
-// nothing; the font heuristic sees child classes, component bodies, and
-// inline props; the loading layout never mounts after its load ended.
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
@@ -42,13 +34,11 @@ describe("AssetModule, after review", () => {
     expect(ui._mountedLayouts.has("loading")).toBe(true);
     coordinator.onUpdate(tick());
     expect(coordinator.shouldContinue()).toBe(0);
-    // The minimum display, then the beat advances by itself.
     expect(h.timerDelays()).toContain(1000);
     h.flushTimers();
     await flushMicrotasks(20);
     coordinator.onUpdate(tick());
     expect(ui._mountedLayouts.has("loading")).toBe(false);
-    // Ready on that tick; the lead to its display runs out after it.
     expect(coordinator.shouldContinue()).toBe(0);
     coordinator.onUpdate(tick(BEAT_LEAD_MS));
     expect(coordinator.shouldContinue()).toBe(1);
@@ -66,7 +56,6 @@ describe("AssetModule, after review", () => {
     await flushMicrotasks();
     expect(assets.isReady(id)).toBe(true);
     assets.trigger(id);
-    // The gate opened; nothing is released yet.
     expect(byMethod(h.messages, "assets/release")).toHaveLength(0);
     assets.onBeatDisplayed();
     expect(byMethod(h.messages, "assets/release").map((m) => m.params)).toEqual([
@@ -115,7 +104,6 @@ describe("AssetModule, after review", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       h.game.destroy();
-      // Destroy released the beat's pin itself.
       const releases = byMethod(h.messages, "assets/release").map((m) => m.params.pins).flat();
       expect(releases).toContain(`beat:${id}`);
       h.flushTimers();
@@ -150,19 +138,9 @@ describe("AssetModule, after review", () => {
         .filter((m) => m.params.drop)
         .map((m) => m.params.pins)
         .flat();
-    // The harness steps the story directly, so the game's own path watcher
-    // and the load beats are invoked by hand after each beat; the call stack
-    // the watcher reads is the real one the story keeps for the tunnel.
     const stepUntil = (text: string) => {
       for (let i = 0; i < 12; i++) {
         const beat = h.nextBeat();
-        // The address of the step the story ran last (the program engine's
-        // `previousAddress`), observed before the beat's load runs, as the
-        // game observes each address as the story reaches it and loads when
-        // it flushes the beat. Observed after it, the divert a load beat
-        // flushes at would leave the scene the load is for. (Until #657, a
-        // layout binding's evaluation left `previousAddress` inside the
-        // binding, outside every scene, which hid that order.)
         const previous = (h.game.story as any).previousAddress as number;
         h.game.observeScene(previous >= 0 ? previous : undefined);
         if (beat?.load) {
@@ -180,10 +158,8 @@ describe("AssetModule, after review", () => {
     };
     stepUntil("In B.");
     expect(h.game.sceneTracker.current).toBe("B");
-    // Inside the tunnel, A is on the call stack: nothing was dropped.
     expect(releasesSoFar()).toEqual([]);
     stepUntil("Back in A.");
-    // Returning drops B's set; A's survives.
     expect(releasesSoFar()).toEqual(["load:B"]);
     stepUntil("In C.");
     expect(releasesSoFar()).toEqual(["load:B", "load:A"]);
@@ -248,7 +224,6 @@ describe("AssetModule, after review", () => {
     const ui: any = h.game.module.ui;
     ui.beginLoading("fade", "B");
     await flushMicrotasks(20);
-    // The fonts are still held, so the layout has not mounted yet.
     expect(ui._mountedLayouts.has("loading")).toBe(false);
     const closing = ui.endLoading();
     await flushMicrotasks(20);

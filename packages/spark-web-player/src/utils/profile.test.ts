@@ -2,7 +2,6 @@ import { PerformanceObserver } from "node:perf_hooks";
 import { beforeEach, describe, expect, it } from "vitest";
 import { profile } from "./profile";
 
-// `profile()` writes to the *global* performance timeline.
 const perf = globalThis.performance;
 
 const countEntries = () =>
@@ -11,8 +10,6 @@ const countEntries = () =>
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Entries are cleared as soon as they are emitted, so the buffer cannot be read
-// back. An observer still receives them — that is the whole basis for clearing.
 const observeMeasures = async (run: () => void | Promise<void>) => {
   const seen: { name: string; duration: number }[] = [];
   const observer = new PerformanceObserver((list) => {
@@ -37,8 +34,6 @@ describe("player profile()", () => {
   });
 
   it("does not accumulate entries across repeated phases", () => {
-    // This helper brackets every protocol message the player handles, so
-    // anything retained here grows for the life of the page.
     for (let i = 0; i < 200; i += 1) {
       profile("start", "game/update");
       profile("end", "game/update");
@@ -58,26 +53,22 @@ describe("player profile()", () => {
   });
 
   it("measures BOTH of two overlapping same-name phases", async () => {
-    // `profileMessageHandling` brackets an awaited handler and keys the phase
-    // on message.method alone, so two notifications of the same method overlap.
     const seen = await observeMeasures(async () => {
-      profile("start", "compiler/didCompile"); // A
+      profile("start", "compiler/didCompile");
       await sleep(80);
-      profile("start", "compiler/didCompile"); // B
+      profile("start", "compiler/didCompile");
       await sleep(80);
-      profile("end", "compiler/didCompile"); // A ends (~160ms)
+      profile("end", "compiler/didCompile");
       await sleep(80);
-      profile("end", "compiler/didCompile"); // B ends (~160ms)
+      profile("end", "compiler/didCompile");
     });
-    // Both phases must be measured. Clearing marks by name would have deleted
-    // B's start mark when A finished, losing B's measurement entirely.
     expect(seen).toHaveLength(2);
     expect(countEntries()).toBe(0);
   });
 
   it("a phase that never ended does not corrupt the next one's duration", async () => {
     const seen = await observeMeasures(async () => {
-      profile("start", "game/create"); // orphaned
+      profile("start", "game/create");
       await sleep(300);
       profile("start", "game/create");
       await sleep(100);

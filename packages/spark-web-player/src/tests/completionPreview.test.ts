@@ -1,20 +1,3 @@
-// Previewing autocomplete suggestions (#634): which program the player shows
-// while an author browses a suggestion list, and what reaches the screen.
-//
-// A suggestion is compiled as a hypothetical edit and shown in place of the
-// real document until the list closes. An author holding an arrow key sends a
-// request per key, so at most one suggestion is compiled at a time and only the
-// newest waiting one is kept; anything answered after it stopped being wanted
-// is dropped before it can touch the screen. The real document's program is
-// never replaced by a suggestion's: it is what the list returns to on close,
-// and what PLAY runs.
-//
-// The controller is driven with a stand-in workspace whose compiles resolve
-// when the test says, and a recording `updatePreview`, since what is under test
-// is which program is shown when, not how it is drawn. Like the real one, the
-// stand-in hands the game its program as soon as it starts, can be held part
-// way through drawing, and gives up when a newer draw starts or the one it was
-// asked for stops being wanted.
 import { afterEach, describe, expect, test } from "vitest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
@@ -24,8 +7,6 @@ import { programIdentity } from "../utils/programIdentity";
 const URI = "file://proj/main.sd";
 const LINE = 4;
 
-/** A program's summary, as the page holds it; the screen is the worker's
- *  game. */
 const program = (name: string, version = 1, compiled: unknown = {}) =>
   ({
     uri: URI,
@@ -46,10 +27,7 @@ const edit = (text: string) => [
 
 function harness() {
   const REAL = program("real");
-  // What PLAY names: the real program, by its identity, for the worker to
-  // build PLAY's game from.
   const playable = programIdentity(REAL);
-  // The programs PLAY named to the worker.
   const played: any[] = [];
   const compiles: {
     params: any;
@@ -87,12 +65,9 @@ function harness() {
   controller._program = REAL;
   controller._options = { startFrom: { file: URI, line: LINE } };
   controller._workerGame = { program: REAL };
-  // Every draw that finished, in order.
   const shown: { name: string; speculative: boolean }[] = [];
   let draws = 0;
   let gate: Promise<void> | null = null;
-  /** Hold every draw that starts from now on part way through, until the
-   *  returned function is called. */
   const hold = () => {
     let release!: () => void;
     gate = new Promise<void>((resolve) => (release = resolve));
@@ -144,7 +119,6 @@ function harness() {
           : undefined,
       },
     });
-  /** Answer the compile for `text`, then let the controller act on it. */
   const answer = async (text: string, result?: any) => {
     const index = compiles.findIndex(
       (c) => c.params.contentChanges[0].text === text,
@@ -191,8 +165,6 @@ describe("the suggestion preview", () => {
       expect(compiles.map((c) => c.params.contentChanges[0].text)).toEqual(["happy"]);
 
       await answer("happy");
-      // "happy" stopped being wanted while it compiled, so it never reached the
-      // screen, and "sad" was replaced by "angry" before it was ever started.
       expect(shown).toEqual([]);
       expect(compiles.map((c) => c.params.contentChanges[0].text)).toEqual(["angry"]);
 
@@ -234,14 +206,11 @@ describe("the suggestion preview", () => {
       const release = hold();
       focus("sad");
       await answer("sad");
-      // "sad" has started drawing: the game holds its program.
       expect(controller.screenProgram.name).toBe("sad");
       focus("happy");
       await settle();
       await release();
 
-      // "sad" never finished; "happy" was drawn again from the result kept for
-      // it, without compiling it again.
       expect(shown.map((s) => s.name)).toEqual(["happy", "happy"]);
       expect(controller.screenProgram).toBe(happy);
       expect(compiles).toEqual([]);
@@ -287,7 +256,6 @@ describe("the suggestion preview", () => {
       focus("happy");
       await answer("happy");
       workspace.filesRevision = 1;
-      // The real compile the file change caused arrives while the list is open.
       await controller.loadProgram(program("real, new files", 2));
       await settle();
 
@@ -311,9 +279,6 @@ describe("the suggestion preview", () => {
 
       expect(controller._completionSession).toBeNull();
       expect(controller.getGameState().completion).toBeNull();
-      // The program the selection's compile brings, which holds the other
-      // document: one that does not is compiled for another script, and the
-      // preview does not take it (#1874).
       const other = program("real, other", 2);
       other.scripts = { ...other.scripts, "file://proj/other.sd": 1 };
       await controller.loadProgram(other);
@@ -437,7 +402,6 @@ describe("the suggestion preview", () => {
       await close("happy", 1);
 
       expect(shown.map((s) => s.name)).toEqual(["happy"]);
-      // A program compiled before the acceptance does not replace it.
       await controller.loadProgram(program("before acceptance", 1));
       expect(shown.map((s) => s.name)).toEqual(["happy"]);
       await controller.loadProgram(program("accepted", 2));
@@ -541,8 +505,6 @@ describe("the suggestion preview", () => {
         listeners[method] = l;
         return () => {};
       };
-      // What the worker's game reports reaches the controller through the
-      // workspace's link to it.
       controller.listenToWorker({ addListener });
       const sent: string[] = [];
       controller.host.addEventListener("jsonrpc", (e: CustomEvent) => sent.push(e.detail.method));

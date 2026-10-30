@@ -6,30 +6,12 @@ import { AudioModule } from "./audio/classes/AudioModule";
 import { audioBuiltinDefinitions } from "./audio/audioBuiltinDefinitions";
 import { InterpreterModule } from "./interpreter/classes/InterpreterModule";
 
-/**
- * A `define x as synth with ... end` reaches the runtime context carrying only
- * the properties the author wrote. Two modules consume that synth
- * independently, and they have to agree about it (#268):
- *
- *   - AudioModule decides what to actually synthesise.
- *   - InterpreterModule sizes syllables from the envelope, so the typewriter
- *     paces letters to match how long a note really lasts.
- *
- * Before the fix they disagreed for any partially-authored voice: AudioModule
- * dropped it entirely (silence), and InterpreterModule read a duration of 0.
- * Both now read a context that `Game` has already completed, so these tests
- * pin the agreement rather than any particular number -- retuning the defaults
- * doesn't churn them.
- */
-
-/** A voice authored with nothing but a pitch -- the shape #268 reported. */
 const PARTIAL_SYNTH = {
   $type: "synth",
   $name: "raffles",
   pitch: { frequency: 340 },
 };
 
-/** Builds a defaults-complete context for the module probes below. */
 const contextWith = (synth: Record<string, any>) => {
   const context: any = {
     system: {},
@@ -62,11 +44,9 @@ const envelopeDuration = (e: any) =>
 
 describe("partially-authored synth defaults (#268)", () => {
   const game = gameWith({ raffles: PARTIAL_SYNTH });
-  /** What the modules actually see -- the completed struct, not the fixture. */
   const resolved = (game as any).context.synth.raffles;
 
   it("the interpreter reports a non-zero note duration", () => {
-    // Was 0: the authored synth has no envelope, and nothing filled one in.
     const interpreter = new ProbeInterpreterModule(game);
     expect(interpreter.durationOf(resolved)).toBeGreaterThan(0);
   });
@@ -111,14 +91,6 @@ describe("partially-authored synth defaults (#268)", () => {
   });
 });
 
-/**
- * The fixtures above hand-write the sparse synth #268 reported. This block
- * closes the loop by taking the shape from the REAL compiler instead, so the
- * chain that actually ships -- authored script -> compiled context ->
- * played synth -- is what gets asserted. The compiler merges each define
- * with its type's `$default` when it builds the context, so a partially
- * authored voice arrives complete without any runtime fill-in.
- */
 describe("end-to-end: authored voice through the real compiler (#268)", () => {
   const MAIN_URI = "file://proj/main.sd";
 
@@ -160,8 +132,6 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
   ].join("\n");
 
   it("plays that compiled voice with a complete synth", () => {
-    // The compiler merges the type's `$default` into the authored define, so
-    // the context arrives complete — no runtime fill-in involved.
     const context = compileContext(SCRIPT);
     const audio = new ProbeAudioModule({ context } as unknown as Game);
 
@@ -174,8 +144,6 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
   });
 
   it("a character with no authored voice still falls back to a builtin", () => {
-    // `crawshay` is never defined, so the lookup misses and the builtin
-    // character voice is used -- this is the path that always worked.
     const context = compileContext(SCRIPT);
     const audio = new ProbeAudioModule({ context } as unknown as Game);
     const synth = audio.synthFor("character");
@@ -183,11 +151,6 @@ describe("end-to-end: authored voice through the real compiler (#268)", () => {
     expect(synth!.envelope).toBeDefined();
   });
 
-  /**
-   * Everything above hands a context straight to a module probe, so it would
-   * keep passing even if `Game` assembled its context wrong. These build a
-   * REAL `Game` and assert its context, so the wiring is what is under test.
-   */
   describe("Game wires it in", () => {
     const buildGame = () => {
       const compiler = new SparkdownCompiler();

@@ -1,7 +1,3 @@
-// The built-in `loading` layout as the DOM sees it: its tree, its stacking
-// above every other layout, and the progress it takes from the reactive
-// `game.loading` table, which a replaced tree can bind as well.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 

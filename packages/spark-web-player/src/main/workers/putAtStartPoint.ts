@@ -4,22 +4,14 @@ import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/Si
 import { profile } from "../../utils/profile";
 import { programIdentity, type IdentifiableProgram } from "../../utils/programIdentity";
 
-/** What a route search established about a start point, as the worker
- *  reports it. */
 export interface StartPointRoute {
   checkpoint?: string;
-  /** The address the search was for, or null for one it resolved to
-   *  nothing. */
   address?: ProgramAddress | null;
-  /** The program the search ran in. */
   programId?: string;
   failure?: SimulationFailure;
-  /** What the replay that produced the checkpoint raised on its way. */
   errors?: SimulationError[];
 }
 
-/** The game, as far as putting it at its start point needs it. Structural so
- *  the rule can be checked against a recording stand-in. */
 export interface StartableGame {
   readonly program: IdentifiableProgram;
   readonly startAddress: ProgramAddress | null | undefined;
@@ -27,39 +19,14 @@ export interface StartableGame {
   routeStartOf(address: ProgramAddress): string;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
-  /** What the game's own replay of a route raised. */
   readonly routeErrors: SimulationError[];
   load(checkpoint: string): boolean;
   simulate(): unknown;
 }
 
-/**
- * Put PLAY's game at the start point it was asked to begin from, from the
- * route the worker's search established.
- *
- * Reaching that point means replaying the story to it, and finding a replay
- * that gets there is a search that can run for many seconds on a story it
- * never reaches, holding up the worker and everything the page waits on it
- * for.
- *
- * The worker already runs that identical search, on every compile and every
- * cursor move, and reports the addresses it reached a definite answer about
- * (`address`): either the story state at that address (`checkpoint`), or, with no
- * checkpoint, that no route to it exists. When that answer is about the same
- * start point this run begins from, and about the same program this run is
- * built from, there is nothing left to look for. Anything less definite is
- * treated as no answer at all, and the search runs on the game, which is safe
- * because the only case that reaches it is one where a route was already
- * found to exist.
- *
- * Answers the runtime errors and warnings the route to the start point
- * raised, or the errors that kept a search from finding one: the worker's
- * when its answer applies, and the game's own when it searches.
- */
 export function putAtStartPoint(
   game: StartableGame,
   route: StartPointRoute | undefined,
-  /** Names the thread that runs the rule in its profile marks. */
   profilerId?: string,
 ): SimulationError[] {
   const mark = (profilerId ? profilerId + " " : "") + "game/simulate";
@@ -73,12 +40,6 @@ export function putAtStartPoint(
   } = route ?? {};
   let raised: SimulationError[] = [];
   const startAddress = game.startAddress;
-  // Both halves are required. The address says where the answer is about;
-  // the program identity says what script it is about, which the address
-  // cannot: an address survives an edit that changes what the story does
-  // before it, and a compile landing while PLAY is being set up leaves the
-  // worker an edit ahead of the program the game was built from. A mismatch
-  // is not an error: the answer does not apply, so the search runs.
   const answersThisRun =
     startAddress != null &&
     simulatedAddress === startAddress &&
@@ -86,13 +47,6 @@ export function putAtStartPoint(
     programId === programIdentity(game.program);
   if (answersThisRun) {
     if (checkpoint) {
-      // The worker found the route and replayed it; its checkpoint is the
-      // state that replay ends in, and loading it marks the simulation
-      // successful, as a search on the game would have left it.
-      //
-      // A checkpoint that will not load (a truncated or malformed save) is
-      // searched for after all: the worker reaching this start point proves
-      // a route exists, so the search finds one and ends.
       if (game.load(checkpoint)) {
         raised = errors ?? [];
       } else {
@@ -100,21 +54,12 @@ export function putAtStartPoint(
         raised = game.routeErrors;
       }
     } else {
-      // No route to this start point exists. Searching again would reach
-      // the same verdict, so the failure is recorded as a search would
-      // record it, and `start` falls back to jumping straight to the start
-      // point. The toolbar then reports an unreachable start point, and why,
-      // as it does for the preview.
       game.simulateFlow = game.routeStartOf(startAddress);
       game.simulation = "fail";
       game.simulationFailure = failure;
-      // What stopped the worker's search, which this run reports as its own.
       raised = errors ?? [];
     }
   } else {
-    // No worker answer applies to this run: nothing was ever selected, the
-    // worker resolved a different address, or it answered for a different
-    // version of the script. This is the only search there is.
     game.simulate();
     raised = game.routeErrors;
   }

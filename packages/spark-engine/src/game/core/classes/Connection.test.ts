@@ -2,14 +2,6 @@ import { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { describe, expect, it } from "vitest";
 import { Connection } from "./Connection";
 
-/**
- * `Connection` is the seam every module talks through, and it multiplexes
- * three different things over one `receive()`: notifications (fire and
- * forget), requests (expect a reply), and responses (are a reply). Getting
- * that classification wrong doesn't throw -- it silently drops a message or
- * leaves a promise pending forever -- so it's worth pinning explicitly.
- */
-
 const notification = (method = "note", params: unknown = {}) =>
   ({ jsonrpc: "2.0", method, params }) as Message;
 
@@ -22,12 +14,6 @@ const response = (id: string, method: string, result: unknown) =>
 const errorResponse = (id: string, method: string, error: unknown) =>
   ({ jsonrpc: "2.0", id, method, error }) as Message;
 
-/**
- * Exposes the pending-request bookkeeping. A settled request that leaves its
- * callbacks behind is invisible from outside -- resolving an already-resolved
- * promise is a silent no-op -- but it leaks for the life of the connection,
- * so it's worth asserting directly.
- */
 class ProbeConnection extends Connection {
   get pendingRequestIds(): string[] {
     return [
@@ -39,7 +25,6 @@ class ProbeConnection extends Connection {
   }
 }
 
-/** A connection with recorded output and a configurable inbound handler. */
 const createConnection = (
   onReceive?: (msg: never) => Promise<unknown | undefined>,
 ) => {
@@ -55,7 +40,6 @@ const createConnection = (
   return { connection, sent, transfers };
 };
 
-/** Whether a promise has settled, without hanging the test if it hasn't. */
 const settled = async (promise: Promise<unknown>) =>
   Promise.race([
     promise.then(
@@ -188,9 +172,6 @@ describe("Connection", () => {
       expect(connection.pendingRequestIds).toEqual([]);
     });
 
-    // JSON-RPC allows either form of id, and `RequestMessage.id` is typed
-    // `number | string`, so a numeric id has to be awaited like a string one
-    // rather than silently degrading to fire-and-forget.
     it("awaits a response for a numeric id", async () => {
       const { connection } = createConnection();
       const pending = connection.emit({
@@ -224,8 +205,6 @@ describe("Connection", () => {
       expect(await settled(pending)).toEqual({ state: "pending" });
     });
 
-    // An empty-string id identifies nothing to reply to, so it stays a
-    // notification -- awaiting it would hang forever.
     it("treats an empty-string id as a notification", async () => {
       const { connection, sent } = createConnection();
       const result = await settled(
@@ -309,8 +288,6 @@ describe("Connection", () => {
       expect(sent).toEqual([]);
     });
 
-    // Transferables ride alongside the message rather than inside it, so they
-    // have to be lifted out of the handler's result before it goes on the wire.
     it("forwards transferables out of band", async () => {
       const buffer = new ArrayBuffer(8);
       const { connection, sent, transfers } = createConnection(async () => ({
@@ -471,10 +448,6 @@ describe("Connection", () => {
       expect(seen).toEqual([]);
     });
 
-    // The listener map is shared by reference with the Connection that
-    // broadcasts through it, so clearing has to happen in place. Reassigning
-    // detaches the socket instead: old listeners keep firing, and anything
-    // registered afterwards lands in an orphaned map that nothing reads.
     describe("removeAllListeners", () => {
       it("stops delivering to listeners registered before the call", () => {
         const seen: string[] = [];

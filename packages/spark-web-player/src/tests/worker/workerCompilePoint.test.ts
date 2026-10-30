@@ -1,8 +1,3 @@
-// The player's workspace answers the selection an edit leaves itself, so the
-// worker hears of that point only from the edit's compile (#1881). A compile
-// the worker makes without a point of its own, as a selection after a
-// suggestion recompiles the real documents (`SparkdownCompiler.selectDocument`),
-// routes to the point compiles route to; that has to be the edit's.
 import { describe, expect, it } from "vitest";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
@@ -40,7 +35,6 @@ describe("the point the worker's compiles route to", () => {
         startFrom: after,
       });
       expect(compiler.config.startFrom).toEqual(after);
-      // A compile sent without a point routes there.
       const result = await h.page.sendRequest(CompileProgramMessage.type, {
         textDocument: { uri: MAIN_URI },
       });

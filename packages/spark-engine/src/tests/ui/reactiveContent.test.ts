@@ -1,10 +1,3 @@
-// Phase 3 I2: one-way reactive content bindings.
-//
-// `screen` element content with `{expr}` interpolation is evaluated to its live
-// value at mount (into an inline span), and re-evaluated on the coarse per-turn
-// boundary (Coordinator.display → updateUI → refreshLayouts). Updates are
-// equality-gated: only a changed resolved value emits a ui/update.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
@@ -33,7 +26,6 @@ describe("reactive content binding (Phase 3 I2)", () => {
     const h = createHarness(HUD, 0, { reactive: true });
     await h.ready;
     h.reset();
-    // Mutate the bound global, then run the coarse per-turn refresh.
     (h.game.story as any).variablesState.$("hp", 50);
     (h.game.module.ui as any).refreshLayouts();
     const update = h
@@ -50,7 +42,6 @@ describe("reactive content binding (Phase 3 I2)", () => {
     const h = createHarness(HUD, 0, { reactive: true });
     await h.ready;
     h.reset();
-    // hp unchanged → refresh must not emit any ui/update.
     (h.game.module.ui as any).refreshLayouts();
     expect(h.snapshotFiltered("ui/update")).toEqual([]);
   });
@@ -65,7 +56,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // The literal span is mounted at connect (capture before clearing the buffer).
     const span = h
       .snapshotFiltered("ui/create")
       .find(
@@ -74,7 +64,6 @@ end
       );
     expect(span).toBeTruthy();
     h.reset();
-    // No bindings → refresh emits nothing even though a span was mounted.
     (h.game.module.ui as any).refreshLayouts();
     expect(h.snapshotFiltered("ui/update")).toEqual([]);
   });

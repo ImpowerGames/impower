@@ -1,8 +1,6 @@
 import type { Create } from "../../../core/types/Create";
 import type { Morph } from "../types/Morph";
 
-// Matches `define morph with … end` in the compiler's builtins.sd. `method`
-// has no default: every morph chooses one wherever `blend = morph` applies.
 export const default_morph: Create<Morph> = (obj) => ({
   $type: "morph",
   $name: "$default",

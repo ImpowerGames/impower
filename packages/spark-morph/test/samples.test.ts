@@ -34,7 +34,6 @@ describe("sampleMorph", () => {
     const r = morphSubpaths(parsePathData(tiny), parsePathData(tiny), { method: "trace" });
     if (!r.ok) throw new Error(r.failure.message);
     const s = sampleMorph(r.morph, 2);
-    // The parser makes the closing edge explicit; every coordinate survives.
     expect(s.from).toBe("M0.004,0.004L0.006,0.004L0.004,0.006L0.004,0.004Z");
     expect(s.to).toBe(s.from);
     expect(parsePathData(s.from)[0]!.segments.map((c) => c.p1)).toEqual([
@@ -42,7 +41,6 @@ describe("sampleMorph", () => {
       [0.004, 0.006],
       [0.004, 0.004],
     ]);
-    // An explicit precision rounds as asked.
     expect(sampleMorph(r.morph, 2, { precision: 2 }).from).toBe("M0,0L0.01,0L0,0.01L0,0Z");
   });
 
@@ -84,11 +82,6 @@ describe("interpolateSamples", () => {
 });
 
 describe("sample policy", () => {
-  // Quality of the linear blend between samples against the exact frame at
-  // the same progress, for the lash fixture. This is the measurement behind
-  // the initial eight-sample tuning point: the numbers are logged so later
-  // tuning can compare, and the assertion pins that eight samples keep the
-  // worst deviation under half a unit on a hundred-unit lash.
   test("eight samples keep the blend within half a unit of the exact frame", () => {
     const morph = bend();
     const report: Record<number, number> = {};

@@ -1,8 +1,3 @@
-// The stopped preview displayed from the worker's game shows, after every
-// compile, selection, edit and suggestion, the beat the step asks for.
-//
-// Each case runs the whole player through a sequence of steps and reads the
-// serialized overlay after every one.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,8 +7,6 @@ type Step =
   | { select: number }
   | { edit: { find: string; replace: string } }
   | { editAt: { offset: number; deleteLength: number; insert: string } }
-  /** Highlight a suggestion that replaces `find` with `replace`, previewed at
-   *  `line` (by default the edit's own line). */
   | { suggest: { find: string; replace: string; line?: number } }
   | { close: true };
 
@@ -34,9 +27,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** Run `steps` against `text`, and read the overlay after the first compile
- *  and after every step, with the line the toolbar says the preview
- *  launches from (`launches`). */
 async function frames(text: string, steps: Step[]) {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text }],
@@ -49,7 +39,6 @@ async function frames(text: string, steps: Step[]) {
     out.push(h.snapshotDOM());
     launches.push(h.refs.launchLabel.textContent ?? "");
   };
-  // A compile or selection the worker rejects is part of what is compared.
   const note = (answer: any) => {
     if (answer?.error) {
       out.push({ rejected: answer.error });
@@ -95,7 +84,6 @@ async function frames(text: string, steps: Step[]) {
   return Object.assign(out, { launches });
 }
 
-/** Whether a frame shows `text`. */
 const shows = (frame: unknown, text: string) => JSON.stringify(frame).includes(text);
 
 function coupledScreenplay(): string {
@@ -142,15 +130,12 @@ describe("the preview displayed from the worker's game", () => {
       { select: lineOf(text, "Line one of dialogue in scene 3.") },
     ];
     const on = await frames(text, steps);
-    // Nothing was rejected, and each step shows its own beat.
     expect(on).toHaveLength(steps.length + 1);
     expect(shows(on[1], "Line one of dialogue in scene 0.")).toBe(true);
     expect(shows(on[2], "Not yet in scene 2.")).toBe(true);
     expect(shows(on[3], "Action describing room 4.")).toBe(true);
-    // An edit on another line leaves the beat at the cursor on screen.
     expect(shows(on[4], "Action describing room 4.")).toBe(true);
     expect(shows(on[5], "Trust is 0.")).toBe(true);
-    // The edit to where trust starts reaches the beat on screen.
     expect(shows(on[6], "Trust is 5.")).toBe(true);
     expect(shows(on[7], "Line one of dialogue in scene 3.")).toBe(true);
   }, 120_000);
@@ -162,7 +147,6 @@ describe("the preview displayed from the worker's game", () => {
       { select: lineOf(text, line) },
       { suggest: { find: line, replace: "A first suggestion for scene 2." } },
       { suggest: { find: line, replace: "A second suggestion for scene 2." } },
-      // Back to the first, which the worker displays again from its kept story.
       { suggest: { find: line, replace: "A first suggestion for scene 2." } },
       { close: true },
       { select: lineOf(text, "Action describing room 5.") },
@@ -173,7 +157,6 @@ describe("the preview displayed from the worker's game", () => {
     expect(shows(on[2], "A first suggestion for scene 2.")).toBe(true);
     expect(shows(on[3], "A second suggestion for scene 2.")).toBe(true);
     expect(shows(on[4], "A first suggestion for scene 2.")).toBe(true);
-    // Closing the list shows the real document again.
     expect(shows(on[5], line)).toBe(true);
     expect(shows(on[5], "suggestion for scene 2.")).toBe(false);
     expect(shows(on[6], "Action describing room 5.")).toBe(true);
@@ -204,8 +187,6 @@ describe("the preview displayed from the worker's game", () => {
     const second = "    The second line.";
     const steps: Step[] = [
       { select: lineOf(text, second) },
-      // The author starts an image name that names nothing yet, with the
-      // list open, so each keystroke compiles while a suggestion is shown.
       { edit: { find: second, replace: `    [[SPRITE\n${second}` } },
       { suggest: { find: "[[SPRITE\n", replace: "[[SPRITE_A]]\n" } },
       { edit: { find: "[[SPRITE\n", replace: "[[SPRITE_\n" } },
@@ -215,32 +196,18 @@ describe("the preview displayed from the worker's game", () => {
     ];
     const on = await frames(text, steps);
     expect(on).toHaveLength(steps.length + 1);
-    // Each keystroke's compile and each highlighted suggestion shows the
-    // beat being typed into, with the picture the suggestion names.
     for (const frame of on.slice(1)) {
       expect(shows(frame, "The second line.")).toBe(true);
     }
-    // Every frame names both images once for the assets it holds; a picture
-    // on screen names its image again. The frame of the selected line, which
-    // shows no picture, is the one to count from: the first frame previews
-    // line 0, inside a `define`, which on the program engine is the next
-    // statement's address (docs/engine/binary-program.md, section 8), so it
-    // shows the first beat with its picture.
     const shown = (frame: unknown, image: string) =>
       JSON.stringify(frame).split(image).length - JSON.stringify(on[1]).split(image).length;
     expect(shown(on[3], "a.png")).toBeGreaterThan(0);
     expect(shown(on[6], "b.png")).toBeGreaterThan(0);
-    // Closing the list shows the real document, whose name matches no image.
     expect(shown(on[7], "a.png")).toBe(0);
     expect(shown(on[7], "b.png")).toBe(0);
   }, 120_000);
 
   it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
-    // The suggestion compile carries `bridge` over unchanged and changes
-    // `greeting`. Closing the list shows the real document from the story the
-    // worker kept, without compiling, and the beat at the cursor calls
-    // `greeting` from `bridge`: the call resolves through `bridge`'s parents
-    // to the function of whichever story they lead to.
     const text = [
       "",
       "",

@@ -1,19 +1,10 @@
-// Where CSS draws one background image layer: the rectangle a `no-repeat`
-// background of a given intrinsic size occupies in its positioning area, by
-// CSS Backgrounds 3 (https://www.w3.org/TR/css-backgrounds-3/#background-size)
-// and the default sizing algorithm of CSS Images 3. A live portrait drawn
-// inline is placed on that rectangle, so it lands on the pixels the static
-// image it replaces painted.
-
 import { cssList } from "../../../../sparkdown/src/morph/cssList";
 
 export { cssList };
 
-/** What an image says about its own size: intrinsic dimensions and ratio. */
 export interface IntrinsicSize {
   width?: number;
   height?: number;
-  /** Width over height. */
   ratio?: number;
 }
 
@@ -24,7 +15,6 @@ export interface Rect {
   height: number;
 }
 
-/** One axis of `background-position`: a fraction of the free space plus pixels. */
 interface PositionAxis {
   fraction: number;
   px: number;
@@ -36,11 +26,6 @@ const px = (text: string | undefined): number | undefined => {
   return m ? Number(m[1]) : undefined;
 };
 
-/**
- * An SVG root's intrinsic size: `width` and `height` in pixels (or unitless),
- * and the ratio of its `viewBox`, else of those dimensions. A percentage or
- * other relative length gives no intrinsic dimension.
- */
 export function svgIntrinsicSize(attributes: { viewBox?: string; width?: string; height?: string }): IntrinsicSize {
   const width = px(attributes.width);
   const height = px(attributes.height);
@@ -56,17 +41,11 @@ export function svgIntrinsicSize(attributes: { viewBox?: string; width?: string;
   return size;
 }
 
-/** The image's size under `contain` or `cover` in a W×H area. */
 const fitted = (ratio: number, w: number, h: number, cover: boolean) => {
   const wide = w / h > ratio;
   return wide === cover ? { width: w, height: w / ratio } : { width: h * ratio, height: h };
 };
 
-/**
- * The concrete size of a layer whose `background-size` is `size` (a computed
- * value: `cover`, `contain`, or one or two of `auto`, a length in pixels or
- * a percentage), or undefined for a value this cannot follow.
- */
 export function backgroundSize(size: string, area: { width: number; height: number }, image: IntrinsicSize) {
   const { width: W, height: H } = area;
   const text = size.trim().toLowerCase();
@@ -88,7 +67,6 @@ export function backgroundSize(size: string, area: { width: number; height: numb
   if (w === undefined || h === undefined) return undefined;
   if (w !== "auto" && h !== "auto") return { width: w, height: h };
   if (w === "auto" && h === "auto") {
-    // The default sizing algorithm with no specified size.
     if (image.width !== undefined && image.height !== undefined) return { width: image.width, height: image.height };
     if (image.width !== undefined && image.ratio) return { width: image.width, height: image.width / image.ratio };
     if (image.height !== undefined && image.ratio) return { width: image.height * image.ratio, height: image.height };
@@ -104,7 +82,6 @@ export function backgroundSize(size: string, area: { width: number; height: numb
 
 const KEYWORD: Record<string, number> = { left: 0, top: 0, center: 0.5, right: 1, bottom: 1 };
 
-/** One axis value: `50%`, `10px`, `calc(100% - 10px)`, a keyword. */
 function positionAxis(text: string): PositionAxis | undefined {
   const t = text.trim().toLowerCase();
   if (Object.hasOwn(KEYWORD, t)) return { fraction: KEYWORD[t]!, px: 0 };
@@ -122,16 +99,10 @@ function positionAxis(text: string): PositionAxis | undefined {
   return undefined;
 }
 
-/**
- * A computed `background-position` for one layer (`50% 50%`, `0px 100%`,
- * `calc(100% - 10px) 0%`, or keyword forms with edge offsets) as its two
- * axes, or undefined for a value this cannot follow.
- */
 export function backgroundPosition(position: string): { x: PositionAxis; y: PositionAxis } | undefined {
   const tokens = position.trim().toLowerCase().match(/calc\([^)]*\)|\S+/g) ?? [];
   if (tokens.length === 2) {
     const [a, b] = tokens as [string, string];
-    // Keywords may be written y first (`top left`).
     const swap = (a === "top" || a === "bottom") && !(b === "top" || b === "bottom");
     const x = positionAxis(swap ? b : a);
     const y = positionAxis(swap ? a : b);
@@ -145,7 +116,6 @@ export function backgroundPosition(position: string): { x: PositionAxis; y: Posi
     return only === "top" || only === "bottom" ? { x: center, y: axis } : { x: axis, y: center };
   }
   if (tokens.length === 4 || tokens.length === 3) {
-    // Edge offsets: `right 10px bottom 20%`, `left 10px top`.
     const axes: Partial<Record<"x" | "y", PositionAxis>> = {};
     for (let i = 0; i < tokens.length; i++) {
       const edge = tokens[i]!;
@@ -170,11 +140,6 @@ export function backgroundPosition(position: string): { x: PositionAxis; y: Posi
   return undefined;
 }
 
-/**
- * The rectangle one `no-repeat` background layer paints in its positioning
- * area, or undefined when its size or position is a value this cannot
- * follow (a player then leaves the layer to CSS).
- */
 export function backgroundRect(
   area: { width: number; height: number },
   image: IntrinsicSize,
@@ -192,10 +157,6 @@ export function backgroundRect(
   };
 }
 
-/**
- * Entry `index` of a computed comma-separated background list, counted from
- * the top layer as CSS lists them; a list shorter than the layers repeats.
- */
 export function layerValue(list: string, index: number): string {
   const values = cssList(list);
   return values[index % values.length] ?? "";

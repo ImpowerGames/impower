@@ -12,9 +12,7 @@ export const DEFAULT_POLYPHONIC_INSTRUMENT: SynthConfig = {
   },
 };
 
-/** Each program instrument can be played in 128 different pitches */
 const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
-  /* 0-7 : Piano */
   piano_acoustic_grand: { name: "Acoustic Grand Piano" },
   piano_acoustic_bright: { name: "Bright Acoustic Piano" },
   piano_electric_grand: { name: "Electric Grand Piano" },
@@ -24,7 +22,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   piano_harpsichord: { name: "Harpsichord" },
   piano_clavinet: { name: "Clavinet" },
 
-  /* 8-15 : Chromatic Percussion*/
   chromatic_celesta: { name: "Celesta" },
   chromatic_glockenspiel: { name: "Glockenspiel" },
   chromatic_music_box: { name: "Music Box" },
@@ -34,7 +31,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   chromatic_tubular_bell: { name: "Tubular Bell" },
   chromatic_dulcimer: { name: "Dulcimer" },
 
-  /* 16-23 : Organ */
   organ_drawbar: { name: "Drawbar Organ" },
   organ_percussive: { name: "Percussive Organ" },
   organ_rock: { name: "Rock Organ" },
@@ -44,7 +40,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   organ_harmonica: { name: "Harmonica" },
   organ_bandoneon: { name: "Bandoneon" },
 
-  /* 24-31 : Guitar */
   guitar_acoustic_nylon: { name: "Acoustic Guitar (nylon)" },
   guitar_acoustic_steel: { name: "Acoustic Guitar (steel)" },
   guitar_electric_jazz: { name: "Electric Guitar (jazz)" },
@@ -54,7 +49,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   guitar_electric_distorted: { name: "Electric Guitar (distorted)" },
   guitar_electric_harmonic: { name: "Electric Guitar (harmonic)" },
 
-  /* 32-39 : Bass */
   bass_acoustic: { name: "Acoustic Bass" },
   bass_electric_fingered: { name: "Electric Bass (fingered)" },
   bass_electric_picked: { name: "Electric Bass (picked)" },
@@ -64,7 +58,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   bass_synth_1: { name: "Synth Bass 1" },
   bass_synth_2: { name: "Synth Bass 2" },
 
-  /* 40-47 : Strings */
   strings_violin: { name: "Violin" },
   strings_viola: { name: "Viola" },
   strings_cello: { name: "Cello" },
@@ -74,7 +67,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   strings_harp: { name: "Orchestral Harp" },
   strings_timpani: { name: "Timpani" },
 
-  /* 48-55 : Ensemble */
   ensemble_strings_1: { name: "String Ensemble 1" },
   ensemble_strings_2: { name: "String Ensemble 2" },
   ensemble_synth_1: { name: "Synth Strings 1" },
@@ -84,7 +76,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   ensemble_voice_synth: { name: "Synth Voice" },
   ensemble_orchestra_hit: { name: "Orchestra Hit" },
 
-  /* 56-63 : Brass */
   brass_trumpet: { name: "Trumpet" },
   brass_trombone: { name: "Trombone" },
   brass_tuba: { name: "Tuba" },
@@ -94,7 +85,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   brass_synth_1: { name: "Synth Brass 1" },
   brass_synth_2: { name: "Synth Brass 2" },
 
-  /* 64-71 : Reed */
   reed_sax_soprano: { name: "Soprano Sax" },
   reed_sax_alto: { name: "Alto Sax" },
   reed_sax_tenor: { name: "Tenor Sax" },
@@ -104,7 +94,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   reed_bassoon: { name: "Bassoon" },
   reed_clarinet: { name: "Clarinet" },
 
-  /* 72-79 : Pipe */
   pipe_piccolo: { name: "Piccolo" },
   pipe_flute: { name: "Flute" },
   pipe_recorder: { name: "Recorder" },
@@ -114,7 +103,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   pipe_whistle: { name: "Whistle" },
   pipe_ocarina: { name: "Ocarina" },
 
-  /* 80-87 : Synth Lead */
   lead_square: { name: "Lead 1 (square)" },
   lead_sawtooth: { name: "Lead 2 (sawtooth)" },
   lead_wind: { name: "Lead 3 (wind)" },
@@ -124,7 +112,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   lead_fifths: { name: "Lead 7 (fifths)" },
   lead_bass: { name: "Lead 8 (bass)" },
 
-  /* 88-95 : Synth Pad */
   pad_bell: { name: "Pad 1 (bell)" },
   pad_warm: { name: "Pad 2 (warm)" },
   pad_poly: { name: "Pad 3 (poly)" },
@@ -134,7 +121,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   pad_halo: { name: "Pad 7 (halo)" },
   pad_sweep: { name: "Pad 8 (sweep)" },
 
-  /* 96-103 : Synth Effects */
   fx_rain: { name: "FX 1 (rain)" },
   fx_soundtrack: { name: "FX 2 (soundtrack)" },
   fx_crystal: { name: "FX 3 (crystal)" },
@@ -144,7 +130,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   fx_echoes: { name: "FX 7 (echoes)" },
   fx_scifi: { name: "FX 8 (sci-fi)" },
 
-  /* 104-111 : Ethnic */
   ethnic_sitar: { name: "Sitar" },
   ethnic_banjo: { name: "Banjo" },
   ethnic_shamisen: { name: "Shamisen" },
@@ -154,7 +139,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   ethnic_fiddle: { name: "Fiddle" },
   ethnic_shanai: { name: "Shanai" },
 
-  /* 112-119 : Percussive */
   achromatic_bell_tinkle: { name: "Tinkle Bell" },
   achromatic_bell_agogo: { name: "Agogô" },
   achromatic_drum_steel: { name: "Steel Drums" },
@@ -164,7 +148,6 @@ const MIDI_POLYPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
   achromatic_drum_synth: { name: "Synth Drum" },
   achromatic_cymbal: { name: "Reverse Cymbal" },
 
-  /* 120-127 : Sound Effects */
   sfx_fret: { name: "Guitar Fret Noise" },
   sfx_breath: { name: "Breath Noise" },
   sfx_seashore: { name: "Seashore" },
