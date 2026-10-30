@@ -452,6 +452,7 @@ export class ProgramStory implements StoryEngine {
       !this._declarationsClean ||
       root.generation !== before.generation ||
       !sameChunks(before.initialization, root.initialization) ||
+      !before.tables?.luauEntry !== !root.tables?.luauEntry ||
       !sameNames(before.tables?.constantNames, root.tables?.constantNames)
     ) {
       return null;

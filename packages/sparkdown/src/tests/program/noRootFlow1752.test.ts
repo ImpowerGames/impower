@@ -100,6 +100,67 @@ describe("a program compiled from a .luau file runs nothing (I-1752)", () => {
     expect(story.canContinue).toBe(false);
   });
 
+  describe("when one compiler compiles a .luau entry and a .sd entry in turn", () => {
+    const SHARED = "store m = 2\n\nscene start\n  Value {m}.\n  done\nend\n";
+    const compilerOf = (scripts: Record<string, string>) => {
+      const compiler = testCompiler();
+      compiler.configure({
+        files: Object.entries(scripts).map(([fileUri, fileText]) => ({
+          uri: fileUri,
+          type: "script",
+          name: fileUri.slice(fileUri.lastIndexOf("/") + 1).replace(/\.[^.]+$/, ""),
+          ext: fileUri.endsWith(".luau") ? "luau" : "sd",
+          text: fileText,
+          version: 1,
+          languageId: "sparkdown",
+        })),
+      } as never);
+      return (uri: string) => {
+        const program = (compiler.compile({ textDocument: { uri } } as never) as any).program;
+        const errors = Object.values(program.diagnostics ?? {})
+          .flat()
+          .filter((d: any) => d.severity === DiagnosticSeverity.Error)
+          .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
+        return { program, errors };
+      };
+    };
+    const scripts = {
+      "inmemory:///entry.luau": "",
+      "inmemory:///entry.sd": "",
+      "inmemory:///shared.sd": SHARED,
+    };
+
+    it("carries no declarations from the .luau entry's story to the .sd entry's", () => {
+      const compileEntry = compilerOf(scripts);
+      const luau = compileEntry("inmemory:///entry.luau").program;
+      const sd = compileEntry("inmemory:///entry.sd").program;
+      const before = testStory(luau.chunks);
+      expect(before.declarationsFor(sd.chunks)).toBeNull();
+      expect(sd.changes?.chunks?.initializers).toBe(true);
+      expect(testStory(sd.chunks).Continue()?.trim()).toBe("Value 2.");
+    });
+
+    it("carries no declarations from the .sd entry's story to the .luau entry's", () => {
+      const compileEntry = compilerOf(scripts);
+      const sd = compileEntry("inmemory:///entry.sd").program;
+      const luau = compileEntry("inmemory:///entry.luau").program;
+      const before = testStory(sd.chunks);
+      expect(before.declarationsFor(luau.chunks)).toBeNull();
+      expect(luau.changes?.chunks?.initializers).toBe(true);
+    });
+
+    it("checks the declarations again for the .sd entry", () => {
+      const compileEntry = compilerOf({
+        ...scripts,
+        "inmemory:///shared.sd": 'run "helper"\n\nscene start\n  Hello.\n  done\nend\n',
+        "inmemory:///helper.luau": "missing()\n",
+      });
+      expect(compileEntry("inmemory:///entry.luau").errors).toEqual([]);
+      const errors = compileEntry("inmemory:///entry.sd").errors;
+      expect(errors.some((e: string) => e.includes("missing"))).toBe(true);
+    });
+  });
+
   it("still runs a .luau file a run line loads", () => {
     const { program, errors } = compile(
       "inmemory:///main.sd",

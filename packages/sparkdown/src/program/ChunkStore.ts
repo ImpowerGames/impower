@@ -807,7 +807,8 @@ export class ChunkStore {
       !previous ||
       declarationsEmitted ||
       !sameChunks(oldDeclarations, declarationChunks) ||
-      functionsChanged;
+      functionsChanged ||
+      !previous.tables?.luauEntry !== !tables?.luauEntry;
     const definitions = this.definitionArrays(
       flows,
       symbols,
