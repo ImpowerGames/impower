@@ -1,6 +1,7 @@
+import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
-import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI } from "./playerHarness";
+import { describe, expect, it, vi } from "vitest";
+import { createPlayerHarness, holdFirstInit, MAIN_URI, settle } from "./playerHarness";
 
 const START = "scene start\n  Hello.\nend\n";
 
@@ -9,7 +10,11 @@ const harness = async () => {
     files: [{ uri: MAIN_URI, text: START }],
     startFrom: { file: MAIN_URI, line: 1 },
   });
-  h.refs.playButton = h.overlay.ownerDocument.createElement("div");
+  h.refs.playButton = Object.assign(h.overlay.ownerDocument.createElement("div"), {
+    getAnimations: () => [],
+  });
+  const win = h.overlay.ownerDocument.defaultView as any;
+  win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   return h;
 };
 
@@ -100,6 +105,72 @@ describe("PLAY in the player while the story has no start scene", { timeout: 120
       await h.compile();
       expect(button(h)).toEqual({ title: null, disabled: null });
       expect(await h.controller.startGameAndApp()).toBe(true);
+    } finally {
+      h.dispose();
+    }
+  });
+});
+
+describe("the player's start and restart gate while the story has no start scene", { timeout: 120000 }, () => {
+  const NO_START = "scene other\n  Other.\nend\n";
+
+  const exits = (h: Awaited<ReturnType<typeof harness>>) =>
+    h.toEditor.filter((m: unknown) => GameExitedMessage.type.isNotification(m));
+
+  const playing = async () => {
+    const h = await harness();
+    await h.compile();
+    expect(await h.controller.startGameAndApp()).toBe(true);
+    expect(h.controller.playing).toBe(true);
+    return h;
+  };
+
+  it("ends the running game and tells the host when the story's automatic restart is refused", async () => {
+    const h = await playing();
+    try {
+      await h.edit([{ text: NO_START }]);
+      const result = await h.compile();
+      expect(result.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
+      await vi.waitFor(() => expect(exits(h)).toHaveLength(1), { timeout: 15000 });
+      expect(exits(h)[0]?.params.reason).toBe("invalidated");
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("answers RestartGame with the refusal and tells the host the game ended", async () => {
+    const h = await playing();
+    try {
+      h.controller.scheduleRestartGame = () => {};
+      await h.edit([{ text: NO_START }]);
+      await h.compile();
+      expect(
+        await within(h.controller.handleRestartGame({ id: 7, params: {} })),
+      ).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
+      expect(exits(h)).toHaveLength(1);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("refuses a start still under way when the refusal arrives, rather than playing the story before it", async () => {
+    const h = await harness();
+    try {
+      await h.compile();
+      await settle(20);
+      const { release } = holdFirstInit(h);
+      const starting = within(h.controller.handleStartGame({ id: 8, params: {} }));
+      await settle(40);
+      await h.edit([{ text: NO_STORY }]);
+      const result = await h.compile();
+      expect(result.program.runnable).toBe(false);
+      expect(result.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
+      release();
+      expect(await starting).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
+      await settle(40);
+      expect(h.controller.playing).toBe(false);
     } finally {
       h.dispose();
     }

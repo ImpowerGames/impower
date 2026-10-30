@@ -480,6 +480,9 @@ export class GamePlayerController {
     this._playRefusal = refusal;
     if (refusal) {
       this._resolveLoadingInitialProgram();
+      if (this._workerPlay && !this._workerPlay.startSent) {
+        this.stopGame("invalidated").catch((e) => reportUnlessRestarted(e));
+      }
     }
     const button = this.refs.playButton;
     if (!button) {
@@ -1607,8 +1610,13 @@ export class GamePlayerController {
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    await this.restartGame();
-    return RestartGameMessage.type.response(message.id, {});
+    const restarted = await this.restartGame();
+    return restarted || !this._playRefusal
+      ? RestartGameMessage.type.response(message.id, {})
+      : RestartGameMessage.type.error(message.id, {
+          code: 1,
+          message: this._playRefusal,
+        });
   };
 
   protected async tellWorkerPlay<M extends string, P, R>(
@@ -2449,18 +2457,30 @@ export class GamePlayerController {
   async restartGame(): Promise<boolean> {
     const stops = this._stops;
     const plays = this._plays;
+    const wasPlaying = this.playing;
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
       return false;
     }
     const restarted = plays + 1;
     await this.startGameAndApp(true);
-    return (
+    if (
       stops === this._stops &&
       restarted === this._plays &&
       this._mounted &&
       this.playing
-    );
+    ) {
+      return true;
+    }
+    if (
+      wasPlaying &&
+      this._playRefusal &&
+      stops === this._stops &&
+      this._mounted
+    ) {
+      await this.stopGame("invalidated");
+    }
+    return false;
   }
 
   protected _restartGameTimeout?: ReturnType<typeof setTimeout>;
