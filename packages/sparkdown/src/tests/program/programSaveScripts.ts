@@ -1,9 +1,3 @@
-// Scripts the save tests share with the process that writes a save for them
-// (`programSaveWriter.ts`).
-
-/** A tunnel's frame, called from a loop's body, whose owner inlines a
- *  constant: a position a save names is in the loop's body, and the frame
- *  returns inside the tunnel statement's code. */
 export const LOOP_TUNNEL_SCRIPT = [
   "const K = 1",
   "store total = 0",
@@ -30,5 +24,4 @@ export const LOOP_TUNNEL_SCRIPT = [
   "",
 ].join("\n");
 
-/** The marker the writer prints its save after. */
 export const SAVE_MARKER = "SAVE:";

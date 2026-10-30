@@ -7,15 +7,12 @@ import {
 import type { File } from "../../compiler/types/File";
 import { buildSVGSource } from "../../compiler/utils/buildSVGSource";
 
-/** Workspace-owned cache. Only one current signature per file is retained. */
 export class ImageVocabularyCache {
   private entries = new Map<string, { signature: string; vocabulary: AttributeVocabulary }>();
 
   prepare(file: File): File {
     if (file.type !== "image" || file.ext.toLowerCase() !== "svg" || file.text == null) return file;
     const text = normalizeSVGAttributeNames(file.text);
-    // Hosts normally supply mtime as version. The content hash also protects
-    // callers without one and edits whose filesystem timestamp is unchanged.
     let hash = 2166136261;
     for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
     const signature = `${attributeVocabularyCacheKey(file.uri, file.version ?? 0, text.length)}:${hash >>> 0}`;
@@ -39,7 +36,6 @@ export class ImageVocabularyCache {
   }
 }
 
-/** The compiler receives metadata; only hosts needing inline previews send art. */
 export const imageFileForCompiler = (file: File, stripImageData = false): File => {
   if (!stripImageData || file.type !== "image") return file;
   const copy = { ...file };

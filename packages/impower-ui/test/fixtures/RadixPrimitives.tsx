@@ -1,18 +1,9 @@
-// One server-rendered component per Radix primitive impower-ui depends on
-// (Dialog, DropdownMenu, Select, Tabs, Tooltip). impower-dev's
-// test/build/radixSsr.test.ts loads this module through the dev server's
-// ssrLoadModule with the dev server's own resolve and ssr configuration, so a
-// dependency change that breaks the server render of any of them fails there.
-// It lives in impower-ui so its Radix imports resolve from the package that
-// declares them, as the editor's own Radix imports do.
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Select from "@radix-ui/react-select";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Tooltip from "@radix-ui/react-tooltip";
 
-// A portal-mounted dialog: Radix renders a portal only once mounted, so the
-// server markup is the trigger alone.
 export function PortalDialog() {
   return (
     <Dialog.Root>
@@ -28,8 +19,6 @@ export function PortalDialog() {
   );
 }
 
-// An open dialog rendered in place, so its content (focus scope, dismissable
-// layer, scroll lock and aria-hidden helpers included) renders on the server.
 export function OpenDialog() {
   return (
     <Dialog.Root defaultOpen>

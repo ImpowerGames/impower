@@ -1,8 +1,3 @@
-// What compilation emits for morphs: each declaration's recipe once, and a
-// compact reference for every image variant a morph plays on. Nothing here
-// reads geometry, so it works the same whether or not the program carries
-// SVG source; the bake that needs the source happens later, on the host.
-
 import {
   bindMorph,
   bindVariant,
@@ -19,8 +14,6 @@ import { MORPH_BAKE_FORMAT, type MorphProgramChannel, type MorphRef } from "./ty
 
 type Context = { [type: string]: { [name: string]: any } };
 
-// Hashing inline artwork is the one cost here that grows with art size, so
-// each root image's hash is kept until its data changes.
 const dataHashes = new WeakMap<object, { data: string; hash: string }>();
 const sourceToken = (image: any): string | undefined => {
   const data = image?.data;
@@ -39,7 +32,6 @@ const canonicalSelection = (selection: Record<string, string>): string =>
   serializeImageFilterParam(selection) ??
   JSON.stringify(Object.fromEntries(Object.entries(selection).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
 
-/** The reference for one active variant, or undefined when the art has no source. */
 function makeRef(
   morph: string,
   recipeText: string,
@@ -53,8 +45,6 @@ function makeRef(
   const canonical = canonicalSelection(selection);
   const key = hashText(JSON.stringify([MORPH_BAKE_FORMAT, token, canonical, recipeText]));
   const ref: MorphRef = { morph, key, image: imageName, selection: canonical, groups };
-  // Without inline source the asset service bakes, at the same URL it
-  // filters this variant at, with the recipe and identity added.
   if (!image?.data) {
     const filtered = buildFilteredSrc(image, selection);
     if (filtered?.includes("attributes=")) {
@@ -64,10 +54,6 @@ function makeRef(
   return ref;
 }
 
-/**
- * The morph channel for a program: `morphs` maps each declaration's name to
- * its effective struct (builtin defaults, ancestors, own body).
- */
 export function buildMorphChannel(
   context: Context,
   morphs: ReadonlyMap<string, Record<string, unknown>>,
@@ -81,7 +67,6 @@ export function buildMorphChannel(
     const binding = bindMorph(context, effective, images);
     const groups = [...binding.requirements.groups.keys()];
     for (const candidate of binding.candidates) {
-      // Only drawn SVG art has geometry to bake.
       if (!candidate.compatible || candidate.type !== "image") continue;
       const image = own(context["image"], candidate.image);
       for (const variant of candidate.variants) {
@@ -94,11 +79,6 @@ export function buildMorphChannel(
   return channel;
 }
 
-/**
- * The references for any image struct: those compiled for it, or, for a
- * variant no script names yet (a completion candidate), the ones the same
- * binding rules give it.
- */
 export function morphRefsForStruct(
   context: Context | undefined,
   channel: MorphProgramChannel | undefined,

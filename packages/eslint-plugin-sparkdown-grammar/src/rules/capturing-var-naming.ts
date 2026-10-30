@@ -1,15 +1,3 @@
-// Rule: any `variables:` entry whose resolved pattern (after every
-// `{{NAME}}` reference is substituted) contains an unescaped *capturing*
-// group must be named with the underscore-wrapped convention `_NAME_`.
-// Mirrors the build-time check in
-// `definitions/src/language.ts > updateGrammarVariables`, which counts
-// captures in resolved values, so authors see the violation while editing
-// instead of at build time. A variable that only references a capturing
-// variable inherits its captures and must be underscore-wrapped too. See
-// GRAMMAR.md §7.4 for why the convention matters: the underscores
-// visually flag at every use site that the variable adds capture
-// indices to the host rule's regex.
-
 import type { Rule } from "eslint";
 import {
   isMapping,
@@ -21,11 +9,6 @@ import {
   type YAMLPair,
 } from "../utils/yaml-ast.ts";
 
-// Counts unescaped capturing groups in a regex source string. Same
-// definition as `countCapturingGroups` in definitions/src/language.ts:
-// `(` is a capture unless preceded by `\`, inside a `[...]` class, or
-// followed by `?:` / `?=` / `?!` / `?<=` / `?<!`. Named captures
-// `(?<name>...)` / `(?P<name>...)` DO count.
 function countCapturingGroups(pattern: string): number {
   let count = 0;
   let inCharClass = false;
@@ -56,10 +39,8 @@ function countCapturingGroups(pattern: string): number {
         after === "!" ||
         (after === "<" && (pattern[i + 3] === "=" || pattern[i + 3] === "!"))
       ) {
-        // Non-capturing or lookbehind — skip.
         continue;
       }
-      // `(?<name>` and `(?P<name>` — named captures, count.
       if (after === "<") {
         count++;
         continue;
@@ -68,7 +49,6 @@ function countCapturingGroups(pattern: string): number {
         count++;
         continue;
       }
-      // Unknown `(?...)` — conservatively count as capturing.
       count++;
     }
   }
@@ -77,9 +57,6 @@ function countCapturingGroups(pattern: string): number {
 
 const TOKEN_REGEX = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-// Raw values of every entry in a `variables:` mapping. A sequence gets the
-// build's `\b(?:a|b)\b` wrapping, keeping its entries' text: the wrapper
-// adds no capture, but an entry may hold one.
 function rawVariables(mapping: YAMLMapping): Map<string, string> {
   const raw = new Map<string, string>();
   for (const pair of mapping.pairs) {
@@ -98,8 +75,6 @@ function rawVariables(mapping: YAMLMapping): Map<string, string> {
   return raw;
 }
 
-// Substitutes references recursively. Undefined names and cycles are left
-// as literal tokens (the build reports those), and tokens hold no `(`.
 function resolve(
   name: string,
   raw: Map<string, string>,
@@ -154,8 +129,6 @@ const rule: Rule.RuleModule = {
         const name = scalarKey(pair);
         if (!name) return;
 
-        // A string or a sequence (auto-wrapped by the build to
-        // `\b(?:a|b|c)\b`) counts the captures in its resolved value.
         const value = pair.value as YAMLNode | null;
         if (
           !isSequence(value) &&
@@ -171,7 +144,6 @@ const rule: Rule.RuleModule = {
         const rawPattern = resolve(name, cache.raw, cache.memo, new Set());
 
         const captures = countCapturingGroups(rawPattern);
-        // The same test as the build's, so `_` and `__` count as wrapped.
         const isUnderscoreWrapped = name.startsWith("_") && name.endsWith("_");
 
         if (captures > 0 && !isUnderscoreWrapped) {

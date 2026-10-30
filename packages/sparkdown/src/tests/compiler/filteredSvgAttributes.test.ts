@@ -30,7 +30,6 @@ describe("attribute selection route", () => {
   it("round trips group names that are also Object properties safely", () => {
     const selection = JSON.parse('{"constructor":"on","__proto__":"off"}');
     const param = serializeImageFilterParam(selection);
-    // Invalid grammar is rejected; prototype properties must never leak into a selection.
     expect(param).toBeUndefined();
     expect({}.hasOwnProperty("polluted")).toBe(false);
   });

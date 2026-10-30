@@ -1,12 +1,3 @@
-// A bare Luau `return` ends before a keyword that closes its block on the same
-// line (`end`, `else`, `elseif`, `until`), as Luau reads it, so the syntax
-// tree holds no unfinished return and the keyword is left to its block.
-//
-// The same end pattern of `LuauReturnStatement` is also pinned by
-// `luau-conformance/ReturnValueNextLine.test.ts` (a value or block end on the
-// line after `return`) and `compiler/returnBeforeProse.test.ts` (a narrative
-// `return` ends at its line).
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "../luau-conformance/conformanceTestHarness";
 import { checkLuau, describeDiagnostic } from "../luau-conformance/typecheckTestHarness";

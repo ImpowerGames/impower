@@ -6,9 +6,6 @@ const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
 };
 
-/**
- * Circles are basic surfaces for styling and laying out content.
- */
 export default class Circle extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

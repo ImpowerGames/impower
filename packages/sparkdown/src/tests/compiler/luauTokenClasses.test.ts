@@ -1,10 +1,3 @@
-// The grammar's Luau token classes agree with Luau's lexer (#1906, slice S2
-// of #1904): `end`, `else`, `elseif` and `until` are read only as the closers
-// of their blocks, a reserved word is never a name, a structural word
-// (`style`, `match`, `queue`, `continue` and the rest) opens its construct
-// only in its shape and is a name elsewhere, a name ends where both engines
-// agree, `require` is the global function it is, and an `=` that ends its
-// line in Luau code reads its value from the next line.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { beforeAll, describe, expect, test, vi } from "vitest";
@@ -40,7 +33,6 @@ const run = (text: string) => {
   return { errors: ctx.errorMessages, warnings: ctx.warningMessages, output: ctx.story.ContinueMaximally() };
 };
 
-/** The parser's empty-match warnings while it reads `text`. */
 const parserWarnings = (text: string): string[] => {
   const warnings: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
@@ -61,7 +53,6 @@ beforeAll(async () => {
   await onig.loadWASM(readFileSync(require.resolve("vscode-oniguruma/release/onig.wasm")));
 });
 
-/** The official parser's errors for some Luau, ranged as the compile ranges its own. */
 const officialErrors = (luau: string): string[] =>
   official(luau)
     .diagnostics.map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`)
@@ -69,10 +60,6 @@ const officialErrors = (luau: string): string[] =>
 
 describe("closers close blocks and nothing else", () => {
   test("no expression or statement rule of a Luau body begins at `end`, `else`, `elseif` or `until`", () => {
-    // The rules a Luau body or expression tries at a token: those reached
-    // through rules that only list others, never those inside a rule that
-    // opened. Each is tried where the tree engine tries it, sticky at the
-    // closer.
     const tried = new Set<string>();
     const visit = (name: string) => {
       const rule = repository[name];
@@ -164,8 +151,6 @@ describe("closers close blocks and nothing else", () => {
     }
   });
 
-  // A function body takes its own `end` and no other closer, so one it does
-  // not own stays in it instead of closing the outermost function.
   test("a closer no block of a function owns is Luau's error, and the function keeps its end", () => {
     for (const source of [
       "function f()\n  until true\nend\n",
@@ -177,10 +162,6 @@ describe("closers close blocks and nothing else", () => {
     }
   });
 
-  // A block closes before the closer it does not own, so the `end` written
-  // for the block is the function's, and the function's own `end` closes
-  // nothing: Sparkdown reports it (#774), past the first error, where Luau's
-  // parser has stopped.
   test("a closer in a block leaves the function's own `end` at the top level", () => {
     for (const source of [
       "function f()\n  do\n    until true\n  end\nend\n",
@@ -194,13 +175,9 @@ describe("closers close blocks and nothing else", () => {
 });
 
 describe("a reserved word is never a name", () => {
-  // Luau's reserved words. `continue` is not one: Luau reads it as a keyword
-  // only where a statement begins.
   const RESERVED = ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"];
-  // The identifier class, as the grammar spells it in a rule that is only it.
   const identifier = repository["LuauAlternatorAssignmentName"]!.match!;
 
-  /** The length of the identifier at the start of `text` in each engine, or null. */
   const read = (text: string) => {
     const sticky = new RegExp(identifier, "muy");
     const tree = sticky.exec(text)?.[0].length ?? null;
@@ -255,8 +232,6 @@ describe("a reserved word is never a name", () => {
     expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauDefineKeywordKey/);
   });
 
-  // Luau reads a reserved word written right after a `.` as the member's
-  // name, in error, so a closer there closes nothing.
   test.each(["function f(t)\n  local x = t.end\nend\n", "function f(t)\n  return t.until\nend\n"])(
     "a reserved word right after a `.` is the member, with Luau's error: %j",
     (source) => {
@@ -307,7 +282,6 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\n" });
   });
 
-  // `store style` and the other builtin type roots are #453.
   test.each(["hp", "match", "plural", "queue", "cycle", "chain", "shuffle", "continue", "layout"])("a store named %s is read in interpolation", (word) => {
     expect(run(`store ${word} = 1\n\nscene start\n  You have {${word}} left.\nend\n`)).toMatchObject({ errors: [], output: "You have 1 left.\n" });
   });
@@ -322,8 +296,6 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(run(source)).toMatchObject({ errors: [], output: "Value 2 4.\n" });
   });
 
-  // An arm separator later on the line opens nothing when the word goes on
-  // as a name: into an operator, a separator or a cast.
   test.each([
     ["queue", 'local s = queue .. "a|b"', "qa|b"],
     ["cycle", 'local s = tostring(cycle) .. "|"', "q|"],
@@ -336,7 +308,6 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
   });
 
-  // A `|` inside a string is not an arm's.
   test.each([
     ['queue("a|b")', "a|b"],
     ['queue "a|b"', "a|b"],
@@ -348,11 +319,9 @@ describe("a structural word is a name outside its shape (#984)", () => {
   ])("a call %s with a `|` in its string is a call", (call, value) => {
     const source = `scene start\n  Value {f()}.\nend\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
-    // The word's rule holds no arms, so it names a value (I-1310).
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorArms \[/);
   });
 
-  // The long string is the alternator's head, an error that runs as no head (I-1446).
   test.each(['{cycle [===[a]===] | "b" end}', '{cycle [====[a]====] | "b" end}'])("an inline alternator whose head is a long string still alternates: %s", (alternator) => {
     expect(run(`scene start\n  Value ${alternator}.\nend\n`)).toEqual({
       errors: ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"],
@@ -363,8 +332,6 @@ describe("a structural word is a name outside its shape (#984)", () => {
 
   test.each(["queue -- note", "shuffle cycle --[[ note ]]"])("a block-form head %j with a comment after it still opens its block", (head) => {
     const source = `function f()\n  ${head}\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nscene start\n  Value {f()}.\nend\n`;
-    // One arm's call runs, writing its number before the line (I-1397); a
-    // shuffle may take either arm.
     expect(run(source)).toMatchObject({ errors: [], output: expect.stringMatching(/^Value [12]3\.\n$/) });
     expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauSequentialAlternatorLineStart \[/);
     expect(stripAnsi(dumpTree(source))).toMatch(/─ LuauAlternatorArms \[/);
@@ -375,21 +342,14 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 5.\n" });
   });
 
-  // The operation holds the line break after an `=` with no value on its
-  // line, so it decides nothing from the comment's text, and it ends at a
-  // later line's first token wherever it stands. A narrative statement has
-  // no such scope and ends at its line.
   test("the scope opened at an `=` ends at a later line's first token in define bodies, and narrative statements end at their line", () => {
     const tree = (source: string) => stripAnsi(dumpTree(source));
-    // A narrative reassignment with no value leaves the next line to the story.
     expect(tree("scene A\n  y = -- note\n  Hello there.\nend\n")).toMatch(/─ ActionLineEnd \[/);
-    // A define property whose value begins the next line keeps it.
     expect(run("define cfg with\n  sameLine = if true then 10 else 0\n  nextLine =\n    if true then 10 else 0\nend\nscene start\n  Values {cfg.sameLine} {cfg.nextLine}.\nend\n")).toEqual({
       errors: [],
       warnings: [],
       output: "Values 10 10.\n",
     });
-    // A define property with no value leaves the `end` to the define.
     expect(tree("define cfg with\n  name =\nend\n")).toMatch(/LuauDefine_end \[\d+\.\.\d+\]/);
     expect(tree("define cfg with\n  name =\nend\n")).not.toMatch(/ERROR_INCOMPLETE/);
   });
@@ -416,7 +376,6 @@ describe("a structural word is a name outside its shape (#984)", () => {
     expect(tree("Hi {cycle \"a\" | \"b\" end}.\n")).toMatch(/─ LuauSequentialAlternatorBlock \[/);
     expect(tree("function f()\n  queue\n    | print(1)\n    | print(2)\n  end\nend\n")).toMatch(/─ LuauSequentialAlternatorLineStart \[/);
     expect(tree("function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n")).toMatch(/─ LuauConditionalAlternatorLineStart \[/);
-    // Each holds its arms, which make it an alternator (I-1310).
     for (const source of ["Hi {match x|1 = \"a\"|2 = \"b\"}.\n", "Hi {cycle \"a\" | \"b\" end}.\n", "function f(n)\n  match n\n    | 1 = print(1)\n  end\nend\n"]) {
       expect(tree(source)).toMatch(/─ LuauAlternatorArms \[/);
     }
@@ -474,7 +433,6 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 0\n" });
   });
 
-  // A comment that ends the `=`'s line leaves the value on the next line.
   test.each([
     ["a line comment", "local x = -- note\n    if c then 1 else 2"],
     ["a block comment", "local x = --[[ note ]]\n    if c then 1 else 2"],
@@ -490,12 +448,6 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
   });
 });
 
-// A narrative declaration or reassignment ends at its line, so an `=` that
-// ends it is missing its value there, whatever the next lines hold; only
-// Luau bodies read a value from a later line. A block comment carrying a
-// narrative statement on is #1907's.
-// The statement's Luau meets its end of input at the line's end, as an `&`
-// line's does, so the value is missing there, at `<eof>` (#1907).
 describe("a narrative `=` that ends its line has no value (#1906)", () => {
   test.each([
     ["declaration", "store q =\n--[[ a\nb\n]] l\nAfter.\n", "0:9-1:0"],
@@ -509,7 +461,6 @@ describe("a narrative `=` that ends its line has no value (#1906)", () => {
     ["reassignment", "store y = 0\nscene start\n  y =\n  if true then\n    Inside.\n  end\n  After.\nend\n", "2:5-3:0"],
   ])("a %s before an if line ends at its line", (_kind, source, at) => {
     expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got <eof>`]);
-    // The `if` line is a narrative if block, and no statement crosses into it.
     const ifAt = source.lastIndexOf("\n", source.indexOf("if true")) + 1;
     const top = stripAnsi(dumpTree(source))
       .split("\n")

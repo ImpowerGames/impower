@@ -1,18 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Each script is a fixture body; the harness wraps it in
-// `function run() ... end`, installs the `<fixture>:<line>: ` error
-// formatter, and reports a failed `assert` as a runtime error.
 const passes = (source: string, name = "repro.luau") => {
   const r = runConformanceSource(source, undefined, name);
   expect(r.errorMessages.join("\n")).toBe("");
   expect(r.returnedOK).toBe(true);
 };
 
-// `check(f, want)` runs `f` under pcall and compares `ok|v` with `want`,
-// an error message read without its `<fixture>:<line>: ` prefix, and
-// `done()` reports every mismatch at once.
 const CHECK = `local bad = {}
 local function check(f, want)
   local ok, v = pcall(f)
@@ -29,8 +23,6 @@ local function done()
 end
 `;
 
-// I-1413: binary operators follow Luau's rules for operands of
-// different types instead of casting them to one type, as ink does.
 describe("mixed-type binary operators", () => {
   test("equality of different types is false and never raises", () => {
     passes(`${CHECK}
@@ -100,8 +92,6 @@ check(function() return "x" .. 2 end, "true|x2")
 done()`);
   });
 
-  // A float operand made a one-argument builtin's boolean result the
-  // float 0 or 1, which only equality's cast hid.
   test("a builtin predicate on a float returns a boolean", () => {
     passes(`${CHECK}
 check(function() return math.isnan(math.huge) == false end, "true|true")
@@ -134,8 +124,6 @@ check(function() return a < 1 end, "false|attempt to compare table < number")
 done()`);
   });
 
-  // A table and a userdata are both ObjectValues in the runtime, but two
-  // Luau types: a comparison handler they share never runs between them.
   test("a table and a userdata sharing comparison handlers stay apart", () => {
     passes(`${CHECK}
 local u = newproxy(true)

@@ -1,21 +1,8 @@
-// Sparkdown-specific: the rules about conditions and loop ranges
-// (DuplicateCondition, ForRange) read the Luau a script holds outside the
-// units the type checker reads, in Sparkdown's own text and constructs: an
-// interpolation or a call shorthand in a line, a choice or a line inside a
-// narrative `if`, a divert's arguments, an alternator's selector, a Sparkle
-// handler and the statements of its `{ ... }`, and a property's value or a
-// method in a `define`, as the tree
-// lints read them. They also read the condition of a
-// narrative `if` block and the Luau inside it, without comparing its arms'
-// conditions (`LintDuplicateCondition.test.ts`). The rules are implemented
-// in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
 
 const CONDITION_RULES = new Set(["DuplicateCondition", "ForRange"]);
 
-/** The condition and range rules' warnings for a document, as `line:character code`. */
 function conditionLints(source: string): string[] {
   return diagnoseDetailed(source)
     .filter((d) => CONDITION_RULES.has(String(d.code)))
@@ -90,7 +77,6 @@ describe("a narrative if block", () => {
   });
 });
 
-// Sparkdown's own expressions compare as the expressions they stand for.
 describe("Sparkdown's own expressions in a repeated condition", () => {
   test.each([
     ["a double-quoted string that interpolates", "store x = 1\n& print(\"{x}\" or \"{x}\")\n", ["1:17 DuplicateCondition"]],
@@ -106,7 +92,6 @@ describe("Sparkdown's own expressions in a repeated condition", () => {
     expect(conditionLints(source)).toEqual(expected);
   });
 
-  // As in Luau's linter, a chain's operands are not read for chains of their own.
   test("a chain inside another chain's operand", () => {
     expect(conditionLints("store a = true\nstore b = true\n& print(a or tostring(b and b))\n")).toEqual([]);
   });

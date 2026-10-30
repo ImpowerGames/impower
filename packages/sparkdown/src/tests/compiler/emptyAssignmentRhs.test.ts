@@ -1,14 +1,3 @@
-// An empty assignment RHS (`name =` with nothing after the `=`) is a parse
-// error in Luau:
-//
-//   Expected identifier when parsing expression, got 'end'
-//
-// The grammar no longer lets the `=` swallow the next line's `end`
-// (`reproEmptyRhs.test.ts`); this suite verifies the compiler additionally
-// SURFACES the mistake as an Error-severity diagnostic — across define
-// properties, `local`/`store` declarations, and reassignments — so authors
-// get a hint instead of a silently-dropped property.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -67,7 +56,7 @@ end
     expect(diags[0]!.message).toBe(
       "Expected identifier when parsing expression, got 'end'",
     );
-    expect(diags[0]!.severity).toBe(1); // Error
+    expect(diags[0]!.severity).toBe(1);
   });
 
   test("define property followed by another property → got the next prop name", () => {
@@ -129,10 +118,6 @@ end
     expect(emptyRhsDiagnostics(src)).toHaveLength(0);
   });
 
-  // A comment is lexical whitespace to Luau, so an RHS that is ONLY a comment
-  // is still empty — and is the most realistic way to hit this (type a value,
-  // leave a `-- TODO`). The check is tree-based, not raw-text, so the comment
-  // text must not mask the emptiness.
   test("a line comment after `=` does not count as a value (define prop)", () => {
     const src = `define K as character with
   name = -- the king
@@ -173,7 +158,6 @@ end
     expect(emptyRhsDiagnostics(src)).toHaveLength(0);
   });
 
-  // Coverage parity across every path that lowers an assignment RHS.
   test("bare multi-target reassignment (`a, b =`) is flagged", () => {
     const src = `function f
   a, b =
@@ -210,14 +194,6 @@ end
     expect(emptyRhsDiagnostics(src)).toHaveLength(0);
   });
 
-  // Sparkdown assignments are line-bounded (newlines are implicit statement
-  // enders — the same decision that stops `=` from swallowing a later `end`).
-  // So a value on the NEXT line is genuinely NOT bound to the `=`, and the
-  // diagnostic correctly reports the empty RHS at the end of the `=` line,
-  // where the story statement's Luau meets its end of input (#1907). (Real
-  // Luau would accept `x =\n{…}`; authored
-  // Sparkdown always opens the `{`/`(` on the `=` line. This is intentional —
-  // see reproEmptyRhs.test.ts and the grammar comment on LuauAssignmentOperator.)
   test("a value opening on the NEXT line is flagged (line-bounded by design)", () => {
     const src = `store t =
 { a = 1 }
@@ -229,8 +205,6 @@ end
     );
   });
 
-  // A story statement's `<eof>` is its line break (#1907), as the checker
-  // ranges a `local` declaration's: after the trailing spaces.
   test("diagnostic range is the line break after the `=` and its trailing whitespace", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
@@ -257,7 +231,6 @@ end
         ),
       ) as any;
     expect(diag).toBeTruthy();
-    // `store x =   ` ends at character 12; the range runs to the next line.
     expect(diag.range.start).toEqual({ line: 0, character: 12 });
     expect(diag.range.end).toEqual({ line: 1, character: 0 });
   });

@@ -1,18 +1,12 @@
-/****************************** DEFAULT STYLES ******************************/
-
 .screen {
-  /* Controls */
   --theme-color-control-background: var(--theme-color-neutral-20);
   --theme-color-control-border: var(--theme-color-neutral-40);
   --theme-color-control-text: var(--theme-color-neutral-100);
 
-  /* Inputs */
   --theme-color-input-placeholder: var(--theme-color-neutral-70);
 
-  /* Checkboxes */
   --theme-color-checkbox-check: var(--theme-color-neutral-100);
 
-  /* Sliders */
   --theme-color-slider-thumb-background: var(--theme-color-primary-60);
   --theme-color-slider-thumb-border: var(--theme-color-primary-60);
   --theme-color-slider-fill: var(--theme-color-primary-60);
@@ -191,7 +185,7 @@ style {
   border-radius: var(--theme-radius-lg);
   resize: vertical;
   outline: none;
-  resize: none; /* don't allow resizing */
+  resize: none;
   overflow: auto;
   transition:
     border-color 0.2s,

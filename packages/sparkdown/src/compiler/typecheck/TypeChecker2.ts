@@ -1,9 +1,5 @@
 // The strict-mode type checker, ported from Luau's `TypeChecker2.h`/
 // `TypeChecker2.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// It runs after constraint solving and walks the syntax tree, testing each
-// node against the types the solver settled on. It reports most of the errors
-// users see, in the order Luau reports them.
 
 import {
   AstExprBinary,
@@ -164,20 +160,15 @@ import {
 } from "./TypeUtils";
 import { TypeOnceVisitor } from "./VisitType";
 
-/** The reasons a subtyping test failed, worded for an error message. */
 export class Reasonings {
   constructor(
-    /** The list of reasons. */
     public reasons: string[] = [],
-    /** True when all of the reasons have an error-suppressing type, and false otherwise. */
     public suppressed = false,
   ) {}
 
   toString(): string {
     if (this.reasons.length === 0) return "";
 
-    // The reasons come in no meaningful order, so they are sorted to make the
-    // message stable.
     this.reasons.sort(compareNames);
     let allReasons = this.reasons.length < 2 ? "\n" : "\nthis is because ";
     for (const reason of this.reasons) {
@@ -190,12 +181,9 @@ export class Reasonings {
   }
 }
 
-/** The types a property has across the parts of a normalized type. */
 class PropertyTypes {
   constructor(
-    /** The types the parts give the property. */
     readonly typesOfProp: TypeId[],
-    /** The parts that are missing the property. */
     readonly missingProp: TypeId[],
   ) {}
 
@@ -255,7 +243,7 @@ class TypeFunctionFinder extends TypeOnceVisitor {
   mentionedFunctionPacks = new Set<TypePackId>();
 
   constructor() {
-    super("TypeFunctionFinder", /* skipBoundTypes */ true);
+    super("TypeFunctionFinder", true);
   }
 
   override visitType(ty: TypeId, v: TypeVariant): boolean {
@@ -275,10 +263,6 @@ class TypeFunctionFinder extends TypeOnceVisitor {
   }
 }
 
-/**
- * Finds the type function instances over generics that none of the enclosing
- * function signatures mention, which cannot be checked.
- */
 class InternalTypeFunctionFinder extends TypeOnceVisitor {
   internalFunctions = new Set<TypeId>();
   internalPackFunctions = new Set<TypePackId>();
@@ -286,7 +270,7 @@ class InternalTypeFunctionFinder extends TypeOnceVisitor {
   mentionedFunctionPacks: Set<TypePackId>;
 
   constructor(declStack: TypeId[]) {
-    super("InternalTypeFunctionFinder", /* skipBoundTypes */ true);
+    super("InternalTypeFunctionFinder", true);
     const f = new TypeFunctionFinder();
     for (const fn of declStack) f.traverse(fn);
 
@@ -361,7 +345,6 @@ class InternalTypeFunctionFinder extends TypeOnceVisitor {
   }
 }
 
-/** The span from the first node of a list to the last (Luau's `getLocation` of an `AstArray`, from `Ast.h`). */
 function getLocation(array: readonly AstNode[]): Location {
   if (array.length === 0) return new Location();
 
@@ -372,7 +355,6 @@ function asciiToLower(c: number): number {
   return c >= 0x41 && c <= 0x5a ? c + 0x20 : c;
 }
 
-/** Whether two strings are equal but for the case of ASCII letters (Luau's `equalsLower`, from `StringUtils.cpp`). */
 function equalsLower(lhs: string, rhs: string): boolean {
   if (lhs.length !== rhs.length) return false;
 
@@ -383,11 +365,6 @@ function equalsLower(lhs: string, rhs: string): boolean {
   return true;
 }
 
-/**
- * The errors of a subtyping result, moved to a location. Luau moves its own
- * copies of the errors; the result here can share its error objects with the
- * subtyping cache, so they are copied instead of moved in place.
- */
 function atLocation(errors: LuauTypeError[], location: Location): LuauTypeError[] {
   return errors.map((e) => new LuauTypeError(location, e.data, e.moduleName));
 }
@@ -408,29 +385,22 @@ function reportAvailableOverloads(errors: LuauTypeError[], location: Location, m
   errors.push(new LuauTypeError(location, { kind: "ExtraInformation", message: s }, moduleName));
 }
 
-/** Comparisons between disjoint types are usually warned about, but with some exceptions. */
 function isOkToCompare(
   normalizer: Normalizer,
   typesHaveIntersection: NormalizationResult,
   normLeft: NormalizedType | undefined,
   normRight: NormalizedType | undefined,
 ): boolean {
-  // Only types known to be disjoint are warned about. A normalization that
-  // fails here also fails elsewhere, where it is reported.
   if (NormalizationResult.False !== typesHaveIntersection) return true;
 
   if (!normLeft || !normRight) return true;
 
-  // Anything can be compared to nil.
   if (normLeft.isNil() || normRight.isNil()) return true;
-  // A comparison with never is always ok.
   else if (
     NormalizationResult.True !== normalizer.isInhabitedNormal(normLeft) ||
     NormalizationResult.True !== normalizer.isInhabitedNormal(normRight)
   )
     return true;
-  // Different string singletons can be compared even though their
-  // intersection is uninhabited.
   else if (!normLeft.strings.isNever() && !normRight.strings.isNever()) return true;
 
   return false;
@@ -447,11 +417,6 @@ function isComparisonOp(op: BinaryOp): boolean {
   );
 }
 
-/**
- * Whether the return pack indexed at `componentIndex` belongs to the function
- * at the top of the path: every component before the preceding `returns()`
- * must be an index into a union or intersection.
- */
 function isTopLevelReturnIndex(path: Path, componentIndex: number): boolean {
   for (let i = 0; i + 1 < componentIndex; ++i) {
     const index = path.components[i]!;
@@ -460,10 +425,6 @@ function isTopLevelReturnIndex(path: Path, componentIndex: number): boolean {
 
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// The checker
-// ---------------------------------------------------------------------------
 
 export function check(
   builtinTypes: BuiltinTypes,
@@ -488,19 +449,15 @@ export class TypeChecker2 {
   readonly module: Module;
 
   typeContext = TypeContext.Default;
-  /** The scopes of the nodes being checked, innermost last; the checker uses it to know the scope enclosing every node. */
   stack: Scope[] = [];
-  /** The inferred types of the functions being checked, innermost last. */
   functionDeclStack: TypeId[] = [];
 
   seenTypeFunctionInstances = new Set<TypeId>();
-  /** The user-defined type function instances that have reported they cannot be evaluated. */
   reportedUserTypeFunctionInstances = new Set<TypeId>();
 
   readonly normalizer: Normalizer;
   readonly subtyping: Subtyping;
 
-  /** The globals already warned about, which avoids duplicate warnings for the same global. */
   private readonly warnedGlobals = new Set<string>();
 
   constructor(
@@ -516,16 +473,14 @@ export class TypeChecker2 {
     this.limits = limits;
     this.sourceModule = sourceModule;
     this.module = module;
-    this.normalizer = new Normalizer(module.internalTypes, builtinTypes, unifierState, /* cacheInhabitance */ true);
+    this.normalizer = new Normalizer(module.internalTypes, builtinTypes, unifierState, true);
     this.subtyping = new Subtyping(builtinTypes, module.internalTypes, this.normalizer, typeFunctionRuntime);
   }
 
-  /** The innermost scope on the stack (Luau's `stack.back()`). */
   private back(): Scope {
     return this.stack[this.stack.length - 1]!;
   }
 
-  /** Runs `f` with the type context set to `newValue`, then restores the old context (Luau's `InConditionalContext`). */
   private inConditionalContext(f: () => void, newValue = TypeContext.Condition): void {
     const oldValue = this.typeContext;
     this.typeContext = newValue;
@@ -547,8 +502,6 @@ export class TypeChecker2 {
   private static getEndLocation(fn: AstExprFunction): Location {
     let loc = fn.location;
     if (loc.begin.line !== loc.end.line) {
-      // Luau's columns are unsigned, so near the start of a line the
-      // subtraction and the addition wrap around.
       const begin = new Position(loc.end.line, Math.max(0, (loc.end.column - 3) >>> 0));
       loc = new Location(begin, new Position(begin.line, (begin.column + 3) >>> 0));
     }
@@ -556,11 +509,6 @@ export class TypeChecker2 {
     return loc;
   }
 
-  /**
-   * Pushes the scope a node creates, if it creates one, as Luau's
-   * `StackPusher` does; returns whether it pushed, for the caller to pop the
-   * scope when it leaves the node.
-   */
   private pushStack(node: AstNode): boolean {
     const scope = this.module.astScopes.get(node);
     if (scope) {
@@ -578,23 +526,11 @@ export class TypeChecker2 {
     for (const internal of finder.internalPackFunctions) this.reportError({ kind: "PackWhereClauseNeeded", tp: internal }, location);
   }
 
-  /**
-   * `inAnnotation` says the type is where an annotation names it. A
-   * user-defined type function that cannot be evaluated is reported once, at
-   * the annotation whose type is the instance itself: Luau reports it
-   * wherever a type contains the instance, which with a VM happens only when
-   * evaluation itself fails, but Sparkdown has no VM, so every enclosing
-   * annotation, function, call and flow that carries the instance would
-   * repeat it where the author never named it. Every other error is reported
-   * once per instance, as Luau does.
-   */
   private checkForTypeFunctionInhabitance(instance: TypeId, location: Location, inAnnotation = false): TypeId {
     const tfit = inAnnotation ? get(instance, "TypeFunctionInstanceType") : undefined;
     const reportsUserError =
       tfit?.function === this.builtinTypes.typeFunctions.userFunc && !this.reportedUserTypeFunctionInstances.has(instance);
 
-    // An expression that carries the instance may be checked before the
-    // annotation that names it, so the annotation still reports then.
     const firstCheck = !this.seenTypeFunctionInstances.has(instance);
     if (!firstCheck && !reportsUserError) return instance;
     this.seenTypeFunctionInstances.add(instance);
@@ -618,18 +554,12 @@ export class TypeChecker2 {
   }
 
   private lookupPack(expr: AstExpr): TypePackId {
-    // A type missing from the type graph probably means that a recursion limit
-    // was exceeded, and any stands in for it. Checking against any is very
-    // fast, and the checking logic need not think about this case.
     const tp = this.module.astTypePacks.get(expr);
     if (tp) return followPack(tp);
     else return this.builtinTypes.anyTypePack;
   }
 
   private lookupType(expr: AstExpr): TypeId {
-    // A type missing from the type graph probably means that a recursion limit
-    // was exceeded, and any stands in for it. Checking against any is very
-    // fast, and the checking logic need not think about this case.
     const ty = this.module.astTypes.get(expr);
     if (ty) return this.checkForTypeFunctionInhabitance(follow(ty), expr.location);
 
@@ -644,7 +574,7 @@ export class TypeChecker2 {
 
     if (this.module.constraintGenerationDidNotComplete && !ty) return this.builtinTypes.anyType;
 
-    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location, /* inAnnotation */ true);
+    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location, true);
   }
 
   private lookupPackAnnotation(annotation: AstTypePack): TypePackId | undefined {
@@ -698,10 +628,6 @@ export class TypeChecker2 {
     return bestScope;
   }
 
-  // -------------------------------------------------------------------------
-  // Statements
-  // -------------------------------------------------------------------------
-
   private visitStat(stat: AstStat): void {
     const pushed = this.pushStack(stat);
     try {
@@ -709,7 +635,6 @@ export class TypeChecker2 {
       else if (stat instanceof AstStatIf) return this.visitStatIf(stat);
       else if (stat instanceof AstStatWhile) return this.visitStatWhile(stat);
       else if (stat instanceof AstStatRepeat) return this.visitStatRepeat(stat);
-      // There is nothing to check in `break` and `continue`.
       else if (stat instanceof AstStatBreak) return;
       else if (stat instanceof AstStatContinue) return;
       else if (stat instanceof AstStatReturn) return this.visitStatReturn(stat);
@@ -779,12 +704,6 @@ export class TypeChecker2 {
       }
     }
 
-    // This takes apart what constraint generation does to a return statement
-    // such as `return E0, E1, E2, ... , EN`: every expression but the last is
-    // one type, and the last can be a pack when it is a function call or
-    // varargs (`...`). An overflow of values rules out anything interesting
-    // with subtyping. When the last value is not a call or varargs and there
-    // is no overflow, its type is tested against the last type of the head.
     const lastExpr = ret.list[ret.list.length - 1]!;
 
     if (head.length < ret.list.length || lastExpr instanceof AstExprVarargs) {
@@ -804,9 +723,6 @@ export class TypeChecker2 {
       actualHead.push(lastType);
     }
 
-    // After all that, a pack subtype test still decides whether the return
-    // statement is well-formed, but only when every test before it succeeded,
-    // lest it report twice.
     if (isSubtype) {
       const reconstructedRetType = this.module.internalTypes.addTypePack(actualHead, actualTail);
       this.testIsSubtypePack(reconstructedRetType, expectedRetType, ret.location);
@@ -860,14 +776,10 @@ export class TypeChecker2 {
           }
         }
 
-        // `vars.size - i` is unsigned in Luau, so it wraps around to a huge
-        // count when there are more values than variables.
         const remainingVars = local.vars.length >= i ? local.vars.length - i : Number.MAX_SAFE_INTEGER;
         if (valueTypes.head.length < remainingVars) {
           this.reportError(
             countMismatch(
-              // The final expression is not worth 1 value: it is worth 0 or
-              // more, depending on valueTypes.head, so 1 is subtracted.
               local.values.length - 1 + valueTypes.head.length,
               local.vars.length,
               local.values[local.values.length - 1] instanceof AstExprCall
@@ -912,7 +824,6 @@ export class TypeChecker2 {
 
     this.visit(forInStatement.body);
 
-    // Rule out crazy stuff, possible when the file is not syntactically valid.
     if (!forInStatement.vars.length || !forInStatement.values.length) return;
 
     const scope = this.back();
@@ -926,12 +837,9 @@ export class TypeChecker2 {
 
     const firstValue = forInStatement.values[0]!;
 
-    // The iterators and values of the statement, built up into a pack.
     let valueTypes: TypeId[] = [];
     let iteratorTail: TypePackId | undefined;
 
-    // The first value may be the only iterator (when it is a call, for
-    // example), so its pack, when it has one, holds the iterators.
     const retPack = this.module.astTypePacks.get(firstValue);
     if (retPack) {
       const { head, tail } = flatten(retPack);
@@ -941,10 +849,6 @@ export class TypeChecker2 {
       valueTypes.push(this.lookupType(firstValue));
     }
 
-    // When the initial and expected types of the iterator unified during
-    // constraint solving, there is a resolved type to use here, but it is used
-    // only when the iterator is written in the statement or an iterator state
-    // constrains it.
     const resolvedTy = this.module.astForInNextTypes.get(firstValue);
     if (resolvedTy && (!retPack || valueTypes.length > 1)) valueTypes[0] = resolvedTy;
 
@@ -952,17 +856,14 @@ export class TypeChecker2 {
       valueTypes.push(this.lookupType(forInStatement.values[i]!));
     }
 
-    // With more than one value, the tail of the first does not apply.
     if (forInStatement.values.length > 1) {
       const { head, tail } = flatten(this.lookupPack(forInStatement.values[forInStatement.values.length - 1]!));
       valueTypes.push(...head);
       iteratorTail = tail;
     }
 
-    // All together, the pack of the iterators...
     const iteratorPack = arena.addTypePack(valueTypes, iteratorTail);
 
-    // ...expanded out to 3 values, where it can be.
     const iteratorTypes = extendTypePack(arena, this.builtinTypes, iteratorPack, 3);
     if (iteratorTypes.head.length === 0) {
       this.reportError(
@@ -990,7 +891,6 @@ export class TypeChecker2 {
         return;
       }
 
-      // Not every iterator need be used, but the iteratee must provide enough.
       const expectedVariableTypes = extendTypePack(arena, this.builtinTypes, iterFtv.retTypes, variableTypes.length);
       if (expectedVariableTypes.head.length < variableTypes.length) {
         if (isMm) {
@@ -1005,20 +905,10 @@ export class TypeChecker2 {
         return;
       }
 
-      // nextFn is invoked with (arrayTy, startIndexTy): with two arguments on
-      // every iteration but the first, and with 0 or 1 on the first, depending
-      // on the types in iterateePack and so in iteratorTypes.
-
-      // An error type iteratee could have been a table, so nothing more can be
-      // said about iterating over it.
       if (get(follow(this.flattenPack(iterFtv.argTypes)), "ErrorType")) return;
 
-      // A count mismatch is reported when iteratorTypes is too short to be a
-      // valid call to nextFn, or when 2 arguments are too few or too many.
-      const { min: minCount } = getParameterExtents(iterFtv.argTypes, /* includeHiddenVariadics */ true);
+      const { min: minCount } = getParameterExtents(iterFtv.argTypes, true);
 
-      // Luau keeps this extension of the argument types (as `flattenedArgTypes`)
-      // without reading it; the call stays for its effect on a free pack.
       extendTypePack(arena, this.builtinTypes, iterFtv.argTypes, 2);
       const firstIterationArgCount = iterTys.length === 0 ? 0 : iterTys.length - 1;
       const actualArgCount = expectedVariableTypes.head.length;
@@ -1049,7 +939,6 @@ export class TypeChecker2 {
       const iterFunc = follow(iterTys[0]!);
 
       const prospectiveArgTypes = iterTys.slice(1);
-      // Right pad with nils if needed.
       const iterFuncArgs = getPack(followPack(iterFtv.argTypes), "TypePack");
       if (iterFuncArgs && iterFuncArgs.head.length > prospectiveArgTypes.length) {
         while (prospectiveArgTypes.length < iterFuncArgs.head.length) prospectiveArgTypes.push(this.builtinTypes.nilType);
@@ -1057,16 +946,12 @@ export class TypeChecker2 {
       const prospectiveArgs = arena.addTypePack(prospectiveArgTypes);
 
       const prospectiveRetTypes: TypeId[] = [];
-      // Type inference intersects the control variable with ~nil, so it is optional here.
       if (variableTypes.length > 0) prospectiveRetTypes.push(arena.addType(unionType([variableTypes[0]!, this.builtinTypes.nilType])));
       if (variableTypes.length > 1) prospectiveRetTypes.push(variableTypes[1]!);
-      // Right pad with anys, since not every return value is used (as in `for key in pairs(t)`).
       const iterFuncRets = getPack(followPack(iterFtv.retTypes), "TypePack");
       if (iterFuncRets && iterFuncRets.head.length > prospectiveRetTypes.length) {
         while (prospectiveRetTypes.length < iterFuncRets.head.length) prospectiveRetTypes.push(this.builtinTypes.anyType);
       }
-      // A variadic any tail, since iterFunc sometimes returns a variadic pack
-      // (see forin_metatable_iter_mm).
       const prospectiveRets = arena.addTypePack(prospectiveRetTypes, this.builtinTypes.anyTypePack);
 
       const prospectiveFunction = arena.addType(functionType(prospectiveArgs, prospectiveRets, { hasSelf: isMm }));
@@ -1078,20 +963,6 @@ export class TypeChecker2 {
 
     if (!iteratorNorm) this.reportError({ kind: "NormalizationTooComplex" }, firstValue.location);
 
-    /*
-     * When the first iterator argument is a function:
-     *  * There must be 1 to 3 iterator arguments: (nextTy, arrayTy,
-     *    startIndexTy).
-     *  * The return type of nextTy() must correspond to the types and count of
-     *    the variables, although the first iterator is never nil.
-     *  * The first return value of nextTy must be compatible with
-     *    startIndexTy.
-     *  * The first argument to nextTy() must be compatible with arrayTy if
-     *    present, and with nil if not.
-     *  * The second argument to nextTy() must be compatible with startIndexTy
-     *    if it is present, and with nil otherwise.
-     *  * nextTy() must be callable with only 2 arguments.
-     */
     const nextFn = get(iteratorTy, "FunctionType");
     const ttv = get(iteratorTy, "TableType");
     if (nextFn) {
@@ -1104,7 +975,6 @@ export class TypeChecker2 {
         this.reportError({ kind: "GenericError", message: "Cannot iterate over a table without indexer" }, forInStatement.values[0]!.location);
       }
     } else if (get(iteratorTy, "AnyType") || get(iteratorTy, "ErrorType") || get(iteratorTy, "NeverType")) {
-      // Nothing to check.
     } else if (isOptional(iteratorTy) && !(iteratorNorm && iteratorNorm.shouldSuppressErrors())) {
       this.reportError({ kind: "OptionalValueAccess", optional: iteratorTy }, forInStatement.values[0]!.location);
     } else {
@@ -1143,16 +1013,12 @@ export class TypeChecker2 {
               this.reportError({ kind: "UnificationTooComplex" }, forInStatement.values[0]!.location);
             }
           } else if (!this.isErrorSuppressing(forInStatement.values[0]!.location, iterMmTy)) {
-            // This does not tell the user that the error is because the
-            // metamethod is not callable, and it does not handle intersections
-            // of functions or callable tables, which the runtime supports.
             this.reportError({ kind: "CannotCallNonFunction", ty: iterMmTy }, forInStatement.values[0]!.location);
           }
         } else {
           this.reportError({ kind: "UnificationTooComplex" }, forInStatement.values[0]!.location);
         }
       } else if (iteratorNorm && iteratorNorm.hasTables()) {
-        // Ok. All tables can be iterated.
       } else if (!iteratorNorm || !iteratorNorm.shouldSuppressErrors()) {
         this.reportError({ kind: "CannotCallNonFunction", ty: iteratorTy }, forInStatement.values[0]!.location);
       }
@@ -1174,7 +1040,6 @@ export class TypeChecker2 {
       const indexName = lhs;
       const indexedType = this.lookupType(indexName.expr);
 
-      // An indexed type that is already never leaves nothing to do.
       if (get(indexedType, "NeverType")) return;
 
       const prop = indexName.index;
@@ -1185,7 +1050,6 @@ export class TypeChecker2 {
         return;
       }
 
-      // An error-suppressing type leaves no work to do.
       if (norm.shouldSuppressErrors()) return;
 
       const propTypes = this.lookupProp(norm, prop, ValueContext.LValue, lhs.location, this.builtinTypes.stringType, this.module.errors);
@@ -1211,15 +1075,7 @@ export class TypeChecker2 {
         continue;
       }
 
-      // Tables are not type-stated properly, so table types "time travel",
-      // which this takes advantage of for the pattern
-      //
-      //  local t = {}
-      //  t.foo = {} -- The type of the right side is time-warped to `{ bar: {} }`
-      //  t.foo.bar = {}
       if (this.testLiteralOrAstTypeIsSubtype(rhs, lhsType)) {
-        // When the right side is not a subtype of the left, it is not useful
-        // to also report that it is not a subtype of the binding's type.
         const bindingType = this.getBindingType(lhs);
         if (bindingType) this.testLiteralOrAstTypeIsSubtype(rhs, bindingType);
       }
@@ -1245,17 +1101,6 @@ export class TypeChecker2 {
     this.visitExpr(stat.name, ValueContext.LValue);
     this.visitExprFunction(stat.func);
 
-    // In a block of code like
-    //
-    //  type X = { x: (number) -> number }
-    //  function f(t: X)
-    //      function t.x(a: string): string
-    //          return "Hello, " .. a
-    //      end
-    //  end
-    //
-    // the function assigned to `t.x` must have the right type, as when an
-    // expression is assigned to a local.
     const lhsType = this.lookupType(stat.name);
     const rhsType = this.lookupType(stat.func);
     this.testIsSubtype(rhsType, lhsType, stat.func.location);
@@ -1272,8 +1117,6 @@ export class TypeChecker2 {
   }
 
   private visitStatTypeAlias(stat: AstStatTypeAlias): void {
-    // A type alias without a scope is not visited: it is (probably) a
-    // duplicate, or has an illegal name (like `typeof`).
     if (!this.module.astScopes.has(stat)) return;
 
     const scope = this.findInnermostScope(stat.location);
@@ -1304,20 +1147,14 @@ export class TypeChecker2 {
     for (const s of stat.statements) this.visitStat(s);
   }
 
-  // -------------------------------------------------------------------------
-  // Expressions
-  // -------------------------------------------------------------------------
-
   private visitExpr(expr: AstExpr, context: ValueContext): void {
     const pushed = this.pushStack(expr);
     try {
       if (expr instanceof AstExprGroup) return this.visitExprGroup(expr, context);
-      // Luau checks nil and number constants only in assertions.
       else if (expr instanceof AstExprConstantNil) return;
       else if (expr instanceof AstExprConstantBool) return this.visitExprConstantBool(expr);
       else if (expr instanceof AstExprConstantNumber) return;
       else if (expr instanceof AstExprConstantString) return this.visitExprConstantString(expr);
-      // There is nothing to check in a local or in varargs.
       else if (expr instanceof AstExprLocal) return;
       else if (expr instanceof AstExprGlobal) return this.visitExprGlobal(expr);
       else if (expr instanceof AstExprVarargs) return;
@@ -1335,7 +1172,6 @@ export class TypeChecker2 {
       else if (expr instanceof AstExprInstantiate) return this.visitExprInstantiate(expr);
       else if (expr instanceof AstExprInterpString) return this.visitExprInterpString(expr);
       else if (expr instanceof AstExprError) return this.visitExprError(expr);
-      // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
       else if (sparkdownValue(expr)) {
         for (const operand of sparkdownValue(expr)!.operands) this.visitExpr(operand, ValueContext.RValue);
       }
@@ -1349,8 +1185,6 @@ export class TypeChecker2 {
   }
 
   private visitExprConstantBool(expr: AstExprConstantBool): void {
-    // Booleans have their own inference of singleton types, which can lead to
-    // real type errors here.
     const bestType = expr.value ? this.builtinTypes.trueType : this.builtinTypes.falseType;
     const inferredType = this.lookupType(expr);
     const scope = this.findInnermostScope(expr.location);
@@ -1363,8 +1197,6 @@ export class TypeChecker2 {
   }
 
   private visitExprConstantString(expr: AstExprConstantString): void {
-    // Strings have their own inference of singleton types, which can lead to
-    // real type errors here.
     const bestType = this.module.internalTypes.addType(stringSingleton(expr.value));
     const inferredType = this.lookupType(expr);
     const scope = this.findInnermostScope(expr.location);
@@ -1402,7 +1234,6 @@ export class TypeChecker2 {
     if (get(fnTy, "AnyType") || get(fnTy, "ErrorType") || get(fnTy, "NeverType")) return;
     else if (isOptional(fnTy)) {
       const suppression = shouldSuppressErrors(this.normalizer, fnTy);
-      // A failed normalization is reported, and then the optional value access as well.
       if (suppression === ErrorSuppression.NormalizationFailed) this.reportError({ kind: "NormalizationTooComplex" }, call.func.location);
       if (suppression !== ErrorSuppression.Suppress) this.reportError({ kind: "OptionalValueAccess", optional: fnTy }, call.func.location);
       return;
@@ -1434,8 +1265,6 @@ export class TypeChecker2 {
       argExprs.push(indexExpr.expr);
     }
 
-    // Like the bidirectional inference before it, this does not support
-    // overloaded functions or generic types (yet).
     const fty = get(fnTy, "FunctionType");
     if (fty && fty.generics.length === 0 && fty.genericPacks.length === 0 && call.args.length > 0) {
       const selfOffset = call.self ? 1 : 0;
@@ -1453,7 +1282,6 @@ export class TypeChecker2 {
           }
         }
 
-        // The last argument might be an ordinary value, but it can also be an entire pack.
         if (idx === call.args.length - 1) {
           const lastArgPack = this.module.astTypePacks.get(argExpr);
           if (lastArgPack) {
@@ -1524,18 +1352,6 @@ export class TypeChecker2 {
       this.reportError({ kind: "InternalError", message: "Internal error: outstanding free or blocked type in function call" }, call.location);
     }
 
-    /*
-     * One overload that matches leaves nothing to report.
-     *
-     * Two or more overloads that match make the call ambiguous.
-     *
-     * With no overload that matches: when several overloads match the arity
-     * but are nonviable, MultipleNonviableOverloads is reported, with the
-     * overloads of matching arity (error-suppressing overloads are left out
-     * of this); when only one overload matches the arity, its subtyping errors
-     * are reported. When no overload matches the arity, all are listed.
-     */
-
     if (result2.ok.length > 0) {
       if (result2.ok.length > 1) this.reportError({ kind: "AmbiguousFunctionCall", function: fnTy, arguments: argsPack }, call.location);
       return;
@@ -1545,9 +1361,6 @@ export class TypeChecker2 {
 
     if (result2.incompatibleOverloads.length === 1) {
       for (const [ty, reasons] of result2.incompatibleOverloads) {
-        // A metamethod is reasoned about with the callee prepended, so the
-        // report traverses that same pack; otherwise the lookup misses and the
-        // error is lost.
         let reportedArgs = argsPack;
         const reportedExprs = [...argExprs];
 
@@ -1568,14 +1381,12 @@ export class TypeChecker2 {
       return;
     }
 
-    // Arity mismatches need expected and actual counts.
     const { head: argHead } = flatten(argsPack);
     if (result2.incompatibleOverloads.length > 1) {
       for (const [overloadTy] of result2.incompatibleOverloads) {
         if (!this.isErrorSuppressing(call.location, overloadTy)) overloadsToReport.push(overloadTy);
       }
 
-      // When every nonviable overload is error-suppressing, nothing is reported.
       if (overloadsToReport.length > 0) {
         this.reportError({ kind: "MultipleNonviableOverloads", attemptedArgCount: argHead.length }, call.location);
         reportAvailableOverloads(this.module.errors, call.location, this.module.name, overloadsToReport);
@@ -1611,7 +1422,6 @@ export class TypeChecker2 {
       if (!norm || this.normalizer.isInhabitedNormal(norm) === NormalizationResult.HitLimits) {
         this.reportError({ kind: "NormalizationTooComplex" }, call.func.location);
       }
-      // Here norm is defined and inhabited.
       else if (!norm.shouldSuppressErrors()) this.reportError({ kind: "CannotCallNonFunction", ty: fnTy }, call.func.location);
       return;
     }
@@ -1620,7 +1430,6 @@ export class TypeChecker2 {
   private visitExprCall(call: AstExprCall): void {
     const oldContext = this.typeContext;
 
-    // A `typeof` call keeps the conditional context it is in.
     if (!matchTypeOf(call)) this.typeContext = TypeContext.Default;
 
     try {
@@ -1671,7 +1480,6 @@ export class TypeChecker2 {
     const strippedUnion = this.tryStripUnionFromNil(ty);
     if (strippedUnion) {
       const suppression = shouldSuppressErrors(this.normalizer, ty);
-      // A failed normalization is reported, and then the optional value access as well.
       if (suppression === ErrorSuppression.NormalizationFailed) this.reportError({ kind: "NormalizationTooComplex" }, location);
       if (suppression !== ErrorSuppression.Suppress) this.reportError({ kind: "OptionalValueAccess", optional: ty }, location);
 
@@ -1688,7 +1496,6 @@ export class TypeChecker2 {
   }
 
   private visitExprIndexName(indexName: AstExprIndexName, context: ValueContext): void {
-    // In `_.foo`, foo could be either a property or a string.
     this.visitExprName(indexName.expr, indexName.location, indexName.index, context, this.builtinTypes.stringType);
   }
 
@@ -1702,7 +1509,6 @@ export class TypeChecker2 {
     else if (tmt && tmt.indexer) this.testIsSubtype(indexType, tmt.indexer.indexType, indexExpr.index.location);
     else if (mtmt) this.indexExprMetatableHelper(indexExpr, mtmt, exprType, indexType);
     else {
-      // Unions are probably not handled correctly here.
       this.reportError(
         { kind: "CannotExtendTable", tableType: exprType, context: CannotExtendTableContext.Indexer, prop: "indexer??" },
         indexExpr.location,
@@ -1711,8 +1517,6 @@ export class TypeChecker2 {
   }
 
   private visitExprIndexExpr(indexExpr: AstExprIndexExpr, context: ValueContext): void {
-    // Luau notes that this should probably all be the same logic as the
-    // `index` type function.
     if (indexExpr.index instanceof AstExprConstantString) {
       const str = indexExpr.index;
       const astIndexExprType = this.lookupType(indexExpr.index);
@@ -1754,22 +1558,17 @@ export class TypeChecker2 {
       else this.reportError({ kind: "DynamicPropertyLookupOnExternTypesUnsafe", ty: exprType }, indexExpr.location);
     } else if (ut && isOptional(exprType)) {
       const suppression = shouldSuppressErrors(this.normalizer, exprType);
-      // A failed normalization is reported, and then the optional value access as well.
       if (suppression === ErrorSuppression.NormalizationFailed) this.reportError({ kind: "NormalizationTooComplex" }, indexExpr.location);
       if (suppression !== ErrorSuppression.Suppress) this.reportError({ kind: "OptionalValueAccess", optional: exprType }, indexExpr.location);
     } else if (ut) {
-      // A union of table types is a table, which is no error.
       if (!flatOptions(ut).every((t) => getTableType(t) !== undefined)) {
         const suppression = shouldSuppressErrors(this.normalizer, exprType);
-        // A failed normalization is reported, and then the error as well.
         if (suppression === ErrorSuppression.NormalizationFailed) this.reportError({ kind: "NormalizationTooComplex" }, indexExpr.location);
         if (suppression !== ErrorSuppression.Suppress) this.reportError({ kind: "NotATable", ty: exprType }, indexExpr.location);
       }
     } else if (it) {
-      // An intersection with any table type is a table, which is no error.
       if (!flatOptions(it).some((t) => getTableType(t) !== undefined)) this.reportError({ kind: "NotATable", ty: exprType }, indexExpr.location);
     } else if (get(exprType, "NeverType") || this.isErrorSuppressing(indexExpr.location, exprType)) {
-      // Nothing to check.
     } else this.reportError({ kind: "NotATable", ty: exprType }, indexExpr.location);
   }
 
@@ -1784,13 +1583,10 @@ export class TypeChecker2 {
       const inferredFnTy = this.lookupType(fn);
       this.functionDeclStack.push(inferredFnTy);
 
-      // An early return below leaves this function's type on the declaration
-      // stack, as it does in Luau.
       let normalizedFnTy = this.normalizer.normalize(inferredFnTy);
       if (!normalizedFnTy) {
         this.reportError({ kind: "CodeTooComplex" }, fn.location);
       } else if (get(normalizedFnTy.errors, "ErrorType")) {
-        // With an error type, nothing else involves the normalized type.
         normalizedFnTy = undefined;
       } else if (!normalizedFnTy.hasFunctions()) {
         this.reportError({ kind: "InternalError", message: "Internal error: Lambda has non-function type " + toString(inferredFnTy) }, fn.location);
@@ -1803,8 +1599,6 @@ export class TypeChecker2 {
 
         const inferredFtv = get(normalizedFnTy.functions.parts.front(), "FunctionType")!;
 
-        // No annotation can be written for the self argument, so there is
-        // nothing to check for it.
         const argTypes = flatten(inferredFtv.argTypes).head;
         let argIt = 0;
         if (fn.self) ++argIt;
@@ -1815,7 +1609,6 @@ export class TypeChecker2 {
           const inferredArgTy = argTypes[argIt]!;
 
           if (arg.annotation) {
-            // The argument annotations themselves are checked too.
             this.visitType(arg.annotation);
 
             const annotatedArgTy = this.lookupAnnotation(arg.annotation);
@@ -1823,24 +1616,15 @@ export class TypeChecker2 {
             this.testIsSubtype(inferredArgTy, annotatedArgTy, arg.location);
           }
 
-          // Some constructs lead inference to reduce an argument type to
-          // never. The error is then reported at the function, instead of at
-          // every call site.
           if (is(follow(inferredArgTy), "NeverType")) {
-            // An annotation that simplified to never needs no look at the
-            // contributors.
             let explicitlyNever = false;
             if (arg.annotation) {
               const annotatedArgTy = this.lookupAnnotation(arg.annotation);
               explicitlyNever = is(annotatedArgTy, "NeverType");
             }
 
-            // Not following here is deliberate: the contributions are keyed by
-            // the type as it was before it became bound to never.
             const contributors = this.module.upperBoundContributors.get(inferredArgTy);
             if (contributors && !explicitlyNever) {
-              // Error messages cannot be linked together, so each contribution
-              // is an error of its own.
               this.reportError(
                 {
                   kind: "GenericError",
@@ -1860,7 +1644,6 @@ export class TypeChecker2 {
           ++argIt;
         }
 
-        // The vararg annotation, when there is one, is checked too.
         if (fn.vararg && fn.varargAnnotation) this.visitTypePack(fn.varargAnnotation);
 
         const reachesImplicitReturn = getFallthrough(fn.body) !== undefined;
@@ -1871,10 +1654,8 @@ export class TypeChecker2 {
 
       this.visit(fn.body);
 
-      // The return annotation, when there is one, is checked too.
       if (fn.returnAnnotation) this.visitTypePack(fn.returnAnnotation);
 
-      // A function type may call for a suggested annotation.
       if (normalizedFnTy) this.suggestAnnotations(fn, normalizedFnTy.functions.parts.front());
 
       this.functionDeclStack.pop();
@@ -1960,11 +1741,8 @@ export class TypeChecker2 {
           else this.reportError({ kind: "NotATable", ty: operandType }, expr.location);
         }
       } else if (expr.op === UnaryOp.Minus) {
-        // Luau tests a negated integer literal against `integer`; the syntax
-        // tree here has no integer literals.
         this.testIsSubtype(operandType, this.builtinTypes.numberType, expr.location);
       } else if (expr.op === UnaryOp.Not) {
-        // Nothing to check.
       }
     } finally {
       this.typeContext = oldContext;
@@ -1978,8 +1756,6 @@ export class TypeChecker2 {
     }
 
     try {
-      // In a compound assignment, the left side is both read from and written
-      // to, so it is visited in both contexts.
       if (overrideKey && overrideKey instanceof AstStatCompoundAssign) this.visitExpr(expr.left, ValueContext.LValue);
 
       this.visitExpr(expr.left, ValueContext.RValue);
@@ -2013,8 +1789,6 @@ export class TypeChecker2 {
       if (get(leftType, "AnyType") || get(leftType, "ErrorType") || get(leftType, "NeverType")) return leftType;
       else if (get(rightType, "AnyType") || get(rightType, "ErrorType") || get(rightType, "NeverType")) return rightType;
       else if ((normLeft && normLeft.shouldSuppressErrors()) || (normRight && normRight.shouldSuppressErrors())) {
-        // Nothing better can be said of a type that suppresses errors without
-        // being any or error alone.
         return this.builtinTypes.anyType;
       }
 
@@ -2042,7 +1816,6 @@ export class TypeChecker2 {
 
         const eitherExprIsNil = (normLeft && normLeft.isNil()) || (normRight && normRight.isNil());
 
-        // An equality with a nil operand is let through.
         if (isEquality && eitherExprIsNil) return this.builtinTypes.booleanType;
       }
       const metamethod = kBinaryOpMetamethods.get(expr.op);
@@ -2072,9 +1845,6 @@ export class TypeChecker2 {
           }
         }
 
-        // Comparing metatables is a little excessive for types that are not
-        // tables: one type may have a metatable and the other not, and then
-        // whether their intersection is inhabited decides.
         if (!(get(leftType, "TableType") || get(rightType, "TableType"))) {
           if (leftMt === undefined || rightMt === undefined) matches = matches || typesHaveIntersection !== NormalizationResult.False;
         }
@@ -2108,14 +1878,12 @@ export class TypeChecker2 {
 
           const selectedOverloadTy = this.module.astOverloadResolvedTypes.get(key);
           if (!selectedOverloadTy) {
-            // A type function handled it.
             return expectedResult;
           }
 
           const ftv = get(follow(selectedOverloadTy), "FunctionType");
           if (ftv) {
             let expectedArgs: TypePackId;
-            // >= and > invoke __lt and __le with the arguments swapped.
             if (expr.op === BinaryOp.CompareGe || expr.op === BinaryOp.CompareGt) {
               expectedArgs = this.module.internalTypes.addTypePack([rightType, leftType]);
             } else {
@@ -2166,8 +1934,6 @@ export class TypeChecker2 {
 
           return this.builtinTypes.errorType;
         }
-        // A string comparison, or a concatenation of strings, falls through to
-        // the primitive behavior.
         else if (!isEquality && !(isStringOperation && (expr.op === BinaryOp.Concat || isComparison))) {
           if ((leftMt && !isString(leftType)) || (rightMt && !isString(rightType))) {
             if (isComparison) {
@@ -2225,12 +1991,8 @@ export class TypeChecker2 {
         case BinaryOp.CompareLt: {
           if (normLeft && normLeft.shouldSuppressErrors()) return this.builtinTypes.booleanType;
 
-          // Whether a comparison against an uninhabited type ran cannot be observed.
           if (normLeft && this.normalizer.isInhabitedNormal(normLeft) === NormalizationResult.False) return this.builtinTypes.booleanType;
 
-          // This could be a little wasteful, as the normalized types are at
-          // hand, but it handles cases like `_: (T & number) <= _: (T & number)`
-          // correctly.
           if (this.subtyping.isSubtype(leftType, this.builtinTypes.numberType, scope).isSubtype) {
             this.testIsSubtype(rightType, this.builtinTypes.numberType, expr.right.location);
             return this.builtinTypes.booleanType;
@@ -2255,11 +2017,8 @@ export class TypeChecker2 {
         case BinaryOp.Or:
         case BinaryOp.CompareEq:
         case BinaryOp.CompareNe:
-          // A compound assignment never has one of these operators, so this
-          // case does not matter.
           return this.builtinTypes.anyType;
         default:
-          // An unhandled operator.
           return this.builtinTypes.errorType;
       }
     } finally {
@@ -2338,7 +2097,7 @@ export class TypeChecker2 {
   private flattenPack(pack: TypePackId): TypeId {
     pack = followPack(pack);
 
-    const fst = first(pack, /* ignoreHiddenVariadics */ false);
+    const fst = first(pack, false);
     if (fst) return fst;
 
     const ftp = getPack(pack, "FreeTypePack");
@@ -2350,17 +2109,12 @@ export class TypeChecker2 {
 
       return result;
     } else if (getPack(pack, "ErrorTypePack")) return this.builtinTypes.errorType;
-    // `(f())` where `f()` returns no values is coerced into `nil`.
     else if (finite(pack) && packSize(pack) === 0) return this.builtinTypes.nilType;
     else {
       this.reportError({ kind: "InternalError", message: "flattenPack got a weird pack!" }, new Location());
       return this.builtinTypes.errorType;
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Type annotations
-  // -------------------------------------------------------------------------
 
   private visitTypeArguments(typeArguments: AstTypeOrPack[]): void {
     for (const typeArgument of typeArguments) {
@@ -2389,7 +2143,7 @@ export class TypeChecker2 {
 
   private visitType(ty: AstType): void {
     const resolvedTy = this.module.astResolvedTypes.get(ty);
-    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location, /* inAnnotation */ true);
+    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location, true);
 
     if (ty instanceof AstTypeReference) return this.visitTypeReference(ty);
     else if (ty instanceof AstTypeTable) return this.visitTypeTable(ty);
@@ -2411,11 +2165,6 @@ export class TypeChecker2 {
     const alias = ty.prefix !== undefined ? scope.lookupImportedType(ty.prefix, ty.name) : scope.lookupType(ty.name);
 
     if (alias !== undefined) {
-      // A generic default is resolved before its type parameter is added to
-      // the alias scope, but the way the constraint generator is set up puts
-      // the parameter in the scope here already. Looking the name up in the
-      // scope would find the parameter and accept a reference to itself as a
-      // default, so the recorded lookup failure decides instead.
       if (ty.prefix === undefined && this.module.astTypeReferenceLookupFailures.has(ty)) {
         return this.reportError({ kind: "UnknownSymbol", name: ty.name, context: UnknownSymbolContext.Type }, ty.location);
       }
@@ -2451,14 +2200,11 @@ export class TypeChecker2 {
         }
       }
 
-      // Type parameters that are required, with only packs provided and no
-      // types, are an error.
       if (typesRequired !== 0 && typesProvided === 0 && packsProvided !== 0) {
         this.reportError({ kind: "GenericError", message: "Type parameters must come before type pack parameters" }, ty.location);
       }
 
       if (extraTypes !== 0 && packsProvided === 0) {
-        // Extra types are collected into a pack only when a pack is expected.
         if (packsRequired !== 0) packsProvided += 1;
         else typesProvided += extraTypes;
       }
@@ -2475,8 +2221,6 @@ export class TypeChecker2 {
         }
       }
 
-      // An explicit type parameter list lets an empty type pack satisfy the
-      // expected pack count.
       if (extraTypes === 0 && packsProvided + 1 === packsRequired && ty.hasParameterList) packsProvided += 1;
 
       if (typesProvided !== typesRequired || packsProvided !== packsRequired) {
@@ -2555,11 +2299,6 @@ export class TypeChecker2 {
 
     const alias = scope.lookupPack(tp.genericName);
     if (alias) {
-      // A generic default is resolved before its type parameter is added to
-      // the alias scope, but the way the constraint generator is set up puts
-      // the parameter in the scope here already. Looking the name up in the
-      // scope would find the parameter and accept a reference to itself as a
-      // default, so the recorded lookup failure decides instead.
       if (this.module.astTypePackReferenceLookupFailures.has(tp)) {
         return this.reportError({ kind: "UnknownSymbol", name: tp.genericName, context: UnknownSymbolContext.Type }, tp.location);
       }
@@ -2573,10 +2312,6 @@ export class TypeChecker2 {
 
     this.reportError({ kind: "UnknownSymbol", name: tp.genericName, context: UnknownSymbolContext.Type }, tp.location);
   }
-
-  // -------------------------------------------------------------------------
-  // Subtyping tests and their explanations
-  // -------------------------------------------------------------------------
 
   private explainReasoningsImpl(subTy: TypeOrPack, superTy: TypeOrPack, location: Location, r: SubtypingResult): Reasonings {
     if (r.reasoning.empty()) return new Reasonings();
@@ -2620,11 +2355,9 @@ export class TypeChecker2 {
       else if (reasoning.variance === SubtypingVariance.Contravariant) relation = "a supertype of";
 
       let subLeafAsString = toStringTypeOrPack(subLeaf);
-      // An empty string can only be an empty type pack.
       if (subLeafAsString === "") subLeafAsString = "()";
 
       let superLeafAsString = toStringTypeOrPack(superLeaf);
-      // An empty string can only be an empty type pack.
       if (superLeafAsString === "") superLeafAsString = "()";
 
       const baseReason = "`" + subLeafAsString + "` is not " + relation + " `" + superLeafAsString + "`";
@@ -2632,9 +2365,6 @@ export class TypeChecker2 {
       let reason = "";
 
       if (reasoning.isPropertyModifierViolation) {
-        // The types at the ends of the paths are the same type, so a plain
-        // "X is not a subtype of X" would mislead; the reason explains that
-        // the mismatch is in the access modifier.
         let propName = "a property";
         let isReadOnly = true;
         let renderedIndexerMismatch = false;
@@ -2714,13 +2444,11 @@ export class TypeChecker2 {
         }
       }
 
-      // A reason is included only once, to avoid duplicate diagnostics.
       if (!seenReasons.has(reason)) {
         seenReasons.add(reason);
         reasons.push(reason);
       }
 
-      // Until a reason is found that does not suppress errors, each one is checked.
       if (suppressed) {
         if (subLeafTy && superLeafTy) {
           suppressed = this.isErrorSuppressing(location, subLeafTy) || this.isErrorSuppressing(location, superLeafTy);
@@ -2790,11 +2518,6 @@ export class TypeChecker2 {
     return this.testPotentialLiteralIsSubtype(expr, expectedType);
   }
 
-  /**
-   * Tests the arguments of a `setmetatable` call against an expected
-   * metatable type; undefined when the expression is not such a call or the
-   * expected type is not a metatable type.
-   */
   private testSetMetatableCallIsSubtype(expr: AstExpr, expectedType: TypeId): boolean | undefined {
     const call = expr instanceof AstExprCall ? expr : undefined;
     if (!call || !matchSetMetatable(call)) return undefined;
@@ -2821,23 +2544,18 @@ export class TypeChecker2 {
       if (!this.testPotentialLiteralIsSubtype(expr.falseExpr, expectedType)) passes = false;
       return passes;
     } else if (expr instanceof AstExprBinary && expr.op === BinaryOp.Or) {
-      // `{ ... } or { ... }` is literal enough for this covariant check.
       const relaxedExpectedLhs = this.module.internalTypes.addType(unionType([this.builtinTypes.falsyType, expectedType]));
       let passes = this.testPotentialLiteralIsSubtype(expr.left, relaxedExpectedLhs);
       if (!this.testPotentialLiteralIsSubtype(expr.right, expectedType)) passes = false;
       return passes;
     }
-    // Luau notes that `and` probably deserves a check here as well.
 
     const exprTable = expr instanceof AstExprTable ? expr : undefined;
     const exprTableType = get(exprType, "TableType");
     const expectedTableType = get(expectedType, "TableType");
 
-    // Without a table literal of a table type, this is a normal subtype test.
     if (!exprTableType || !exprTable) return this.testIsSubtype(exprType, expectedType, expr.location);
 
-    // The expression is a table literal with a table type, but without an
-    // expected table type something slightly different happens.
     if (!expectedTableType) {
       const utv = get(expectedType, "UnionType");
       if (utv) {
@@ -2847,8 +2565,6 @@ export class TypeChecker2 {
 
       const itv = get(expectedType, "IntersectionType");
       if (itv) {
-        // An intersection of tables is built into one table, when it can be,
-        // to use as the input to this algorithm.
         const parts = new TypeIds(flatOptions(itv));
         const simplified = simplifyIntersection(this.builtinTypes, this.module.internalTypes, parts).result;
         if (is(simplified, "TableType")) return this.testPotentialLiteralIsSubtype(expr, simplified);
@@ -2868,7 +2584,7 @@ export class TypeChecker2 {
     if (expectedTableType.indexer) {
       const scope = this.findInnermostScope(expr.location);
 
-      const result = this.subtyping.isSubtype(/* subTy */ this.builtinTypes.numberType, /* superTy */ expectedTableType.indexer.indexType, scope);
+      const result = this.subtyping.isSubtype(this.builtinTypes.numberType, expectedTableType.indexer.indexType, scope);
       isArrayLike = result.isSubtype || this.isErrorSuppressing(expr.location, expectedTableType.indexer.indexType);
     }
 
@@ -2888,11 +2604,7 @@ export class TypeChecker2 {
             if (!this.testIsSubtype(inferredKeyType, expectedTableType.indexer.indexType, item.key!.location)) isSubtype = false;
             if (!this.testPotentialLiteralIsSubtype(item.value, expectedTableType.indexer.indexResultType)) isSubtype = false;
           }
-          // Without an indexer, width subtyping lets the property be.
         } else {
-          // A property with a read type has an expected type. Without one, the
-          // property can only be written, so what is assigned to it does not
-          // matter.
           if (expectedProp.readTy) {
             this.module.astExpectedTypes.set(item.value, expectedProp.readTy);
             if (!this.testPotentialLiteralIsSubtype(item.value, expectedProp.readTy)) isSubtype = false;
@@ -2903,7 +2615,6 @@ export class TypeChecker2 {
           isSubtype = false;
           this.reportError({ kind: "UnexpectedArrayLikeTableItem" }, item.value.location);
         }
-        // The indexer's index type may not be exactly `number`.
         if (expectedTableType.indexer) {
           this.module.astExpectedTypes.set(item.value, expectedTableType.indexer.indexResultType);
           if (!this.testPotentialLiteralIsSubtype(item.value, expectedTableType.indexer.indexResultType)) isSubtype = false;
@@ -2972,11 +2683,6 @@ export class TypeChecker2 {
     this.reportError(typeMismatch(superTy, subTy), location);
   }
 
-  /**
-   * Tests whether the iterator function of a for-in statement is a subtype
-   * of the function its values and variables call for, placing the errors at
-   * the statement's first value.
-   */
   private testIsSubtypeForInStat(iterFunc: TypeId, prospectiveFunc: TypeId, forInStat: AstStatForIn): void {
     const iterFuncLocation = forInStat.values[0]!.location;
 
@@ -2990,14 +2696,8 @@ export class TypeChecker2 {
 
     if (r.isSubtype) return;
 
-    // Luau notes that these errors are not great, and that something more
-    // bidirectional may be wanted here.
     this.explainError(iterFunc, prospectiveFunc, iterFuncLocation, r);
   }
-
-  // -------------------------------------------------------------------------
-  // Reporting errors
-  // -------------------------------------------------------------------------
 
   reportError(data: TypeErrorData, location: Location): void {
     if (data.kind === "UnknownProperty") data = this.diagnoseMissingTableKey(data);
@@ -3013,14 +2713,6 @@ export class TypeChecker2 {
     for (const e of errors) this.reportTypeError(e);
   }
 
-  // -------------------------------------------------------------------------
-  // Properties
-  // -------------------------------------------------------------------------
-
-  /**
-   * A helper for checkIndexTypeFromType: the types the parts of a normalized
-   * type give a property, and the parts that are missing it.
-   */
   private lookupProp(
     norm: NormalizedType,
     prop: string,
@@ -3032,7 +2724,6 @@ export class TypeChecker2 {
     const typesOfProp: TypeId[] = [];
     const typesMissingTheProp: TypeId[] = [];
 
-    // This turns false when any use of `fetch` hits the resource limits.
     let normValid = true;
 
     const fetch = (ty: TypeId): void => {
@@ -3056,16 +2747,7 @@ export class TypeChecker2 {
     if (normValid) fetch(norm.tops);
     if (normValid) fetch(norm.booleans);
 
-    // Luau notes that the code below shows this approach to indexing is not
-    // quite right: it should share one implementation of indexing with, for
-    // example, the `index` type function.
     if (normValid) {
-      // Each extern type part is a collection of extern types in a normal
-      // form, with a collection of table types describing their shapes
-      // further. Extern types and tables are both open to extension, so some
-      // of these types may not contribute to the type of the index while the
-      // index is still valid: every component is searched for the index
-      // before the extern types as a whole are judged to have it.
       const localTypesOfProp: TypeId[] = [];
 
       for (const [ty] of norm.externTypes.externTypes) {
@@ -3151,7 +2833,6 @@ export class TypeChecker2 {
     return new PropertyTypes(typesOfProp, typesMissingTheProp);
   }
 
-  /** Reports an error when the given type does not have the named property. */
   private checkIndexTypeFromType(tableTy: TypeId, prop: string, context: ValueContext, location: Location, astIndexExprType: TypeId): void {
     const norm = this.normalizer.normalize(tableTy);
     if (!norm) {
@@ -3159,7 +2840,6 @@ export class TypeChecker2 {
       return;
     }
 
-    // An error-suppressing type leaves no work to do.
     if (norm.shouldSuppressErrors()) return;
 
     const dummy: LuauTypeError[] = [];
@@ -3169,9 +2849,6 @@ export class TypeChecker2 {
       if (propTypes.foundOneProp()) {
         this.reportError({ kind: "MissingUnionProperty", type: tableTy, missing: propTypes.missingProp, key: prop }, location);
       }
-      // An extern type comes into being with full knowledge of its shape, so
-      // an extern lvalue gets the unknown property error of the `else` branch
-      // rather than an extension error.
       else if (context === ValueContext.LValue) {
         const lvPropTypes = this.lookupProp(norm, prop, ValueContext.RValue, location, astIndexExprType, dummy);
         if (lvPropTypes.foundOneProp() && lvPropTypes.noneMissingProp()) {
@@ -3220,8 +2897,6 @@ export class TypeChecker2 {
     astIndexExprType: TypeId,
     errors: LuauTypeError[],
   ): PropertyType {
-    // A type already encountered is assumed to be handled by another code
-    // path, which signals false when the property is not present.
     if (seen.has(ty)) return { present: NormalizationResult.True, result: undefined };
     seen.add(ty);
 
@@ -3253,10 +2928,6 @@ export class TypeChecker2 {
 
     const cls = get(ty, "ExternType");
     if (cls) {
-      // A property missing from the extern type is looked for in its indexer:
-      // the type of the index expression (foo in x[foo]) must be compatible
-      // with the indexer's index type, which is tested as the inhabitedness of
-      // their intersection.
       const property = lookupExternTypeProp(cls, prop);
       if (property) {
         if ((context === ValueContext.LValue && !property.writeTy) || (context === ValueContext.RValue && !property.readTy)) {
@@ -3396,7 +3067,6 @@ export class TypeChecker2 {
     }
   }
 
-  /** The error to report for an unknown property: the property itself, or a suggestion of properties that differ from it only in case. */
   private diagnoseMissingTableKey(utk: UnknownPropertyData): TypeErrorData {
     const sv = utk.key;
     const candidates = new Set<string>();
@@ -3458,15 +3128,12 @@ export class TypeChecker2 {
     return this.isErrorSuppressingPack(loc1, tp1) || this.isErrorSuppressingPack(loc2, tp2);
   }
 
-  /** Reports the errors of the nonviable overloads of a call; returns whether it reported any. */
   protected reportNonviableOverloadErrors(
     nonviableOverloads: [TypeId, LuauTypeError[]][],
     callFuncLocation: Location,
     argHeadSize: number,
     callLocation: Location,
   ): boolean {
-    // Errors in several overloads are reported as one error saying so; the
-    // errors of only one overload are reported themselves.
     let reportedErrors: LuauTypeError[] | undefined;
     let multipleOverloadsHaveErrors = false;
     for (const [ty, errs] of nonviableOverloads) {

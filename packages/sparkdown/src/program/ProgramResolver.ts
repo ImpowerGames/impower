@@ -67,12 +67,6 @@ import {
   loopOf,
 } from "../compiler/lower/utils/statementShape";
 
-/** The parsed objects under `node` that a walk over its subtree visits: its
- *  `content`, and for a call that generated as a builtin, native or stdlib
- *  call, its arguments. Such a call removes its proxy divert, which held the
- *  arguments, from `content` on its first generation, yet the arguments still
- *  generate on every pass and carry cached runtime objects and debug metadata
- *  of their own (a `display()` call's table holds its line's whole text). */
 export function parsedChildren(node: ParsedObject): ParsedObject[] {
   const content = node.content ?? [];
   if (!(node instanceof FunctionCall) || content.includes(node.proxyDivert)) {
@@ -82,9 +76,6 @@ export function parsedChildren(node: ParsedObject): ParsedObject[] {
   return args.length > 0 ? [...content, ...args] : content;
 }
 
-/** Clears what generation and resolution left on `node` and every object
- *  under it, so that generating it again generates it anew and resolving it
- *  again resolves it anew (`ParsedObject.ResetRuntime`). */
 export function resetSubtreeRuntime(node: ParsedObject): void {
   node.ResetRuntime();
   const identifier = (node as { identifier?: unknown }).identifier;
@@ -96,69 +87,25 @@ export function resetSubtreeRuntime(node: ParsedObject): void {
   }
 }
 
-/** What one resolve of the program path did (`ProgramResolver.resolve`),
- *  counted the way the chunk store counts its passes. */
 export interface ResolverPasses {
-  /** Whether it resolved every statement: the first resolve, one after a
-   *  reconfigure (`invalidate`), or one after a resolution or generation
-   *  that stopped. */
   cold: boolean;
-  /** The statements the walk of the story listed, a few lookups each: the
-   *  objects the compile placed for a block, a flow's header, and a function
-   *  a statement or the top level declares. */
   units: number;
-  /** Statements generated and resolved: the ones the incremental parse
-   *  lowered anew, and `invalidated`. */
   fresh: number;
-  /** Carried statements resolved again because a name they read is declared
-   *  otherwise, or a position they report moved with a statement that was
-   *  lowered anew. */
   invalidated: number;
-  /** Carried statements whose recorded diagnostics and declarations the
-   *  resolve repeated without visiting them. */
   replayed: number;
-  /** Parsed objects of the fresh statements whose runtime objects were
-   *  generated. */
   generated: number;
-  /** Parsed objects of the fresh statements whose references were
-   *  resolved. */
   resolved: number;
-  /** Objects the compile adds to the story itself (a flow's closing
-   *  `-> DONE`, the top level's last gather), generated and resolved on every
-   *  resolve. */
   loose: number;
-  /** Parsed objects generated or resolved outside any statement's
-   *  generation and resolution: those under the loose objects, and those of
-   *  an initializer written with no statement's record
-   *  (`visitedOutsideLastResolve`). */
   outside: number;
-  /** Globals whose initializers were generated: those of the fresh
-   *  statements, and those the story makes of a struct's properties that no
-   *  statement holds. */
   initialized: number;
-  /** Structs whose runtime definitions were built: those of the fresh
-   *  statements. */
   structs: number;
-  /** Names declared otherwise than at the compile before. */
   changedNames: number;
-  /** Statements served from their memos (`MemoizedStatement`) whose
-   *  diagnostics and reads the resolve repeated where they stand. */
   memoized: number;
-  /** Whether the resolution stopped at an object that threw. */
   stopped: boolean;
 }
 
-/** A thing a statement's resolution did that the story keeps for the rest
- *  of the compile, recorded so that a compile which does not resolve the
- *  statement again does it again (`ResolutionTap`). */
 type ResolutionEvent =
   | {
-      /** A diagnostic raised (`ResolutionTap.diagnostic`), reported or kept
-       *  back, which is raised again as it was, so that the story decides
-       *  again which of the diagnostics of one source it reports. Its
-       *  position is read again from a parsed object it was raised on; a
-       *  position the report made of anything else (`copy`: a name built for
-       *  the report, `target not found`) is moved with the statement. */
       kind: "diagnostic";
       raiser: ParsedObject | null;
       message: string;
@@ -172,69 +119,37 @@ type ResolutionEvent =
   | { kind: "autoGlobal"; assignment: VariableAssignment }
   | { kind: "builtinDivert"; entry: Story["builtinGlobalDiverts"][number] };
 
-/** What a statement's names and declarations are, read from its syntax
- *  before it is resolved, and what the story's passes over the whole
- *  program take of it. */
 interface UnitShape {
-  /** Each name the statement declares, with how it declares it. */
   defs: Map<string, string[]>;
   consts: ConstantDeclaration[];
   structs: StructDefinition[];
-  /** The named gathers, then choices, the statement holds at any depth, for
-   *  the weave of the flow it stands in. */
   gathers: ParsedObject[];
   choices: ParsedObject[];
-  /** For a function: each weave it names, by the flow that holds it (its own
-   *  flow under `null`), with its named gathers and choices. */
   naming: Map<FlowBase | null, ParsedObject[]>;
-  /** The first return, and multiple return, the statement holds outside any
-   *  function it writes. */
   ownReturn: ParsedObject | null;
   ownMultiReturn: ParsedObject | null;
-  /** The assignments, and the function values, the statement holds along
-   *  `content` once it is generated (a call generated as a builtin drops
-   *  the divert that held its arguments), in the order a walk of the story
-   *  finds them: what `Story.globalAssignmentNames` and a library-named
-   *  local's scope (`FlowBase.IsLocalInScope`) look for over the whole
-   *  story (`ProgramResolver.readFacts`). */
   assignments: ParsedObject[];
   functionValues: DivertTarget[];
 }
 
-/** What the last resolve that resolved a statement recorded of it. */
 interface UnitRecord {
   members: ParsedObject[];
   context: string;
   index: number;
-  /** A position of the statement, which an edit above it moves in place, and
-   *  its first line when the statement was resolved. */
   anchor: DebugMetadata | null;
   anchorLine: number;
   shape: UnitShape;
   gen: ResolutionEvent[];
-  /** What writing each global's initializer did, by the initializer: the
-   *  global a constant's or a struct property's initializer is written for
-   *  is made anew by every compile (`Story.DeclareStoryTables`). */
   init: Map<ParsedObject, ResolutionEvent[]>;
   resolve: ResolutionEvent[];
   reads: Set<string>;
-  /** The other statements whose positions its diagnostics report or print. */
   dependsOn: Set<Unit>;
-  /** The positions its messages printed, as they printed them. */
   printed: { metadata: DebugMetadata; printed: string }[];
-  /** Whether a message printed a position the resolution made, or reported
-   *  one with no anchor to move it by: the statement is resolved again when
-   *  its anchor moves, or, with none, on every resolve. */
   volatile: boolean;
-  /** The diverts its resolution resolved, whose targets a later compile
-   *  moves onto the objects that stand for them then (`retarget`). */
   diverts: Divert[];
-  /** The resolve that made it (`ProgramResolver.committed`). */
   at: number;
 }
 
-/** Whether `obj` is a stand-in of a statement served from its memo, or a
- *  target of one. */
 const standsIn = (obj: ParsedObject): boolean => {
   for (let at: ParsedObject | null = obj, depth = 0; at && depth < 3; at = at.parent, depth += 1) {
     if (memoOf(at)) {
@@ -244,24 +159,13 @@ const standsIn = (obj: ParsedObject): boolean => {
   return false;
 };
 
-/** Whether `obj` is an assignment a statement's memo can stand for: a plain
- *  one or a local declaration, of one name or several. */
 const standsAsAssignment = (obj: ParsedObject): boolean =>
   (obj instanceof VariableAssignment && memoAssignmentOf(obj) !== null) ||
   (obj instanceof MultiVariableAssignment && memoMultiOf(obj) !== null);
 
-/** Whether `obj` is an assignment the story's walks for its global writes
- *  read: a plain assignment or local declaration, or a store through the
- *  globals table (`_G.f = v`, I-1091; `_G[k] = v`, `rawset(_G, k, v)`,
- *  I-1394; `globalsTableWrite`). One among the arguments of a prepared
- *  builtin call is not in its content, and each walk takes it from the call
- *  (`detachedGlobalsTableWrites`). */
 const isAssignmentFact = (obj: ParsedObject): boolean =>
   obj instanceof VariableAssignment || globalsTableWrite(obj) !== null;
 
-/** The assignments a stand-in, or a block statement's stand-in, holds that
- *  made auto-globals or declared locals, each with what its memo recorded
- *  they made (`MemoResolution`). */
 const assignmentsOf = (
   statement: ParsedObject,
   resolution: MemoResolution,
@@ -274,7 +178,6 @@ const assignmentsOf = (
     if (!made || (made.declares.length === 0 && made.autoGlobals.length === 0)) {
       continue;
     }
-    // A stand-in of several assignments holds them.
     const parts = held instanceof MemoizedStatement ? held.content : [held];
     for (const part of parts) {
       const targets =
@@ -291,8 +194,6 @@ const assignmentsOf = (
   return out;
 };
 
-/** The object at the top of `obj`'s parents: its story, for an object a
- *  story holds. */
 const rootOf = (obj: ParsedObject): ParsedObject => {
   let at = obj;
   while (at.parent) {
@@ -301,8 +202,6 @@ const rootOf = (obj: ParsedObject): ParsedObject => {
   return at;
 };
 
-/** The flow of `story` at the path `flow` has in its own story, read
- *  through the tables without reporting a read, or null for none. */
 const flowAt = (story: Story, flow: FlowBase): FlowBase | null => {
   const names: string[] = [];
   for (let at: ParsedObject | null = flow; at?.parent; at = at.parent) {
@@ -323,32 +222,17 @@ const flowAt = (story: Story, flow: FlowBase): FlowBase | null => {
   return found;
 };
 
-/** A statement of the program as the resolver knows it from compile to
- *  compile: the objects the compile placed for one block where they stand in
- *  a weave (`weave`), a function the top level or a statement declares, whole
- *  (`flow`), or the header of a scene or a branch (`header`). */
 class Unit {
-  /** This compile's objects. */
   members: ParsedObject[] = [];
-  /** Members that a `Statement` holds, which generation leaves to it, and it
-   *  generates no flow it holds. */
   skipGeneration: Set<ParsedObject> | null = null;
   flow: FlowBase | null = null;
-  /** For a weave's, the compiled block its objects came from. */
   block: object | null = null;
-  /** The flows around it, by name, from the story's top level. */
   context = "";
-  /** Its place among the statements of the story, in the story's order. */
   index = 0;
   record: UnitRecord | null = null;
-  /** This compile's record, while it is generated and resolved. */
   next: UnitRecord | null = null;
   fresh = false;
   invalidated = false;
-  /** Why the last resolve generated and resolved it: it is new, its objects
-   *  were lowered anew, the flows around it changed (`moved`), a pass renamed
-   *  something of it, a name it reads changed (`name`), or a position it
-   *  reports moved (`position`); null when it was replayed. */
   reason: string | null = null;
   seen = -1;
 
@@ -358,8 +242,6 @@ class Unit {
   ) {}
 }
 
-/** A scene, a branch or the story, as the walk found it: what its weave and
- *  its content hold, in order. */
 interface FlowNode {
   flow: FlowBase;
   path: string;
@@ -374,44 +256,22 @@ type Item =
   | { kind: "flow"; node: FlowNode }
   | { kind: "root"; weave: Weave };
 
-/** What the compile hands the resolver. */
 export interface ResolveInput {
-  /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
-  /** Objects a pass of the compile renamed in place since it last resolved
-   *  them (`SparkdownCompiler.canonicalizeSyntheticFlowNames`,
-   *  `scopeDefineInstances`), whose statements are resolved again. */
   renamed: Iterable<ParsedObject>;
-  /** Resolves every statement. */
   cold: boolean;
-  /** The statements of bodies the compile lowered anew and remembered in a
-   *  memo (`compiler/lower/statementMemo.ts`), by each object each holds at
-   *  its top: what their generation and resolution report and read is kept
-   *  for their memos (`memoResolutionsLastResolve`). */
   memoCandidates?: ReadonlyMap<ParsedObject, MemoCandidate>;
-  /** Adds to `memoCandidates` the statements of `blocks`, blocks the
-   *  compile carried, whose memos their lowering made: the resolve resolves
-   *  a statement of each again, and what that resolution reports and reads
-   *  is kept for their memos, which a name declared otherwise since they
-   *  were completed would otherwise leave stale for the next lowering of the
-   *  block (#1974). */
   carriedMemos?(blocks: ReadonlySet<object>): void;
 }
 
-/** A statement whose memo the resolve completes, with its lines in its
- *  script, counting from 1. */
 export interface MemoCandidate {
   readonly entry: StatementMemoEntry;
-  /** The objects the statement holds at its top. */
   readonly objects: readonly ParsedObject[];
   readonly line: number;
   readonly endLine: number;
-  /** For a block statement, the objects the statements of its bodies hold
-   *  at their tops, at any depth, which their own memos judge. */
   readonly nested?: ReadonlySet<ParsedObject>;
 }
 
-// What one memo candidate's generation and resolution reported and read.
 interface MemoTally {
   readonly candidate: MemoCandidate;
   generate: MemoReported[];
@@ -419,9 +279,7 @@ interface MemoTally {
   reads: Set<string>;
   context: string | null;
   refused: string | null;
-  /** The auto-globals the assignment the candidate is made. */
   autoGlobals: string[];
-  /** The locals the local declaration the candidate is declared. */
   declares: string[];
 }
 
@@ -438,136 +296,53 @@ const parametersOf = (flow: FlowBase) =>
     )
     .join(",");
 
-/**
- * The resolver of the program path (#1607; docs/engine/binary-program.md,
- * sections 1 and 2, and What is built, The incremental passes).
- *
- * A compile resolves its references here, and builds no runtime tree. It
- * makes the passes of a cold `ExportRuntime` in its order, as the deleted object
- * engine ran them before #705: it declares the
- * story's constants and structs, names each flow's labels, generates
- * the statements (which declares their globals and locals and reports what
- * generation reports), initializes the globals, and resolves every
- * statement's references; and it reports the same diagnostics, in the same
- * order, at the same places.
- *
- * It does so statement by statement, and visits only the statements the
- * incremental parse lowered anew and the carried statements whose resolution
- * would read otherwise: each resolution records the names it read in the
- * story's tables (`ResolutionTap`), and a statement is resolved again when a
- * statement lowered anew, or one gone, declares one of them otherwise, when
- * the flows around it changed, when a pass of the compile renamed something
- * of it, or when a position its diagnostics report belongs to a statement
- * lowered anew. For every other statement it repeats what the resolution
- * that last resolved it recorded, in the story's order: the diagnostics,
- * moved with the statement, and the globals, locals, externals and
- * auto-globals it declared, which every compile declares anew. A carried
- * statement keeps its parsed objects' resolution (`Divert.targetContent`,
- * `VariableReference.resolvedAs`), which the chunk store and the writer
- * read, from the resolve that last resolved it.
- *
- * What it still does over the whole program is bookkeeping: a walk of the
- * story's flows and of the top-level objects of their weaves, a lookup each,
- * and the story's tables, which every compile builds anew from what each
- * statement declared.
- */
 export class ProgramResolver {
-  /** Keeps every object a resolve generated or resolved in
-   *  `visitedLastResolve`, or in `visitedOutsideLastResolve`, for the
-   *  tests. */
   static traceVisits = false;
-  /** Checks, after every resolve, what the resolver answers from each
-   *  statement's syntax for the passes that walk the whole story (the
-   *  assignments, the function values, the locals each object declares)
-   *  against a walk of the story, recording any difference in
-   *  `factFailures`: for the tests, as `ChunkStore.verifyBuilds`. */
   static verifyFacts = false;
   static factFailures: string[] = [];
 
   passesLastResolve: ResolverPasses = ProgramResolver.noPasses(true);
-  /** The objects the last resolve generated or resolved for a statement. */
   visitedLastResolve = new Set<ParsedObject>();
-  /** The objects it generated or resolved outside any statement's
-   *  generation and resolution (`ResolverPasses.outside`). */
   visitedOutsideLastResolve = new Set<ParsedObject>();
-  /** The names the last resolve found declared otherwise. */
   changedNamesLastResolve: string[] = [];
-  /** What the last resolve's memo candidates reported and read, for each
-   *  whose memo can hold it (`ResolveInput.memoCandidates`). */
   memoResolutionsLastResolve = new Map<StatementMemoEntry, MemoResolution>();
-  /** The memos of statements served from them whose resolution the last
-   *  resolve could not repeat: a name one read is declared otherwise, or the
-   *  flows around it changed. The compile lowers them again. */
   staleMemosLastResolve: StatementMemoEntry[] = [];
 
-  // The memo candidates of the resolve in progress, what each reported and
-  // read, the candidates whose generation or resolution is running, and the
-  // names it found declared otherwise.
   protected _candidates: ReadonlyMap<ParsedObject, MemoCandidate> | null = null;
-  // The block statements among the candidates that hold each object of the
-  // statements of their bodies (`MemoCandidate.nested`).
   protected _owners = new Map<ParsedObject, MemoCandidate[]>();
   protected _tallies = new Map<StatementMemoEntry, MemoTally>();
   protected _frames: { obj: ParsedObject; tally: MemoTally; generated: boolean }[] = [];
   protected _staleMemos = new Set<StatementMemoEntry>();
-  // The last resolve that found each name declared otherwise (`*vars` for a
-  // constant's validity changing), and the last that found any, by which a
-  // memo's resolution, made by an earlier resolve, reads otherwise.
   protected _changedAt = new Map<string, number>();
   protected _anyChangedAt = 0;
-  // The last resolve whose compile kept what it resolved (`committed`).
   protected _committed = 0;
 
   protected _compile = 0;
   protected _needsCold = true;
-  // A number for this resolver, which a memo's resolution names it by.
   protected readonly _id = ++lastResolverId;
-  /** The resolution epoch the last cold resolve began, which the diverts
-   *  this resolver keeps resolved hold their targets in (`CompileEpoch.ts`). */
   protected _epoch = 0;
-  /** The constants the story could not register at the last resolve. */
   protected _unregisterable = new Set<string>();
   protected _units = new Map<object, Unit>();
   protected _order: Unit[] = [];
   protected _readers = new Map<string, Set<Unit>>();
-  // The statements whose diagnostics report or print a position another
-  // statement's replacement, or an edit above, may move.
   protected _positioned = new Set<Unit>();
   protected _memberUnit = new WeakMap<ParsedObject, Unit>();
-  // The statement of each declaration's position, and of each global's
-  // declaration, initializer and struct, which the story's own passes reach.
   protected _positionUnit = new WeakMap<DebugMetadata, Unit>();
   protected _declarationUnit = new WeakMap<object, Unit>();
-  /** The locals each object a statement holds declares where an object
-   *  after it reads them (`localsDeclaredIn`), read when the statement is
-   *  lowered (`ResolutionTap.declaredLocals`). */
   protected _locals = new WeakMap<ParsedObject, ReadonlySet<string>>();
-  /** What `definitionSite`'s walk finds under each object a statement
-   *  holds at its top with no position, read once the statement is
-   *  generated (`ResolutionTap.unplaced`). */
   protected _unplaced = new WeakMap<ParsedObject, ParsedObject[]>();
-  /** The walk of the last resolve, in the story's order. */
   protected _root: FlowNode | null = null;
-  /** The first function value naming each flow this compile, made on first
-   *  use (`ResolutionTap.functionValue`). */
   protected _functionValues: Map<string, ParsedObject> | null = null;
-  /** The names a plain assignment or a store through the globals table of
-   *  the story writes to the global scope this compile, made on first use (`ResolutionTap.globalWrite`). */
   protected _globalWrites: Set<string> | null = null;
   protected _occurrences = new WeakMap<object, object[]>();
-  // Each struct's runtime definition, built when its statement was last
-  // generated, with the diagnostics building it reported.
   protected _structs = new WeakMap<
     StructDefinition,
     { definition: RuntimeStructDefinition; events: ResolutionEvent[]; compile: number }
   >();
 
-  // The resolve in progress.
   protected _story!: Story;
   protected _buffer: { message: string; type: ErrorType; metadata: SourceMetadata | null }[] = [];
   protected _recording: {
-    /** The statement being generated or resolved, whose record takes what
-     *  its resolution reads, or none for a struct's definition. */
     unit: Unit | null;
     record: UnitRecord | null;
     events: ResolutionEvent[];
@@ -595,18 +370,10 @@ export class ProgramResolver {
     };
   }
 
-  /** Makes the next resolve resolve every statement: a reconfigure can
-   *  change what any statement resolves to (`SparkdownCompiler.configure`). */
   invalidate(): void {
     this._needsCold = true;
   }
 
-  /** Readies a statement to be generated and resolved anew: clears what
-   *  generation and resolution left on its objects, which a statement new
-   *  to the resolver can hold too (one a preview compile left out and the
-   *  next compile places again, or a function whose header an edit wrote
-   *  above statements that stood in a scene, which it now holds), and starts
-   *  its record. */
   protected prepare(unit: Unit, shape: UnitShape): void {
     for (const member of unit.members) {
       resetSubtreeRuntime(member);
@@ -631,20 +398,6 @@ export class ProgramResolver {
     };
   }
 
-  /**
-   * Moves the target a divert of a statement this resolve did not resolve
-   * kept from the compile that resolved it onto the object that stands for
-   * it in this compile's story (#656). A flow is assembled anew by every
-   * compile, so a divert into another scene would otherwise hold the flow of
-   * an earlier compile, and through it that compile's objects of the flow's
-   * statements, as long as its statement is carried. The target is the same
-   * one by name, so what the store and the statement watch read of it
-   * (`targetOf`) reads the same: a flow by its path, read through the
-   * story's tables without recording a read, and anything else, a label of a
-   * statement lowered anew, by the divert's own path. A divert whose
-   * target is gone is left to the resolve that resolves its statement again,
-   * which the target's name, declared otherwise, already causes.
-   */
   protected retarget(story: Story): void {
     for (const unit of this._order) {
       for (const divert of unit.record?.diverts ?? []) {
@@ -659,23 +412,16 @@ export class ProgramResolver {
     }
   }
 
-  /** Makes the resolution epoch this resolver's diverts hold their targets in
-   *  the current one again: another compiler can have resolved since, in an
-   *  epoch of its own (`CompileEpoch.ts`). A compile calls it before it reads
-   *  a divert it carried. */
   enterEpoch(): void {
     enterResolutionEpoch(this._epoch);
   }
 
-  /** The statements the last resolve generated and resolved, by key, with
-   *  why (`Unit.reason`). */
   freshLastResolve(): { key: object; kind: string; reason: string }[] {
     return this._order
       .filter((unit) => unit.fresh)
       .map((unit) => ({ key: unit.key, kind: unit.kind, reason: unit.reason! }));
   }
 
-  /** The statement `obj` stands in, by its key, or none. */
   unitOf(obj: ParsedObject): object | undefined {
     for (let at: ParsedObject | null = obj; at; at = at.parent) {
       const unit = this._memberUnit.get(at);
@@ -686,12 +432,6 @@ export class ProgramResolver {
     return undefined;
   }
 
-  /**
-   * Resolves `story`, reporting its diagnostics to `onDiagnostic`, and
-   * returns what the program's engine reads of the story besides its
-   * chunks: its structs and its constants' names
-   * (`ProgramRoot.tables`).
-   */
   resolve(
     story: Story,
     input: ResolveInput,
@@ -719,7 +459,6 @@ export class ProgramResolver {
     this.memoResolutionsLastResolve = new Map();
     this.staleMemosLastResolve = [];
 
-    // The statements of this compile, in the story's order.
     const previous = this._order;
     this._order = [];
     const root = this.walkFlow(story, "", input);
@@ -728,7 +467,6 @@ export class ProgramResolver {
     this._globalWrites = null;
     passes.units = this._order.length;
 
-    // Which statements to generate and resolve.
     const renamed = new Set<Unit>();
     for (const obj of input.renamed) {
       const key = this.unitOf(obj);
@@ -754,7 +492,6 @@ export class ProgramResolver {
       unit.invalidated = false;
       if (unit.fresh) {
         fresh.push(unit);
-        // A carried statement's objects stand in it already.
         for (const member of unit.members) {
           this._memberUnit.set(member, unit);
         }
@@ -768,8 +505,6 @@ export class ProgramResolver {
       this.unread(unit);
     }
 
-    // The names declared otherwise: those a statement lowered anew or gone
-    // declared, unless it declared them as its replacement does.
     const shapes = new Map<Unit, UnitShape>();
     const declared = new Map<string, string[]>();
     const declare = (defs: Map<string, string[]>, sign: "+" | "-") => {
@@ -787,9 +522,6 @@ export class ProgramResolver {
     for (const unit of fresh) {
       shapes.set(unit, this.shapeOf(unit));
     }
-    // Whether each plain assignment of a statement lowered anew writes the
-    // global, declared with its name, once every such statement is shaped:
-    // a closure's sites may stand in another of them.
     this.decideWrites(fresh, shapes);
     for (const unit of fresh) {
       const shape = shapes.get(unit)!;
@@ -818,7 +550,6 @@ export class ProgramResolver {
     this.changedNamesLastResolve = changed;
     this.notedChanged(changed);
 
-    // The carried statements whose resolution would read otherwise.
     if (!cold) {
       const gone = new Set<Unit>([...fresh, ...dropped]);
       const invalidate = (unit: Unit, reason: string) => {
@@ -840,12 +571,6 @@ export class ProgramResolver {
           invalidate(unit, "name *");
         }
       }
-      // A statement whose record a resolve made that its compile did not keep
-      // (a preview's, an attempt's that met a memo it could not compile
-      // from, or one whose build made no program): what it found can rest on
-      // what the statements served from those memos repeated, which their
-      // lowering anew may not, and no compile completed the memos of its
-      // block (#1974).
       for (const unit of this._order) {
         if (unit.record && unit.record.at > this._committed) {
           invalidate(unit, "uncommitted");
@@ -869,16 +594,11 @@ export class ProgramResolver {
         }
       }
       passes.invalidated = fresh.filter((unit) => unit.invalidated).length;
-      // A statement resolved again for a name it reads decides its
-      // assignments' writes again, from the context that name changed; a
-      // change of what they decide comes with a declaration of their name
-      // otherwise, which every reader of the name already reads again.
       this.decideWrites(
         fresh.filter((unit) => unit.invalidated),
         null,
       );
     } else {
-      // Every divert finds its target again.
       bumpResolutionEpoch();
       this._epoch = currentResolutionEpoch();
     }
@@ -904,9 +624,6 @@ export class ProgramResolver {
         this.reported(message, type, metadata),
       );
 
-      // The story's constants and structs, which it declares ahead of
-      // every other global, from each statement's, in the
-      // story's order.
       const consts: ConstantDeclaration[] = [];
       const structs: StructDefinition[] = [];
       for (const unit of this._order) {
@@ -924,13 +641,6 @@ export class ProgramResolver {
         this.runtimeStructOf,
       );
 
-      // A constant the story can register now and could not before, or the
-      // other way round (built from a non-constant, from one that cannot be
-      // registered, or in a cycle), reads otherwise for every statement that
-      // asked about it, though no statement declares it otherwise: the story
-      // decides it from the constants together (`RegisterConstantGlobals`),
-      // and declares a global of each it registers, so the table of globals
-      // reads otherwise too.
       const unregisterable = new Set(story.unregisterableConstants);
       if (!cold) {
         const before = this._unregisterable;
@@ -970,17 +680,10 @@ export class ProgramResolver {
       }
       this._unregisterable = unregisterable;
 
-      // The memos of the statements of a carried block that a statement of
-      // it is resolved again in, which this resolution completes again
-      // (#1974).
       this.noteCarriedMemos(fresh, input);
 
-      // Each flow's labels, from what its statements hold, in the order a
-      // walk of its weave finds them.
       this.nameFlow(story);
 
-      // Preparation: every statement prepared anew, or what preparing it
-      // last did done again.
       story.BeginPreparation();
       this.generateFlow(root);
 
@@ -996,24 +699,19 @@ export class ProgramResolver {
         constantNames: story.RegisteredConstantNames(),
       };
 
-      // What the walks of the whole story that resolution makes would find
-      // in each statement generated anew, as generation left it.
       for (const unit of fresh) {
         this.readFacts(unit);
       }
 
-      // Resolution, which a throw stops.
       story.BeginReferenceResolution();
       try {
         this.resolveFlow(root);
       } catch (e) {
         console.error(e);
         passes.stopped = true;
-        // The statements after the throw were neither resolved nor replayed.
         this._needsCold = true;
       }
     } catch (e) {
-      // A throw out of generation ends the compile.
       this._needsCold = true;
       throw e;
     } finally {
@@ -1024,7 +722,6 @@ export class ProgramResolver {
       DebugMetadata.onCreated = onCreated;
     }
 
-    // The statements generated and resolved keep what they recorded.
     for (const unit of dropped) {
       this._positioned.delete(unit);
     }
@@ -1050,7 +747,6 @@ export class ProgramResolver {
 
     this.retarget(story);
 
-    // What each memo candidate reported and read, for its memo.
     this.staleMemosLastResolve = [...this._staleMemos];
     if (!passes.stopped) {
       for (const [entry, tally] of this._tallies) {
@@ -1075,13 +771,6 @@ export class ProgramResolver {
     return tables;
   }
 
-  // ---- What the story's walks find, from each statement's syntax ----------
-
-  /** Reads what the walks of the whole story that resolution makes
-   *  (`Story.globalAssignmentNames`, `FlowBase.IsLocalInScope`) would find
-   *  in a statement generated anew: its assignments and function values,
-   *  and the locals each of its objects declares. A carried statement keeps
-   *  what its last generation left, and so these. */
   protected readFacts(unit: Unit): void {
     const shape = unit.next!.shape;
     shape.assignments = [];
@@ -1105,24 +794,6 @@ export class ProgramResolver {
     }
   }
 
-  /** Decides, for each plain assignment the statements `units` hold, whether
-   *  a `local` or parameter certainly binds it (`FlowBase.IsBoundLocallyAt`),
-   *  and keeps the answer on it (`VariableAssignment.boundLocally`), which
-   *  `Story.writesGlobal` reads while the statement is carried. With
-   *  `shapes`, each answer is also declared with the assignment's name, so
-   *  that a statement whose answer changes declares the name otherwise and
-   *  the calls that read the name are resolved again (`Story.assignsGlobally`).
-   *
-   *  A name a nested function captures is filled at the function's sites. A
-   *  function nested in another function stands, with its sites, in the
-   *  statement that declares the outer function whole; a closure written at
-   *  the top level is filled where its value is made, which the statements'
-   *  function values hold: those of `units` as lowered, those of every
-   *  other statement as it was last generated. A `local` declared before an
-   *  assignment is found from the locals each statement before it declares
-   *  (`_locals`, through the tap), so a carried statement's content is not
-   *  walked; a statement lowered anew has none kept yet, and its content is
-   *  walked. Nothing else is read. */
   protected decideWrites(
     units: readonly Unit[],
     shapes: Map<Unit, UnitShape> | null,
@@ -1143,7 +814,6 @@ export class ProgramResolver {
     shapes: Map<Unit, UnitShape> | null,
   ): void {
     const deciding = new Set(units);
-    // Declares, with the name `unit` writes, whether the write is local.
     const declareWrite = (unit: Unit, name: string, bound: boolean) => {
       const shape = shapes?.get(unit);
       if (shape) {
@@ -1191,11 +861,6 @@ export class ProgramResolver {
     for (const unit of units) {
       for (const member of unit.members) {
         for (const obj of this.alongContent(member)) {
-          // A store through the globals table always writes the global it
-          // names, which no local binds (I-1091), or, with a key the
-          // compiler cannot name, may write any global (`ANY_GLOBAL`,
-          // I-1394). One among a prepared builtin call's arguments is not
-          // in its content (`detachedGlobalsTableWrites`).
           for (const held of detachedGlobalsTableWrites(obj)) {
             declareWrite(unit, globalsTableWrite(held)!, false);
           }
@@ -1224,13 +889,10 @@ export class ProgramResolver {
     }
   }
 
-  /** The locals `obj` declares where an object after it reads them, and
-   *  those of every object under it, read once (`_locals`). */
   protected localsOf(obj: ParsedObject): ReadonlySet<string> {
     let locals = this._locals.get(obj);
     if (!locals) {
       const content = obj.content ?? [];
-      // A search from inside `obj` asks about the objects it holds.
       for (const child of content) {
         this.localsOf(child);
       }
@@ -1243,8 +905,6 @@ export class ProgramResolver {
     return locals;
   }
 
-  /** Each item of the walk `node` begins, in the story's order: the shape
-   *  of each statement, and each object the compile adds itself. */
   protected *walkItems(
     node: FlowNode,
   ): Generator<{ shape: UnitShape } | { loose: ParsedObject }> {
@@ -1269,7 +929,6 @@ export class ProgramResolver {
     }
   }
 
-  /** Every object along `content` under `obj`, `obj` first. */
   protected *alongContent(obj: ParsedObject): Generator<ParsedObject> {
     yield obj;
     for (const child of obj.content ?? []) {
@@ -1277,8 +936,6 @@ export class ProgramResolver {
     }
   }
 
-  /** The assignments the story holds, in its order, from what each
-   *  statement's syntax holds and the objects the compile adds itself. */
   protected *storyAssignments(): Generator<ParsedObject> {
     if (!this._root) {
       return;
@@ -1297,8 +954,6 @@ export class ProgramResolver {
     }
   }
 
-  /** The function values the story holds, in its order, as for
-   *  `storyAssignments`. */
   protected *storyFunctionValues(): Generator<DivertTarget> {
     if (!this._root) {
       return;
@@ -1316,9 +971,6 @@ export class ProgramResolver {
     }
   }
 
-  /** Under `verifyFacts`, walks the whole story as the passes the resolver
-   *  answers for walk it, and records in `factFailures` any answer the
-   *  statements' syntax gave otherwise. */
   protected verifyFacts(story: Story): void {
     const fail = (what: string) => {
       ProgramResolver.factFailures.push(what);
@@ -1365,9 +1017,6 @@ export class ProgramResolver {
     check(story);
   }
 
-  // ---- The walk -----------------------------------------------------------
-
-  /** The unit of `key` for this compile, found or made. */
   protected unitFor(
     key: object,
     kind: Unit["kind"],
@@ -1378,7 +1027,6 @@ export class ProgramResolver {
       if (kind !== "weave") {
         throw new Error("A flow stands in two places of the story");
       }
-      // A block whose objects the assembly placed in two places.
       return this.unitFor(this.occurrence(key), kind, context);
     }
     if (!unit || unit.kind !== kind) {
@@ -1429,8 +1077,6 @@ export class ProgramResolver {
     return node;
   }
 
-  /** Lists the statements of a weave's `content`, each the objects placed
-   *  for one block, in order. */
   protected walkWeave(
     content: readonly ParsedObject[],
     node: FlowNode,
@@ -1448,8 +1094,6 @@ export class ProgramResolver {
       if (!owner) {
         close();
         if (obj instanceof Weave) {
-          // An included script's top level, which the story places where the
-          // script is included.
           this.walkWeave(obj.content, node, input);
         } else {
           node.items.push({ kind: "loose", obj });
@@ -1464,9 +1108,6 @@ export class ProgramResolver {
       }
       const unit = current!;
       if (obj instanceof Weave && obj.isChooseBlock && obj.assembledFrom) {
-        // A `choose` block that ends its chunk: the assembly placed a weave
-        // of its own in place of the block's, which goes on to hold the
-        // content of the chunks after it, as statements after the block.
         const own = obj.assembledFrom.content.length;
         for (let j = 0; j < own; j += 1) {
           unit.members.push(obj.content[j]!);
@@ -1476,7 +1117,6 @@ export class ProgramResolver {
         continue;
       }
       if (obj instanceof Statement) {
-        // A statement generates no flow it holds.
         for (const inner of obj.content) {
           unit.members.push(inner);
           if (inner instanceof FlowBase) {
@@ -1489,8 +1129,6 @@ export class ProgramResolver {
     }
   }
 
-  /** A key of its own for a later placement of `block` this compile, whose
-   *  first placement is known by the block itself. */
   protected occurrence(block: object): object {
     let keys = this._occurrences.get(block);
     if (!keys) {
@@ -1507,9 +1145,6 @@ export class ProgramResolver {
     return key;
   }
 
-  // ---- What a statement declares --------------------------------------
-
-  /** The statement's shape, read from its syntax. */
   protected shapeOf(unit: Unit): UnitShape {
     const shape: UnitShape = {
       defs: new Map(),
@@ -1543,9 +1178,6 @@ export class ProgramResolver {
         this._positionUnit.set(metadata, unit);
       }
     };
-    // With the flow lowered: a resolution holds the flow it found
-    // (`Divert.targetContent`), which the writer finds the flow's symbol by,
-    // so a flow lowered anew under the same name declares the name otherwise.
     const flowSign = (flow: FlowBase) =>
       `flow:${flow.flowLevel}:${flow.isFunction}:${parametersOf(flow)}:${loweringOf(flow)}`;
 
@@ -1561,16 +1193,8 @@ export class ProgramResolver {
       return shape;
     }
 
-    // The locals still in scope after the statement, as a search from a
-    // later statement finds them (`declaresLocal`).
     const openLocals = localsDeclaredIn(unit.members, unit.members.length);
 
-    // One walk over every object under the statement, each before what it
-    // holds: the names each declaration declares, with its position and its
-    // statement; and, along `content` alone, which is what the passes over
-    // the whole story walk (`CollectByType`, `FindAll`, `Find`), the
-    // declarations those passes take of it, its labels, and its first return
-    // outside any function it writes.
     const declared = (obj: ParsedObject, ...ids: (Identifier | null | undefined)[]) => {
       position(obj.ownDebugMetadata);
       for (const id of ids) {
@@ -1601,9 +1225,6 @@ export class ProgramResolver {
             kinded("vars", `$${type || name}_${name}`, how);
           }
         } else if (obj.isNewTemporaryDeclaration) {
-          // With whether it is still in scope after the statement, which a
-          // block written around it changes (a library-named local's reads,
-          // `FlowBase.IsLocalInScope`).
           kinded(
             "vars",
             name,
@@ -1617,7 +1238,6 @@ export class ProgramResolver {
         kinded("consts", obj.constantName, "const");
         kinded("vars", obj.constantName, "const");
         declared(obj, obj.identifier);
-        // The global the story makes of it initializes from its expression.
         this._declarationUnit.set(obj.expression, unit);
       } else if (obj instanceof ExternalDeclaration) {
         kinded("externals", obj.name, `external:${obj.argumentNames.length}`);
@@ -1633,8 +1253,6 @@ export class ProgramResolver {
         kinded("vars", obj.type?.name, `parent:${how}`);
         for (const prop of obj.propertyDefinitions) {
           kinded("vars", `${key}${prop.key}`, `property:${how}`);
-          // The global the story makes of a property initializes from its
-          // expression.
           if (prop.expression) {
             this._declarationUnit.set(prop.expression, unit);
           }
@@ -1667,7 +1285,6 @@ export class ProgramResolver {
           }
         }
       }
-      // `parsedChildren` holds `content` first.
       const children = parsedChildren(obj);
       const content = obj.content?.length ?? 0;
       for (let i = 0; i < children.length; i += 1) {
@@ -1680,8 +1297,6 @@ export class ProgramResolver {
     }
 
     if (unit.kind === "flow") {
-      // Each weave the function's flows name, as `ResolveWeavePointNaming`
-      // finds its labels.
       const name = (flow: FlowBase, key: FlowBase | null) => {
         if (flow._weave) {
           shape.naming.set(key, namedPointsOf(flow._weave));
@@ -1695,10 +1310,6 @@ export class ProgramResolver {
     return shape;
   }
 
-  // ---- Naming -------------------------------------------------------------
-
-  /** Names the labels of `flow`'s weave and of the flows under it, in the
-   *  order `FlowBase.ResolveWeavePointNaming` names them. */
   protected nameFlow(flow: FlowBase): void {
     const at = this._flows.get(flow);
     if (at instanceof Unit) {
@@ -1740,11 +1351,8 @@ export class ProgramResolver {
     return (unit.next ?? unit.record)!.shape;
   }
 
-  // ---- Generation -------------------------------------------------------
-
   protected generateFlow(node: FlowNode): void {
     const flow = node.flow;
-    // A return written in a scene, a branch or at file scope.
     if (
       !flow.isFunction &&
       (flow.flowLevel === FlowLevel.Knot ||
@@ -1822,14 +1430,8 @@ export class ProgramResolver {
     });
   }
 
-  /** Prepares the initializer of the global `value`, which `PrepareGlobals`
-   *  hands over in the order the story declared the globals. */
   protected initialize(value: VariableAssignment): void {
-    // The global of a constant or of a struct's property is made anew by
-    // every compile, and its initializer is the statement's own.
     const initializer = value.expression!;
-    // The values a store evaluates after its last name and drops (#1333)
-    // are prepared with its initializer.
     const prepare = () => {
       initializer.PrepareIntoContainer();
       for (const discarded of value.discarded) discarded.PrepareIntoContainer();
@@ -1837,8 +1439,6 @@ export class ProgramResolver {
     const unit =
       this._declarationUnit.get(value) ?? this._declarationUnit.get(initializer);
     if (!unit || unit.seen !== this._compile) {
-      // An initializer that stands in no statement: written on every
-      // resolve.
       this.passesLastResolve.initialized += 1;
       this.outside(initializer);
       prepare();
@@ -1851,9 +1451,6 @@ export class ProgramResolver {
           this.replay(unit, events);
         }
       } else {
-        // A global its statement did not initialize when it was generated,
-        // which a name its statement read declaring otherwise would have
-        // resolved again: written, and nothing recorded.
         this.passesLastResolve.initialized += 1;
         this.outside(initializer);
         prepare();
@@ -1866,11 +1463,6 @@ export class ProgramResolver {
     this.record(unit, events, prepare);
   }
 
-  /** The runtime definition of `struct`, which `DeclareStoryTables` and
-   *  `PrepareGlobals` ask for: built when its statement is prepared, and
-   *  otherwise the one built then, with the diagnostics building it reported
-   *  reported again. Building it a second time in one compile reports nothing,
-   *  as each diagnostic of a parsed object is reported once per compile. */
   protected runtimeStructOf = (struct: StructDefinition): RuntimeStructDefinition => {
     const unit = this._declarationUnit.get(struct);
     const cached = this._structs.get(struct);
@@ -1891,8 +1483,6 @@ export class ProgramResolver {
     this._structs.set(struct, { definition, events, compile: this._compile });
     return definition;
   };
-
-  // ---- Resolution -------------------------------------------------------
 
   protected resolveFlow(node: FlowNode): void {
     const story = this._story;
@@ -1929,8 +1519,6 @@ export class ProgramResolver {
       }
     });
   }
-
-  // ---- Recording and replaying ----------------------------------------
 
   protected record(
     unit: Unit | null,
@@ -1985,8 +1573,6 @@ export class ProgramResolver {
     metadata: SourceMetadata | null,
   ): void {
     this._buffer.push({ message, type, metadata });
-    // A block statement's memo reports what the statements inside it
-    // report, in the order they report it.
     for (const frame of this._frames) {
       const { tally } = frame;
       const { line, endLine } = tally.candidate;
@@ -2009,16 +1595,10 @@ export class ProgramResolver {
     }
   }
 
-  // ---- Statement memos ----------------------------------------------------
-
   protected refuse(tally: MemoTally, why: string): void {
     tally.refused ??= why;
   }
 
-  /** Notes that this resolve found `names` declared otherwise: a constant
-   *  the story can register now and could not before, or the other way
-   *  round, is declared otherwise for its readers and for those that read
-   *  the globals whole (`*vars`). */
   protected notedChanged(names: readonly string[]): void {
     for (const name of names) {
       this._changedAt.set(name, this._compile);
@@ -2028,34 +1608,17 @@ export class ProgramResolver {
     }
   }
 
-  /** Whether a statement whose resolution, made by this resolver's resolve
-   *  `at`, looked up `name` reads otherwise now, by the rule a carried
-   *  statement is resolved again by: the name was declared otherwise since,
-   *  or, for `*` (a lookup that read every name), any name was. */
   protected readsOtherwise(name: string, at: number): boolean {
     return (name === "*" ? this._anyChangedAt : (this._changedAt.get(name) ?? 0)) > at;
   }
 
-  /** Has the compile add to the memo candidates the statements of each
-   *  carried block a statement this resolve generates and resolves stands in
-   *  (`ResolveInput.carriedMemos`): their memos were completed by an earlier
-   *  resolve, and a name their resolution read that this one finds declared
-   *  otherwise, or flows around them that changed, would leave them stale
-   *  for the next lowering of the block, though this resolution reads what
-   *  it reads now. */
   protected noteCarriedMemos(fresh: readonly Unit[], input: ResolveInput): void {
     const candidates = this._candidates;
     if (!input.carriedMemos || !candidates) {
       return;
     }
-    // Every statement generated and resolved: one whose block was lowered
-    // anew adds nothing (`carriedMemos` takes only carried blocks), and a
-    // carried one is resolved again for a name, for the flows around it
-    // (`moved`), for a rename or for a resolve its compile did not keep.
     const blocks = new Set<object>();
     for (const unit of fresh) {
-      // A weave's objects came from its block; a function and a header
-      // stand for a flow the block placed.
       const block = unit.block ?? (unit.flow ? input.blockOf(unit.flow) : undefined);
       if (block) {
         blocks.add(block);
@@ -2068,19 +1631,10 @@ export class ProgramResolver {
     this._owners = ProgramResolver.ownersOf(candidates);
   }
 
-  /** Notes that the compile of the last resolve kept what it resolved: the
-   *  chunk store committed its build, and the compile completed the memos
-   *  of its statements (`SparkdownCompiler.completeMemos`). It was no
-   *  preview, met no memo it could not compile from (`StatementMemoRetry`)
-   *  and made a program. The next resolve resolves again each statement a
-   *  resolve after the last such compile resolved: what that resolve found
-   *  can rest on what a stale memo's stand-in repeated, and the memos of the
-   *  statement's block are completed by none (`noteCarriedMemos`, #1974). */
   committed(): void {
     this._committed = this._compile;
   }
 
-  /** The memo candidate whose objects `obj` stands among, or none. */
   protected candidateOf(obj: unknown): MemoTally | undefined {
     const candidates = this._candidates;
     if (!candidates || !(obj instanceof ParsedObject)) {
@@ -2095,8 +1649,6 @@ export class ProgramResolver {
     return undefined;
   }
 
-  /** The block statements among `candidates` that hold each object of the
-   *  statements of their bodies, at any depth. */
   protected static ownersOf(
     candidates: ReadonlyMap<ParsedObject, MemoCandidate> | null,
   ): Map<ParsedObject, MemoCandidate[]> {
@@ -2132,9 +1684,6 @@ export class ProgramResolver {
     return tally;
   }
 
-  /** Refuses the memo candidate whose generation or resolution is running,
-   *  or, outside any, the one that holds `concerning`: what happened reads or
-   *  writes beyond the statement, so its memo could not repeat it. */
   protected refuseRunning(why: string, concerning?: unknown): void {
     const frame = this._frames[this._frames.length - 1];
     const tally = frame?.tally ?? this.candidateOf(concerning);
@@ -2143,38 +1692,16 @@ export class ProgramResolver {
     }
   }
 
-  /** What a memo candidate's generation and resolution reported, read and
-   *  declared, when its memo can repeat it: it reported only positions inside
-   *  itself; it declared nothing but the locals and auto-globals of the
-   *  assignments it is, which its stand-in declares and makes again
-   *  (`repeatMemo`); it read no fact of another statement's that no name
-   *  stands for (a function value, the story's assignments) and no name of a
-   *  struct, whose values the story decides from the declarations together. A constant's name it may read: a change of whether the story
-   *  can register the constant declares the name otherwise for its readers
-   *  (`notedChanged`), which makes the memo stale. */
   protected memoResolutionOf(tally: MemoTally): MemoResolution | undefined {
     if (tally.refused !== null || tally.context === null) {
       return undefined;
     }
     const objects = tally.candidate.objects;
-    // A plain assignment stands as an assignment of its name
-    // (`MemoizedAssignment`), which the passes over the whole story read as
-    // they read it; what it holds they read no more of.
-    // A label stands as a label of its name (`MemoizedGather`), as a plain
-    // assignment as an assignment of its name.
     const only = objects.length === 1 ? objects[0]! : undefined;
-    // A statement of several assignments (`& local a = 1; local b = 2`)
-    // stands as a group of them, as one stands as one.
     const assignments = objects.length > 0 && objects.every(standsAsAssignment);
     const assignment =
       assignments || (only instanceof Gather && memoGatherOf(only) !== null);
-    // A block statement holds the objects of the statements of its bodies,
-    // which their own memos judge, and stand-ins of them when it is served.
     const nested = tally.candidate.nested;
-    // The parts of a loop's or a `choose` block's own objects that its
-    // stand-in holds again (`MemoHolder`, #1683): a loop's labels, locals and
-    // their assignments, a `choose` block's named choices and the label of
-    // its `then` clause.
     const held = heldPartsOf(objects);
     const walks = (obj: ParsedObject): boolean =>
       nested?.has(obj) ? false : holdsWhatTheStoryWalks(obj, nested, held);
@@ -2190,11 +1717,6 @@ export class ProgramResolver {
     ) {
       return undefined;
     }
-    // Read without reporting the read (`RecordingMap`). A constant's
-    // reader reads it as a global (`GetVar`), and a change of whether the
-    // story can register it declares its name otherwise for its readers
-    // (`notedChanged`), which makes the memo stale; a struct's values the
-    // story decides from the declarations together.
     const tables = this._story as unknown as {
       _structDefs?: Map<string, unknown>;
     };
@@ -2205,10 +1727,6 @@ export class ProgramResolver {
         return undefined;
       }
     }
-    // The names a loop's lowering made from its place in the document, which
-    // its stand-in names again where it stands (`MemoHolder`), and the label a
-    // `break` or `continue` leaves by, which its loop's lowering made: what
-    // the statement's syntax decides, which the compile numbers anew.
     const own = ownNumberedNames(objects, nested);
     return {
       generate: tally.generate,
@@ -2222,12 +1740,6 @@ export class ProgramResolver {
     };
   }
 
-  /** Repeats, where a statement served from its memo stands, what its
-   *  generation (`generate`) or resolution reported, at its current
-   *  position, and reads again the names it read, into the record of the
-   *  statement whose objects hold it. A memo whose names are declared
-   *  otherwise, or that stands among other flows, cannot be repeated: it is
-   *  marked stale, and the compile lowers it again. */
   protected repeatMemo(
     statement: ParsedObject,
     entry: StatementMemoEntry,
@@ -2255,8 +1767,6 @@ export class ProgramResolver {
         recording.record.reads.add(name);
       }
     }
-    // A block statement lowered anew reads what a statement inside it
-    // served from its memo read.
     for (const frame of this._frames) {
       for (const name of resolution.reads) {
         frame.tally.reads.add(name);
@@ -2273,16 +1783,6 @@ export class ProgramResolver {
       position.endCharacterNumber = report.endCharacter;
       statement.Error(report.message, position, report.type === ErrorType.Warning);
     }
-    // The auto-global the assignment made, made again where its resolution
-    // would make it, while no name resolves the assignment's name: the
-    // lookup reads the names, as the resolution's own did.
-    // The locals a local declaration declared, declared again where its
-    // generation would declare them, and the auto-globals an assignment
-    // made, made again where its resolution would, while no name resolves
-    // the name (the lookup reads the names, as the resolution's own did); a
-    // block statement's stand-in does so for the statements inside it.
-    // The locals of a loop a block statement's stand-in holds (`MemoHolder`),
-    // declared again where the loop's generation declares them (#1683).
     if (phase === "generate" && entry.owner) {
       for (const held of statement.content) {
         if (isHolder(held) && held instanceof VariableAssignment && held.isNewTemporaryDeclaration) {
@@ -2304,9 +1804,6 @@ export class ProgramResolver {
     }
   }
 
-  /** Records a diagnostic the statement being resolved raised
-   *  (`ResolutionTap.diagnostic`). A diagnostic a declaration raises as it
-   *  is declared is raised again by declaring it again (`event`). */
   protected raised(
     raiser: ParsedObject | null,
     message: string,
@@ -2322,9 +1819,6 @@ export class ProgramResolver {
     if (this._candidates) {
       const frame = this._frames[this._frames.length - 1];
       if (frame) {
-        // A diagnostic the story does not report at a position of its own
-        // (one only the flow around it locates), or one about an object of
-        // another statement, which that statement's diagnostics decide with.
         const outside =
           (source instanceof ParsedObject && this.candidateOf(source) !== frame.tally) ||
           (!!position && !this._copies.has(position) &&
@@ -2333,8 +1827,6 @@ export class ProgramResolver {
           this.refuse(frame.tally, "it reports what another statement decides");
         }
       } else {
-        // Raised outside the statement's own generation and resolution about
-        // one of its objects.
         this.refuseRunning("another statement reports about it", source);
         this.refuseRunning("another statement reports about it", raiser);
       }
@@ -2347,16 +1839,11 @@ export class ProgramResolver {
     if (position && !this._copies.has(position)) {
       this.dependOn(position);
     }
-    // A position the report made moves as far as the statement's anchor
-    // moves (`raiseAgain`); a statement with no anchor is resolved again.
     if (copy && recording.record && !recording.record.anchor) {
       recording.record.volatile = true;
     }
   }
 
-  /** Raises a recorded diagnostic again where it was raised, which reports
-   *  it at its source's position as it reads now, unless an earlier
-   *  diagnostic of the same source keeps it back, as in a cold compile. */
   protected raiseAgain(
     record: UnitRecord | null,
     event: Extract<ResolutionEvent, { kind: "diagnostic" }>,
@@ -2364,8 +1851,6 @@ export class ProgramResolver {
     const story = this._story;
     let source = event.source as ParsedObject | DebugMetadata | null;
     if (event.copy && event.position) {
-      // Nothing keeps back a diagnostic of a position or of a name built for
-      // the report, so the position stands for it.
       const position = event.position;
       const delta =
         record?.anchor && record.anchor.filePath === position.filePath
@@ -2380,14 +1865,11 @@ export class ProgramResolver {
         source = position;
       }
     }
-    // Raised again as nothing the statements being resolved raised.
     const recording = this._recording;
     this._recording = null;
     try {
       const raiser = event.raiser;
       if (raiser && raiser !== story && raiser.story === story) {
-        // The message is the one the raiser's own `Error` made (a divert's
-        // prefixes `Function call`), so it is raised past that.
         ParsedObject.prototype.Error.call(
           raiser,
           event.message,
@@ -2418,9 +1900,6 @@ export class ProgramResolver {
     this.dependOn(metadata);
   }
 
-  /** Records that the statement being resolved reports or prints
-   *  `position`, which, when it is another statement's, that statement's
-   *  replacement may move. */
   protected dependOn(position: DebugMetadata): void {
     const recording = this._recording;
     const owner = this._positionUnit.get(position);
@@ -2429,8 +1908,6 @@ export class ProgramResolver {
     }
   }
 
-  /** Counts `obj`, generated or resolved outside any statement's generation
-   *  and resolution. */
   protected outside(obj: ParsedObject): void {
     this.passesLastResolve.outside += 1;
     if (ProgramResolver.traceVisits) {
@@ -2444,11 +1921,9 @@ export class ProgramResolver {
     }
   }
 
-  /** What the parsed hierarchy reports to while a statement is resolved. */
   protected tap: ResolutionTap = {
     read: (key) => {
       this._recording?.record?.reads.add(key);
-      // A block statement's memo reads what the statements inside it read.
       for (const frame of this._frames) {
         frame.tally.reads.add(key);
       }
@@ -2459,13 +1934,9 @@ export class ProgramResolver {
     builtinDivert: (entry, register) => this.event({ kind: "builtinDivert", entry: entry as Story["builtinGlobalDiverts"][number] }, register),
     diagnostic: (raiser, message, source, isWarning, position, emitted) =>
       this.raised(raiser, message, source, isWarning, position, emitted),
-    // A lookup through these reads the name it looks up, or `*`, which is
-    // what decides when a statement that made it reads otherwise.
     declaredLocals: (obj) => this._locals.get(obj),
     unplaced: (obj) => this._unplaced.get(obj),
     left: (obj, generated) => {
-      // The statement's frame, and those of the block statements holding it
-      // that it opened (`visited`).
       for (
         let frame = this._frames[this._frames.length - 1];
         frame && frame.obj === obj && frame.generated === generated;
@@ -2497,8 +1968,6 @@ export class ProgramResolver {
       this.refuseRunning("it reads the assignments of other statements");
       return this.storyAssignments();
     },
-    // The caller reads the name, which every assignment of it declares with
-    // whether it writes the global (`decideWrites`).
     globalWrite: (name) => {
       if (!this._globalWrites) {
         this._globalWrites = new Set();
@@ -2512,11 +1981,6 @@ export class ProgramResolver {
       return this._globalWrites.has(name);
     },
     visited: (obj, generated) => {
-      // A block statement whose lowering places the objects of its bodies'
-      // statements beside its own rather than inside them (a `do` block,
-      // #1846) is not running while they are: its frame opens across each,
-      // so its memo reports and reads what they report and read, as a block
-      // that holds them does.
       const candidate = this._candidates?.get(obj);
       for (const owner of this._owners.get(obj) ?? []) {
         const tally = this.tallyOf(owner);
@@ -2550,8 +2014,6 @@ export class ProgramResolver {
 
   protected event(event: ResolutionEvent, register: () => void): void {
     const frame = this._frames[this._frames.length - 1];
-    // Whether `obj` is the assignment the running candidate is, or a target
-    // of the assignment of several names it is.
     const own = (obj: ParsedObject): boolean => {
       const objects = frame?.tally.candidate.objects;
       return (
@@ -2562,34 +2024,24 @@ export class ProgramResolver {
       );
     };
     if (event.kind === "autoGlobal" && own(event.assignment)) {
-      // The plain assignment a candidate is makes the auto-global, which
-      // its stand-in makes again (`repeatMemo`).
       frame!.tally.autoGlobals.push(event.assignment.variableName);
     } else if (
       event.kind === "declare" &&
       own(event.declaration) &&
       event.declaration.isNewTemporaryDeclaration
     ) {
-      // The local declaration a candidate is declares its local, which its
-      // stand-in declares again (`repeatMemo`).
       frame!.tally.declares.push(event.declaration.variableName);
     } else if (
       (event.kind === "autoGlobal" && standsIn(event.assignment)) ||
       (event.kind === "declare" && standsIn(event.declaration))
     ) {
-      // A stand-in makes it again, as the block statement that holds it
-      // will (`repeatMemo`).
     } else if (
       event.kind === "declare" &&
       isLoopInternal(event.declaration) &&
       !!frame &&
       loopOf.has(frame.tally.candidate.objects[0]!)
     ) {
-      // A loop's hidden temporary or variable, which the loop's stand-in
-      // declares again through its holder (`MemoHolder`, #1683).
     } else if (this._candidates) {
-      // A statement that declares anything, which the story keeps for the
-      // rest of the compile, is no statement a memo can stand for.
       const declared =
         event.kind === "declare" ? event.declaration
         : event.kind === "external" ? event.declaration
@@ -2612,24 +2064,9 @@ export class ProgramResolver {
   }
 }
 
-/** Whether the flow `obj` belongs to, the closest one around it, is a
- *  function, as `FlowBase.CheckOwnControlFlow` finds a return's flow. */
 const inFunctionBody = (obj: ParsedObject): boolean =>
   !!(ClosestFlowBase(obj) as FlowBase | null)?.isFunction;
 
-/** Whether `obj`, or anything under it, is what the story's passes over the
- *  whole program take of a statement (`ProgramResolver.shapeOf`,
- *  `readFacts`): a declaration of any kind, a flow, a label, a return
- *  outside a function's body, an assignment, a store through the globals
- *  table or a function value. A statement served from its memo holds no
- *  objects, so a statement that holds any of these is never remembered.
- *  Of a return the passes take only one a scene, a branch or the file's
- *  top level holds, which they report (`generateFlow`,
- *  `FlowBase.CheckOwnControlFlow`); one in a function's body emits its
- *  values and `Return`, which its chunk holds, and its memo serves only a
- *  statement of its syntax, which names the nodes it stands in up to the
- *  top (`StatementMemoSession.syntaxOf`), so in a function's body too
- *  (I-1423). */
 const holdsWhatTheStoryWalks = (
   obj: ParsedObject,
   except?: ReadonlySet<ParsedObject>,
@@ -2650,9 +2087,6 @@ const holdsWhatTheStoryWalks = (
     ((obj instanceof ReturnType || obj instanceof MultiReturnType) && !inFunctionBody(obj)) ||
     ((obj instanceof Gather || obj instanceof Choice) && obj.identifier?.name != null) ||
     (obj instanceof DivertTarget && obj.isFunctionValue) ||
-    // A store through the globals table is an assignment the story's
-    // global writes read (`isAssignmentFact`), one among a prepared builtin
-    // call's arguments too.
     globalsTableWrite(obj) !== null ||
     detachedGlobalsTableWrites(obj).length > 0
   ) {
@@ -2661,10 +2095,6 @@ const holdsWhatTheStoryWalks = (
   return parsedChildren(obj).some((child) => holdsWhatTheStoryWalks(child, except, held));
 };
 
-/** The parts of a statement's own objects its stand-in holds again
- *  (`MemoHolder`, #1683): for a loop, the labels, locals and assignments
- *  its lowering made for itself (`isLoopInternal`); for a `choose` block,
- *  its choices and the gather that ends it. */
 const heldPartsOf = (
   objects: readonly ParsedObject[],
 ): ((obj: ParsedObject) => boolean) => {
@@ -2678,10 +2108,6 @@ const heldPartsOf = (
   return () => false;
 };
 
-/** The names the compile numbers by document order that a statement's own
- *  objects (`objects`, but those of the statements of its bodies) hold as a
- *  loop's own: its labels, its locals and the labels its `break` and
- *  `continue` leave by. */
 const ownNumberedNames = (
   objects: readonly ParsedObject[],
   nested: ReadonlySet<ParsedObject> | undefined,
@@ -2710,17 +2136,11 @@ const ownNumberedNames = (
   return out;
 };
 
-/** The named gathers, then the named choices, a weave holds at any depth, as
- *  `Weave.ResolveWeavePointNaming` finds them. */
-/** What `localsOf` keeps for an object that declares no local. */
 const NO_LOCALS: ReadonlySet<string> = new Set();
 
-/** An object's own position, as `definitionSite` reads it. */
 const positionOf = (obj: ParsedObject) =>
   obj.ownDebugMetadata ?? obj.identifier?.debugMetadata;
 
-/** The objects under `obj`, other than flows, that a walk entering every
- *  object with no position finds, in its order (`definitionSite`). */
 const unplacedUnder = (obj: ParsedObject, into: ParsedObject[] = []): ParsedObject[] => {
   for (const child of obj.content ?? []) {
     if (child instanceof FlowBase) {
@@ -2739,10 +2159,6 @@ const namedPointsOf = (weave: Weave): ParsedObject[] => [
   ...weave.FindAll<Choice>(Choice)((w) => !(w.name === null || w.name === undefined)),
 ];
 
-/** A position of the statement that an edit above it moves in place: the
- *  first of its objects' own positions, or of the names they hold, which the
- *  compile moves as it moves the objects (a divert has no position of its
- *  own, and its target's names have theirs). */
 const anchorOf = (unit: Unit): DebugMetadata | null => {
   if (unit.kind === "header") {
     return unit.flow?.ownDebugMetadata ?? null;
@@ -2785,8 +2201,6 @@ const anchorOf = (unit: Unit): DebugMetadata | null => {
   return null;
 };
 
-/** A number for the lowering a flow came from, the same for the flow the
- *  compile assembled from it (`FlowBase._loweredFrom`) in every compile. */
 const loweringOf = (flow: FlowBase): number => {
   const lowered = flow._loweredFrom ?? flow;
   let n = lowerings.get(lowered);
@@ -2805,5 +2219,4 @@ let lastResolverId = 0;
 const anchorDelta = (record: UnitRecord): number =>
   record.anchor ? record.anchor.startLineNumber - record.anchorLine : 0;
 
-/** How `DebugMetadata.toString` prints `metadata` now, without being heard. */
 const printedAt = (metadata: DebugMetadata): string => metadata.printedPosition();

@@ -1,11 +1,3 @@
-// Coverage for the compositing itself (#292) — the parts previously verified
-// only by hand in a running editor.
-//
-// `composeThumbnailBlob` needs OffscreenCanvas/createImageBitmap, which node
-// doesn't have, so those are stubbed. That is deliberate: the point of these
-// tests is the surrounding decision-making — draw order, the fetch/bridge
-// fallback, failure caching, and the byte cap — not the browser's rasterizer.
-
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getImageCompositeSrc,
@@ -20,11 +12,6 @@ import {
   THUMB_MIN_WIDTH,
 } from "../../thumbnails/composeThumbnail";
 
-/**
- * Build a context whose layered image stacks the given layer names.
- * `salt` keeps each test's srcs unique — the composite cache is module-level
- * and would otherwise leak results between tests.
- */
 const makeContext = (salt: string, layerNames: string[]) => {
   const image: Record<string, any> = {};
   for (const name of layerNames) {
@@ -48,7 +35,6 @@ const makeContext = (salt: string, layerNames: string[]) => {
   };
 };
 
-/** Records which bitmaps got drawn, in order, so draw order is assertable. */
 let drawn: string[] = [];
 
 const stubRasterizer = (blobBytes = 32) => {
@@ -76,7 +62,6 @@ const stubRasterizer = (blobBytes = 32) => {
   );
 };
 
-/** fetch that serves each layer's own name as its body, so draws are traceable. */
 const stubFetch = (opts: { fails?: boolean } = {}) => {
   const calls: string[] = [];
   vi.stubGlobal("fetch", async (url: string) => {
@@ -124,10 +109,6 @@ describe("thumbnail cache key", () => {
 });
 
 describe("thumbnail sizing", () => {
-  /**
-   * A rasterizer that respects whichever resize dimension it is given and keeps
-   * the source's aspect ratio, so the shape of what gets decoded is assertable.
-   */
   const stubAspectRasterizer = (srcW: number, srcH: number) => {
     const decoded: string[] = [];
     vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts: any) => {
@@ -168,16 +149,12 @@ describe("thumbnail sizing", () => {
     expect(decoded).toEqual(["360x270"]);
   });
 
-  // A tall source fitted by width alone is unbounded: 200 x 6000 becomes
-  // 360 x 10800, which encodes past the caller's size ceiling and is discarded,
-  // leaving the preview blank. It has to be fitted by height instead.
   it("fits a very tall source by height, so nothing exceeds the box", async () => {
     const decoded = stubAspectRasterizer(200, 6000);
     await composeThumbnailBlob(
       [{ path: "/tall.png", blob: new Blob(["t"]), lastModified: 0, size: 1 }],
       360,
     );
-    // First attempt fits the width and overshoots; the retry fits the height.
     expect(decoded).toEqual(["360x10800", "12x360"]);
   });
 
@@ -190,18 +167,12 @@ describe("thumbnail sizing", () => {
       ],
       360,
     );
-    // Both layers re-decoded under the same transform, never one of each.
     expect(decoded).toEqual(["360x10800", "360x10800", "12x360", "12x360"]);
   });
 
-  // Layers of a `layered_image` share dimensions by convention, but nothing
-  // enforces it. Re-fitting each layer to the box independently would bound the
-  // tall one and leave the wide one overhanging by 30x, back over the caller's
-  // size ceiling. One common scale factor bounds the union instead.
   it("bounds the canvas when layers disagree wildly about aspect ratio", async () => {
     const drawnOn: string[] = [];
     let canvasSize = "";
-    // Two sources of opposite extremes, decoded from the same call.
     const sizes = [
       { w: 200, h: 6000 },
       { w: 6000, h: 200 },
@@ -255,7 +226,6 @@ describe("getImageCompositeSrc", () => {
     const ctx = makeContext("order", ["base", "prop", "light"]);
     const src = await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     expect(src).toMatch(/^data:image\/webp;base64,/);
-    // Reversing this would silently invert every layered image.
     expect(drawn).toEqual(["base", "prop", "light"]);
   });
 
@@ -265,20 +235,14 @@ describe("getImageCompositeSrc", () => {
     const ctx = makeContext("single", ["only"]);
     const src = await getImageCompositeSrc(ctx, ctx.image["only"]);
     expect(src).toBeUndefined();
-    // Nothing to flatten, so nothing should have been fetched or drawn.
     expect(calls).toEqual([]);
     expect(drawn).toEqual([]);
   });
 
-  // #440: in VS Code a single raster image's src is a workspace uri, which the
-  // markdown sanitizer strips off the element — leaving an image with nothing
-  // to load. It has to be inlined as `data:` the way a composite already is.
   it("inlines a single image whose src the host cannot load", async () => {
     stubRasterizer();
     stubFetch({ fails: true });
     const ctx = makeContext("workspaceuri", ["lone"]);
-    // Deliberately unlike the layer's `uri`, so the assertion below pins that
-    // the bridge is asked by workspace uri rather than by display src.
     ctx.image["lone"]!.src = "vscode-vfs://host/workspaceuri/lone.png";
     const asked: string[] = [];
     const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
@@ -292,9 +256,6 @@ describe("getImageCompositeSrc", () => {
     expect(drawn).toEqual(["lone"]);
   });
 
-  // The surface the ticket actually reports: what the hover and the completion
-  // details pane receive. Asserting on `getImageCompositeSrc` alone would still
-  // pass if the markup builder stopped consulting it.
   it("emits markup carrying the inlined image, not the workspace uri", async () => {
     stubRasterizer();
     stubFetch({ fails: true });
@@ -304,10 +265,8 @@ describe("getImageCompositeSrc", () => {
       readFileBytes: async () => btoa("lone"),
     });
     expect(markup).toMatch(/^<img src="data:image\/webp;base64,/);
-    // VS Code's markdown sanitizer strips this scheme off the element.
     expect(markup).not.toContain("vscode-vfs://");
     expect(markup).toContain('alt="lone"');
-    // #432's inline height has to survive the composited path too.
     expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
   });
 
@@ -315,8 +274,6 @@ describe("getImageCompositeSrc", () => {
     ["served-url", "https://cdn.example/pic.png"],
     ["inlined-data-uri", "data:image/svg+xml,%3Csvg%2F%3E"],
     ["page-relative-path", "/file:/local/assets/pic.png?v=1-2"],
-    // Desktop VS Code rewrites this one to `vscode-file:` and renders it, so
-    // inlining it would buy a smaller picture for the cost of an encode.
     ["desktop workspace uri", "file:///c:/workspace/images/pic.png"],
   ])("leaves a single image on a %s alone", async (label, srcValue) => {
     stubRasterizer();
@@ -326,7 +283,6 @@ describe("getImageCompositeSrc", () => {
     const src = await getImageCompositeSrc(ctx, ctx.image["lone"], {
       readFileBytes: async () => btoa("lone"),
     });
-    // Re-encoding a source the host already renders costs work and sharpness.
     expect(src).toBeUndefined();
     expect(calls).toEqual([]);
     expect(drawn).toEqual([]);
@@ -349,12 +305,10 @@ describe("getImageCompositeSrc", () => {
     const src = await getImageCompositeSrc(ctx, ctx.layered_image.bg, {
       readFileBytes: async (uri) => {
         asked.push(uri);
-        // base64 of the layer name, so draw order stays traceable.
         return btoa(uri.split("/").pop()!.split(".")[0]!);
       },
     });
     expect(src).toMatch(/^data:image\/webp;base64,/);
-    // Asked by URI, not src — the bridge reads workspace files.
     expect(asked).toEqual([
       "file://proj/bridge/base.png",
       "file://proj/bridge/prop.png",
@@ -378,7 +332,6 @@ describe("getImageCompositeSrc", () => {
     await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     const afterFirst = calls.length;
     await getImageCompositeSrc(ctx, ctx.layered_image.bg);
-    // Second call must be served from the cache, not re-fetched.
     expect(calls.length).toBe(afterFirst);
   });
 
@@ -394,7 +347,6 @@ describe("getImageCompositeSrc", () => {
   });
 
   it("falls back rather than emitting an oversized data uri", async () => {
-    // Over the 512KB ceiling — a host might truncate it into a broken image.
     stubRasterizer(600 * 1024);
     stubFetch();
     const ctx = makeContext("toobig", ["base", "prop"]);
@@ -405,8 +357,6 @@ describe("getImageCompositeSrc", () => {
   it("evicts old entries rather than growing without bound", async () => {
     stubRasterizer();
     const calls = stubFetch();
-    // Well past the 64-entry ceiling: each composite stores two entries (a
-    // provisional src key and the stable signature key).
     const contexts = Array.from({ length: 60 }, (_, i) =>
       makeContext(`evict${i}`, ["base", "prop"]),
     );
@@ -414,16 +364,11 @@ describe("getImageCompositeSrc", () => {
       await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     }
     const before = calls.length;
-    // The first one is long since evicted, so this must go back to the network.
     await getImageCompositeSrc(contexts[0]!, contexts[0]!.layered_image.bg);
     expect(calls.length).toBeGreaterThan(before);
   });
 
   it("keeps recently READ entries, evicting by use rather than by insertion", async () => {
-    // The distinction between an LRU and a plain FIFO: without the recency
-    // refresh on read, the entry below would be evicted despite being the most
-    // recently used, and a preview the user keeps returning to would
-    // recomposite every time.
     stubRasterizer();
     const calls = stubFetch();
     const hot = makeContext("hot", ["base", "prop"]);
@@ -436,12 +381,10 @@ describe("getImageCompositeSrc", () => {
       await getImageCompositeSrc(ctx, ctx.layered_image.bg);
     }
 
-    // Touch it, making it the most recently used entry.
     const beforeTouch = calls.length;
     await getImageCompositeSrc(hot, hot.layered_image.bg);
     expect(calls.length).toBe(beforeTouch);
 
-    // Now overflow the cache. A FIFO would drop `hot` (inserted first).
     for (const ctx of Array.from({ length: 20 }, (_, i) =>
       makeContext(`after${i}`, ["base", "prop"]),
     )) {
@@ -451,13 +394,11 @@ describe("getImageCompositeSrc", () => {
     const beforeFinal = calls.length;
     await getImageCompositeSrc(hot, hot.layered_image.bg);
     expect(calls.length).toBe(beforeFinal);
-    // ...while an untouched early entry did get evicted.
     await getImageCompositeSrc(filler[0]!, filler[0]!.layered_image.bg);
     expect(calls.length).toBeGreaterThan(beforeFinal);
   });
 
   it("degrades when the host cannot rasterize", async () => {
-    // No OffscreenCanvas: an older host, or a worker without canvas support.
     stubFetch();
     vi.stubGlobal("OffscreenCanvas", undefined);
     vi.stubGlobal("createImageBitmap", undefined);
@@ -467,10 +408,6 @@ describe("getImageCompositeSrc", () => {
   });
 });
 
-// The composited preview builds its own `<img>` rather than going through the
-// single-layer path, so it needs the same inline height. Without it the web
-// editor's `img { height: auto }` reset cancels the size and the thumbnail
-// collapses (#432).
 describe("getImagePreviewMarkupComposited", () => {
   it("states the thumbnail height inline on the composited image", async () => {
     stubRasterizer();
@@ -489,7 +426,6 @@ describe("getImagePreviewMarkupComposited", () => {
     stubRasterizer();
     stubFetch();
     const ctx = makeContext("markupfallback", ["only"]);
-    // One layer is never composited, so this returns the plain preview.
     const markup = await getImagePreviewMarkupComposited(ctx, ctx.image["only"]);
     expect(markup).toContain(`style="height:${IMAGE_PREVIEW_HEIGHT}px"`);
   });

@@ -1,6 +1,3 @@
-// Test helper: lints a grammar YAML string with one plugin rule (or a
-// whole rule set) through ESLint's `Linter` and the repo's YAML parser.
-
 import { Linter } from "eslint";
 import yml from "eslint-plugin-yml";
 import plugin from "../index.ts";
@@ -39,8 +36,6 @@ export function lintRule(
   });
 }
 
-// A grammar document from its parts, each given without indentation
-// beyond its own nesting (two spaces are added under each key).
 export function grammar(parts: {
   variables?: string;
   patterns?: string;

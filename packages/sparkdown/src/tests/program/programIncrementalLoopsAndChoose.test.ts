@@ -1,16 +1,6 @@
-// The cumulative oracle over loops and `choose` blocks in long bodies, served
-// from their memos (#1683).
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import { coldSurface, cumulativeRun, quiet } from "./incrementalOracleHarness";
 
-// The long screenplay's shape, whose bodies hold a loop of each form, with a
-// `break` or a `continue` and a local in some, and `choose` blocks with a
-// named choice and a labelled `then` clause, among the beats, in choice
-// bodies and in the `then` clause (#1683).
 function loopsAndChooseScreenplay(): string {
   const loops = (pad: string, i: number): string[] => {
     switch (Math.floor(i / 5) % 4) {
@@ -80,10 +70,6 @@ function loopsAndChooseScreenplay(): string {
   ].join("\n");
 }
 
-// Whole lines the edits inside bodies insert into the loops screenplay: a
-// line of dialogue, a line of action, a local, an assignment, an `end`, the
-// heads of a loop of each form and of a `choose` block, a choice, a `then`,
-// a `break` and an `until`.
 const LOOP_LINES = [
   "HERO: A new line of dialogue.",
   "A new line of action.",
@@ -112,8 +98,6 @@ describe("the oracles over loops and `choose` blocks in long bodies, served from
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
       expect(chunked, "compiles that built chunks").toBeGreaterThan(EDIT_COUNT / 3);
       expect(nested, "edits inside bodies").toBeGreaterThan(EDIT_COUNT / 4);
-      // Most edits inside a body leave the rest of its statements, its loops
-      // and its `choose` blocks among them, to their memos.
       expect(served, "statements served from their memos").toBeGreaterThan(EDIT_COUNT * 10);
     });
   }, 600_000);

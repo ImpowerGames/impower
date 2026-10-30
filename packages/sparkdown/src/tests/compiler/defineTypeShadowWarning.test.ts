@@ -1,10 +1,3 @@
-// Phase 2 of the namespace-scoping epic: a `store` / `const` global that
-// reuses a define TYPE name (an `as`-parent or a `new X()` target — a name
-// that keeps its bare Luau global after leaf-instance scoping) shadows the
-// type table and gets a Warning. Leaf instances are exempt: they're scoped
-// to `$<type>_<name>`, so shadowing them is harmless (the bare name is free).
-// See project_define_namespace_scoping.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -36,8 +29,6 @@ function diagnosticsFor(source: string): string[] {
   return out;
 }
 
-// Both warning variants (in-document "shadows the define type" and builtin
-// "reserved builtin type/namespace") share this clause.
 const shadowed = (diags: string[]) =>
   diags.some((m) => m.includes("bare name now refers to this variable"));
 
@@ -51,8 +42,6 @@ end
 
 describe("define-type shadow warning", () => {
   test("`store` reusing an as-parent type name warns", () => {
-    // `companion` is the parent of `O`, so it keeps its bare global — a
-    // same-named store var collides with the type table.
     expect(shadowed(diagnosticsFor(COMPANION + `store companion = 5\n`))).toBe(
       true,
     );
@@ -79,8 +68,6 @@ end
   });
 
   test("shadowing a LEAF instance does NOT warn (it's scoped, no clash)", () => {
-    // `O` is a leaf instance (`$companion_O`), never used as a type — the
-    // bare name `O` is free, so a store var may reuse it silently.
     expect(shadowed(diagnosticsFor(COMPANION + `store O = 5\n`))).toBe(false);
   });
 
@@ -91,9 +78,6 @@ end
   });
 
   test("`store` reusing a BUILTIN type/namespace root warns (fresh compile)", () => {
-    // `color` is a builtin namespace root (from the prelude) — reserved. This
-    // is a fresh compiler + first compile, so it also guards that the builtin
-    // registry is populated before user lowering runs.
     const diags = diagnosticsFor(`store color = 1\n`);
     expect(shadowed(diags)).toBe(true);
     expect(diags.some((m) => m.includes("reserved builtin"))).toBe(true);

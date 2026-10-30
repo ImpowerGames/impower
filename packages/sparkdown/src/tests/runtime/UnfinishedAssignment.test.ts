@@ -1,17 +1,9 @@
-// #1433 — an assignment or `local` whose value the parser could not read
-// (`& x =` with nothing after the `=`) is reported once by the compiler, and
-// the story still runs: the preview runs it and saves its state at every
-// step. The assignment assigns nothing and the local is declared nil, so
-// every variable holds a value and every save succeeds.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import type { TestStory } from "../engineUnderTest";
 
 const TAIL = "Well, then,\nStory follows.\n";
 
-// Runs the story to its end, saving its state after every step as the
-// preview does, and returns what it showed.
 function runSavingEachStep(story: TestStory): string {
   let out = "";
   while (story.canContinue) {
@@ -26,7 +18,6 @@ function inScene(body: string, top = ""): string {
   return `${top}scene start\n${lines.map((l) => `  ${l}`).join("\n")}\nend\n`;
 }
 
-// The globals a save of the story holds.
 function savedGlobals(story: TestStory): Record<string, unknown> {
   return JSON.parse(story.state.toJson()).variablesState ?? {};
 }

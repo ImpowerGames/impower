@@ -1,15 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// I-1412: a colon call whose method lookup yields nil raises Luau's
-// namecall error, `attempt to call missing method '<name>' of <type>`, with
-// the position prefix of any VM error (I-1337), while a dot call of a nil
-// field keeps `attempt to call a nil value`. The vendored errors.luau
-// (lines 403-409, "method call errors") is the reference; the conformance
-// run skips that fixture because it needs a runtime compiler.
-
-// Each script is a fixture body; the harness wraps it in
-// `function run() ... end` and reports a body line N as line N.
 const passes = (source: string, name = "repro.luau") => {
   const r = runConformanceSource(source, undefined, name);
   expect(r.errorMessages.join("\n")).toBe("");
@@ -30,7 +21,6 @@ return t:foo()`, "repro.luau:3: attempt to call missing method 'foo' of table");
   });
 
   test("on a table constructor", () => {
-    // errors.luau line 403.
     trapped(
       `return ({}):foo()`,
       "repro.luau:2: attempt to call missing method 'foo' of table",
@@ -38,7 +28,6 @@ return t:foo()`, "repro.luau:3: attempt to call missing method 'foo' of table");
   });
 
   test("on a string", () => {
-    // errors.luau line 404.
     trapped(
       `return ("s"):foo()`,
       "repro.luau:2: attempt to call missing method 'foo' of string",
@@ -56,14 +45,12 @@ return t:foo()`, "repro.luau:3: attempt to call missing method 'foo' of table");
   });
 
   test("on a userdata whose __index table lacks it", () => {
-    // errors.luau line 407.
     trapped(`local ud = newproxy(true)
 getmetatable(ud).__index = {}
 return ud:foo()`, "repro.luau:4: attempt to call missing method 'foo' of userdata");
   });
 
   test("on a userdata whose __index function returns nothing", () => {
-    // errors.luau line 408.
     trapped(`local ud = newproxy(true)
 getmetatable(ud).__index = function() end
 return ud:foo()`, "repro.luau:4: attempt to call missing method 'foo' of userdata");
@@ -95,7 +82,6 @@ t:foo()`, undefined, "repro.luau");
 
 describe("calls that keep their own errors", () => {
   test("a colon call of a field that is not callable", () => {
-    // errors.luau line 406.
     trapped(`return ({foo=42}):foo()`, "repro.luau:2: attempt to call a number value");
   });
 
@@ -110,7 +96,6 @@ return t.foo(t)`, "repro.luau:3: attempt to call a nil value");
   });
 
   test("a colon call on a number", () => {
-    // errors.luau line 405.
     trapped(`return (42):foo()`, "repro.luau:2: attempt to index number with 'foo'");
   });
 
@@ -125,7 +110,6 @@ return n:foo()`, "repro.luau:3: attempt to index nil with 'foo'");
   });
 
   test("a userdata's __index error", () => {
-    // errors.luau line 409.
     trapped(`local ud = newproxy(true)
 getmetatable(ud).__index = function() error("nope") end
 return ud:foo()`, "repro.luau:3: nope");

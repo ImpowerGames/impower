@@ -1,4 +1,3 @@
-/** Define an authored entry without invoking Object.prototype setters. */
 export const setContextEntry = (
   context: { [type: string]: { [name: string]: any } },
   type: string,

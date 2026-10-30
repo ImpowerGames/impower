@@ -1,13 +1,5 @@
 // Unification for the new solver, ported from Luau's `Unifier2.h`/
 // `Unifier2.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// `unify` commits the relation "subtype <: supertype" to the type graph: it
-// widens the lower bounds and narrows the upper bounds of the free types it
-// meets, and binds free type packs. It does no type checking. Incoherent
-// types unify successfully: unification stops when it cannot know how to
-// relate two types, not when relating them would narrow something to never
-// or widen it to unknown. It fails only when binding a free type pack fails
-// the occurs check, or when the types are too complex.
 
 import type { ConstraintV } from "./Constraint";
 import { Replacer } from "./Instantiation2";
@@ -47,7 +39,6 @@ import type { TypeCheckLimits } from "./TypeFunction";
 import { TypeIds } from "./TypeIds";
 import { OccursCheckResult, occursCheckPack } from "./TypeUtils";
 
-// Luau's `LuauTypeInferIterationLimit` and `LuauUnifierRecursionLimit`.
 const TYPE_INFER_ITERATION_LIMIT = 20000;
 const UNIFIER_RECURSION_LIMIT = 100;
 
@@ -57,7 +48,6 @@ export const enum UnifyResult {
   TooComplex,
 }
 
-/** Luau's `operator&` on unification results: the first failure wins. */
 export function andUnifyResult(lhs: UnifyResult, rhs: UnifyResult): UnifyResult {
   if (lhs === UnifyResult.Ok) return rhs;
   return lhs;
@@ -78,17 +68,12 @@ function areCompatible(left: TypeId, right: TypeId): boolean {
   if (!leftTable || !rightTable) return true;
 
   const missingPropIsCompatible = (leftProp: Property, rightTable: TableType): boolean => {
-    // Two tables may be compatible even if their shapes differ, when the
-    // extra property is optional, or free (and so potentially optional), or
-    // when the other table has an indexer, or is free (and so potentially
-    // has an indexer or a compatible property).
     if (rightTable.state === TableState.Free || rightTable.indexer !== undefined) return true;
 
     if (leftProp.isReadOnly() || leftProp.isShared()) {
       if (isOptionalOrFree(leftProp.readTy!)) return true;
     }
 
-    // A missing write-only or divergent property is never compatible.
     return false;
   };
 
@@ -107,7 +92,6 @@ function areCompatible(left: TypeId, right: TypeId): boolean {
   return true;
 }
 
-/** Whether a type is irresolvable, so that relating it to another becomes an incomplete subtype constraint. */
 function isIrresolvable(ty: TypeId): boolean {
   const tfit = get(ty, "TypeFunctionInstanceType");
   if (tfit && tfit.state !== TypeFunctionInstanceState.Unsolved) return false;
@@ -115,17 +99,10 @@ function isIrresolvable(ty: TypeId): boolean {
   return get(ty, "BlockedType") !== undefined || get(ty, "TypeFunctionInstanceType") !== undefined;
 }
 
-/** Whether a pack is irresolvable, so that relating it to another becomes an incomplete subtype constraint. */
 function isIrresolvablePack(tp: TypePackId): boolean {
   return getPack(tp, "BlockedTypePack") !== undefined || getPack(tp, "TypeFunctionInstanceTypePack") !== undefined;
 }
 
-/**
- * Luau's `TypePackIterator` (from `TypePack.h`): it walks the head types of a
- * pack and of its tails, following each tail only when the walk reaches it,
- * so a tail bound while the walk is under way is walked into. An iterator
- * made without a pack is the end iterator.
- */
 class TypePackIterator {
   private currentTypePack: TypePackId | undefined;
   private tp: TypePack | undefined;
@@ -141,7 +118,6 @@ class TypePackIterator {
     }
   }
 
-  /** A copy that advances independently, as a C++ iterator passed by value. */
   clone(): TypePackIterator {
     const copy = new TypePackIterator();
     copy.currentTypePack = this.currentTypePack;
@@ -150,7 +126,6 @@ class TypePackIterator {
     return copy;
   }
 
-  /** Luau's `operator++`. */
   advance(): void {
     ++this.currentIndex;
     while (this.tp && this.currentIndex >= this.tp.head.length) {
@@ -158,7 +133,6 @@ class TypePackIterator {
       this.tp = this.currentTypePack ? getPack(this.currentTypePack, "TypePack") : undefined;
 
       if (this.tp) {
-        // Stepping twice on each iteration detects cycles.
         const tailCycleCheck = this.tp.tail ? followPack(this.tp.tail) : undefined;
         if (this.currentTypePack === tailCycleCheck) throw new InternalCompilerError("TypePackIterator detected a type pack cycle");
       }
@@ -167,23 +141,19 @@ class TypePackIterator {
     }
   }
 
-  /** Luau's `operator==`. */
   equals(rhs: TypePackIterator): boolean {
     return this.tp === rhs.tp && this.currentIndex === rhs.currentIndex;
   }
 
-  /** Luau's `operator*`: the type the iterator points at. */
   current(): TypeId {
     return this.tp!.head[this.currentIndex]!;
   }
 
-  /** The pack the iterator points at the head of, when it points at the head of one. */
   tryGetHead(): TypePackId | undefined {
     if (this.currentIndex === 0) return this.currentTypePack;
     else return undefined;
   }
 
-  /** Where an iterator at the end stopped: the pack's tail, or undefined for a pack of fixed length. */
   tail(): TypePackId | undefined {
     return this.currentTypePack;
   }
@@ -195,18 +165,14 @@ export class Unifier2 {
   readonly scope: Scope;
   limits: TypeCheckLimits = {};
 
-  /** The pairs of types and of packs already unified, keyed by their serials. */
   seenTypePairings = new Set<string>();
   seenTypePackPairings = new Set<string>();
 
   expandedFreeTypes = new Map<TypeId, TypeId[]>();
 
-  /** Maps generic types to the free types that instantiate them. */
   genericSubstitutions = new Map<TypeId, TypeId>();
-  /** Maps generic type packs to the packs of free types that instantiate them. */
   genericPackSubstitutions = new Map<TypePackId, TypePackId>();
 
-  /** The free types and packs unification creates, for other systems to do their bookkeeping. */
   newFreshTypes: TypeId[] = [];
   newFreshTypePacks: TypePackId[] = [];
 
@@ -215,7 +181,6 @@ export class Unifier2 {
   recursionLimit = UNIFIER_RECURSION_LIMIT;
 
   incompleteSubtypes: ConstraintV[] = [];
-  /** Undefined outside constraint solving. */
   uninhabitedTypeFunctions: Set<object> | undefined;
 
   constructor(arena: TypeArena, builtinTypes: BuiltinTypes, scope: Scope, uninhabitedTypeFunctions?: Set<object>) {
@@ -235,7 +200,6 @@ export class Unifier2 {
     return this.unifyPack_(subTp, superTp);
   }
 
-  /** Luau's `NonExceptionalRecursionLimiter::isOk`, less its native stack guard. */
   private recursionIsOk(): boolean {
     return !(this.recursionLimit > 0 && this.recursionCount > this.recursionLimit);
   }
@@ -245,8 +209,6 @@ export class Unifier2 {
 
     ++this.iterationCount;
 
-    // Running out of recursion depth makes the unification too complex; it
-    // does not throw.
     ++this.recursionCount;
     try {
       if (!this.recursionIsOk()) return UnifyResult.TooComplex;
@@ -266,11 +228,6 @@ export class Unifier2 {
 
       if (subTy === superTy) return UnifyResult.Ok;
 
-      // Dispatching a subtype constraint may already have done some
-      // unification, so rather than backtracking or walking the whole type
-      // graph again, relating a blocked type becomes a new constraint with
-      // its proper bounds. Two relations are tautological and excluded:
-      // never <: blocked, and blocked <: unknown.
       if ((isIrresolvable(subTy) || isIrresolvable(superTy)) && !get(subTy, "NeverType") && !get(superTy, "UnknownType")) {
         if (this.uninhabitedTypeFunctions && (this.uninhabitedTypeFunctions.has(subTy) || this.uninhabitedTypeFunctions.has(superTy))) {
           return UnifyResult.Ok;
@@ -313,12 +270,10 @@ export class Unifier2 {
       const superNever = get(superTy, "NeverType");
       if (subNever && superNever) return UnifyResult.Ok;
       else if (subNever && superFn) {
-        // A never subtype propagates inward.
         const argResult = this.unifyPack_(superFn.argTypes, this.builtinTypes.neverTypePack);
         const retResult = this.unifyPack_(this.builtinTypes.neverTypePack, superFn.retTypes);
         return andUnifyResult(argResult, retResult);
       } else if (subFn && superNever) {
-        // A never supertype propagates inward.
         const argResult = this.unifyPack_(this.builtinTypes.neverTypePack, subFn.argTypes);
         const retResult = this.unifyPack_(subFn.retTypes, this.builtinTypes.neverTypePack);
         return andUnifyResult(argResult, retResult);
@@ -337,8 +292,6 @@ export class Unifier2 {
       else if (subTable && superAny) return this.unifyTableWithAny(subTable, superAny);
 
       if (subTable && superTable) {
-        // A table's `boundTo` works like a bound type, which `follow` has
-        // already chased.
         return this.unifyTables(subTable, superTable);
       }
 
@@ -347,7 +300,6 @@ export class Unifier2 {
       if (subMetatable && superMetatable) return this.unifyMetatables(subMetatable, superMetatable);
       else if (subMetatable && superAny) return this.unifyMetatableWithAny(subMetatable, superAny);
       else if (subAny && superMetatable) return this.unifyAnyWithMetatable(subAny, superMetatable);
-      // With only one metatable, its inner table unifies with the other type.
       else if (subMetatable) return this.unify_(subMetatable.table, superTy);
       else if (superMetatable) return this.unify_(subTy, superMetatable.table);
 
@@ -355,7 +307,6 @@ export class Unifier2 {
       const superNegation = get(superTy, "NegationType");
       if (subNegation && superNegation) return this.unify_(subNegation.ty, superNegation.ty);
 
-      // The unification failed, but this is not type checking.
       return UnifyResult.Ok;
     } finally {
       --this.recursionCount;
@@ -376,9 +327,6 @@ export class Unifier2 {
     return tp;
   }
 
-  // When superTy is a function and subTy's upper bound already holds a
-  // potentially compatible function, the function is assumed not to be
-  // overloaded, and superTy combines into subTy's existing function bound.
   private unifyFreeWithType(subTy: TypeId, superTy: TypeId): UnifyResult {
     const subFree = get(subTy, "FreeType")!;
 
@@ -398,10 +346,6 @@ export class Unifier2 {
 
     if (get(upperBound, "FunctionType")) return this.unify_(subFree.upperBound, superTy);
 
-    // When superTy is a union or intersection, subTy becomes a lower bound of
-    // the members that are free types, or generics substituted by free types.
-    // Otherwise `freeA <: 'T | nil` (or `freeA <: 'T & C`) would never
-    // constrain 'T, as a free subtype is handled before structural dispatch.
     const propagateToFreeMembers = (memberRange: TypeId[]): void => {
       for (const member of memberRange) {
         let m = follow(member);
@@ -483,7 +427,6 @@ export class Unifier2 {
   private unifyUnionSubtype(subUnion: UnionType, superTy: TypeId): UnifyResult {
     let result = UnifyResult.Ok;
 
-    // An occurs check failure for any option fails the whole.
     for (const subOption of subUnion.options) {
       if (areCompatible(subOption, superTy)) result = andUnifyResult(result, this.unify_(subOption, superTy));
     }
@@ -493,14 +436,12 @@ export class Unifier2 {
 
   private unifyUnionSupertype(subTy: TypeId, superUnion: UnionType): UnifyResult {
     subTy = follow(subTy);
-    // T <: T | U1 | U2 | ... | Un is trivially true, so unifying gains no information.
     for (const superOption of flatOptions(superUnion)) {
       if (subTy === superOption) return UnifyResult.Ok;
     }
 
     let result = UnifyResult.Ok;
 
-    // An occurs check failure for any option fails the whole.
     for (const superOption of superUnion.options) {
       if (areCompatible(subTy, superOption)) result = andUnifyResult(result, this.unify_(subTy, superOption));
     }
@@ -532,14 +473,12 @@ export class Unifier2 {
 
   private unifyIntersectionSubtype(subIntersection: IntersectionType, superTy: TypeId): UnifyResult {
     superTy = follow(superTy);
-    // T & I1 & I2 & ... & In <: T is trivially true, so unifying gains no information.
     for (const subOption of flatOptions(subIntersection)) {
       if (superTy === subOption) return UnifyResult.Ok;
     }
 
     let result = UnifyResult.Ok;
 
-    // An occurs check failure for any part fails the whole.
     for (const subPart of subIntersection.parts) result = andUnifyResult(result, this.unify_(subPart, superTy));
 
     return result;
@@ -548,7 +487,6 @@ export class Unifier2 {
   private unifyIntersectionSupertype(subTy: TypeId, superIntersection: IntersectionType): UnifyResult {
     let result = UnifyResult.Ok;
 
-    // An occurs check failure for any part fails the whole.
     for (const superPart of superIntersection.parts) result = andUnifyResult(result, this.unify_(subTy, superPart));
 
     return result;
@@ -557,8 +495,6 @@ export class Unifier2 {
   private unifyTables(subTable: TableType, superTable: TableType): UnifyResult {
     let result = UnifyResult.Ok;
 
-    // Checking the properties in one direction suffices: there is work to do
-    // only for a property present in both tables.
     for (const [propName, subProp] of subTable.props) {
       const superProp = superTable.props.get(propName);
 
@@ -594,10 +530,6 @@ export class Unifier2 {
     }
 
     if (!subTable.indexer && subTable.state === TableState.Unsealed && superTable.indexer) {
-      // Unsealed tables come from table literals, whose expression alone
-      // cannot tell whether the table has an indexer. An unsealed table
-      // reconciled with a table that has an indexer therefore takes on the
-      // same indexer.
       subTable.indexer = new TableIndexer(
         this.instantiateWithBoundTypes(superTable.indexer.indexType),
         this.instantiateWithBoundTypes(superTable.indexer.indexResultType),
@@ -616,14 +548,12 @@ export class Unifier2 {
   }
 
   private unifyAnyWithFunction(_subAny: AnyType, superFn: FunctionType): UnifyResult {
-    // An any subtype propagates inward.
     const argResult = this.unifyPack_(superFn.argTypes, this.builtinTypes.anyTypePack);
     const retResult = this.unifyPack_(this.builtinTypes.anyTypePack, superFn.retTypes);
     return andUnifyResult(argResult, retResult);
   }
 
   private unifyFunctionWithAny(subFn: FunctionType, _superAny: AnyType): UnifyResult {
-    // An any supertype propagates inward.
     const argResult = this.unifyPack_(this.builtinTypes.anyTypePack, subFn.argTypes);
     const retResult = this.unifyPack_(subFn.retTypes, this.builtinTypes.anyTypePack);
     return andUnifyResult(argResult, retResult);
@@ -678,8 +608,6 @@ export class Unifier2 {
 
     ++this.iterationCount;
 
-    // Running out of recursion depth makes the unification too complex; it
-    // does not throw.
     ++this.recursionCount;
     try {
       if (!this.recursionIsOk()) return UnifyResult.TooComplex;
@@ -704,14 +632,10 @@ export class Unifier2 {
         return UnifyResult.Ok;
       };
 
-      // A free pack given directly is bound right away: left for later, its
-      // free types could be generalized incorrectly (Luau's CLI-188000).
       if (isPack(subTp, "FreeTypePack")) return emplaceFreeTypePack(subTp, superTp);
 
       if (isPack(superTp, "FreeTypePack")) return emplaceFreeTypePack(superTp, subTp);
 
-      // The pack an iterator points at the head of, or else a fresh pack of
-      // the types from the iterator on.
       const makeTail = (iterArg: TypePackIterator, endIter: TypePackIterator): TypePackId => {
         const iter = iterArg.clone();
         const newSuper = iter.tryGetHead();
@@ -726,8 +650,6 @@ export class Unifier2 {
         return this.arena.addTypePack(newHead, iter.tail());
       };
 
-      // A blocked pack becomes a constraint for the solver to come back to;
-      // other packs unify.
       const deferOrUnify = (subTp: TypePackId, superTp: TypePackId): UnifyResult => {
         if (isIrresolvablePack(subTp) || isIrresolvablePack(superTp)) {
           if (this.uninhabitedTypeFunctions !== undefined && (this.uninhabitedTypeFunctions.has(subTp) || this.uninhabitedTypeFunctions.has(superTp))) {
@@ -759,9 +681,6 @@ export class Unifier2 {
         superIter.advance();
       }
 
-      // When one walk has ended at a variadic tail, the variadic type unifies
-      // with each remaining type of the other pack. Two variadic tails are
-      // not expanded.
       if (subIter.equals(subEnd) && !superIter.equals(superEnd) && subIter.tail()) {
         const vtp = getPack(followPack(subIter.tail()!), "VariadicTypePack");
         if (vtp) {
@@ -799,14 +718,12 @@ export class Unifier2 {
         return deferOrUnify(newSub, newSuper);
       }
 
-      // Unreachable: the walk above ends when either pack ends.
       return UnifyResult.Ok;
     } finally {
       --this.recursionCount;
     }
   }
 
-  /** simplify(left | right) */
   private mkUnion(left: TypeId, right: TypeId): TypeId {
     left = follow(left);
     right = follow(right);
@@ -814,7 +731,6 @@ export class Unifier2 {
     return simplifyUnion(this.builtinTypes, this.arena, left, right).result;
   }
 
-  /** simplify(left & right) */
   private mkIntersection(left: TypeId, right: TypeId): TypeId {
     left = follow(left);
     right = follow(right);

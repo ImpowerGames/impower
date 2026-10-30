@@ -9,82 +9,21 @@ import {
   scopedDefineKey,
 } from "./scopeDefineInstances";
 
-/** What one compile's scoping of the user's defines did. */
 export interface DefineScopeStats {
-  /** The chunks the program holds. */
   blocks: number;
-  /** The chunks walked to find their defines: the ones lowered since the
-   *  chunk was last seen. */
   blocksWalked: number;
-  /** The parsed objects those walks visited. */
   objectsVisited: number;
-  /** The define declarations the program holds. */
   declarations: number;
-  /** The declarations classified again, because their chunk was walked or
-   *  the type names they were last classified under changed. */
   classified: number;
-  /** The declarations whose key changed. */
   renamed: number;
 }
 
-/**
- * The user's define declarations, found per chunk, and the type names each
- * chunk's declarations were last classified under (#709).
- *
- * `scopeDefineInstances` gives each typed define its global key from the
- * union of every user script's define type names, and once found it walked
- * the whole assembled story on every compile to find them. Almost every chunk
- * it walked was carried from the compile before by identity, and a carried
- * `CompiledBlock` holds the same parsed objects (the incremental parse gives
- * every block its reparse window touches a new one, and no pass writes into a
- * carried block's content but the identifiers this one sets). So:
- *
- * - **Which declarations a chunk holds** is a function of the block alone,
- *   kept in a `WeakMap` keyed by it and found by walking only a block not
- *   seen before.
- * - **Which key each declaration takes** is a function of its stable bare
- *   names and the union of type names. Each block records the union (by
- *   identity) its declarations were last classified under; a block whose
- *   record is not this compile's union is classified again. The union keeps
- *   its identity across compiles while its contents are unchanged. So a
- *   name that becomes or stops being a type anywhere classifies every
- *   chunk again (no walk), and a block that comes back after compiles that
- *   did not hold it (an include removed and restored) is classified under
- *   the union of the compile that holds it, never one it missed.
- *
- * Invariant: a declaration's identifier is the key its block's record says.
- * Only this pass writes a define's identifier, and it writes the record
- * after the identifiers.
- *
- * **Preview compiles** (#666) read the record, and write nothing that
- * outlives them. A preview records no block's classification, and compares
- * each compile's union with the one its own last compile classified under
- * (`PreviewOverlay`): a preview can compile two roots before its rollback,
- * and the second must find the identifiers as the first left them. Every identifier
- * the preview changes is journaled on its undo list, put back on rollback and
- * reported in `namesRolledBack` (the resolver resolves it again, as it does
- * any name a rollback put back), and the rollback drops the overlay. After the
- * rollback each declaration holds the key the last real compile gave it,
- * under the record that compile left, so the next real compile scopes as if
- * the preview had not happened. The blocks a preview lowers are recorded like
- * any other: what they hold is theirs alone, and they are dropped with the
- * preview.
- *
- * The builtins prelude is not recorded here: its story is parsed once and
- * classified by its own type names, which never change, so the compiler
- * scopes it once per parsed prelude (`SparkdownCompiler.compileStory`).
- */
 export class DefineScopeRecord {
-  /** When set, every pass is checked against a walk of the whole story, and
-   *  each disagreement is pushed to {@link verifyFailures}. */
   static verify = false;
   static verifyFailures: string[] = [];
 
-  // Per block: the define declarations it holds, and the type names they
-  // were last classified under (none until a real compile classifies them).
   protected _blocks = new WeakMap<object, BlockDefines>();
   protected _typeNames?: ReadonlySet<string>;
-  // The union the preview under way last classified under, while it lasts.
   protected _overlay?: PreviewOverlay;
 
   stats: DefineScopeStats = DefineScopeRecord.emptyStats();
@@ -100,11 +39,6 @@ export class DefineScopeRecord {
     };
   }
 
-  /** Gives every define declaration of `blocks` its key under `typeNames`,
-   *  and returns them all. `renamed` is given each declaration whose key
-   *  changed. With `undo`, the compile is a preview: each change is
-   *  journaled there, and `rolledBack` is given each declaration the
-   *  rollback puts back. */
   scope(
     blocks: readonly object[],
     typeNames: ReadonlySet<string>,
@@ -163,8 +97,6 @@ export class DefineScopeRecord {
     return declarations;
   }
 
-  /** The union the preview whose undo list is `undo` last classified under,
-   *  which the rollback discards (`PreviewOverlay`). */
   protected overlayFor(undo: (() => void)[]): PreviewOverlay {
     if (this._overlay?.undo === undo) {
       return this._overlay;
@@ -179,7 +111,6 @@ export class DefineScopeRecord {
     return overlay;
   }
 
-  /** The define declarations `block` holds. */
   protected walk(block: CompiledBlock): VariableAssignment[] {
     const found: VariableAssignment[] = [];
     const seen = new Set<ParsedObject>();
@@ -204,9 +135,6 @@ export class DefineScopeRecord {
       if (content) {
         for (const c of content) stack.push(c);
       }
-      // The assembled story holds a lowered flow's root weave and nested
-      // flows in a flow of its own (`parseIncrementally`), so they are
-      // reached here whether or not the lowered flow lists them as content.
       if (obj instanceof FlowBase) {
         if (obj._weave) {
           stack.push(obj._weave);
@@ -219,8 +147,6 @@ export class DefineScopeRecord {
     return found;
   }
 
-  /** Checks a pass against a walk of the whole story (`verify`): the same
-   *  declarations, each with the key `typeNames` gives it. */
   static check(
     story: ParsedObject,
     held: readonly ParsedObject[],
@@ -267,23 +193,6 @@ export class DefineScopeRecord {
   }
 }
 
-/** The union a preview last classified under, in place of the record's: a
- *  preview can compile more than one root before its rollback
- *  (`previewCompile` compiles the edited script on its own when the
- *  requested root does not include it), and each compile after the first
- *  finds the identifiers as the compiles before it left them.
- *
- *  Comparing a compile's union with this one rather than with the last real
- *  compile's is what keeps that sound. While every compile of the preview
- *  has the real union, its identity is the record's, carried chunks stand as
- *  the record says, and none is classified. Once one compile of the preview
- *  has another union, it is a set of the preview's own, which no block's
- *  record holds, so that compile and every later one of the preview
- *  classify every carried chunk again. A later compile whose union has the
- *  real union's contents gets a set of its own too (it is compared with the
- *  preview's last, not the record's), so it cannot take a carried chunk's
- *  record for the identifiers an earlier compile of the preview changed.
- *  The rollback puts every identifier back and drops the overlay. */
 interface PreviewOverlay {
   readonly undo: (() => void)[];
   typeNames?: ReadonlySet<string>;
@@ -294,8 +203,6 @@ interface BlockDefines {
   under?: ReadonlySet<string>;
 }
 
-// The entry of every block that holds no define, which no classification
-// writes to.
 const NO_DEFINES: BlockDefines = Object.freeze({ held: [] });
 
 const sameNames = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean => {

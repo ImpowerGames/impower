@@ -1,8 +1,3 @@
-// Whether a structural word names a value or opens an alternator depends on
-// the arms its rule holds after it (I-1310), and the name's token on its
-// binding, so an edit far from the word keeps its annotations as a cold
-// parse of the same text has them: adding or removing the arms, and
-// renaming the binding the word reads.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -10,7 +5,6 @@ import { Editor, expectParity, openRegistry } from "./incrementalParity";
 
 const URI = "inmemory:///alternator.sd";
 
-/** The semantic token on `name` at `from`, or undefined. */
 function tokenAt(registry: SparkdownDocumentRegistry, from: number, name: string): string | undefined {
   let found: string | undefined;
   registry.annotations(URI)!.semantics!.between(from, from + name.length, (start, end, value) => {
@@ -27,7 +21,6 @@ describe("an edit far from a structural word keeps its annotations", () => {
     const editor = new Editor(openRegistry(URI, text), URI, text);
     const word = text.indexOf("match(n)");
     expect(tokenAt(editor.registry, word, "match")).toBe("function");
-    // Warm the incremental parser with an edit inside a comment.
     const note = editor.text.indexOf("note 10");
     editor.replace(note, note + 4, "nota");
     expectParity(editor.registry, URI, editor.text, "warm-up");

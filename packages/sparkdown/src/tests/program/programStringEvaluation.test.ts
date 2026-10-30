@@ -1,12 +1,3 @@
-// #1134 — the program engine's state tells whether its output is inside a
-// string evaluation without walking the output stream on every push.
-//
-// Every push asks `inStringEvaluation`. Inside an interpolation the
-// `BeginString` sits before everything the evaluation pushes, so a scan from
-// the end reached it only after the whole stream, and a loop that kept
-// pushing inside `{...}` cost more with every step. The state is driven
-// directly here, with a program's empty call stack, so that the reads of the
-// stream can be counted.
 import { describe, expect, it } from "vitest";
 import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
@@ -23,7 +14,6 @@ const newState = () =>
     CallStack.ForProgram(),
   );
 
-/** Counts the entries of `state`'s output stream that are read. */
 const countReads = (state: ProgramStoryState) => {
   const counter = { reads: 0 };
   state.outputStream = new Proxy(state.outputStream, {
@@ -46,7 +36,6 @@ describe("a string evaluation in the program engine's output", () => {
       state.PushToOutputStream(new StringValue("\n"));
     }
     expect(state.inStringEvaluation).toBe(true);
-    // A walk of the stream on each push reads about pushes^2 / 2 entries.
     expect(counter.reads).toBeLessThan(pushes * 4);
   });
 
@@ -56,7 +45,6 @@ describe("a string evaluation in the program engine's output", () => {
     state.PushToOutputStream(new StringValue("Hello"));
     expect(state.inStringEvaluation).toBe(false);
 
-    // An outer string, then an inner one inside it.
     state.PushToOutputStream(ControlCommand.BeginString());
     state.PushToOutputStream(new StringValue("a"));
     expect(state.inStringEvaluation).toBe(true);
@@ -64,25 +52,20 @@ describe("a string evaluation in the program engine's output", () => {
     state.PushToOutputStream(new StringValue("b"));
     expect(state.inStringEvaluation).toBe(true);
 
-    // Closing the inner string leaves the outer one open.
     state.PopFromOutputStream(2);
     expect(state.inStringEvaluation).toBe(true);
-    // Closing the outer one leaves none.
     state.PopFromOutputStream(2);
     expect(state.inStringEvaluation).toBe(false);
 
-    // A string opened at a later index than the one found before.
     state.PushToOutputStream(new StringValue("x"));
     state.PushToOutputStream(ControlCommand.BeginString());
     expect(state.inStringEvaluation).toBe(true);
 
-    // A reset to output with no string, then to output with one.
     state.ResetOutput([new StringValue("y")]);
     expect(state.inStringEvaluation).toBe(false);
     state.ResetOutput([ControlCommand.BeginString(), new StringValue("z")]);
     expect(state.inStringEvaluation).toBe(true);
 
-    // A command other than `BeginString` where one was found is not one.
     state.outputStream = [ControlCommand.BeginTag(), new StringValue("z")];
     expect(state.inStringEvaluation).toBe(false);
   });

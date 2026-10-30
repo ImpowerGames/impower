@@ -78,7 +78,6 @@ describe("the morph colour reader", () => {
 
   test("blends in sRGB with premultiplied alpha", () => {
     expect(formatColor(blendColor([0, 0, 0, 1], [255, 255, 255, 1], 0.5))).toBe("rgba(128,128,128,1)");
-    // A transparent end keeps the other's colour, fading only its alpha.
     expect(formatColor(blendColor([255, 0, 0, 0], [255, 0, 0, 1], 0.25))).toBe("rgba(255,0,0,0.25)");
     expect(formatColor(blendColor([0, 0, 255, 0.5], [255, 0, 0, 1], 0.5))).toBe("rgba(170,0,85,0.75)");
   });

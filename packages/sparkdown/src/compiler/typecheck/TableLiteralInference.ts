@@ -1,13 +1,6 @@
 // Bidirectional inference for literals, ported from Luau's
 // `TableLiteralInference.h`/`TableLiteralInference.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// When a literal expression (a table, a function, a string and so on) meets
-// the type it is expected to have, `pushTypeInto` pushes the expected type
-// into it: a free type standing for a literal is bound to the expected type
-// when that fits, a lambda's unannotated parameters take the expected
-// function's parameter types, and a table literal's items are matched with
-// the expected table's properties and indexer.
 
 import {
   AstExprCall,
@@ -56,7 +49,6 @@ export interface PushTypeResult {
   incompleteTypes: IncompleteInference[];
 }
 
-/** Finds the function type in an expected type, through its unions and intersections, that best fits a lambda. */
 class FindFunctionTypeIn extends IterativeTypeVisitor {
   candidate: FunctionType | undefined;
   ambiguous = false;
@@ -83,17 +75,6 @@ class FindFunctionTypeIn extends IterativeTypeVisitor {
   }
 
   private visitFunction(ty: TypeId, ftv: FunctionType): boolean {
-    // Bidirectional inference guesses what the user intends, to give decent
-    // results. A lambda with the wrong number of parameters is an error, but
-    // while writing
-    //
-    //  local f: (ReallyComplexTableType, boolean) -> () = function (tbl)
-    //      tbl.|
-    //  end
-    //
-    // the user probably still wants autocomplete, and may be in nonstrict
-    // mode. So the function whose parameter count is closest to the
-    // lambda's is the candidate, and a tie makes it ambiguous.
     if (this.candidate === undefined) {
       this.candidate = get(ty, "FunctionType");
       this.ambiguous = false;
@@ -113,11 +94,6 @@ class FindFunctionTypeIn extends IterativeTypeVisitor {
   }
 }
 
-/**
- * Whether an expression can be checked against an expected type: for now,
- * literals (lambdas, "function literals", included), parenthesized
- * expressions, if-else expressions and calls to `setmetatable`.
- */
 function isCheckableExpr(expr: AstExpr): boolean {
   if (expr instanceof AstExprCall && matchSetMetatable(expr)) return true;
 
@@ -127,7 +103,6 @@ function isCheckableExpr(expr: AstExpr): boolean {
 class BidirectionalTypePusher {
   readonly incompleteInferences: IncompleteInference[] = [];
 
-  /** The pairs of expected type and expression already pushed. */
   private readonly seen = new Map<TypeId, Set<AstExpr>>();
 
   constructor(
@@ -142,8 +117,6 @@ class BidirectionalTypePusher {
 
   pushType(expectedType: TypeId, expr: AstExpr): TypeId {
     this.astExpectedTypes.set(expr, expectedType);
-    // A missing type can be expected here, as for the last argument passed to
-    // a function call.
     if (!this.astTypes.has(expr)) return this.solver.builtinTypes.anyType;
 
     let exprType = this.astTypes.get(expr)!;
@@ -160,20 +133,8 @@ class BidirectionalTypePusher {
     exprType = follow(exprType);
 
     if (!isCheckableExpr(expr)) {
-      // The result of this function is not used yet, so this is the original
-      // expression type.
       return exprType;
     }
-
-    // Blocking on free types here would make any recursive function a cycle:
-    // in
-    //
-    //  local function fact(n)
-    //      return if n < 2 then 1 else n * fact(n - 1)
-    //  end
-    //
-    // pushing the type of `fact` into its arguments and generalizing `fact`
-    // would wait on each other.
 
     const tfit = get(expectedType, "TypeFunctionInstanceType");
     if (tfit && tfit.state === TypeFunctionInstanceState.Unsolved) {
@@ -218,30 +179,16 @@ class BidirectionalTypePusher {
       const ft = get(exprType, "FreeType");
       if (ft) {
         if (maybeSingleton(expectedType) && maybeSingleton(ft.lowerBound)) {
-          // In a pattern like
-          //
-          //  local function foo<T>(my_enum: "foo" | "bar" | T) -> T
-          //      return my_enum
-          //  end
-          //  local var = foo("meow")
-          //
-          // a singleton is pushed onto a string literal whose lower bound is
-          // still a singleton, which snaps to that lower bound.
           this.solver.bind(this.constraint, exprType, ft.lowerBound);
           return exprType;
         }
 
-        // When the upper bound is a subtype of the expected type, the expected
-        // type can be pushed in.
         const upperBoundRelation = relate(ft.upperBound, expectedType);
         if (upperBoundRelation === Relation.Subset || upperBoundRelation === Relation.Coincident) {
           this.solver.bind(this.constraint, exprType, expectedType);
           return exprType;
         }
 
-        // So can it when the lower bound is a subtype: the upper bound failing
-        // that test means a constraint would have had to pick the lower bound
-        // for this type anyway.
         const lowerBoundRelation = relate(ft.lowerBound, expectedType);
         if (lowerBoundRelation === Relation.Subset || lowerBoundRelation === Relation.Coincident) {
           this.solver.bind(this.constraint, exprType, expectedType);
@@ -272,9 +219,6 @@ class BidirectionalTypePusher {
           }
         }
 
-        // When several members of a union take the same number of arguments,
-        // the expected function is ambiguous: the return type stays unbound,
-        // for the solver to infer from the body.
         if (
           !ffti.ambiguous &&
           !expr.returnAnnotation &&
@@ -286,8 +230,6 @@ class BidirectionalTypePusher {
       }
     }
 
-    // The type of each member is not found with the logic `index` uses
-    // (Luau's CLI-169235).
     if (expr instanceof AstExprTable) {
       const expectedTableTy = get(expectedType, "TableType");
 
@@ -301,8 +243,6 @@ class BidirectionalTypePusher {
           if (itv) {
             for (const part of flatOptions(itv)) this.pushType(part, expr);
 
-            // The expected type of the expression is reset, as it would
-            // otherwise be the last part of the intersection.
             this.astExpectedTypes.set(expr, expectedType);
           }
         }
@@ -316,40 +256,18 @@ class BidirectionalTypePusher {
           const expectedProp = expectedTableTy.props.get(keyStr);
 
           if (!expectedProp) {
-            // Pushing some type
-            //
-            //  { [T]: U }
-            //
-            // into
-            //
-            //  { foo = bar }
-            //
-            // is probably meant to push `U` into `bar`.
             if (expectedTableTy.indexer) this.pushType(expectedTableTy.indexer.indexResultType, item.value);
 
-            // An extra property, when the expected type has no indexer,
-            // leaves nothing to do.
             continue;
           }
 
           if (expectedProp.readTy) this.pushType(expectedProp.readTy, item.value);
-
-          // Nothing is added to the potential indexer types here, which
-          // supports types like
-          //
-          //  { [string]: number, foo: boolean }
-          //
-          // and nothing is done for write properties.
         } else if (item.kind === TableItemKind.List) {
           if (expectedTableTy.indexer) {
             this.unifier.unify(expectedTableTy.indexer.indexType, this.solver.builtinTypes.numberType);
             this.pushType(expectedTableTy.indexer.indexResultType, item.value);
           }
         } else if (item.kind === TableItemKind.General) {
-          // In { ..., [blocked]: somePropExpr, ... }, a key that resolves to a
-          // string is a record, handled above. A key of any other kind has no
-          // named property to fold into the indexer, so the indexer's types
-          // are pushed into the key and the value.
           if (expectedTableTy.indexer) {
             this.pushType(expectedTableTy.indexer.indexType, item.key!);
             this.pushType(expectedTableTy.indexer.indexResultType, item.value);

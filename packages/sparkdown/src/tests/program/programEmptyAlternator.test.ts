@@ -32,8 +32,6 @@ describe("an alternator keyword with no arms (#1617)", () => {
     expect(outcome!.errors).toContainEqual(noArm(keyword, line));
   });
 
-  // A structural word with no construct after it is a name, as in Luau
-  // (#1906), so `{shuffle}` reads a variable named `shuffle`.
   it("reads an inline {shuffle} as a name and does not throw out of Continue", () => {
     let outcome: ReturnType<typeof run> | undefined;
     expect(() => {

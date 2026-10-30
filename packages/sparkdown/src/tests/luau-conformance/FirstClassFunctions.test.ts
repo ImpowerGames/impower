@@ -32,10 +32,6 @@ function compileAndCapture(source: string): {
     recorded.push(v);
     return v;
   });
-  // Filter out the "should be marked as `-> fn`" Warning. It's a hint
-  // for users who haven't seen Luau's first-class function shorthand
-  // — sparkdown's anonymous-function lowering handles it correctly
-  // without the explicit `->` syntax.
   story.onError = (m: string) => {
     if (/should be marked as: -> /.test(m)) return;
     errors.push(m);
@@ -100,9 +96,6 @@ end
   });
 
   test("named knot called via stored value (existing -> divert literal)", () => {
-    // This worked before — included as a regression guard. The
-    // anonymous-function lowering shouldn't have broken named-function
-    // first-class storage.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -288,11 +281,6 @@ end
   });
 
   test("live capture: closure sees outer mutations", () => {
-    // Lua-style open upvalue: the closure holds a live reference to
-    // `n` in run's frame, so subsequent mutations to `n` are visible
-    // through the closure. The captured pointer auto-resolves to
-    // run's frame at closure-creation time and stays open while run
-    // is on the call stack.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -311,10 +299,6 @@ end
   });
 
   test("only locally-bound names ARE bound (params + locals don't capture)", () => {
-    // The free-variable scan correctly excludes the function's own
-    // parameters AND its inner-local declarations from the upval set.
-    // This test would fail with a "Variable not found" warning at
-    // closure definition if the scan over-captured params.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -336,10 +320,6 @@ end
 
 describe("true lexical closures (open/close upvalues)", () => {
   test("closure mutation propagates to outer scope", () => {
-    // Inner writes `n = n + 1` through its upval. Since the upval
-    // points to outer's `n` (open pointer), the write propagates back
-    // to outer's frame. Outer's read of `n` after the call sees the
-    // updated value.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -362,10 +342,6 @@ end
   });
 
   test("two closures sharing the same upval see each other's writes", () => {
-    // Both `incr` and `read` capture `n` from run's frame. The dedup
-    // path in Story.ts's auto-resolve gives them the SAME pointer
-    // object, so when `incr` writes through it, `read` sees the new
-    // value.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -390,11 +366,6 @@ end
   });
 
   test("closure outlives its lexical parent (close-on-pop)", () => {
-    // outer returns `f`. By the time `f` is called, outer's frame
-    // has been popped, so its `total` no longer exists on the call
-    // stack. CallStack.Pop closes the open upvalue by snapshotting
-    // the current value into the pointer's `closedValue`, so the
-    // closure can still read and write through it.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & driver()
@@ -422,11 +393,6 @@ end
   });
 
   test("two closures share state via closed upval (table-routed)", () => {
-    // Both closures are returned (in a table) from make_totaler. By the
-    // time they're invoked, the parent frame is gone. They still share
-    // the same closed cell (dedup at pointer-creation time), so the
-    // bump closure's writes are visible to the peek closure even
-    // though both upvals are closed.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & driver()

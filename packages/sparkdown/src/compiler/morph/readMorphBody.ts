@@ -7,7 +7,6 @@ import {
 } from "../lower/lowerers/lowerStructBodyTyped";
 import { MORPH_LITERAL_KEYS, MORPH_LITERAL_LIST_KEYS } from "./morphSchema";
 
-/** A problem found in a morph declaration, located at a source span. */
 export interface MorphIssue {
   from: number;
   to: number;
@@ -24,13 +23,6 @@ export interface MorphBody {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 
-/**
- * Read a morph body. `state` values are literal state names: `closed`,
- * `"closed"` and `01` are kept as written, and a qualified `eyes.closed` inside
- * the `eyes:` container loses its matching group prefix. A prefix naming a
- * different group is reported and the value is kept as written, so it matches
- * no state.
- */
 export function readMorphBody(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,

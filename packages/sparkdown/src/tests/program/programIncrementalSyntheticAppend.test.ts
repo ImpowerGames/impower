@@ -1,16 +1,7 @@
-// The compiler's `incrementalSyntheticAppend` oracle on the binary program
-// back end (#701): anonymous functions appended into scene bodies and into
-// the bodies of nested blocks, each compile compared with a cold one.
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import { MAIN_URI, programCompiler } from "./programHarness";
 import { coldSurface, CONFIG, divergence, type Edit, quiet, surface, update } from "./incrementalOracleHarness";
 
-// incrementalSyntheticAppend's `base` (not exported, so copied): six scenes
-// of two action lines each.
 function syntheticBase() {
   const L: string[] = [];
   for (let s = 0; s < 6; s++) {
@@ -25,8 +16,6 @@ function syntheticBase() {
   return L.join("\n");
 }
 
-// The same scenes, each with an `if` whose body holds a `for` loop, so that
-// anonymous functions can be appended into bodies one and two blocks deep.
 function syntheticNestedBase() {
   const L: string[] = ["store visits = 0", ""];
   for (let s = 0; s < 6; s++) {

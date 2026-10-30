@@ -1,17 +1,8 @@
-// A `run` operand's two forms (#1389): an unquoted operand is a name, the one
-// `.luau` file of that name anywhere in the project, and a quoted one is a
-// path relative to the script, `.luau` implied. Both are case exact, and an
-// operand that differs from a file only by case says the file's spelling
-// (#1334).
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
 const MAIN = "inmemory:///main.sd";
 
-/** Compiles main.sd with `files` by their paths in the project: URIs spelled
- *  as the web editor writes file names when `uriPathsAsWritten`, and
- *  otherwise as the paths are given. */
 function compileProject(files: Record<string, string>, uriPathsAsWritten?: boolean) {
   const compiler = testCompiler();
   compiler.configure({
@@ -31,7 +22,6 @@ function compileProject(files: Record<string, string>, uriPathsAsWritten?: boole
     }) as never,
   });
   const result = compiler.compile({ textDocument: { uri: MAIN } });
-  // Errors and warnings; an error's statement leaves hints behind it.
   const diagnostics = (uri: string) =>
     (result.program.diagnostics?.[uri] ?? []).filter((d) => d.severity! <= 2).map((d) => ({
       message: typeof d.message === "string" ? d.message : d.message.value,
@@ -173,10 +163,6 @@ describe("run by name", () => {
     ]);
   });
 
-  // Round 1 of PR #2124's review: an ambiguous name's fixes are the
-  // candidates' paths relative to the script the run is in, which is not
-  // main.sd's folder when the run is in a scene of another script, and they
-  // travel as data, so a path with an apostrophe in it comes through whole.
   test("offers each candidate's path relative to the script the run is in", () => {
     const CHAPTER = "inmemory:///chapters/chapter.sd";
     const { result, errors } = compileProject({
@@ -201,7 +187,6 @@ describe("run by name", () => {
         { title: 'Use "../scripts/util"', newText: '"../scripts/util"' },
       ],
     });
-    // Each fix's path resolves from the chapter.
     for (const fix of diagnostic!.data.runFixes) {
       const fixed = compileProject({
         "main.sd": "scene start\n  -> chapter\nend\n",
@@ -213,12 +198,6 @@ describe("run by name", () => {
     }
   });
 
-  // Round 1 of PR #2124's review: a candidate in a folder whose name holds a
-  // space is offered by its path as the author writes it, and that path
-  // runs it, in the web editor, which spells URIs as file names are written,
-  // and in VS Code, which percent-encodes them.
-  // Round 2: and a folder whose name holds a character a URI reserves (`#`)
-  // or what reads as an escape (`%20` written as such) comes through too.
   test.each([
     ["the web editor", "lib space/helpers.luau", true, "lib space"],
     ["VS Code", "lib%20space/helpers.luau", false, "lib space"],
@@ -253,8 +232,6 @@ describe("run by name", () => {
     expect(recorded(result.program.chunks)).toEqual([1]);
   });
 
-  // Round 1 of PR #2124's review: a quote the line never closes is read as
-  // part of an unquoted operand, and is reported as the missing quote it is.
   test.each([`"./lib/helpers`, `'helpers`])(
     "reports a quote the line never closes: run %s",
     (operand) => {
@@ -327,9 +304,6 @@ describe("run by quoted path", () => {
     },
   );
 
-  // Round 2 of PR #2124's review: a quoted path may name a file in a folder
-  // that holds a main script of its own, and its case-only near miss is
-  // found there too.
   test("says the spelling of a path into another project", () => {
     const files = {
       "other/main.sd": "scene start\n  done\nend\n",

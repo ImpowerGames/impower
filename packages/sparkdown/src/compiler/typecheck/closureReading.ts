@@ -3,16 +3,6 @@ import { Location, Position } from "./Location";
 import { loweredReadingEnd } from "./LuauUnitNodes";
 import { luauPositionOffset, type LuauSyntaxError } from "./readLuauAst";
 
-/**
- * A Sparkle handler closure's syntax errors as its lowerer reports them,
- * from its reading (`readLuauStatements`), which closes the function value
- * the closure runs as with an `end` of its own where the closure's `}`
- * stands (I-1368). An error at that `end` names a token the author did not
- * write: it is reported at the `}` and names the `}` (`got '}'`), and one
- * that finds the end of input there is left out. With no `}`, which the
- * closure's own report says is missing, an error at that `end` alone is
- * left out. Other errors, and those of any other body, are Luau's as read.
- */
 export function closureReadingErrors(
   errors: readonly LuauSyntaxError[],
   body: SyntaxNode,
@@ -33,9 +23,6 @@ export function closureReadingErrors(
       if (from !== to) out.push(error);
       continue;
     }
-    // The end of input past that `end` (the function value left open when
-    // the `end` was read as something else) is past the `}`, and no part
-    // of the closure.
     if (/got <eof>(?=;|$)/.test(error.message)) continue;
     const message = error.message.replace(/got 'end'(?=;|$)/, "got '}'");
     if (message === error.message) {
@@ -48,7 +35,6 @@ export function closureReadingErrors(
   return out;
 }
 
-/** The position of a document offset, in lines and UTF-16 columns. */
 function positionAt(offset: number, documentText: string): Position {
   const lineStart = documentText.lastIndexOf("\n", offset - 1) + 1;
   let line = 0;

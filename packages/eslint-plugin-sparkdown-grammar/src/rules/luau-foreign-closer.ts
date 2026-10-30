@@ -1,28 +1,3 @@
-// Rule: a closer-bounded Luau rule ends before a closer it did not open, as
-// Luau's parser stops there, so the rule that owns the closer reads it and
-// the converter reports Luau's error for what is missing (GRAMMAR.md §3.2,
-// §17.2). Over the rules `luau-unread-token` finds closer-bounded (an `end:`
-// that consumes a closer and no ordinary token, or a rule that holds
-// `#LuauBlockBody`), the `end:`, with its variables substituted, must match
-// with nothing at:
-//
-// - an `end` and an `until` it does not consume, written at once or after
-//   whitespace, for every such rule: the catch-all (`LuauUnreadToken`)
-//   refuses both, and a block around the rule may own either;
-// - a `)`, a `]` and a `}` it does not consume, the same way, for a bracket
-//   (a rule whose `end:` consumes a bracket closer, a type's `>` or `>>`):
-//   Luau's expression parser stops at any of them (`{ f(1 }` closes the
-//   call before the `}`, which the table takes). A block does not end at
-//   one, since Luau's block parser reads it as a statement's error.
-//
-// `else` and `elseif` are not checked: an `if` takes its own branches, so
-// which rules own them is the `if`'s structure, not a closer it can meet.
-// The beat a body or bracket bails out at is `scoped-end-has-bailout`'s.
-// The rules `luau-unread-token` exempts are exempt here, and so are the
-// bodies that stand outermost in Luau code, which take only their own
-// closer and read any other as `LuauStrayCloser` (`EXEMPT`); a rule with
-// `applyEndPatternLast` tries its content first, so its end is not checked.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex } from "../utils/grammar-index.ts";
 import { findPair, isScalar } from "../utils/yaml-ast.ts";
@@ -30,13 +5,9 @@ import { closerBounded, exemption as unreadTokenExemption } from "./luau-unread-
 
 const KEYWORD_CLOSERS = ["end", "until"];
 const BRACKET_CLOSERS = [")", "]", "}"];
-// The closers a rule's `end:` consuming them makes it a bracket.
 const BRACKET_OWNERS = new Set([...BRACKET_CLOSERS, ">", ">>"]);
-// The closer written at once and after whitespace.
 const PREFIXES = ["", " ", "\t"];
 
-// The closer-bounded rules that end only at their own closer, by the names
-// they share and the reason.
 export const EXEMPT: readonly { names: RegExp; reason: string }[] = [
   {
     names: /^Luau(?:FunctionDefinition|FunctionBody|MethodDefinition|Define|FunctionTypeDeclaration|SparkleHandlerClosure)$/,
@@ -49,7 +20,6 @@ export function exemption(name: string): string | undefined {
   return EXEMPT.find((entry) => entry.names.test(name))?.reason ?? unreadTokenExemption(name);
 }
 
-// Whether the end matches with nothing before a closer, written at once and after whitespace.
 function yieldsAt(regex: RegExp, token: string): boolean {
   return PREFIXES.every((prefix) => {
     regex.lastIndex = 0;

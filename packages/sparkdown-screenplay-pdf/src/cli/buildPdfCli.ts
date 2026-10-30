@@ -73,7 +73,6 @@ for (const dir of candidateFontDirs) {
     usedDir = dir;
     break;
   } catch {
-    // try next
   }
 }
 if (!fonts) {

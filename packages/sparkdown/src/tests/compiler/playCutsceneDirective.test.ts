@@ -1,10 +1,3 @@
-// `[[play NAME]]` plays the video NAME as a full-screen cutscene (Feature
-// #285, I-1379). Inside `[[ ]]` the verb takes exactly one name, and that
-// name is a video: the validator accepts the verb and reports a missing or an
-// extra name, and the reference annotator resolves the name against
-// `video.<name>` only, so an image or an unknown name is reported as a video
-// that cannot be found. Inside `(( ))` `play` stays the audio verb.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -108,7 +101,6 @@ describe("[[play NAME]] validation", () => {
     (line) => {
       const diags = diagnosticsFor(inScene(line));
       expect(diags.some((m) => m.startsWith("`play` takes one video name"))).toBe(true);
-      // The extra name is not also resolved as an image.
       expect(diags.some((m) => m.includes("Cannot find image"))).toBe(false);
     },
   );

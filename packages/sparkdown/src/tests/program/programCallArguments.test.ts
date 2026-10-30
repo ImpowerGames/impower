@@ -1,34 +1,7 @@
-// A call passes the function it calls the arguments Luau passes (#1215): each
-// argument but the last gives one value; the last spreads its values, and a
-// call that returned none gives none; the values past the function's
-// parameters are dropped once evaluated, and the parameters past the values
-// are nil; a variadic function's `...` takes the rest. Every way of calling
-// does so, on both engines and on the current engine running the story's
-// JSON: a function the compile found, a function value in a local, a global
-// or a table field, a closure, a method, a table's `__call` handler, a
-// `__namecall` handler, a builtin iterator (#1216), a variadic closure called
-// by name (#1217), a builtin through a value or as a string's method, the
-// functions `pcall` and a metamethod call, and a function the host
-// evaluates. Where one value is taken from a call, it takes the call's first
-// value, or nil when it returned none: a call, an index or a method chained
-// on the call (`o:get()()`, `mk().x`, also as a statement, written with `&`
-// or without it, and after `new`), a store through it or of it
-// (`o:get().x = 6`, `& o.get().a.x += 2`, `t.x = f()`), a
-// variable it sets, an if expression's arm, a backtick string's
-// interpolation, the left side an `and` keeps, and a table's keyed field and
-// computed key; and what a metamethod or a builtin's callback returns is one
-// value, while `xpcall` returns every value its function returns. Each case
-// notes the line
-// Luau shows, but a builtin through a value that raises is compared with the
-// direct call of its builtin.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
 
-// Functions the cases call: of one parameter, of two, a `__call` handler,
-// variadic (`vf` counts the values of the first value its `...` holds), with
-// no parameters and a body that begins with a table, and ones that return
-// none, one, two and three values.
 const FUNCTIONS = [
   "function f0(a0)",
   "  return 4",
@@ -72,11 +45,8 @@ const FUNCTIONS = [
   "end",
 ];
 
-// The three entries of `t`.
 const T3 = `tostring(t[1]) .. "," .. tostring(t[2]) .. "," .. tostring(t[3])`;
 
-/** A script whose function `run` runs `body` and returns `result`, which its
- *  line shows. */
 const inRun = (body: string[], result = T3): string =>
   [
     ...FUNCTIONS,
@@ -113,7 +83,6 @@ const topLevel = (body: string[], result = T3): string => {
   ].join("\n");
 };
 
-/** What a script shows, its lines joined, and the errors it reports. */
 function shown(text: string) {
   const lines = ({ beats, errors }: ReturnType<typeof storyBeats>) => [
     beats.map((beat) => beat.text.trim()).join(" "),
@@ -194,8 +163,6 @@ describe("a call through a closure, a method or a table's `__call` handler", () 
   });
 });
 
-// A method call on a receiver that has no such method, which its
-// metatable's `__namecall` handler takes with the receiver first.
 describe("a method call that a `__namecall` handler takes", () => {
   const namecall = (handler: string, call: string) =>
     inRun(
@@ -218,9 +185,6 @@ describe("a method call that a `__namecall` handler takes", () => {
 });
 
 describe("a local that a block declares with the name of a variadic function of the same function", () => {
-  // The variadic function captures `base`, which a call by its name passes
-  // before its own arguments; the local is called in its block with only
-  // its own (tables.luau's `local function foo(u)`).
   it("is what the calls in its block call, the function before it", () => {
     expectShows(
       [
@@ -251,8 +215,6 @@ describe("a local that a block declares with the name of a variadic function of 
     );
   });
 
-  // A loop's variables are locals of its body, and a `repeat` loop's `until`
-  // condition sees the locals of its body.
   const withFoo = (lines: string[]) =>
     [
       "function run()",
@@ -342,8 +304,6 @@ describe("a builtin called through a value", () => {
     expectShows(text, line);
   });
 
-  // Each call through a value runs in a script of as many lines as the one
-  // that calls its builtin directly, so both raise from the same line.
   const raisedBy = (text: string) => shown(text);
   it.each([
     [
@@ -372,8 +332,6 @@ describe("a builtin called through a value", () => {
 });
 
 describe("a call, an index or a method chained on a call", () => {
-  // `o` holds a function that returns a function, a method that does, a
-  // method that returns the table itself, and one that bumps `hit`.
   const O = [
     "local hit = 0",
     "local o = { v = 4, get = function() return function(x) return tostring(x) end end }",
@@ -392,23 +350,14 @@ describe("a call, an index or a method chained on a call", () => {
     ["as a statement, calls a field of what a method call returns", inRun(["local hit = 0", "local o = {}", "function o:mk() return { bump = function() hit = hit + 1 end } end", "o:mk().bump()"], "hit"), "Got 1."],
     ["stores through a field of what a method call returns", inRun(["local t = { x = 0 }", "local o = {}", "function o:get() return t end", "o:get().x = 6"], "t.x"), "Got 6."],
     ["stores through an index of what a method call returns", inRun(["local t = { 0 }", "local o = {}", "function o:get() return t end", "o:get()[1] = 6"], "t[1]"), "Got 6."],
-    // One link can hold several parts (`.a.x`, `.b[2]`), and an index's key
-    // can hold a path of its own (`[k.v]`).
     ["indexes every part of a link after a method call", inRun(["local t = { a = { x = 1, b = { 2, 3 } } }", "local o = { get = function(self) return t end }", "local x = o:get().a.x", "local y = o:get().a.b[2]"], "x .. y"), "Got 13."],
     ["indexes by a key that holds a path, after a method call", inRun(["local u = { x = 5 }", "local k = { v = \"x\" }", "local o = { get = function(self) return u end }"], "o:get()[k.v]"), "Got 5."],
     ["stores through every part of a link after a method call", inRun(["local t = { a = { x = 1 } }", "local o = { get = function(self) return t end }", "o:get().a.x = 6"], "t.a.x .. type(t.a)"), "Got 6table."],
     ["stores through every part of a link after a field call", inRun(["local t = { a = { x = 1 } }", "local o = { get = function() return t end }", "o.get().a.x = 3"], "t.a.x"), "Got 3."],
     ["as a statement, calls through every part of a link after a method call", inRun(["local hit = 0", "local t = { a = { bump = function() hit = hit + 1 end } }", "local o = { get = function(self) return t end }", "o:get().a.bump()"], "hit"), "Got 1."],
     ["stores the value the lines after it continue, through a method call or a field call", inRun(["local t = { x = 0, y = 0 }", "local source = { y = 6 }", "local o = { get = function() return t end }", "o:get().x = source", "  .y", "o.get().y = source", "  .y"], "t.x .. \"/\" .. t.y"), "Got 6/6."],
-    // A compound assignment reads and writes through its target's base and
-    // key, each evaluated once: the call counts are 2 (one per compound
-    // store through `o.get`) and 1.
     ["compounds a store through what a call returns, evaluating its base and key once", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "local function mk() return function() return t end end", "mk()().y //= 2"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/2/2/1."],
     ["compounds a store through a parenthesized table and an index of a method call", inRun(["local t = { x = 1, 10 }", "local keys = 0", "local function key() keys = keys + 1 return \"x\" end", "local o = {}", "function o:get() return t end", "(t).x += 1", "(t)[key()] += 1", "o:get()[1] += 5"], "t.x .. \"/\" .. t[1] .. \"/\" .. keys"), "Got 3/15/1."],
-    // A statement stores and calls through the links after a call: the call
-    // counts are 3 and 2. A line that begins with `(` continues the call
-    // before it, as in Luau, so `;` separates it. An explicit statement
-    // (`&`), which a scene's top level needs for a call, does the same.
     ["stores and compounds through what a call returns in a function body", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5, 10 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "o.get().y = 7", "(t)[key()] = 4", "o:me()[1] += 5"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. t.x .. \"/\" .. t[1] .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/7/4/15/3/2."],
     ["calls through the links after a call in a function body", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "o:me():bump()", "o:bump():bump():bump()", ";(o):bump()", "box.o:me():bump()"], "n"), "Got 6."],
     ["stores and calls through what a call returns in an explicit statement at the top level", topLevel(["store t = { a = { x = 1 }, n = 0, y = 5, k = 10, s = \"a\" }", "function mko()", "  local o = {}", "  function o.get() return t end", "  function o:me() return t end", "  function o:bump() t.n = t.n + 1 return self end", "  return o", "end", "local o = mko()", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o:bump():bump()", "& (t).y //= 2", "& o:me()[\"k\"] += 5", "& o.get().s = \"b\""], "t.a.x .. \"/\" .. t.n .. \"/\" .. t.y .. \"/\" .. t.k .. \"/\" .. t.s"), "Got 30/2/2/15/b."],
@@ -416,7 +365,6 @@ describe("a call, an index or a method chained on a call", () => {
     expectShows(text, line);
   });
 
-  // `new` builds the instance its links then apply to (#1263).
   const POINT = [
     "define Point with",
     "  init(a, b)",
@@ -437,7 +385,6 @@ describe("a call, an index or a method chained on a call", () => {
 });
 
 describe("a call whose one value is taken", () => {
-  // `mk` returns a table and 9; `mf` a function and 9.
   const MK = [
     "local t = { x = 7, 7 }",
     "local function mk() return t, 9 end",
@@ -456,8 +403,6 @@ describe("a call whose one value is taken", () => {
     ["gives an upvalue nil when it returns none", inRun(["local a = 1", "local function set() a = g0() end", "set()"], "select(\"#\", a)"), "Got 1."],
     ["is one value as an if expression's arm", inRun(["local function f() return if true then g2() else 0 end"], "select(\"#\", f())"), "Got 1."],
     ["gives a string's method its values as a call's", inRun([], "(\"x\"):rep(g2()) .. (\"abcdef\"):sub(g2()) .. (\"abcdef\"):sub(g2(), g2())"), "Got xaba."],
-    // A story line shows nothing for a call that returns none, which an
-    // author writes for its effect; a Luau string writes nil, as Luau does.
     ["is written as its first value by a backtick string", inRun([], "`[{g2()}]`"), "Got [1]."],
     ["is written as nil by a backtick string when it returns none", inRun(["local t = {}", "function t:m() end"], "`[{g0()}|{t:m()}]`"), "Got [nil|nil]."],
     ["is nil as the left side an `and` keeps", inRun([], "select(\"#\", g0() and 7) .. \"/\" .. tostring(g0() and 7)"), "Got 1/nil."],
@@ -470,8 +415,6 @@ describe("a call whose one value is taken", () => {
 });
 
 describe("what a metamethod or a builtin's callback returns", () => {
-  // The engines call these functions themselves, and Luau takes one value
-  // from each: an index, an operator's result, a string, a comparison.
   it.each([
     ["is one value as an `__index` function's", inRun(["local t = setmetatable({}, { __index = function(t, k) return k, 9 end })"], "select(\"#\", t.x) .. \"/\" .. t.x .. \"/\" .. select(\"#\", t[\"y\"])"), "Got 1/x/1."],
     ["is nil for an `__index` function that returns none", inRun(["local t = setmetatable({}, { __index = function() end })"], "tostring(t.x) .. \"/\" .. select(\"#\", t.x)"), "Got nil/1."],
@@ -493,9 +436,6 @@ describe("what a metamethod or a builtin's callback returns", () => {
 });
 
 describe("a function a host evaluates (`EvaluateFunction`)", () => {
-  // The functions a host evaluates, as the UI evaluates an event handler with
-  // the event, and a scene, which binds nothing and takes what it is passed
-  // as it is.
   const HOST = [
     "function first(a)",
     "  return a",

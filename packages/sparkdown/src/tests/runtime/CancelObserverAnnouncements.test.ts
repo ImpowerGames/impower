@@ -1,7 +1,3 @@
-// A line the engine abandons through `CancelAsyncContinue` closes its batch of
-// variable observations without announcing its writes: no observer hears of a
-// run that did not happen, torn or whole (#281). A line that completes still
-// announces them.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -34,7 +30,6 @@ describe("cancelling an asynchronous continue", () => {
     expect(ctx.errorMessages).toEqual([]);
     const story: any = ctx.story;
     const heard = observe(story);
-    // Step until the line has written `x` but not finished.
     story.ContinueAsync();
     while (!story.asyncContinueComplete && recorded(story) === 0) {
       story.ContinueAsync();
@@ -43,7 +38,6 @@ describe("cancelling an asynchronous continue", () => {
     expect(recorded(story)).toBeGreaterThan(0);
     story.CancelAsyncContinue();
     expect(heard).toEqual([]);
-    // The writes are in the state until a caller replaces it.
     expect(story.stateIsPristine).toBe(false);
   });
 

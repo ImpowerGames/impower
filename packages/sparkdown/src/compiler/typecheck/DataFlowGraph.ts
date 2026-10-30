@@ -1,10 +1,5 @@
 // The data-flow graph, ported from Luau's `DataFlowGraph.h`/`.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// It gives every expression a def (a symbolic value) and records how defs
-// flow between places: a new def at each assignment, phis where branches
-// join, and the property defs of tables. The constraint generator keys
-// assignment types and refinements on these defs.
 
 import {
   AstExpr,
@@ -84,7 +79,6 @@ export function matches(a: ControlFlow, b: number): boolean {
   return (a & b) !== 0;
 }
 
-/** Whether a call always raises an error: `error(...)`, `assert()` or `assert(false, ...)`. */
 export function doesCallError(call: AstExprCall): boolean {
   const global = call.func instanceof AstExprGlobal ? call.func : undefined;
   if (!global) return false;
@@ -97,7 +91,6 @@ export function doesCallError(call: AstExprCall): boolean {
   return false;
 }
 
-/** Luau's `hasBreak`: a `break` in a block or an `if` arm, not one in a nested loop. */
 export function hasBreak(node: AstStat): boolean {
   if (node instanceof AstStatBlock) return node.body.some(hasBreak);
   if (node instanceof AstStatBreak) return true;
@@ -107,11 +100,6 @@ export function hasBreak(node: AstStat): boolean {
 
 const isTrue = (condition: AstExpr) => condition instanceof AstExprConstantBool && condition.value;
 
-/**
- * Luau's `getFallthrough`: the last statement before `node` exits, or
- * undefined when it never does. `alwaysTrue` reads a `while` guard that
- * never ends its loop; Luau's reads only the literal `true`.
- */
 export function getFallthrough(node: AstStat, alwaysTrue: (condition: AstExpr) => boolean = isTrue): AstStat | undefined {
   if (node instanceof AstStatBlock) {
     if (node.body.length === 0) return node;
@@ -139,7 +127,6 @@ export function isLValue(expr: AstExpr): boolean {
   return expr instanceof AstExprLocal || expr instanceof AstExprGlobal || expr instanceof AstExprIndexName || expr instanceof AstExprIndexExpr;
 }
 
-/** `table.freeze(x)`: the call whose first argument is re-typed by the call (Luau's `matchTableFreeze`). */
 export function matchTableFreeze(call: AstExprCall): boolean {
   if (call.args.length < 1) return false;
   const index = call.func instanceof AstExprIndexName ? call.func : undefined;
@@ -318,7 +305,6 @@ export class DataFlowGraphBuilder {
 
   private joinBindings(p: DfgScope, a: DfgScope, b: DfgScope): void {
     const join = (sym: LuauSymbol, def1: DefId, def2: DefId) => {
-      // Refinements are keyed on defs, so a trivial phi would break them.
       if (def1 === def2) p.bindings.set(sym, def1);
       else p.bindings.set(sym, this.defArena.phi([def1, def2]));
     };
@@ -378,7 +364,6 @@ export class DataFlowGraphBuilder {
 
   private lookup(symbol: LuauSymbol, location: Location): DefId {
     const scope = this.currentScope();
-    // Whether any of the scopes considered is a loop.
     let outsideLoopScope = false;
     for (let current: DfgScope | undefined = scope; current; current = current.parent) {
       outsideLoopScope = outsideLoopScope || current.scopeType === DfgScopeType.Loop;
@@ -388,7 +373,6 @@ export class DataFlowGraphBuilder {
         const capture = this.capture(symbol);
         const captureDef = this.defArena.phi([]);
         capture.captureDefs.push(captureDef);
-        // Outside a loop the new phi is never populated, so uses are not bound to it.
         if (!outsideLoopScope) scope.bindings.set(symbol, captureDef);
         return captureDef;
       }
@@ -537,7 +521,6 @@ export class DataFlowGraphBuilder {
       elsecf = this.withScope(elseScope, () => this.visitStat(elsebody));
     }
     const scope = this.currentScope();
-    // When one branch leaves, the other is the one taken.
     if (thencf !== ControlFlow.None && elsecf === ControlFlow.None) scope.inherit(elseScope);
     else if (thencf === ControlFlow.None && elsecf !== ControlFlow.None) scope.inherit(thenScope);
     else if ((thencf | elsecf) === ControlFlow.None) this.join(scope, thenScope, elseScope);
@@ -575,7 +558,6 @@ export class DataFlowGraphBuilder {
     const defs = l.values.map((e) => this.visitExpr(e).def);
     l.vars.forEach((local, i) => {
       if (local.annotation) this.visitType(local.annotation);
-      // A new def avoids alias tracking, but keeps whether the value was subscripted.
       const subscripted = i < defs.length && containsSubscriptedDefinition(defs[i]!);
       let def = this.defArena.freshCell(local, local.location, subscripted);
       const e = l.values[i];
@@ -632,11 +614,8 @@ export class DataFlowGraphBuilder {
   }
 
   private visitFunctionStat(f: AstStatFunction): ControlFlow {
-    // As in the old solver, the function's own name inside its body refers to the function.
     this.visitLValue(f.name, this.defArena.freshCell(undefined, f.name.location));
 
-    // A reference to the function from inside its own body (a global, or one
-    // property of a local) uses the ungeneralized function type.
     const signatureScope = this.makeChildScope(DfgScopeType.Function);
     this.withScope(signatureScope, () => {
       if (f.name instanceof AstExprGlobal) {
@@ -649,7 +628,6 @@ export class DataFlowGraphBuilder {
     });
 
     if (f.name instanceof AstExprLocal) {
-      // A recursive reference sees only this version of the local and later ones.
       const capture = this.capture(f.name.local);
       capture.versionOffset = capture.allVersions.length - 1;
     }
@@ -657,7 +635,6 @@ export class DataFlowGraphBuilder {
   }
 
   visitExpr(e: AstExpr): DataFlowResult {
-    // An expression can be visited twice; the second visit reuses the first's def.
     const existing = this.graph.astDefs.get(e);
     if (existing) return { def: existing, parent: this.graph.astRefinementKeys.get(e) };
 
@@ -764,7 +741,6 @@ export class DataFlowGraphBuilder {
         return { def: this.defArena.freshCell(undefined, e.location) };
       });
     }
-    // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
     const sparkdown = sparkdownValue(e);
     if (sparkdown) {
       for (const x of sparkdown.operands) this.visitExpr(x);
@@ -792,7 +768,6 @@ export class DataFlowGraphBuilder {
       }
       this.visitLValue(firstArg, result.def);
     }
-    // A call may return a subscripted value, so its result counts as subscripted.
     return { def: this.defArena.freshCell(undefined, c.location, true) };
   }
 
@@ -819,7 +794,6 @@ export class DataFlowGraphBuilder {
   private visitLValue(e: AstExpr, incomingDef: DefId): void {
     const go = (): DefId => {
       if (e instanceof AstExprLocal) {
-        // Clip the reference to the parent def, to avoid alias tracking.
         if (!e.upvalue) {
           const updated = this.defArena.freshCell(e.local, e.location, containsSubscriptedDefinition(incomingDef));
           this.currentScope().bindings.set(e.local, updated);

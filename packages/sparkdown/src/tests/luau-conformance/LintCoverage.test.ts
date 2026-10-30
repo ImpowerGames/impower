@@ -1,8 +1,3 @@
-// Every case in Luau's `tests/Linter.test.cpp` (at the vendored commit in
-// upstream/VENDORING.md) is accounted for in a `Lint*.test.ts` file of this
-// directory as ported, adapted, not yet implemented or not applicable, marked
-// by a `// Luau: <case>` comment.
-
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

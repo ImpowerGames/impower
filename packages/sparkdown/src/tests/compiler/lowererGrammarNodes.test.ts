@@ -19,8 +19,6 @@ describe("lowerer grammar distinctions", () => {
         quote,
       });
     }
-    // An unquoted operand is a name (#1389): one with a slash is a path to
-    // quote, and runs nothing.
     expect(compileSource("run start.luau\n").find((e) => e.block?.run)?.block?.run).toMatchObject({
       path: "start",
       written: "start.luau",

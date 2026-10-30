@@ -1,20 +1,3 @@
-// Luau statements lowered from the converter's AST (`typecheck/readLuauAst.ts`).
-//
-// The converter reads a block's statement nodes as Luau's parser reads the
-// statements' text: where each statement ends (a value list that goes on
-// after a line-ending comma, a line that begins with `.` or an operator and
-// continues the value before it, a `repeat`'s `until` line), how its targets
-// and values divide, and its expressions' structure. Each statement is
-// recorded with the syntax nodes it was read from, so the block's walk
-// (`lowerStatements`) lowers the statements that begin in a node and skips
-// the nodes they continue into. A statement that holds a body (a function, a
-// loop, an `if`) lowers its body from its own syntax nodes, which hold the
-// Sparkdown lines among its Luau.
-//
-// The validators that report a list or a value missing (`validateAssignmentValue.ts`)
-// read the statement's syntax node, whose operators and commas their
-// diagnostics are placed on.
-
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -81,12 +64,6 @@ import {
 import { lowerLuauIfBlock } from "./lowerSparkdownIfBlock";
 import { lowerVariableDefinition } from "./lowerVariableDefinition";
 
-/**
- * The statement nodes whose Luau the converter reads, wherever they stand:
- * a scene's or the top level's own nodes, and a block's children. A `choose`
- * block is Sparkdown's, with its choices, and lowers its Luau children one
- * by one.
- */
 export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauVariableDefinition",
   "LuauSparkdownVariableDefinition",
@@ -94,8 +71,6 @@ export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownExplicitBlockStatement",
   "LuauReassignment",
   "LuauSparkdownReassignment",
-  // A top-level function statement with its attributes, which holds the
-  // function's own node.
   "LuauFunctionAttributes",
   "LuauFunctionDefinition",
   "LuauIfBlock",
@@ -119,29 +94,17 @@ export const LUAU_STATEMENT_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauContinueStatement",
 ]);
 
-/**
- * Where a statement was read from: the syntax node it begins in, and what
- * the AST was read from.
- */
 export interface StatementSite {
-  /** The block's node the statement begins in. */
   node: SyntaxNode;
   source: LuauSource;
 }
 
-/**
- * The syntax node a statement of one of `names` was read from: the
- * outermost such node, at or inside the node the statement begins in, that
- * begins with the statement (after its line's indentation).
- */
 export function statementNodeAt(
   stat: AstStat,
   site: StatementSite,
   names: ReadonlySet<string>,
   ctx: LowerContext,
 ): SyntaxNode | null {
-  // A function statement's attributes (`@native function f()`) are nodes
-  // of their own before the function's.
   if (stat instanceof AstStatFunction || stat instanceof AstStatLocalFunction) {
     const node = nodeAfterAttributes(stat.func, site.source, names, ctx);
     if (node !== undefined) return node;
@@ -162,13 +125,6 @@ export function statementNodeAt(
   return found;
 }
 
-/**
- * A statement that holds a body, read from text whose syntax tree has no
- * node of its kind: its body cannot be found, so it lowers to nothing. That
- * is reported on its keyword rather than dropped silently, since the
- * statement would otherwise compile and never run (#1748). A syntax error
- * inside the statement is the checker's to report, and explains it.
- */
 export function unreadStatement(
   stat: AstStat,
   site: StatementSite,
@@ -191,7 +147,6 @@ export function unreadStatement(
   return {};
 }
 
-/** The document range of a statement: from its first token to its last, no further than the nodes it was read from. */
 export function statementRange(
   stat: AstStat,
   nodes: readonly { from: number; to: number }[],
@@ -203,14 +158,6 @@ export function statementRange(
   return { from, to: Math.max(from, Math.min(offsetAt(stat.location.end, ctx), end)) };
 }
 
-/**
- * The statements that begin in a node, without those the converter read
- * only while recovering from a syntax error earlier in the node (`a, g +=
- * 1` reads as `a, g = <error>` and then `<error> += 1`): the first
- * statement, and each one after it that begins before the node's first
- * error. The type checker reports the error; lowering what the recovery
- * read would run code the author did not write.
- */
 export function readStatements(
   node: SyntaxNode,
   statements: readonly LuauStatementSource[],
@@ -228,14 +175,6 @@ export function readStatements(
   );
 }
 
-/**
- * Lowers a statement node on its own: a top-level node of a scene or of the
- * document, or a child of a block that lowers its children one by one (a
- * `choose` block, an alternator's arm). A `repeat` loop's `until` line is a
- * node of its own after it, which the loop reads with it. Without `report`,
- * the reading's errors are another reading's to report (the arm of an
- * alternator Luau code uses as a value, `reportAlternatorValue`).
- */
 export function lowerLuauStatementNode(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -248,8 +187,6 @@ export function lowerLuauStatementNode(
   }
   const reading = readBlockAst(nodes, ctx);
   if (!reading) return {};
-  // A backtick string's own errors, where no other reading reads the
-  // statement (an alternator's arm), are this reading's (I-1435).
   if (report) reportReadingErrors(reading.source.errors, node, ctx, "string");
   return lowerLuauStatementsAt(
     node,
@@ -259,13 +196,6 @@ export function lowerLuauStatementNode(
   );
 }
 
-/**
- * Lowers the statements that begin in one node of a block (one, or several
- * on one line: `local a = 1 a = 2`), and runs the validators of the
- * statement nodes they were read from, once each. A single statement's
- * block is returned as it is, for the caller to stamp; several are merged
- * into one weave, each stamped with its own range.
- */
 export function lowerLuauStatementsAt(
   node: SyntaxNode,
   statements: readonly LuauStatementSource[],
@@ -289,7 +219,6 @@ export function lowerLuauStatementsAt(
   return wrapInWeave(content);
 }
 
-// The statement nodes the validators read.
 const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ...REASSIGNMENT_NAMES,
   ...VARIABLE_DEFINITION_NAMES,
@@ -301,9 +230,6 @@ const VALIDATED_NODES: ReadonlySet<string> = new Set([
   ]),
 ]);
 
-// Runs the validators of each statement node the statements were read
-// from, once each. The nodes after `node` that the statements continue into
-// are the lines that continue the last of them.
 function validateStatements(
   node: SyntaxNode,
   statements: readonly LuauStatementSource[],
@@ -336,7 +262,6 @@ function validateStatements(
   });
 }
 
-// The sibling of `node`, after it, that a statement's source names.
 function siblingNode(
   node: SyntaxNode,
   ref: { name: string; from: number },
@@ -348,14 +273,11 @@ function siblingNode(
   return null;
 }
 
-/** Lowers one statement of the converter's AST. */
 export function lowerLuauStatement(
   stat: AstStat,
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  // An alternator this statement runs with nothing waiting on the
-  // evaluation stack may leave its loop or function from an arm.
   const runs = armRunAlternator(stat);
   if (runs) soleLocalAlternators.add(runs);
   if (stat instanceof AstStatSparkdownExplicit) {
@@ -386,9 +308,6 @@ export function lowerLuauStatement(
   if (stat instanceof AstStatBreak) return lowerLuauBreakStatement(ctx);
   if (stat instanceof AstStatContinue) return lowerLuauContinueStatement(ctx);
   if (stat instanceof AstStatError) {
-    // A loop's body is read on its own, where its `break` or `continue`
-    // stands outside any loop the reading sees; the loop it is in is the
-    // lowering's (`ctx.loopStack`), which lowers it or drops it.
     const [only] = stat.statements;
     if (
       stat.statements.length === 1 &&
@@ -397,19 +316,9 @@ export function lowerLuauStatement(
       return lowerLuauStatement(only, site, ctx);
     }
   }
-  // A type declaration does not reach the runtime, and a statement Luau
-  // cannot read is the type checker's to report.
   return {};
 }
 
-/**
- * Whether a statement takes the nodes after the one it begins in, which
- * the block's walk then skips. A statement the converter could not read
- * takes none, and nor does one whose `then`, `do`, `in`, `end` or `until`
- * is missing: the grammar ended it at its line, and the converter, reading
- * on as Luau does, took the lines after it into its body, which the walk
- * lowers as the statements they are.
- */
 export function takesLines(stat: AstStat): boolean {
   if (stat instanceof AstStatSparkdownExplicit) return takesLines(stat.statement);
   if (stat instanceof AstStatError) return false;
@@ -433,7 +342,6 @@ export function takesLines(stat: AstStat): boolean {
   return true;
 }
 
-/** The `LuauSparkdownVariableDefinition` an explicit statement declares with, if it is a declaration. */
 export function explicitDeclaration(node: SyntaxNode): SyntaxNode | null {
   return getDescendent(["LuauSparkdownVariableDefinition"], node) ?? null;
 }

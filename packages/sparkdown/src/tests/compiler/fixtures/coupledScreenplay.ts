@@ -1,27 +1,3 @@
-// The screenplays the compiler's equivalence oracles run over.
-//
-// Both use the `scene NAME ... end` syntax (not `= knot`) so each scene is a
-// top-level NAMED runtime flow (in mainContentContainer.namedOnlyContent),
-// which is exactly what the per-flow location cache and ToJson memo reuse, and
-// both hold cross-flow references (diverts between scenes, read-counts,
-// defines, chained dialogue), where naive per-chunk reuse breaks.
-
-// The constructs whose incremental reuse bugs were found outside the oracles,
-// written after the scenes so that an edit near the top of the file leaves
-// each of their chunks carried. `p` prefixes every declared name, so a second
-// copy can sit in an included script. The bug each construct would have shown:
-//
-// - the `# tag` line and the tag on the scene line: #937
-// - the `choose ... then ... end` holding the rest of its scene: #668, #674
-// - the compound and multi-target assignments: #912
-// - the colon method calls and their receiver temps: #848, #871
-// - the anonymous function in a scene and the one in a function: #870, #913
-// - the `for` and `while` loops, whose hidden temporaries are named from the
-//   loop's offset
-// - the closure calling `later`, which an edit can declare as a top-level
-//   function: #935
-// - the store named `thing`, which an edit can make a define type name: #936
-// - the layout's bindings: #848, #858
 export function constructs(p = ""): string[] {
   return [
     `store ${p}t = { a = 0, b = 0 }`,
@@ -66,9 +42,6 @@ export function constructs(p = ""): string[] {
   ];
 }
 
-// The single-edit oracle's fixture. Each scene also holds a glued
-// continuation with a break. Lowering names a continuation's `group` by the
-// offset its statement starts at, which an edit above it moves.
 export function coupledScreenplay(): string {
   const L: string[] = [];
   L.push("---");
@@ -113,7 +86,6 @@ export function coupledScreenplay(): string {
     L.push(`  hero: Not yet in scene ${s}.`);
     L.push("end");
     L.push(`& trust = bonus(trust)`);
-    // Cross-flow divert to another scene.
     L.push(`-> scene_${(s + 3) % SC}`);
     L.push("end");
     L.push("");
@@ -122,8 +94,6 @@ export function coupledScreenplay(): string {
   return L.join("\n");
 }
 
-// The cumulative oracle's fixture: the same screenplay without the `cfg`
-// define and the glued continuations.
 export function cumulativeScreenplay(): string {
   const L: string[] = [];
   L.push("---");
@@ -169,9 +139,6 @@ export function cumulativeScreenplay(): string {
   return L.join("\n");
 }
 
-// A script the single-edit oracle's fixture includes: short scenes above a
-// second copy of the constructs, so an edit at its top leaves their chunks
-// carried.
 export function includedChapter(): string {
   const L: string[] = [];
   for (let s = 0; s < 6; s++) {

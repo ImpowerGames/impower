@@ -4,10 +4,8 @@ import { flowListings, pushesString } from "../programListing";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
-// A scene or branch declares its functions with `local`.
 const LOCAL_LESS = `  local function less(a, b)\n    return a < b\n  end\n`;
 
-/** The text of every line the story shows from the top, one per continue. */
 function linesFromTop(source: string): string[] {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
@@ -22,19 +20,15 @@ function linesFromTop(source: string): string[] {
   return lines;
 }
 
-/** The instructions of each flow of the compiled program (a scene, a
- *  function), keyed by its name (`flowListings`). */
 function namedContainers(source: string): Record<string, string[]> {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   return Object.fromEntries(flowListings(ctx.root));
 }
 
-// Luau's parser's error for a line of words in a function body.
 const INCOMPLETE =
   "Incomplete statement: expected assignment or a function call";
 
-/** Whether a flow's code writes `text`. */
 const holds = (flow: string[] | undefined, text: string) =>
   pushesString(flow ?? [], text);
 
@@ -76,12 +70,6 @@ describe("story lines after a function declaration", () => {
   });
 
   test("lines of a function's body that are not Luau statements are each reported as an error", () => {
-    // A function body is Luau, so a line such as `Hello there.` is not a
-    // story line there but a Luau statement Luau cannot read (#1158). Each
-    // one gets Luau's errors, every one (I-1322): `Hello`, `there.` with
-    // the name Luau reads from the next line, `How`, `are`, and the `?` no
-    // rule reads with the `you` it leaves incomplete (#1905); and the `.`,
-    // which a Sparkdown access path cannot carry onto the next line.
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene start\n  Line one.\n  done\nend\n`,
     );
@@ -96,9 +84,6 @@ describe("story lines after a function declaration", () => {
   });
 
   test("a function whose body is only lines of words ends at its `end`, and the line after it plays from the top", () => {
-    // GRAMMAR.md section 13.2: a pure-Luau body holds no story text, so each
-    // line is reported as Luau, and the definition still closes at its `end`
-    // (#1093). The errors are those of the test above (#1905).
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene start\n  After it.\nend\n`,
     );
@@ -126,7 +111,6 @@ describe("story lines after a function declaration", () => {
     const ctx = makeRuntimeStoryFromSource(
       `function greet()\n  local x = 1\n  How are you?\nend\n\nscene start\n  After it.\nend\n`,
     );
-    // `How`, `are` and `you`, as Luau reports them, and the `?` (I-1322).
     expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE, INCOMPLETE, "Expected identifier when parsing expression, got '?'"]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
@@ -150,8 +134,6 @@ describe("story lines after a function declaration", () => {
     }
   });
 
-  // The divert into the branch opens the scene's scope fresh, so the scene's
-  // local function is nil there.
   test("a branch after a function declared inside a scene belongs to the scene", () => {
     const source = `scene start
   -> s.world

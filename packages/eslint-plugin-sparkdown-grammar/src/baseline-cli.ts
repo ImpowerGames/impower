@@ -1,16 +1,3 @@
-// Reports and rewrites the baseline of existing grammar findings.
-//
-//   node packages/eslint-plugin-sparkdown-grammar/src/baseline-cli.ts
-//       Print each baselined rule's findings on the grammar, with the
-//       owners whose counts rose (the lint fails on these) or fell (the
-//       baseline can shrink).
-//   node packages/eslint-plugin-sparkdown-grammar/src/baseline-cli.ts --write
-//       Rewrite baseline.json from the grammar as it is now.
-//
-// Run either from any directory. Lower the baseline when a fix removes
-// findings, so the debt cannot quietly come back; raise it only for debt
-// that a reviewer accepted.
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Linter, type Rule } from "eslint";
@@ -44,7 +31,6 @@ const FINDERS: Record<(typeof BASELINED_RULES)[number], BaselinedRule["find"]> =
 
 export type Baseline = Record<string, Record<string, number>>;
 
-// Every baselined rule's findings on `source`, before any baseline.
 export function collectFindings(
   source: string,
   filename = "grammar.yaml",

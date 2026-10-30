@@ -3,11 +3,6 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import type { File } from "../../compiler/types/File";
 
-// A video name is a valid image-command target (I-1378): `[[show LAYER NAME]]`
-// and `[[animate LAYER NAME]]` resolve it against `video.<name>` beside the
-// image types, and a name that is both an image and a video is an error on the
-// line that names it.
-
 const uri = "file:///project/main.sd";
 const file = (path: string, type: "image" | "video"): File => ({
   uri: `file:///project/assets/${path}`,

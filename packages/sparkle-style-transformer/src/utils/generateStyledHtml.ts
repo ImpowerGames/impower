@@ -13,9 +13,6 @@ const generateStyledHtml = (
   html: string,
   options?: {
     attributePrefix?: string;
-    // Extracted by the transformer from the pattern and icon stylesheets. Not
-    // applied yet: styling comes from STYLE_TRANSFORMERS, and nothing here
-    // substitutes a graphic into the generated markup.
     patterns?: Record<string, Graphic>;
     icons?: Record<string, Graphic>;
   },

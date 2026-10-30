@@ -8,7 +8,6 @@ export const resolveSelector = <T>(
   selector: SparkSelector,
   expectedSelectorTypes: string[],
 ): [T | undefined, string | undefined] => {
-  // Validate that reference resolves to existing an struct
   const searchSelectorTypes =
     selector.types && selector.types.length > 0
       ? selector.types
@@ -18,8 +17,6 @@ export const resolveSelector = <T>(
       if (selector.name) {
         const selectorName = selector.name;
         const selectorPath = `${selectorType}.${selectorName}`;
-        // Asset names can contain qualified attributes (mia~look.left). Keep
-        // the complete name intact before trying nested selector paths.
         const exact = getContextEntry(program.context, selectorType, selectorName);
         if (exact !== undefined) {
           return [exact as T, selectorPath];

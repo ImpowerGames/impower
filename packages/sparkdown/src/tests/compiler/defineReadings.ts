@@ -1,7 +1,3 @@
-// Helpers shared by the define body reading tests (I-1454, I-1506): an
-// in-memory compile of `main.sd`, its errors, the method readings of its
-// tree, and the check that an incremental compile reports what a cold one
-// does.
 import { expect } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -20,7 +16,6 @@ export function newCompiler(text: string): SparkdownCompiler {
   return compiler;
 }
 
-/** Every error, as `start-end message` in 0-based lines and characters, sorted. */
 export function errorsOf(compiler: SparkdownCompiler): string[] {
   return (compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === DiagnosticSeverity.Error)
@@ -30,17 +25,13 @@ export function errorsOf(compiler: SparkdownCompiler): string[] {
 
 export const errors = (text: string) => errorsOf(newCompiler(text));
 
-/** The position of `offset` in `text`, as an LSP position. */
 function positionAt(text: string, offset: number) {
   const lines = text.slice(0, offset).split("\n");
   return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
 }
 
-// A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from the form, on a line before it, and changes no line count.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 export function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   for (const [offset, removed, insert] of [
@@ -58,7 +49,6 @@ export function expectIncrementalEqualsCold(text: string): void {
   }
 }
 
-/** The `LuauMethodDefinition` nodes of `text`, each as `name:method` or `name:call`. */
 export function methodReadings(text: string): string[] {
   const readings: string[] = [];
   const cursor = parseSource(text).topNode.cursor();

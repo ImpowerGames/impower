@@ -1,10 +1,3 @@
-// A `layout`, `component`, `style`, `screen`, `animation` or `theme` is a
-// top-level declaration (rule L2 of docs/sparkle/reactive-sparkle-spec.md).
-// Written inside a function's body, at any depth, it was never registered in
-// the program's context and nothing reported it (I-1405): a function's body
-// lowers as statements, whose context is not kept. It is now an error on its
-// keyword, and still registers nothing; the rest of the script compiles as
-// before.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -53,8 +46,6 @@ function compile(source: string): {
   return { diags, context: (result.program as any).context ?? {} };
 }
 
-// Each keyword, a declaration of it named `name`, and the struct of the
-// program's context it registers in.
 const DECLARATIONS = [
   {
     keyword: "layout",
@@ -71,8 +62,6 @@ const DECLARATIONS = [
 const indent = (lines: readonly string[], n: number) =>
   lines.map((line) => " ".repeat(n) + line);
 
-// The positions inside a function's body, each a script with the
-// declaration at `line` (0-based), indented by `column`.
 const SHAPES: Record<
   string,
   { line: number; column: number; source: (decl: readonly string[]) => string }
@@ -197,8 +186,6 @@ describe("a top-level Sparkle declaration inside a function (I-1405)", () => {
     });
 
     test(`\`${decl.keyword}\` in a function adds its error and leaves the script's other diagnostics as they were`, () => {
-      // A branch outside every scene and a divert with no target, which the
-      // script reports with or without the declaration.
       const script = (body: readonly string[]) =>
         [
           "store g = 0",

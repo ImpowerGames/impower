@@ -1,7 +1,3 @@
-// I-826: a script that replaces a stdlib namespace with its own table
-// (`math = { abs = function(a, b) ... end }`) gets every argument of a
-// call to its member, as in Luau: the call no longer stops at the
-// builtin's own arity, so `math.abs(1, 2)` passes 2 as the second.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -39,8 +35,6 @@ describe("replaced namespace member receives every argument", () => {
     expect(text).toBe(expected);
   });
 
-  // A variadic builtin's replacement takes a call that returned nothing
-  // before the last argument as nil, not as no argument.
   test("a variadic member's replacement", () => {
     const ctx = makeRuntimeStoryFromSource(
       [
@@ -57,8 +51,6 @@ describe("replaced namespace member receives every argument", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Got nil/2.\n");
   });
 
-  // A member the replacement does not hold is the builtin's, which takes
-  // its own parameters as before.
   test.each([
     ["more arguments than it takes", "Got {math.floor(2.5, 9)}.", "Got 2.\n"],
     ["its own arguments", "Got {math.floor(2.5)}.", "Got 2.\n"],

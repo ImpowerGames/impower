@@ -1,7 +1,3 @@
-// A Luau comment is trivia at every position (I-1321). A block comment
-// between a function type's `->` and a generic function type it returns
-// keeps the type whole (I-1299), and a comment after a closing `end` at story
-// scope belongs to the block it follows (I-1314).
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -15,7 +11,6 @@ afterEach(() => {
 
 const URI = "inmemory:///main.sd";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -28,14 +23,12 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for the same Luau, in the same form. */
 function luauErrors(luau: string): string[] {
   return officialSyntaxErrors(luau)
     .map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`)
     .sort();
 }
 
-/** The tree of a document and the parser's empty-match warnings. */
 function read(source: string) {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   const tree = stripAnsi(dumpTree(source));
@@ -67,8 +60,6 @@ describe("a comment after a function type's `->` keeps the type", () => {
     expect(emptyMatches).toBe(0);
   });
 
-  // After a `:` or a type's `=`, a comment before a generic function type
-  // is trivia too.
   test.each([
     "function g()\n  local f = function(): --[[c]] <T>(T) -> T end\nend\n",
     "function g()\n  local f: --[[c]] <T>(T) -> T = nil\nend\n",
@@ -80,8 +71,6 @@ describe("a comment after a function type's `->` keeps the type", () => {
     expect(emptyMatches).toBe(0);
   });
 
-  // `<` after a complete type is a comparison, so the type ends before it,
-  // with or without a comment between.
   test.each([
     "x :: {} < y",
     "x :: {} --[[c]] < y",
@@ -99,8 +88,6 @@ describe("a comment after a function type's `->` keeps the type", () => {
   });
 });
 
-// The comments after an `=` are the operator's, but an error placed on the
-// operator stays on its own token, as Luau places it, with or without them.
 describe("an error at an assignment's operator keeps its range", () => {
   test.each([
     "local w = --[[ c ]] ;",
@@ -112,10 +99,6 @@ describe("an error at an assignment's operator keeps its range", () => {
   });
 });
 
-// A comment of level nine or more closes at the close of its own level at
-// every trivia position, so one holding the close of another such level is
-// one comment (I-1362): its level is a group the close matches, which the
-// engine places from the match's indices (GRAMMAR.md 11.5).
 describe("a level-nine comment holding another level-nine close", () => {
   const comment = "--[=========[a]==========]b]=========]";
   test("between a scope modifier and `function`", () => {
@@ -130,8 +113,6 @@ describe("a level-nine comment holding another level-nine close", () => {
     expect(top.name).toBe("LuauFunctionDefinition");
     expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
   });
-  // Every block that closes with `end` at story scope takes the comments
-  // after its `end` (GRAMMAR.md 11.5).
   test.each([
     ["if true then\nend", "LuauSparkdownIfBlock"],
     ["do\nend", "LuauSparkdownDoBlock"],
@@ -159,11 +140,6 @@ describe("a level-nine comment holding another level-nine close", () => {
     });
     expect(nodes, tree).toEqual([name]);
   });
-  // After an assignment operator with code after the comments, they are the
-  // operator's, and the value after them reads as Luau reads it. The
-  // operator decides that by where the comments end, so its comment holds a
-  // `--` right after the other level's close: closing there would leave a
-  // line comment, which ends the line, and the operator would end at once.
   const dashComment = "--[=========[a]==========]-- x]=========]";
   test.each([
     `local w = ${dashComment} 5`,
@@ -185,8 +161,6 @@ describe("a level-nine comment holding another level-nine close", () => {
     expect(operators.length, tree).toBe(1);
     expect(operators[0], tree).toBeGreaterThan(commentEnd);
   });
-  // The type-operator position reads the comment with `LuauComment`, so
-  // there it closes at its own level now.
   test("after a type operator", () => {
     const { tree, emptyMatches } = read(
       `function g()\n  type F = () -> ${comment} <T>(T) -> T\nend\n`,
@@ -196,9 +170,6 @@ describe("a level-nine comment holding another level-nine close", () => {
   });
 });
 
-// Many spaced comments that the position cannot take (code follows them, or
-// no `function`) are read in time linear in their number: each comment owns
-// only the whitespace after it, so a failing match has one split to try.
 describe("many comments before a failing suffix parse quickly", () => {
   const comments = "--[[a]]    ".repeat(30);
   test.each([

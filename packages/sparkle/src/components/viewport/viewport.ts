@@ -7,10 +7,6 @@ const DEFAULT_TRANSFORMERS = {
   offset: getCssSize,
 };
 
-/**
- * Viewports fill the entire screen height and shrink to accommodate
- * on-screen virtual keyboards that would otherwise cover up content
- */
 export default class Viewport extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

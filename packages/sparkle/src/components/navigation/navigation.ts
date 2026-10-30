@@ -6,9 +6,6 @@ import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
 import spec from "./_navigation";
 
-/**
- * Allows the user to navigate children in an accessible way.
- */
 export default class Navigation extends SparkleComponent(spec) {
   get focusableChildren(): HTMLElement[] {
     if (this.shadowRoot) {

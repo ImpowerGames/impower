@@ -1,24 +1,8 @@
-// Generates `src/tests/luau-conformance/upstream/typecheck-cases.json`: every
-// test case in Luau's type-checker test files, which the ported type-checking
-// tests are checked against (see `src/tests/luau-conformance/typecheck/README.md`).
-//
-// Point it at a checkout of luau-lang/luau at the commit to pin, from this
-// package's directory:
-//
-//   node scripts/generateTypecheckCases.ts <luau-checkout>
-//
-// It reads the checkout's `tests/` directory and
-// `Analysis/include/Luau/Error.h`, and records the checkout's HEAD commit as
-// the pin. `upstream/VENDORING.md` has the commands that fetch those files.
-
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// The type-checker test files #589 ports, across its slices P1 to P9. Luau's
-// linter tests (`Linter.test.cpp`) are lints, not type checking, and are left
-// out.
 export const TYPECHECK_TEST_FILES = [
   "NonStrictTypeChecker.test.cpp",
   "NonstrictMode.test.cpp",
@@ -54,33 +38,15 @@ export const TYPECHECK_TEST_FILES = [
 ];
 
 export interface UpstreamCase {
-  /** The case name, the string literal in its `TEST_CASE` header. */
   name: string;
-  /** The fixture of a `TEST_CASE_FIXTURE`; absent for a plain `TEST_CASE`. */
   fixture?: string;
-  /**
-   * `DOES_NOT_PASS_NEW_SOLVER_GUARD()` forces Luau's old solver until the end
-   * of the block it is called in: `true` when that block is the case body, so
-   * the whole case runs on the old solver, and `"partly"` when every guard is
-   * inside a nested block, so the case's other checks run on the new solver.
-   */
   doesNotPassNewSolver?: true | "partly";
-  /**
-   * Upstream never compiles the case: the value is the `#if 0` line it sits
-   * under, or `commented out` for a case inside a block comment.
-   */
   disabledUpstream?: string;
-  /** Offsets into the file: the header, and the body including its braces. */
   headerFrom: number;
   bodyFrom: number;
   bodyTo: number;
 }
 
-// Blanks every comment, and the contents of every string and character
-// literal, keeping the length and the line breaks, so that braces, macro
-// names and directives can be found in the result without being fooled by
-// Luau source held in a string. Also returns where each block comment's
-// contents lie, since a case can be commented out.
 export function maskCpp(text: string): {
   masked: string;
   blockComments: { from: number; to: number }[];
@@ -119,8 +85,6 @@ export function maskCpp(text: string): {
     } else if (c === '"' || c === "'") {
       let j = i + 1;
       while (j < text.length && text[j] !== c) {
-        // An escaped character, including a line break that continues the
-        // literal on the next line.
         if (text[j] === "\\") {
           j += 2;
           continue;
@@ -137,8 +101,6 @@ export function maskCpp(text: string): {
   return { masked: out.join(""), blockComments };
 }
 
-// `R"delim(` opens a raw string, optionally prefixed by `u8`, `u`, `U` or `L`;
-// an `R` that ends a longer identifier (`fooR"x"`) does not.
 function isRawStringStart(text: string, quote: number): boolean {
   if (text[quote - 1] !== "R") return false;
   const before = text.slice(Math.max(0, quote - 4), quote - 1);
@@ -147,8 +109,6 @@ function isRawStringStart(text: string, quote: number): boolean {
   return beforePrefix === undefined || !/[A-Za-z0-9_]/.test(beforePrefix);
 }
 
-// A `'` inside a number (`10'000`) separates digits rather than opening a
-// character literal: the token it sits in starts with a digit.
 function isDigitSeparator(text: string, quote: number): boolean {
   let start = quote;
   while (start > 0 && /[0-9A-Za-z_.']/.test(text[start - 1] ?? "")) start--;
@@ -175,10 +135,6 @@ function readStringLiteral(text: string, quote: number): string {
   return value;
 }
 
-// The `#if 0` regions of the file, as the offsets of the lines they cover
-// and each region's `#if 0` line. Any other condition is assumed true, since
-// every other conditional in these files selects a build configuration rather
-// than switching tests off.
 function disabledRegions(
   text: string,
   masked: string,
@@ -212,8 +168,6 @@ function disabledRegions(
   return regions;
 }
 
-// The cases whose headers begin a line of `masked`, which is `text` with
-// everything but code blanked. `offset` places them within an enclosing text.
 function findCases(text: string, masked: string, offset: number): UpstreamCase[] {
   const cases: UpstreamCase[] = [];
   const header = /^[ \t]*TEST_CASE(_FIXTURE)?[ \t]*\(/gm;
@@ -245,8 +199,6 @@ function findCases(text: string, masked: string, offset: number): UpstreamCase[]
   return cases;
 }
 
-// Whether a masked case body, braces included, calls the guard at its own
-// top level, only inside nested blocks, or not at all.
 function newSolverGuard(body: string): true | "partly" | undefined {
   let found: true | "partly" | undefined;
   const guard = /\bDOES_NOT_PASS_NEW_SOLVER_GUARD\s*\(/g;
@@ -262,7 +214,6 @@ function newSolverGuard(body: string): true | "partly" | undefined {
   return found;
 }
 
-/** Offsets in the result refer to `source` with its CRLF line breaks made LF. */
 export function parseTestFile(source: string): UpstreamCase[] {
   const text = source.replace(/\r\n/g, "\n");
   const { masked, blockComments } = maskCpp(text);
@@ -329,7 +280,6 @@ function main(checkout: string | undefined) {
   let guarded = 0;
   let partlyGuarded = 0;
   let disabled = 0;
-  // doctest runs two cases of the same name, so both stay listed, in order.
   const repeated: string[] = [];
   const fileBlocks: string[] = [];
   for (const file of TYPECHECK_TEST_FILES) {

@@ -1,14 +1,3 @@
-// A function declared with `...` inside a function, called by name after a
-// block that declared a `local` of the same name, is called: as in Luau, the
-// local is visible only to the end of its block (I-810). The call is lowered
-// against the locals of the blocks around it (`resolveCallableBinding`), a
-// local of a function nested in the declaring one hides the function there
-// without removing it (`lowerVariableDefinition`), and a divert names a
-// `local` only where the local is in scope (`Divert.endedLocalGivesWay`).
-//
-// The function the calls reach captures nothing: a closure that calls such a
-// function passes nil for the locals it captures, which is I-817.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
@@ -20,8 +9,6 @@ function run(source: string): { text: string; errors: string[] } {
   return { text, errors };
 }
 
-// `foo(n, ...)` returns `n` plus the count of its further arguments, so
-// `foo(1, 2)` is 2; the locals of its name that hide it are never 2.
 const story = (body: string[]) =>
   [
     "function run()",

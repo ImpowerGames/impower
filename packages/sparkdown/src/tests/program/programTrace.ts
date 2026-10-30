@@ -1,6 +1,3 @@
-// The program engine one instruction at a time (#695): what each instruction
-// left on the eval stack, in the output and on the frame, for the tests of
-// single instructions.
 import { ControlCommand } from "../../runtime/ControlCommand";
 import type { InkObject } from "../../runtime/Object";
 import {
@@ -20,7 +17,6 @@ import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { SymbolKind } from "../../program/ProgramSymbols";
 
-// A statement whose code is whatever `emit` writes.
 class HandWritten extends ParsedObject {
   constructor(protected _emit: (emitter: ProgramEmitter) => void) {
     super();
@@ -30,8 +26,6 @@ class HandWritten extends ParsedObject {
   }
 }
 
-/** A program of one top-level statement whose code `emit` writes, which
- *  tests an instruction on values no script of this slice can make. */
 export function handWrittenProgram(
   emit: (emitter: ProgramEmitter) => void,
 ): ProgramRoot {
@@ -64,28 +58,18 @@ export function handWrittenProgram(
   return root;
 }
 
-/** The steps of a hand-written program run from its start. */
 export const traceHandWritten = (
   emit: (emitter: ProgramEmitter) => void,
 ): TracedStep[] => traceSteps(new ProgramStory(handWrittenProgram(emit)));
 
 export interface TracedStep {
-  /** The instruction that ran, as a listing writes it. */
   op: string;
-  /** The eval stack after it, bottom first. */
   stack: string[];
-  /** The output stream after it. */
   output: string[];
-  /** The frame's scopes of temporaries after it, outermost first, each with
-   *  its names and values. */
   scopes: Record<string, string>[];
-  /** How many blocks the story was inside after it. */
   blocks: number;
 }
 
-/** A value as a trace shows it: a string quoted, a table with its entries,
- *  nil, void, a multiple value in parentheses, a control command in angle
- *  brackets and a whole float with its `.0`. */
 export const showValue = (obj: InkObject | null | undefined): string => {
   if (!obj) {
     return "none";
@@ -119,12 +103,8 @@ export const showValue = (obj: InkObject | null | undefined): string => {
   return obj.constructor.name;
 };
 
-// The instruction a step ran (`ProgramStory._running`).
 type Running = { sequence: SequenceRow; entry: number; offset: number } | null;
 
-/** Steps `story` until its flow ends or `max` steps have run, and returns
- *  each instruction it ran with the state it left. The step that finds the
- *  flow ended runs no instruction and is left out. */
 export function traceSteps(story: ProgramStory, max = 1000): TracedStep[] {
   const steps: TracedStep[] = [];
   const running = () => (story as unknown as { _running: Running })._running;

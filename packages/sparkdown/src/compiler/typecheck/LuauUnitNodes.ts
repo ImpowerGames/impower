@@ -1,7 +1,3 @@
-// The syntax tree's nodes that decide which of a `.sd` file's text the type
-// checker reads as Luau (`readLuauAst.ts`), kept apart from the checker so
-// that the validator can ask the same question without loading it.
-
 import type { SyntaxNode } from "@lezer/common";
 import { ALTERNATOR_CANDIDATES, opensAlternator } from "../utils/alternatorDecision";
 import { loweredDefinePropertyOf, loweredDefineStatementOf } from "../utils/defineStatement";
@@ -10,10 +6,8 @@ import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
-// The statements of a `.sd` file that are Luau, wherever they sit.
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
-  // A top-level function's attributes, read with the function after them.
   "LuauFunctionAttributes",
   "LuauFunctionDefinition",
   "LuauSparkdownExplicitStatement",
@@ -43,14 +37,8 @@ export const LUAU_STATEMENTS = new Set([
   "LuauSparkdownChooseBlock",
 ].flatMap(explicitRuleNames));
 
-// The headers that begin a flow.
 export const FLOW_HEADERS = new Set(["Scene", "Branch"]);
 
-// Nodes inside Luau statements that are Sparkdown's own: the `&` that marks
-// a statement, the `choose`, `then` and `end` of a `choose` block, and the
-// constructs Luau has no syntax for. A `choose` block opens no scope (a
-// choice's statements run in its flow's), so the statements inside it are
-// kept where they stand.
 export const SPARKDOWN_ONLY = new Set([
   "LuauExplicitStatementMark",
   "LuauSparkdownChooseBlock_begin",
@@ -73,10 +61,6 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
 ].flatMap(explicitRuleNames));
 
-// Sparkdown's own expressions, which Luau has no syntax for: alternators,
-// divert targets and regular expressions. Each is a value of type `any` to
-// the checker (`SparkdownReading.ts`), so the rest of its statement is
-// checked as written.
 export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
@@ -86,39 +70,20 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauRegexLiteral",
 ].flatMap(explicitRuleNames));
 
-/**
- * Whether a node is one of Sparkdown's own expressions: a structural word's
- * rule only when it holds its arms (`opensAlternator`, I-1310), since one
- * that holds none is Luau (`match(1)` is a call).
- */
 export function isSparkdownExpression(node: SyntaxNode): boolean {
   return SPARKDOWN_EXPRESSIONS.has(node.name) && opensAlternator(node);
 }
 
-// A comment, or a part of one the tree reads apart from it (the `]]` that
-// closes a block comment after a value or type); a cast after a comment is not one.
 export const COMMENT = /^Luau(?!(?:SparkdownExplicit)?TargetTypeCastAfterComment$)\w*Comment(Close|Content|Mark|Tags)?$/;
 
-// Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
-// The scope modifiers that are Luau's; any other (`store`) is Sparkdown's own,
-// and the checker reads its declaration without it.
 export const LUAU_SCOPE_MODIFIERS = new Set(["local", "const"]);
 
-/** Whether the tree names a node as Luau's syntax, all of whose rules it names `Luau…` (Sparkdown's own constructs among them, `SPARKDOWN_ONLY`). */
 export function isLuauNodeName(name: string): boolean {
   return name.startsWith("Luau");
 }
 
-/**
- * Whether the type checker reads a node as Luau: a node of one of a file's
- * Luau statements, outside what is Sparkdown's own in it, and not in a
- * declaration whose scope modifier is Sparkdown's own (`store x: = 1`),
- * whose syntax errors are Sparkdown's own syntax's to report. A flow
- * header's parameters are not among them: the checker reads them only when
- * they are Luau's as written.
- */
 export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (SPARKDOWN_ONLY.has(n.name) || isSparkdownExpression(n)) return false;
@@ -132,12 +97,6 @@ export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number)
   return false;
 }
 
-/**
- * Whether a node is in a function's own Luau, its header or its body, a
- * pure-Luau body, where the type checker reports every error of Luau's
- * reading, its recovery's included (I-1322). A story statement's Luau is
- * bounded by its line, and its errors have one owner each (#931, #1907).
- */
 export function inLuauFunction(node: SyntaxNode | null): boolean {
   for (let n = node; n; n = n.parent) {
     if (n.name === "LuauFunctionDefinition") return true;
@@ -145,25 +104,12 @@ export function inLuauFunction(node: SyntaxNode | null): boolean {
   return false;
 }
 
-/**
- * Whether a reading of Luau reports every syntax error of Luau's at a node
- * (I-1322): the type checker's, where the node is in a `.luau` or `run`
- * file (`uri`, the document's), whose whole text is Luau, or it is Luau the
- * checker reads (`isCheckedLuau`) in a function's own Luau
- * (`inLuauFunction`); or a lowerer's, where it is in the body of a define's
- * method or a Sparkle handler's closure (`loweredLuauBodyOf`, I-1368), or
- * in a define body's statement (`loweredDefineStatementOf`, I-1489).
- * There a validator or lowerer reports none of Luau's own syntax errors
- * from the tree.
- */
 export function luauReadingReportsAllAt(node: SyntaxNode, read: (from: number, to: number) => string, uri?: string): boolean {
   if (uri !== undefined && isLuauDocument(uri)) return true;
   if (loweredLuauBodyOf(node) || loweredDefineStatementOf(node, read)) return true;
   return inLuauFunction(node) && isCheckedLuau(node, read);
 }
 
-// The nodes of a define's method's content that are its header, not its
-// body's statements (`METHOD_BODY_SKIP` in `lowerLuauDefine.ts`).
 const METHOD_HEADER = new Set([
   "LuauFunctionDeclarationName",
   "LuauFunctionName",
@@ -172,16 +118,6 @@ const METHOD_HEADER = new Set([
   "LuauGenericsDeclaration",
 ]);
 
-/**
- * The reading a node's body is in where the type checker does not read it
- * and its lowerer reports every syntax error of Luau's reading of the body
- * alone, its `end` included (`reportBodySyntaxErrors`, I-1368): a define's
- * method, in either spelling (`f()` … `end`, `function f()` … `end`), or a
- * Sparkle handler's closure. Null outside them, in a method's header,
- * whose errors are not its body's, and in Sparkdown's own constructs and
- * expressions in the body (an alternator), which the reading reads as one
- * opaque value, as the type checker's does (`isCheckedLuau`).
- */
 export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
   for (let n = node; n?.parent; n = n.parent) {
     if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return null;
@@ -195,22 +131,8 @@ export function loweredLuauBodyOf(node: SyntaxNode | null): SyntaxNode | null {
   return null;
 }
 
-// A double-quoted string's interpolation, which Sparkdown reads itself.
 const DOUBLE_QUOTED_INTERPOLATION = "LuauDoubleQuotedStringInterpolation";
 
-/**
- * The story `store` declaration a node is in, whose syntax errors Luau's
- * reading of the declaration alone, its names and its values, reports where
- * Sparkdown reports none (`storeReadingErrors`, I-1370): a store outside
- * every function and every body a reading that reports all of Luau's errors
- * reads (`luauReadingReportsAllAt`), since the type checker leaves a store's
- * errors to Sparkdown (`isCheckedLuau`). A store in a function's own Luau
- * is read on into the lines after it, as its function is, and no reading of
- * it alone stands for Luau's. Null outside one, in Sparkdown's own
- * constructs and expressions in its value (an alternator, a divert target, a
- * double-quoted string's interpolation), which are Sparkdown's syntax's to
- * report, and in a store inside one of Sparkdown's own blocks (a `define`).
- */
 export function storyStoreOf(node: SyntaxNode | null, read: (from: number, to: number) => string): SyntaxNode | null {
   let store: SyntaxNode | null = null;
   for (let n = node; n; n = n.parent) {
@@ -224,50 +146,29 @@ export function storyStoreOf(node: SyntaxNode | null, read: (from: number, to: n
   return store && !inLuauFunction(store) && !luauReadingReportsAllAt(store, read) ? store : null;
 }
 
-/**
- * Where a lowerer's reading of a body stops reading the author's text
- * (`loweredLuauBodyOf`): a method's reading reads its `end`, a Sparkle
- * handler closure's stops before its `}`, which is Sparkdown's own token,
- * and closes the function value it runs as with an `end` of its own there.
- */
 export function loweredReadingEnd(body: SyntaxNode): number {
   return body.getChild("LuauSparkleHandlerClosure_content")?.to ?? body.to;
 }
 
-/**
- * Whether a reading of Luau that reports its syntax errors reads a node:
- * the type checker's (`isCheckedLuau`), or a lowerer's of a body the
- * checker does not read (`loweredLuauBodyOf`) or of a define body's
- * statement (`loweredDefineStatementOf`).
- */
 export function isReadLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
   return isCheckedLuau(node, read) || loweredLuauBodyOf(node) !== null || loweredDefineStatementOf(node, read) !== null;
 }
 
-/** Whether a document is a Luau file, which is Luau from its first line to its last. */
 export function isLuauFile(uri: string): boolean {
   const path = uri.split(/[?#]/, 1)[0]!;
   return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
 }
 
-/** Whether a document is all Luau: a `.luau` file, or the `run` wrapper of one. */
 export function isLuauDocument(uri: string): boolean {
   return isLuauFile(uri) || runWrapperName(uri) !== undefined;
 }
 
-/**
- * Whether the type checker reads the token at a document position as Luau,
- * asked from any node of the same tree. Where it does not (a `;` or a word
- * the grammar reads as story in a narrative body, a scene's `end`), the
- * checker cannot report an error at that token, so Sparkdown reports it.
- */
 export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
   let root = anyNode;
   while (root.parent) root = root.parent;
   return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
-// Luau's reserved words, which are never a name.
 export const RESERVED: ReadonlySet<string> = new Set([
   "and",
   "break",
@@ -292,16 +193,6 @@ export const RESERVED: ReadonlySet<string> = new Set([
   "while",
 ]);
 
-// The statements the tree begins on a new line where Luau's parser could
-// read on into the statement before them (`a, b = 1,` before a line `goto
-// done`, or `x = if c then 1 else` before a line `x = 6`): those that begin
-// with a word Luau reads as a name (`x`, `goto`, `type`, `const`, `define`)
-// or with `function` and a name, which Luau reads as a function value with a
-// name after a comma or an operator (`breaksStatement`); the tree also reads
-// a function value as a function definition, which has no name. Sparkdown
-// ends the statement before them, and so does the type checker's reading
-// (`readLuauAst.ts`); what that statement lacks there is Sparkdown's own
-// syntax's to report.
 export const STATEMENT_BREAKS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   ...REASSIGNMENT_NAMES,
@@ -319,12 +210,6 @@ export const STATEMENT_BREAKS = new Set([
   "LuauMorph",
 ]);
 
-/**
- * Whether a statement node's text (from `STATEMENT_BREAKS`) begins with a
- * word Luau's parser could read as part of the statement before it: a name,
- * or `function` and a name. A statement that begins with any other reserved
- * word ends the one before it in Luau too.
- */
 export function breaksStatement(text: string): boolean {
   const words = /^\s*([A-Za-z_][A-Za-z0-9_]*)(\s+[A-Za-z_])?/.exec(text);
   const word = words?.[1];
@@ -332,51 +217,15 @@ export function breaksStatement(text: string): boolean {
   return word !== undefined && !RESERVED.has(word);
 }
 
-/**
- * Whether the reading ends a statement before one the tree begins that
- * `breaksStatement` lets end it, given the text between the last token
- * before that statement and its first word: only across a line end. On the
- * line of the statement before, the reading carries that statement on
- * (`local a, const = 1, 2` is one declaration), as Luau does.
- */
 export function breaksAcrossLine(between: string): boolean {
   return between.includes("\n");
 }
 
-/**
- * Whether the type checker's reading ends the statement before a node the
- * tree begins (`STATEMENT_BREAKS`), given the last Luau token before it,
- * comments aside. The reading carries a statement on into an assignment
- * (`local a, b =` before a line `f(1),`, which the tree reads as an
- * assignment's targets), except after an empty if-expression arm, whose
- * last token is the arm's `then` or `else`: that arm's missing value must
- * not take the next assignment's target. Whether the node's first word
- * breaks the statement in Luau is `breaksStatement`'s to decide.
- */
 export function endsStatementBefore(name: string, previousToken: string | undefined): boolean {
   if (!STATEMENT_BREAKS.has(name)) return false;
   return !isExplicitRuleName(name, "LuauReassignment") || previousToken === "then" || previousToken === "else";
 }
 
-/**
- * Whether the type checker reads a construct and the token after it as one
- * statement, and so reports what the construct is missing at that token,
- * with Luau's wording and range (#1175): the construct is Luau it reads
- * (`isCheckedLuau`), and so is the token (from `tokenFrom`, or the end of the
- * Luau when there is none), with no statement the tree begins at the token
- * that the reading ends the construct's statement before (`STATEMENT_BREAKS`).
- * Otherwise Sparkdown's own syntax ends the statement first (at story in a
- * narrative body, a scene's `end`, or `goto` after a line-ending comma), and
- * Sparkdown reports what the construct lacks. In a body whose lowerer
- * reads it in the checker's stead (`loweredLuauBodyOf`), that reading
- * reports it, at a token up to the body's own end, a closure's `}`
- * included, which the reading names where it closes the closure
- * (`closureReadingErrors`). A define body's statement is read by its
- * lowerer (`loweredDefineStatementOf`), on to the token after it, as Luau
- * reads it, and that reading reports every error of it (I-1489), as a
- * define body property's reading reports every error of its key and value
- * (`loweredDefinePropertyOf`, I-1500).
- */
 export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined, read: (from: number, to: number) => string): boolean {
   const lowered = loweredLuauBodyOf(node);
   if (lowered) return tokenFrom === undefined || (tokenFrom < lowered.to && readingCarriesOnTo(node, tokenFrom, read));
@@ -392,26 +241,14 @@ export function checkerReadsOnTo(node: SyntaxNode, tokenFrom: number | undefined
   return readingCarriesOnTo(node, tokenFrom, read);
 }
 
-// The braces of story text, dialogue and choice text (`Hello {x.}.`), and
-// the text that holds them.
 const STORY_BRACES = new Set(["LuauInterpolatedStringExpression", "LuauFunctionCallShorthand"].flatMap(explicitRuleNames));
 const STORY_TEXT = new Set(["TextChunk", "ChoiceTextContent"]);
-// What an alternator's arm holds that is no value of it: a line of story, a
-// statement, which its own reading reads.
 const ARM_STORY = new Set(["LuauSparkdownAlternatorArm", "LuauSparkdownInlineGluedAlternatorArm"]);
-// An alternator's head, on its word's line or beginning a line of its own.
 const ALTERNATOR_HEADS = new Set(["LuauAlternatorHead", "LuauAlternatorLineStartHead"].flatMap(explicitRuleNames));
-// The alternators of story text whose condition is Luau (`match x` on a
-// line of its own, or glued into a line of text), beside the candidates.
 const STORY_CONDITIONAL_ALTERNATORS = new Set(
   ["LuauSparkdownConditionalAlternatorBlock", "LuauSparkdownInlineGluedConditionalAlternatorBlock"].flatMap(explicitRuleNames),
 );
 
-/**
- * The alternator a node of its head, condition or arms is in: a candidate in
- * Luau or a story brace (`ALTERNATOR_CANDIDATES`), or a story conditional
- * alternator, whose condition its lowerer reads (`tokenAfter`).
- */
 export function enclosingAlternator(node: SyntaxNode | null): SyntaxNode | null {
   for (let n = node; n; n = n.parent) {
     if (ALTERNATOR_CANDIDATES.has(n.name) || STORY_CONDITIONAL_ALTERNATORS.has(n.name)) return n;
@@ -419,17 +256,6 @@ export function enclosingAlternator(node: SyntaxNode | null): SyntaxNode | null 
   return null;
 }
 
-/**
- * The expression a lowerer reads a node in, where no other reading reads
- * it and the lowerer's reading reports every syntax error of it, in Luau's
- * words, ending at the token after it (I-1445, `reportReadingErrors`
- * "expression"): a story brace in story text, dialogue or choice text
- * (`Hello {x.}.`, not a tag's, nor one in a string), a choice's `if`
- * condition, an alternator's head, on its word's line or its own, a story
- * conditional alternator's condition (`match x.` on a line of its own), or a
- * value in an alternator's arm (not a statement or line of story in it),
- * whose reading ends within the alternator. Null for any other node.
- */
 export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null {
   for (let n = node; n?.parent; n = n.parent) {
     if (isExplicitRuleName(n.name, "ChoiceCondition")) return n;
@@ -454,34 +280,18 @@ export function loweredExpressionOf(node: SyntaxNode | null): SyntaxNode | null 
   return null;
 }
 
-/**
- * Whether a story brace has no written `}` (`Hello {x.` at the end of its
- * line): its reading meets its end of input where the brace's content ends
- * and reports what the content lacks there (`got <eof>`), so no token past
- * it is the tree checks' to name.
- */
 function unclosedBrace(expression: SyntaxNode): boolean {
   if (!STORY_BRACES.has(expression.name)) return false;
   const close = expression.getChild(`${expression.name}_end`);
   return !close || close.from === close.to;
 }
 
-/**
- * Whether Luau's reading of a construct, the type checker's or a lowerer's
- * own, carries its statement on to the token at `tokenFrom`: no statement
- * the tree begins at the token is one the reading ends the construct's
- * statement before (`STATEMENT_BREAKS`, `breaksStatement`, across a line
- * end). Whether the type checker reads the construct at all is
- * `checkerReadsOnTo`'s question, not this one's.
- */
 export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (from: number, to: number) => string): boolean {
   let root = node;
   while (root.parent) root = root.parent;
   const token = root.resolveInner(tokenFrom, 1);
   for (let n: SyntaxNode | null = token; n; n = n.parent) {
     if (!STATEMENT_BREAKS.has(n.name)) continue;
-    // The construct's last word, comments aside, is the token the reading
-    // holds before this one.
     const own = textWithoutComments(node, read).trimEnd();
     const lastWord = /(?:^|[^A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)$/.exec(own)?.[1];
     if (!endsStatementBefore(n.name, lastWord)) return true;
@@ -492,7 +302,6 @@ export function readingCarriesOnTo(node: SyntaxNode, tokenFrom: number, read: (f
   return true;
 }
 
-/** A node's text with each comment the tree holds in it (`COMMENT`, as the checker's reading skips them) replaced by spaces. */
 function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) => string): string {
   let text = "";
   let at = node.from;
@@ -510,7 +319,6 @@ function textWithoutComments(node: SyntaxNode, read: (from: number, to: number) 
   return text + read(at, node.to);
 }
 
-/** The first node of a name among a node and its later siblings, and under them, depth first. */
 function findChild(node: SyntaxNode | null, name: string): SyntaxNode | null {
   for (let child = node; child; child = child.nextSibling) {
     if (child.name === name) return child;

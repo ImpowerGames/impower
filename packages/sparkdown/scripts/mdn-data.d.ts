@@ -1,6 +1,3 @@
-// `mdn-data` ships JSON data with no type declarations. The generator reads
-// only the CSS property table, so that is all this describes.
-
 declare module "mdn-data" {
   interface MdnCssProperty {
     syntax?: string;

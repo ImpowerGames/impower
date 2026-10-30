@@ -99,14 +99,13 @@ export const setSparkleStyle = (
     setVariableAndValue(normalizedName, propValue, transformer, styles);
   }
 
-  // Automatically set `--_fill-percentage` based on `min` and `max`
   if (!Number.isNaN(Number(props["value"]))) {
     const min = Number(props["min"] ?? 0);
     const max = Number(props["max"] ?? 100);
     const value = Number(props["value"] ?? min);
     const percentage =
       max === min
-        ? 0 // avoid divide-by-zero
+        ? 0
         : ((value - min) / (max - min)) * 100;
     styles["--_fill-percentage"] = `${percentage}%`;
   }

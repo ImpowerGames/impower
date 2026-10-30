@@ -1,11 +1,3 @@
-// #1279: rules that read the name right after a keyword their parent's begin
-// took keep a lookbehind on that keyword. textmate-grammar-tree has no `\G`,
-// and the parent tries its patterns again after the header, so without the
-// lookbehind a word that a comment leaves on the header's line is read as a
-// second name. These inputs are unfinished headers; the tests count the name
-// nodes so the expectation (one name) is stated directly rather than left to
-// a reader of a whole tree snapshot.
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
 

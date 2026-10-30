@@ -1,21 +1,6 @@
 import { describe, expect, it } from "vitest";
 import LANGUAGE_CONFIG from "../../../language/sparkdown.language-config.json";
 
-/**
- * Regression coverage for the indentation rules in
- * `definitions/yaml/sparkdown.language-config.yaml`.
- *
- * These regexes are generated into this JSON and consumed by two hosts (the
- * web editor via `codemirror-vscode-language`, and VS Code directly). They
- * have broken twice — #253 (`]]` dedenting) and #259 (`[[` over-indenting) —
- * and both times the cause was mis-attributed, because sparkdown's doubled
- * display directives (`[[image]]`, `((sound))`) look like Luau brackets to a
- * pattern that only inspects one character.
- *
- * The rules are plain regexes, so pinning them costs nothing and catches the
- * next doubled-bracket regression at the source rather than in the editor.
- */
-
 const { indentationRules, onEnterRules } = LANGUAGE_CONFIG as {
   indentationRules: {
     increaseIndentPattern: string;
@@ -32,20 +17,12 @@ const { indentationRules, onEnterRules } = LANGUAGE_CONFIG as {
 const increase = new RegExp(indentationRules.increaseIndentPattern);
 const decrease = new RegExp(indentationRules.decreaseIndentPattern);
 
-/**
- * Every onEnterRule keyed off a line ending in an opening bracket.
- *
- * Selected by the bracket the rule ends with, deliberately NOT by the guard
- * prefix — selecting on the guard would make these tests vacuous the moment
- * the guard is removed, which is exactly the regression they exist to catch.
- */
 const bracketEnterRules = onEnterRules
   .filter((r) => /\\[[(]\\s\*\$$/.test(r.beforeText))
   .map((r) => new RegExp(r.beforeText, "u"));
 
 describe("increaseIndentPattern", () => {
   it("does not indent after a doubled display-directive opener (#259)", () => {
-    // `\[\s*$` matches the SECOND `[` of `[[` unless guarded.
     expect(increase.test("  [[")).toBe(false);
     expect(increase.test("  ((")).toBe(false);
     expect(increase.test("BUNNY:\n  [[".split("\n")[1]!)).toBe(false);
@@ -101,12 +78,8 @@ describe("decreaseIndentPattern", () => {
 });
 
 describe("bracket onEnterRules", () => {
-  // These run from a Prec.high Enter keymap, ahead of the indent service, so
-  // they need the same doubled-bracket guards independently — narrowing only
-  // one of the two sources leaves the symptom unchanged, which is what made
-  // #259 hard to attribute.
   it("guards both bracket kinds", () => {
-    expect(bracketEnterRules).toHaveLength(4); // [ and ( × indentOutdent/indent
+    expect(bracketEnterRules).toHaveLength(4);
   });
 
   it("does not fire on a doubled opener", () => {
@@ -125,12 +98,6 @@ describe("bracket onEnterRules", () => {
   });
 });
 
-/**
- * The rule Enter applies, picked as both hosts pick it (VS Code, and the web
- * editor's `vscodeOnEnterRules`): the first rule whose `beforeText` matches
- * the line before the cursor, whose `afterText` matches the line after it and
- * whose `previousLineText` matches the line above.
- */
 const enterRuleFor = (previousLine: string, before: string, after: string) =>
   onEnterRules.find(
     (rule) =>
@@ -140,12 +107,8 @@ const enterRuleFor = (previousLine: string, before: string, after: string) =>
         new RegExp(rule.previousLineText, "u").test(previousLine)),
   );
 
-// `indentOutdent` puts the cursor on a new line one level deeper than the
-// cursor's line and moves the text after the cursor, its `}`, to a line below
-// at the cursor line's indentation; no text is appended.
 describe("Enter between `{` and `}` in a brace body (#1228)", () => {
   const cases: [string, string, string, string][] = [
-    // [body, line above, line before the cursor, line after it]
     ["layout", "layout hud with", "  column.panel {", "}"],
     ["layout", "  column.panel {", "    row.item {", "}"],
     ["layout", "  column.panel {", "    row.item #gap=4 {", " }"],

@@ -1,13 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
-// The DeclarationAnnotator feeds the document outline (getDocumentSymbols) and
-// scope-aware completion (getDeclarationScopes). After the Luau port renamed the
-// declaration grammar nodes, most of its branches went dead — functions,
-// variables, defines, and params stopped being recorded. These tests lock in
-// the restored behavior against the CURRENT grammar. Harness mirrors
-// semanticTokenShadowing.test.ts: pass `["declarations"]` so the annotator runs.
-
 interface Decl {
   type: string;
   text: string;
@@ -68,7 +61,6 @@ end
     expect(has(decls, "scene", "main")).toBe(true);
     expect(has(decls, "branch", "after")).toBe(true);
     expect(has(decls, "label", "gathered")).toBe(true);
-    // The `end` after `then` closes the choice block, not the branch.
     expect(decls.filter((d) => d.type === "end").length).toBe(2);
   });
 
@@ -101,7 +93,6 @@ function bump()
   score = score + 1
 end
 `);
-    // Exactly one `score` declaration (the store), none from the reassignment.
     expect(decls.filter((d) => d.text === "score").length).toBe(1);
     expect(has(decls, "var", "score")).toBe(true);
   });
@@ -117,14 +108,9 @@ end
     expect(has(decls, "var", "second")).toBe(true);
     expect(has(decls, "var", "third")).toBe(true);
     expect(has(decls, "var", "fourth")).toBe(true);
-    // The statement after the name is read, not declared.
     expect(decls.filter((d) => d.text === "first").length).toBe(1);
   });
 
-  // #1279: the header-name rules keep their lookbehind on the block's keyword.
-  // Their parents try them again at every position of the body, so without it
-  // a word that follows a comment in the body, where no body rule begins, is
-  // read as another name and declared.
   test("a word after a comment in a block body declares nothing", () => {
     const decls = collectDeclarations(`style banner with
 --[[ note ]] accidental

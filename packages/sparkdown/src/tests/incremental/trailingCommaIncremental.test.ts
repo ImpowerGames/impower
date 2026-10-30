@@ -1,8 +1,3 @@
-// A Luau declaration or reassignment whose comma ends its line spans the
-// next line, so an edit on either line must reparse to the same tree a from-scratch parse
-// gives: typing or deleting the comma, the value line or the comment between
-// them, as an author does while writing the list.
-
 import { describe, expect, test } from "vitest";
 import { editAndReparse, type Edit, replaceEdit } from "./incremental";
 
@@ -49,8 +44,6 @@ describe("incremental reparse of a declaration continued after a trailing comma"
   });
 });
 
-// The same for a reassignment (#1147), which spans the next line the same
-// way in Luau code and ends at its line in a narrative body.
 const REASSIGNMENT_SOURCE = `function f(ok)
   local a, g = 0, 0
   a, g = 1, -- note

@@ -1,10 +1,3 @@
-// Luau's argument checks for the state-aware builtins and the method forms:
-//   - a builtin called with fewer arguments than it requires raises
-//     `missing argument #N to '<name>'`, named without its library, on the
-//     direct call and through `pcall` (I-1357);
-//   - a method's numeric argument raises `invalid argument #N to '<name>'
-//     (number expected, got <type>)`, counted without the receiver, rejects a
-//     boolean, and reads a trailing nil as absent (I-1376).
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 

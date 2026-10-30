@@ -1,8 +1,3 @@
-// A style value that starts with `--` (#829) is the value, as the compiler
-// reads it, not a comment: a comment in a value begins only after
-// whitespace. Both engines must color it so; a `--` after whitespace stays a
-// comment. The fixture is `__snapshots__/grammar/struct/` in the corpus,
-// so scopeEquality also holds the two engines to the same scopes.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +12,6 @@ const FIXTURE = join(
 
 const source = readFileSync(FIXTURE, "utf8").replace(/\r\n?/g, "\n");
 
-/** The offset of the `occurrence`th (0-based) `text` on the line that starts with `linePrefix`. */
 function offsetOf(linePrefix: string, text: string, occurrence = 0): number {
   const lineStart = source.indexOf(`\n${linePrefix}`) + 1;
   expect(lineStart, `line ${JSON.stringify(linePrefix)}`).toBeGreaterThan(0);

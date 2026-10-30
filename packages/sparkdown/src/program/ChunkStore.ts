@@ -89,161 +89,69 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 
-/** One statement, as the compile hands it to the store. */
 export interface StatementSource {
-  /** What stands for the statement's syntax: the compiled block the
-   *  compilation annotator lowered a top-level statement to, or the shape a
-   *  statement inside a block's body was recorded as. It is the same object
-   *  for as long as the incremental parse keeps the node and the lowering
-   *  inputs the node recorded read the same. */
   block: object;
-  /** The statement's parsed objects, in the order it runs them. */
   objects: readonly ParsedObject[];
-  /** The statement's own source range, with lines counting from 1. */
   range: DebugMetadata | null;
-  /** The statement's first line in its script, counting from 0. */
   firstLine: number;
-  /** The statement's source text: a block statement's own parts, without
-   *  its bodies. */
   source: () => string;
-  /** The text the statement's fingerprint hashes, its source as the
-   *  script's parse reads it (`compiler/utils/fingerprintSource.ts`), or
-   *  without one its source as written. */
   fingerprint?: () => string;
-  /** The statement's syntax: its node's name, the column it starts at and its
-   *  own source text, which together settle every position its chunk's line
-   *  rows hold. Read only for a statement whose block is not the one a chunk
-   *  was emitted for. */
   syntax: () => string;
-  /** The lowering inputs the statement recorded, with the answers they got. */
   reads: string;
-  /** The text a fingerprint hashes of the source between two offsets
-   *  relative to the start of the top-level node the statement was lowered
-   *  in, from which a choice's or an alternator's is read
-   *  (`alternatorSourceOf`). */
   fingerprintOf?: (from: number, to: number) => string;
-  /** The bodies of a block statement, in the order it runs them, and the
-   *  bodies of the functions the statement writes. */
   bodies?: readonly BodySource[];
-  /** The column at which a line of the statement's script ends. */
   lineEnd?: (line: number) => number;
-  /** For the definition of a function declared at the top level, the
-   *  function's qualified name: its one body is the function's, under the
-   *  name's symbol, and its chunk has no code before the function's entry. */
   defines?: string;
-  /** For a statement of a body served from its memo
-   *  (`compiler/lower/statementMemo.ts`), whose block is the memo: it holds
-   *  no objects, and keeps the chunk its memo holds, or the build stops
-   *  (`StatementMemoRetry`). */
   memo?: boolean;
-  /** For a statement served from its memo, the object it stands as in its
-   *  owner's objects (`MemoizedStatement`, `MemoizedDivert`), which its
-   *  owner's values leave out as they leave out the objects of every other
-   *  statement of its bodies (`bodyObjects`). */
   stands?: readonly ParsedObject[];
 }
 
-/** One body of a block statement, or of a function the statement writes. */
 export interface BodySource {
-  /** What the writer knows the body by (the lowering's `BodyShape`). */
   shape: object;
   statements: readonly StatementSource[];
-  /** The body's first line in its script, counting from 0. */
   firstLine: number;
-  /** The lines the body spans. */
   span: number;
-  /** The lines of the owner's parts between the body above it (or the
-   *  owner's first line) and this body. */
   headLines: number;
-  /** The text a fingerprint hashes of the part that heads the body (a
-   *  branch's condition or its `else`, a loop's header, a `then` clause), by
-   *  which the body keeps its sequence id when the statement is emitted again
-   *  in place (docs/engine/binary-program.md, section 2). */
   headFingerprint?: () => string;
-  /** For a function's body, the function (a `FlowBase`). */
   fn?: ParsedObject;
-  /** For a function's body, the text a fingerprint hashes of the function's
-   *  own source, which aligns it with the functions of the statement's
-   *  previous chunk when the statement is emitted again
-   *  (docs/engine/binary-program.md, section 2). */
   partFingerprint?: () => string;
 }
 
-/** A global a declaration statement declares. */
 export interface DeclaredGlobal {
-  /** The name the story's `global decl` container assigns it under, its key
-   *  in `variableDeclarations`: a `define` that reuses a name under another
-   *  type is `$<type>_<name>`, and a builtin an author's declaration shadows
-   *  is `$prelude_<name>`, while the assignment's own name is the bare one. */
   name: string;
   assignment: VariableAssignment;
 }
 
 export interface DeclarationSource extends StatementSource {
-  /** The script it is written in. */
   uri: string;
-  /** The globals it declares, in the order the story initializes them. */
   globals: readonly DeclaredGlobal[];
 }
 
-/** One flow of the program, as the compile hands it to the store. */
 export interface FlowSource {
   name: string;
   kind: SymbolKindValue;
   uri: string;
-  /** The body's first line in its script, counting from 0. */
   firstLine: number;
-  /** The lines the body spans. */
   span: number;
   statements: readonly StatementSource[];
-  /** For a scene that takes no parameters and whose content starts with a
-   *  branch that takes none, that branch's qualified name: entering the
-   *  scene enters it, as the object engine's knot diverted to its first
-   *  stitch. A scene that takes parameters binds them first, and its entry
-   *  jumps to the branch. */
   startsWith?: string;
-  /** For a scene or a branch, the kind of each of its parameters
-   *  (`parameterKinds`), which a divert that passes it arguments reads. */
   params?: string;
 }
 
-/** What a compile hands the store to build a root from. */
 export interface ProgramSource {
   flows: readonly FlowSource[];
-  /** The declaration statements, in the order the story initializes their
-   *  globals. */
   declarations?: readonly DeclarationSource[];
-  /** How many lines each script has. */
   lineCount?: (uri: string) => number;
-  /** The changed blocks: per script, the lines (counting from 0, both ends
-   *  included, in order) of each top-level block the compile lowered anew
-   *  since the compile that built the store's current root, a preview's
-   *  compile in between included. Every line whose text changed since that
-   *  compile is in one. With it, a build lists the current root's statements
-   *  only between the statements that kept their chunks around the ones
-   *  that did not, and assembles a sequence's entries only between them and
-   *  around these lines (docs/engine/binary-program.md, section 1, Identity,
-   *  The incremental passes); without it, as on a cold build or from a
-   *  caller that cannot say, it lists and assembles every one. */
   changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
-  /** The functions that wrap a `run` file, by name, with the file each
-   *  wraps, as the compile recorded them (`runFileRecord`). */
   runFiles?: ReadonlyMap<string, RunFile>;
 }
 
-/** A construct the writer has no emit path for, where it was first met:
- *  a compile error at that line, and a compile that makes no program. */
 export interface UnsupportedConstructSite {
-  /** The parsed class's `typeName`, or the builtin's name. */
   construct: string;
   uri: string;
-  /** The line of the statement that holds it, counting from 0. */
   line: number;
 }
 
-/** What a statement's emit threw, other than a construct it has no emit path
- *  for, as the build rethrows it: a memo the compile lowers again as it is,
- *  and any other error with the statement it came from. */
 const emitFailure = (
   e: unknown,
   uri: string,
@@ -255,16 +163,11 @@ const emitFailure = (
     ? e
     : new StatementFailure(uri, statement.firstLine, e, lastLineOf(statement));
 
-/** A statement's last line, counting from 0: its source range's, or its first
- *  line when it has no range. */
 const lastLineOf = (statement: StatementSource): number =>
   statement.range
     ? Math.max(statement.firstLine, statement.range.endLineNumber - 1)
     : statement.firstLine;
 
-/** Where a clash of a name at `row`'s entry `entry` stands. A flow's entries
- *  start at lines from the flow's first, and a declaration sequence's at
- *  their own; a body's place is its owner's. */
 const clashAt = (
   row: SequenceRow | undefined,
   entry: number,
@@ -280,112 +183,64 @@ const clashAt = (
         : row.arrays.lineStarts[entry]!,
 });
 
-/** Where an issue the declarations' run raised stands: a script, and the
- *  first and last line, counting from 0, of the code it is reported over. */
 interface DeclarationSite {
   uri: string;
   line: number;
   endLine: number;
 }
 
-/** What one build of the program did. */
 export interface ProgramCoverage {
-  /** The statements of the program's flows, the statements inside their
-   *  block statements' bodies and functions included, and its declaration
-   *  statements. */
   statements: number;
-  /** The statements whose chunk this build emitted. */
   emitted: number;
-  /** The statements the writer has no emit path for, by construct. */
   unsupported: Record<string, number>;
 }
 
 export interface ProgramBuild {
-  /** The root, or nothing when the program holds a construct the writer
-   *  has no emit path for (`unsupported`). */
   root?: ProgramRoot;
   unsupported?: UnsupportedConstructSite;
   coverage: ProgramCoverage;
-  /** Whether the build re-emitted a declaration chunk, changed the
-   *  declarations' order or a function's code, which is when a compile runs
-   *  the declarations again. */
   declarationsChanged: boolean;
 }
 
-/** What one build that made a root changed against the current root it was
- *  built from (`ChunkStore.lastBuild`), from which a compile measured against
- *  that root derives its change summary (`rootChanges`) in work proportional
- *  to the edit. */
 export interface BuildRecord {
-  /** The current root the build was built from, or nothing for a first
-   *  build. */
   previous: ProgramRoot | undefined;
-  /** The root the build made. */
   root: ProgramRoot;
-  /** The chunks of `previous` that `root` does not hold. */
   dropped: ReadonlySet<ProgramChunk>;
-  /** The chunks placed where `previous` does not hold them: those the build
-   *  emitted, and those it moved to another sequence. */
   placed: ReadonlySet<ProgramChunk>;
-  /** The ids of the sequences the build built again, and of the rows of
-   *  `previous` that left the root. Every other row holds the chunks it held
-   *  in `previous`. */
   sequences: ReadonlySet<number>;
-  /** `ProgramBuild.declarationsChanged`. */
   declarationsChanged: boolean;
 }
 
-// One function a chunk writes: the hash of the function's own source, its
-// symbol, and the block its body is.
 interface FunctionPart {
   fingerprint: string;
   symbol: number;
   block: number;
 }
 
-// One alternator a chunk writes: what it is aligned by, and its anonymous
-// symbol, which counts it.
 interface AlternatorPart {
   fingerprint: string;
   symbol: number;
 }
 
-// One choice a chunk raises: what it is aligned by, its anonymous count
-// symbol (-1 for a named choice, which counts under its label's), and the
-// block its body is (-1 for a choice whose body is no block).
 interface ChoicePart {
   fingerprint: string;
   symbol: number;
   block: number;
 }
 
-// One body a chunk's block statement holds that neither a choice nor a
-// function heads: the fingerprint of its heading part, and its block.
 interface HeadPart {
   fingerprint: string;
   block: number;
 }
 
-/** How a body of a statement emitted in place got its sequence id: by the
- *  pass of the alignment (`alignParts`) that paired its heading part with an
- *  old one (equal and in order, equal wherever it stands, or between two
- *  matched parts), or a new id. */
 export type { HandedOn };
 
-/** One body id a build handed on (`ChunkStore.handedOnLastBuild`). */
 export interface BodyHandOff {
   sequenceId: number;
   part: "function" | "choice" | "head";
   how: HandedOn;
 }
 
-// What the store knows of a chunk it emitted or reused: the syntax of the
-// statement it was emitted for, the lowering inputs that statement recorded,
-// the values its emission recorded, for a declaration chunk the names of the
-// globals it assigns, in order (`assignedNames`), the function declared at
-// the top level it defines, the functions it writes, the anonymous symbols of
-// other statements' functions its code refers to, and the table generation
-// its ids belong to.
 interface ChunkInfo {
   syntax: string;
   reads: string;
@@ -395,163 +250,67 @@ interface ChunkInfo {
   defines?: string;
   parts: readonly FunctionPart[];
   alternators: readonly AlternatorPart[];
-  /** The choices the statement raises, in order. */
   choices: readonly ChoicePart[];
-  /** The bodies that neither a choice nor a function heads (a branch's, a
-   *  loop's, a `do` block's, a `then` clause's), each with the fingerprint of
-   *  the part that heads it. */
   heads: readonly HeadPart[];
   anonymousReferences: readonly number[];
-  /** The locals each function the statement writes declares at its entry
-   *  (`hoistedOf`). */
   hoisted: string;
-  /** Whether the statement stands in a body or in a flow or a declaration
-   *  sequence, which decides the source range the compile gives it
-   *  (`placementOf`). */
   placement: string;
-  /** The parameters the entry of each function the statement writes or runs
-   *  in place binds (`paramsOf`). */
   params: string;
-  /** The names of the facts the chunk's code read about each symbol it
-   *  refers to, which its reference table row hashes with the values read
-   *  (`ProgramEmitter.fact`). */
   facts: ReadonlyMap<number, readonly string[]>;
   generation: number;
 }
 
-// The symbols a build gives the functions a statement writes, by body, and
-// for a statement emitted again in place, the old block each function's body
-// takes its sequence id from, with the pass of the alignment that paired it.
 interface FunctionPlan {
   symbols: (number | undefined)[];
   oldBlocks: (number | undefined)[];
   how: (HandedOn | undefined)[];
 }
 
-/** The names a declaration assigns, in order, or nothing for a statement of
- *  a flow. Which of a statement's globals one declaration holds depends on
- *  the declarations around it (a constant elsewhere splits it into runs), and
- *  a global's name on the declarations of its name elsewhere (a `define` of
- *  the name under another type, an author's declaration that shadows a
- *  builtin), so a declaration chunk is kept only while they read the same. */
 const assignedNames = (statement: StatementSource): string | undefined =>
   "globals" in statement
     ? (statement as DeclarationSource).globals.map((g) => g.name).join("\u0000")
     : undefined;
 
-/**
- * The chunk store (docs/engine/binary-program.md, section 9): the ordered
- * statement chunks of each flow, the sequences of the bodies of its block
- * statements and functions, and each script's declaration sequence, filled
- * by the compiler and read by reference by a game in the same worker. The
- * compiler owns one store; each compile builds a root from it, and a compile
- * that is not a preview makes that root the store's current one.
- *
- * A statement keeps its chunk across compiles by the identity rule of the
- * design (section 1, Identity), which three things decide:
- *
- * - its syntax is what the incremental parse kept: its compiled block, or
- *   the shape recorded for it inside a block's body, is the one the chunk was
- *   emitted for, or the reparse window lowered it again and its node reads
- *   the same, from the same column, as the statement's it replaces, which the
- *   alignment of the program's old and new statements finds. A block
- *   statement's syntax is its own parts: an edit inside one of its bodies
- *   leaves it as it was, and so does an edit inside a function it writes;
- * - every lowering input its lowering recorded read the same, and every value
- *   its emission recorded (a continuation's group name, which the compiler
- *   numbers by document order, how each name and each call resolved) still
- *   reads the same; a declaration chunk also assigns the same globals, by
- *   name and in order (`assignedNames`);
- * - every fact its reference table records about a symbol is unchanged, and
- *   the functions of other statements it calls by an anonymous symbol still
- *   have those symbols.
- *
- * Otherwise the statement is emitted again and its chunk gets a new id. Chunk
- * ids and sequence ids come from counters that never go back. A body keeps
- * its sequence id while its owner keeps its chunk, whose block table names it.
- * A statement whose syntax matches an old statement's but whose chunk cannot
- * be kept, or which is the one statement left on each side of a run, is
- * emitted again in place: each of its bodies takes the sequence id of the old
- * body whose heading part its own aligns with by its source (`alignParts`),
- * and the functions it writes take the anonymous symbols of the old functions
- * they align with (section 2).
- */
 export class ChunkStore {
   readonly table: ProgramTable;
 
-  /** The root of the last compile that was not a preview and did not fall
-   *  back. */
   current: ProgramRoot | undefined;
 
-  /** The chunks the last build emitted. */
   emittedLastBuild = 0;
 
-  /** How the last build handed on the sequence id of each body of the
-   *  statements it emitted again in place (section 2): every one through
-   *  the alignment of its heading part, or a new id. */
   handedOnLastBuild: BodyHandOff[] = [];
 
-  /** How many times a compile has run the program's declarations (see
-   *  `runDeclarations`). */
   initializerRuns = 0;
 
   protected _writer: BinaryProgramWriter;
-  // From 1, so that no address (`chunkId * 2^21 + offset`) is 0, which a
-  // caller testing an address for presence would read as none.
   protected _nextChunkId = 1;
   protected _nextSequenceId = 0;
   protected _nextRootId = 0;
-  /** The chunk emitted or reused for a statement's block. */
   protected _byBlock = new WeakMap<object, ProgramChunk>();
-  /** The declaration chunk emitted or reused for a statement's block. */
   protected _byDeclaration = new WeakMap<object, ProgramChunk>();
   protected _info = new WeakMap<ProgramChunk, ChunkInfo>();
-  /** The chunks of the last committed build that hold a function's code: the
-   *  chunks that write functions and the chunks inside functions' bodies. */
   protected _functionChunks: ReadonlySet<ProgramChunk> = new Set();
 
-  /** Where the compile's passes report the statements whose recorded values
-   *  read otherwise (`StatementWatch`), which a build reads again. */
   readonly watch = new StatementWatch();
 
-  /** How many chunks each pass of the last build visited. */
   passesLastBuild: BuildPasses = emptyPasses();
 
-  /** What the last build changed, when it made a root, committed or not. */
   lastBuild: BuildRecord | undefined;
 
-  /** Derives each root a build makes from nothing but its sequences, and
-   *  throws when the tables the build wrote over the current root's differ
-   *  (`verifyRoot`). For tests. */
   static verifyBuilds = false;
 
-  /** The chunks of the current root that read a fact about each symbol:
-   *  the reverse index of the reference tables. */
   protected _readers = new Map<number, Set<ProgramChunk>>();
-  /** The facts the current root's program gives each symbol it defines
-   *  (`definitionText`), against which a build finds the symbols whose
-   *  facts changed. */
   protected _committedFacts = new Map<number, string>();
-  /** The labels of the current root's functions and alternators. */
   protected _committedLabels = new Map<number, string>();
-  /** The chunk each statement the build in progress did not carry holds, by
-   *  its block, which a committed build gives `_byBlock`. */
   protected _placed = new Map<object, ProgramChunk>();
   protected _placedDeclarations = new Map<object, ProgramChunk>();
-  // Each root's statements in alignment order, with their owners.
   protected _orders = new WeakMap<
     ProgramRoot,
     { order: ProgramChunk[]; owners: Map<ProgramChunk, ProgramChunk> }
   >();
-  // How many statements each root holds.
   protected _statementCounts = new WeakMap<ProgramRoot, number>();
-  // Whether each sequence of the current root is inside a function, whose
-  // chunks then hold a function's code (`_functionChunks`).
   protected _sequenceInFunction = new Map<number, boolean>();
 
-  /** `table` is the compiler's persistent `ProgramTable`, which the store
-   *  interns into and keeps no table of its own (#696); a reseed of it goes
-   *  through `reseed`. */
   constructor(table: ProgramTable = createProgramTable()) {
     this.table = table;
     this._writer = new BinaryProgramWriter(
@@ -562,20 +321,6 @@ export class ChunkStore {
     );
   }
 
-  /** Builds a root for the program, whose flows are in the order the
-   *  program runs them. A build that is not committed (a preview compile's)
-   *  leaves `current`, and everything the store keeps of it, as it was.
-   *  `tables` are what the engine reads of the story besides its chunks
-   *  (`ProgramRoot.tables`).
-   *
-   *  The build is proportional to the edit (docs/engine/binary-program.md,
-   *  section 1, Identity): a statement the incremental parse carried, whose
-   *  chunk the current root holds, keeps that chunk without a read of its
-   *  values or its facts unless the statement watch marked it or a symbol it
-   *  read facts about changed (`keepCarried`); a sequence is built again only
-   *  where it holds a statement that is not so kept; and the root's tables are
-   *  written over the current root's where a chunk was added, moved or
-   *  dropped. `passesLastBuild` counts what each pass visited. */
   build(
     source: ProgramSource | readonly FlowSource[],
     commit: boolean,
@@ -598,9 +343,6 @@ export class ChunkStore {
       unsupported: {},
     };
     let unsupported: UnsupportedConstructSite | undefined;
-    // Symbols are interned first, so a reference table's facts see every flow
-    // this program defines, as the kind this program defines it as, and a
-    // function's parameters.
     const symbols = flows.map((flow) => internSymbol(this.table, flow.name));
     this._definitions = new Map(
       flows.map((flow, f) => [symbols[f]!, this.definitionFacts(flow)]),
@@ -613,10 +355,6 @@ export class ChunkStore {
     this._statementIdentities = new WeakMap();
     this._placed = new Map();
     this._placedDeclarations = new Map();
-    // The symbols whose facts differ from the current root's program, and the
-    // chunks of the current root that read a fact about one of them, which
-    // are the only chunks whose facts the build reads again before it plans
-    // the statements' functions.
     const facts = new Map<number, string>();
     for (const [symbol, defined] of this._definitions) {
       facts.set(symbol, definitionText(defined));
@@ -637,22 +375,10 @@ export class ChunkStore {
         flag(symbol);
       }
     }
-    // The program's statements, flow after flow and each block statement
-    // before the statements of its bodies, then the statements of the
-    // functions the declarations write, are aligned with the previous root's
-    // as one list, so a statement keeps its chunk when an edit renames its
-    // flow or moves it into another, as when a scene's header is deleted. A
-    // statement whose block the store emitted a chunk for keeps that chunk
-    // first.
     this._used = new Set();
     this._inherit = new Map();
     const statements: StatementSource[] = [];
-    // The statement whose body holds each statement of a body.
     const owners = new Map<StatementSource, StatementSource>();
-    // The list each statement stands in and its entry there, by its place
-    // in `statements`; where each statement with bodies stands there, and
-    // where its bodies' statements end; the lists of each one's bodies; and
-    // where each flow's statements start and end.
     const slots: ListSlot[] = [];
     const entries: number[] = [];
     const starts = new Map<StatementSource, number>();
@@ -702,15 +428,11 @@ export class ChunkStore {
       return start;
     });
     const declarationsStart = statements.length;
-    // Where each declaration's bodies' statements start and end.
     const declarationRanges = declarations.map((declaration) => {
       const start = statements.length;
       collectBodies(declaration);
       return [start, statements.length] as const;
     });
-    // The statements that keep their chunks with nothing read again, and the
-    // first and the last place in `statements` of the others and of the
-    // statements of their bodies.
     const carried = new Set<StatementSource>();
     let lo = -1;
     let hi = -1;
@@ -757,8 +479,6 @@ export class ChunkStore {
     let reused: (ProgramChunk | undefined)[];
     if (window) {
       passes.order = window.old.length;
-      // A window over every statement aligns them as a build that lists the
-      // whole old root does, from the same lists.
       const checked =
         ChunkStore.verifyBuilds && lo >= 0 && (lo > 0 || hi + 1 < statements.length)
           ? { used: new Set(this._used), inherit: new Map(this._inherit) }
@@ -806,11 +526,6 @@ export class ChunkStore {
       chunkOf.set(declaration, reusedDeclarations[i]),
     );
 
-    // The functions' symbols, then the chunks that call another statement's
-    // function by a symbol that function no longer has, or read a fact about
-    // a function a statement writes that no longer reads the same, which are
-    // emitted again in place. A carried statement's chunk is read again only
-    // when it read a fact about such a function.
     const everyStatement = [...statements, ...declarations];
     for (const statement of everyStatement) {
       this.planFunctions(statement, chunkOf.get(statement));
@@ -852,13 +567,7 @@ export class ChunkStore {
       }
     }
     this.memosKept(statements, carried);
-    // The statements whose bodies a sequence is built for again: each one not
-    // carried, and the statements that hold one.
-    // Each list's first and last entry that is unsettled is its window
-    // (`ListSlot`).
     const unsettled = new Set<StatementSource>();
-    // Each script's declaration window by line (`keptDeclarations`): the
-    // lines of its changed blocks and of its declarations not carried.
     const declarationWindows = new Map<string, { lo: number; hi: number }>();
     const widen = (uri: string, from: number, to: number) => {
       const window = declarationWindows.get(uri);
@@ -922,8 +631,6 @@ export class ChunkStore {
     const scriptFlows = new Map<string, number[]>();
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
-      // By name: the previous root may hold the ids of an older table
-      // generation, which a reseed renumbered.
       const before = previous?.flowNamed(flow.name);
       const id = before?.id ?? this._nextSequenceId++;
       build.fail = (construct: string, line: number) => {
@@ -959,14 +666,10 @@ export class ChunkStore {
       ids.push(id);
     });
 
-    // The declarations: each script's declaration sequence, and the order
-    // `ResetState` runs their chunks in, which is the story's.
     const declarationChunks: ProgramChunk[] = [];
     const declarationIds = new Map<string, number>();
     const emittedBeforeDeclarations = this._writer.emitted;
     const byScript = new Map<string, { source: DeclarationSource; chunk: ProgramChunk }[]>();
-    // The declarations each script's window holds, and every declaration
-    // chunk of the build, found as the initialization order is listed.
     const windowed = new Map<string, { source: DeclarationSource; chunk: ProgramChunk }[]>();
     const heldDeclarations = new Set<ProgramChunk>();
     declarations.forEach((declaration) => {
@@ -1079,9 +782,6 @@ export class ChunkStore {
     coverage.emitted = this._writer.emitted - emittedBefore;
     passes.emitted = coverage.emitted;
     this.emittedLastBuild = coverage.emitted;
-    // What left the root: the flows and declaration sequences the program no
-    // longer has, and every chunk a sequence built again no longer holds and
-    // no other sequence took, with the bodies it owned that no owner took.
     const dropped = this.droppedChunks(build);
     coverage.statements = build.statements + build.failed;
     if (unsupported) {
@@ -1161,9 +861,6 @@ export class ChunkStore {
     }
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
-      // An issue the run raises stands at the global whose value raised it,
-      // even inside a function that value calls, at that global's own lines. A declaration chunk holds every global its statement declares,
-      // the stores inside a function body included.
       const sources = new Map<number, DeclarationSource>();
       for (const list of byScript.values()) {
         for (const { source, chunk } of list) {
@@ -1183,7 +880,6 @@ export class ChunkStore {
         const line = metadata.startLineNumber - 1;
         return { uri: source.uri, line, endLine: Math.max(line, metadata.endLineNumber - 1) };
       });
-      // A preview's run leaves the next compile's decision as it was.
       if (commit) {
         this._declarationsFailed = failure !== null;
       }
@@ -1213,12 +909,6 @@ export class ChunkStore {
     return { root, coverage, declarationsChanged };
   }
 
-  /** Makes `root` the current one, with what the store keeps of the build
-   *  that made it: the chunk each statement's block holds, the readers of
-   *  each symbol's facts, the facts the program gives each symbol, the
-   *  functions' chunks, the functions' and alternators' labels, and the
-   *  statement watch's values of every statement whose chunk the build did
-   *  not carry. */
   protected commit(
     root: ProgramRoot,
     build: SequenceBuild,
@@ -1262,20 +952,6 @@ export class ChunkStore {
     }
   }
 
-  /**
-   * The root's definition arrays (docs/engine/binary-program.md, section 2,
-   * Resolution), written over the current root's: each flow at the start of
-   * its sequence, with its kind, a branch's scene and the branch a scene with
-   * no content of its own enters; each symbol a chunk exports at the chunk
-   * and the offset that defines it, a label where its `Visit` stands and a
-   * function at its entry; and the kind of each alternator and choice. Only
-   * the rows of the flows, of the chunks the build dropped and of the chunks
-   * it placed in a sequence built again are written. A label whose qualified
-   * name another label or a flow of the program has keeps the program from
-   * being built, naming `a label named as another` at the flow or the
-   * statement whose name clashes, since a jump to the name could reach
-   * either.
-   */
   protected definitionArrays(
     flows: readonly FlowSource[],
     symbols: readonly number[],
@@ -1291,7 +967,6 @@ export class ChunkStore {
       previous?.generation === this.table.generation,
     );
     const passes = this.passesLastBuild;
-    // The rows of what left the root.
     for (const chunk of dropped) {
       passes.definitions += 1;
       const id = chunkId(chunk);
@@ -1310,8 +985,6 @@ export class ChunkStore {
         }
       }
     }
-    // The flows. A symbol a chunk the build kept exports is that chunk's, a
-    // label or a function, which a flow of its name does not displace.
     const flowKinds = new Map<number, SymbolKindValue>();
     flows.forEach((flow, f) => flowKinds.set(symbols[f]!, flow.kind));
     for (const row of previous?.flowSequences() ?? []) {
@@ -1325,15 +998,10 @@ export class ChunkStore {
         }
       }
     }
-    // Where the first clash of a name stands: the flow named as a label, or
-    // the statement of a label named as another.
     let failed: { uri: string; line: number } | undefined;
     flows.forEach((flow, f) => {
       const symbol = symbols[f]!;
       defs.sequence[symbol] = flowIds.get(symbol) ?? -1;
-      // A chunk that exports the symbol, kept or moved, defines it as it did
-      // in the current root: a function's definition its function, which a
-      // flow of the name does not displace, and a label, which collides.
       if (defs.chunk[symbol]! >= 0) {
         if (defs.kind[symbol] === SymbolKind.Label) {
           failed ??= { uri: flow.uri, line: flow.firstLine };
@@ -1361,9 +1029,6 @@ export class ChunkStore {
         }
       }
     });
-    // The chunks placed in a sequence built again: what they export, and
-    // their alternators and choices, whose shuffle is seeded from the flow
-    // that holds them.
     for (const [chunk, place] of build.placed) {
       passes.definitions += 1;
       for (let r = 0; r < exportCount(chunk); r += 1) {
@@ -1392,8 +1057,6 @@ export class ChunkStore {
       for (const part of this._info.get(chunk)?.alternators ?? []) {
         if (part.symbol < defs.kind.length) {
           defs.kind[part.symbol] = SymbolKind.Alternator;
-          // What its shuffle is seeded from: its flow's name and its own
-          // source, which no compile renumbers.
           const flow = row && row.flow >= 0 ? this.table.symbols[row.flow] : "";
           this._labels.set(part.symbol, `${flow}:${part.fingerprint}`);
         }
@@ -1405,8 +1068,6 @@ export class ChunkStore {
       }
     }
     if (failed) {
-      // Which clash is found first depends on the definitions the previous
-      // root carried in, so the clash is placed where a cold build meets it.
       if (previous) {
         failed = this.coldClash(flows, symbols, flowIds, build) ?? failed;
       }
@@ -1416,10 +1077,6 @@ export class ChunkStore {
     return defs;
   }
 
-  /** The first clash of a name a cold build of the rows `build` holds
-   *  meets, in the order it places their chunks: each flow's sequence, the
-   *  bodies of a sequence's entries before the entries themselves, then the
-   *  declaration sequences. */
   protected coldClash(
     flows: readonly FlowSource[],
     symbols: readonly number[],
@@ -1490,28 +1147,10 @@ export class ChunkStore {
     return failed;
   }
 
-  // Whether the last declarations run raised an error, which runs them again
-  // on the next compile.
   protected _declarationsFailed = false;
 
-  // The symbol remap of each reseed of the session, by the table generation
-  // it maps from, which every root reads an older symbol value through.
   protected _symbolRemaps: Int32Array[] = [];
 
-  /**
-   * Starts a new generation of the table (docs/engine/binary-program.md,
-   * section 2, Reseed). The symbols the current root holds, its flows', the
-   * labels and functions its chunks export and the alternators its
-   * statements write, are interned again, and every other entry is dropped,
-   * so the next compile emits every chunk again. The record of the anonymous
-   * symbol each part of a statement owns is remapped with them, so that
-   * compile hands every part the symbol it had, and a symbol value made
-   * before the reseed takes its id through the remap the store keeps. The
-   * table's arrays are replaced, not cleared, so every root built before the
-   * reseed goes on reading the generation it was built in
-   * (`ProgramRoot.table`). The compiler reseeds through here
-   * (`SparkdownCompiler.maybeReseedBinaryTable`).
-   */
   reseed(): void {
     const root = this.current;
     const chunks = root ? [...root.statementOrder(), ...root.initialization] : [];
@@ -1539,8 +1178,6 @@ export class ChunkStore {
     }
     const remap = reseedProgramTable(this.table, { symbols: live });
     renumberAnonymousSymbols(this.table);
-    // What the store keeps by symbol names the old generation's ids. The next
-    // compile emits every chunk again, which gives it all anew.
     this._readers = new Map();
     this._committedFacts = new Map();
     this._committedLabels = new Map();
@@ -1570,11 +1207,6 @@ export class ChunkStore {
     }
   }
 
-  /** Runs a root's declarations on a new engine, and returns the error one
-   *  of them raised or threw, with where `locate` placed the issue it
-   *  reports (the first error, or with none the first warning, as the
-   *  engine reports them), or null when they ran without one. Any other
-   *  throw is rethrown. */
   protected runDeclarations(
     root: ProgramRoot,
     locate: (
@@ -1582,7 +1214,6 @@ export class ChunkStore {
       globalIndex: number,
     ) => DeclarationSite | undefined,
   ): { error: unknown; site: DeclarationSite | undefined } | null {
-    // Where the first error and the first warning were raised.
     let error: { site: DeclarationSite | undefined } | undefined;
     let warning: { site: DeclarationSite | undefined } | undefined;
     try {
@@ -1604,15 +1235,7 @@ export class ChunkStore {
     }
   }
 
-  // The flows the build in progress defines, each with the facts a chunk
-  // that refers to it depends on, the symbols it gives the functions of the
-  // program (a function's `FlowBase`) with the name each is shown by, the
-  // functions each statement writes, and the chunks it has placed, so that
-  // no chunk stands in two places of one root.
   protected _definitions = new Map<number, Readonly<Record<string, string>>>();
-  /** The facts of the functions the statements of the build in progress
-   *  write, by the anonymous symbols the build gives them
-   *  (`planFunctions`). */
   protected _anonymousDefinitions = new Map<
     number,
     Readonly<Record<string, string>>
@@ -1621,18 +1244,10 @@ export class ChunkStore {
   protected _labels = new Map<number, string>();
   protected _plans = new Map<StatementSource, FunctionPlan>();
   protected _used = new Set<ProgramChunk>();
-  // The old owner each statement emitted again in place takes its bodies'
-  // sequence ids and its functions' symbols from.
   protected _inherit = new Map<StatementSource, ProgramChunk>();
-  // The anonymous symbols of other statements' functions that the chunk
-  // being emitted refers to.
   protected _referenced: Set<number> | null = null;
-  // The symbol of each alternator of the statement being emitted.
   protected _alternatorPlan: Map<object, number> | null = null;
 
-  /** The anonymous symbol of an alternator of the statement being emitted:
-   *  the one its alignment with the old chunk's alternators gave it, or a
-   *  new one. */
   protected alternatorOf(sequence: object): number {
     let symbol = this._alternatorPlan?.get(sequence);
     if (symbol === undefined) {
@@ -1642,15 +1257,6 @@ export class ChunkStore {
     return symbol;
   }
 
-  /** One fact about `symbol` in the program being built, as the writer reads
-   *  it while it emits a chunk and the store reads it again when it decides
-   *  whether the chunk can be kept (docs/engine/binary-program.md, section
-   *  1, Identity): what the program defines the symbol as, a function's
-   *  parameters, or whatever else a definition holds (`definitionFacts`).
-   *  Every fact of a symbol the program does not define reads as
-   *  `UNDEFINED_FACT`. An anonymous symbol is a function a statement writes,
-   *  whose facts the build gives it when it plans the statement's functions
-   *  (`planFunctions`). */
   protected factOf(symbol: number, name: string): string {
     const facts = isAnonymousSymbol(this.table, symbol)
       ? this._anonymousDefinitions.get(symbol)
@@ -1658,11 +1264,6 @@ export class ChunkStore {
     return facts?.[name] ?? UNDEFINED_FACT;
   }
 
-  /** The facts a flow's definition holds, which a chunk that refers to the
-   *  flow's symbol reads through `factOf`: its kind and, for a function, a
-   *  scene or a branch, the kind of each of its parameters. A definition can
-   *  hold more than any emit path reads; only what a chunk's emission read
-   *  is recorded, and only that is compared. */
   protected definitionFacts(flow: FlowSource): Record<string, string> {
     if (flow.kind === SymbolKind.Scene || flow.kind === SymbolKind.Branch) {
       return {
@@ -1680,9 +1281,6 @@ export class ChunkStore {
     };
   }
 
-  /** The symbol of a function of the program being built: the one planned
-   *  for a function a statement writes, or for a flow of the program, its
-   *  qualified name's. */
   protected symbolOf(fn: object): number | undefined {
     let symbol = this._functionSymbols.get(fn);
     if (symbol === undefined && fn instanceof FlowBase) {
@@ -1702,8 +1300,6 @@ export class ChunkStore {
     return symbol;
   }
 
-  /** The chunk `statement`'s block was emitted or kept for, while it still
-   *  holds and no other statement of the build has taken it. */
   protected keep(
     byBlock: WeakMap<object, ProgramChunk>,
     statement: StatementSource,
@@ -1716,14 +1312,6 @@ export class ChunkStore {
     return undefined;
   }
 
-  /** Gives each function `statement` writes its symbol, and the old block
-   *  its body takes its sequence id from: a function declared at the top
-   *  level its name's; a kept chunk's functions the symbols the chunk has; a
-   *  statement emitted again in place the anonymous symbols of its old
-   *  chunk's functions, by aligning the functions by their own source; and
-   *  any other function a new anonymous symbol. A name's symbol goes only to
-   *  the function declared under the name, so a function that an edit moves
-   *  inside another is not given it by its old statement. */
   protected planFunctions(
     statement: StatementSource,
     chunk: ProgramChunk | undefined,
@@ -1740,10 +1328,6 @@ export class ChunkStore {
     this._plans.set(statement, plan);
     const functions = bodies.flatMap((body, k) => (body.fn ? [k] : []));
     if (statement.defines !== undefined) {
-      // A function declared at the top level is the part its name names,
-      // which its symbol goes with; its body goes with it too when the
-      // definition is emitted again in place, as when its header is edited,
-      // as a body goes with the part that heads it (section 2).
       const symbol = internSymbol(this.table, statement.defines);
       const inherited = this._inherit.get(statement);
       const old = inherited ? this._info.get(inherited) : undefined;
@@ -1794,8 +1378,6 @@ export class ChunkStore {
     }
   }
 
-  /** The record of the `run` file wrappers by the symbols of their names,
-   *  leaving out a name the table does not hold. */
   protected runFilesBySymbol(
     runFiles: ReadonlyMap<string, RunFile> | undefined,
   ): Map<number, RunFile> {
@@ -1809,12 +1391,6 @@ export class ChunkStore {
     return bySymbol;
   }
 
-  /** Whether the functions of other statements that `chunk`'s code calls by
-   *  an anonymous symbol still have those symbols in the build. The objects
-   *  are read as the writer emits them and `resolutionsOf` reads them: a
-   *  declaration a flow's statement holds emits nothing where it is written,
-   *  since its initializer is the declaration sequence's code, whose
-   *  functions the declaration's own statement plans. */
   protected anonymousReferencesHold(
     chunk: ProgramChunk,
     statement: StatementSource,
@@ -1831,9 +1407,6 @@ export class ChunkStore {
       ) {
         return;
       }
-      // Of a function the statement runs in place, the chunk's code declares
-      // the locals its lowering hoisted (`emitFunctionInPlace`): its body,
-      // and the functions declared in it, are other chunks' code.
       if (obj instanceof FlowBase) {
         (functionShapeOf.get(obj)?.hoisted ?? []).forEach(visit);
         return;
@@ -1863,10 +1436,6 @@ export class ChunkStore {
     );
   }
 
-  /** Emits `statement`'s chunk through `write`, with the blocks of its
-   *  bodies: a body keeps the sequence id of the old owner's block it is
-   *  aligned with by the part that heads it when the statement is emitted
-   *  again in place (`alignParts`), and takes a new one otherwise. */
   protected emit(
     statement: StatementSource,
     write: (input: {
@@ -1890,12 +1459,6 @@ export class ChunkStore {
     const inherited = this._inherit.get(statement);
     const oldInfo = inherited ? this._info.get(inherited) : undefined;
     const plan = this._plans.get(statement);
-    // Every body takes its sequence id through the one alignment of its
-    // heading part with the old chunk's (section 2), never by position: a
-    // choice's body by the choice's own source, which its count symbol goes
-    // with too; a function's by the function's own source (`planFunctions`);
-    // and any other body (a branch's, a loop's, a `do` block's, a `then`
-    // clause's) by the source of the part that heads it.
     const choices = choicesOf(statement);
     const choicePrints = choices.map((choice) =>
       choiceFingerprint(choice, statement.fingerprintOf),
@@ -1971,9 +1534,6 @@ export class ChunkStore {
         fn: body.fn ? functionInput(body.fn, plan!.symbols[k]!) : undefined,
       };
     });
-    // The alternators the statement writes keep the symbols of the old
-    // chunk's that they align with by their own source (section 2), and any
-    // other takes a new anonymous symbol when the writer first asks for it.
     const alternators = alternatorsOf(statement);
     const fingerprints = alternators.map((sequence) =>
       alternatorFingerprint(sequence, statement.fingerprintOf),
@@ -2064,24 +1624,6 @@ export class ChunkStore {
     return chunk;
   }
 
-  /** The arrays of the sequence `id` of the statements of `slot`, whose body
-   *  starts on line `firstLine` and spans `span` lines, emitting the chunks
-   *  alignment gave none, and the rows of the sequences of their bodies. The
-   *  bodies of a statement are built again only when it or a statement
-   *  inside it is not carried (`SequenceBuild.unsettled`), or when the flow,
-   *  the kind or the script of the sequence that holds it changed, which its
-   *  bodies' rows name and its alternators' shuffles are seeded from; any
-   *  other statement's bodies keep their rows. `before` is the current root's
-   *  row for the sequence. The chunks that hold a function's code are every
-   *  chunk of a sequence inside a function (`inFunction`), and every chunk
-   *  that writes one.
-   *
-   *  When the compile names the changed blocks, the entries above the
-   *  sequence's window and below it are the current root's
-   *  (`reuseOf`), and only the window's statements are read: the arrays are
-   *  the current root's with the window's entries put in place of the old
-   *  ones between, and the line starts below shifted by the lines the window
-   *  gained, as section 1 (The order structure) builds them. */
   protected buildSequence(
     build: SequenceBuild,
     slot: ListSlot,
@@ -2095,9 +1637,6 @@ export class ChunkStore {
     const statements = slot.statements;
     const chunks: ProgramChunk[] = [];
     const lineStarts: number[] = [];
-    // A sequence whose owner an edit moved into a function or out of one is
-    // placed whole, as one whose flow changed is, so the function chunks it
-    // holds are counted again.
     const moved =
       !before ||
       !sameHome(before, home) ||
@@ -2165,18 +1704,6 @@ export class ChunkStore {
     return arrays;
   }
 
-  /** The entries above a sequence's window and below it that a build keeps
-   *  as the current root's arrays `old` hold them, or nothing when it reads
-   *  the sequence whole. The window runs from the first entry to the last
-   *  that is not settled (`ListSlot`), and over every entry a changed block
-   *  touches: from the one that holds the block's first line to the last
-   *  that starts by its last. Every entry outside it is carried, with its
-   *  bodies as they were, and the text between them is the text the current
-   *  root was built from, so they are the old entries above the window and
-   *  as many below it, in order, the lines of those below moved by as many
-   *  lines as the first of them (`delta`). The first and the last entry of
-   *  each part are checked against the old ones, which reads two statements
-   *  for each. */
   protected reuseOf(
     build: SequenceBuild,
     slot: ListSlot,
@@ -2189,7 +1716,6 @@ export class ChunkStore {
     const count = list.length;
     let lo = slot.lo;
     let hi = slot.hi;
-    // The last entry that starts by `line`, or -1.
     const lastBy = (line: number): number => {
       let a = 0;
       let b = count;
@@ -2203,7 +1729,6 @@ export class ChunkStore {
       }
       return a - 1;
     };
-    // A flow's header is the line above its body.
     const top = slot.flow === undefined ? firstLine : firstLine - 1;
     for (const [start, end] of build.changed?.get(uri) ?? []) {
       if (count === 0 || end < top || start >= firstLine + span) {
@@ -2239,19 +1764,6 @@ export class ChunkStore {
     return { head, tail, delta };
   }
 
-  /** A script's declaration sequence kept as the current root's `before`
-   *  holds it outside the lines the compile changed, or nothing when the
-   *  build assembles it whole. Its line starts are the script's own lines,
-   *  so the window is by line (`window`): from the first line of the first
-   *  changed block or declaration not carried to the last, which the build
-   *  finds as it marks the statements it does not settle. The old entries
-   *  that start above the window are kept, and so are those that start
-   *  below it, moved by the lines the script gained (`lineCount` against
-   *  the span the current root's row holds); the declarations that start
-   *  in the window (`inWindow`, found as the initialization order is
-   *  listed) are read and put between. The counts must add up to the
-   *  script's `count` declarations, and the first and last old entry of
-   *  each kept part must be one of the build's (`held`). */
   protected keptDeclarations(
     count: number,
     window: { lo: number; hi: number } | undefined,
@@ -2277,7 +1789,6 @@ export class ChunkStore {
     }
     const { lo, hi } = window;
     const delta = lineCount - before.span;
-    // The first old entry that starts at `line` or below it.
     const firstFrom = (line: number): number => {
       let a = 0;
       let b = oldCount;
@@ -2325,15 +1836,6 @@ export class ChunkStore {
     };
   }
 
-  /** Records what a sequence built again holds that the current root holds
-   *  elsewhere or not at all, whose rows of the chunk table and of the
-   *  definition arrays the build writes (`SequenceBuild.placed`): every
-   *  chunk of it when its flow, kind or script changed (`moved`), and
-   *  otherwise each chunk the current root's sequence `id` does not hold. A
-   *  chunk that stays in the sequence keeps every row. When the build kept
-   *  the entries outside a window (`window`), only the window's entries are
-   *  read, the old ones between `oldFrom` and `oldTo` being the ones it
-   *  replaced. */
   protected placeIn(
     build: SequenceBuild,
     id: number,
@@ -2367,8 +1869,6 @@ export class ChunkStore {
     }
   }
 
-  /** The sequences of `statement`'s bodies, each under the id its chunk's
-   *  block table names. A function's body is inside a function. */
   protected buildBodies(
     build: SequenceBuild,
     statement: StatementSource,
@@ -2404,9 +1904,6 @@ export class ChunkStore {
     });
   }
 
-  /** Gives the root `row`, or the current root's row of the same id when it
-   *  reads the same, which the new root then shares; and counts the
-   *  statements the root holds. */
   protected setRow(build: SequenceBuild, row: SequenceRow): void {
     const before = build.sequences.get(row.id);
     if (before) {
@@ -2427,11 +1924,6 @@ export class ChunkStore {
     build.live.add(row.id);
   }
 
-  /** The chunks of the current root that the new one does not hold: each
-   *  chunk a sequence built again no longer holds and no other sequence
-   *  took, and the chunks of every body such a chunk owned that no owner
-   *  took, and of every flow and declaration sequence the program no longer
-   *  has. Their rows leave the new root. */
   protected droppedChunks(build: SequenceBuild): Set<ProgramChunk> {
     const dropped = new Set<ProgramChunk>();
     const previous = build.previous;
@@ -2478,8 +1970,6 @@ export class ChunkStore {
     return dropped;
   }
 
-  /** The chunk table of the new root, written over the current root's where
-   *  a chunk was added, moved or dropped. */
   protected chunkTable(
     previous: ProgramRoot | undefined,
     build: SequenceBuild,
@@ -2497,23 +1987,6 @@ export class ChunkStore {
     return writer.finish();
   }
 
-  /** The chunk `statement`'s block was emitted or kept for, kept with
-   *  nothing read again (docs/engine/binary-program.md, section 1,
-   *  Identity), when the block is one the incremental parse carried, so the
-   *  statement's syntax and lowering inputs are the ones the chunk recorded;
-   *  the current root holds the chunk; the statement watch did not mark the
-   *  statement, so every name its code reads resolves and every text the
-   *  compiler names reads as the chunk recorded (`StatementWatch`); no
-   *  symbol the chunk read a fact about changed (`flagged`); its ids belong
-   *  to the table's generation; for a declaration, it assigns the same
-   *  globals; and it stands where the chunk was emitted for it, which the
-   *  flow around it decides and its syntax does not (#1627): at the top
-   *  level the story takes a `do` block's functions as flows of their own,
-   *  so a block the edit moved into or out of a scene holds other statements
-   *  in its bodies, and each of those functions defines a flow or is a
-   *  statement of a body. So the statement defines the same function, in the
-   *  same placement (`placementOf`), and each of its bodies holds as many
-   *  statements as the chunk's row for that body does. */
   protected keepCarried(
     byBlock: WeakMap<object, ProgramChunk>,
     statement: StatementSource,
@@ -2551,9 +2024,6 @@ export class ChunkStore {
     return chunk;
   }
 
-  /** Stops the build when a statement served from its memo would not keep
-   *  its memo's chunk: the statement holds no objects to emit one from, so
-   *  the compile lowers it again (`StatementMemoRetry`). */
   protected memosKept(
     statements: readonly StatementSource[],
     carried: ReadonlySet<StatementSource>,
@@ -2569,26 +2039,11 @@ export class ChunkStore {
     }
   }
 
-  /**
-   * The chunk the last committed build gave the statement `memo` stands
-   * for, when a memo can hold it (`compiler/lower/statementMemo.ts`): a
-   * chunk of the current root and the table's generation that holds no
-   * block but those its heads head, exports nothing but a label its
-   * stand-in names, writes no function or alternator of its own, raises no
-   * choice but a `choose` block's, and refers to no other statement's
-   * function by an anonymous symbol, so that it stays right while the facts
-   * it read about the symbols it refers to read the same, which the store
-   * checks of every chunk it keeps. A `choose` block's chunk keeps the count
-   * symbols of its choices (`ChunkInfo.choices`) as any kept chunk does, and
-   * hands them on when the block is emitted again (#1683).
-   */
   memoChunk(memo: object): ProgramChunk | undefined {
     const chunk = this._byBlock.get(memo);
     const info = chunk && this._info.get(chunk);
     const owner = (memo as StatementMemoEntry).owner;
     const choose = !!owner?.choose;
-    // The labels its stand-in names: a label's own, or a `choose` block's
-    // named choices and labelled `then` clause (`MemoHolder`).
     const labels = choose
       ? owner!.holders.filter((holder) => holder.kind === "label" || holder.kind === "choice").length
       : 1;
@@ -2604,9 +2059,6 @@ export class ChunkStore {
       info.globals !== undefined ||
       info.hoisted !== "" ||
       info.params !== "" ||
-      // A block statement's bodies are blocks its heads head (a branch's, a
-      // loop's, a `then` clause's) or its choices do, which its served shape
-      // holds again; no other block.
       blockCount(chunk) !==
         info.heads.length + info.choices.filter((part) => part.block >= 0).length ||
       exportCount(chunk) > labels
@@ -2616,8 +2068,6 @@ export class ChunkStore {
     return chunk;
   }
 
-  /** Whether the store's current root holds `chunk`, whose ids are of the
-   *  table generation `generation`, which is the table's current one. */
   holdsMemoChunk(chunk: ProgramChunk, generation: number): boolean {
     return (
       generation === this.table.generation &&
@@ -2626,9 +2076,6 @@ export class ChunkStore {
     );
   }
 
-  /** The statements of a root in the order a compile aligns the next
-   *  program's statements with (`ProgramRoot.statementOrder`), with the
-   *  owner of each statement of a body, found once per root. */
   protected orderOf(root: ProgramRoot): {
     order: ProgramChunk[];
     owners: Map<ProgramChunk, ProgramChunk>;
@@ -2647,29 +2094,6 @@ export class ChunkStore {
     return this.orderOf(root).order;
   }
 
-  /**
-   * The current root's statements that the alignment of the program's
-   * statements `lo` to `hi` (in `statementOrder`'s order, the first and the
-   * last of them not carried, with the statements of the last one's bodies)
-   * reads, with the owner of each that stands in a body: the ones between
-   * the carried statements around them, or nothing when the build lists
-   * them all. Every statement outside the window is carried and keeps the
-   * place it had, so aligning the window with these old statements pairs
-   * each statement as aligning the whole program does (`align`).
-   *
-   * That the statements around the window keep their places is checked on
-   * the lists that hold them, by two statements at each end of each list:
-   * the flows are the old ones in order, each flow outside the window holds
-   * as many statements as its old sequence with the same first and last, and
-   * each list that holds the window's first statement or the statement after
-   * the window, or an owner of one, has the old entries above and below
-   * them; and of the declarations whose bodies hold statements, which the
-   * order lists after the flows in the order they run, those wholly above
-   * the window are the first of the old ones and those wholly below it the
-   * last, by their chunks, while the window may hold the bodies of
-   * declarations lowered anew, whose old ones the walk below lists. Then
-   * the old statements between are counted from the old root's count.
-   */
   protected alignmentWindow(at: {
     previous: ProgramRoot;
     flows: readonly FlowSource[];
@@ -2703,10 +2127,6 @@ export class ChunkStore {
     ) {
       return undefined;
     }
-    // The declarations whose bodies hold statements, which the order lists
-    // after the flows, in the order they run: those whose statements stand
-    // above the window are the first of the old ones, and those below it
-    // the last, by their chunks; the window holds the others.
     const initialization = previous.initialization;
     const oldUnits = initialization.filter((chunk) => {
       for (let k = 0; k < blockCount(chunk); k += 1) {
@@ -2734,7 +2154,6 @@ export class ChunkStore {
     ) {
       return undefined;
     }
-    // A carried statement's chunk is the one its block holds.
     const chunkOf = (statement: StatementSource) =>
       this._byBlock.get(statement.block);
     const sameEnds = (
@@ -2759,9 +2178,6 @@ export class ChunkStore {
         return undefined;
       }
     }
-    // The lists from the statement at `index` up to its flow or its
-    // declaration: their entries above it (`above`) or below it are the old
-    // ones; an owner, which is outside the window, counts as above.
     const holds = (index: number, above: boolean): boolean => {
       let inside = true;
       for (let i: number | undefined = index; i !== undefined; ) {
@@ -2773,8 +2189,6 @@ export class ChunkStore {
             ? entry
             : entry + 1
           : list.length - (inside ? entry : entry + 1);
-        // A list with no entries outside the window needs no old row, as
-        // the body of a declaration lowered anew has none.
         if (count > 0) {
           let row: readonly ProgramChunk[] | undefined;
           if (slot.flow !== undefined) {
@@ -2828,11 +2242,6 @@ export class ChunkStore {
     return old?.length === count ? { old, owners } : undefined;
   }
 
-  /** Under `verifyBuilds`, aligns the whole program again from what the
-   *  store held before the window's alignment (`checked`), and throws when
-   *  that pairs any statement otherwise than the window's did (`reused`, and
-   *  the chunks it used and handed on). The counts of the passes are the
-   *  window's. */
   protected verifyAlignment(
     statements: readonly StatementSource[],
     kept: readonly (ProgramChunk | undefined)[],
@@ -2875,15 +2284,11 @@ export class ChunkStore {
     return this.orderOf(root).owners.get(chunk);
   }
 
-  /** The line a chunk of a root starts at in its script, or -1 for one the
-   *  root does not place. */
   protected oldLineOf(root: ProgramRoot, chunk: ProgramChunk): number {
     const at = root.position(chunkId(chunk));
     return at ? root.lineOf(at.sequence, at.entry) : -1;
   }
 
-  /** How many statements a root holds, which a build counts from the
-   *  current root's count by the rows it writes and drops. */
   protected statementCountOf(root: ProgramRoot): number {
     let count = this._statementCounts.get(root);
     if (count === undefined) {
@@ -2896,12 +2301,6 @@ export class ChunkStore {
     return count;
   }
 
-  /** Has the statement watch watch every value `statement`'s chunk
-   *  recorded of its objects: how each name its code reads resolved, and
-   *  each text the compiler names by document order. The readers that build
-   *  the statement's identity (`resolutionsOf`, `compilerNamedTexts`) hand
-   *  the watch each object they read with the reader that reads it, so a
-   *  value added to them is watched with nothing added here. */
   protected watchStatement(statement: StatementSource): void {
     const exclude = bodyObjects(statement);
     const watch = (obj: ParsedObject, read: (obj: any) => string) =>
@@ -2914,13 +2313,6 @@ export class ChunkStore {
     compilerNamedTexts(statement.objects, exclude, watch);
   }
 
-  /**
-   * Derives the new root's tables from nothing but its sequences and the
-   * program's flows, as the build did before it wrote them over the current
-   * root's, and throws when they differ (`verifyBuilds`): the definition
-   * arrays, the chunk table, the rows every owner's block table reaches, and
-   * the count of statements.
-   */
   protected verifyRoot(
     root: ProgramRoot,
     previous: ProgramRoot | undefined,
@@ -2934,8 +2326,6 @@ export class ChunkStore {
     const fail = (what: string) => {
       throw new Error(`ChunkStore.verifyBuilds: ${what}`);
     };
-    // Every sequence's arrays, as assembling each from the statements the
-    // compile handed over gives them, whatever entries the build kept.
     const assembled = (
       row: SequenceRow | undefined,
       list: readonly StatementSource[],
@@ -2982,7 +2372,6 @@ export class ChunkStore {
         `the declarations of ${uri}`,
       );
     }
-    // The rows a walk from the flows and the declaration sequences reaches.
     const reached = new Set<number>();
     let count = 0;
     const walk = (row: SequenceRow | undefined, owner: number, block: number) => {
@@ -3033,7 +2422,6 @@ export class ChunkStore {
         fail(`the chunk table places dropped chunk ${chunkId(chunk)} in row ${id}`);
       }
     }
-    // The definition arrays, derived as a cold build derives them.
     const defs = emptyDefinitions(this.table.symbols.length);
     for (const row of root.sequences()) {
       if (row.owner < 0 && row.flow >= 0) {
@@ -3098,50 +2486,6 @@ export class ChunkStore {
     }
   }
 
-  /**
-   * The chunk each statement keeps, by the identity rule, or nothing for a
-   * statement to emit. `statements` and `old` are the new and the previous
-   * program's statements in order, and `kept` holds the chunks of the
-   * statements whose block the store emitted a chunk for. The others are
-   * aligned with the old chunks in two steps.
-   *
-   * By position: between two statements that kept old chunks, twins (more
-   * statements than old chunks of the same syntax and lowering reads, or
-   * fewer) are paired first, in order, each with a chunk it can keep or one
-   * whose parts it would take, at the least distance in lines across the
-   * edit and, of twins as far, with the chunk whose bodies held as many
-   * statements as its own do (`matchTwins`); the other old and new
-   * statements are matched from both ends and then in order by their
-   * syntax, and the one statement left
-   * on each side of a run with the one old statement left; of the
-   * statements left, only the outermost count:
-   * the statements of a left statement's bodies are part of it, as the
-   * statements of a function written on its owner's line are, whose columns
-   * move when a function is inserted before it (`nesting`). The statements
-   * no run matched are then matched in order by their syntax with the old
-   * chunks no run took, wherever those were, as statements an edit moved
-   * past an anchor are (#1221). A matched statement keeps the old chunk when
-   * it can, one that reads as it does in its syntax, its recorded lowering
-   * inputs and its recorded values (`statementIdentity`) while the chunk's
-   * own facts hold, and is otherwise emitted again in place, taking what
-   * belongs to the old chunk's parts (`_inherit`); the one statement left on
-   * each side of a run is emitted again in place only when the two have
-   * parts.
-   *
-   * By identity: every statement that can keep an old chunk it does not
-   * hold then takes it where that leaves nothing behind (#1496): a chunk no
-   * statement holds, when the statement holds none or holds one with no
-   * parts, or by exchange, the chunk another statement holds to be emitted
-   * again in place, when that one can take the one this statement leaves. A
-   * statement that holds none takes no chunk another statement holds, since
-   * that one was edited in place and keeps the parts of its old self, whose
-   * ids and symbols a saved state may name, unless that one no longer
-   * defines the function the chunk defines and this one does, so the parts
-   * go with the name a saved state reaches them by (#1933); and a statement
-   * that holds a chunk with parts keeps it over a chunk no statement holds for the same
-   * reason. A chunk left behind goes to a statement no pass matched, by its
-   * syntax.
-   */
   protected align(
     statements: readonly StatementSource[],
     old: readonly ProgramChunk[],
@@ -3149,21 +2493,16 @@ export class ChunkStore {
     nesting?: {
       owner(statement: StatementSource): StatementSource | undefined;
       oldOwner(chunk: ProgramChunk): ProgramChunk | undefined;
-      /** The line an old chunk's statement started at in its script. */
       oldLine?(chunk: ProgramChunk): number;
-      /** How many statements each body of an old chunk's statement held. */
       oldShape?(chunk: ProgramChunk): number[];
     },
   ): (ProgramChunk | undefined)[] {
     const used = this._used;
     const oldEntry = new Map<ProgramChunk, number>();
     old.forEach((chunk, entry) => oldEntry.set(chunk, entry));
-    // Anchors: statements that kept a chunk of the old sequence, in order.
     let lastOld = -1;
     let runStart = 0;
     const result = kept.slice();
-    // Whether an old chunk's own recorded facts hold in this build, which no
-    // statement changes, so each chunk is checked once.
     const viable = new Map<ProgramChunk, boolean>();
     const factsHold = (chunk: ProgramChunk): boolean => {
       let holds = viable.get(chunk);
@@ -3173,11 +2512,6 @@ export class ChunkStore {
       }
       return holds;
     };
-    // Whether the statement can keep the old chunk, whoever holds it now: the
-    // two read the same in everything a kept chunk depends on
-    // (`statementIdentity`, `chunkIdentity`), and the chunk's facts hold.
-    // Syntax and lowering reads are compared first, so a statement's full
-    // identity is built only for a chunk it can match.
     const fits = (i: number, o: number): boolean => {
       const info = this._info.get(old[o]!);
       const statement = statements[i]!;
@@ -3189,9 +2523,6 @@ export class ChunkStore {
         factsHold(old[o]!)
       );
     };
-    // Pairs a statement with an old chunk of its syntax: it keeps the chunk
-    // when it can, and is otherwise emitted again in place, taking what
-    // belongs to the old chunk's parts (`_inherit`).
     const take = (i: number, o: number): boolean => {
       const chunk = old[o]!;
       const info = this._info.get(chunk);
@@ -3212,11 +2543,6 @@ export class ChunkStore {
       }
       return true;
     };
-    // A block statement keeps its bodies' sequence ids by an edit in place,
-    // and a statement that writes alternators keeps their count symbols,
-    // which its alternators align with by their own source.
-    // Whether a statement writes alternators, which reads its own objects
-    // past its bodies' statements, so it is found once per statement.
     const alternating = new Map<StatementSource, boolean>();
     const writesAlternators = (statement: StatementSource): boolean => {
       let writes = alternating.get(statement);
@@ -3226,7 +2552,6 @@ export class ChunkStore {
       }
       return writes;
     };
-    // Whether a statement raises choices, found once per statement as well.
     const choosing = new Map<StatementSource, boolean>();
     const raisesChoices = (statement: StatementSource): boolean => {
       let raises = choosing.get(statement);
@@ -3241,13 +2566,6 @@ export class ChunkStore {
       (writesAlternators(statement) &&
         (this._info.get(chunk)?.alternators.length ?? 0) > 0) ||
       (raisesChoices(statement) && (this._info.get(chunk)?.choices.length ?? 0) > 0);
-    // Of the statements a run leaves on one side, in order, the ones no other
-    // of them contains. The side's statements are in pre-order, so each
-    // contains the statements from it to the last of its descendants (its
-    // `end`), found on first use from each statement's nearest owner on the
-    // side with one owner query per statement or owner; a pass over the
-    // left statements then keeps those of their containers open. A side
-    // whose owners do not precede what they own is walked owner by owner.
     const outermostOf = <T>(
       items: readonly T[],
       owner: ((of: T) => T | undefined) | undefined,
@@ -3256,7 +2574,6 @@ export class ChunkStore {
       const findEnds = (owner: (of: T) => T | undefined): Int32Array | null => {
         const index = new Map<T, number>();
         items.forEach((item, i) => index.set(item, i));
-        // The nearest listed owner of each unlisted owner walked through.
         const listedAbove = new Map<T, number>();
         const nearest = (of: T | undefined): number => {
           const path: T[] = [];
@@ -3326,25 +2643,6 @@ export class ChunkStore {
     };
     const outermostNew = outermostOf(statements, nesting?.owner);
     const outermostOld = outermostOf(old, nesting?.oldOwner);
-    // Twins: statements of a run that read alike in their syntax and their
-    // lowering reads (a block statement's own syntax leaves its bodies out,
-    // so blocks with different bodies read alike), where the run holds more
-    // of them than of their old chunks, or fewer. The passes by position
-    // pair them by their order alone, so of twins the one an edit changed
-    // took the chunk of one it did not (#1623), or a twin took for an edit
-    // in place the chunk another could keep (#1611). Before those passes,
-    // the twins are paired with their old chunks by where they stood: in
-    // order, as many as can be, at the least distance in lines between each
-    // statement and its chunk, measured across the edit (the lines the run
-    // gained above or below it). A twin is paired with a chunk it can keep,
-    // or with one whose parts it would take when emitted again in place
-    // (`ownsParts`), since those parts' ids and symbols go with the edit in
-    // place. Of twins that would move as far, as one above the edit and one
-    // below it can, the one whose bodies hold as many statements as the
-    // chunk's did is paired (#1933). Where a run holds as many twins as
-    // chunks, or the pairing would weigh more than `TWIN_CELLS` pairs, the
-    // passes by position pair them as before. Returns the old chunks it
-    // paired.
     const matchTwins = (
       candidates: readonly number[],
       olds: readonly number[],
@@ -3372,8 +2670,6 @@ export class ChunkStore {
         const statement = statements[i]!;
         alike.get(`${statement.syntax()}\u0000${statement.reads}`)?.news.push(i);
       }
-      // How many lines the run gained above its edit and below it: from its
-      // first lines and from its last, old and new.
       let shifts: readonly [number, number] | undefined;
       const shiftsOf = (): readonly [number, number] => {
         if (!shifts) {
@@ -3404,9 +2700,6 @@ export class ChunkStore {
           continue;
         }
         const [above, below] = shiftsOf();
-        // Less than a line in all, so it decides only between pairings that
-        // move their twins as far: one whose bodies hold as many statements
-        // as its chunk's did (`keepCarried`) over one whose bodies do not.
         const misshapen = 1 / (Math.min(n, m) + 1);
         const news = group.news.map((i) => {
           const statement = statements[i]!;
@@ -3470,7 +2763,6 @@ export class ChunkStore {
       for (let o = oldFrom; o < oldTo; o += 1) {
         run.push(o);
       }
-      // Each old chunk's record, read once for the twins and the passes.
       const infos = new Map<number, ChunkInfo | undefined>();
       const infoOf = (o: number) => {
         if (!infos.has(o)) {
@@ -3485,7 +2777,6 @@ export class ChunkStore {
         return;
       }
       const syntaxOf = (o: number) => infoOf(o)?.syntax;
-      // From the front, then from the back, while the syntax matches.
       let front = 0;
       while (
         front < candidates.length &&
@@ -3508,10 +2799,6 @@ export class ChunkStore {
         );
         back += 1;
       }
-      // In between, in order, each statement with the next old one that reads
-      // the same, found through the positions of each syntax among `olds`
-      // rather than by scanning the run. The position the pass has reached
-      // only grows, so each syntax's positions are walked once, by a cursor.
       const at = new Map<string, { positions: number[]; next: number }>();
       for (let k = front; k < olds.length - back; k += 1) {
         const syntax = syntaxOf(olds[k]!);
@@ -3538,8 +2825,6 @@ export class ChunkStore {
           o = k + 1;
         }
       }
-      // A statement edited in place: one left on each side, counting the
-      // outermost of those left.
       const leftNew = outermostNew(
         candidates.filter((i) => !result[i] && !this._inherit.has(statements[i]!)),
       );
@@ -3547,9 +2832,6 @@ export class ChunkStore {
       if (leftNew.length === 1 && leftOld.length === 1) {
         const i = leftNew[0]!;
         const k = leftOld[0]!;
-        // Two statements an edit swapped cross over each other, so the
-        // passes above match only one of them; the other, left alone with
-        // its own old chunk, keeps it.
         if (fits(i, k)) {
           used.add(old[k]!);
           result[i] = old[k]!;
@@ -3570,10 +2852,6 @@ export class ChunkStore {
         runStart = i + 1;
       }
     }
-    // Statements an edit moved past the anchors, as a scene's statements
-    // move into the flow above when its header is broken, find their old
-    // chunks outside their run: the old chunks no run took are matched with
-    // the statements no run matched, in order, by syntax.
     const matchMoved = () => {
       const unmatched = new Map<string, { olds: number[]; next: number }>();
       old.forEach((chunk, o) => {
@@ -3600,21 +2878,6 @@ export class ChunkStore {
     };
     matchMoved();
 
-    // Every statement that can keep an old chunk it does not hold now takes
-    // it where that leaves nothing behind (#1496). The pairing above follows
-    // position, so of statements an edit reordered among others of their
-    // syntax, it can pair one for an edit in place with the chunk another
-    // can keep. A statement paired with no chunk takes an old chunk no
-    // statement holds. A statement paired for an edit in place takes such a
-    // chunk only when the one it leaves has no parts, since the ids and
-    // symbols of a block's bodies, functions and alternators go with the
-    // edit in place and a saved state may name them; and it exchanges
-    // chunks with a statement paired for an edit in place with the chunk it
-    // can keep, which takes the one it leaves, so no chunk is left behind.
-    // A statement paired with no chunk takes none that another statement
-    // holds: that one was edited in place, and keeps the parts of its old
-    // self, unless it no longer defines the function the chunk defines and
-    // the statement taking it does.
     const partner = new Map<number, number>();
     const holder = new Map<number, number>();
     statements.forEach((statement, i) => {
@@ -3633,12 +2896,6 @@ export class ChunkStore {
         this._inherit.delete(statements[i]!);
       }
     };
-    // The old chunks whose facts hold, by identity: those no statement holds,
-    // and those paired for an edit in place, filed by what their holder can
-    // take in an exchange (`takesLeft`): its syntax, and whether it has
-    // bodies, writes alternators or raises choices. An entry is checked when it is taken and
-    // dropped when it no longer applies, since a chunk moves between lists;
-    // each move files it again, so the lists stay linear in all.
     interface Held {
       bySyntax: Map<string, number[]>;
       bodied: number[];
@@ -3646,12 +2903,7 @@ export class ChunkStore {
       choosing: number[];
     }
     const byIdentity = new Map<string, { free: number[]; held: Held }>();
-    // Each old chunk's lists, found once: a chunk an exchange passes on is
-    // filed again, and its identity, whose length grows with its bodies, is
-    // not looked up again.
     const chunkLists = new Map<number, { free: number[]; held: Held } | null>();
-    // The syntax and lowering reads of the old chunks filed, so a statement
-    // that no old chunk reads as builds no identity.
     const readAs = new Set<string>();
     const listOf = (o: number) => {
       const known = chunkLists.get(o);
@@ -3713,11 +2965,6 @@ export class ChunkStore {
         queue.push(i);
       }
     });
-    // Each statement's lists, kept once found: a statement an exchange pairs
-    // again is visited again, and reads the same lists, or, when it has none,
-    // none (`null`): every old chunk is filed before the first visit, so a
-    // statement with no lists finds none later. Its identity is built once
-    // per build (`statementIdentity`).
     const listsOf = new Map<number, NonNullable<ReturnType<typeof listOf>> | null>();
     for (let n = 0; n < queue.length; n += 1) {
       const i = queue[n]!;
@@ -3756,10 +3003,6 @@ export class ChunkStore {
         }
       }
       if (q === undefined) {
-        // A chunk held for an edit in place by a statement that no longer
-        // defines the function the chunk defines, which this one defines
-        // now, goes with the name: its parts are that function's, which a
-        // saved state names by it, and the holder is emitted anew (#1933).
         const defines = statements[i]!.defines;
         const named =
           defines === undefined
@@ -3782,11 +3025,6 @@ export class ChunkStore {
         }
         continue;
       }
-      // The other statement takes the chunk this one leaves: it keeps it,
-      // or is emitted again in place from it, as a statement of its syntax
-      // or one whose parts the chunk's carry. A statement that could do
-      // neither keeps its chunk, so no exchange leaves a chunk behind. Only
-      // the lists whose holders can take it are read.
       const left = old[q]!;
       const takesLeft = (p: number) =>
         fits(p, q) ||
@@ -3836,13 +3074,10 @@ export class ChunkStore {
         queue.push(p);
       }
     }
-    // A chunk a statement left for one it keeps goes to a statement no pass
-    // matched, as the statements an edit moved find theirs.
     matchMoved();
     return result;
   }
 
-  /** Whether a chunk's recorded values and facts still hold for `statement`. */
   protected holds(chunk: ProgramChunk, statement: StatementSource): boolean {
     const values = this.chunkValues(chunk);
     return (
@@ -3852,32 +3087,15 @@ export class ChunkStore {
     );
   }
 
-  /** Where a statement stands, which the chunk it keeps must have been
-   *  emitted for: in a body, or in a flow or a declaration sequence. The
-   *  compile gives a statement of a flow the source range of its lowered
-   *  block and a statement of a body the range of its first object, and the
-   *  first row of a chunk's line table is that range, so a statement an edit
-   *  moves into a body or out of one, with its text and column as they were,
-   *  is emitted again as a cold compile emits it there. */
   protected placementOf(statement: StatementSource): string {
     return this._inBody.has(statement) ? "body" : "sequence";
   }
 
-  // The statements of the build in progress that stand in a body.
   protected _inBody = new WeakSet<StatementSource>();
 
-  // The values each statement of the build in progress reads as, and each
-  // chunk recorded (`statementValues`, `chunkValues`).
   protected _statementValues = new WeakMap<StatementSource, string>();
   protected _chunkValues = new WeakMap<ChunkInfo, string>();
 
-  /** What a statement reads as in everything a chunk kept for it depends on
-   *  besides its syntax, its lowering reads and the chunk's own facts: the
-   *  globals it assigns, the function it defines, the locals and parameters
-   *  of the functions it writes or runs in place, the texts the compiler
-   *  names by document order, how each name resolves, and which of its
-   *  bodies are functions. A chunk's values (`chunkValues`) read the same
-   *  exactly when they agree. Computed once per build. */
   protected statementValues(statement: StatementSource): string {
     let values = this._statementValues.get(statement);
     if (values === undefined) {
@@ -3898,8 +3116,6 @@ export class ChunkStore {
     return values;
   }
 
-  /** The values a chunk recorded, in the form `statementValues` gives a
-   *  statement's, or nothing for a chunk the store knows nothing of. */
   protected chunkValues(chunk: ProgramChunk): string | undefined {
     const info = this._info.get(chunk);
     if (!info) {
@@ -3926,8 +3142,6 @@ export class ChunkStore {
     return values;
   }
 
-  /** A statement's syntax, lowering reads and values, which a chunk it keeps
-   *  reads the same in (`chunkIdentity`). */
   protected statementIdentity(statement: StatementSource): string {
     let identity = this._statementIdentities.get(statement);
     if (identity === undefined) {
@@ -3937,14 +3151,9 @@ export class ChunkStore {
     return identity;
   }
 
-  // The identities of the build in progress's statements, and of the
-  // chunks' recorded infos, each built once (`statementIdentity`,
-  // `chunkIdentity`).
   protected _statementIdentities = new WeakMap<StatementSource, string>();
   protected _chunkIdentities = new WeakMap<ChunkInfo, string>();
 
-  /** A chunk's recorded syntax, lowering reads and values, in the form of
-   *  `statementIdentity`. */
   protected chunkIdentity(chunk: ProgramChunk): string | undefined {
     const info = this._info.get(chunk);
     if (!info) {
@@ -3958,10 +3167,6 @@ export class ChunkStore {
     return identity;
   }
 
-  /** Whether the facts a chunk recorded about itself still hold in the build
-   *  in progress, whatever statement it is kept for: its ids belong to the
-   *  table's generation, and every fact its reference table records about a
-   *  symbol is unchanged. */
   protected factsHold(chunk: ProgramChunk, anonymous = false): boolean {
     const info = this._info.get(chunk);
     if (!info || info.generation !== this.table.generation) {
@@ -3972,14 +3177,9 @@ export class ChunkStore {
     for (let r = 0; r < chunk[H_REFERENCE_ROWS]!; r += 1) {
       const at = start + r * REFERENCE_ROW_WORDS;
       const symbol = chunk[at]!;
-      // A jump, a count or a symbol value of a scene, a branch or a label
-      // reads no fact about its symbol (`referenceTarget`).
       if (chunk[at + 1] === NO_FACTS) {
         continue;
       }
-      // The facts of a function another statement writes are known once the
-      // build has planned the statements' functions, which follows the
-      // alignment, so they are read in a pass of their own (`anonymous`).
       if (isAnonymousSymbol(this.table, symbol) !== anonymous) {
         continue;
       }
@@ -3990,9 +3190,6 @@ export class ChunkStore {
     return true;
   }
 
-  /** The hash of the facts named `names` about `symbol`, each read again
-   *  from the program being built, which a chunk that read them keeps in its
-   *  reference table row. */
   protected readFacts(symbol: number, names: readonly string[]): number {
     const read = new Map<string, string>();
     for (const name of names) {
@@ -4001,23 +3198,16 @@ export class ChunkStore {
     return factHash(factsText(read));
   }
 
-  /** The chunk the last build emitted or reused for a statement's block, for
-   *  a test that asserts which chunks a compile kept. */
   chunkOf(block: object): ProgramChunk | undefined {
     return this._placed.get(block) ?? this._byBlock.get(block);
   }
 
-  /** The declaration chunk emitted or reused for a statement's block. */
   declarationChunkOf(block: object): ProgramChunk | undefined {
     return (
       this._placedDeclarations.get(block) ?? this._byDeclaration.get(block)
     );
   }
 
-  /** The function declared at the top level that the statement a chunk was
-   *  emitted or reused for defines, for a test that keys statements by what
-   *  their chunks depend on: which of the functions of one name the story
-   *  defines under it depends on the others. */
   definesOf(chunk: ProgramChunk): string | undefined {
     return this._info.get(chunk)?.defines;
   }
@@ -4031,29 +3221,12 @@ const sameChunks = (
 const sameNumbers = (a: readonly number[], b: readonly number[]): boolean =>
   a.length === b.length && a.every((n, i) => n === b[i]);
 
-// How far past the difference in their counts the pairing of twins with old
-// chunks lets one list run ahead of the other (`pairInOrder`).
 const TWIN_SLACK = 16;
-// The most pairs of twins and old chunks the alignment weighs in one group,
-// which a group reaches with thousands of twins; a larger group is paired by
-// position (`matchTwins`).
 const TWIN_CELLS = 1 << 20;
 
-/** How many pairs `pairInOrder` weighs for lists of `n` and `m` entries,
- *  which is also how many entries each of its tables holds. */
 export const pairCells = (n: number, m: number) =>
   (Math.min(n, m) + 1) * (Math.abs(n - m) + 2 * TWIN_SLACK + 1);
 
-/** Pairs the entries of two lists of `n` and `m` entries in order, as
- *  `[entry of the first, entry of the second]`: as many pairs as `cost`
- *  allows (it gives nothing for a pair that may not be made), at the least
- *  total cost of those, and of equal ones the pairing that takes the
- *  earlier entries of the longer list. The pairs are weighed in a band
- *  about the lists' ends: the number of entries of the longer list passed
- *  less the number of the shorter stays between the difference in their
- *  lengths and nothing, give or take `TWIN_SLACK`, so the work and the
- *  storage grow with the shorter list times that difference
- *  (`pairCells`). */
 export const pairInOrder = (
   n: number,
   m: number,
@@ -4063,7 +3236,6 @@ export const pairInOrder = (
     ? pairShorterFirst(m, n, (l, s) => cost(s, l)).map(([l, s]) => [s, l])
     : pairShorterFirst(n, m, cost);
 
-/** `pairInOrder` for a first list no longer than the second. */
 const pairShorterFirst = (
   n: number,
   m: number,
@@ -4072,10 +3244,6 @@ const pairShorterFirst = (
   const lo = Math.min(0, m - n) - TWIN_SLACK;
   const hi = Math.max(0, m - n) + TWIN_SLACK;
   const width = hi - lo + 1;
-  // For the first s entries of the first list and the first l of the
-  // second, at `s * width + l - s - lo`: how many pairs (-1 outside the
-  // band), at what cost, and the step that got there (1 leaves out the
-  // second's entry, 2 the first's, 3 pairs them).
   const size = (n + 1) * width;
   const count = new Int32Array(size).fill(-1);
   const total = new Float64Array(size);
@@ -4130,12 +3298,6 @@ const pairShorterFirst = (
   return pairs.reverse();
 };
 
-/** A sequence's arrays, sharing with the current root's `before` each array
- *  that reads the same (docs/engine/binary-program.md, section 1, The order
- *  structure): the arrays themselves when nothing changed, the chunks when
- *  only the line starts moved, as they do in a sequence that holds the
- *  edited one with a statement below it, and the line starts when only the
- *  chunks changed, as when a statement is emitted again in place. */
 const shareArrays = (
   before: SequenceArrays | undefined,
   chunks: ProgramChunk[],
@@ -4155,27 +3317,6 @@ const shareArrays = (
   };
 };
 
-/** How many chunks each pass of a build visited (`ChunkStore.passesLastBuild`):
- *  the statements whose recorded values it read again (`identity`), the
- *  chunks whose recorded facts it read again (`facts`), the statements whose
- *  references to other statements' functions it read again (`anonymous`),
- *  the chunks it emitted, the chunks it placed where the current root does
- *  not hold them (`placement`), and the chunks whose rows of the definition
- *  arrays and of the chunk table it wrote. A build over an edit reads none of
- *  these for a chunk the edit did not affect.
- *
- *  Two counts are of bookkeeping: the current root's statements it lists to
- *  align the statements that are not carried with (`order`), and the
- *  entries it reads from the statements the compile hands over to assemble
- *  a sequence's arrays (`assembly`), a script's declarations among them.
- *  When the compile names the blocks it lowered anew
- *  (`ProgramSource.changed`, #1599), the first is the old statements
- *  between the carried ones around those not carried
- *  (`alignmentWindow`), and the second the entries of each sequence's window
- *  (`reuseOf`, `keptDeclarations`): an edit to one statement lists and
- *  assembles as many
- *  whatever the program's size. Without it, both are every one. Neither
- *  reads a chunk's facts or values, or writes a row. */
 export interface BuildPasses {
   identity: number;
   facts: number;
@@ -4200,8 +3341,6 @@ const emptyPasses = (): BuildPasses => ({
   assembly: 0,
 });
 
-/** The flow, the kind and the script a sequence belongs to, which its row
- *  names. */
 interface SequenceHome {
   flow: number;
   kind: SequenceKind;
@@ -4211,11 +3350,6 @@ interface SequenceHome {
 const sameHome = (row: SequenceRow, home: SequenceHome): boolean =>
   row.flow === home.flow && row.kind === home.kind && row.uri === home.uri;
 
-/** What a build of the sequences knows and collects. */
-/** One list of statements a build reads: a flow's (`flow`, its index among
- *  the program's flows) or block `block` of `owner`'s bodies, with its
- *  window: the first and the last entry the build does not settle (one not
- *  carried, or holding one), or -1 for none. */
 interface ListSlot {
   statements: readonly StatementSource[];
   flow?: number;
@@ -4228,17 +3362,10 @@ interface ListSlot {
 interface SequenceBuild {
   previous: ProgramRoot | undefined;
   chunkOf: ReadonlyMap<StatementSource, ProgramChunk | undefined>;
-  /** The statements whose chunks were kept with nothing read again. */
   carried: ReadonlySet<StatementSource>;
-  /** The statements whose bodies are built again: each one not carried, and
-   *  the statements that hold one. */
   unsettled: ReadonlySet<StatementSource>;
   coverage: ProgramCoverage;
-  /** The new root's rows, which start as the current root's. */
   sequences: Map<number, SequenceRow>;
-  /** Each sequence built again, with its arrays in the current root and the
-   *  entries of those (`from` to `to`) the build replaced, and, when it kept
-   *  the others (`ChunkStore.reuseOf`), the chunks it put in their place. */
   rebuilt: Map<
     number,
     {
@@ -4248,41 +3375,24 @@ interface SequenceBuild {
       held?: ReadonlySet<ProgramChunk>;
     }
   >;
-  /** The compile's changed blocks (`ProgramSource.changed`). */
   changed?: ReadonlyMap<string, readonly (readonly [number, number])[]>;
-  /** The lists of each statement's bodies. */
   bodySlots: ReadonlyMap<StatementSource, readonly ListSlot[]>;
-  /** Under `ChunkStore.verifyBuilds`, the chunk each statement a sequence
-   *  read was placed with, which `verifyRoot` compares the rows with. */
   placedFor?: Map<StatementSource, ProgramChunk>;
-  /** The ids of the rows of the current root that left the new one
-   *  (`droppedChunks`). */
   droppedRows: Set<number>;
-  /** Each chunk placed where the current root does not hold it, with its
-   *  sequence and whether that sequence is inside a function. */
   placed: Map<ProgramChunk, { sequence: number; inFunction: boolean }>;
-  /** The ids of the rows the build wrote. */
   live: Set<number>;
-  /** Whether each sequence the build visited is inside a function. */
   inFunction: Map<number, boolean>;
-  /** How many statements the new root holds. */
   statements: number;
-  /** How many statements the writer had no emit path for. */
   failed: number;
   fail: (construct: string, line: number) => void;
 }
 
-/** A definition's facts as one text, by name, which a build compares with the
- *  current root's to find the symbols whose facts changed. */
 const definitionText = (defined: Readonly<Record<string, string>>): string =>
   Object.keys(defined)
     .sort()
     .map((name) => `${name}=${defined[name]}`)
     .join("\n");
 
-/** The current root's definition arrays as a build starts from them, sized
- *  for the table: a copy when they belong to the table's generation, and
- *  empty arrays after a reseed, when every chunk is emitted again. */
 const copyDefinitions = (
   defs: DefinitionArrays | undefined,
   size: number,
@@ -4302,13 +3412,8 @@ const copyDefinitions = (
   return out;
 };
 
-/** How the readers of a statement's identity hand the statement watch each
- *  object they read, with the reader that reads its value. */
 type WatchRead = (obj: ParsedObject, read: (obj: any) => string) => void;
 
-/** Whether a divert is one a chunk names no symbol for: a call's, `done`,
- *  `fin`, and a loop's own jumps, `break` and `continue` among them, which
- *  the writer emits inside the chunk (`Divert.programJumpKey`). */
 const isOwnJump = (obj: Divert): boolean =>
   obj.isFunctionCall ||
   obj.isEnd ||
@@ -4316,15 +3421,6 @@ const isOwnJump = (obj: Divert): boolean =>
   loopExitOf.has(obj) ||
   isLoopInternal(obj);
 
-/** What a name, a call or a jump found, as the symbol its chunk names it by
- *  reads: a scene, a branch, a label or a function declared at the top level
- *  by its qualified name, which the compile keeps whatever object stands for
- *  it; and a function a statement writes by the function itself, whose
- *  anonymous symbol belongs to that object for as long as its statement is
- *  kept. The compile places a function a statement writes among the story's
- *  flows too, under a name it gives by document order within the flow it is
- *  written in (`__synth$<flow>$<n>`), which a function written above it in
- *  that flow renumbers: that name is not the symbol. */
 const targetOf = (target: ParsedObject | null | undefined): string => {
   if (!target) {
     return "-";
@@ -4351,19 +3447,11 @@ const readJump = (obj: Divert): string =>
 const readLabel = (obj: Gather | Choice): string => obj.programResolutionKey;
 const readText = (obj: Text): string => obj.text;
 
-/** The functions whose entry a statement's code holds: each function it
- *  writes (`functionInput`) and each it runs in place
- *  (`emitFunctionInPlace`), in order. */
 const entryFunctions = (statement: StatementSource): ParsedObject[] => [
   ...(statement.bodies ?? []).flatMap((body) => (body.fn ? [body.fn] : [])),
   ...statement.objects.filter((obj) => obj instanceof FlowBase),
 ];
 
-/** The locals each function whose entry a statement's code holds declares
- *  there, in order, which the lowering hoists from inside the function's
- *  body (a function it declares without `local`), function by function:
- *  the entry code is the statement's, while the lines that hoist them are
- *  the body's. */
 const hoistedOf = (statement: StatementSource): string =>
   entryFunctions(statement)
     .map((fn) =>
@@ -4377,10 +3465,6 @@ const hoistedOf = (statement: StatementSource): string =>
     )
     .join(";");
 
-/** The parameters each function whose entry a statement's code holds binds
- *  there. The lowering takes them from the function's parameter list, which
- *  a header the parser could not read whole can find on a later line, inside
- *  the body the statement's syntax leaves out. */
 const paramsOf = (statement: StatementSource): string =>
   entryFunctions(statement)
     .map((fn) =>
@@ -4390,14 +3474,11 @@ const paramsOf = (statement: StatementSource): string =>
     )
     .join(";");
 
-/** The declarations of the locals `hoistedOf` names, which the functions'
- *  entry code emits among the statement's own code. */
 const hoistedLocals = (statement: StatementSource): ParsedObject[] =>
   (statement.bodies ?? []).flatMap((body) =>
     body.fn ? (functionShapeOf.get(body.fn)?.hoisted ?? []) : [],
   );
 
-/** What the writer needs of a function whose body is a block. */
 const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
   const flow = fn as FlowBase;
   return {
@@ -4411,8 +3492,6 @@ const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
   };
 };
 
-/** Whether a chunk's export row `r` is a label's: a label is exported at
- *  the `Visit` of its own symbol, and any other export is a function's. */
 const exportsLabel = (chunk: ProgramChunk, r: number): boolean => {
   const offset = exportOffset(chunk, r);
   return (
@@ -4422,9 +3501,6 @@ const exportsLabel = (chunk: ProgramChunk, r: number): boolean => {
   );
 };
 
-/** Whether a chunk exports a function: an export that is no label's
- *  (`exportsLabel`). A label's chunk holds no function's code, so adding,
- *  removing or renaming one runs no declaration again. */
 const exportsFunction = (chunk: ProgramChunk): boolean => {
   for (let r = 0; r < exportCount(chunk); r += 1) {
     if (!exportsLabel(chunk, r)) {
@@ -4434,15 +3510,6 @@ const exportsFunction = (chunk: ProgramChunk): boolean => {
   return false;
 };
 
-/**
- * The chunks of `root` that hold a function's code: every chunk of a sequence
- * inside a function (a function's own flow, a function body's block and what
- * they hold) and every chunk that exports a function. A build keeps the set
- * of its current root as it places chunks (`_functionChunks`), and a compile
- * that emits or drops one of them, or moves a chunk into a function or out of
- * one, runs the declarations again (`ProgramBuild.declarationsChanged`, the
- * rule of #695).
- */
 export const functionChunksOf = (root: ProgramRoot): Set<ProgramChunk> => {
   const holding = new Set<ProgramChunk>();
   const inFunctions = (row: SequenceRow | undefined, inFunction: boolean) => {
@@ -4466,9 +3533,6 @@ export const functionChunksOf = (root: ProgramRoot): Set<ProgramChunk> => {
   return holding;
 };
 
-/** The alternators (`Sequence`s) a statement's own code writes, in the order
- *  the writer meets them: none of its bodies' statements, and none of a
- *  function's body, which are other chunks' code. */
 const alternatorsOf = (statement: StatementSource): Sequence[] => {
   const out: Sequence[] = [];
   const exclude = bodyObjects(statement);
@@ -4488,8 +3552,6 @@ const alternatorsOf = (statement: StatementSource): Sequence[] => {
   return out;
 };
 
-/** The choices a statement's own code raises, in the order the writer meets
- *  them: none of its bodies' statements, which are other chunks' code. */
 const choicesOf = (statement: StatementSource): Choice[] => {
   const out: Choice[] = [];
   const exclude = bodyObjects(statement);
@@ -4509,11 +3571,6 @@ const choicesOf = (statement: StatementSource): Choice[] => {
   return out;
 };
 
-/** What a choice is aligned by when its statement is emitted again, which
- *  its count symbol and its body go with (section 2): its own source as a
- *  fingerprint reads it, through the statement's `fingerprintOf` from the
- *  range its lowering recorded, or without one the text of its start and
- *  choice-only content. */
 const choiceFingerprint = (
   choice: Choice,
   fingerprintOf?: (from: number, to: number) => string,
@@ -4529,18 +3586,6 @@ const choiceFingerprint = (
   return `choice|${text(choice.startContent)}[${text(choice.choiceOnlyContent)}]`;
 };
 
-/** What an alternator is aligned by when its statement is emitted again,
- *  and its shuffle seeded from: its own source as a fingerprint reads it, as
- *  a function part's is (docs/engine/binary-program.md, section 2), through
- *  the statement's `fingerprintOf` from the range its lowering recorded.
- *  Without one, its
- *  kind and its arms, read as their text, each object's kind and what each
- *  object prints as (a name, a number, a string, a call, an operation), with
- *  the objects it holds, and a nested alternator by its own kind and arms. A
- *  name the compiler generated is read by the order it first appears in,
- *  since the compiler numbers those names by document order within their
- *  flow (`SparkdownCompiler.canonicalizeSyntheticFlowNames`) and an edit
- *  above the statement in that flow renumbers them. */
 const alternatorFingerprint = (
   sequence: Sequence,
   fingerprintOf?: (from: number, to: number) => string,
@@ -4558,9 +3603,6 @@ const alternatorFingerprint = (
     if (obj instanceof Sequence) {
       return `Sequence(${arms(obj)})`;
     }
-    // Each node's own value too, for one with children as for a leaf: a
-    // call's name and an expression's operator tell apart two alternators
-    // whose arguments and operands read the same (`a(1)` and `b(1)`).
     const children = obj instanceof FunctionCall ? obj.args : (obj.content ?? []);
     const own = `${obj.typeName}:${String(obj)}`;
     return children.length > 0 ? `${own}(${children.map(text).join("")})` : own;
@@ -4574,16 +3616,8 @@ const alternatorFingerprint = (
   });
 };
 
-/** The hash a function part is aligned by: its own source as a fingerprint
- *  reads it. */
 const fingerprintOf = (body: BodySource): string => body.partFingerprint?.() ?? "";
 
-/** What a body that neither a choice nor a function heads is aligned by
- *  when its statement is emitted again in place (section 2): the source of
- *  the part that heads it as a fingerprint reads it (a branch's condition or its `else`,
- *  a loop's header, a `do`, a `then` clause with its label), and for a `then`
- *  clause the depth of the `choose` block it closes, which tells a block's
- *  own clause from that of a block written in its preamble. */
 const headFingerprint = (body: BodySource): string => {
   const part = partOfBody.get(body.shape as BodyShape);
   const depth =
@@ -4591,7 +3625,6 @@ const headFingerprint = (body: BodySource): string => {
   return `${depth}${body.headFingerprint?.() ?? ""}`;
 };
 
-/** A flow's qualified name, or nothing for a flow a statement writes. */
 const qualifiedFlowName = (flow: FlowBase): string | null => {
   const names: string[] = [];
   let at: ParsedObject | null = flow;
@@ -4607,12 +3640,6 @@ const qualifiedFlowName = (flow: FlowBase): string | null => {
   return at ? names.join(".") : null;
 };
 
-/** The name a function a statement writes is labelled by, as the object
- *  engine named its container: the names of the flows that hold it and its
- *  own, which the compiler gives it, or the name a nested function statement
- *  is written with (`_authoredName`). The label is the function's identity
- *  for data breakpoints; an author reads it through `readableSymbolLabel`,
- *  where a generated part shows as anonymous. */
 const functionLabel = (fn: ParsedObject): string => {
   const names: string[] = [];
   let at: ParsedObject | null = fn;
@@ -4625,12 +3652,6 @@ const functionLabel = (fn: ParsedObject): string => {
   return names.join(".");
 };
 
-/** The texts the compiler rewrites in place in a statement's parsed objects,
- *  in the order the writer reads them (`StringExpression.EmitProgram`),
- *  leaving out the objects in `exclude` (a block statement's bodies, whose
- *  statements have chunks of their own). A call's arguments are read through
- *  `args`, since a call the runtime tree was generated for no longer holds
- *  them in `content`. */
 export const compilerNamedTexts = (
   objects: readonly ParsedObject[],
   exclude?: ReadonlySet<ParsedObject>,
@@ -4654,14 +3675,6 @@ export const compilerNamedTexts = (
   return out;
 };
 
-/** How the names and calls a statement's objects read resolved, each once and
- *  sorted, as the writer records them (`VariableReference.EmitExpression`,
- *  `Divert.EmitCall`), leaving out the objects in `exclude` and the
- *  declarations a flow's statement holds, whose initializers are the
- *  declaration sequence's code and not the statement's. Of a function the
- *  statement runs in place, the chunk's code declares the locals its lowering
- *  hoisted (`emitFunctionInPlace`); its body, and the functions the story
- *  places among its flows, are other chunks' code. */
 export const resolutionsOf = (
   objects: readonly ParsedObject[],
   exclude?: ReadonlySet<ParsedObject>,
@@ -4692,11 +3705,6 @@ export const resolutionsOf = (
       out.push(obj.proxyDivert.callResolutionKey);
       watch?.(obj, readCall);
     }
-    // The symbol a jump, a tunnel, a thread or a divert target names, and
-    // the symbol a label exports (#696).
-    // A divert whose jump names no symbol (a call's, `done`, `fin`, a
-    // loop's own) records nothing; one that holds a function as a value
-    // records nothing either, and the watch reads which function it found.
     if (obj instanceof Divert && !isOwnJump(obj)) {
       const key = obj.programJumpKey;
       if (key !== null) {
@@ -4721,7 +3729,6 @@ export const resolutionsOf = (
   return [...new Set(out)].sort();
 };
 
-/** The objects of the statements in a block statement's bodies. */
 const bodyObjects = (
   statement: StatementSource,
 ): ReadonlySet<ParsedObject> | undefined => {

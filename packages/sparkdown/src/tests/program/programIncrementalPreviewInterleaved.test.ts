@@ -1,11 +1,3 @@
-// The interleaved-preview oracle of `previewCompileRestore.test.ts` (branch
-// perf/652-preview-restore-parse) on the binary program back end: a preview
-// compile of an edit that is never applied, interleaved with random edits,
-// never changes the cumulative program.
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import { CHOOSE_INSERTS, chooseScreenplay } from "./chooseScreenplay";
 import { MAIN_URI, programCompiler } from "./programHarness";
@@ -26,8 +18,6 @@ import {
   update,
 } from "./incrementalOracleHarness";
 
-// previewCompileRestore's screenplay (branch perf/652-preview-restore-parse,
-// not on main, so copied).
 function previewScreenplay(scenes = 8): string {
   const L: string[] = [];
   L.push("title: Preview Restore");
@@ -66,8 +56,6 @@ function previewScreenplay(scenes = 8): string {
 }
 
 describe("previewCompileRestore's interleaved oracle on the binary program", () => {
-  // The preview oracle's screenplay, each scene with an `if ... else ...
-  // end`, and the choose screenplay, which nests blocks three deep.
   const runs = [
     {
       name: "the preview screenplay",
@@ -79,8 +67,6 @@ describe("previewCompileRestore's interleaved oracle on the binary program", () 
       undoFallback: false,
     },
     {
-      // As the cumulative run of this screenplay, an edit after which the
-      // program fell back is undone by the next one.
       name: "the choose screenplay",
       text: () => chooseScreenplay(2),
       inserts: CHOOSE_INSERTS,
@@ -110,7 +96,6 @@ describe("previewCompileRestore's interleaved oracle on the binary program", () 
             edit = undo;
             undo = undefined;
           }
-          // A preview of an edit that is never applied, drawn the same way.
           const unrelated = draw(text);
           const current = store.current;
           const result = preview(c.compiler, version, unrelated.offset, unrelated.end, text, unrelated.insert);

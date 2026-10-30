@@ -38,7 +38,6 @@ const bake = (svg: string, recipe: MorphRecipe, selection: Record<string, string
   bakeMorphArtifact({ source: svg, selection, recipe, key: "k", variant: "bunny", uri: URI });
 const codes = (artifact: MorphArtifact) => artifact.diagnostics.map((d) => d.code);
 
-/** Eye art: whatever `open` and `closed` hold, over a face. */
 const art = (open: string, closed: string, extra = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <path data-name="face" d="M0,0H120V100H0Z" fill="#fdb"/>
 <g data-name="eyes.open:default">${open}</g>
@@ -62,11 +61,6 @@ const recipe = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
-/**
- * What an aperture's masked wrapper draws: its child, or, under a wrapper
- * that undoes the transforms around the target, the child of the group
- * inside it that redoes them.
- */
 const maskedDrawing = (wrapper: Element): Element | undefined => {
   const child = wrapper.children[0] as Element | undefined;
   return wrapper.attributes["transform"] && child?.tagName === "g" && !child.attributes["data-name"] ? (child.children[0] as Element | undefined) : child;
@@ -94,7 +88,6 @@ describe("morph bake: layered art", () => {
     expect(ids).toEqual(expect.arrayContaining([`${p}white`, `${p}white-tint`, `${p}iris-cut`]));
     expect(live.find((e) => e.attributes["id"] === `${p}white-tint`)!.attributes["href"]).toBe(`#${p}white`);
     expect(live.some((e) => e.attributes["transform"] === "translate(30 10)")).toBe(true);
-    // The cheeks part references nothing, so it carries nothing.
     expect(elements(artifact.parts[2]!.svg).some((e) => e.attributes["id"])).toBe(false);
   });
 
@@ -105,7 +98,6 @@ describe("morph bake: layered art", () => {
   });
 
   test("a copied resource keeps what its original ancestors passed down to it", () => {
-    // The gradient's stop paints `currentColor`, which its <defs> sets.
     const inherited = layeredPortrait().replace("<defs>", '<defs color="lime">').replace('<stop offset="0" stop-color="#fff"/>', '<stop offset="0" stop-color="currentColor"/>');
     const live = elements(bake(inherited, layeredRecipe).parts[1]!.svg);
     const gradient = live.find((e) => e.tagName === "linearGradient" && e.attributes["id"]?.endsWith("white"))!;
@@ -145,9 +137,6 @@ describe("morph bake: layered art", () => {
     const drawn = (list: Element[]) => list.filter((e) => e.tagName === "path" && e.attributes["data-name"]).map((e) => JSON.stringify(e.attributes));
     expect(drawn(rest)).toEqual(drawn(plain));
     const mask = rest.find((e) => e.tagName === "mask" && e.attributes["id"]?.startsWith("morph-clip"))!;
-    // The eyeballs sit under translate(30 10) and scale(1); the aperture is
-    // in root space, and the masked wrapper undoes that transform while a
-    // group inside it redoes it.
     const aperture = mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
     expect(aperture.attributes["transform"]).toBeUndefined();
     const wrapper = rest.find((e) => e.tagName === "g" && e.attributes["mask"] === `url(#${mask.attributes["id"]})`)!;
@@ -213,7 +202,6 @@ describe("morph bake: compositing and authored style", () => {
 </svg>`;
     const artifact = bake(dim, recipe());
     expect(artifact.parts.map((p) => p.kind)).toEqual(["live"]);
-    // Without the opacity the backing stays static, below the lashes.
     expect(bake(dim.replace("opacity:.5", "stroke:red"), recipe()).parts.map((p) => p.kind)).toEqual(["static", "live"]);
   });
 
@@ -239,14 +227,12 @@ describe("morph bake: compositing and authored style", () => {
       "with a compositing rule": art(LASHES_OPEN, LASH_CLOSED, '<g class="dim"/><style>.dim { opacity: .5 }</style>'),
       namespaced: art(LASHES_OPEN, LASH_CLOSED, "<svg:style>.unused { fill: red }</svg:style>"),
       linked: art(LASHES_OPEN, LASH_CLOSED, '<link rel="stylesheet" href="more.css"/>'),
-      // A relationship spelled with a character reference is still a style sheet.
       "linked, the relationship encoded": art(
         LASHES_OPEN,
         LASH_CLOSED,
         '<foreignObject width="1" height="1"><link xmlns="http://www.w3.org/1999/xhtml" rel="style&#115;heet" href="data:text/css,.x%7Bfill:red%7D"/></foreignObject>',
       ),
       "linked for anything else": art(LASHES_OPEN, LASH_CLOSED, '<link rel="icon" href="icon.png"/>'),
-      // An entity can expand into a style sheet the parser never sees.
       "an internal DTD subset": `<!DOCTYPE svg [<!ENTITY sheet "<style>.x{fill:red}</style>">]>\n${art(LASHES_OPEN, LASH_CLOSED)}`,
       "as an instruction": `<?xml-stylesheet href="more.css" type="text/css"?>\n${art(LASHES_OPEN, LASH_CLOSED)}`,
     };
@@ -257,20 +243,16 @@ describe("morph bake: compositing and authored style", () => {
         expect.objectContaining({ code: "unsupported-element", severity: "error", uri: URI, variant: "bunny" }),
       ]);
       expect(artifact.diagnostics[0]!.message, where).toContain("style sheet");
-      // The static render is the artwork's own.
       expect(artifact.rest, where).toBe(filterSVGAttributes(svg, {}));
     }
-    // The same art without the sheet plays.
     expect(bake(art(LASHES_OPEN, LASH_CLOSED), recipe()).status).toBe("live");
   });
 
   test("artwork with an inline style outside the grammar keeps its static render, naming the element and the declaration", () => {
-    // Each style is on a drawing every pose shows, after a declaration the grammar reads.
     const styles: Record<string, [string, string]> = {
       "a no-break space": ["display:\u00a0none", "display:<U+00A0>none"],
       "other whitespace": ["display:none\u2003", "display:none<U+2003>"],
       "non-ASCII text": ["--note:\u00e9", "--note:<U+00E9>"],
-      // A browser decodes a character reference before it reads the style.
       "a character reference in a value": ["display:&#110;one", "display:&#110;one"],
       "a character reference in a name": ["&#116;ransform:translate(5px,0)", "&#116;ransform:translate(5px,0)"],
       "an all declaration": ["all:initial !important", "all: initial !important"],
@@ -285,14 +267,12 @@ describe("morph bake: compositing and authored style", () => {
       "a CSS-wide keyword on display": ["display:revert", "display: revert"],
       "a CSS-wide keyword on a compositing property": ["opacity:inherit", "opacity: inherit"],
       "an opacity that is not a number or a percentage": ["opacity:calc(.5)", "opacity: calc(.5)"],
-      // A browser drops a value it does not accept, so the earlier `display:none` stays in force.
       "a display value the bake does not know": ["display:none;display:bogus", "display: bogus"],
       "an empty display value": ["display:none;display:!important", "display: !important"],
       "a second !important": ["display:none;display:inline!important!important", "display:inline!important!important"],
       "a stray ! in a value": ["display:none;display:inline!", "display:inline!"],
       "a ! in a name": ["!bad:0", "!bad:0"],
       "a ! with no colon": ["stroke:red;!", "!"],
-      // `display: contents` hides a drawing.
       "display: contents": ["display:contents", "display: contents"],
       "an empty compositing value": ["filter:url(#f);filter:", "filter:"],
     };
@@ -306,14 +286,11 @@ describe("morph bake: compositing and authored style", () => {
       expect(artifact.diagnostics[0]!.message, what).toContain('`<path id="shut">` in layer "crease"');
       expect(artifact.diagnostics[0]!.message, what).toContain(`(\`${named}\`)`);
       expect(artifact.rest, what).toBe(filterSVGAttributes(svg, {}));
-      // The static render keeps the style as written, padding included, so it reads as the artwork does.
       expect(artifact.rest, what).toContain(`fill:#111;${style}`);
     }
-    // An element no layer holds, such as a gradient stop, counts too.
     const stop = bake(art(LASHES_OPEN, LASH_CLOSED, '<defs><linearGradient id="g"><stop style="all:unset"/></linearGradient></defs>'), recipe());
     expect(stop.status).toBe("static");
     expect(stop.diagnostics[0]!.message).toContain("`<stop>` has a style the bake cannot read safely");
-    // So does an opacity attribute the bake cannot read.
     const attribute = bake(art(LASHES_OPEN, LASH_CLOSED, '<g opacity="calc(.5)"/>'), recipe());
     expect(attribute.status).toBe("static");
     expect(attribute.diagnostics[0]!.message).toContain('(`opacity="calc(.5)"`)');
@@ -365,7 +342,6 @@ describe("morph bake: compositing and authored style", () => {
     const drawn = artifact.parts.flatMap((p) => elements(p.svg)).map((e) => e.attributes["d"]);
     expect(drawn).not.toContain(HIDDEN);
     expect(drawn).toContain(SHOWN);
-    // A compositing declaration spaced by a tab keeps its group whole.
     const dim = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g style="fill:red;\topacity :\t.5\n">
 <path data-name="backing" d="M0,0H120V100H0Z" fill="blue"/>
@@ -374,13 +350,11 @@ describe("morph bake: compositing and authored style", () => {
 </g>
 </svg>`;
     expect(bake(dim, recipe()).parts.map((p) => p.kind)).toEqual(["live"]);
-    // A CSS transform property spaced by a line break still stops the drawing from moving.
     const moved = bake(art(lash(UPPER_OPEN, "eyelash-left", ' style="fill:#111;\n\trotate : 10deg"') + lash(LOWER_OPEN), LASH_CLOSED), recipe());
     expect(codes(moved)).toContain("unsupported-transform");
   });
 
   test("a display attribute is hidden only by `none` between CSS whitespace", () => {
-    // A browser drops a value padded with a no-break space, so the drawing shows.
     const PADDED = "M10,10H20V20H10Z";
     const SPACED = "M30,10H40V20H30Z";
     const STILL = "M50,10H60V20H50Z";
@@ -395,16 +369,13 @@ describe("morph bake: compositing and authored style", () => {
     expect(artifact.status).toBe("live");
     const drawn = artifact.parts.flatMap((p) => elements(p.svg));
     expect(drawn.map((e) => e.attributes["d"])).not.toContain(SPACED);
-    // A live drawing shows at rest with no display of its own.
     const live = drawn.find((e) => e.attributes["d"] === PADDED)!;
     expect(live.attributes["display"]).toBeUndefined();
     expect(live.attributes["style"] ?? "").not.toContain("display");
-    // A static drawing keeps the attribute as written, so it draws as in the artwork.
     expect(drawn.find((e) => e.attributes["d"] === STILL)?.attributes["display"]).toBe("\u00a0none");
   });
 
   test("a moving path keeps its authored data in the live part; a moving shape keeps its markup and moves on a path", () => {
-    // The upper open lash, written with relative commands and implicit repeats.
     const authored = "m0 50c30-45 70-45 100 0-30-25-70-25-100 0z";
     const svg = art(lash(authored) + lash(LOWER_OPEN), LASH_CLOSED);
     const artifact = bake(svg, recipe());
@@ -415,8 +386,6 @@ describe("morph bake: compositing and authored style", () => {
     expect(live.some((e) => e.attributes["d"] === authored)).toBe(true);
     const moving = new Set(artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" ? [t.draw] : []))));
     expect(live.filter((e) => moving.has(e.attributes["data-morph"] ?? "")).every((e) => e.tagName === "path")).toBe(true);
-    // An unpaired ellipse that scales stays an ellipse, and its frames
-    // draw on a path written right after it.
     const scaled = bake(art(LASHES_OPEN + `<ellipse data-name="glint" cx="50" cy="40" rx="4" ry="3" fill="#fff"/>`, LASH_CLOSED), recipe({ fallback: "scale" }));
     const scale = scaled.segments[0]!.transitions.find((t) => t.kind === "scale")!;
     const scaledLive = elements(scaled.parts.find((p) => p.kind === "live")!.svg);
@@ -431,7 +400,6 @@ describe("morph bake: compositing and authored style", () => {
     for (const [shape, named] of [
       ['<ellipse data-name="glint" cx="50%" cy="50%" rx="10%" ry="10%" fill="blue"/>', 'cx="50%"'],
       ['<circle data-name="glint" cx="50" cy="40" r="1em" fill="blue"/>', 'r="1em"'],
-      // A browser drops a length padded with a no-break space.
       [`<circle data-name="glint" cx="50" cy="40" r="${String.fromCharCode(0xa0)}4" fill="blue"/>`, `r="${String.fromCharCode(0xa0)}4"`],
       ['<circle data-name="glint" cx="50" cy="40" r="4" style="r:8;fill:blue"/>', "style `r: 8`"],
     ] as const) {
@@ -441,13 +409,11 @@ describe("morph bake: compositing and authored style", () => {
         expect.objectContaining({ code: "unsupported-element", severity: "warning", layer: "glint" }),
       ]);
       expect(artifact.diagnostics[0]!.message, shape).toContain(named);
-      // It fades rather than scaling, and the live part writes it as authored.
       const transitions = artifact.segments[0]!.transitions;
       expect(transitions.some((t) => t.kind === "scale"), shape).toBe(false);
       const glint = elements(artifact.parts.find((p) => p.kind === "live")!.svg).find((e) => e.attributes["data-name"] === "glint")!;
       expect(glint.tagName, shape).toBe(shape.slice(1, shape.indexOf(" ")));
     }
-    // A path whose inline style replaces its data does not morph as its attribute says.
     const restyled = bake(art(lash(UPPER_OPEN, "eyelash-left", ' style="d:none"') + lash(LOWER_OPEN), LASH_CLOSED), recipe());
     expect(codes(restyled)).toContain("unsupported-element");
     expect(restyled.diagnostics.find((d) => d.code === "unsupported-element")!.message).toContain("style `d:");
@@ -457,7 +423,6 @@ describe("morph bake: compositing and authored style", () => {
     for (const attrs of [' style="transform:translate(5px,0)"', ' style="fill:#111;rotate:10deg"', ' transform="rotate(10)" transform-origin="50 50"']) {
       const artifact = bake(art(lash(UPPER_OPEN, "eyelash-left", attrs) + lash(LOWER_OPEN), LASH_CLOSED), recipe());
       expect(codes(artifact), attrs).toContain("unsupported-transform");
-      // The upper lash no longer morphs; the lower one still pairs.
       const morphs = artifact.segments[0]!.transitions.filter((t) => t.kind === "morph");
       expect(morphs.length, attrs).toBeLessThan(2);
     }
@@ -482,7 +447,6 @@ describe("morph bake: compositing and authored style", () => {
     const svg = art(
       LASHES_OPEN +
         `<path data-name="crease" d="${HIDDEN}" style="display:none !important"/>` +
-        // An important declaration wins over a later normal one, however it is spaced.
         `<path data-name="crease" d="${OUTRANKED}" style="display:none !important;display:inline"/>` +
         `<path data-name="crease" d="${SPACED}" style="display: none\t!\timportant;display:inline"/>` +
         `<g display="none" style="display:inline"><path data-name="crease" d="${SHOWN}"/></g>`,
@@ -500,7 +464,6 @@ describe("morph bake: compositing and authored style", () => {
   test("a copied resource brings what its original ancestors reference", () => {
     const defs = `<defs fill="url(#paint)"><linearGradient id="paint"><stop offset="0" stop-color="lime"/></linearGradient>
 <pattern id="tiles" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2"/></pattern></defs>`;
-    // The pattern is named by the drawing itself, or only by a group kept around it.
     for (const tile of [
       `<rect data-name="tile" width="10" height="10" fill="url(#tiles)"/>`,
       `<g fill="url(#tiles)"><rect data-name="tile" width="10" height="10"/></g>`,
@@ -510,7 +473,6 @@ describe("morph bake: compositing and authored style", () => {
       const part = artifact.parts.map((p) => elements(p.svg)).find((list) => list.some((e) => e.attributes["data-name"] === "tile"))!;
       const pattern = part.find((e) => e.tagName === "pattern")!;
       expect(pattern.attributes["id"]).toBe(`${artifact.idPrefix}tiles`);
-      // The pattern sits in a group repeating the defs' paint, which resolves in the part.
       expect(part.some((e) => e.attributes["fill"] === `url(#${artifact.idPrefix}paint)`)).toBe(true);
       expect(part.some((e) => e.tagName === "linearGradient" && e.attributes["id"] === `${artifact.idPrefix}paint`)).toBe(true);
     }
@@ -552,7 +514,6 @@ describe("morph bake: policies", () => {
     const blobs = art(`<path data-name="mark" d="M0,0H10V10H0Z"/>`, `<path data-name="mark" d="M0,0L12,0L12,12L6,16L0,12Z"/>`);
     const artifact = bake(blobs, recipe({ method: "match" }));
     expect(artifact.status).toBe("live");
-    // Once, though both the closing and the reopening segment try the pair.
     expect(artifact.diagnostics).toEqual([
       expect.objectContaining({ code: "method-failed", severity: "warning", uri: URI, layer: "mark" }),
     ]);
@@ -581,8 +542,6 @@ describe("morph bake: policies", () => {
   });
 
   test("a pair with no method is reported once per pair, though both directions try it", () => {
-    // Two pairs (upper and lower lash onto the closed one), each tried
-    // closing and again reopening.
     const artifact = bake(art(LASHES_OPEN, LASH_CLOSED), recipe({ method: undefined }));
     expect(codes(artifact).filter((c) => c === "missing-method")).toHaveLength(2);
   });
@@ -682,8 +641,6 @@ describe("morph bake: apertures that cannot be built", () => {
   });
 
   test("a reference to a drawing that moves on a carrier keeps the variant static", () => {
-    // One live part (the compositing group keeps the reference with the
-    // drawing); the ellipse scales on a path carrier while it is hidden.
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
 <g opacity=".9">
 <g data-name="eyes.open:default">${LASHES_OPEN}<ellipse id="dot" data-name="dot" cx="30" cy="40" rx="20" ry="20" fill="#f00"/><use data-name="copy" href="#dot" x="100"/></g>
@@ -694,7 +651,6 @@ describe("morph bake: apertures that cannot be built", () => {
     expect(artifact.status).toBe("static");
     expect(codes(artifact)).toEqual(["unsupported-element"]);
     expect(artifact.diagnostics[0]!.message).toContain("cannot follow");
-    // The same drawing unreferenced plays.
     const plain = bake(svg.replace(`<use data-name="copy" href="#dot" x="100"/>`, ""), recipe({ fallback: "scale" }));
     expect(codes(plain)).toEqual([]);
     expect(plain.status).toBe("live");
@@ -731,7 +687,6 @@ describe("morph bake: apertures that cannot be built", () => {
       lash(UPPER_OPEN, "eyelash-left", ` style="fill:#111 /* url(#gone) */;--text:'url(#gone)'"`) + lash(LOWER_OPEN),
       LASH_CLOSED,
     );
-    // The style is outside the grammar, so its refusal is the one diagnostic.
     expect(codes(bake(commented, recipe()))).toEqual(["unsupported-element"]);
   });
 
@@ -742,17 +697,12 @@ describe("morph bake: apertures that cannot be built", () => {
 });
 
 describe("morph bake: the edge names a clip accepts", () => {
-  // An eye drawn the way a real portrait's is: it closes onto the lower lid,
-  // so the closed upper lash sits just above the open lower lash and the
-  // closed lower lash further down. Every lash meets the others at its tips.
   const OPEN_TOP = "M0,50 C20,25 35,12 50,12 C65,12 80,25 100,50 C80,35 65,27 50,27 C35,27 20,35 0,50Z";
   const OPEN_BOTTOM = "M0,50 C20,62 35,68 50,68 C65,68 80,62 100,50 C80,75 65,82 50,82 C35,82 20,75 0,50Z";
   const CLOSED_TOP = "M0,62 C20,58 35,56 50,56 C65,56 80,58 100,62 C80,61 65,60 50,60 C35,60 20,61 0,62Z";
   const CLOSED_BOTTOM = "M0,62 C15,66 25,68 35,69 C45,70 55,70 65,69 C75,68 85,66 100,62 C80,72 65,78 50,78 C35,78 20,72 0,62Z";
   const ball = `<path data-name="eyeball" d="${EYEBALL}" fill="#fff"/>`;
   const named = (d: string, label: string, id: string) => lash(d, label, ` id="${id}"`);
-  // One morph for every portrait: some name both lashes `eyelash-right`,
-  // others name them top and bottom.
   const shared = recipe({ clips: [{ between: ["eyelash-right", "eyelash-top-right", "eyelash-bottom-right"], targets: ["eyeball"] }] });
   const pairsOf = (artifact: MorphArtifact) => {
     const live = artifact.parts.find((p) => p.kind === "live")!;

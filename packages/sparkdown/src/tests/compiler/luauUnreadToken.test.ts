@@ -1,10 +1,3 @@
-// A pure-Luau body or bracket never closes before its closer, a bail-out its
-// own end has (a body's beat) or the end of the input (#1905, slice S1 of
-// #1904). A token none of its patterns
-// reads is taken by `LuauUnreadToken`, the converter reads it as Luau's lexer
-// does, and every error of its statement is reported as Luau reports it,
-// with Luau's cascade. So the function keeps its own `end`, the story line
-// after it plays, and the errors are the official parser's.
 import { describe, expect, it, vi } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -18,8 +11,6 @@ import { checkerTextUnits } from "./luauCheckerText";
 
 const URI = "inmemory:///main.sd";
 
-// The pin of the type-checker port, which the converter follows (it reads
-// `export` inside a function as Luau does since that pin).
 const official = await loadOfficialLuau("typecheck");
 
 const withStart = (text: string) => (/^scene start\b/m.test(text) ? text : `${text}\nscene start\nend\n`);
@@ -41,7 +32,6 @@ const errorsOf = (program: any): string[] =>
     })
     .sort();
 
-/** The official parser's errors for some Luau, on the lines it stands on in the script. */
 const officialErrors = (luau: string, line = 0): string[] =>
   official(luau)
     .diagnostics.map(
@@ -82,7 +72,6 @@ function read(text: string): Reading {
 
 interface Case {
   text: string;
-  /** The function's name and its first and last lines (its `end`). */
   fn: [string, number, number];
   output: string;
   luau: string;
@@ -149,9 +138,6 @@ const CASES: Record<string, Case> = {
     output: "false\n",
     luau: "function f(a, b)\n  local x = a && b\n  local y = a != b\n  return x\nend\n",
   },
-  // The forms of #1199, #1329 and #1376 this slice fixes; their other forms
-  // stay open (the story form of #1199, a top-level or `store` attributed
-  // function, an intersection inside `<< >>`).
   "#1199 an if condition ending in a method colon, in a function": {
     text: "function f()\n  local flag = true\n  if flag:\n    print(1)\n  end\nend\nscene start\n  After.\nend\n",
     fn: ["f", 0, 5],
@@ -288,8 +274,6 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
     expect(reading.output).toBe("Value 1.\n");
   });
 
-  // The type checker reads neither body, so their lowerers report what it
-  // reports in a function's body, once each.
   it("a define's method and a sparkle handler's closure report Luau's errors as a function's body does", () => {
     const attribute = (line: number, at: number) => [
       `${line}:${at}-${line}:${at + 1} Attribute name is missing`,
@@ -305,7 +289,6 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
   });
 
   it("a method's errors are those of the function it stands for, its end included", () => {
-    // Luau reads the value after `then` up to the method's `end`.
     const body = "(c)\n    x = (if c)then\n  end\n";
     const asFunction = officialErrors(`function greet${body}`, 1);
     expect(asFunction).toContain("3:2-3:5 Expected identifier when parsing expression, got 'end'");
@@ -314,7 +297,6 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
   });
 
   it("a token no rule of a define's body reads is reported", () => {
-    // As in a function's body, at the same place.
     expect(read("define X with\n  !\nend\nscene start\n  After.\nend\n").errors).toEqual(
       read("function X()\n  !\nend\nscene start\n  After.\nend\n").errors,
     );
@@ -322,9 +304,6 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
   });
 });
 
-// The validator leaves to Luau's reading exactly the statements whose errors
-// the converter marks as Luau's to report (`markUnreadErrors`), so each error
-// is reported once, by one of them.
 describe("each error has one reader", () => {
   it("an unread token in a nested block leaves the statement around it to the validator", () => {
     const outer = "2:12-2:14 Expected type, got '='";
@@ -338,10 +317,7 @@ describe("each error has one reader", () => {
   });
 
   it("an alternator's arm holding a token no rule reads has the errors of its reading as an expression", () => {
-    // The type checker reads an alternator as a value of any type, not its
-    // arms; before, this line reported only a malformed interpolation.
     expect(read('scene start\n  Value {cycle "a" | ! | "b" end}.\nend\n').errors).toContain("1:21-1:22 Unexpected '!'; did you mean 'not'?");
-    // Inside a bracket of the arm too.
     for (const arm of ["(!true)", "{!true}", "tostring(!true)"]) {
       const line = `  Value {cycle "a" | ${arm} | "b" end}.`;
       const at = line.indexOf("!");
@@ -350,7 +326,6 @@ describe("each error has one reader", () => {
   });
 
   it("a sparkle closure's body and an alternator's arm are each one reading, recovery and nested functions included", () => {
-    // Luau's errors for `@ x = (if c)`, written as a function value's body.
     const luau = (at: number) => [
       `${0}:${at}-${0}:${at + 1} Attribute name is missing`,
       `${0}:${at + 2}-${0}:${at + 3} Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got 'x' instead`,
@@ -363,9 +338,6 @@ describe("each error has one reader", () => {
   });
 
   it("a sparkle closure's body is read as a function's body", () => {
-    // `export` and `...` are errors in a function's body, not a chunk's. The
-    // closure's `end` is implied where its body ends, so only where each
-    // error begins is compared.
     const starts = (errors: string[]) => errors.map((e) => e.replace(/-\d+:\d+ /, " "));
     for (const [statement, luau] of [
       ["export local x = 1", "local f = function() export local x = 1 end\n"],
@@ -387,7 +359,6 @@ describe("each error has one reader", () => {
     ]) {
       expect(read(luau).errors).toEqual(officialErrors(luau));
     }
-    // In a define's method, in either spelling, as in a function's body.
     for (const header of ["f()", "function f()"]) {
       for (const line of ["local x = @5", "local a, b = 1, @5"]) {
         const errors = read(`define X with\n  ${header}\n    ${line}\n  end\nend\n`).errors;
@@ -396,17 +367,11 @@ describe("each error has one reader", () => {
         expect(errors).toEqual(inFunction.map((e) => e.replace(/^1:/, "2:").replace(/-1:/, "-2:")));
       }
     }
-    // Inside an interpolation too, which the parser reads from tokens of its own.
     const interpolated = read("function f()\n  local s = `{function(@) end}`\nend\n").errors;
     expect(interpolated).toEqual(["1:23-1:24 Expected identifier when parsing variable name, got ''"]);
-    // The `end` a closure's reading writes after its body is no name written
-    // after a `@` right before the closure's `}`.
     const closure = (body: string) => read(`layout main with\n  button @click={ ${body}}\nend\n`).errors;
     expect(closure("local x = @")).toEqual(closure("local x = @ "));
     expect(closure("local x = @").join("\n")).not.toContain("@end");
-    // The grammar reads `@native` and `@[native]` as attributes
-    // (`LuauAttribute`, `LuauAttributeList`, #1924), so neither is an unread
-    // token; the type is still missing there, as Luau reports it.
     expect(read("function f()\n  local x: @native = 1\nend\n").errors).toContain(
       "1:11-1:18 attributes are not allowed in declaration context",
     );
@@ -416,9 +381,6 @@ describe("each error has one reader", () => {
   });
 
   it("a statement after Luau's recovery has ended keeps its own errors", () => {
-    // Luau's recovery from the attribute ends with `x = 1`, which it reads
-    // with no error, so the declaration after it reports what it reports
-    // written alone.
     const alone = read("function f(c)\n         local y = (if c)\nend\n").errors;
     expect(alone).toHaveLength(1);
     for (const before of ["@ x = 1; ", "@ x = 1  "]) {
@@ -426,7 +388,6 @@ describe("each error has one reader", () => {
       expect(errors).toContain(alone[0]);
       expect(errors.filter((e) => e.includes("Attribute name is missing"))).toEqual(["1:0-1:1 Attribute name is missing"]);
     }
-    // In a define's method too.
     const method = (line: string) => read(`define X with\n  greet(c)\n    ${line}\n  end\nend\n`).errors;
     const typeError = method("         local y: = 2");
     expect(typeError).toEqual(["2:21-2:23 Expected type, got '='"]);
@@ -450,7 +411,6 @@ describe("the syntax tree holds the whole function", () => {
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) top.push(node.name);
     expect(top.filter((n) => n !== "Newline")).toEqual(["LuauFunctionDefinition", "Scene", "ImplicitAction", "LuauEndKeyword"]);
     expect(errorNodes(tree)).toEqual([]);
-    // The list's own rule reads it since #1924 (`LuauAttributeList`).
     const at = tree.topNode.resolveInner(CASES["#921 a function marked with an attribute list"]!.text.indexOf("@"), 1);
     expect(at.name).toBe("LuauAttributeOperator");
   });
@@ -539,7 +499,6 @@ describe("an edit keeps the errors a cold compile reports", () => {
       const cold = errorsOf(compiler(text).compile({ textDocument: { uri: URI } } as never).program);
       expect(incremental, after).toEqual(cold);
     }
-    // The last text: the unread `@` makes its line's errors Luau's cascade.
     expect(errorsOf(c.compile({ textDocument: { uri: URI } } as never).program)).toEqual(officialErrors(text));
   });
 });

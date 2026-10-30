@@ -6,9 +6,6 @@ const DEFAULT_TRANSFORMERS = {
   "icon-size": getCssSize,
 };
 
-/**
- * Icons are symbols that can be used to represent various options within an application.
- */
 export default class Icon extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
   structuralAttributes = ["name"];
 

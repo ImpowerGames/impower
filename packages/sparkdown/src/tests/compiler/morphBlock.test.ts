@@ -6,7 +6,6 @@ import { compileSource } from "./compileSnapshot";
 
 const URI = "file:///main.sd";
 
-/** A portrait with folder-scoped eye defaults, lashes, eyeballs and posed layers. */
 const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="face.happy:default" id="happy">
   <g data-name="eyelash-left:eyes.open:default" id="la"/>
@@ -29,7 +28,6 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
 </g>
 </svg>`;
 
-/** The canonical example from the portrait-morph design (#565). */
 const BLINK = `morph blink with
   blend = morph
   method = bend
@@ -161,7 +159,6 @@ function diagnosticsOf(text: string, images?: Image[]): Found[] {
   });
 }
 
-/** Only the diagnostics the morph checks produce. */
 function morphDiagnostics(text: string, images?: Image[]): Found[] {
   return diagnosticsOf(text, images).filter((d) => d.code === "morph");
 }
@@ -267,8 +264,6 @@ end
 `,
       "m",
     );
-    // The list forms omit offsets, so only their normalized poses agree with
-    // the keyed form.
     expect(listed.keyframes[0].offset).toBeUndefined();
     expect(normalizeMorphKeyframes(listed.keyframes)).toEqual(keyed.keyframes);
 
@@ -715,7 +710,6 @@ end
   });
 });
 
-/** Wrap keyframe lines into an otherwise valid morph. */
 const BLINK_BRACED = `morph blink with
   blend = morph
   method = bend
@@ -759,7 +753,6 @@ const BLINK_BRACED = `morph blink with
 end
 `;
 
-/** Wrap brace keyframe entries into an otherwise valid morph. */
 const withBraceKeyframes = (keyframes: string, extra = "") => `morph m with
   method = match
 ${extra}  keyframes {
@@ -806,9 +799,6 @@ describe("morph blocks written with braces", () => {
     expect(found!.text).toBe(text);
   });
 
-  // The same keyframe cases as the indented table. Where the indented form
-  // reports a whole line (`- 0.5`, `eyes:`), the brace form reports the entry
-  // as it is written there (`0.5`, `eyes {`).
   test.each([
     [
       "a scalar shorthand pose",
@@ -909,7 +899,6 @@ describe("morph blocks written with braces", () => {
   });
 });
 
-/** An image whose eyes live in two folders with their own defaults. */
 const TWO_FOLDERS = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="face.happy:default" id="happy">
   <g data-name="lids:eyes.open:default" id="h-open"/>
@@ -978,7 +967,6 @@ describe("morph binding", () => {
     const bunny = binding.candidates.find((c) => c.image === "bunny")!;
     expect(bunny.compatible).toBe(true);
     const base = bunny.variants.find((v) => v.name === "bunny")!;
-    // Only the happy face is shown at rest, so only its open default counts.
     expect(base.status).toBe("active");
     expect(base.rest["eyes"]).toEqual({ "face.happy:default": "open" });
   });
@@ -1027,10 +1015,8 @@ describe("morph binding", () => {
   });
 
   test("a refinement is shown by its base artwork, but a base state is not invented from a refinement", () => {
-    // `open-wide` selects layers drawn for `open`, so this image can show it.
     const refined = SIMPLE_BLINK.replace("state = closed", "state = open-wide");
     expect(morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }])).toEqual([]);
-    // Artwork drawn only for `open-wide` cannot show a plain `open`.
     const wideOnly = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="lids:eyes.open-wide:default" id="wide"/>
 <g data-name="lids:eyes.closed" id="closed"/>
@@ -1049,7 +1035,6 @@ describe("morph binding", () => {
     expect(perImage).toHaveLength(1);
     expect(perImage[0]).toMatchObject({ line: 0, text: "blink" });
     expect(perImage[0]!.message).toContain("image `raffles`: its `eyes` group has no `closed` state");
-    // Another image has the state, so the state itself is not unknown.
     expect(found.find((d) => d.message.includes("No image's `eyes` group"))).toBeUndefined();
   });
 
@@ -1297,6 +1282,28 @@ end
     expect(recipeOf(child, "child").paints).toEqual(recipeOf(child).paints);
   });
 
+  test("`opacity = 0.4` and `opacity = 40%` give one recipe, alone or beside a colour", () => {
+    const decimal = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 0.4; span = 40% }"]);
+    const percent = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 40%; span = 40% }"]);
+    expect(morphDiagnostics(decimal)).toEqual([]);
+    expect(morphDiagnostics(percent)).toEqual([]);
+    expect(recipeOf(decimal).paints).toEqual([{ targets: ["eyeshadow-left", "eyeshadow-right"], state: "eyes.closed", span: 0.4, opacity: 0.4 }]);
+    expect(compile(percent).morphs!.recipes["m"]).toBe(compile(decimal).morphs!.recipes["m"]);
+    expect(recipeOf(PAINTED(["{ targets { lids }; state = eyes.closed; fill = red; opacity = 0 }"])).paints).toEqual([
+      { targets: ["lids"], state: "eyes.closed", span: 1, fill: "rgba(255,0,0,1)", opacity: 0 },
+    ]);
+  });
+
+  test("an opacity-only entry written without its braces is told an entry may set `opacity`", () => {
+    const found = paintErrors(PAINTED(["targets { eyeshadow-left }; state = eyes.closed; opacity = 0"]));
+    expect(found.length).toBeGreaterThan(0);
+    for (const d of found.filter((d) => d.message.includes("A `paints` entry is"))) {
+      expect(d.message).toContain("at least one of `fill`, `stroke` and `opacity`");
+    }
+    expect(found.some((d) => d.message.includes("A `paints` entry is"))).toBe(true);
+    expect(found.some((d) => d.message.includes("a `fill` or `stroke`:"))).toBe(false);
+  });
+
   test("equal colours give one recipe, and changing a colour changes the bake key", () => {
     const spelled = PAINTED([ENTRY.replace("#c9c9c9", "rgb(201 201 201)")]);
     expect(compile(spelled).morphs!.recipes["m"]).toBe(compile(PAINTED()).morphs!.recipes["m"]);
@@ -1318,7 +1325,10 @@ end
     ["the starting state", "{ targets { eyelash-left }; state = eyes.open; fill = red }", "eyes.open", "the state this morph starts from"],
     ["a bare `when`", "{ targets { eyelash-left }; state = eyes.closed; when = on; fill = red }", "on", "`when` names a state with its group"],
     ["a `when` naming a driven group", "{ targets { eyelash-left }; state = eyes.closed; when = eyes.open; fill = red }", "eyes.open", "which this morph drives"],
-    ["no `fill` or `stroke`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or a `stroke`"],
+    ["no `fill`, `stroke` or `opacity`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or `stroke` colour or an `opacity`"],
+    ["an `opacity` over 1", "{ targets { eyelash-left }; state = eyes.closed; opacity = 1.5 }", "1.5", "`opacity` is a number from 0 to 1"],
+    ["an `opacity` over 100%", "{ targets { eyelash-left }; state = eyes.closed; opacity = 140% }", "140%", "`opacity` is a number from 0 to 1"],
+    ["an unreadable `opacity`", "{ targets { eyelash-left }; state = eyes.closed; opacity = half }", "half", "`opacity` is a number from 0 to 1"],
     ["a `fill` that does not parse", "{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9z }", "#c9c9c9z", "is not a `fill` colour"],
     ["a `stroke` that names no colour of its own", "{ targets { eyelash-left }; state = eyes.closed; stroke = currentColor }", "currentColor", "is not a `stroke` colour"],
     ["a `span` over 100%", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 140% }", "140%", "`span` is a percentage from `0%` to `100%`"],
@@ -1328,19 +1338,22 @@ end
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ text, severity: 1 });
     expect(found[0]!.message).toContain(message);
-    // A rejected value leaves the entry out of the recipe rather than guessed at.
     if (!message.startsWith("Unknown") && !message.includes("belongs")) expect(recipeOf(PAINTED([entry])).paints).toBeUndefined();
   });
 
   test.each([
-    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
-    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
-    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n"), "duration: 3", "`duration:` does not set a field: write `duration = 3`."],
-    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }"), "state: open", "`state:` does not set a field: write `state = open`."],
-    ["a clip entry's label list", PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n"), "targets: pupil-left", "`targets:` does not set a field: write `targets { pupil-left }`."],
-    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n"), "fallback: scale", "`fallback:` does not set a field: write `fallback = scale`."],
-  ])("a field set with `:` in %s is reported on its line with its `=` form", (_, text, written, message) => {
-    expect(paintErrors(text)).toEqual([expect.objectContaining({ text: written, message })]);
+    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"])],
+    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"])],
+    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n")],
+    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }")],
+    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n")],
+  ])("a field set with `:` in %s is reported on its colon alone", (_, text) => {
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
+  });
+
+  test("a label list set with `:` in a clip entry is reported on its colon", () => {
+    const text = PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n");
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
   });
 
   test("a `paints` block missing its closing brace is reported on the brace", () => {

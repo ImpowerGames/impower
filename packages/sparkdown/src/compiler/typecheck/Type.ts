@@ -2,12 +2,6 @@
 // `TypePack.h` and their `.cpp` files at the commit pinned in
 // `src/tests/luau-conformance/upstream/typecheck-cases.json`. Luau is
 // MIT-licensed; see `LICENSE-luau.txt` in this directory.
-//
-// A type is a mutable cell (`Type`) holding one variant; the solver rewrites
-// cells in place, most often by binding one to another, so identity is
-// object identity and `follow` resolves bindings. Every cell also records the
-// order it was created in, which stands in for the allocation address Luau
-// orders some sets by.
 
 import type { AstExprCall, AstStatTypeFunction, DeprecatedInfo } from "./Ast";
 import type { BuiltinTypeFunctions } from "./BuiltinTypeFunctions";
@@ -17,10 +11,6 @@ import type { Location } from "./Location";
 import type { Scope } from "./Scope";
 import type { TypeChecker2 } from "./TypeChecker2";
 import type { TypeFunction, TypePackFunction } from "./TypeFunction";
-
-// ---------------------------------------------------------------------------
-// Polarity and levels
-// ---------------------------------------------------------------------------
 
 export const enum Polarity {
   None = 0b000,
@@ -76,7 +66,6 @@ export class TypeLevel {
 }
 
 let nextIndex = 0;
-/** Luau's `Unifiable::freshIndex`: a counter shared by free, generic and blocked types. */
 export function freshIndex(): number {
   return ++nextIndex;
 }
@@ -85,10 +74,6 @@ let nextErrorIndex = 0;
 let nextBlockedPackIndex = 0;
 let nextPendingExpansionIndex = 0;
 let nextSerial = 0;
-
-// ---------------------------------------------------------------------------
-// Type variants
-// ---------------------------------------------------------------------------
 
 export interface BoundType {
   readonly kind: "BoundType";
@@ -110,11 +95,6 @@ export interface FreeType {
   lowerBound: TypeId;
   upperBound: TypeId;
   polarity: Polarity;
-  /**
-   * Set when the free type stands for a string or boolean literal: it
-   * generalizes to its lower-bound singleton when its upper bound narrowed,
-   * or to this primitive otherwise.
-   */
   primitiveType?: TypeId;
 }
 
@@ -159,7 +139,6 @@ export interface BooleanSingleton {
 
 export interface StringSingleton {
   readonly kind: "StringSingleton";
-  /** The string's bytes, one character per byte. */
   value: string;
 }
 
@@ -191,16 +170,9 @@ export interface FunctionDefinition {
   originalNameLocation: Location;
 }
 
-/**
- * A builtin function's special handling, as Luau's `MagicFunction`: `infer`
- * runs when the solver dispatches a call to it, `refine` when a call to it is
- * a condition, and `typeCheck` when the checker reaches a call to it.
- */
 export interface MagicFunction {
-  /** Returns whether it inferred the call's result. */
   infer(context: MagicFunctionCallContext): boolean;
   refine?(context: MagicRefinementContext): void;
-  /** Returns whether it checked the call; otherwise the default checking runs. */
   typeCheck?(context: MagicFunctionTypeCheckContext): boolean;
 }
 
@@ -241,7 +213,6 @@ export interface FunctionType {
   hasNoFreeOrGenericTypes: boolean;
   isCheckedFunction: boolean;
   isDeprecatedFunction: boolean;
-  /** What the function's `@deprecated` attribute says. */
   deprecatedInfo?: DeprecatedInfo;
 }
 
@@ -263,9 +234,7 @@ export class TableIndexer {
 export class Property {
   deprecated = false;
   deprecatedSuggestion = "";
-  /** Where the property was inferred from an expression. */
   location?: Location;
-  /** Where the property was written in a type annotation. */
   typeLocation?: Location;
   tags: string[] = [];
   documentationSymbol?: string;
@@ -336,15 +305,10 @@ export class Property {
   }
 }
 
-/** Compares two strings by their UTF-16 code units, as `std::string` compares its bytes. */
 export function compareNames(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/**
- * A table's properties, iterated in name order as Luau's `std::map` iterates
- * them. Printed types list properties in this order.
- */
 export class Props implements Iterable<[string, Property]> {
   private readonly map = new Map<string, Property>();
   private sorted: [string, Property][] | undefined;
@@ -384,8 +348,6 @@ export class Props implements Iterable<[string, Property]> {
     if (!this.sorted) {
       this.sorted = [...this.map.entries()].sort((a, b) => compareNames(a[0], b[0]));
     }
-    // Callers may insert while iterating, as C++ code over std::map may not;
-    // a copy keeps iteration stable.
     return this.sorted.slice();
   }
 
@@ -412,7 +374,6 @@ export interface TableType {
   level: TypeLevel;
   scope: Scope | undefined;
   name?: string;
-  /** A name used only when printing, with no entry in the type namespace. */
   syntheticName?: string;
   instantiatedTypeParams: TypeId[];
   instantiatedTypePackParams: TypePackId[];
@@ -420,7 +381,6 @@ export interface TableType {
   definitionLocation?: Location;
   boundTo?: TypeId;
   tags: string[];
-  /** How many properties an unsealed table is still expected to gain. */
   remainingProps: number;
 }
 
@@ -449,16 +409,9 @@ export const enum TypeFunctionInstanceState {
   Stuck,
 }
 
-/**
- * Luau's `UserDefinedFunctionData`: the declaration of a user-defined type
- * function and the environment its evaluation sees. Luau also records how many
- * scopes up each name is declared, which only its VM reads.
- */
 export interface UserDefinedFunctionData {
   definition: AstStatTypeFunction;
-  /** Each type function visible to the body, by name. */
   environmentFunction: Map<string, AstStatTypeFunction>;
-  /** Each type alias the body names, by name. */
   environmentAlias: Map<string, TypeFun>;
 }
 
@@ -536,7 +489,6 @@ export type TypeKind = TypeVariant["kind"];
 export type VariantOf<K extends TypeKind> = Extract<TypeVariant, { kind: K }>;
 
 export class Type {
-  /** Creation order, standing in for Luau's allocation address. */
   readonly serial = ++nextSerial;
   owningArena: TypeArena | undefined;
   documentationSymbol?: string;
@@ -546,7 +498,6 @@ export class Type {
     public persistent = false,
   ) {}
 
-  /** Re-assigns the cell's contents in place, as `Type::reassign`. */
   reassign(rhs: Type): void {
     this.ty = rhs.ty;
     this.documentationSymbol = rhs.documentationSymbol;
@@ -554,10 +505,6 @@ export class Type {
 }
 
 export type TypeId = Type;
-
-// ---------------------------------------------------------------------------
-// Type pack variants
-// ---------------------------------------------------------------------------
 
 export interface BoundTypePack {
   readonly kind: "BoundTypePack";
@@ -588,7 +535,6 @@ export interface GenericTypePack {
   polarity: Polarity;
 }
 
-/** A rope of types: a head of known types, then an optional tail pack. */
 export interface TypePack {
   readonly kind: "TypePack";
   head: TypeId[];
@@ -598,7 +544,6 @@ export interface TypePack {
 export interface VariadicTypePack {
   readonly kind: "VariadicTypePack";
   ty: TypeId;
-  /** A hidden variadic is left out when the pack is printed. */
   hidden: boolean;
 }
 
@@ -644,10 +589,6 @@ export class TypePackVar {
 
 export type TypePackId = TypePackVar;
 
-// ---------------------------------------------------------------------------
-// Constructors
-// ---------------------------------------------------------------------------
-
 export function boundType(boundTo: TypeId): BoundType {
   return { kind: "BoundType", boundTo };
 }
@@ -673,11 +614,6 @@ export function freeTypeAtLevel(level: TypeLevel, lowerBound: TypeId, upperBound
   return { ...freeType(undefined, lowerBound, upperBound), level };
 }
 
-/**
- * A generic type. With a name it is an explicit generic; without one it takes
- * the synthetic name `g<index>` when it has no scope, as Luau's default
- * constructor does, and no name when it has a scope.
- */
 export function genericType(options: { scope?: Scope; name?: string; polarity?: Polarity; level?: TypeLevel } = {}): GenericType {
   const index = freshIndex();
   const hasName = options.name !== undefined;
@@ -876,18 +812,12 @@ export function typeFunctionInstanceTypePack(
   return { kind: "TypeFunctionInstanceTypePack", function: fn, typeArguments, packArguments };
 }
 
-// ---------------------------------------------------------------------------
-// Access
-// ---------------------------------------------------------------------------
-
-/** The variant of a type when it is of the given kind, as Luau's `get<T>`. */
 export function get<K extends TypeKind>(ty: TypeId | undefined, kind: K): VariantOf<K> | undefined {
   if (!ty) return undefined;
   const v = ty.ty;
   return v.kind === kind ? (v as VariantOf<K>) : undefined;
 }
 
-/** Whether a type is of any of the given kinds. */
 export function is(ty: TypeId | undefined, ...kinds: TypeKind[]): boolean {
   if (!ty) return false;
   return kinds.includes(ty.ty.kind);
@@ -913,7 +843,6 @@ export function getSingleton<K extends SingletonVariant["kind"]>(
   return st.variant.kind === kind ? (st.variant as Extract<SingletonVariant, { kind: K }>) : undefined;
 }
 
-/** Replaces a type's contents in place, as Luau's `emplaceType`. */
 export function emplaceType(ty: TypeId, variant: TypeVariant): TypeVariant {
   if (variant.kind === "BoundType" && follow(variant.boundTo) === ty) {
     throw new InternalCompilerError("emplaceType would bind a type to itself");
@@ -954,7 +883,6 @@ function advanceType(ty: TypeId, followLazy: boolean): TypeId | undefined {
   return undefined;
 }
 
-/** Follows bound types (and a table's `boundTo`, and lazy types) to the type they stand for. */
 export function follow(t: TypeId, followLazy = true): TypeId {
   let cycleTester: TypeId | undefined = t;
   const a = advanceType(cycleTester, followLazy);
@@ -984,7 +912,6 @@ function advancePack(tp: TypePackId): TypePackId | undefined {
   return undefined;
 }
 
-/** Follows bound packs, and packs with an empty head, to the pack they stand for. */
 export function followPack(tp: TypePackId): TypePackId {
   let cycleTester: TypePackId | undefined = tp;
   const a = advancePack(cycleTester);
@@ -1002,10 +929,6 @@ export function followPack(tp: TypePackId): TypePackId {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Arenas and the builtin types
-// ---------------------------------------------------------------------------
 
 export class TypeArena {
   readonly types: Type[] = [];
@@ -1043,7 +966,6 @@ export class TypeArena {
   }
 }
 
-/** A free type bounded by `never` and `unknown` (Luau's free `freshType` function). */
 export function freshType(arena: TypeArena, builtinTypes: BuiltinTypes, scope: Scope | undefined, polarity = Polarity.Unknown): TypeId {
   return arena.addType(freeType(scope, builtinTypes.neverType, builtinTypes.unknownType, polarity));
 }
@@ -1058,7 +980,6 @@ export interface GenericTypePackDefinition {
   defaultValue?: TypePackId;
 }
 
-/** A type alias: its type parameters, and the type they are substituted into. */
 export class TypeFun {
   constructor(
     public type: TypeId,
@@ -1068,16 +989,12 @@ export class TypeFun {
   ) {}
 }
 
-// `BuiltinTypeFunctions.ts` registers how to create the builtin type
-// functions as it loads. It depends on most of the checker, so importing it
-// here would put this module in an import cycle with all of those.
 let makeBuiltinTypeFunctions: (() => BuiltinTypeFunctions) | undefined;
 
 export function registerBuiltinTypeFunctions(make: () => BuiltinTypeFunctions): void {
   makeBuiltinTypeFunctions = make;
 }
 
-/** Luau's `BuiltinTypes`: the persistent types every module shares. */
 export class BuiltinTypes {
   readonly arena = new TypeArena();
   readonly nilType: TypeId;
@@ -1158,7 +1075,6 @@ export class BuiltinTypes {
 
   private _typeFunctions: BuiltinTypeFunctions | undefined;
 
-  /** The builtin type functions, such as `add` and `index`, created on first use. */
   get typeFunctions(): BuiltinTypeFunctions {
     if (!this._typeFunctions) {
       if (!makeBuiltinTypeFunctions) throw new InternalCompilerError("the builtin type functions are not loaded");
@@ -1176,11 +1092,6 @@ export class BuiltinTypes {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Predicates and helpers from Type.cpp
-// ---------------------------------------------------------------------------
-
-/** The members of a union or intersection, with nested ones flattened, as Luau's `TypeIterator`. */
 export function flatOptions(ty: UnionType | IntersectionType): TypeId[] {
   const kind = ty.kind;
   const result: TypeId[] = [];
@@ -1238,7 +1149,6 @@ export function isNumber(ty: TypeId): boolean {
   return isPrim(ty, PrimitiveKind.Number);
 }
 
-/** Whether a type is a subtype of string. */
 export function isString(ty: TypeId): boolean {
   ty = follow(ty);
   if (isPrim(ty, PrimitiveKind.String) || getSingleton(ty, "StringSingleton")) return true;
@@ -1247,7 +1157,6 @@ export function isString(ty: TypeId): boolean {
   return false;
 }
 
-/** Whether string is a subtype of a type. */
 export function maybeString(ty: TypeId): boolean {
   ty = follow(ty);
   if (isPrim(ty, PrimitiveKind.String) || get(ty, "AnyType")) return true;
@@ -1377,7 +1286,6 @@ export function isSubclass(cls: ExternType | undefined, parent: ExternType): boo
   return false;
 }
 
-/** The types a predicate maps each member of a union (or the type itself) to, as Luau's `filterMap`. */
 export function filterMap(type: TypeId, predicate: (ty: TypeId) => TypeId | undefined): TypeId[] {
   type = follow(type);
   const utv = get(type, "UnionType");
@@ -1425,7 +1333,6 @@ export function hasTypeInIntersection(ty: TypeId, kind: TypeKind): boolean {
 export function hasPrimitiveTypeInIntersection(ty: TypeId, primTy: PrimitiveKind): boolean {
   const tf = follow(ty);
   if (isPrim(tf, primTy)) return true;
-  // Luau returns after the first part.
   const first = flattenIntersection(tf)[0];
   return first !== undefined && isPrim(follow(first), primTy);
 }
@@ -1492,15 +1399,6 @@ export function persistPack(tp: TypePackId): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Type packs (TypePack.cpp)
-// ---------------------------------------------------------------------------
-
-/**
- * Walks the types at the head of a pack, through nested packs, as Luau's
- * `TypePackIterator`: `types` are the head types in order and `tail` the pack
- * the walk stopped at, when it is not a plain pack.
- */
 export function flatten(tp: TypePackId): { head: TypeId[]; tail: TypePackId | undefined } {
   const head: TypeId[] = [];
   let current: TypePackId | undefined = followPack(tp);
@@ -1516,7 +1414,6 @@ export function flatten(tp: TypePackId): { head: TypeId[]; tail: TypePackId | un
   }
 }
 
-/** The first pack a walk of the head reaches that is not a plain pack, or undefined for a finite pack. */
 export function packTail(tp: TypePackId): TypePackId | undefined {
   return flatten(tp).tail;
 }
@@ -1577,7 +1474,6 @@ export function isVariadicTail(tp: TypePackId, includeHiddenVariadics = false): 
   return vtp !== undefined && (includeHiddenVariadics || !vtp.hidden);
 }
 
-/** Whether a pack arose from a function declared variadic. */
 export function isVariadic(tp: TypePackId): boolean {
   const tail = flatten(tp).tail;
   if (!tail) return false;
@@ -1594,7 +1490,6 @@ export function containsNever(tp: TypePackId): boolean {
   return false;
 }
 
-/** The pack from `sliceIndex` on, given the pack already split into head and tail. */
 export function sliceTypePack(
   sliceIndex: number,
   toBeSliced: TypePackId,

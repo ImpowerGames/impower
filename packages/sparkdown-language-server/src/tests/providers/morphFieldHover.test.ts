@@ -50,6 +50,7 @@ const MORPH = `morph blink with
       when = mask.on
       fill = #c9c9c9
       stroke = red
+      opacity = 0
       span = 40%
     }
   }
@@ -60,13 +61,14 @@ fill = 2
 
 describe("morph field hover", () => {
   it("documents `paints` and each field of an entry", async () => {
-    expect(await hoverAt(MORPH, "paints {")).toEqual({ value: expect.stringContaining("Colours that layers take at one pose"), marked: "paints" });
+    expect(await hoverAt(MORPH, "paints {")).toEqual({ value: expect.stringContaining("Colours and opacities that layers take at one pose"), marked: "paints" });
     const fields: [string, string, string][] = [
-      ["targets {", "targets", "this entry recolours"],
+      ["targets {", "targets", "whose drawings this entry paints"],
       ["state = eyes.closed", "state", "The pose the colour belongs to"],
       ["when =", "when", "does not drive"],
       ["fill = #", "fill", "fill colour"],
       ["stroke =", "stroke", "stroke colour"],
+      ["opacity = 0", "opacity", "The opacity the drawings take at the pose"],
       ["span =", "span", "Default `100%`"],
     ];
     for (const [needle, marked, text] of fields) {

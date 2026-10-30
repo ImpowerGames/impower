@@ -12,11 +12,6 @@ import {
 } from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
 
-// Static struct reader for explicit block entries and layout elements.
-
-// The grammar's value tokens a scalar / array-item value lowers from (CSS-like
-// tokens, quoted strings, numbers, booleans). Read by name so the lowerer never
-// re-splits the raw line on `=`.
 const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "StringFieldValueInterpolated",
   "StringFieldValue",
@@ -28,7 +23,6 @@ const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "UnquotedStringFieldValue",
 ]);
 
-// The grammar's key tokens for a scalar property (`key = value`).
 const KEY_TOKEN_NAMES: ReadonlySet<string> = nodeNameSet([
   "BuiltinComponentName",
   "DeclarationScalarPropertyKey",
@@ -36,7 +30,6 @@ const KEY_TOKEN_NAMES: ReadonlySet<string> = nodeNameSet([
   "PropertyName",
 ]);
 
-// DFS in-order: the first descendant (or self) whose name is in `names`.
 function firstDescendant(
   node: SyntaxNode,
   names: ReadonlySet<string>,
@@ -59,15 +52,10 @@ const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleEventClosureAttribute",
 ]);
 
-// Spans of inline element attributes (`@event=…`, `#prop=…`) within a node, in
-// source order. Used to excise reactive attributes from the static struct text
-// (they are not part of the engine-consumed struct).
 function attributeRanges(node: SyntaxNode): TextEdit[] {
   return nodesOutsideAttributes(node, ATTRIBUTE_NAMES, true);
 }
 
-// The nodes named in `names` within `node`, outside its inline attributes (or,
-// with `attributes` set, the attributes themselves), as spans to remove.
 function nodesOutsideAttributes(
   node: SyntaxNode,
   names: ReadonlySet<string>,
@@ -91,12 +79,6 @@ function nodesOutsideAttributes(
   return ranges;
 }
 
-// The `.` of each `.name` class in an element's key, outside its attributes.
-// In a layout or component body the static struct keys an element by its tag
-// and classes separated by spaces (`mask.shadow_1` is keyed `mask shadow_1`,
-// as `mask shadow_1` is), because the engine splits struct paths on `.`. A
-// `.` the key already has whitespace before (`choice .0`) is dropped, so
-// the key is `choice 0` either way.
 function classDots(node: SyntaxNode): TextEdit[] {
   return nodesOutsideAttributes(node, CLASS_DOT_NAMES).map((r) => ({
     ...r,
@@ -106,10 +88,6 @@ function classDots(node: SyntaxNode): TextEdit[] {
 
 const CLASS_DOT_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparkleClassDot"]);
 
-// A node's source text with all inline-attribute spans removed, so the static
-// struct sees only the structural part (`column #gap=16` → `column `,
-// `button "Use" @click=x` → `button "Use" `). In a layout or component body
-// (`elementKeys`) a class's `.` reads as a space.
 function textWithoutAttributes(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -121,18 +99,13 @@ function textWithoutAttributes(
   ]);
 }
 
-/** A span of source text to replace. */
 interface TextEdit {
   from: number;
   to: number;
-  /** What the span reads as; removed when empty. */
   text?: string;
-  /** The span reads as one space, or as nothing after whitespace. */
   separator?: boolean;
 }
 
-// A node's source text with the given spans replaced (sorted defensively,
-// since callers may concatenate ranges from more than one source).
 function textExcluding(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -155,10 +128,6 @@ function textExcluding(
 }
 
 export interface StructBodyOptions {
-  /**
-   * The body is a `layout` or `component` body, whose elements are keyed by
-   * their tag and classes separated by spaces.
-   */
   elementKeys?: boolean;
 }
 
@@ -168,11 +137,9 @@ export function parseStructBody(
   options: StructBodyOptions = {},
 ): Record<string, unknown> {
   const result = evaluate(entries, ctx, !!options.elementKeys);
-  // A bare body (top-level array) is unusual for UI; coerce to object.
   return Array.isArray(result) ? { ...result } : result;
 }
 
-// Comments in an element's head, which are no part of its key.
 const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauLineComment",
   "LuauBlockComment",
@@ -180,23 +147,15 @@ const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauStructBlockSlashComment",
 ]);
 
-// A piece of an element's text: the source from `node.from` to `to`, read
-// with `edits` applied.
 interface ElementSegment {
   node: SyntaxNode;
   to: number;
   edits: TextEdit[];
-  /** The node the value is looked for in, if any. */
   value: SyntaxNode | null;
 }
 
-// An event closure that goes on at the next line, which a segment's text
-// never holds: it is an attribute, and it spans lines.
 const CLOSURE_ATTRIBUTE = "LuauSparkleEventClosureAttribute";
 
-// Segments read as one line. Segments that follow one another directly are
-// one run, read as one range with all their edits, so an element written on
-// one line reads exactly as its own text did; runs are joined with a space.
 function joinSegments(
   segments: ElementSegment[],
   read: (from: SyntaxNode, edits: TextEdit[], to: number) => string,
@@ -222,8 +181,7 @@ function joinSegments(
 function elementSegments(entry: StructEntry): ElementSegment[] {
   const part = (node: SyntaxNode): ElementSegment =>
     node.name === CLOSURE_ATTRIBUTE
-      ? // The closure alone: the run of parts after its `}` follows it as a
-        // segment of its own.
+      ?
         { node, to: sparkleClosureAttributeEnd(node), edits: [], value: null }
       : {
           node,
@@ -238,7 +196,6 @@ function elementSegments(entry: StructEntry): ElementSegment[] {
   const segments: ElementSegment[] = [];
 
     const element = entry.shape;
-    // Its name and a call's arguments, read as written.
     const { beginTo } = sparkleElementParts(element);
     segments.push({ node: element, to: beginTo, edits: [], value: null });
     for (const node of sparklePartNodes(element)) segments.push(part(node));
@@ -258,8 +215,6 @@ function evaluateElement(
       joinSegments(
         segments
           .filter((s) => s.node.name !== CLOSURE_ATTRIBUTE)
-          // Content in later continuation/closure segments is not part of
-          // the key, even when the first value came from an earlier run.
           .map((s) => value && s.value ? {
             ...s,
             edits: [...s.edits, ...nodesOutsideAttributes(s.node, FIELD_VALUE_NAMES)],
@@ -312,11 +267,6 @@ function evaluate(
         if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
       }
     } else if (entry.kind === "header") {
-      // Nested brace block — covers `key { … }`, `> selector { … }`,
-      // `@breakpoint { … }`, and element headers with inline attributes
-      // (`column #gap=16 { … }`). The key is the header text before `{`, with any
-      // `@event`/`#prop` attributes excised so the static struct keys on the
-      // structural part only.
       const key = entry.key
         ? textWithoutAttributes(entry.key, ctx).trim()
         : "";
@@ -324,7 +274,6 @@ function evaluate(
         ? evaluate(entry.children, ctx, elementKeys)
         : {};
     } else if (entry.kind === "property") {
-      // `key = value` → scalar. Key + value read from the grammar tokens.
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
       const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
@@ -334,12 +283,6 @@ function evaluate(
   return arr ?? obj;
 }
 
-// An element's key in a layout or component body with each run of spaces and
-// tabs outside a quoted run read as one space, and trimmed, so removing an
-// attribute, a comment or a class's `.` never leaves two spaces between its
-// parts (`image @click=go .b` and `choice .0` are keyed `image b` and
-// `choice 0`, as `image.b @click=go` and `choice.0` are). The engine splits
-// element keys on single spaces.
 function oneSpace(key: string): string {
   let out = "";
   let quote = "";
@@ -361,36 +304,19 @@ function oneSpace(key: string): string {
   return out.trim();
 }
 
-// Read a value node's text. Interpolation-aware content strings and plain
-// content strings keep their surrounding quotes here so `parseScalar` (the
-// shared value coercion) strips them and processes escapes uniformly; all other
-// value tokens (numbers, CSS funcs, struct refs) come through as raw text.
-// A value with a trailing comment reads only its value node.
 function readValue(value: SyntaxNode, ctx: LowerContext): string {
   const node = structValueNode(value);
   return ctx.read(node.from, node.to).trim();
 }
 
-// A two-part struct reference: `<type>.<name>` where BOTH parts are bare
-// identifiers (e.g. `image.ui_dialogue_box`, `font.courier_prime_sans`).
-// Anchored + identifier-only so it never matches numbers (`1.5`), units
-// (`0.5cqh`), ratios (`1341/381`), or CSS functions (`translateY(-100%)`).
 const STRUCT_REFERENCE_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
 
 function parseScalar(raw: string): unknown {
   const s = raw.trim();
   if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
-    // Quoted string literal: strip quotes and process escapes. The line-based
-    // body can't carry a literal newline, so multi-line values (e.g. a CSS
-    // `font_family` stack) are written on one line with `\n` escapes; unescape
-    // them here so the value round-trips. Mirrors lowerExpression's string
-    // escape handling.
     return unescapeString(s.slice(1, -1));
   }
-  // `true` / `false` parse to booleans (Luau keywords). No CSS value is the
-  // bare word `true`/`false`, so this is safe — and lets `$recursive = true`
-  // round-trip as a boolean rather than the string "true".
   if (s === "true") {
     return true;
   }

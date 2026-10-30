@@ -92,102 +92,45 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 
-/** One body of the statement being written: which body it is, the id of
- *  its sequence, and its lines. */
 export interface BlockInput {
-  /** The body as its lowering recorded it (`BodyShape`). */
   body: object;
   sequenceId: number;
-  /** The lines of the owner's parts between the body above (or the
-   *  statement's first line) and this body. */
   headLines: number;
-  /** The body's first line in its script, counting from 0. */
   firstLine: number;
-  /** The lines the body spans. */
   span: number;
-  /** For a function's body, the function: the chunk exports its symbol at
-   *  entry code that binds its parameters,
-   *  declares the locals the lowering hoisted to the top of its body
-   *  (`FunctionInput.hoisted`), and enters the body. */
   fn?: FunctionInput;
 }
 
-/** A function whose body is a block of the statement being written. */
 export interface FunctionInput {
-  /** The function's symbol: its qualified name's for a function declared at
-   *  the top level, and an anonymous one the statement owns otherwise. */
   symbol: number;
-  /** Its parameters, first to last, the captured variables a closure's
-   *  lowering prepends to them included. */
   params: readonly { name: string; vararg: boolean; rootSlot?: string | null }[];
-  /** What its entry runs after binding its parameters: the
-   *  `local NAME = nil` declarations the lowering hoisted to the top of its
-   *  body. */
   hoisted: readonly ParsedObject[];
-  /** Its own source range, which covers its entry code. */
   range: DebugMetadata | null;
 }
 
-/** What the writer needs to emit one statement's chunk. */
 export interface StatementInput {
-  /** The statement's parsed objects, in the order the statement runs them. */
   objects: readonly ParsedObject[];
-  /** The statement's own source range, which covers its code where no
-   *  object of it has a range of its own. Lines count from 1, as the parsed
-   *  hierarchy's debug metadata holds them after assembly. */
   range: DebugMetadata | null;
-  /** The statement's first line in its script, counting from 0. The line
-   *  table is relative to it. */
   firstLine: number;
-  /** The statement's source text, from which a row's line end is read. */
   source: string;
-  /** The text the statement's fingerprint hashes, read from the script's
-   *  parse (`compiler/utils/fingerprintSource.ts`). */
   fingerprint: string;
-  /** The id the chunk store gives the chunk. */
   chunkId: number;
-  /** The bodies of a block statement, in the order it runs them. */
   blocks?: readonly BlockInput[];
-  /** The column at which a line of the statement's script ends, for a row
-   *  that ends where a body begins. */
   lineEnd?: (line: number) => number;
-  /** Set for the definition of a function declared at the top level, whose
-   *  chunk is only entered through the function's symbol: it has no code of
-   *  its own before the function's entry. */
   definesOnly?: boolean;
 }
 
-/** What the writer needs to emit a declaration statement's chunk. */
 export interface DeclarationInput extends StatementInput {
-  /** The globals the statement declares, in the order they initialize, each
-   *  with the name it is assigned under. */
   globals: readonly { name: string; assignment: VariableAssignment }[];
 }
 
-/** A statement the writer emitted. */
 export interface EmittedStatement {
   chunk: ProgramChunk;
-  /** The values the emission recorded with `recordRead`, in order. */
   reads: readonly string[];
-  /** The resolutions the emission recorded with `recordResolution`, each
-   *  once, sorted. */
   resolutions: readonly string[];
-  /** The names of the facts the code read about each symbol it refers to
-   *  (`fact`), which its reference table row hashes with the values read. */
   facts: ReadonlyMap<number, readonly string[]>;
 }
 
-// The presentation of the `choose` block being written (section 4): each
-// choice it raises, with the label its `Choice` targets, its count symbol and
-// whether that is a named choice's label symbol. A choice an `if` gates has
-// its body in its branch (`body`). An entry runs at the depth of scopes its
-// choice was raised at (`scopes`), which holds the scopes of the branches
-// around it, and closes them after the body. A choice continues at `join`
-// when one is set, the `then` clause of the innermost block written in the
-// preamble that it belongs to and that has one, and otherwise at the block's
-// end. Each such clause (`clauses`) runs after the entries, at the depth of
-// scopes its block stands at, and continues where a choice of the block
-// around it does.
 interface ChooseState {
   entries: {
     choice: Choice;
@@ -205,13 +148,9 @@ interface ChooseState {
     join: ProgramLabel | null;
   }[];
   join: ProgramLabel | null;
-  /** The block's end, `T`. */
   end: ProgramLabel;
 }
 
-// A loop whose body is the chunk's own code (`inlinedBodies`), while its body
-// is written: the depth of scopes its `break` and `continue` leave at, and
-// the code each jumps to.
 interface InlineLoop {
   loop: LoopShape;
   scopes: number;
@@ -219,7 +158,6 @@ interface InlineLoop {
   next: ProgramLabel;
 }
 
-// A block of the chunk being written, as its `EnterBlock` left it.
 interface BlockState {
   entered: boolean;
   flags: number;
@@ -228,44 +166,19 @@ interface BlockState {
   break: ProgramLabel | null;
 }
 
-// A name the compiler generates, which it numbers by document order
-// (`SparkdownCompiler.canonicalizeSyntheticFlowNames`). A chunk names such a
-// temporary by its own count (`__t$<n>`), so an edit that renumbers it
-// leaves the chunk as it was. Both forms hold a `$`, which no identifier can
-// contain, so an author's variable keeps its name whatever its shape.
 const GENERATED_NAME = NUMBERED_SYNTHETIC_NAME;
 
-/**
- * `BinaryProgramWriter` emits a statement's chunk from the statement's parsed
- * objects (docs/engine/binary-program.md, sections 1 and 3). Strings and
- * numbers are interned in the persistent `ProgramTable`, so a chunk minted in
- * one compile reads the same in the next.
- *
- * A block statement's code enters each of its bodies with `EnterBlock`; the
- * statements of a body are chunks of their own, which the store writes. A
- * name the compiler generated for a statement (a loop's hidden temporaries,
- * a multiple assignment's stashed values, a method call's receiver) is given
- * a name of the chunk's own, so that the chunk's content does not depend on
- * where its statement stands in the document.
- *
- * A statement that holds a construct the writer has no emit path for throws
- * `UnsupportedConstruct`, which names the construct.
- */
 export class BinaryProgramWriter implements ProgramEmitter {
-  /** How many chunks this writer has emitted. */
   emitted = 0;
 
   protected _code: number[] = [];
   protected _rows: number[] = [];
   protected _reads: string[] = [];
   protected _resolutions: string[] = [];
-  /** Each symbol the code refers to, in the order it first did, with the
-   *  facts it read about the symbol and the value each read. */
   protected _references = new Map<number, Map<string, string>>();
   protected _layout: string[] = [];
   protected _firstLine = 0;
 
-  /** The statement's source text, and its lines once a row asks for them. */
   protected _source = "";
   protected _sourceLines: string[] | undefined;
   protected _blocks: readonly BlockInput[] = [];
@@ -278,24 +191,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _ranges: (DebugMetadata | null)[] = [];
   protected _exports: number[] = [];
   protected _definesOnly = false;
-  /** The alternators' symbols, in the order the chunk writes them. */
   protected _alternators: number[] = [];
-  /** The anonymous symbols of the choices the chunk raises, in order. */
   protected _choices: number[] = [];
-  /** The `choose` block whose presentation is being emitted. */
   protected _choose: ChooseState | null = null;
-  /** The loops whose bodies are being written as the chunk's own code,
-   *  innermost last. */
   protected _inlineLoops: InlineLoop[] = [];
 
-  /** `facts` reads one fact about a symbol from the symbol table of the
-   *  program being built (its kind, a function's parameters), as `fact`
-   *  records it; the chunk store reads the same function when it decides
-   *  whether a chunk can be reused. `symbolOf` gives the symbol of a
-   *  function (a `FlowBase`) of the program being built, or nothing for one
-   *  it does not define. `alternatorOf` gives the anonymous symbol of an
-   *  alternator of the statement being written, which the store hands on
-   *  when the statement is emitted again. */
   constructor(
     public readonly table: ProgramTable,
     public facts: (symbol: number, name: string) => string = () => "",
@@ -312,24 +212,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return this.finish(input);
   }
 
-  /** A declaration statement's chunk: each global's initializer, then its
-   *  declaration as a global under the name the object engine's `global
-   *  decl` container assigns it. The globals of one `store` with several
-   *  names (`statementGlobals`) evaluate every value, left to right, and only
-   *  then declare, as Luau does, so a later value that reads an earlier name
-   *  sees it unassigned (I-1409); each value group leaves its first value on
-   *  top, so the groups declare last first. The values after a store's last
-   *  name (`discarded`) are evaluated after its own and popped. A store's
-   *  call that spreads to the names after it (`spreadTo`) is evaluated once
-   *  and unpacked, and its values declare its own global and then each of
-   *  those names; a name the statement does not declare (one the story
-   *  refused as a duplicate) drops its value. The story names the global
-   *  whose value runs by the declarations before it; where those have not
-   *  run yet, a `DeclareValue` names it. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
     const { globals } = input;
-    // The globals the story has counted as declared where a value starts.
     let declared = 0;
     for (let i = 0; i < globals.length; ) {
       const statement = globals[i]!.assignment.statementGlobals;
@@ -439,26 +324,16 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return {
       chunk,
       reads: this._reads,
-      // Each once: the code can write an object more than once (an
-      // unbracketed choice label is the choice's text and the chosen line),
-      // and `resolutionsOf` reads each object once.
       resolutions: [...new Set(this._resolutions)].sort(),
       facts,
     };
   }
-
-  // ------------------------------------------------------- ProgramEmitter
 
   emit(op: number, arg = 0, aux = 0, flags = 0): void {
     if (aux < 0 || aux > AUX_MAX || arg !== (arg | 0)) {
       this.unsupported(`an operand of ${OP_NAMES[op] ?? op}`);
     }
     this._code.push(encodeWord0(op, flags, aux), arg);
-    // A method call's name changes only the error a missing method raises,
-    // not where an offset resumes or what the stack holds, and the `Str` of
-    // its lookup already lays the name out: the layout leaves it out, so a
-    // save written before calls named their method still places inside the
-    // statement (I-1412).
     if (op === Op.CallValue) {
       this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
     } else {
@@ -499,16 +374,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emit(op, 0, 0, flags);
   }
 
-  /** A `break` or `continue`. Inside a loop whose body is the chunk's own
-   *  code, the `EndScope`s before it have closed the scopes down to the
-   *  loop's, and it jumps to the loop's exit or its next pass; the code after
-   *  the jump, which only a jump could reach, is counted at the depth it
-   *  stood at before those `EndScope`s, written where no instruction runs,
-   *  so the depth read in order stays that of the code around it (section 1).
-   *  Elsewhere it is `Leave`, which leaves the blocks up to the loop's
-   *  body. One that leaves such a loop from a block of the statement (a
-   *  choice's body or a `then` clause, which run after the loop has ended)
-   *  is named. */
   emitLoopExit(divert: object, exit: "break" | "continue"): void {
     const target = inlineExitOf.get(divert as ParsedObject);
     if (!target) {
@@ -526,7 +391,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.alignScopes(before);
   }
 
-  /** A label bound to the next instruction. */
   protected here(): ProgramLabel {
     return { offset: this._code.length };
   }
@@ -552,8 +416,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return this.string(local);
   }
 
-  /** Gives the generated variable `name` the chunk-local name `local` (a
-   *  loop's hidden temporaries). */
   protected aliasVariable(name: string, local: string): void {
     this._names.set(name, local);
   }
@@ -621,19 +483,11 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._exports.push(symbol, this._code.length);
   }
 
-  /** Emits `EnterBlock` for the body `body` of the statement, as block
-   *  `flags` says (`BLOCK_LOOP`). Its resume offset is the next instruction
-   *  until `blockResume` says otherwise. Returns the block's index. */
   protected enterBlock(body: object, flags = 0): number {
     const k = this._blocks.findIndex((block) => block.body === body);
     if (k < 0 || this._blockStates[k]?.entered) {
       this.unsupported("a body the statement does not record");
     }
-    // A choice is never raised from a body's own chunk, which does not hold
-    // its entry (section 4): the body of a `do` block or a loop of a
-    // `choose` block's preamble that offers choices is the statement's own
-    // code (`inlinedBodies`), and a body that is still a block here is
-    // named.
     if (
       this._choose &&
       heldObjectsOf(body as Parameters<typeof heldObjectsOf>[0]).some(
@@ -655,12 +509,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return k;
   }
 
-  /** Sets where the owner resumes when block `block`'s sequence runs out. */
   protected blockResume(block: number, label: ProgramLabel): void {
     this._blockStates[block]!.resume = label;
   }
 
-  /** Sets where a `break` inside loop body `block` resumes the owner. */
   protected blockBreak(block: number, label: ProgramLabel): void {
     this._blockStates[block]!.break = label;
   }
@@ -701,11 +553,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
           (param.rootSlot ? SET_ROOT_SLOTTED : 0),
       );
     }
-    // A scene's or a branch's parameter keeps the cell of its binding in the
-    // root frame's slot for it, as a `local` there does
-    // (`VariableAssignment.EmitRootSlot`), after every parameter's
-    // `SetVar`: the entry's run of them is what reads its parameters back
-    // (`entryParameters`, `entryBindings`).
     for (const param of params) {
       if (param.rootSlot) {
         this.emit(Op.VarPtr, this.variable(param.name));
@@ -714,10 +561,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** Binds a function's parameters from the evaluation stack, last first as
-   *  the arguments were pushed, then runs what the lowering hoisted to its
-   *  entry: the locals hoisted to the top of its body
-   *  (`FunctionInput.hoisted`). */
   protected emitParameters(
     params: FunctionInput["params"],
     hoisted: readonly ParsedObject[],
@@ -728,14 +571,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** The entry code of each function the statement writes, after the
-   *  statement's own code, which jumps past it: the chunk exports the
-   *  function's symbol where its entry binds the parameters, last first as
-   *  the arguments were pushed, declares the
-   *  locals the lowering hoisted to the top of the body, and enters the body. The body's end resumes the
-   *  entry at a return of nothing, as a function that runs off its end
-   *  returns. A top-level function's definition has no code before its
-   *  entry. */
   protected emitFunctionEntries(): void {
     const entries = this._blocks
       .map((block, k) => (block.fn && !this._blockStates[k]?.entered ? k : -1))
@@ -749,8 +584,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const fn = block.fn!;
       this._ranges.push(fn.range);
       this.row(fn.range);
-      // After the `Jump` past the entries or the `Return` of the entry
-      // above, where no instruction runs.
       this.alignScopes(0);
       this._exports.push(fn.symbol, this._code.length);
       this.emitParameters(fn.params, fn.hoisted);
@@ -768,27 +601,13 @@ export class BinaryProgramWriter implements ProgramEmitter {
     throw new UnsupportedConstruct(construct);
   }
 
-  // ------------------------------------------------------ statement lists
-
-  /** Emits the objects of a statement in order: a loop's objects as the
-   *  loop's chunk code, a `do` block's scope around its body, and a
-   *  `LineStart` ahead of every display call that starts a beat. */
   emitObjects(objects: readonly ParsedObject[]): void {
     for (let i = 0; i < objects.length; i += 1) {
       const obj = objects[i]!;
       if (obj instanceof Choice) {
-        // A choice is raised by the code of the `choose` block that offers
-        // it. What follows a choice an `if` of the block's preamble gates in
-        // its branch, up to the next choice, is its body, which the deleted object
-        // engine's weave nests in the choice, and then what the branch
-        // closes (its scope), which closes here, where the branch ends, as
-        // Luau closes a block's scope (`emitChoicePoint`).
         if (!this._choose) {
           this.unsupported(obj.typeName);
         }
-        // The body ends at the next choice, or at a `do` block or a loop
-        // whose body raises one, which is the statement's own code too
-        // (`inlineChoiceBranches`).
         let end = i + 1;
         while (
           end < objects.length &&
@@ -797,9 +616,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
         ) {
           end += 1;
         }
-        // A label between two such choices makes the later one a choice the
-        // object engine raised only once the earlier is taken, which its
-        // weave reaches through the label.
         if (
           end < objects.length &&
           objects.slice(i + 1, end).some((part) => part instanceof Gather)
@@ -822,7 +638,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
       }
       const body = bodyOfBlock.get(obj);
       if (body) {
-        // A `do` block: its scope, its body, and the scope's end.
         const objectsOfBody = heldObjectsOf(body);
         this.requireHeld(objectsOfBody, objects);
         this.expect(
@@ -831,9 +646,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
         );
         this.emitObject(obj);
         if (inlinedBodies.has(body)) {
-          // A body that offers a presentation's choices, or leaves a loop
-          // whose body is, is the statement's own code (section 4), up to
-          // its end, where the scope's end follows.
           this.emitObjects(objectsOfBody);
         } else {
           this.enterBlock(body);
@@ -841,10 +653,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
         i += objectsOfBody.length;
         continue;
       }
-      // Every display call that does not continue the line before it starts
-      // a beat, which its `LineStart`, under the call's own line row, names.
-      // A call whose text begins with `..` (`continues`) joins that beat
-      // instead.
       this.emitObject(
         obj,
         obj instanceof FunctionCall &&
@@ -854,9 +662,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** Emits the content of a conditional's branch: the objects of its body,
-   *  which are the statements of a block, as one `EnterBlock`, and the rest
-   *  as the owner's code. */
   emitBranchBody(branch: object): void {
     const content = branchContent(branch as ConditionalSingleBranch);
     const body = bodyOfBlock.get(branch as ParsedObject);
@@ -868,7 +673,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.requireHeld(objectsOfBody, content);
     let start = objectsOfBody.length
       ? content.indexOf(objectsOfBody[0]!)
-      : // An empty body stands inside the branch's scope.
+      :
         content.findIndex(isBeginScope) + 1;
     this.expect(
       start >= 0 &&
@@ -880,24 +685,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObjects(content.slice(start + objectsOfBody.length));
   }
 
-  // -------------------------------------------------------------- choose
-
-  /**
-   * A `choose` block as one chunk (docs/engine/binary-program.md, section 4):
-   *
-   *   the preamble and each choice's text, condition and `Choice`, an `if`
-   *   that gates a choice a jump around it; Done (the hold); Jump T;
-   *   A: Visit #a; the chosen line; EnterBlock (the choice's body); the
-   *   scopes of the branches around the choice closed; Jump T; ...; the
-   *   `then` clauses of blocks written in the preamble; T: Visit (the `then`
-   *   label); EnterBlock (the `then` clause)
-   *
-   * A choice's count is an anonymous symbol of the statement, which the
-   * chunk store hands on to the choice it aligns with by its own source, or
-   * a named choice's label symbol, which its entry exports. The `Done` ends
-   * the presentation: it stops only when a choice this chunk raised waits,
-   * so a block whose choices were all gated off runs on into its end.
-   */
   emitChoose(weaveObject: object): void {
     const weave = weaveObject as ParsedObject;
     const content = weave.content;
@@ -917,15 +704,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._choose = null;
     this.emit(Op.Done, 0, 0, DONE_HOLD);
     this.jumpBack(Op.Jump, end);
-    // A gated branch's scope closes where the branch ends, as Luau closes a
-    // block's, so the scopes open at every offset of the presentation follow
-    // from the code before it. An entry runs at the depth its choice was
-    // raised at (its body's row records it), which holds the scopes of the
-    // branches around the choice: the choice's thread was forked inside
-    // them, so its body reads their locals. The entry closes them after the
-    // body, down to the depth of where it continues: the `then` clause of a
-    // block written in the preamble, at the depth that block stands at, or
-    // the block's end, at the depth the presentation ends at.
     const depth = this._scopes;
     const depthAt = (join: ProgramLabel | null) =>
       join
@@ -957,9 +735,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitThenClause(gather);
   }
 
-  /** A `then` clause where it runs: the `Visit` its label exports, when it
-   *  has one, and its body as a block, under a line table row of its own
-   *  (`clauseRangeOf`). */
   protected emitThenClause(gather: Gather): void {
     this.withRange(this.clauseRangeOf(gather), () => {
       if (gather.name) {
@@ -977,8 +752,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
   }
 
-  /** Closes the scopes open past `scopes`, the depth of the code a choice's
-   *  entry or a clause continues at. */
   protected closeScopes(scopes: number): void {
     this.expect(this._scopes >= scopes, "a choice's scopes");
     while (this._scopes > scopes) {
@@ -986,13 +759,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** Makes the scopes the code before the next instruction opens `scopes`,
-   *  the depth that instruction runs at, by `BeginScope` or `EndScope`
-   *  written where no instruction runs, right after a `Jump` and before the
-   *  label a jump or a choice reaches the instruction by. The depth at an
-   *  offset is the count read in order (section 1), and an entry or a
-   *  clause, which only a jump reaches, runs at the depth of the code that
-   *  jumps there, not that of the code above it. */
   protected alignScopes(scopes: number): void {
     while (this._scopes < scopes) {
       this.emit(Op.BeginScope);
@@ -1002,29 +768,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /**
-   * A `choose` block written in another block's preamble (a `Weave` that is
-   * no block of its own), as part of that block's presentation: its choices
-   * are raised with the other block's, as Luau runs a block where it is
-   * written. A choice of its own, or one an `if` of it gates, belongs to it,
-   * and when it has a `then` clause, continues there after its body; the
-   * clause runs after the entries (`emitChoose`), at the depth of scopes the
-   * block stands at, so it reads the locals of the branches around the
-   * block, and continues where a choice of the block around it continues: at
-   * that block's clause, or at the end of the `choose` block it is part of.
-   * A choice of a block with no clause continues where a choice of the
-   * block around it does. Three such blocks, one in another's preamble, run
-   * clause after clause, each once, after a choice of the innermost.
-   */
   emitPreambleChoose(weaveObject: object): void {
     const weave = weaveObject as ParsedObject;
     if (!this._choose) {
       this.unsupported("Choice");
     }
     const content = weave.content;
-    // The block's `then` clause is the gather whose body the lowering
-    // recorded; a block whose choices are all inside a loop of its preamble
-    // can end with that loop's own exit label instead.
     const last = content[content.length - 1];
     const gather =
       last instanceof Gather && choiceBodyOf.has(last) ? last : null;
@@ -1034,10 +783,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const scopes = this._scopes;
     const label: ProgramLabel | null = gather ? { offset: -1 } : null;
     presentation.join = label ?? outer;
-    // The items as one list, as `emitChoose` writes its own, so that a `do`
-    // block or a loop of this block's preamble, whose objects are items of
-    // their own, is written whole (#1503). A choice of the block holds its
-    // body in its own content, so only choices follow it in the list.
     this.emitObjects(items);
     presentation.join = outer;
     this.expect(this._scopes === scopes, "a block of a presentation");
@@ -1046,12 +791,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** A choice's presentation: its start text and its choice-only text, each
-   *  captured with its tags, its condition, and the `Choice` that raises it,
-   *  whose target is its entry. `inline` is what follows a choice an `if`
-   *  gates in its branch, up to the next choice: its body, which its entry
-   *  enters, and then what the branch closes (its scope), which the caller
-   *  emits where the branch ends and which this returns. */
   protected emitChoicePoint(
     choice: Choice,
     inline: readonly ParsedObject[],
@@ -1113,10 +852,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return rest;
   }
 
-  /** A choice's entry after its `Visit`: its own content (the chosen line
-   *  and its arrow) and its body as a block. The body of a choice of the
-   *  block's own is the end of its content; `branchBody` is the body of a
-   *  choice an `if` gates, which follows it in its branch. */
   protected emitChoiceEntry(choice: Choice, branchBody: object | undefined): void {
     const content = choice.innerContent.content;
     if (!branchBody) {
@@ -1132,7 +867,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.enterBlock(branchBody, BLOCK_CHOICE);
   }
 
-  /** The anonymous symbol that counts a choice of the statement. */
   protected choiceSymbol(choice: Choice): number {
     const symbol = this.alternatorOf(choice);
     if (!this._choices.includes(symbol)) {
@@ -1141,9 +875,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return symbol;
   }
 
-  /** Emits `content`, whose last objects are the statements of `body` when
-   *  one is given: the objects before them as the statement's own code, and
-   *  the body as a block (`flags`). */
   protected emitWithBody(
     content: readonly ParsedObject[],
     body: object | undefined,
@@ -1167,13 +898,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.enterBlock(body, flags);
   }
 
-  /** The range a `then` clause's own code stands under: its gather's, or,
-   *  for a gather the parse gave no range of its own, the lines of the part
-   *  that heads the clause (the `then` line, with its label), so that the
-   *  clause's label and its entry have a line table row of their own, which
-   *  counts from the end of the body above it and reports the clause's line
-   *  after an edit inside that body (docs/engine/binary-program.md, section
-   *  1, Layout). The row starts at the line's first column. */
   protected clauseRangeOf(gather: Gather): DebugMetadata | null {
     const own = gather.ownDebugMetadata as DebugMetadata | null;
     if (own) {
@@ -1193,7 +917,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     } as DebugMetadata;
   }
 
-  /** Runs `emit` under a line table row of `range`, when one is given. */
   protected withRange(range: DebugMetadata | null, emit: () => void): void {
     if (range) {
       this._ranges.push(range);
@@ -1206,11 +929,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  // --------------------------------------------------------------- loops
-
-  /** A loop as one chunk: its hidden temporaries, the test of each pass as a
-   *  decision, its body as a loop block whose natural end resumes where the
-   *  next pass starts and whose `break` resumes after the loop. */
   protected emitLoop(loop: LoopShape): void {
     switch (loop.kind) {
       case "while":
@@ -1224,7 +942,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  // The body objects of a loop, and the content of the loop's test branch.
   protected loopParts(loop: LoopShape): {
     body: ParsedObject[];
     test: readonly ParsedObject[];
@@ -1238,9 +955,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return { body, test };
   }
 
-  /** Names the first object of a body that the statement's code does not
-   *  hold: a definition the compiler moves out of the code it is written
-   *  in, as it moves a function defined inside a block. */
   protected requireHeld(
     body: readonly ParsedObject[],
     held: readonly ParsedObject[],
@@ -1251,7 +965,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  // Whether `list` is `before`, then `body`, then `after`.
   protected matches(
     list: readonly ParsedObject[],
     before: readonly ParsedObject[],
@@ -1268,14 +981,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     );
   }
 
-  // `while cond do BODY end`, whose body runs each pass in a scope of its
-  // own:
-  //   head: cond; JumpIfFalse exit (a decision); Newline; BeginScope;
-  //   EnterBlock 0 (a loop body in a pass scope, which resumes at head);
-  //   EndScope (never runs); exit:
-  // or, with a body that is the statement's own code (`emitLoopBody`):
-  //   head: cond; JumpIfFalse exit; Newline; BeginScope; BODY; EndScope;
-  //   Jump head; exit:
   protected emitWhile(loop: LoopShape): void {
     const [gather, breakGather] = loop.objects as [Gather, Gather];
     const { body, test } = this.loopParts(loop);
@@ -1293,9 +998,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const exit = this.emitTest(loop.test);
     this.emitObject(begin);
     if (inlinedBodies.has(loop.body)) {
-      // The body as the chunk's own code: the pass scope closes after it,
-      // and the next pass starts at the test. A `break` or `continue` closes
-      // the pass scope before it leaves.
       this.emitInlineLoopBody(loop, body, this._scopes - 1, exit, head);
       this.emit(Op.EndScope);
       this.jumpBack(Op.Jump, head);
@@ -1303,25 +1005,12 @@ export class BinaryProgramWriter implements ProgramEmitter {
       return;
     }
     const k = this.enterBlock(loop.body, BLOCK_LOOP | BLOCK_PASS_SCOPE);
-    // The pass scope is closed where the owner resumes, by the engine at the
-    // body's end or by the body's `break` or `continue`. The `EndScope`
-    // after the `EnterBlock` never runs, since the body resumes the owner at
-    // the test and a `break` at the exit, past it: it makes the count read in
-    // order the depth at the exit (section 1), which code after the loop in
-    // the same chunk, such as a `choose` block's preamble, stands at.
     this.emit(Op.EndScope);
     this.blockResume(k, head);
     this.bind(exit);
     this.blockBreak(k, exit);
   }
 
-  // `for i = a, b, c do BODY end`:
-  //   BeginScope; the hidden index, stop and step; head: cond; JumpIfFalse
-  //   exit; Newline; i = index; EnterBlock 0 (resumes at step); step: index
-  //   += step; Jump head; exit: EndScope
-  // (BODY in place of the `EnterBlock` when it is the statement's own code,
-  // `emitLoopBody`; so for the two loops below, the `for ... in` body then
-  // followed by `Jump head`).
   protected emitFor(loop: LoopShape): void {
     const [begin, , , , loopGather, stepGather, breakGather, end] =
       loop.objects as ParsedObject[];
@@ -1363,11 +1052,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(end!);
   }
 
-  // `for k, v in f, s, c do BODY end`:
-  //   BeginScope; iterator, state and control, then `__adjust_iter`; head:
-  //   the call of the iterator into the loop variables; `v1 == nil`;
-  //   JumpIfFalse next (a decision); Newline; Jump exit; next: control = v1;
-  //   EnterBlock 0 (resumes at head); exit: EndScope
   protected emitForIn(loop: LoopShape): void {
     const [begin, init, adjust, loopGather, breakGather, end] =
       loop.objects as ParsedObject[];
@@ -1407,8 +1091,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(init!);
     this.emitObject(adjust!);
     const head = this.here();
-    // The iterator is a value called with the state and the control: a
-    // builtin iterator, a builtin, or a function.
     const callValue = iterator as CallValueExpression;
     for (const arg of callValue.args) {
       this.emitObject(arg);
@@ -1428,9 +1110,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(end!);
   }
 
-  // `repeat BODY until cond`:
-  //   BeginScope; head: EnterBlock 0 (resumes at test); test: not cond;
-  //   JumpIfFalse exit (a decision); Newline; Jump head; exit: EndScope
   protected emitRepeat(loop: LoopShape): void {
     const [begin, loopGather, continueGather, breakGather, end] =
       loop.objects as ParsedObject[];
@@ -1460,12 +1139,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emitObject(end!);
   }
 
-  /** A loop's body: as a loop block whose natural end resumes the owner at
-   *  `next` and whose `break` resumes it at `exit`, or, when the body is the
-   *  statement's own code (`inlinedBodies`, a body of a `choose` block's
-   *  preamble that offers choices), inline, its `break` and `continue`
-   *  jumping to `exit` and `next`. Inline, the body's natural end runs on
-   *  into the code after it, which the caller writes. */
   protected emitLoopBody(
     loop: LoopShape,
     body: readonly ParsedObject[],
@@ -1481,10 +1154,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.blockBreak(k, exit);
   }
 
-  /** The objects of a loop's body as the chunk's own code (section 4): a
-   *  choice they raise is raised by this chunk, whose entry it holds. A
-   *  `break` or `continue` of the loop, which closes the scopes down to
-   *  `scopes` first, jumps to `exit` or `next` (`emitLoopExit`). */
   protected emitInlineLoopBody(
     loop: LoopShape,
     body: readonly ParsedObject[],
@@ -1499,9 +1168,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.expect(this._scopes === depth, "a loop's body");
   }
 
-  /** A loop's test: its condition, a jump past the pass when it is false,
-   *  which is a decision as a conditional divert is, and the newline a
-   *  branch that is not inline starts with. Returns the jump's label. */
   protected emitTest(test: ConditionalSingleBranch): ProgramLabel {
     this.expect(
       !!test.ownExpression &&
@@ -1524,12 +1190,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  // -------------------------------------------------------------- internals
-
-  /** Starts a line table row at the next instruction for `range`, unless the
-   *  row in effect already covers that range. A row that covers no
-   *  instruction yet gives way to the new one. A range below one of the
-   *  statement's bodies counts from the end of that body. */
   protected row(range: DebugMetadata | null): void {
     if (!range) {
       return;
@@ -1549,23 +1209,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
         base = end;
       }
     });
-    // A row covers the statement's own parts: a range that runs into a body
-    // below its start (a loop's objects span the whole loop) ends with the
-    // line before the body, and one that runs on through a body starting on
-    // its first line (a closure written after the start of its statement,
-    // whose body goes on below) ends with that line, so that an edit inside
-    // the body changes no row.
     let end = range.endLineNumber - 1;
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
-    // A range that takes its last line's break (a dialogue block's does)
-    // ends at the start of the next line, which holds none of it: it ends
-    // with the line before, as the object engine's locations did, so that a
-    // reader of the last line of a location (the preview's executed-line
-    // label and ranges, the editor's selection after STOP) reads the line
-    // the object engine gave it. That line's end was read from the script
-    // when the statement can read it (a block statement can, whose source
-    // has its bodies cut out), and otherwise from the statement's own
-    // source, which is whole.
     if (endColumn === 0 && end > start) {
       end -= 1;
       if (this._lineEnd) {
@@ -1573,8 +1218,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
       } else if (this._blocks.length === 0) {
         const lines = (this._sourceLines ??= this._source.split("\n"));
         const text = lines[end - this._firstLine];
-        // The first line of the source starts at the statement's column,
-        // which the source does not say, so it gives no column.
         endColumn =
           end === this._firstLine || text === undefined
             ? 0
@@ -1641,11 +1284,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  /** A symbol as the layout hash reads it: its qualified name, or for an
-   *  anonymous symbol of one of this statement's functions or alternators,
-   *  the ordinal of that part among the statement's parts of its kind
-   *  (section 1). An anonymous symbol of another statement's function reads
-   *  as such. */
   protected describeSymbol(symbol: number): string {
     if (!isAnonymousSymbol(this.table, symbol)) {
       return JSON.stringify(this.table.symbols[symbol]);
@@ -1667,8 +1305,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected assemble(input: StatementInput): ProgramChunk {
     const code = this._code;
     const rows = this._rows;
-    // The rows after the last instruction cover nothing, except the first row
-    // of a statement that has no code.
     while (
       rows.length > LINE_ROW_WORDS &&
       rows[rows.length - LINE_ROW_WORDS]! >= code.length
@@ -1708,7 +1344,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
     const fingerprint = hash64(input.fingerprint);
     chunk[H_FINGERPRINT] = fingerprint[0];
     chunk[H_FINGERPRINT + 1] = fingerprint[1];
-    // The export table is read as its symbols name, like the code.
     const layout = hash64(
       [
         ...this._layout,
@@ -1735,23 +1370,17 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 }
 
-/** The content of a conditional's branch, as its inner weave holds it. */
 export const branchContent = (
   branch: ConditionalSingleBranch,
 ): readonly ParsedObject[] =>
   (branch as unknown as { _innerWeave: { content: ParsedObject[] } | null })
     ._innerWeave?.content ?? [];
 
-/** Whether `obj` raises a choice of the presentation it stands in: it is a
- *  choice, or holds one outside a `choose` block of its own. */
 const raisesChoice = (obj: ParsedObject): boolean =>
   obj instanceof Choice ||
   ((obj as { isChooseBlock?: boolean }).isChooseBlock !== true &&
     (obj.content ?? []).some(raisesChoice));
 
-/** Whether `obj` starts a `do` block (its `BeginScope`) or a loop (its first
- *  object) whose body is the statement's own code and raises a choice of
- *  the presentation (`inlinedBodies`). */
 const opensChoices = (obj: ParsedObject): boolean => {
   const body = loopOf.get(obj)?.body ?? bodyOfBlock.get(obj);
   return (
@@ -1759,9 +1388,6 @@ const opensChoices = (obj: ParsedObject): boolean => {
   );
 };
 
-/** A multiple assignment's targets: its values unpacked to as many as it
- *  has targets, and each target assigned in order, the first first, as its
- *  own assignment records it. */
 export const emitTargets = (
   emitter: ProgramEmitter,
   assignment: MultiVariableAssignment,
@@ -1803,12 +1429,8 @@ const isConditionalOf = (
   obj.branches.length === 1 &&
   obj.branches[0] === branch;
 
-/** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
 
-/** The facts a chunk's code read about one symbol, as its reference table
- *  row hashes them: each name read with the value it read, by name, so that
- *  the hash does not depend on the order the code read them in. */
 export const factsText = (read: ReadonlyMap<string, string>): string => {
   if (read.size === 0) {
     return "";
@@ -1819,20 +1441,11 @@ export const factsText = (read: ReadonlyMap<string, string>): string => {
     .join("\n");
 };
 
-/** The hash of a reference whose code depends on no fact about its symbol
- *  (`referenceTarget`): the hash of no facts, which no symbol's facts read
- *  as. */
 export const NO_FACTS = factHash("");
 
-/** A number of the table as text, negative zero as `-0`, which `String`
- *  writes as `0`. */
 const numberText = (value: number): string =>
   Object.is(value, -0) ? "-0" : String(value);
 
-/** One instruction of `chunk`'s code as text, for a listing or a test. A
- *  symbol reads as its qualified name; an anonymous one that the chunk
- *  exports as `function#<k>`, its export row, and another as `symbolName`
- *  describes it, or as `function`. */
 export const describeInstruction = (
   chunk: ProgramChunk,
   offset: number,
@@ -1899,7 +1512,6 @@ export const describeInstruction = (
     case Op.JumpIfFalse:
     case Op.JumpIfKeep:
     case Op.Choice:
-      // The target, as an offset in the chunk's code.
       return `${name} ${offset + 2 + arg}${flagText}`;
     case Op.Done:
       return flags & DONE_HOLD ? `${name} hold` : name;

@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
 
-// A `while` loop whose `do end` sits on one line has no
-// `LuauDoBlock_content` node; the loop must still lower its condition.
 describe("while loop with an empty one-line body", () => {
   test.each([
     "  while foo do end",

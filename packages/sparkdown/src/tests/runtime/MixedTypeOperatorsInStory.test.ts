@@ -1,13 +1,6 @@
-// I-1413: every expression in a script is Luau, so a story-level condition,
-// interpolation or choice condition compares and computes mixed-type operands
-// by Luau's rules, as a Luau body does: equality of different types is false,
-// arithmetic on a boolean and ordering of a number with a string raise.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// Runs the story to its first choice point or end and returns the text shown,
-// the choices offered and the errors `onError` received.
 function run(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);

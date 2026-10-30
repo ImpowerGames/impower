@@ -1,14 +1,3 @@
-// Guards against catastrophic regex backtracking in the sparkdown grammar
-// (issue #280). The ParentheticalLine pattern contained a star over
-// alternatives where one alternative was a NULLABLE whitespace star —
-// `(?:[=].*?[=]|[<].*?[>]|(?:[^\S\n\r])*)*` — which made a failing match
-// explore every partition of a whitespace run: ~15 SECONDS on a line with
-// 28 leading spaces (the chat-UI right-alignment shape). The fix gives the
-// whitespace arm exactly one admissible parse per run:
-// `(?:[^\S\n\r])+(?![^\S\n\r])` — byte-identical captures on every match
-// (verified by brute force over all short strings of the relevant alphabet),
-// linear-ish on failure.
-
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +11,6 @@ const GRAMMAR_PATH = join(
 
 const grammar = JSON.parse(readFileSync(GRAMMAR_PATH, "utf8"));
 
-/** Collect every regex-bearing string in the grammar (match/begin/end/while). */
 function collectPatterns(): { where: string; source: string }[] {
   const out: { where: string; source: string }[] = [];
   const walk = (node: unknown, path: string) => {
@@ -47,9 +35,6 @@ function collectPatterns(): { where: string; source: string }[] {
 
 describe("grammar regex safety (#280)", () => {
   test("no pattern quantifies a group containing a nullable whitespace-star alternative", () => {
-    // The exact bomb shape: an alternation arm `(?:[^\S\n\r])*` (nullable)
-    // inside a `*`- or `+`-quantified group. Nullable arms multiply the
-    // backtracking paths over whitespace runs combinatorially.
     const bombArm = String.raw`|(?:[^\S\n\r])*)`;
     const bombArmFirst = String.raw`((?:[^\S\n\r])*|`;
     const offenders = collectPatterns().filter(
@@ -69,10 +54,6 @@ describe("grammar regex safety (#280)", () => {
     const source = grammar.repository?.ParentheticalLine?.match;
     expect(source, "ParentheticalLine.match exists").toBeTruthy();
     const re = new RegExp(source, "muy");
-    // 28 leading spaces + no parenthetical: the pre-fix pattern took ~15s
-    // here; the fixed one takes microseconds. The generous bound keeps the
-    // assertion deterministic on slow CI while still failing catastrophic
-    // regressions by orders of magnitude.
     const line = " ".repeat(28) + "[Seen 7:21 PM]";
     re.lastIndex = 0;
     const t0 = performance.now();
@@ -83,8 +64,6 @@ describe("grammar regex safety (#280)", () => {
   });
 
   test("every grammar pattern completes quickly on whitespace-heavy adversarial lines", () => {
-    // Broad sweep: no pattern in the grammar should take pathological time
-    // on the shapes that detonate nullable-arm stars.
     const adversarials = [
       " ".repeat(28) + "[Seen 7:21 PM]",
       " ".repeat(28) + "x".repeat(20),
@@ -97,7 +76,7 @@ describe("grammar regex safety (#280)", () => {
       try {
         re = new RegExp(source, "muy");
       } catch {
-        continue; // engine tolerates uncompilable patterns; not our concern
+        continue;
       }
       for (const line of adversarials) {
         re.lastIndex = 0;

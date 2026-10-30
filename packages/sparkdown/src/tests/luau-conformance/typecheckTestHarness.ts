@@ -46,11 +46,6 @@ import { diagnosticMessage } from "./diagnosticTestHarness";
 
 export type LuauMode = "strict" | "nonstrict" | "nocheck";
 
-/**
- * A diagnostic about the snippet. Lines and columns count from 0 within the
- * snippet as the test writes it, as Luau's `Location` does, so an upstream
- * location compares directly.
- */
 export interface LuauDiagnostic {
   module?: string;
   line: number;
@@ -58,17 +53,13 @@ export interface LuauDiagnostic {
   endLine: number;
   endColumn: number;
   message: string;
-  /** The Luau error kind (`TypeErrorData` in Luau's `Error.h`); `SyntaxError` for a parse error. */
   code: string;
-  /** The error's fields, named as its Luau struct names them, with types printed. */
   data?: Record<string, unknown>;
-  /** Reprints genuine error type fields with per-field options. */
   fields?(
     options: Record<string, LuauToStringOptions>,
   ): Record<string, unknown>;
 }
 
-/** The `ToStringOptions` a type is printed with. */
 export interface LuauToStringOptions {
   exhaustive?: boolean;
   useLineBreaks?: boolean;
@@ -83,10 +74,6 @@ export interface LuauToStringOptions {
   maxTypeLength?: number;
 }
 
-/**
- * A step into a type: a table property's read type, a function's argument or
- * result, a table indexer's key or result, or a type alias's type parameter.
- */
 export type TypePathStep =
   | { property: string }
   | { argument: number }
@@ -98,12 +85,6 @@ export type TypePathStep =
   | { instantiatedTypeParameter: number }
   | { instantiatedTypePackParameter: number };
 
-/**
- * Which type a query is about: a module-level binding (Luau's
- * `requireType`), a type alias in the module's scope (`lookupType`), or the
- * type of the expression at a position (`requireTypeAtPosition`), followed by
- * an optional path into it.
- */
 export type TypeSelector = (
   | { type: string }
   | { global: string }
@@ -127,7 +108,6 @@ export type TypeSelector = (
   | { diagnosticType: [index: number, field: string] }
   | { typeAt: [line: number, column: number] }
   | { expectedTypeAt: [line: number, column: number] }
-  /** The module's return pack; a first result path step selects an entry. */
   | { moduleReturn: true }
 ) & { path?: TypePathStep[]; module?: string; normalized?: true };
 
@@ -138,25 +118,16 @@ export interface PackFacts {
 }
 export type LocationTuple = [number, number, number, number];
 
-/** A type the checker found. */
 export interface CheckedType {
-  /** The type printed as Luau's `toString` prints it. */
   print(options?: LuauToStringOptions): string;
-  /** The Luau class of the type (`PrimitiveType`, `FunctionType`, ...), after following bound types. */
   kind: string;
-  /** Whether this is the same type as another, as comparing Luau `TypeId`s is. */
   is(other: CheckedType): boolean;
-  /** Whether this type is a subtype of another, in that direction. */
   subtypeOf(other: CheckedType): boolean;
-  /** For a function: the types at the head of its return pack. */
   results?: CheckedType[];
-  /** For a type alias: how many type parameters it declares. */
   typeParameterCount?: number;
-  /** For a table: how many properties it has. */
   propertyCount?: number;
   arguments?: PackFacts;
   returns?: PackFacts;
-  /** Facts after Luau flatten(), including the residual non-concrete tail. */
   flattenedArguments?: PackFacts;
   flattenedReturns?: PackFacts;
   hasSelf?: boolean;
@@ -175,30 +146,14 @@ export interface CheckedType {
 }
 
 export interface LuauCheckResult {
-  /**
-   * What Sparkdown found wrong with the snippet's syntax: its validator's
-   * diagnostics, the syntax errors its type checker reports (a type Luau's
-   * parser cannot read), and each place its parser read the snippet as
-   * something other than Luau.
-   */
   syntaxDiagnostics: LuauDiagnostic[];
-  /** Whether a type checker ran. */
   checked: boolean;
-  /** Every diagnostic for the snippet, syntax and type alike, as Luau's `CheckResult::errors`. */
   diagnostics: LuauDiagnostic[];
-  /**
-   * The type of a module-level binding, printed as Luau's `toString` prints
-   * it: `find({ type: name }).print(options)`.
-   */
   typeOf(name: string, options?: LuauToStringOptions): string;
-  /** The type a selector names. */
   find(selector: TypeSelector): CheckedType;
-  /** The source printed with all inferred annotations, as decorateWithTypes does. */
   decoratedSource(): string;
-  /** The compiler's own diagnostics for the snippet, including ones it only logs; not asserted. */
   compilerMessages: string[];
   moduleName?: string;
-  /** Parse diagnostics of every dependency/definition, in that source's own locations. */
   setupSyntaxDiagnostics?: LuauDiagnostic[];
   scopes?: {
     aliases: Record<string, LocationTuple>;
@@ -208,13 +163,7 @@ export interface LuauCheckResult {
 }
 
 export interface CheckLuauOptions {
-  /**
-   * The mode a snippet without its own directive is checked in. Luau's test
-   * fixture checks in strict mode unless a case asks for another, so that is
-   * the default here, although non-strict is Sparkdown's own default.
-   */
   mode?: LuauMode;
-  /** The upstream fixture, which decides the globals and types in scope. */
   fixture?: string;
   module?: string;
   moduleSources?: Record<string, string>;
@@ -224,7 +173,6 @@ export interface CheckLuauOptions {
   retainFullTypeGraphs?: false;
   flags?: Record<string, boolean>;
   clearModules?: true;
-  /** Explicit intentional fixture sharing; the caller owns its case-local lifetime. */
   session?: LuauCheckSession;
 }
 
@@ -239,22 +187,20 @@ export function createLuauCheckSession(): LuauCheckSession {
   return { modules: new Map() };
 }
 
-// Test-only parsing of declaration setup. Production loads prepared ASTs and never imports this oracle.
 const parseDefinitions = await loadOfficialLuau("typecheck");
 const upstreamPin = "7d5f73364fdbbaa984fa545071630eba73cfea98";
 
-/** Fixed settings are accepted only for explicitly audited equivalent code paths. */
 export function validateLuauFlags(
   flags: Record<string, boolean> = {},
   roots: AstStatBlock[] = [],
 ): void {
   const fixed: Record<string, boolean> = {
-    DebugLuauForceOldSolver: false, // Frontend.check only invokes the new solver.
-    DebugLuauMagicTypes: false, // No internal magic aliases are installed.
-    LuauAvoidTrivialPhis: true, // DataFlowGraph.joinScopes skips identical defs.
-    LuauStrictVisitInstantiatedType: true, // Generator records failed references; TypeChecker2 visits type arguments and checks them.
-    LuauNewTypePathErrorMessages: true, // TypeChecker2.explainReasonings traverses/render paths with metadata and enclosing negation.
-    LuauFixSuperNegationTypePaths: true, // Subtyping super-negation branches attach the Negated component at each leaf.
+    DebugLuauForceOldSolver: false,
+    DebugLuauMagicTypes: false,
+    LuauAvoidTrivialPhis: true,
+    LuauStrictVisitInstantiatedType: true,
+    LuauNewTypePathErrorMessages: true,
+    LuauFixSuperNegationTypePaths: true,
   };
   for (const [name, value] of Object.entries(flags)) {
     if (name === "LuauExportValueSyntax" && value === true) {
@@ -274,9 +220,6 @@ export function validateLuauFlags(
             return true;
           },
         });
-      // Pinned Parser.cpp's true branch reports const-lvalue errors through
-      // reportLValueError; readLuauAst does this unconditionally. This bounded
-      // equivalence does not authorize or claim value-export syntax support.
       if (hasConst && !hasValueExport) continue;
       throw new NotImplemented(
         `flag ${name}=${value}; only const declarations without value exports have audited equivalent syntax`,
@@ -289,7 +232,6 @@ export function validateLuauFlags(
   }
 }
 
-/** Thrown by a type query the harness cannot answer. */
 export class NotImplemented extends Error {
   constructor(what: string) {
     super(`not implemented: ${what}`);
@@ -300,7 +242,6 @@ export class NotImplemented extends Error {
 const SNIPPET_NAME = "snippet";
 const MAIN_URI = "inmemory:///main.sd";
 const SNIPPET_URI = `inmemory:///${SNIPPET_NAME}.luau`;
-// The name Luau's test fixture gives the module it checks.
 const MAIN_MODULE_NAME = "MainModule";
 
 function compileSource(source: string) {
@@ -327,7 +268,6 @@ function compileSource(source: string) {
       },
     ],
   });
-  // The compiler logs a diagnostic it cannot place instead of reporting it.
   const logged: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
     logged.push(
@@ -343,7 +283,6 @@ function compileSource(source: string) {
 
   const documents = compiler.documents;
   const wrapped = wrappedSnippet(documents, source);
-  // The compiler checks the snippet's types under the file's own URI, in its own lines.
   const syntaxDiagnostics = syntaxDiagnosticsOf(
     wrapped,
     documents,
@@ -354,8 +293,6 @@ function compileSource(source: string) {
   for (const d of program.diagnostics?.[wrapped.uri] ?? [])
     compilerMessages.push(diagnosticMessage(d));
 
-  // The checker reads the snippet as the compiler hands it over, with the
-  // globals of the upstream fixture the case names.
   const unit = runFileUnit(
     wrapped.uri,
     wrapped.document.getText(),
@@ -379,8 +316,6 @@ export function checkLuau(
     throw new Error("shared fixture session cannot change fixture");
   const frontend = session.frontend ?? freshFixtureFrontend(fixture);
   if (!frontend) {
-    // Without the fixture's globals nothing is checked: the snippet's parse
-    // still counts, and a type query says which fixture is missing.
     const missing = (): never => {
       throw new NotImplemented(`the globals of the fixture ${options.fixture}`);
     };
@@ -448,9 +383,6 @@ export function checkLuau(
     new Map<string, ReturnType<typeof compileSource>>());
   const traces = (session.traces ??=
     new Map<string, ReturnType<typeof traceFixtureRequires>>());
-  // Fixture::check marks its entry dirty on every call. Frontend::markDirty
-  // traverses reverse dependencies; retain their sources so rechecks use the
-  // current dependency interfaces instead of resurrecting cached importers.
   const markDirty = (name: string) => {
     const pending = [name];
     const dirty = new Set<string>();
@@ -496,8 +428,6 @@ export function checkLuau(
       throw new NotImplemented(`cyclic named module graph involving ${name}`);
     visiting.add(name);
     try {
-      // Frontend's parsed require graph checks dependencies even when a magic
-      // call later rejects its arguments. Unknown sources keep UnknownRequire.
       for (const dependency of pinnedModuleDependencyOrder(
         requires.get(name) ?? [],
       ).reverse())
@@ -521,9 +451,6 @@ export function checkLuau(
   };
   frontend.moduleResolver = resolver;
   const checked = checkModule(entry)!;
-  // Fixture::check dirties the entry. Pinned Frontend::parseGraph uses LIFO
-  // dependency postorder; check appends only freshly checked module errors,
-  // without cached getCheckResult's source sorting.
   const allErrors: LuauTypeError[] = [];
   const reachable: ReturnType<typeof checkLuauUnit>[] = [];
   const seen = new Set<string>();
@@ -670,18 +597,8 @@ export function describeDiagnostic(d: LuauDiagnostic): string {
   return `${d.line}:${d.column}-${d.endLine}:${d.endColumn} ${d.code}: ${d.message}`;
 }
 
-// Luau's errors for a type that is missing or cannot begin where one must stand.
 const MISSING_TYPE_ERROR = /^Expected type, got /;
 
-/**
- * The syntax errors Luau's parser port reports for a snippet (`diagnostics`
- * of `checkLuau`), described, in the order of where each begins, those that
- * begin together by their text: every one, Luau's recovery's included, as
- * Sparkdown reports every one in a `.luau` file (I-1322). Compare
- * `syntaxDiagnostics` in the same order. Sparkdown ends a missing type's
- * range that Luau runs on to a token on a later line with the line the type
- * is missing from (#1286).
- */
 export function luauSyntaxErrors(diagnostics: readonly LuauDiagnostic[]): string[] {
   return inDiagnosticOrder(
     diagnostics
@@ -690,43 +607,27 @@ export function luauSyntaxErrors(diagnostics: readonly LuauDiagnostic[]): string
   );
 }
 
-/**
- * Holds a snippet's syntax diagnostics to Luau's: every error Luau's parser
- * port reports (`luauSyntaxErrors`), the `listed` ones (described) among
- * them.
- */
 export function expectLuauSyntax(source: string, listed: readonly string[]): void {
   const result = checkLuau(source);
   expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(expect.arrayContaining([...listed]));
   expect(inDiagnosticOrder(result.syntaxDiagnostics)).toEqual(luauSyntaxErrors(result.diagnostics));
 }
 
-/** Diagnostics described, in the order of where each begins, those that begin together by their text. */
 export function inDiagnosticOrder(diagnostics: readonly LuauDiagnostic[]): string[] {
   return [...diagnostics]
     .sort((a, b) => a.line - b.line || a.column - b.column || (describeDiagnostic(a) < describeDiagnostic(b) ? -1 : 1))
     .map(describeDiagnostic);
 }
 
-// ---------------------------------------------------------------------------
-// Reading the snippet back out of the compiler
-// ---------------------------------------------------------------------------
-
 interface WrappedSnippet {
   uri: string;
   document: SparkdownDocument;
   tree: Tree;
-  /** Where the snippet starts in the wrapped document, and how many lines precede it. */
   offset: number;
   lineOffset: number;
   length: number;
 }
 
-// `run` compiles the file as a blank line, then `function <wrapper>()`, the
-// file's text, and `end`, in a declaration document of its own, and the
-// `run` statement calls the wrapper where it stands. Find the declaration and
-// check the snippet sits in it unchanged, so that a change to how `run` wraps
-// a file fails here rather than skewing every position.
 function wrappedSnippet(
   documents: SparkdownDocumentRegistry,
   source: string,
@@ -766,7 +667,6 @@ function wrappedSnippet(
   };
 }
 
-// Trivia and punctuation that may sit anywhere inside Luau code.
 const NEUTRAL_NODES = nodeNameSet([
   "Newline",
   "OptionalWhitespace",
@@ -789,15 +689,9 @@ const NEUTRAL_NODES = nodeNameSet([
   "PunctuationStringSingleQuoteClose",
 ]);
 
-// A string's or comment's contents are text, whatever the grammar calls them,
-// except the Luau inside a backtick string's braces.
 const TEXT_NODES = /^Luau\w*(String|Comment)$/;
 const LUAU_INTERPOLATION: SparkdownNodeName = "LuauBacktickStringInterpolation";
 
-// Braces in a string that Sparkdown reads as an expression and Luau does not
-// (DIVERGENCES.md): interpolation in a double-quoted string, and the
-// `{{name}}` call shorthand in either kind of string. Each names how the two
-// read them.
 const SPARKDOWN_STRING_EXPRESSIONS = new Map<string, string>(
   Object.entries({
     LuauDoubleQuotedStringInterpolation:
@@ -874,7 +768,6 @@ function syntaxDiagnosticsOf(
     );
     return found;
   }
-  // The wrapper must end at its own `end`, after the whole snippet.
   if (fn.to !== text.length - "\n".length) {
     const stray = top.find(
       (node) => node.from >= fn.to && !NEUTRAL_NODES.has(node.name),
@@ -911,8 +804,6 @@ function syntaxDiagnosticsOf(
     for (let child = node.firstChild; child; child = child.nextSibling)
       visit(child);
   };
-  // Within text, a backtick string's interpolation is read as Luau, and an
-  // expression only Sparkdown reads there, or an unfinished node, is reported.
   const visitInterpolations = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       const sparkdownReading = SPARKDOWN_STRING_EXPRESSIONS.get(child.name);
@@ -929,7 +820,6 @@ function syntaxDiagnosticsOf(
   };
   for (let child = fn.firstChild; child; child = child.nextSibling)
     visit(child);
-  // The parser can leave several unfinished nodes at one place.
   const distinct = new Map(found.map((d) => [describeDiagnostic(d), d]));
   return [...distinct.values()].sort(
     (a, b) => a.line - b.line || a.column - b.column,

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { editAndReparse, type Edit, replaceEdit } from "./incremental";
 
-// Builds a scene whose `choose ... then ... end` block has a large body, so the
-// "reparse the whole block on any in-body edit" cost is visible.
 function bigThenBlock(bodyLines: number): string {
   const body: string[] = [];
   for (let i = 1; i <= bodyLines; i++) {
@@ -21,11 +19,6 @@ function bigThenBlock(bodyLines: number): string {
     "",
   ].join("\n");
 }
-
-// ---- Correctness matrix --------------------------------------------------
-// Every incremental reparse must produce a tree byte-identical to a from-scratch
-// parse. These cases MUST stay green across the line+stack refactor — they are
-// the primary safety net.
 
 const IF_BLOCK = `scene LoseTrust(c: companion)
   if c.trust == 0 then
@@ -105,22 +98,18 @@ const deleteLineEdit = (src: string, find: string): Edit => {
 };
 
 const MATRIX: MatrixCase[] = [
-  // if/elseif/else — edit body of each arm + the condition
   { name: "if: edit then-body", source: IF_BLOCK, edit: (s) => replaceEdit(s, "doesn't trust you at all", "DOES NOT trust you") },
   { name: "if: edit elseif-body", source: IF_BLOCK, edit: (s) => replaceEdit(s, "barely trusts you", "hardly trusts you at all now") },
   { name: "if: edit else-body", source: IF_BLOCK, edit: (s) => replaceEdit(s, "a little less", "much much less") },
   { name: "if: edit condition", source: IF_BLOCK, edit: (s) => replaceEdit(s, "c.trust == 0", "c.trust <= 0") },
   { name: "if: bare stmt in else", source: IF_BLOCK, edit: (s) => replaceEdit(s, "c.trust -= 1", "c.trust -= 2") },
-  // choose/then
   { name: "then: edit body line", source: CHOOSE_THEN, edit: (s) => replaceEdit(s, "She nods.", "She nods slowly.") },
   { name: "then: edit choice", source: CHOOSE_THEN, edit: (s) => replaceEdit(s, "* Hey", "* Heya there") },
   { name: "then: insert into body", source: CHOOSE_THEN, edit: (s) => insertEdit(s, "She nods.", "\n    A pause.") },
   { name: "then: delete body line", source: CHOOSE_THEN, edit: (s) => deleteLineEdit(s, "He waves back") },
-  // for / while
   { name: "for: edit body", source: FOR_LOOP, edit: (s) => replaceEdit(s, "total + i", "total + i * 2") },
   { name: "for: edit header", source: FOR_LOOP, edit: (s) => replaceEdit(s, "for i in items", "for i in entries") },
   { name: "while: edit body", source: WHILE_LOOP, edit: (s) => replaceEdit(s, "log(x)", "log(x, x)") },
-  // nested
   { name: "nested: edit innermost for-body", source: NESTED, edit: (s) => replaceEdit(s, "log(i)", "log(i, ready)") },
   { name: "nested: edit then-body after nested if", source: NESTED, edit: (s) => replaceEdit(s, "She nods.", "She nods twice.") },
 ];
@@ -161,12 +150,5 @@ describe("incremental reuse — boundedness", () => {
         `span/line=${(spanLen / editLineLen).toFixed(1)}x span/block=${(spanLen / blockLen).toFixed(2)}`,
     );
     expect(spanLen).toBeGreaterThan(0);
-
-    // NOTE: this measures the FIRST edit after a from-scratch parse, which
-    // is the deliberate WARM-UP under the incremental redesign: an initial
-    // parse keeps whole-block chunks (TreeBuffer-fast), so the first edit
-    // in a block reparses it once and mints the in-block restart points.
-    // The steady-state (second-edit) boundedness — ~2.5x the edited line —
-    // is asserted in docIncremental.test.ts.
   });
 });

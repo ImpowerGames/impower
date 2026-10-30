@@ -1,12 +1,7 @@
-// Luau's type-checker tests from `tests/TypeInfer.singletons.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { NEW_SOLVER_GUARD_REASON, portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.singletons.test.cpp", [
   {
-    // TypeInfer.singletons.test.cpp:14 TEST_CASE_FIXTURE(Fixture, "function_args_infer_singletons")
     name: "function_args_infer_singletons",
     fixture: "Fixture",
     source: `
@@ -20,7 +15,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:28 TEST_CASE_FIXTURE(Fixture, "bool_singletons")
     name: "bool_singletons",
     fixture: "Fixture",
     source: `
@@ -30,7 +24,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:38 TEST_CASE_FIXTURE(Fixture, "string_singletons")
     name: "string_singletons",
     fixture: "Fixture",
     source: `
@@ -40,7 +33,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:48 TEST_CASE_FIXTURE(Fixture, "string_singleton_function_call")
     name: "string_singleton_function_call",
     fixture: "Fixture",
     source: `
@@ -51,7 +43,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:62 TEST_CASE_FIXTURE(Fixture, "bool_singletons_mismatch")
     name: "bool_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -60,7 +51,6 @@ local e = f("B")
     expect: [{ errors: 1 }, { error: 0, message: "Expected this to be 'true', but got 'false'" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:72 TEST_CASE_FIXTURE(Fixture, "string_singletons_mismatch")
     name: "string_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -72,7 +62,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:82 TEST_CASE_FIXTURE(Fixture, "string_singletons_escape_chars")
     name: "string_singletons_escape_chars",
     fixture: "Fixture",
     source: `
@@ -84,7 +73,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:92 TEST_CASE_FIXTURE(Fixture, "bool_singleton_subtype")
     name: "bool_singleton_subtype",
     fixture: "Fixture",
     source: `
@@ -94,7 +82,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:102 TEST_CASE_FIXTURE(Fixture, "string_singleton_subtype")
     name: "string_singleton_subtype",
     fixture: "Fixture",
     source: `
@@ -104,7 +91,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:112 TEST_CASE_FIXTURE(Fixture, "string_singleton_subtype_multi_assignment")
     name: "string_singleton_subtype_multi_assignment",
     fixture: "Fixture",
     source: `
@@ -114,7 +100,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:122 TEST_CASE_FIXTURE(Fixture, "function_call_with_singletons")
     name: "function_call_with_singletons",
     fixture: "Fixture",
     source: `
@@ -124,7 +109,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:132 TEST_CASE_FIXTURE(Fixture, "function_call_with_singletons_mismatch")
     name: "function_call_with_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -137,7 +121,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:143 TEST_CASE_FIXTURE(Fixture, "overloaded_function_call_with_singletons")
     name: "overloaded_function_call_with_singletons",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -150,7 +133,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:157 TEST_CASE_FIXTURE(Fixture, "overloaded_function_resolution_singleton_parameters")
     name: "overloaded_function_resolution_singleton_parameters",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -169,7 +151,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:177 TEST_CASE_FIXTURE(Fixture, "overloaded_function_call_with_singletons_mismatch")
     name: "overloaded_function_call_with_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -184,7 +165,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:198 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons")
     name: "enums_using_singletons",
     fixture: "Fixture",
     source: `
@@ -196,7 +176,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:210 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons_mismatch")
     name: "enums_using_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -209,7 +188,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:228 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons_subtyping")
     name: "enums_using_singletons_subtyping",
     fixture: "Fixture",
     source: `
@@ -222,7 +200,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:241 TEST_CASE_FIXTURE(Fixture, "tagged_unions_using_singletons")
     name: "tagged_unions_using_singletons",
     fixture: "Fixture",
     source: `
@@ -237,7 +214,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:256 TEST_CASE_FIXTURE(Fixture, "tagged_unions_using_singletons_mismatch")
     name: "tagged_unions_using_singletons_mismatch",
     fixture: "Fixture",
     source: `
@@ -249,9 +225,6 @@ local e = f("B")
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:268 TEST_CASE_FIXTURE(Fixture, "tagged_unions_immutable_tag")
-    // Upstream compares `rhsType` with the builtin `string` type itself, which
-    // prints as `string`.
     name: "tagged_unions_immutable_tag",
     fixture: "Fixture",
     source: `
@@ -267,7 +240,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:293 TEST_CASE_FIXTURE(Fixture, "table_has_a_boolean")
     name: "table_has_a_boolean",
     fixture: "Fixture",
     source: `
@@ -276,7 +248,6 @@ local e = f("B")
     expect: [{ type: "t", options: { exhaustive: true }, equals: "{ a: number, b: boolean }" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:305 TEST_CASE_FIXTURE(Fixture, "table_properties_singleton_strings")
     name: "table_properties_singleton_strings",
     fixture: "Fixture",
     source: `
@@ -301,7 +272,6 @@ local e = f("B")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:329 TEST_CASE_FIXTURE(Fixture, "table_properties_singleton_strings_mismatch")
     name: "table_properties_singleton_strings_mismatch",
     fixture: "Fixture",
     source: `
@@ -320,7 +290,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:346 TEST_CASE_FIXTURE(Fixture, "table_properties_alias_or_parens_is_indexer")
     name: "table_properties_alias_or_parens_is_indexer",
     fixture: "Fixture",
     malformed: "the table type has two indexers",
@@ -335,7 +304,6 @@ local e = f("B")
     expect: [{ errors: 1 }, { error: 0, message: "Cannot have more than one table indexer" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:361 TEST_CASE_FIXTURE(Fixture, "indexer_can_be_union_of_singletons")
     name: "indexer_can_be_union_of_singletons",
     fixture: "Fixture",
     source: `
@@ -351,7 +319,6 @@ local e = f("B")
     expect: [{ errors: 1 }, { error: 0, line: 8 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:382 TEST_CASE_FIXTURE(Fixture, "table_properties_type_error_escapes")
     name: "table_properties_type_error_escapes",
     fixture: "Fixture",
     source: `
@@ -365,7 +332,6 @@ local e = f("B")
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:399 TEST_CASE_FIXTURE(Fixture, "error_detailed_tagged_union_mismatch_string")
     name: "error_detailed_tagged_union_mismatch_string",
     fixture: "Fixture",
     source: `
@@ -381,7 +347,6 @@ local a: Animal = { tag = 'cat', cafood = 'something' }
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:425 TEST_CASE_FIXTURE(Fixture, "error_detailed_tagged_union_mismatch_bool")
     name: "error_detailed_tagged_union_mismatch_bool",
     fixture: "Fixture",
     source: `
@@ -397,7 +362,6 @@ local a: Result = { success = false, result = 'something' }
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:453 TEST_CASE_FIXTURE(Fixture, "parametric_tagged_union_alias")
     name: "parametric_tagged_union_alias",
     fixture: "Fixture",
     source: `
@@ -414,7 +378,6 @@ local a: Result = { success = false, result = 'something' }
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:474 TEST_CASE_FIXTURE(Fixture, "if_then_else_expression_singleton_options")
     name: "if_then_else_expression_singleton_options",
     fixture: "Fixture",
     source: `
@@ -427,7 +390,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:487 TEST_CASE_FIXTURE(Fixture, "widen_the_supertype_if_it_is_free_and_subtype_has_singleton")
     name: "widen_the_supertype_if_it_is_free_and_subtype_has_singleton",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -442,7 +404,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [],
   },
   {
-    // TypeInfer.singletons.test.cpp:507 TEST_CASE_FIXTURE(Fixture, "return_type_of_f_is_not_widened")
     name: "return_type_of_f_is_not_widened",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -456,7 +417,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [],
   },
   {
-    // TypeInfer.singletons.test.cpp:526 TEST_CASE_FIXTURE(Fixture, "widening_happens_almost_everywhere")
     name: "widening_happens_almost_everywhere",
     fixture: "Fixture",
     source: `
@@ -466,7 +426,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { type: "copy", equals: "\"foo\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:541 TEST_CASE_FIXTURE(Fixture, "widening_happens_almost_everywhere_except_for_tables")
     name: "widening_happens_almost_everywhere_except_for_tables",
     fixture: "Fixture",
     source: `
@@ -489,7 +448,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:564 TEST_CASE_FIXTURE(Fixture, "functions_are_not_to_be_widened")
     name: "functions_are_not_to_be_widened",
     fixture: "Fixture",
     source: `
@@ -498,7 +456,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { type: "foo", equals: "(\"A\" | \"B\") -> ()" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:575 TEST_CASE_FIXTURE(Fixture, "indexing_on_string_singletons")
     name: "indexing_on_string_singletons",
     fixture: "Fixture",
     source: `
@@ -510,7 +467,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { typeAt: [3, 22], equals: "\"hi\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:589 TEST_CASE_FIXTURE(Fixture, "indexing_on_union_of_string_singletons")
     name: "indexing_on_union_of_string_singletons",
     fixture: "Fixture",
     source: `
@@ -522,7 +478,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { typeAt: [3, 22], equals: "\"bye\" | \"hi\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:603 TEST_CASE_FIXTURE(Fixture, "taking_the_length_of_string_singleton")
     name: "taking_the_length_of_string_singleton",
     fixture: "Fixture",
     source: `
@@ -534,7 +489,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { typeAt: [3, 23], equals: "\"hi\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:617 TEST_CASE_FIXTURE(Fixture, "taking_the_length_of_union_of_string_singleton")
     name: "taking_the_length_of_union_of_string_singleton",
     fixture: "Fixture",
     source: `
@@ -546,7 +500,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { typeAt: [3, 23], equals: "\"bye\" | \"hi\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:631 TEST_CASE_FIXTURE(Fixture, "no_widening_from_callsites")
     name: "no_widening_from_callsites",
     fixture: "Fixture",
     source: `
@@ -561,7 +514,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:646 TEST_CASE_FIXTURE(BuiltinsFixture, "singletons_stick_around_under_assignment")
     name: "singletons_stick_around_under_assignment",
     fixture: "BuiltinsFixture",
     source: `
@@ -578,7 +530,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:666 TEST_CASE_FIXTURE(Fixture, "tagged_union_in_ternary")
     name: "tagged_union_in_ternary",
     fixture: "Fixture",
     source: `
@@ -593,7 +544,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:679 TEST_CASE_FIXTURE(Fixture, "table_literal_with_singleton_union_values")
     name: "table_literal_with_singleton_union_values",
     fixture: "Fixture",
     source: `
@@ -604,7 +554,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:690 TEST_CASE_FIXTURE(Fixture, "singleton_type_mismatch_via_variable")
     name: "singleton_type_mismatch_via_variable",
     fixture: "Fixture",
     source: `
@@ -623,7 +572,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:708 TEST_CASE_FIXTURE(Fixture, "cli_163481_any_indexer_pushes_type")
     name: "cli_163481_any_indexer_pushes_type",
     fixture: "Fixture",
     source: `
@@ -643,7 +591,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:726 TEST_CASE_FIXTURE(Fixture, "oss_2010")
     name: "oss_2010",
     fixture: "Fixture",
     source: `
@@ -656,7 +603,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }, { type: "var", equals: "\"meow\"" }],
   },
   {
-    // TypeInfer.singletons.test.cpp:741 TEST_CASE_FIXTURE(Fixture, "oss_1773")
     name: "oss_1773",
     fixture: "Fixture",
     source: `
@@ -683,8 +629,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:768 TEST_CASE_FIXTURE(Fixture, "bidirectionally_infer_indexers_errored")
-    // Upstream checks that every error is a TypeMismatch; there are three.
     name: "bidirectionally_infer_indexers_errored",
     fixture: "Fixture",
     source: `
@@ -706,7 +650,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:790 TEST_CASE_FIXTURE(Fixture, "oss_2018")
     name: "oss_2018",
     fixture: "Fixture",
     source: `
@@ -715,7 +658,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:797 TEST_CASE_FIXTURE(Fixture, "oss_2010_but_with_booleans")
     name: "oss_2010_but_with_booleans",
     fixture: "Fixture",
     source: `
@@ -743,7 +685,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     ],
   },
   {
-    // TypeInfer.singletons.test.cpp:833 TEST_CASE_FIXTURE(Fixture, "cli_184125")
     name: "cli_184125",
     fixture: "Fixture",
     source: `
@@ -761,7 +702,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:851 TEST_CASE_FIXTURE(Fixture, "pass_singleton_through_to_identity")
     name: "pass_singleton_through_to_identity",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -775,7 +715,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.singletons.test.cpp:866 TEST_CASE_FIXTURE(BuiltinsFixture, "singleton_when_type_is_blocked")
     name: "singleton_when_type_is_blocked",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,

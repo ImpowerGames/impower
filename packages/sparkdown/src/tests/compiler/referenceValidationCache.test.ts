@@ -1,12 +1,3 @@
-// #411: `validateReferences` keeps each chunk's validated references while the
-// chunk's block is carried by the incremental parse, so an edit validates only
-// the references of the chunks it changed. What a reference's validity reads
-// besides itself is story-wide: the context (the project's defines, its files
-// and the implicit definitions scene content implies), the functions a handler
-// can name, the types a define declares as parents and the elements a layout
-// declares. An edit to any of those in another chunk has to reach a chunk the
-// cache would otherwise serve, so each case below compares the diagnostics of
-// the incremental compile with a cold compile of the same text.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -36,8 +27,6 @@ const pngImage = (name: string) => ({
 
 const SCENES = 8;
 
-/** Scenes that each hold references, two of which never resolve, so every
- *  scene reports warnings whose ranges an edit above them moves. */
 function screenplay(): string {
   const L: string[] = [];
   L.push("define pace as config with");
@@ -50,8 +39,6 @@ function screenplay(): string {
   L.push("  }");
   L.push("end");
   L.push("");
-  // Each scene's body is indented under its header, so a scene is one
-  // top-level chunk, as a scene of the Raffles and Bunny project is.
   for (let s = 0; s < SCENES; s++) {
     L.push(`scene scene_${s}`);
     L.push(`  Action describing room ${s}.`);
@@ -126,7 +113,6 @@ const change = (text: string, find: string, replace: string) => {
   };
 };
 
-/** Apply a minimal-range edit turning the first `find` into `replace`. */
 function edit(
   compiler: SparkdownCompiler,
   text: string,
@@ -150,7 +136,6 @@ const stats = (compiler: SparkdownCompiler) => compiler.referenceValidationStats
 const message = (d: any): string =>
   typeof d?.message === "string" ? d.message : (d?.message?.value ?? "");
 
-/** Every diagnostic, in order, with its range and message. */
 const diagnostics = (program: ReturnType<typeof compile>) =>
   Object.keys(program.diagnostics ?? {})
     .sort()
@@ -178,13 +163,6 @@ describe("reference validation per chunk (#411)", () => {
     const cold = { ...stats(compiler) };
     expect(cold.validated).toBeGreaterThan(SCENES * 6);
     expect(cold.chunksServed).toBe(0);
-    // The first incremental parse inside a block parses all of it again and
-    // marks where a later one can start (`Compiler.reparseRange`), so every
-    // reference in it is annotated anew; the language server meets it once
-    // per block, on the first keystroke there. An edit reparses only up to
-    // the next line between top-level constructs (#1637), so the warming
-    // edit spans the line before the dialogue block and the block's first
-    // line, which the edit below restarts from.
     const warmed = edit(
       compiler,
       text,
@@ -194,7 +172,6 @@ describe("reference validation per chunk (#411)", () => {
     );
     compile(compiler);
 
-    // A new line in scene 2 moves every chunk below it.
     const after = edit(
       compiler,
       warmed,
@@ -204,15 +181,11 @@ describe("reference validation per chunk (#411)", () => {
     );
     const program = compile(compiler);
     const warm = stats(compiler);
-    // Only scene 2's references are validated again: a scene holds a ninth of
-    // them at most.
     expect(warm.validated).toBeGreaterThan(0);
     expect(warm.validated).toBeLessThanOrEqual(Math.ceil(cold.validated / SCENES));
     expect(warm.chunksValidated).toBeLessThan(warm.chunksServed);
     expect(warm.chunksServed).toBeGreaterThanOrEqual(SCENES - 1);
-    // The edited chunk's own references outside the edit keep their outcomes.
     expect(warm.reused).toBeGreaterThan(warm.validated);
-    // The served chunks' warnings stand where their references moved to.
     expect(missing(program, "missing_7")).toBe(1);
     expect(diagnostics(program)).toEqual(coldDiagnostics(after));
   });
@@ -221,9 +194,6 @@ describe("reference validation per chunk (#411)", () => {
     const text = screenplay();
     const compiler = compilerFor(text);
     compile(compiler);
-    // Warmed in the dialogue block above the edit, which the edit's reparse
-    // restarts in: an edit to the scene's first line no longer reparses the
-    // rest of the scene (see the first case).
     const warm = edit(compiler, text, "scene 3.\n    Speed is {pace.speed}.", "scene 3.\n    Speed is {pace.speed}!", 2);
     compile(compiler);
 
@@ -286,7 +256,6 @@ describe("reference validation per chunk (#411)", () => {
     const text = screenplay();
     const compiler = compilerFor(text);
     compile(compiler);
-    // A warm compile first, so every chunk is in the cache.
     const warm = edit(compiler, text, "room 0.", "room 0!", 2);
     const before = compile(compiler);
     expect(stats(compiler).chunksServed).toBeGreaterThanOrEqual(SCENES - 1);
@@ -294,19 +263,13 @@ describe("reference validation per chunk (#411)", () => {
     const after = edit(compiler, warm, find, replace, 3);
     const program = compile(compiler);
     expect(diagnostics(program)).toEqual(coldDiagnostics(after));
-    // The edit changes what the scenes it did not touch report.
     expect(mentions(program, reaches)).toBeLessThan(mentions(before, reaches));
 
-    // And back again.
     const restored = edit(compiler, after, replace, find, 4);
     expect(diagnostics(compile(compiler))).toEqual(coldDiagnostics(restored));
   });
 
   it("keeps the chunks that read nothing a directive's implicit definition changes", () => {
-    // A directive implies a filtered image in the context's layer, which an
-    // edit to it changes. Only a chunk that looked that entry up is validated
-    // again; an image reference implies its own entry, so the edited chunk is
-    // the one that reads it here.
     const text = screenplay();
     const compiler = compilerFor(text);
     compile(compiler);
@@ -335,8 +298,6 @@ describe("reference validation per chunk (#411)", () => {
       let current = edit(compiler, text, "room 0.", "room 0!", 2);
       compile(compiler);
       if (preview) {
-        // A preview that adds the define every scene's `rex` reference reads,
-        // and moves every chunk below the first.
         const { contentChanges } = change(
           current,
           "define pace as config with",
@@ -380,10 +341,6 @@ describe("reference validation per chunk (#411)", () => {
   });
 });
 
-// The cache's invalidation, driven directly: no Sparkdown construct today makes
-// one chunk's reference depend on an implicit definition another chunk implies
-// (an image reference implies its own), so the compiler cannot reach these
-// paths through a script alone.
 describe("ReferenceValidationCache (#411)", () => {
   const inputs = (
     overrides: Partial<ReferenceValidationInputs> = {},
@@ -418,7 +375,6 @@ describe("ReferenceValidationCache (#411)", () => {
     cache.keepReference(whole.annotation, 1, [], { types: new Set(["filtered_image"]) });
     cache.end();
 
-    // Another chunk's directive now implies `b~y`.
     cache.begin(inputs(), "r2", ["filtered_image/a~x", "filtered_image/b~y"]);
     expect(cache.take("main", reads.block)).toBeUndefined();
     expect(cache.reference(reads.annotation)).toBeUndefined();
@@ -437,7 +393,6 @@ describe("ReferenceValidationCache (#411)", () => {
     cache.keep("main", block, entry([]));
     cache.keepReference(annotation, 1, [], {});
     cache.end();
-    // Each case changes exactly one input from the primed ones.
     const definitions = {};
     const builtins = {};
     const primed = () =>
@@ -454,7 +409,6 @@ describe("ReferenceValidationCache (#411)", () => {
       cache.keep("main", block, entry([]));
       cache.keepReference(annotation, 1, [], {});
       cache.end();
-      // Unchanged inputs keep both entries.
       cache.begin(primed(), "r1", []);
       expect(cache.take("main", block)).toBeDefined();
       expect(cache.reference(annotation)).toBeDefined();

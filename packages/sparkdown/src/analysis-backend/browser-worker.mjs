@@ -2,7 +2,6 @@ import { handleAnalysisRequest } from "./runtime.mjs";
 
 async function initialize() {
   const base = new URL("../../vendor/luau-analysis/", import.meta.url);
-  // Some bundlers normalize a directory asset URL by dropping its trailing slash.
   if (!base.pathname.endsWith("/")) base.pathname += "/";
   const response = await fetch(new URL("manifest.json", base));
   if (!response.ok) throw Error("Cannot load analysis manifest");
