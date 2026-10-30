@@ -1,11 +1,3 @@
-// Incremental type checking (#599). The checker caches each unit's result (a
-// `.sd` file's prelude, and each scene or branch) and reuses it when the unit
-// and what it can see are unchanged; a prelude edit rechecks its flows when
-// exported graph equivalence cannot be proved. These tests
-// edit a document between compiles and prove that each warm check gives the
-// same warnings and types as a cold check of the same text, and that it
-// reuses what it should.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
@@ -52,7 +44,6 @@ function typechecker(compiler: SparkdownCompiler): SparkdownTypechecker {
   return (compiler as unknown as { _typechecker: SparkdownTypechecker })._typechecker;
 }
 
-/** A unit's types: every binding in every scope of its module, printed. */
 function unitTypes(check: LuauUnitCheck): string[] {
   const out: string[] = [];
   for (const [location, scope] of check.module.scopes) {
@@ -64,11 +55,6 @@ function unitTypes(check: LuauUnitCheck): string[] {
   return out;
 }
 
-/** Independent graph observations, beyond diagnostic printing's names/limits.
- * Allocation counters, arenas and solver scope objects belong to a check's
- * execution, so normalize those while retaining type edges/sharing and all
- * other variant/alias/property metadata. This is test evidence, never a key.
- */
 function unitGraphs(check: LuauUnitCheck): unknown {
   const ids = new Map<Type | TypePackVar, number>();
   const cells: unknown[] = [];
@@ -102,7 +88,6 @@ function unitGraphs(check: LuauUnitCheck): unknown {
   return { scopes, ast, cells };
 }
 
-/** What a compile says about the document's types: its type warnings and every binding's type. */
 function snapshot(compiler: SparkdownCompiler) {
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const warnings = (program.diagnostics?.[URI] ?? [])
@@ -122,7 +107,6 @@ function position(text: string, offset: number) {
   return { line, character: offset - (before.lastIndexOf("\n") + 1) };
 }
 
-/** A document compiled once, then edited and compiled again after each edit. */
 class Session {
   readonly compiler: SparkdownCompiler;
   private version = 1;
@@ -132,7 +116,6 @@ class Session {
     snapshot(this.compiler);
   }
 
-  /** Replaces the first `find` with `replace` and returns the warm check with a cold check of the new text. */
   edit(find: string, replace: string) {
     const offset = this.text.indexOf(find);
     if (offset < 0) throw new Error(`not found: ${find}`);
@@ -161,9 +144,6 @@ describe("incremental type checking", () => {
   });
 
   test("an edit inside narrative between two Luau statements reuses the scene, whose warnings move with its lines", () => {
-    // A unit is read in its own lines (#1286), so the scene's AST is the same
-    // however many story lines stand between its statements, and whatever
-    // they say, as the text-keyed cache before it guaranteed too.
     const session = new Session(
       BASE.replace("  & count = count + 1\n", "  & count = count + 1\n  Alpha stretches.\n").replace(
         'local label: string = greet("Alpha")',
@@ -182,8 +162,6 @@ describe("incremental type checking", () => {
   });
 
   test("an edit to a comment in a scene's Luau reuses the scene", () => {
-    // A unit's key is read from its tokens (#1286), and a comment other than
-    // a `--!` directive is no token, so it changes nothing the check reads.
     const session = new Session(BASE.replace("  & count = count + 1\n", "  & count = count + 1 -- one more visit\n"));
     const { warm, cold, stats } = session.edit("-- one more visit", "-- one more visit to the alpha room");
     expect(warm).toEqual(cold);
@@ -191,8 +169,6 @@ describe("incremental type checking", () => {
   });
 
   test("lines added after a .luau file's last token move its end-of-input error, as a cold check places it", () => {
-    // The end of a `run` file's Luau is where an error at the end is placed,
-    // so it is part of the unit's key (#1286).
     const uri = "inmemory:///snippet.luau";
     const errors = (compiler: SparkdownCompiler) =>
       (compiler.compile({ textDocument: { uri } }).program.diagnostics?.[uri] ?? [])
@@ -223,7 +199,6 @@ describe("incremental type checking", () => {
 
   test("adding and removing a declaration", () => {
     const session = new Session(BASE);
-    // In the prelude: the name is new to every flow, so each is checked again.
     let step = session.edit("local count: number = 0\n", "local count: number = 0\nlocal bonus: string = 1\n");
     expect(step.warm).toEqual(step.cold);
     expect(step.warm.warnings).toEqual(["5:22-5:23 TypeMismatch: Expected this to be 'string', but got 'number'"]);
@@ -232,7 +207,6 @@ describe("incremental type checking", () => {
     expect(step.warm).toEqual(step.cold);
     expect(step.warm.warnings).toEqual([]);
 
-    // In a scene: only that scene is checked again.
     step = session.edit('  local label: string = greet("Alpha")\n', '  local label: string = greet("Alpha")\n  local extra: boolean = label\n');
     expect(step.warm).toEqual(step.cold);
     expect(step.warm.warnings).toEqual(["13:25-13:30 TypeMismatch: Expected this to be 'boolean', but got 'string'"]);
@@ -252,8 +226,6 @@ describe("incremental type checking", () => {
     ]);
     expect(stats).toEqual({ checked: 3, reused: 0 });
 
-    // A body edit checks the prelude again, but leaves the callers' types
-    // and messages unchanged, so their results can be reused (#999).
     const body = session.edit('  return "Hi " .. name', '  return "Hello " .. tostring(name)');
     expect(body.warm).toEqual(body.cold);
     expect(body.stats).toEqual({ checked: 1, reused: 2 });
@@ -273,13 +245,11 @@ describe("incremental type checking", () => {
 
   test("swapping a prelude type between two aliases of the same shape checks the flows that use it again", () => {
     const aliases = "---\ntypecheck: strict\n---\n\ntype A = { value: number }\ntype B = { value: number }\n";
-    // A prelude value's annotation.
     const value = new Session(`${aliases}local item: A = { value = 1 }\n\nscene alpha\n  local wrong: string = item\nend\n`);
     let step = value.edit("local item: A", "local item: B");
     expect(step.warm).toEqual(step.cold);
     expect(step.warm.warnings).toEqual(["9:24-9:28 TypeMismatch: Expected this to be 'string', but got 'B'"]);
     expect(step.stats).toEqual({ checked: 2, reused: 0 });
-    // An alias parameter's default.
     const defaults = new Session(`${aliases}type Box<T = A> = T\n\nscene alpha\n  local item: Box = { value = 1 }\n  local wrong: string = item\nend\n`);
     step = defaults.edit("T = A", "T = B");
     expect(step.warm).toEqual(step.cold);
@@ -304,7 +274,6 @@ describe("incremental type checking", () => {
   });
 
   test("changing the end of a type alias default longer than a message prints checks the flows that use it again", () => {
-    // Forty fields print to more than the 500 characters Luau's messages stop at.
     const fields = Array.from({ length: 40 }, (_, i) => `f${String(i).padStart(2, "0")}: number`).join(", ");
     const session = new Session(
       `---\ntypecheck: strict\n---\n\ntype Box<T = { ${fields}, z: number }> = T\n\nscene alpha\n  local item: Box = {} :: any\n  local value: number = item.z\nend\n`,

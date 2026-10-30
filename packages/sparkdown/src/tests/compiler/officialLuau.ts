@@ -25,7 +25,6 @@ export interface OfficialResult {
   diagnostics: OfficialSyntaxError[];
 }
 
-/** Upstream's unmodified message and UTF-8 byte positions. */
 export interface OfficialSyntaxError {
   message: string;
   location: {
@@ -39,7 +38,6 @@ interface Module {
   ccall(name: string, result: string, types: string[], args: unknown[]): number;
 }
 
-/** Load once; each parse frees its arena. No native tools are used at test time. */
 export async function loadOfficialLuau(
   snapshot: "runtime" | "typecheck" = "runtime",
 ): Promise<(source: string) => OfficialResult> {
@@ -90,11 +88,7 @@ export async function loadOfficialLuau(
   };
   return (source) => {
     const pointer = module.ccall("parse_ast", "number", ["string"], [source]);
-    // Luau strings contain arbitrary bytes. Preserve them one-to-one, including
-    // non-UTF8 escapes; the C++ encoder is compiled with unsigned char.
     const output = readString(pointer);
-    // The upstream encoder emits non-JSON numeric tokens. Quote those tokens
-    // outside strings; use strings on both sides to preserve infinities and NaN.
     const json = output.replace(/"(?:[^"\\]|\\.)*"|-?Infinity|NaN/g, (token) =>
       token.startsWith('"') ? token : JSON.stringify(token),
     );

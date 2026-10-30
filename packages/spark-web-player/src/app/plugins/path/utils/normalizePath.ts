@@ -152,9 +152,6 @@ const lineToCurve = (
   return [cx, cy, x, y, x, y] as number[] as PathData;
 };
 
-/**
- * Normalize an absolute path to include only M, C, and Z commands
- */
 export const normalizePath = (segments: PathCommand[]): PathCommand[] => {
   const out: PathCommand[] = [];
 

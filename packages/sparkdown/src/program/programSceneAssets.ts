@@ -16,8 +16,6 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 
-/** Adds what `from` names to `into`, a record of the same beat, each name
- *  once and in the order the beat names them. */
 const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
   for (const key of ["image", "audio", "layouts", "loads"] as const) {
     const names = from[key];
@@ -34,28 +32,12 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
   }
 };
 
-/**
- * What each top-level flow of a program of statement chunks references, as
- * `program.sceneAssets` is built from it (`SparkdownCompiler.populateSceneAssets`):
- * the asset directives each beat writes, under the address of the beat's
- * `LineStart`, and the flows the flow's jumps, tunnels and calls leave for.
- * Before #705 the current engine's program gathered the same from the walk
- * of its runtime tree that filled its path locations; a program of chunks
- * has no such walk.
- *
- * A top-level flow is the top-level content (`"0"`), a scene with its
- * branches, or a function, and each one's statements are read in the order
- * the root keeps them, a block statement's code up to where it enters a body
- * before that body's statements, as the document orders them.
- */
 export const captureProgramAssets = (
   root: ProgramRoot,
 ): Map<string, SceneAssetCapture> => {
   const captures = new Map<string, SceneAssetCapture>();
   const strings = root.table.strings;
   const symbols = root.table.symbols;
-  // The top-level flow a symbol's name stands in: its first segment, or the
-  // top-level content's.
   const flowOfName = (name: string | undefined): string | undefined => {
     if (name === undefined) {
       return undefined;
@@ -63,9 +45,6 @@ export const captureProgramAssets = (
     const head = name.split(".")[0] ?? "";
     return head === "" ? "0" : head;
   };
-  // A chunk's code, and each of its bodies where the code enters it, so that
-  // a choice's entry and its body come before the next choice's (round 2 of
-  // the review of #1618); a body no instruction enters follows the code.
   const visitChunk = (chunk: ProgramChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
     const words = codeWords(chunk);
@@ -98,9 +77,6 @@ export const captureProgramAssets = (
             const address = addressOf(id, beat >= 0 ? beat : offset);
             const before = capture.beats.at(-1);
             const scanned = scanAssetDirectives(text, address, capture);
-            // The texts of one beat that an interpolation splits name one
-            // beat's assets, under its one address (round 1 of the review
-            // of #1618).
             if (scanned && before?.address === address) {
               capture.beats.pop();
               mergeBeat(before, scanned);
@@ -126,9 +102,6 @@ export const captureProgramAssets = (
           break;
         }
         case Op.CallVar: {
-          // A call through the variable that holds a function names the
-          // function; a tunnel through a variable goes where only the
-          // running story knows.
           const variable = strings[arg] ?? "";
           if (flagsOf(word0) & CALL_TUNNEL) {
             capture.dynamic = true;
@@ -151,7 +124,6 @@ export const captureProgramAssets = (
       visitChunk(chunk, capture);
     }
   };
-  // Every flow, a branch under its scene, each script's flows in line order.
   const uris = new Set<string>();
   for (const row of root.flowSequences()) {
     uris.add(row.uri);
@@ -174,12 +146,6 @@ export const captureProgramAssets = (
       visitSequence(row, capture);
     }
   }
-  // Each flow's beats in document order: the code of a block statement holds
-  // its parts in the order they run, which is not always the order they are
-  // written in (every entry of a `choose` block before a nested block's
-  // `then` clause, round 3 of the review of #1618), so the beats are placed
-  // by where each stands. The sort is stable, and the scripts keep the order
-  // the walk met them in.
   const scripts = new Map<string, number>();
   for (const capture of captures.values()) {
     const keys = new Map<SceneBeat, [number, number, number]>();

@@ -1,12 +1,3 @@
-// The display() lowering's address COVERAGE. The screenplay preview's
-// click-to-line routing needs every display line to resolve to an address
-// that stands on that line (`ProgramRoot.addressAt`, `locationOf`), and no
-// spurious extra lines. Each synthesized display() FunctionCall is stamped with
-// its source range in `buildDisplayCall`. The expected SET of covered source
-// lines (0-based) of each fixture is every line of story content a statement
-// starts on: not a scene's header, an `end`, a blank line, a definition or a
-// function's body, which no story starts at.
-
 import { describe, expect, test, vi } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -60,7 +51,6 @@ scene start
 end
 `;
 
-// A separate scene exercises cross-scene line offsets.
 const MULTI_SCENE = `scene start
   First scene line.
   -> two
@@ -71,7 +61,6 @@ scene two
 end
 `;
 
-// Glued chains: every line lowers to its own stamped display() call.
 const GLUED = `define HERO as character with
   name = "HERO"
 end
@@ -126,10 +115,6 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
   ],
 };
 
-// Error diagnostics of a compile, so a fixture that does not compile cleanly
-// cannot pass on a partial program. An error the compiler cannot place in the
-// source (`getDiagnostic` drops a column below zero) is only logged, as
-// `console.warn("HIDDEN", message, severity, ...)`, so the log is read too.
 function compileErrors(source: string) {
   const hidden: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {

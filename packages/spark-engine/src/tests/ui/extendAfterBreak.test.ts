@@ -1,11 +1,3 @@
-// A `..` on each side of a `>` break waits for a click and then carries on in
-// the same box. The continuation's beat shows the box's text again at once, then types
-// only its own; it keeps the name and parenthetical unless it brings its own,
-// keeps the portrait unless it shows another, and keeps the sound and voice the
-// first part started. The box is part of the interpreter's saved state, so a
-// checkpoint between the two parts, the preview of a continuation line and
-// PLAY from one all show the whole box.
-
 import { describe, expect, test, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import type { Game } from "../../game/core/classes/Game";
@@ -67,7 +59,6 @@ function story(body: string) {
   return `${DEFS}\n-> start\n\nscene start\n${body}\nend\n`;
 }
 
-/** Every character a beat shows in its body, leaving out the cue. */
 const shown = (beat: Instructions | undefined): string =>
   Object.entries(beat?.text ?? {})
     .filter(([target]) => !target.startsWith("character_"))
@@ -75,7 +66,6 @@ const shown = (beat: Instructions | undefined): string =>
     .map((event) => event.text ?? "")
     .join("");
 
-/** The text a beat shows on one target. */
 const on = (beat: Instructions | undefined, target: string): string =>
   (beat?.text?.[target] ?? []).map((event) => event.text ?? "").join("");
 
@@ -88,13 +78,11 @@ async function beatsOf(body: string, count: number) {
   return { harness, beats };
 }
 
-/** How many typing-sound tones a beat plays. */
 const tones = (beat: Instructions | undefined): number =>
   (beat?.audio?.["typewriter"] ?? [])
     .flatMap((event) => event.assets ?? [])
     .reduce((count, key) => count + key.split("~t").length - 1, 0);
 
-/** The `ui/write-text` messages sent to `target`. */
 const writesTo = (harness: UIHarness, target: string) =>
   flattenMessages(harness.messages).filter(
     (m) => m.method === "ui/write-text" && m.params.target === target,
@@ -133,7 +121,6 @@ describe("a `..` on each side of a break carries on in the box", () => {
     expect(on(beats[0], "dialogue")).toBe("Hello...");
     expect(on(beats[1], "character_name")).toBe("ALICE");
     expect(on(beats[1], "dialogue")).toBe("Hello... It's me.");
-    // The new name is shown with the beat, not kept from the box.
     expect(beats[1]?.extended?.["character_name"]).toBeUndefined();
   });
 
@@ -162,7 +149,6 @@ describe("a `..` on each side of a break carries on in the box", () => {
     expect(on(beats[1], "action")).toBe("Knock Who's there?");
     expect(beats[1]?.text?.["character_name"]).toBeUndefined();
     expect(beats[1]?.text?.["dialogue"]).toBeUndefined();
-    // The typing sound is the one BOB's own line plays, not the action's.
     const synth = (beat: Instructions | undefined) =>
       beat?.audio?.["typewriter"]?.[0]?.assets?.[0]?.split("~")[0];
     const bob = await beatsOf(`  BOB: Who's there?`, 1);
@@ -188,7 +174,6 @@ describe("a `..` on each side of a break carries on in the box", () => {
   });
 
   test("a line shown between the parts takes the box away", async () => {
-    // A picture line's beat has no text, so the next beat folds into it.
     for (const between of ["Other.", "[[b]]"]) {
       const { beats } = await beatsOf(`  A .. >\n  ${between}\n  .. B`, 3);
       const last = beats.filter((beat) => shown(beat)).at(-1);
@@ -215,8 +200,6 @@ describe("a `..` on each side of a break carries on in the box", () => {
     );
     expect(taken.beats.map(shown)).toEqual(["A", "A B", "C"]);
     expect(taken.beats[2]?.extended).toBeUndefined();
-    // A branch that ends with `.. >` offers its box to the line after the
-    // block.
     const inside = await beatsOf(
       `  if true then\n    A .. >\n  end\n  .. C`,
       2,
@@ -229,7 +212,6 @@ describe("a `..` on each side of a break carries on in the box", () => {
     expect(on(beats[0], "character_name")).toBe("HERO");
     expect(on(beats[1], "character_name")).toBe("BOB");
     expect(on(beats[1], "dialogue")).toBe("A ");
-    // The box's text shows again at once; nothing is typed.
     expect(beats[1]?.extended?.["dialogue"]).toBe("A ".length);
     expect(Object.keys(beats[1]?.image ?? {})).toEqual(["portrait"]);
   });
@@ -292,8 +274,6 @@ describe("the extended beat on the page", () => {
     harness.reset();
     await harness.display(beats[1]!, false);
     await flushMicrotasks();
-    // One write per target: the box's text, marked `shown` so the page shows
-    // it at once, then the continuation, revealed from the beat's time.
     const dialogue = writesTo(harness, "dialogue");
     expect(dialogue).toHaveLength(1);
     const [write] = dialogue;
@@ -306,18 +286,14 @@ describe("the extended beat on the page", () => {
     expect(kept.map((e) => e.text).join("")).toBe("First ");
     expect(kept.every((e) => e.after == null && e.over == null)).toBe(true);
     expect(typed.map((e) => e.text).join("")).toBe("second.");
-    // The continuation types from the start of the beat.
     expect(typed[0].after ?? 0).toBe(0);
     expect(typed.at(-1).after).toBeGreaterThan(0);
-    // The name the box shows is written again, all of it shown at once.
     const name = writesTo(harness, "character_name");
     expect(name).toHaveLength(1);
     expect(name[0].params.shown).toBe(name[0].params.instructions.length);
     expect(name[0].params.instructions.map((e: any) => e.text).join("")).toBe(
       "HERO",
     );
-    // Only the continuation plays the typing sound: as many tones as the
-    // same words typed in a box of their own.
     const alone = await beatsOf(`  HERO: second.`, 1);
     expect(tones(beats[1])).toBeGreaterThan(0);
     expect(tones(beats[1])).toBe(tones(alone.beats[0]));
@@ -355,8 +331,6 @@ describe("the extended beat on the page", () => {
   });
 });
 
-/** Play beats through the real Coordinator, recording which audio channels
- *  it stops and which layers it clears. */
 function coordinated(harness: UIHarness) {
   const game = harness.game as Game;
   game.context.system.previewing = undefined;
@@ -397,8 +371,6 @@ function coordinated(harness: UIHarness) {
   return out;
 }
 
-// The scrub path: an unconnected game replays the route to the line, and its
-// checkpoint is loaded into a connected game that previews it.
 async function scrubTo(source: string, line: number) {
   const simulator = createHarness(source, line, { connect: false });
   const simulated: any = simulator.game;
@@ -428,7 +400,6 @@ async function scrubTo(source: string, line: number) {
   return {
     dialogue: text("dialogue"),
     name: text("character_name"),
-    // The last picture the portrait layer was given.
     portrait: pictures.findLast((write) => write.includes(".png")) ?? "",
   };
 }
@@ -455,8 +426,6 @@ describe("the preview, checkpoints and PLAY", () => {
   );
 
   test("the cursor on a continuation that shows no picture keeps the portrait the box had (#1662)", async () => {
-    // The connect clears the portrait; play keeps it under the continuation,
-    // which clears no picture, so the preview shows it again.
     const source = story(`  CHARACTER:\n    [[a]]\n    First .. >\n    .. second.`);
     const line = source.split("\n").findIndex((l) => l.includes("second."));
     const result = await scrubTo(source, line);
@@ -477,7 +446,6 @@ describe("the preview, checkpoints and PLAY", () => {
     await player.ready;
     const beat = player.nextBeat();
     expect(on(beat, "dialogue")).toBe("First second.");
-    // The earlier text is written at once, and the continuation typed.
     expect(beat?.extended?.["dialogue"]).toBe("First ".length);
   });
 

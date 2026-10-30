@@ -1,14 +1,4 @@
 import { isExplicitRuleName } from "../../utils/explicitRuleNames";
-// Luau functions as values: a function expression lowers to a function of
-// its own (a `Function` flow nested in the enclosing function, or hoisted
-// when there is none) and a closure value that names it with the enclosing
-// variables it captures. The named function statements in
-// `lowerLuauFunctionDefinition.ts` build theirs with the same helpers.
-//
-// A function's parameters and body come from the converter's AST
-// (`AstExprFunction`); its body is lowered through `lowerStatements`, which
-// walks the body's syntax nodes for the Sparkdown lines among its Luau and
-// takes each Luau statement from the AST.
 
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -91,8 +81,6 @@ import {
 } from "../utils/statementShape";
 import { recordCaptureRead, scopeDeclaredLocals } from "./bindings";
 
-// The nodes of a function definition's content that are its header, not
-// statements of its body.
 export const FUNCTION_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDeclarationName",
   "LuauFunctionParameters",
@@ -105,7 +93,6 @@ const FUNCTION_NODES: ReadonlySet<string> = nodeNameSet([
   "LuauFunctionDefinition",
 ]);
 
-/** The syntax node of a function expression or statement the AST read. */
 export function functionNode(
   func: AstExprFunction,
   source: LuauSource,
@@ -116,16 +103,10 @@ export function functionNode(
   return enclosingNode(source, offsetAt(func.location.begin, ctx), FUNCTION_NODES);
 }
 
-/** A function's named parameters, in order: those it is written with, not `self`. */
 export function parameterNames(func: AstExprFunction): string[] {
   return func.args.map((arg) => arg.name);
 }
 
-/**
- * A function body's statements, read from the body's syntax nodes as one
- * block, for a function whose header Luau has no syntax for (a `define`'s
- * `name(args) ... end` method), so that only its body is read.
- */
 export function readBodyAst(
   content: SyntaxNode | null,
   skipNames: ReadonlySet<string>,
@@ -138,18 +119,6 @@ export function readBodyAst(
   return readBlockAst(nodes, ctx);
 }
 
-/**
- * Reports, for a body the type checker does not read (a `define`'s method,
- * a sparkle handler's closure), every syntax error of Luau's reading of the
- * body alone, in Luau's words at Luau's range, as the type checker reports
- * them in a function's body (I-1322, I-1368); the validator leaves them all
- * to this reading (`loweredLuauBodyOf`). An error at a token that is
- * Sparkdown's own (`LuauSyntaxError.sparkdown`) is Sparkdown's syntax's to
- * report, and one past the end of the chunk (`pastChunkEnd`) is none of
- * Luau's. Only errors from `bodyFrom` on are reported (a define's method
- * passes its own start, so its header's are too, I-1401). Called once the body is lowered, it leaves out an error
- * the lowering already reported at the same place.
- */
 export function reportBodySyntaxErrors(
   errors: readonly LuauSyntaxError[],
   ctx: LowerContext,
@@ -158,16 +127,6 @@ export function reportBodySyntaxErrors(
   reportSyntaxErrors(errors.filter((error) => !error.sparkdown && !error.pastChunkEnd), ctx, bodyFrom);
 }
 
-/**
- * Reports syntax errors of a reading no other reader reports, those from
- * `from` on, each once, leaving out an error already reported at the same
- * place, each ranged as the type checker ranges one (`syntaxErrorEnd`). A
- * line a message names (`at line N`, of the document the reading
- * read) is counted from the chunk's first line, as the error's range is,
- * and the compile names the document's line again where it emits the
- * chunk (`messageLinesInChunk`), so a chunk carried to another line names
- * the lines it stands on.
- */
 export function reportSyntaxErrors(
   errors: readonly LuauSyntaxError[],
   ctx: LowerContext,
@@ -179,8 +138,6 @@ export function reportSyntaxErrors(
     diagnostics.map((d) => `${d.source?.startLineNumber}:${d.source?.startCharacterNumber} ${d.message}`),
   );
   for (const error of errors) {
-    // Ranged as the type checker ranges an error of its reading
-    // (`syntaxErrorEnd`).
     const { begin, end } = error.location;
     const rangeEnd = syntaxErrorEnd(
       { line: begin.line, character: begin.column },
@@ -198,7 +155,6 @@ export function reportSyntaxErrors(
       startCharacterNumber: ctx.characterNumber(from) + 1,
       endCharacterNumber: ctx.characterNumber(to) + 1,
     };
-    // The document's line the chunk begins on.
     const chunkLine = error.location.begin.line - ctx.lineNumber(from);
     let namesLine = false;
     const message = withMessageLines(error.message, (line) => {
@@ -217,16 +173,8 @@ export function reportSyntaxErrors(
   }
 }
 
-/**
- * Which errors of a lowerer's reading of an expression it reports
- * (`reportReadingErrors`): `"string"`, a backtick string's own
- * (`LuauSyntaxError.ofString`) only; `"expression"`, in story braces
- * (`Hello {1 2}.`), choice text, a choice's condition and an alternator's
- * head and arms, every error of the reading.
- */
 export type ReadingErrorScope = "string" | "expression";
 
-/** Whether a node is, or is in, a member's name the tree reads (`LuauPropertyName`). */
 function isPropertyName(node: SyntaxNode | null): boolean {
   for (let n = node; n; n = n.parent) {
     if (isExplicitRuleName(n.name, "LuauPropertyName")) return true;
@@ -235,30 +183,6 @@ function isPropertyName(node: SyntaxNode | null): boolean {
   return false;
 }
 
-/**
- * Reports the errors of a lowerer's reading of an expression that `node`
- * begins, where no other reading reads the expression: not the type
- * checker's (`isReadLuau`), which reads a statement's Luau, a lowerer's of a
- * define's method or a Sparkle handler, which reads it whole
- * (`loweredLuauBodyOf`), nor a story store's (`storyStoreOf`).
- *
- * A backtick string's own errors are reported in every such place: in
- * story text, a choice, an alternator's head or arm and a define's value,
- * the reading that lowers the expression is the string's one owner
- * (I-1435). In story braces, choice text, a choice's condition and an
- * alternator's head and arms (`"expression"`) the reading is the one owner
- * of every syntax error, in Luau's words (I-1445): Sparkdown's tree checks
- * defer to it there (`checkerReadsOnTo`'s `loweredExpressionOf`), and the
- * reading names the brace's `}` or the arm's `|` it ends at
- * (`readExpressionAst`), so `{x.}` reports `Expected identifier, got '}'`
- * and `{f(}` `Expected identifier when parsing expression, got '}'`. Two
- * values or names side by side (`{1 2}`), and a backtick string the
- * expression rejects (`{1 `a {} b`}`), report `Expected the end of the
- * expression, got …`. A keyword the tree reads as a member's name
- * (`LuauPropertyName`, `{cfg.repeat}`), which story text may use to read a
- * define's property of that name (#1081), is Sparkdown's syntax, not Luau's
- * missing name.
- */
 export function reportReadingErrors(
   errors: readonly LuauSyntaxError[],
   node: SyntaxNode,
@@ -278,10 +202,6 @@ export function reportReadingErrors(
   if (owned.length > 0) reportSyntaxErrors(owned, ctx);
 }
 
-/**
- * A function's parameters as the runtime binds them: each named parameter,
- * then the synthetic local that holds `...`'s values when it takes them.
- */
 export function functionArguments(func: AstExprFunction): Argument[] {
   const args = func.args.map(
     (arg) => new Argument(new Identifier(arg.name), false, false),
@@ -294,8 +214,6 @@ export function functionArguments(func: AstExprFunction): Argument[] {
   return args;
 }
 
-// Visits the statements and expressions under `root` in document order,
-// leaving out types; `enter` returns false to skip a node's children.
 function walk(root: AstNode, enter: (node: AstNode) => boolean): void {
   visitAst(root, {
     visit: (node) =>
@@ -305,16 +223,6 @@ function walk(root: AstNode, enter: (node: AstNode) => boolean): void {
   });
 }
 
-// A function statement declares a local only as a `local function`. A plain
-// `function NAME` is `NAME = function ... end`, as Luau's is (I-1422): it
-// assigns the local named NAME in scope where it is written (a local of the
-// same function, #415, or of an enclosing one, #1349), and the global NAME
-// when none is; so the scans read its name as they read an assignment's
-// target. A field (`function a.f`) or method (`function a:m`) declares
-// nothing either.
-
-// The names a function's body declares for the whole body rather than from
-// a point in a block: its `store`s'.
 function bodyWideDeclarations(body: AstStatBlock): Set<string> {
   const names = new Set<string>();
   walk(body, (node) => {
@@ -329,8 +237,6 @@ function bodyWideDeclarations(body: AstStatBlock): Set<string> {
   return names;
 }
 
-// The names a declaration statement declares: a `local` or `const`, or a
-// `store`, bare or after `&`.
 function declarationNames(node: AstNode): string[] {
   const stat =
     node instanceof AstStatSparkdownExplicit ? node.statement : node;
@@ -339,8 +245,6 @@ function declarationNames(node: AstNode): string[] {
   return [];
 }
 
-// The locals a node declares: a `local` or `const`'s names, a local
-// function's name, a loop's variables, and a function's parameters.
 function declaredLocals(node: AstNode): readonly AstLocal[] {
   const stat =
     node instanceof AstStatSparkdownExplicit ? node.statement : node;
@@ -354,21 +258,12 @@ function declaredLocals(node: AstNode): readonly AstLocal[] {
   return [];
 }
 
-// The variables a loop declares.
 function loopNames(node: AstNode): string[] {
   if (node instanceof AstStatFor) return [node.variable.name];
   if (node instanceof AstStatForIn) return node.vars.map((v) => v.name);
   return [];
 }
 
-/**
- * The names a function's own scope declares, for `declaredLocalsStack`, so
- * a function nested in it can tell a local of this one from a global: its
- * parameters, and the locals, `store` and `const` declarations, loop
- * variables and local functions of its body, in the blocks inside the body
- * too but not inside the functions nested in it, variadic or not. A plain
- * `function NAME` assigns and declares nothing (I-1422).
- */
 export function immediateBodyDeclarations(
   params: readonly string[],
   body: AstStatBlock | null,
@@ -383,8 +278,6 @@ export function immediateBodyDeclarations(
       return false;
     }
     if (node instanceof AstStatFunction) return false;
-    // What an alternator runs declares too, in its arms' scopes
-    // (`functionBindings`).
     const scopes = alternatorScopesOf(node, ctx);
     if (scopes) {
       for (const scope of scopes) for (const part of scope.parts) walk(part, declares);
@@ -398,88 +291,19 @@ export function immediateBodyDeclarations(
   return out;
 }
 
-// Heuristic: names matching common stdlib namespaces / globals don't
-// need to be captured. False positives (a user-defined `math` would not
-// be captured) are acceptable since Luau warns against shadowing stdlib
-// names anyway — and a name an enclosing function declares as a local is
-// captured whatever it matches (`isShadowedLocal`).
 const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
-  // Namespaces
   "math", "string", "table", "utf8", "bit32", "os", "vector",
   "coroutine", "debug", "task", "buffer",
   "count", "lang", "plural", "system",
-  // Globals
   "_G", "_VERSION",
-  // Functions
   "assert", "collectgarbage", "error", "gcinfo", "getfenv",
   "getmetatable", "ipairs", "loadstring", "newproxy", "next",
   "pairs", "pcall", "print", "rawequal", "rawget", "rawlen", "rawset",
   "require", "select", "setfenv", "setmetatable", "tonumber",
   "tostring", "type", "typeof", "unpack", "xpcall",
-  // Keywords / control (shouldn't be referenced as values but just in case)
   "true", "false", "nil",
-  // NOTE: `self` is NOT in this set. It's an implicit method receiver
-  // parameter (for colon-form methods) or an ordinary user parameter
-  // — never a stdlib-resolved global. When a nested closure inside a
-  // method body references `self`, it must be captured as an upval
-  // pointing at the outer frame's parameter slot. Treating it as a
-  // stdlib name would block that capture and the inner closure would
-  // see nil at runtime.
 ]);
 
-/**
- * The names a function's body reads from the scopes around it, in the order
- * it first reads them: the function's upvalues, which its closure captures
- * when it is built. A name read in a function nested in the body counts as
- * read by this one, which must capture it for the nested function to
- * capture in turn. A read is bound inside the function, and not captured,
- * when it reads a parameter, a local the body declares at any depth (the
- * converter binds each read to the local it reads, so a same-named local of
- * a nested function or a later block does not bind it), or a `store` the
- * body declares. A function statement assigns its name as an assignment
- * does (I-1422), so a name that is a local of an enclosing function is
- * captured as a read is. A name that
- * is a variadic function of an enclosing scope is reached by path and not
- * captured, but the locals it captures are, since a call to it passes them.
- * Any other name is captured, unless no enclosing function
- * declares it and it is a stdlib name or a global callable (a top-level
- * function, `external`, `store` or `const`): a read of a global the program
- * never declares is captured too.
- *
- * A read the converter binds to a local declared outside the function (a
- * local of a block around it, written in the same statement) reads that
- * local, whatever its name; when that local is a declaration of the root
- * frame's own scope (one written on the function's line, `& local a = 1;
- * function g() ... end`), it is that declaration's root read.
- *
- * `rootReads`, when given, collects each name read that no function around
- * the function declares and the converter does not bind to a local, with the
- * `local` of the root frame's own scope that takes it where the function is
- * written (`rootLocalAnswer`), in the order they are first read: a
- * closure built in the root frame captures a captured one through the
- * local's slot when it has one (`rootSlotName`), and at the global when the
- * scope declares the name but none of its declarations is in scope there
- * (`ROOT_NONE`). The answer of every such read is recorded, so the function
- * is lowered again when a `local` above it changes it. Given it, a name a
- * flow's `local` takes where the function is written is captured though a
- * global callable, a store, a const or a stdlib entry of it would otherwise
- * answer; a define's method, which reads no flow's local, gives none.
- *
- * `node`, the syntax node the function is written at, adds what the methods
- * of each `define` written in the function read from around the define
- * (`defineMethodReads`), which the converter's reading of the body leaves
- * out (I-1373), after the body's own reads: each is read at the define, and
- * is bound there by a local in scope of this function or of a function
- * nested in it around the define (`definesBindings`). A define inside
- * another's method is read with that method, so each is read once.
- * `defineReads`, when given, takes the names only those methods read
- * instead of the list returned, for a function whose captured parameters
- * must stay what its own body reads (a top-level define's method, whose
- * closure a save can hold). `unscoped` leaves out what the scopes around
- * the function decide (their locals, variadic functions, global callables
- * and stdlib names), for a scan read in another function's scopes than
- * its own (`defineMethodReads`).
- */
 export function freeVariables(
   params: readonly string[],
   body: AstStatBlock | null,
@@ -497,11 +321,7 @@ export function freeVariables(
   } = {},
 ): string[] {
   if (!body) return [];
-  // Names bound inside the function: its parameters, and the `store`s its
-  // body declares, which a read reaches by name.
   const bound = new Set<string>(params);
-  // The locals the body declares (`local`, `const`, `local function`, loop
-  // variables, parameters), nested functions included.
   const locals = new Set<AstLocal>();
   walk(body, (node) => {
     const stat =
@@ -514,9 +334,6 @@ export function freeVariables(
   });
   const isGlobalCallable = (name: string) =>
     ctx.globalCallableNames?.has(name) ?? false;
-  // Rebound entries (`f = <expr>` over a global) are dispatch metadata
-  // only — they must NOT suppress upval capture decisions; the name
-  // resolves like any other reference here.
   const isShadowedLocal = (name: string) => {
     const stack = ctx.declaredLocalsStack;
     if (!stack) return false;
@@ -528,28 +345,14 @@ export function freeVariables(
   const free: string[] = [];
   const seen = new Set<string>();
   const rootSeen = new Set<string>();
-  // Where a read lands: the list returned, or `defineReads` for the reads
-  // only a define's methods make.
   let into = free;
-  // `declared`, for a read the converter binds to a declaration of the root
-  // frame's own scope, is that declaration's answer (`rootDeclarationAnswer`).
-  // `blockLocal`, for a read inside a block a top-level statement opens, is
-  // whether the converter binds it to a local of that block.
   const readAt = (name: string, at: number, readsLocal = false, declared?: string, blockLocal = false) => {
     if (bound.has(name) || seen.has(name)) return;
     if (!unscoped) {
-      // A read the converter binds to a local of a block around the
-      // function reads that local, never a local of the root frame's own
-      // scope of its name.
       let takenByLocal = false;
       if (!readsLocal && !isShadowedLocal(name) && !rootSeen.has(name)) {
         rootSeen.add(name);
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
-        // Inside a block a top-level statement opens, a later statement of
-        // the block reads the block's locals as globals (I-1468), so the
-        // read names no declaration to capture; a local of the block
-        // (`RootLocals.blockLocal`) or of a flow around it in scope at the
-        // read (`rootLocalAnswerIgnoringBlocks`) takes the name.
         if (answer !== ROOT_IN_BLOCK) rootReads?.push({ name, answer });
         takenByLocal =
           !rootReads
@@ -560,10 +363,6 @@ export function freeVariables(
               answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
             : answersDeclaration(answer);
       }
-      // A flow's `local` in scope where the function is written takes the
-      // name from a global callable, a store, a const or a stdlib entry of
-      // it, so the function captures it (`local count = 0` above a closure
-      // that counts, I-1365).
       if (!isShadowedLocal(name) && !readsLocal && !takenByLocal) {
         if (isGlobalCallable(name)) return;
         if (STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name)) return;
@@ -574,18 +373,9 @@ export function freeVariables(
   };
   const read = (name: string, location: Location) =>
     readAt(name, offsetAt(location.begin, ctx));
-  // A local read where the reading that holds the function binds it: none
-  // of the function's own, a local of a scope around the function.
   const readLocal = (local: AstLocal, location: Location) => {
     if (locals.has(local)) return;
     const at = offsetAt(location.begin, ctx);
-    // The local is written in the statement being read, so whether it
-    // is a declaration of the root frame's own scope changes only with
-    // that statement; its ordinal among the declarations of its name is
-    // recorded when it is one. Inside a block a top-level statement
-    // opens, it is read as a global is, as before the index (I-1468);
-    // the block is that statement or inside it, so this too changes
-    // only with the statement.
     const declaredAt = offsetAt(local.location.begin, ctx);
     const index = rawContext(ctx).rootLocals;
     if (index?.answer(local.name, at) === ROOT_IN_BLOCK) {
@@ -598,9 +388,6 @@ export function freeVariables(
       else readAt(local.name, at, true);
     }
   };
-  // The locals in scope where each alternator being walked is read, the
-  // innermost last: its head and arms, read on their own
-  // (`alternatorPartsAst`), read those locals as globals of their names.
   const alternatorScopes: ReadonlyMap<string, AstLocal>[] = [];
   const localInAlternatorScope = (name: string): AstLocal | undefined => {
     for (let i = alternatorScopes.length - 1; i >= 0; i--) {
@@ -615,9 +402,6 @@ export function freeVariables(
       if (local) readLocal(local, node.location);
       else read(node.name, node.location);
     } else if (node instanceof AstExprSparkdownSequentialAlternator || node instanceof AstExprSparkdownConditionalAlternator) {
-      // What the alternator runs reads names too (I-1284): the locals it
-      // declares are the function's, and its other reads are the
-      // function's reads, of the locals in scope where it stands.
       const candidate = node.source.node as SyntaxNode | undefined;
       if (!candidate) return false;
       const groups = alternatorPartsAst(candidate, documentText(ctx)).map((scope) => scope.parts);
@@ -629,8 +413,6 @@ export function freeVariables(
       }
       alternatorScopes.push(node.visibleLocals);
       for (const group of groups) {
-        // The locals an arm's statements declare, in scope for its parts
-        // after them.
         const armScope = new Map<string, AstLocal>();
         alternatorScopes.push(armScope);
         for (const part of group) {
@@ -649,13 +431,10 @@ export function freeVariables(
     } else if (node instanceof AstExprLocal) {
       readLocal(node.local, node.location);
     } else if (node instanceof AstStatFunction) {
-      // A function statement reads the name it assigns, as an assignment
-      // does, and `function a.f` reads `a`.
       walk(node.name, readNames);
       walk(node.func, readNames);
       return false;
     } else if (node instanceof AstStatSparkdownStore) {
-      // A `store` declares its names and reads its values.
       for (const value of node.values) walk(value, readNames);
       return false;
     }
@@ -677,16 +456,10 @@ export function freeVariables(
   return free;
 }
 
-/**
- * The `define`s written under a syntax node, each define inside another
- * left out, since the other's methods read it (`defineMethodReads`).
- */
 function outermostDefines(node: SyntaxNode): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   const cursor = node.cursor();
   let depth = 0;
-  // Steps past the node at the cursor: to its next sibling, or the next
-  // sibling of the nearest node above it, never leaving `node`.
   const next = (): boolean => {
     while (!cursor.nextSibling()) {
       if (depth === 0) return false;
@@ -711,15 +484,6 @@ function outermostDefines(node: SyntaxNode): SyntaxNode[] {
   return out;
 }
 
-/**
- * Whether a name is bound, at an offset in a function's body, by something
- * the body declares there: a local of the function, or a parameter or local
- * of a function nested in the body around the offset, each from where it is
- * declared to the end of its block (`functionBindings`). A method of a
- * `define` reads its body on its own, so the scopes it is written in are
- * asked by position (`freeVariables`' `node`). The function's parameters
- * and `store`s are the scan's own.
- */
 function definesBindings(
   body: AstStatBlock,
   ctx: LowerContext,
@@ -764,11 +528,6 @@ function definesBindings(
     );
 }
 
-/**
- * Whether a function's body calls `name` by name anywhere, nested functions
- * included: `local function f() ... f() ... end` refers to itself, so the
- * closure captures a live pointer to the local it is assigned to.
- */
 export function bodyReferencesNameAsCall(
   body: AstStatBlock | null,
   name: string,
@@ -792,26 +551,6 @@ export function bodyReferencesNameAsCall(
   return found;
 }
 
-// Build the closure-value `ObjectExpression`. The shape is recognized
-// by `CallValueAsFunction`'s closure-aware dispatch in Story.ts:
-//   {
-//     __closure_fn: -> __anon_fn_<syntheticId>,
-//     __closure_upvals: { "0": <upval0>, "1": <upval1>, ... },
-//     __closure_user_arity: <K>,
-//   }
-//
-// Each upval value is a `VariablePointerExpression` — at runtime that
-// emits a `VariablePointerValue` referencing the outer-scope variable.
-// The runtime auto-resolves the pointer's `contextIndex` to the
-// current frame at push time and registers it as an "open upvalue".
-// When the outer frame later pops, `CallStack.Pop` snapshots the
-// current value into `pointer.closedValue`, so the closure keeps
-// working after its lexical parent is gone (Lua semantics).
-//
-// Multiple closures capturing the same outer variable share a single
-// `VariablePointerValue` (dedup happens at auto-resolve time), so
-// mutations made by one closure are visible to the others — both
-// while the parent is alive and after it has closed.
 export function buildClosureExpression(
   synthName: string,
   upvals: string[],
@@ -838,27 +577,13 @@ export function buildClosureExpression(
   ]);
 }
 
-/** A name a function reads from a `local` of the root frame's own scope,
- *  with the answer that names the declaration (`rootLocalAnswer`). */
 export interface RootRead {
   name: string;
   answer: string;
 }
 
-/** How a closure built in the root frame captures one of its upvalues in
- *  place of by name (`VariablePointerExpression`): through the slot of the
- *  declaration it reads, or at the global. */
 export type RootCapture = { slot: string } | "global";
 
-/** How each of `upvals` a closure built in the root frame captures, where
- *  not by name: through the slot of the declaration of the root frame's own
- *  scope it reads, for a name the document declares there more than once
- *  (`rootSlotName`), and at the global for a name it reads as
- *  a global that the scope declares where no such declaration is in scope
- *  (`ROOT_NONE`), so that a scene's `local` of the name, which the scope may
- *  bind as the closure is built, is not captured (I-1374). A name the scope
- *  declares nowhere in the document is captured by name. A closure built in
- *  a function captures the function's own binding of the name. */
 export function rootCaptureSlots(
   reads: readonly RootRead[],
   upvals: readonly string[],
@@ -876,14 +601,6 @@ export function rootCaptureSlots(
   return captures.size > 0 ? captures : undefined;
 }
 
-/**
- * Lowers the body of the function `func` (written at the syntax node `node`)
- * inside the scopes a function opens: a buffer for the functions nested in
- * it, its own locals on the declared-locals stack, and a frame for its
- * variadic nested functions. Returns the body's objects with the objects
- * its entry runs first (`hoisted`) and the nested functions last, and
- * passes the shape of the body to `close` once the function is built.
- */
 export function lowerFunctionBody(
   func: AstExprFunction,
   node: SyntaxNode,
@@ -908,7 +625,6 @@ export function lowerFunctionBody(
     () => {
       const shape = openFunctionBody(ctx, node);
       const body = lowerStatements(content, ctx, skipNames, shape);
-      // The function bodies its types hold lower no code; check them here.
       reportErasedConstErrors(func, node, ctx);
       return { shape, body };
     },
@@ -921,11 +637,6 @@ export function lowerFunctionBody(
   };
 }
 
-/**
- * A function's frame on the declared-locals stack: `declaredParams` and the
- * names its body declares (`immediateBodyDeclarations`), scoped by the
- * function's `bindings` (`scopeDeclaredLocals`).
- */
 export function declaredLocalsFrame(
   declaredParams: readonly string[],
   body: AstStatBlock | null,
@@ -939,16 +650,6 @@ export function declaredLocalsFrame(
   return declared;
 }
 
-/**
- * Runs `lower`, which lowers a function's body, inside the scopes the body
- * opens: a buffer for the functions nested in it, its bindings (`params`
- * and the locals `body` declares), its own locals on the declared-locals
- * stack (`declaredParams` and the body's declarations), and a frame for its
- * variadic nested functions. Returns what `lower` returned with the nested
- * functions the body collected and an empty list for the objects its entry
- * runs first (`hoisted`). The stacks are read together (`freeVariables`,
- * `resolveCallableBinding`), so a body that is a function opens them here.
- */
 export function inFunctionScopes<T>(
   params: readonly { name: string }[],
   declaredParams: readonly string[],
@@ -974,11 +675,6 @@ export function inFunctionScopes<T>(
   return { result, hoisted, nested };
 }
 
-// A function written as a value, as a `Function` flow of its own named
-// `name`, whose parameters are the captured `upvals` followed by its own:
-// the closure-dispatch path in `CallValueAsFunction` pushes the upvals as
-// the first arguments, so the body's reads of captured names resolve as
-// parameter reads. Functions nested in its body attach to it as subflows.
 export function buildFunction(
   func: AstExprFunction,
   node: SyntaxNode,
@@ -1002,10 +698,6 @@ export function buildFunction(
   return fn;
 }
 
-// The name in a function's own header: a plain name
-// (`LuauFunctionDeclarationName`) or a dotted or method name, which
-// parses as a `LuauAccessPath`. Only nodes before the parameter list
-// count, since an inline body's statements sit beside it.
 function findHeaderName(node: SyntaxNode): SyntaxNode | null {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -1021,9 +713,6 @@ function findHeaderName(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-// Luau's parser reads a function expression's `(` where the name sits,
-// so it reports `Expected '(' when parsing function, got 'NAME'`. The
-// squiggle covers the name.
 function reportNamedFunctionValue(nameNode: SyntaxNode, ctx: LowerContext) {
   if (!ctx.diagnostics) return;
   const name = ctx.read(nameNode.from, nameNode.to).trim();
@@ -1034,7 +723,6 @@ function reportNamedFunctionValue(nameNode: SyntaxNode, ctx: LowerContext) {
   });
 }
 
-// The function, taking only the parameters written after `offset`.
 function withArgsAfter(
   func: AstExprFunction,
   offset: number,
@@ -1051,42 +739,21 @@ function withArgsAfter(
   );
 }
 
-/**
- * Lowers a function expression (`function(x) return x * 2 end`): builds its
- * function, attached to the enclosing function's buffer as a nested
- * subflow, or hoisted to the chunk's top level when no function encloses
- * it, and returns the closure value that names it with the variables it
- * captures. The closure-shaped value is built even with no upvalues, so the
- * runtime's value-call dispatch has `__closure_user_arity` to pad
- * under-supplied arguments with nil.
- *
- * A named function in a value position (`g = function named() ... end`) is
- * a Luau parse error: it is reported at the name and then lowered as if
- * anonymous, so the rest of the story compiles.
- */
 export function lowerFunctionExpression(
   func: AstExprFunction,
   source: LuauSource,
   ctx: LowerContext,
 ): Expression | null {
   if (!ctx.hoistedKnots && !ctx.functionScopeStack) {
-    // Snapshot-only callers that don't wire up either hoist target
-    // can't support function values at runtime.
     return null;
   }
   const node = functionNode(func, source, ctx);
   if (!node) return null;
   const headerName = findHeaderName(node);
   if (headerName) {
-    // A named function on the line after a list's comma is a statement to
-    // Sparkdown's grammar, and the comma is reported as missing its value
-    // (`commaBeforeStatement`).
     if (!followsLineEndingComma(node, ctx)) {
       reportNamedFunctionValue(headerName, ctx);
     }
-    // Luau's parser, recovering, reads the name as the parameter list
-    // (`function a.f()` takes `a`); the function takes the parameters it
-    // is written with.
     func = withArgsAfter(func, headerName.to, ctx);
   }
 
@@ -1096,10 +763,6 @@ export function lowerFunctionExpression(
   recordCaptureRead(ctx, upvals);
   const userArity = func.args.length;
 
-  // Compound-assignment lowering (`obj[fn()] += 1`) lowers the target's
-  // expressions twice, once to read and once to write, which builds the
-  // same function twice under the same name; a duplicate sibling would be
-  // a "duplicate flow" error, so the first one built is kept.
   const stack = ctx.functionScopeStack;
   const targetBuf =
     stack && stack.length > 0 ? stack[stack.length - 1] : ctx.hoistedKnots;

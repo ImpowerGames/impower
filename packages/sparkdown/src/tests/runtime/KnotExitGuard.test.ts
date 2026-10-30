@@ -37,8 +37,6 @@ function compile(src: string) {
   };
 }
 
-/** The addresses that stand on `line`: the one the line resolves to, when
- *  it starts there. */
 function addressesForLine(root: ProgramRoot, line: number): number[] {
   const address = root.addressAt(URI, line);
   return address !== undefined && root.locationOf(address)?.startLine === line
@@ -59,26 +57,6 @@ function plan(
 }
 
 describe("knot-exit guard with tunnels and threads", () => {
-  // Source lines (0-indexed):
-  // 1: (blank)
-  // 2: scene A
-  // 3:   First line in A.
-  // 4:   -> B ->
-  // 5:   Back in A after the tunnel.
-  // 6:   <- C
-  // 7:   After the thread in A.
-  // 8:   Last line in A.
-  // 9: end
-  // 10: (blank)
-  // 11: scene B
-  // 12:   Inside B, the tunnel callee.
-  // 13:   ->->
-  // 14: end
-  // 15: (blank)
-  // 16: scene C
-  // 17:   Inside C, the thread callee.
-  // 18:   done
-  // 19: end
   const FIXTURE = `\
 
 
@@ -153,18 +131,6 @@ end
 });
 
 describe("knot-exit guard prunes one-way diverts", () => {
-  // Source lines (0-indexed):
-  // 1: (blank)
-  // 2: scene A
-  // 3:   Line in A before the divert.
-  // 4:   -> B
-  // 5: end
-  // 6: (blank)
-  // 7: scene B
-  // 8:   Line one in B.
-  //  ... more lines in B ...
-  // 17:  Line ten in B.
-  // 18: end
   const FIXTURE_ONEWAY = `\
 
 
@@ -195,7 +161,6 @@ end
     const { story, root, program } = compile(FIXTURE_ONEWAY);
     const functions = Object.keys(program.functionLocations || {});
 
-    // The last line of B.
     const addresses = addressesForLine(root, 17);
     expect(addresses.length).toBeGreaterThan(0);
     expect(root.sceneAt(addresses[0]!)).toBe("B");
@@ -237,7 +202,6 @@ end
     const { story, root, program } = compile(FIXTURE);
     const functions = Object.keys(program.functionLocations || {});
 
-    // The first line of Y.
     const addresses = addressesForLine(root, 8);
     expect(addresses.length).toBeGreaterThan(0);
     expect(root.sceneAt(addresses[0]!)).toBe("Y");

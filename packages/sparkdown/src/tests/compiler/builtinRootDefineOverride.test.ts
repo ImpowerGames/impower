@@ -1,17 +1,3 @@
-// #454 — a root define named after a builtin type root (`define game with
-// ... end`) overrides the prelude's table in a seeded compile, the player's
-// mode, as it already compiles in the unseeded editor compile.
-//
-// The builtins prelude declares every type root with its own root define, and
-// a seeded compile parses that prelude ahead of the project. The prelude's
-// root defines were never marked as prelude declarations, so the authored
-// root define reached `FlowBase.AddNewVariableDeclaration` as a plain
-// collision: the compile reported "Duplicate identifier `game`. A var named
-// `game` already exists on null" and the authored define was dropped. An
-// override takes the slot, keeps the prelude's values for the keys it does
-// not restate, and keeps every builtin instance registered in the type's
-// table, which then inherits from the authored root.
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -49,7 +35,6 @@ function compileWith(
   return programCompiler(texts, { seedBuiltinsIntoStory }).compile().program;
 }
 
-/** What a compiled story shows when the reader picks its first choice. */
 function playFirstChoice(program: SparkProgram): string {
   const story = new ProgramStory(program.chunks!);
   const runtimeErrors: string[] = [];
@@ -62,7 +47,6 @@ function playFirstChoice(program: SparkProgram): string {
   return output;
 }
 
-/** What a compiled story shows from its start, and the errors it reports. */
 function play(program: SparkProgram): { output: string; errors: string[] } {
   expect(program.chunks, JSON.stringify(errorsOf(program))).toBeDefined();
   const story = new ProgramStory(program.chunks!);
@@ -94,10 +78,6 @@ describe("a root define named after a builtin type root", () => {
   );
 
   test("the authored table takes the slot and keeps the builtin's other values and instances", () => {
-    // `game.loading` is a prelude default the author does not restate;
-    // `color.red` and `config.ui` are prelude instances registered into
-    // their type's table; `color.mine` is an authored instance of the
-    // overridden type.
     const program = compileWith(
       {
         [MAIN]: `define game with
@@ -182,8 +162,6 @@ end
   test.each([true, false])(
     "a root define written after a member of its type keeps that member (seeded: %s)",
     (seeded) => {
-      // The member mints the type's table when it runs first; the root then
-      // takes over what registered there, as it does a builtin's members.
       const program = compileWith(
         {
           [MAIN]: `define pebble as rock with
@@ -270,16 +248,13 @@ end
       return { output: story.ContinueMaximally(), errors };
     };
     expect(output(s.root)).toEqual({ output: "1 0 table\n", errors: [] });
-    // The authored value changes.
     expect(output(s.edit("probe_field = 1", "probe_field = 2"))).toEqual({
       output: "2 0 table\n",
       errors: [],
     });
-    // The override goes: the prelude's `game` holds the slot again.
     expect(
       output(s.edit("define game with\n  probe_field = 2\nend\n", "")),
     ).toEqual({ output: "nil 0 table\n", errors: [] });
-    // And comes back.
     expect(
       output(
         s.edit("scene start", "define game with\n  probe_field = 3\nend\n\nscene start"),
@@ -317,8 +292,6 @@ end
 });
 
 describe("the edges of a root override", () => {
-  /** A seeded compile of `declarations` and a scene line of `line`, which
-   *  reports no error and shows `expected`. */
   function shows(
     declarations: string,
     line: string,
@@ -342,8 +315,6 @@ end
     return program;
   }
 
-  // `typewriter` is a dual name: the prelude's bare `typewriter` is a synth
-  // instance and its root is displaced to `$typewriter_typewriter`.
   test.each(["character", "typewriter"])(
     "an override of the dual-named root `%s` reaches a member defined after it",
     (type) => {
@@ -645,7 +616,6 @@ end
   lilt = { 9, 8 }
 end
 `,
-      // The builtin's `lilt` is `{ 1, -2, 7, 10 }`.
       "{#inflection.lilt} {inflection.lilt[1]} {inflection.lilt[2]}",
       "2 9 8",
     );

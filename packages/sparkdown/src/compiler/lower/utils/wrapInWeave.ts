@@ -4,15 +4,6 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { LowerContext } from "../context";
 import { buildDebugMetadata } from "./debugMetadata";
 
-// Wrap the given parsed objects in a statement-level Weave.
-//
-// When called from a NESTED helper (not through the chunk-level
-// `lower()` dispatcher), the resulting Weave won't be automatically
-// stamped with per-statement debug metadata — the dispatcher's
-// `stampDebugMetadata` only fires for the top-level returned block.
-// Callers that DO know the source position can pass `range` + `ctx`
-// to attach metadata at wrap time so `appendBlockContent` can carry
-// it down to the unwrapped children later.
 export function wrapInWeave(
   content: ParsedObject[],
   range?: { from: number; to: number },

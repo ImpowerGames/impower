@@ -7,11 +7,6 @@ import type {
   ProgramLocator,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 
-/**
- * The index of the beat at `address` in `beats`, or of the last beat before
- * it in its script when `address` is not itself a beat's (a position inside a
- * line, a heading between two lines). -1 when nothing precedes it.
- */
 export function beatIndexIn(
   beats: readonly SceneBeat[],
   locator: ProgramLocator,
@@ -45,15 +40,6 @@ export function beatIndexIn(
   return index;
 }
 
-/**
- * How a preview divides a scene around the cursor: the beats within
- * `distance` of the cursor's beat on either side come first (`near`), then
- * the rest of the scene (`rest`), the beats after the window before the ones
- * behind it. A cursor can land anywhere in a scene, so all of it warms, but
- * what the author is looking at and about to click warms first. With
- * `distance` 0 the whole scene is near, as play's window then covers the
- * rest of a flow.
- */
 export function previewWindow(
   entry: SceneAssets,
   index: number,

@@ -1,23 +1,5 @@
 import { create, type Font, type GlyphRun } from "fontkit";
 
-/**
- * Renders color emoji into a PDF as *vector* graphics by pulling each glyph's
- * artwork out of the font's OpenType-SVG (`SVG `) table.
- *
- * PDFKit/fontkit only embed monochrome glyph outlines and ignore the color
- * tables (`COLR`/`CPAL`/`SVG `), so registering a color emoji font as a text
- * font produces blank glyphs. Noto Color Emoji, however, ships an `SVG ` table
- * whose glyphs are plain `<path fill>` art (plus the occasional gradient). We
- * extract the minimal self-contained SVG for a glyph and hand it to
- * `svg-to-pdfkit`, which emits real PDF vector ops — crisp at any zoom, tiny on
- * disk, and identical in Node and the browser worker (no canvas needed).
- *
- * Noto packs *all* glyphs of a range into a single shared SVG document with a
- * common `<defs>`; each emoji is a `<g id="glyphN">` that `<use>`s shared paths
- * (and sometimes gradients). So per glyph we must collect the transitive
- * closure of the defs it references and assemble a standalone SVG.
- */
-
 interface SvgRecord {
   start: number;
   end: number;
@@ -27,26 +9,21 @@ interface SvgRecord {
 
 interface ParsedDoc {
   doc: string;
-  /** id -> outer XML of a `<defs>` child (lazily built) */
   defs: Map<string, string> | null;
-  /** gid -> `<g id="glyphN">…</g>` (lazily built, null if absent) */
   groups: Map<number, string | null>;
 }
 
 export interface EmojiGlyph {
   id: number;
-  /** advance width in font design units */
   advanceWidth: number;
 }
 
 export interface EmojiRunGlyph extends EmojiGlyph {
-  /** minimal standalone SVG for this glyph, or null if the font has none */
   svg: string | null;
 }
 
 export interface EmojiRun {
   glyphs: EmojiRunGlyph[];
-  /** total advance of the run, in font design units */
   advanceUnits: number;
 }
 
@@ -69,7 +46,6 @@ export default class EmojiSvgProvider {
 
   readonly unitsPerEm: number;
 
-  /** true when the font actually carries a usable `SVG ` table */
   readonly hasSvg: boolean;
 
   constructor(fontData: ArrayBuffer | Uint8Array) {
@@ -77,13 +53,11 @@ export default class EmojiSvgProvider {
       fontData instanceof Uint8Array ? fontData : new Uint8Array(fontData);
     this._bytes = bytes;
     this._dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    // fontkit wants a Node Buffer; Buffer is shimmed in the browser bundle.
     this._font = create(Buffer.from(bytes) as Buffer) as Font;
     this.unitsPerEm = this._font.unitsPerEm || 1000;
     this.hasSvg = this.parseSvgTable();
   }
 
-  /** Shape a string into glyphs, resolving ZWJ/skin-tone sequences via GSUB. */
   layout(text: string): EmojiGlyph[] {
     const run = this._font.layout(text) as GlyphRun;
     return run.glyphs.map((g) => ({
@@ -92,10 +66,6 @@ export default class EmojiSvgProvider {
     }));
   }
 
-  /**
-   * Shape + resolve a whole emoji cluster into its drawable glyphs (each with
-   * its SVG) plus the run's total advance. Cached per cluster string.
-   */
   getEmojiRun(cluster: string): EmojiRun {
     const cached = this._runCache.get(cluster);
     if (cached) {
@@ -111,7 +81,6 @@ export default class EmojiSvgProvider {
     return run;
   }
 
-  /** Minimal standalone SVG for a glyph id, or null if the font has none. */
   getSvg(gid: number): string | null {
     if (this._svgCache.has(gid)) {
       return this._svgCache.get(gid)!;
@@ -125,8 +94,6 @@ export default class EmojiSvgProvider {
     this._svgCache.set(gid, svg);
     return svg;
   }
-
-  // ---- SVG table parsing -------------------------------------------------
 
   protected parseSvgTable(): boolean {
     const dv = this._dv;
@@ -164,7 +131,6 @@ export default class EmojiSvgProvider {
   }
 
   protected recordIndexFor(gid: number): number {
-    // records are sorted by glyph id; linear scan is fine (≤ ~700 records)
     for (let i = 0; i < this._records.length; i += 1) {
       const r = this._records[i]!;
       if (gid >= r.start && gid <= r.end) {
@@ -181,7 +147,6 @@ export default class EmojiSvgProvider {
     }
     const rec = this._records[recIndex]!;
     let slice = this._bytes.subarray(rec.off, rec.off + rec.len);
-    // OpenType-SVG docs may be gzip-compressed (this font's are not).
     if (slice[0] === 0x1f && slice[1] === 0x8b) {
       slice = this.gunzip(slice);
     }
@@ -195,8 +160,6 @@ export default class EmojiSvgProvider {
   }
 
   protected gunzip(data: Uint8Array): Uint8Array {
-    // Only reached for gzip'd SVG docs. Kept synchronous + optional so the
-    // common (uncompressed) path never pulls in zlib.
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const zlib = require("zlib");
@@ -205,8 +168,6 @@ export default class EmojiSvgProvider {
       return data;
     }
   }
-
-  // ---- per-glyph SVG assembly -------------------------------------------
 
   protected buildSvg(gid: number): string | null {
     const recIndex = this.recordIndexFor(gid);
@@ -222,9 +183,6 @@ export default class EmojiSvgProvider {
     const defs = this.collectDefs(group, defsMap);
     const upem = this.unitsPerEm;
     const advance = this.advanceWidthOf(gid) || upem;
-    // OpenType-SVG coordinate system: y-axis points down, origin at the glyph
-    // baseline, one unit == one design unit. Emoji art sits above the baseline
-    // (negative y), so the em box spans y ∈ [-upem, 0].
     const viewBox = `0 ${-upem} ${advance} ${upem}`;
     return (
       `<svg xmlns="http://www.w3.org/2000/svg" ` +
@@ -279,7 +237,6 @@ export default class EmojiSvgProvider {
     return map;
   }
 
-  /** Transitive closure of defs referenced by `root`, concatenated. */
   protected collectDefs(root: string, defsMap: Map<string, string>): string {
     const out: string[] = [];
     const seen = new Set<string>();
@@ -310,11 +267,6 @@ export default class EmojiSvgProvider {
     }
   }
 
-  /**
-   * Slice out the element starting at `start` (which must point at its `<`),
-   * returning [outerXML, indexAfterElement]. Handles self-closing tags and
-   * balanced nesting of same-named tags.
-   */
   protected sliceElement(s: string, start: number): [string, number] {
     const nameMatch = /^<([\w:.-]+)/.exec(s.slice(start, start + 64));
     const name = nameMatch ? nameMatch[1]! : "";

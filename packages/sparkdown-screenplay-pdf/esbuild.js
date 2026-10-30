@@ -4,13 +4,7 @@ import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
-/**
- * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
- * file in a dedicated namespace, then load its contents as a text string.
- * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
- * same `import text from "./some.file?raw"` works in code bundled by either.
- * @type {import('esbuild').Plugin}
- */
+/** @type {import('esbuild').Plugin} */
 const rawPlugin = {
   name: "raw",
   setup(build) {
@@ -96,7 +90,6 @@ if (typeof self !== "undefined") { self.global = {}; };
 async function main() {
   const ctx = await context(config);
   if (WATCH) {
-    // Not ctx.watch(), which polls the build graph's files; see the helper.
     const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
       onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),

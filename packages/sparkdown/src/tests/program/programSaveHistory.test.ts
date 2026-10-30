@@ -1,10 +1,3 @@
-// The beats a durable save holds and what the rewind Feature reads at each
-// (#1429, docs/engine/binary-program.md, section 7): a save holds the last
-// `saveHistory` beats as the oldest whole and deltas after it, restoring an
-// older beat restores its heap, each beat carries its flags and decisions,
-// a restored beat draws again what it drew and re-presents its line, the
-// story keeps the last `rewindBeats` beats, a save's listings stay small,
-// and a save of format 1 loads through its migration.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -86,7 +79,6 @@ const global = (story: ProgramStory, name: string) =>
 const field = (table: unknown, key: string) =>
   ((table as ObjectValue).value as Map<string, any>).get(key)?.value;
 
-/** The saves another process wrote, by scenario. */
 let saves: Record<string, string> = {};
 
 beforeAll(() => {
@@ -110,9 +102,6 @@ beforeAll(() => {
 
 describe("a save holds the last saveHistory beats", () => {
   const LONG = SAVE_SCENARIOS["long"]!.script;
-  // The newest statements deleted: only "Line 11." and the lines above it
-  // stand, so of the beats a save taken after "Line 25." holds (after "Line
-  // 10." to after "Line 25."), only the oldest is placed.
   const cut = () =>
     rootOf(LONG.split("\n").filter((line) => !/^ {2}Line (1[2-9]|2\d|30)\.$/.test(line)).join("\n"));
 
@@ -123,15 +112,12 @@ describe("a save holds the last saveHistory beats", () => {
     expect(report.beats).toBe(16);
     expect(report.beat).toBe(0);
     expect(report.exact).toBe(true);
-    // The beat's line, re-presented from its image.
     expect(shown(loaded)).toBe("Line 10.");
     expect(play(loaded)).toEqual(["Line 11."]);
   };
 
   it("whatever the keyframe interval: with the newest statements deleted, a save falls back to the oldest of the last 16 beats across two keyframe intervals, and again after a load", () => {
     const story = engine(rootOf(LONG));
-    // A keyframe image every seven beats, as a game that checkpoints with
-    // that interval takes.
     advance(story, 25, (n) => {
       if (n % 7 === 0) story.captureBeat(true);
     });
@@ -140,8 +126,6 @@ describe("a save holds the last saveHistory beats", () => {
     const save = story.toSave();
     expect(JSON.parse(save).beats).toHaveLength(16);
     fallsBackToTheOldest(save);
-    // A load seeds the history, so a save taken after it holds the same
-    // beats.
     const loaded = engine(rootOf(LONG));
     loaded.loadSave(save);
     expect(loaded.loadedSaveReport!.beat).toBe(15);
@@ -157,10 +141,8 @@ describe("a save holds the last saveHistory beats", () => {
 
   it("restores an older beat's heap in a fresh process: a table two globals refer to, a table the keyframe wrote first written after it, a table and a cell made after it, and two closures that share the cell", () => {
     const save = saves["heap"]!;
-    // The keyframe is the oldest beat, before `u` was written.
     const beats = JSON.parse(save).beats;
     expect(JSON.stringify(beats[0].variablesState)).toContain('"u"');
-    // The newest statements deleted, and a report in place of "Beat 4".
     const text = SAVE_SCENARIOS["heap"]!.script.replace(
       [
         "  Beat 4 {t.n} {late.w} {get()}.",
@@ -182,14 +164,10 @@ describe("a save holds the last saveHistory beats", () => {
     expect(field(u, "v")).toBe(5);
     expect(global(loaded, "uAlias")).toBe(u);
     expect(field(global(loaded, "late"), "w")).toBe(1);
-    // `inc` writes the cell `get` reads.
     expect(play(loaded)).toEqual(["Report 3 2 2 true true."]);
   });
 });
 
-// Round 1 of the review of #1654 (report 6031317072): a table whose
-// entries changed so that a signature joined without delimiters would read
-// the same.
 describe("a beat's delta", () => {
   it("writes a table whose entries changed, however its keys and values read when joined", () => {
     const text = [
@@ -216,9 +194,6 @@ describe("a beat's delta", () => {
   });
 });
 
-// Round 1 of the review of #1654 (report 6031317072, an unverified concern
-// confirmed by probe): a define's `store` field cleared since the oldest
-// beat.
 describe("a beat's delta of a define", () => {
   it("takes out a store field assigned nil since the beat before, which reads as it did", () => {
     const text = [
@@ -290,14 +265,12 @@ describe("what the rewind Feature reads at each beat", () => {
     const atMenu = story.beats.at(-1)!;
     expect(atMenu.decisions).toEqual([right]);
     expect(atMenu.image.beat).toBe(atMenu);
-    // The beat that showed the draws, re-presented without a step.
     const steps = story.stepCount;
     expect(story.restore(drawn.image)).toBe(true);
     expect(story.stepCount).toBe(steps);
     expect(shown(story)).toBe(draws[0]);
     expect(story.currentTags).toEqual(tags);
     expect(story.currentDisplayInstructions.map(table)).toEqual(tables);
-    // The beat before it, run on: the same draws, and the same menu.
     expect(story.restore(first.image)).toBe(true);
     expect(advance(story, 2)).toEqual([...draws, ...again]);
     story.Continue();
@@ -319,7 +292,6 @@ describe("what the rewind Feature reads at each beat", () => {
     const beats = JSON.parse(save).beats;
     expect(beats.at(-2).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
     expect(beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_DECISIONS_FIXED);
-    // The chosen choice in the saved form: its statement, and its part.
     expect(beats.at(-1).decisions).toHaveLength(1);
     expect(beats.at(-1).decisions[0].a.ch[2]).toBe(1);
     const loaded = engine(rootOf(TEXT));
@@ -330,8 +302,6 @@ describe("what the rewind Feature reads at each beat", () => {
     const menu = records.at(-1)!;
     expect(menu.flags).toBe(BEAT_WAITED | BEAT_DECISIONS_FIXED);
     expect(menu.image.beat).toBe(menu);
-    // The decision names the loaded program's `Choice`, which the menu
-    // raised again.
     expect(menu.decisions).toHaveLength(1);
     expect(play(loaded)).toEqual(["Went right."]);
   });
@@ -373,7 +343,6 @@ describe("what the rewind Feature reads at each beat", () => {
     const save = story.toSave();
     const flows = JSON.parse(save).beats.map((beat: any) => beat.position.st.levels[0].flow);
     expect(flows).not.toContain("new");
-    // A release without `old` has no beat of the save to place.
     let refused: unknown;
     try {
       engine(rootOf(PLAYTHROUGHS(false))).loadSave(save);
@@ -391,7 +360,6 @@ describe("what the rewind Feature reads at each beat", () => {
     const checkpoint = story.captureBeat();
     const record = story.beats.at(-1)!;
     const count = story.beats.length;
-    // The host writes to the beat, and the next continue takes it again.
     story.variablesState["gold"] = 5;
     expect(advance(story, 2)).toEqual(["New two.", "New three."]);
     expect(record.image).not.toBe(checkpoint);
@@ -404,7 +372,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(story.beats).toHaveLength(count + 1);
   });
 
-  // Round 3 of the review of #1654 (report 6040464865, finding 2).
   it("a checkpoint whose beat the history no longer holds is exported, and restored and saved, with its beat's flags", () => {
     const script = SAVE_SCENARIOS["long"]!.script;
     const story = engine(rootOf(script), { rewindBeats: 2 });
@@ -421,8 +388,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(loaded.beats.at(-1)!.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
     expect(story.restore(checkpoint)).toBe(true);
     expect(JSON.parse(story.toSave()).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
-    // Round 5 (report 6042399009): run on from the restored checkpoint, the
-    // history takes its beat again with the beat's flags.
     expect(advance(story, 1)).toHaveLength(1);
     const beats = JSON.parse(story.toSave()).beats;
     expect(beats).toHaveLength(2);
@@ -430,8 +395,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(story.beats[0]!.image).toBe(checkpoint);
   });
 
-  // Found adjudicating round 5 (report 6042399009): a keyframe a checkpoint
-  // store takes of the state a restore left is the same beat.
   it("a keyframe taken of a restored checkpoint's state is its beat, flags included, and no second record of it", () => {
     const script = SAVE_SCENARIOS["long"]!.script;
     const story = engine(rootOf(script), { rewindBeats: 2 });
@@ -445,21 +408,15 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(keyframe.beat?.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
     expect(advance(story, 1)).toHaveLength(1);
     expect(JSON.parse(story.toSave()).beats[0].flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
-    // A record the history holds, restored and taken again as a keyframe.
     const held = story.beats.at(-1)!;
     expect(story.restore(held.image)).toBe(true);
     const again = story.captureBeat(true);
     expect(held.image).toBe(again);
-    // The continue takes the beat from the keyframe, which is the record's
-    // image, and ends the next beat (the newest record).
     expect(advance(story, 1)).toHaveLength(1);
     expect(story.beats.at(-2)).toBe(held);
     expect(story.beats.filter((record) => record.image === again)).toHaveLength(1);
   });
 
-  // Round 6 of the review of #1654 (report 6043744707, finding 1): the
-  // state a restore left, taken again because the host wrote to it or
-  // because the image is another engine's, is still the restored beat.
   it("a restored beat taken again after the host wrote to it keeps its record and flags", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -489,8 +446,6 @@ describe("what the rewind Feature reads at each beat", () => {
     const checkpoint = story.captureBeat();
     const record = story.beats.at(-1)!;
     expect(advance(story, 2)).toHaveLength(2);
-    // A compile that keeps every chunk the checkpoint names, and a story of
-    // the next program sharing the images and the history, as `Game` makes.
     const edited = session.edit("Line 30.", "Line thirty.");
     const next = new ProgramStory(edited, { images: story.images, history: story.history });
     next.keepBeatImages = true;
@@ -505,9 +460,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
-  // Round 7 of the review of #1654 (report 6044969350): in ordinary play,
-  // the beat a continue ended, which the host wrote to since, taken as a
-  // keyframe and exported.
   it("a keyframe of the beat a continue ended, taken after the host wrote to it, is that beat, flags included", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -525,8 +477,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(story.beats.at(-2)).toBe(record);
   });
 
-  // Round 7 (report 6044969350, an unverified concern): a restore between
-  // the steps of an asynchronous continue, which then runs on.
   it("a beat restored between the steps of an asynchronous continue is no longer the current beat once the continue runs on", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -537,8 +487,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(advance(story, 1)).toEqual(["New two."]);
     story.ContinueAsync();
     expect(story.restore(checkpoint)).toBe(true);
-    // The continue the restore came between the steps of ends at once with
-    // the restored beat's line, which is that beat, not a second record.
     expect(story.Continue()?.trim()).toBe("New one.");
     expect(story.beats.at(-1)).toBe(record);
     expect(story.beats.filter((r) => r === record || r.image === checkpoint)).toHaveLength(1);
@@ -549,9 +497,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(record.flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
-  // Round 8 of the review of #1654 (report 6045855604, finding 1): the
-  // history's newest record is the beat another engine ended, which the
-  // engine it was handed to does not stand at until it restores it.
   it("an engine handed the history takes no image of its own state as the beat the engine before it ended", () => {
     const session = programSession(PLAYTHROUGHS(true));
     const story = engine(session.root);
@@ -570,15 +515,12 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(record.image).toBe(image);
     expect(next.beats.at(-1)).toBe(record);
     expect(JSON.parse(next.saveOfImage(fresh)!).beats.at(-1).flags).toBe(0);
-    // Restored, the beat is the engine's.
     expect(next.restore(image)).toBe(true);
     const restored = next.captureBeat(true);
     expect(restored.beat).toBe(record);
     expect(JSON.parse(next.saveOfImage(restored)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
-  // Round 9 of the review of #1654 (report 6046962096, finding 1): a loaded
-  // beat is the loading engine's.
   it("a loaded beat taken again after the host wrote to it keeps its flags", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -593,9 +535,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(JSON.parse(loaded.saveOfImage(keyframe)!).beats.at(-1).flags).toBe(BEAT_WAITED | BEAT_REWIND_FLOOR);
   });
 
-  // Round 9 (report 6046962096, finding 2): the history's newest record, the
-  // beat another engine ended, is not replaced or flagged by the engine it
-  // was handed to, whatever it does before restoring it.
   it("an engine handed the history neither saves, continues nor flags over the beat the engine before it ended", () => {
     const handOff = () => {
       const session = programSession(PLAYTHROUGHS(true));
@@ -634,8 +573,6 @@ describe("what the rewind Feature reads at each beat", () => {
     }
   });
 
-  // Round 9 (report 6046962096, finding 3): a state loaded in place stands
-  // at no beat the engine took.
   it("a state loaded in place is not the beat the story stood at before", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -650,8 +587,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(record.image).toBe(image);
   });
 
-  // Round 9 (report 6046962096, an unverified concern): a host's function
-  // evaluation runs no beat.
   it("a host's function evaluation leaves the beat the story stood at its beat, and adds no record", () => {
     const text = [
       "store gold = 0",
@@ -684,9 +619,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(story.beats.at(-2)).toBe(record);
   });
 
-  // Round 8 (report 6045855604, a coverage gap): a restore between the steps
-  // of an asynchronous continue that then runs steps moves on from the
-  // restored beat.
   it("a beat restored between the steps of an asynchronous continue that then runs on to its line is not the beat that line ends", () => {
     const story = engine(rootOf(PLAYTHROUGHS(true)));
     story.ChoosePathString("new");
@@ -699,7 +631,6 @@ describe("what the rewind Feature reads at each beat", () => {
     expect(first.image).toBe(image);
   });
 
-  // Round 6 (report 6043744707, finding 2).
   it("flags set after restoring a checkpoint whose record the history evicted are the restored beat's", () => {
     const script = SAVE_SCENARIOS["long"]!.script;
     const story = engine(rootOf(script), { rewindBeats: 2 });
@@ -715,7 +646,6 @@ describe("what the rewind Feature reads at each beat", () => {
   });
 });
 
-/** Every statement form a save holds, with the listing of each level. */
 const statementForms = (save: Record<string, any>) => {
   const forms: {
     levels: { s: number; at: number; flow?: string; decl?: string; k?: string; i?: number; block?: number }[];
@@ -740,9 +670,6 @@ const statementForms = (save: Record<string, any>) => {
   return forms;
 };
 
-/** Checks that each level of every form a save holds has its window, that
- *  a listing's windows are disjoint and in order, and returns the number of
- *  window entries and of levels at the end of their sequence. */
 const checkWindows = (save: Record<string, any>) => {
   const listings = save["listings"] as { n: number; windows: (number | string)[][] }[];
   let entries = 0;
@@ -776,9 +703,6 @@ const checkWindows = (save: Record<string, any>) => {
 describe("a save's listings", () => {
   it("cost at most 24 bytes per window entry at the fixture route's last beat, written once per sequence, and every saved form has its window", () => {
     const { files } = buildPreviewFixture();
-    // The fixture's scene, with a function value and an alternator at its
-    // top, whose statements lie outside the window of every frame of the
-    // route's last beat.
     const text = files
       .get("main.sd")!
       .replace("scene MAIN\n", 'store mark = nil\n\nscene start\n  -> MAIN\nend\n\nscene MAIN\n  & mark = function() return 1 end\n  Start {cycle|"a"|"b"}.\n');
@@ -792,11 +716,7 @@ describe("a save's listings", () => {
     const { entries, ends } = checkWindows(save);
     expect(entries).toBeGreaterThan(0);
     expect(listingBytes / entries).toBeLessThanOrEqual(24);
-    // The route's last beat stands at the end of the `then` clause's body.
     expect(ends).toBeGreaterThan(0);
-    // One listing per sequence: every level that names a sequence, by its
-    // flow and the chain of owners and blocks down to it, names the same
-    // listing, and each listing is one sequence's.
     const listingOf = new Map<string, Set<number>>();
     for (const form of statementForms(save)) {
       form.levels.forEach((level, n) => {
@@ -811,12 +731,8 @@ describe("a save's listings", () => {
     expect([...listingOf.values()].every((indexes) => indexes.size === 1)).toBe(true);
     expect(new Set([...listingOf.values()].flatMap((indexes) => [...indexes])).size).toBe(listingOf.size);
     expect(save.listings.length).toBe(listingOf.size);
-    // The function value and the alternator's count name their statement,
-    // in a window of the scene's listing that no frame's level needs.
     const anonymous = statementForms(save).filter((f) => f.levels.length === 1 && f.levels[0]!.at <= 1);
     expect(anonymous.length).toBeGreaterThanOrEqual(2);
-    // Against a full image: the state written whole within a session, and
-    // the save of the newest beat alone.
     const full = story.state.toJson().length;
     story.saveHistory = 1;
     const one = story.toSave().length;
@@ -873,7 +789,6 @@ describe("a save of format 1", () => {
     expect(loaded.loadSave(v1).format).toBe(1);
     expect(loaded.loadedSaveReport!.beats).toBe(1);
     expect(play(loaded)).toEqual(["Bumped 12.", "The end."]);
-    // A save taken after it is of this format.
     expect(JSON.parse(loaded.toSave()).format).toBe(2);
   });
 });

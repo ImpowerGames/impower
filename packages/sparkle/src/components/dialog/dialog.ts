@@ -14,9 +14,6 @@ const DEFAULT_TRANSFORMERS = {
   icon: getCssIcon,
 };
 
-/**
- * Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
- */
 export default class Dialog extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,
@@ -281,25 +278,14 @@ export default class Dialog extends SparkleComponent(
     return this.animateClose("confirm");
   };
 
-  /**
-   * Closes the dialog element.
-   *
-   * The argument, if provided, provides a return value.
-   */
   async close(returnValue?: string): Promise<string | undefined> {
     return this.animateClose(returnValue);
   }
 
-  /**
-   * Displays the dialog element.
-   */
   async show(): Promise<void> {
     return this.animateOpen(false);
   }
 
-  /**
-   * Displays the dialog element and prevents the user from interacting with anything behind the element.
-   */
   async showModal(): Promise<void> {
     return this.animateOpen(true);
   }

@@ -47,7 +47,6 @@ export default class StyleCache {
           targetEl.adoptedStyleSheets.push(this.getStyleSheet(css));
         }
       } catch {
-        // Fallback to inline styles if constructable style sheets are not supported
         this.getStyleElement(el, css);
       }
     }

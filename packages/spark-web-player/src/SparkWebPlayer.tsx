@@ -10,26 +10,15 @@ export const propDefaults = {
 
 export type SparkWebPlayerProps = Partial<typeof propDefaults>;
 
-// Boolean attribute flag check. preact-custom-element receives the raw DOM
-// attribute string, so a presence-only attribute (e.g. `<spark-web-player
-// toolbar>`) arrives as `""`, which is falsy. Treat anything other than
-// false / "false" / null / undefined as "enabled".
 const flag = (v: unknown): boolean =>
   v !== false && v !== "false" && v != null;
 
-// Renders the game player shell (viewport, game container, optional
-// playButton overlay, optional toolbar). Bootstraps the GamePlayerController
-// in useEffect via dynamic import — the Controller transitively imports
-// spark-engine + sparkdown which contain CJS-heavy code that fails Vite SSR.
 export default function SparkWebPlayer({
   playLabel,
   playButton,
   toolbar,
   fullscreenButton,
 }: SparkWebPlayerProps) {
-  // Refs needed by the Controller — `playButton`, `toolbar`, and
-  // `fullscreenButton` are optional (only rendered when the corresponding
-  // prop is true), so the Controller takes `null` for any absent ref.
   const viewportRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
   const gameBackgroundRef = useRef<HTMLDivElement>(null);
@@ -105,9 +94,6 @@ export default function SparkWebPlayer({
       controllerRef.current?.dispose();
       controllerRef.current = null;
     };
-    // Re-mount the Controller when the conditional refs come/go (playButton,
-    // toolbar, fullscreenButton). That's coarser than necessary but rare
-    // enough in practice — these are usually fixed at iframe boot time.
   }, [flag(playButton), flag(toolbar), flag(fullscreenButton)]);
 
   return (

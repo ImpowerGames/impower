@@ -57,8 +57,6 @@ test("removed native graphs are reusable across distinct module names", async ()
   }
   const reused = await churn(false), unique = await churn(true);
   console.log(JSON.stringify({ sourceBytes: source.length, reused, unique }));
-  // Linear memory need not shrink after a free. Compare capacity needed by equal work
-  // with distinct IDs versus reuse; allow 4 MiB for allocation/layout variation.
   expect(Math.max(...unique)).toBeLessThanOrEqual(Math.max(...reused) + 4 * 1024 * 1024);
 }, 60000);
 

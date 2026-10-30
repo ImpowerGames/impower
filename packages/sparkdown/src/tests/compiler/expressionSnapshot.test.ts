@@ -7,11 +7,6 @@ import { formatExpression, lowerExpressionFromText } from "./expressionSnapshot"
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOTS_DIR = join(__dirname, "__snapshots__/expression");
 
-// Fixtures live as `.sd` source files inside `__snapshots__/expression/<category>/`
-// and are paired with `<name>.snap` snapshots in the same folder. Each `.sd`
-// contains a luau expression that's wrapped as `& __ = <source>` before
-// parsing, so the file content is the expression itself.
-
 interface Fixture {
   category: string;
   name: string;

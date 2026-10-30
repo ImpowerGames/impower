@@ -376,11 +376,6 @@ end
 });
 
 describe("metamethod property names compile", () => {
-  // Grammar tags metamethod identifiers (__len, __index, __call, …) as
-  // `LuauStdLibMethods` inside `LuauPropertyAccessor`. Without explicit
-  // handling, the lowerer's `getDescendent("LuauPropertyName", ...)`
-  // lookups returned null and the access path fell through to a
-  // VariableReference whose `__len` name couldn't be resolved.
   test("mt.__len = ... compiles (dot-assignment to metamethod key)", () => {
     const { errors } = compileAndCapture(`external host_record(v)
 scene start

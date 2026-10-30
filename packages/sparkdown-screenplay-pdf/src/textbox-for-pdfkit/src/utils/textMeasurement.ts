@@ -3,12 +3,6 @@ import { FormattedText } from "../types/FormattedText";
 import { MeasuredText } from "../types/MeasuredText";
 import { getEmojiProvider, measureEmojiWidth } from "../../../emoji/emojiText";
 
-// All these functions here measure some kind of text.
-// What kind of text they measure can easily be taken from
-// the respective function names.
-// Basically all functions use the "measureTextWidth" function
-// which uses the "widthOfString" function of pdfKit document.
-
 export const measureTextWidth = (
   textChunk: FormattedText,
   doc: PDFKit.PDFDocument,

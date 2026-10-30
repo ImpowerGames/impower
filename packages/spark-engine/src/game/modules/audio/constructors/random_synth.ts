@@ -1,25 +1,3 @@
-/*
- * Inspired by ChipTone <https://sfbgames.itch.io/chiptone>
- *
- * Each preset mirrors a ChipTone `generate*` function. Where ChipTone uses
- * normalized 0-1 sliders, we precompute the value of the slider after its
- * modifier chain so the result lands in the same audible range:
- *   pitch     Hz = 440 * 2^((s*160 + 3)/12 - 6)
- *   vib       Hz = (s*6 + 0.01)^2
- *   trem      Hz = (s*6)^2 + 0.1
- *   ring      Hz = (s*80)^2 + 20
- *   wah       Hz = (s*5)^2 + 0.1
- *   fm ratio     = 1 / round(s*8 + 2)
- *   arp       Hz = s*20
- *   delay      s = s*0.5
- *   envelope ADSR s = slider * 5  (ChipTone's ADSRSource applies a getLin(5)
- *      modifier to attackTime/decayTime/sustainTime/releaseTime — each slider
- *      represents 1/5 of a second)
- * Effect strengths/depths (vibrato, tremolo, ring, wahwah, fm, bitcrush)
- * stay 0-1 — ChipTone's internal multipliers are already applied by the
- * matching engine constants in synthesizeSound.ts.
- */
-
 import { type Synth } from "../../..";
 import { type Create } from "../../../core/types/Create";
 import { type Random } from "../../../core/types/Random";

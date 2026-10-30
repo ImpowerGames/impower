@@ -29,20 +29,17 @@ const shown = (svg: string, name: string) =>
 const bake = (source = gradientPortrait(), recipe = paintBlink()) =>
   bakeMorphArtifact({ source, selection: {}, recipe, key: "gradient", variant: "gradient" });
 
-/** The closing segment's track of the drawing `name` leaves from. */
 const track = (artifact: MorphArtifact, name: string): Morph => {
   const from = shown(renderMorphAt(artifact, 0), name)[0]!.attributes["data-morph"];
   return artifact.segments[0]!.transitions.find((t) => t.kind === "morph" && t.from === from) as Morph;
 };
 
-/** The single drawing of `name` shown at `offset`. */
 const drawn = (artifact: MorphArtifact, offset: number, name: string) => {
   const found = shown(renderMorphAt(artifact, offset), name);
   expect(found, `${name} at ${offset}`).toHaveLength(1);
   return found[0]!;
 };
 
-/** A gradient element of the picture at `offset`, its attributes and its stops'. */
 const gradient = (artifact: MorphArtifact, offset: number, id: string) => {
   const element = elements(renderMorphAt(artifact, offset)).find((e) => e.attributes["id"] === id);
   expect(element, id).toBeDefined();
@@ -65,7 +62,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(t.gradients?.fill).toBeDefined();
     const id = t.gradients!.fill!.id;
     expect(id.startsWith(artifact.idPrefix)).toBe(true);
-    // Halfway through the closing segment the shape paints with its copy.
     expect(fillOf(drawn(artifact, 0.25, "highlight"))).toBe(`url(#${id})`);
     const copy = gradient(artifact, 0.25, id);
     expect(copy.attributes).toMatchObject({
@@ -82,7 +78,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
       { offset: "0", "stop-color": "rgba(255,255,255,1)" },
       { offset: "1", "stop-color": "rgba(255,255,255,0)" },
     ]);
-    // The reopening segment blends back.
     expect(gradient(artifact, 0.75, id).attributes["gradientTransform"]).toBe("matrix(1 0 0 1 0 5)");
   });
 
@@ -96,8 +91,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
   });
 
   test("a user-space gradient is placed in the moving node's space as each drawing shows it", () => {
-    // Both drawings name one gradient, but the closed drawing's transform
-    // moves it down with the drawing.
     const id = track(artifact, "glow").gradients!.fill!.id;
     expect(gradient(artifact, 0.25, id).attributes).toMatchObject({ x1: "70", y1: "10", x2: "90", y2: "20", gradientTransform: "matrix(1 0 0 1 0 5)" });
   });
@@ -108,7 +101,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const copy = gradient(artifact, 0.25, id);
     expect(copy.attributes).toMatchObject({ gradientUnits: "objectBoundingBox", x1: "0", y1: "0", x2: "0", y2: "1", gradientTransform: "matrix(1 0 0 1 0 0)" });
     expect(copy.stops.map((s) => s["offset"])).toEqual(["0.25", "1"]);
-    // The box it fills is the moving shape's, halfway down.
     const leaf = drawn(artifact, 0.25, "sheen");
     expect(fillOf(leaf)).toBe(`url(#${id})`);
     expect(leaf.attributes["d"]).not.toBe(drawn(artifact, 0, "sheen").attributes["d"]);
@@ -153,7 +145,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     const huge = pair("1e308", "-1e308");
     expect(track(huge, "lash").gradients).toBeUndefined();
     expect(renderMorphAt(huge, 0.25)).not.toContain("Infinity");
-    // At the bound the two ends blend to their midpoint.
     const bounded = pair("1e300", "-1e300");
     expect(gradient(bounded, 0.25, track(bounded, "lash").gradients!.fill!.id).attributes["x1"]).toBe("0");
   });
@@ -191,8 +182,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
 
   test("two tracks drawing on carriers of one drawing each get their own copy", () => {
     const two = (a: string) => `<stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="#000"/>`;
-    // Two open lashes converge on one closed lash, an ellipse, whose depth
-    // they keep: every track of a basic shape draws on a carrier.
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" width="100" height="60">
 <defs><linearGradient id="o">${two("#fff")}</linearGradient><linearGradient id="c">${two("#f00")}</linearGradient></defs>
 <g data-name="eyes.open:default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#o)"/><path data-name="lash" d="M10,30H40V35H10Z" fill="url(#o)"/></g>
@@ -209,7 +198,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
     expect(a!.gradients?.fill?.id).toBeDefined();
     expect(b!.gradients?.fill?.id).toBeDefined();
     expect(a!.gradients!.fill!.id).not.toBe(b!.gradients!.fill!.id);
-    // Each carrier paints with its own copy; the closed drawing keeps its gradient.
     const frame = elements(renderMorphAt(carried, 0.25));
     const fills = frame.filter((e) => e.attributes["data-morph"] === a!.draw || e.attributes["data-morph"] === b!.draw).map(fillOf);
     expect(fills.sort()).toEqual([`url(#${a!.gradients!.fill!.id})`, `url(#${b!.gradients!.fill!.id})`].sort());
@@ -219,10 +207,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
   test("a carrier that carries differently built gradients in different segments has a copy for each", () => {
     const linear = (id: string) => `<linearGradient id="${id}"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>`;
     const radial = (id: string) => `<radialGradient id="${id}"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></radialGradient>`;
-    // Two lashes, one linear and one radial, move from open to half-closed
-    // and back on carriers of the closed lash, whose depth they keep. The
-    // half-closed pose lists them the other way round, so the reopening
-    // segment pairs them in the other order and gives each the other's carrier.
     const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100" height="80">
 <defs>${linear("lo")}${radial("ro")}${linear("lh")}${radial("rh")}</defs>
 <g data-name="eyes.open:default"><path data-name="lash" d="M10,10H40V15H10Z" fill="url(#lo)"/><path data-name="lash" d="M10,50H40V55H10Z" fill="url(#ro)"/></g>
@@ -263,7 +247,6 @@ describe("a morphing shape's gradient follows it between its two drawings", () =
       expect(fillOf(drawn(artifact, 0.25, "lash")) ?? "").not.toMatch(/morph-gradient/);
     });
     test("a quoted reference in an inline style keeps the artwork static", () => {
-      // A string is outside the inline style grammar, so the bake refuses the artwork.
       const artifact = pair("style=\"fill:url('#a')\"");
       expect(artifact.status).toBe("static");
       expect(artifact.diagnostics.map((d) => d.code)).toEqual(["unsupported-element"]);

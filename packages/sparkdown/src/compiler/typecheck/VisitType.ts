@@ -1,10 +1,5 @@
 // Walking the types under a type, ported from Luau's `VisitType.h`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// A visitor overrides `visitType` and `visitTypePack`, which receive each
-// type with its variant; returning true descends into the type's parts. The
-// defaults defer to `visit` and `visitPack`, as Luau's per-kind overloads
-// defer to `visit(TypeId)`. A cycle reaches `cycle` instead of recursing.
 
 import { follow, get, type TypeId, type TypePackId, type TypePackVariant, type TypeVariant } from "./Type";
 
@@ -21,11 +16,6 @@ export abstract class GenericTypeVisitor {
   protected readonly seen = new Set<object>();
   private recursionCounter = 0;
 
-  /**
-   * @param once visit each type once, even when several paths reach it
-   *   (Luau's `TypeOnceVisitor`); otherwise a type is visited on every path
-   *   but not within its own subtree (`TypeVisitor`).
-   */
   constructor(
     readonly visitorName: string,
     readonly skipBoundTypes: boolean,
@@ -218,14 +208,12 @@ export abstract class GenericTypeVisitor {
   }
 }
 
-/** Visits each type on every path to it, skipping cycles (Luau's `TypeVisitor`). */
 export abstract class TypeVisitor extends GenericTypeVisitor {
   constructor(visitorName: string, skipBoundTypes: boolean) {
     super(visitorName, skipBoundTypes, false);
   }
 }
 
-/** Visits each type once (Luau's `TypeOnceVisitor`). */
 export abstract class TypeOnceVisitor extends GenericTypeVisitor {
   constructor(visitorName: string, skipBoundTypes: boolean) {
     super(visitorName, skipBoundTypes, true);

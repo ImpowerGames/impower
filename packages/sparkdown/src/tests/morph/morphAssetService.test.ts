@@ -68,7 +68,6 @@ describe("asset service morph endpoint", () => {
     expect(artifact.status).toBe("live");
     await flush();
     expect(cache.store.size).toBe(1);
-    // A fresh service (a restarted worker) still finds it in the cache.
     const restarted = new MorphBakeService();
     restarted.onEvent((e) => e.type === "baked" && baked.push(e));
     const again = await serveMorphAsset({ service: restarted, cache, path: "local/bunny.svg", file: file(svg), request });

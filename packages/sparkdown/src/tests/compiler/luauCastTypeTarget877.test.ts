@@ -22,8 +22,6 @@ function expectLuauReading(body: string): void {
   expect(official(source).errors).toBe(0);
   const units = readLuauUnits(parseSource(source), source);
   expect(units.prelude.errors).toEqual([]);
-  // The document block stops at its last statement; upstream includes EOF
-  // trivia. Compare every statement, including all nested source locations.
   const normalize = (root: unknown) => JSON.parse(JSON.stringify(root, (_key, value) => {
     if (value?.type === "AstExprFunction" && !value.vararg) {
       const { varargLocation: _absent, ...fields } = value;
@@ -49,8 +47,6 @@ describe("casts read their targets as types (#877)", () => {
       const compiler = new SparkdownCompiler();
       compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });
       const diagnostics = compiler.compile({ textDocument: { uri } }).program.diagnostics?.[uri]?.filter((diagnostic) => diagnostic.severity === 1);
-      // Sparkdown's hint for the extra qualifier comes first; Luau's recovery
-      // errors after it are reported too (I-1322).
       expect(diagnostics?.[0]?.message).toEqual({ kind: "markdown", value: "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`" });
       const qualifierEnd = source.indexOf(`\n${indent}return`);
       const endLines = source.slice(0, qualifierEnd).split("\n");
@@ -261,9 +257,6 @@ describe("casts read their targets as types (#877)", () => {
     const units = readLuauUnits(parseSource(source), source);
     expect(units.prelude.errors.length).toBeGreaterThan(0);
     expect(printAst(units.prelude.root)).toContain("StatReturn\n          ExprConstantNumber 55");
-    // `typeof`'s argument is a value, whose parentheses read on across lines
-    // as a call's do (#1382), so the tree holds the `return` in them; the
-    // reading still recovers there, as above. A type ends before it.
     if (target.startsWith("typeof")) return;
     let node = parseSource(source).resolveInner(source.indexOf("return 55"), 1);
     const ancestors: string[] = [];

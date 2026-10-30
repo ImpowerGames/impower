@@ -1,10 +1,5 @@
 import { EasingName } from "../types/easingName";
 
-/**
- * Easing names that are supported by default.
- *
- * @summary EasingName
- */
 export const DEFAULT_EASINGS: EasingName[] = [
   "linear",
   "ease",

@@ -1,8 +1,3 @@
-// A rule opened on one line can stay open into the lines below it, though no
-// regex reads past its own line (I-1283). An edit on a later line can then
-// change what that rule decided, and the incremental tree has to come out as
-// a parse from the start does (#1583).
-
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
@@ -10,9 +5,6 @@ import { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import { getParser } from "../compiler/grammarSnapshot";
 import { applyEdit, type Edit, replaceEdit } from "./incremental";
 
-// The parse reuses nothing before an edit fewer than 128 characters into the
-// document (`TreeFragment.applyChanges` drops shorter fragments), so the
-// scripts start with enough story lines to be reused.
 const PREFIX = "  Plain line.\n".repeat(20);
 
 const change = (edit: Edit) => ({
@@ -22,8 +14,6 @@ const change = (edit: Edit) => ({
   toB: edit.from + edit.insert.length,
 });
 
-// Parses `source`, then applies each edit in turn and reparses with the
-// previous tree's fragments. Returns the last text and its incremental tree.
 const editInTurn = (
   read: (text: string) => string | SparkdownDocument,
   source: string,
@@ -51,12 +41,8 @@ e) | A | B
   Plain line.
 `;
 
-// The first edit leaves restart points in the prefix, so the second
-// restarts after the opening line instead of from the document's start.
 const touchPrefix = (s: string) => replaceEdit(s, "  Plain line.", "  Plain lines.");
 
-// `opening` leaves something unclosed; the edit closes it on `last`, the
-// third line below it.
 const closedThreeLinesBelow = (
   name: string,
   opening: string,
@@ -69,7 +55,6 @@ const closedThreeLinesBelow = (
 ];
 
 const CASES: [string, string, ((text: string) => Edit)[]][] = [
-  // The header's `|` is four lines below the `match`.
   ["a match header loses the bar after its condition", MATCH_SOURCE, [touchPrefix, (s) => replaceEdit(s, "e) |", "e) +")]],
   [
     "a match header gains a bar after its condition",

@@ -29,7 +29,6 @@ export interface TypeFunctionReductionGuessResult {
   shouldRecommendAnnotation: boolean;
 }
 
-/** An inference for a type function: the guessed types of its arguments, then a type for its result. */
 export interface TypeFunctionInferenceResult {
   operandInference: TypeId[];
   functionResultInference: TypeId;
@@ -42,15 +41,11 @@ class InstanceCollector2 extends TypeOnceVisitor {
   instanceArguments = new Set<TypeId>();
 
   constructor() {
-    super("InstanceCollector2", /* skipBoundTypes */ true);
+    super("InstanceCollector2", true);
   }
 
   override visitType(ty: TypeId, v: TypeVariant): boolean {
     if (v.kind === "TypeFunctionInstanceType") {
-      // The traversal is depth-first in the absence of cycles, so pushing to the
-      // front of the queue puts deeper instances first: for
-      // add<add<add<number, number>, number>, number>, the innermost
-      // add<number, number> is reduced first.
       this.tys.unshift(ty);
       for (const t of v.typeArguments) this.instanceArguments.add(follow(t));
       return true;
@@ -60,14 +55,12 @@ class InstanceCollector2 extends TypeOnceVisitor {
   }
 
   override cycle(ty: TypeId): void {
-    // A cyclic type function instance.
     const t = follow(ty);
     if (get(t, "TypeFunctionInstanceType")) this.cyclicInstance.add(t);
   }
 
   override visitTypePack(tp: TypePackId, v: TypePackVariant): boolean {
     if (v.kind === "TypeFunctionInstanceTypePack") {
-      // Deeper instances go first, as for types.
       this.tps.unshift(tp);
       return true;
     }
@@ -76,11 +69,8 @@ class InstanceCollector2 extends TypeOnceVisitor {
 }
 
 export class TypeFunctionReductionGuesser {
-  /** Our hypothesis about what each type function instance reduces to. */
   functionReducesTo = new Map<TypeId, TypeId>();
-  /** Our constraints on the operands of type function instances. */
   substitutable = new Map<TypeId, TypeId>();
-  /** The instances still to make progress on. */
   toInfer: TypeId[] = [];
   cyclicInstances = new Set<TypeId>();
 
@@ -135,7 +125,6 @@ export class TypeFunctionReductionGuesser {
     const args: TypeId[] = [];
     for (const t of flatten(ftv.argTypes).head) args.push(t);
 
-    // Submit a guess for the argument types.
     for (let i = 0; i < expr.args.length; i++) {
       const local = expr.args[i]!;
       if (i >= args.length) continue;
@@ -149,7 +138,6 @@ export class TypeFunctionReductionGuesser {
       results.push([local.name, guess]);
     }
 
-    // Submit a guess for the return type.
     let recommendedAnnotation: TypeId;
     const guessedReturnType = this.guessType(retTy);
     if (guessedReturnType === undefined) recommendedAnnotation = this.builtins.unknownType;
@@ -206,7 +194,6 @@ export class TypeFunctionReductionGuesser {
     return instance.function.name === "unm";
   }
 
-  /** An operand is assignable when it looks like a cyclic type function instance, or is a generic. */
   private operandIsAssignable(ty: TypeId): boolean {
     if (get(ty, "TypeFunctionInstanceType")) return true;
     if (get(ty, "GenericType")) return true;
@@ -215,20 +202,16 @@ export class TypeFunctionReductionGuesser {
   }
 
   private tryAssignOperandType(ty: TypeId): TypeId | undefined {
-    // Innermost instances are collected first, so an instance used as an
-    // operand may already have a guessed type.
     if (get(ty, "TypeFunctionInstanceType")) {
       const reducesTo = this.functionReducesTo.get(ty);
       if (reducesTo !== undefined) return reducesTo;
     }
 
-    // A generic may have an inferred substitution.
     if (get(ty, "GenericType")) {
       const substituted = this.substitutable.get(ty);
       if (substituted !== undefined) return substituted;
     }
 
-    // Nothing can be substituted for this operand.
     return undefined;
   }
 
@@ -287,8 +270,6 @@ export class TypeFunctionReductionGuesser {
   }
 
   private inferComparisonFunction(instance: TypeFunctionInstanceType): TypeFunctionInferenceResult {
-    // The comparison functions are lt, le and eq; the heuristic takes them to
-    // be functions from t -> t -> bool.
     let lhsTy = follow(instance.typeArguments[0]!);
     let rhsTy = follow(instance.typeArguments[1]!);
 
@@ -319,12 +300,10 @@ export class TypeFunctionReductionGuesser {
       functionResultInference: this.builtins.booleanType,
     };
 
-    // Luau normalizes the left operand for both of these.
     const lty = this.normalize(lhsTy);
     const rty = this.normalize(lhsTy);
     const lhsTruthy = lty ? lty.isTruthy() : false;
     const rhsTruthy = rty ? rty.isTruthy() : false;
-    // Without good substitutions by the end, the default inference stands.
     if (instance.function.name === "or") {
       if (this.operandIsAssignable(lhsTy) && this.operandIsAssignable(rhsTy)) return defaultAndOrInference;
       if (this.operandIsAssignable(lhsTy)) return { operandInference: [this.builtins.unknownType, rhsTy], functionResultInference: rhsTy };

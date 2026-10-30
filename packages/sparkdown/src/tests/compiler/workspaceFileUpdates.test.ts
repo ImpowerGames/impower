@@ -1,13 +1,3 @@
-// Autocomplete suggestion previews and project file changes (#634). A preview
-// compile is the document as a suggestion would leave it, compiled against the
-// project files. When a file changes (an image added, replaced or removed), the
-// workspace's files revision moves at once, and a preview compile asked for
-// after that must compile against the changed file: it is not sent to the
-// compiler until the change has reached it.
-//
-// The workspace is driven with a stand-in compiler connection whose requests
-// resolve when the test says, since what is under test is the order in which
-// the workspace sends them.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PreviewCompileProgramMessage } from "../../compiler/classes/messages/PreviewCompileProgramMessage";
 import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
@@ -23,9 +13,7 @@ const settle = async () => {
 };
 
 class TestWorkspace extends SparkdownWorkspace {
-  /** Every request sent to the compiler, in order, with its resolver. */
   requests: { method: string; resolve: (result: any) => void }[] = [];
-  /** File loads in progress, with their resolvers. */
   loads: ((file: File) => void)[] = [];
 
   constructor() {
@@ -89,8 +77,6 @@ describe("a preview compile asked for while a project file changes", () => {
   it("is sent only after the change has reached the compiler", async () => {
     const workspace = new TestWorkspace();
     const changing = workspace.changeFile(IMAGE);
-    // The revision moves as the change begins, so a suggestion compiled
-    // against the files as they were is recognized from here on.
     expect(workspace.filesRevision).toBe(1);
 
     const preview = workspace.previewCompile({
@@ -148,8 +134,6 @@ describe("a preview compile asked for while a project file changes", () => {
     const workspace = new TestWorkspace();
     const changing = workspace.changeFile(IMAGE);
     const deleting = workspace.deleteFile(IMAGE);
-    // Both changes move the revision as they arrive, though the delete is
-    // applied only after the change before it.
     expect(workspace.filesRevision).toBe(2);
 
     const preview = workspace.previewCompile({
@@ -163,7 +147,6 @@ describe("a preview compile asked for while a project file changes", () => {
 
     workspace.requests[0]!.resolve(undefined);
     await settle();
-    // The delete, not the preview, goes next.
     expect(workspace.sent).toEqual([
       UpdateCompilerFileMessage.method,
       RemoveCompilerFileMessage.method,

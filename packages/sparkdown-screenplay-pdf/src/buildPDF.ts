@@ -61,8 +61,6 @@ export const buildPDF = async (
   }
   if (fonts) {
     for (const [fontName, fontBuffer] of Object.entries(fonts)) {
-      // The color emoji font is never used as a pdfkit text font (its glyphs
-      // are empty outlines); it is drawn as vector SVG via EmojiSvgProvider.
       if (fontName === "emoji" || !fontBuffer) {
         continue;
       }
@@ -78,7 +76,6 @@ export const buildPDF = async (
           setEmojiProvider(doc, provider);
         }
       } catch (e) {
-        // If the emoji font can't be parsed, emoji simply fall back to text.
         console.warn("Failed to initialize emoji SVG provider:", e);
       }
     }

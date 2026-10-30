@@ -1,11 +1,3 @@
-// The preview warms the urls the renderer is about to request. Warming must
-// never be able to decide what the game renders: the engine resolves a
-// filtered image through its own runtime channel, and the sweep resolves the
-// same names against the compiled structs, so the sweep works on copies and
-// writes nothing back. #648 made the expensive part of that resolution a
-// memoized pure function of the root image and its attributes, shared by both;
-// these pin that the sharing changed neither property.
-
 import { describe, expect, it } from "vitest";
 import { resolveImageLayers } from "../../../../sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageSrcs, rootHasInlinedData } from "./resolveImageSrcs";
@@ -70,7 +62,6 @@ const context = () => ({
   },
 });
 
-/** Every key of every struct the program holds, so an added one is visible. */
 const shape = (ctx: any) =>
   Object.entries(ctx).flatMap(([type, structs]: [string, any]) =>
     Object.entries(structs).map(
@@ -79,7 +70,6 @@ const shape = (ctx: any) =>
     ),
   );
 
-/** How the game resolves a displayed name: the program's own structs. */
 const gameSrcs = (ctx: any, name: string) =>
   resolveImageLayers(ctx, ctx.filtered_image?.[name] ?? ctx.image?.[name]).map(
     (layer) => layer.src,
@@ -121,8 +111,6 @@ describe("warming the urls the renderer will request", () => {
   });
 
   it("agrees with the game when both resolve through the same structs", () => {
-    // On the page they do: the warm-up and the renderer read one context, so
-    // one holds the derivation the other reuses.
     const ctx = context();
     for (const name of ["stripped~hat.off", "layers~hat.off"]) {
       const warmFirst = resolveImageSrcs(ctx, [name]);
@@ -132,8 +120,6 @@ describe("warming the urls the renderer will request", () => {
   });
 
   it("still skips a look whose root keeps its source inlined", () => {
-    // Nothing fetches a `data:` uri, and building one means rewriting the
-    // whole SVG, so those are skipped without paying for it.
     const ctx = context();
     expect(resolveImageSrcs(ctx, ["portrait~hat.off"])).toEqual([]);
   });

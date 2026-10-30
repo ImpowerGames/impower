@@ -1,17 +1,9 @@
-// #1750: after an edit, the Luau readers carry their line index (#1745) and
-// their lookups' tokens (#1724) over from the document before. They must
-// take what the edit changed from the edit itself, which the registry knows,
-// rather than compare the two documents across the length they share, or
-// every keystroke in a long script pays for the whole script; and what they
-// carry over must be what a fresh read gives, whatever the edit's shape.
 import { expect, test, vi } from "vitest";
 import { Text } from "@codemirror/state";
 import type { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { lexLuauDocumentForTesting, luauPositionOffset, nextLuauToken, noteLuauDocumentEdit } from "../../compiler/typecheck/readLuauAst";
 
-// The readers keep only the last document's index and tokens; a read of an
-// empty document makes the next read build its document's from scratch.
 const forget = () => {
   luauPositionOffset({ line: 0, column: 0 } as never, "");
   nextLuauToken(0, "");
@@ -20,9 +12,6 @@ const forget = () => {
 const block = (i: number) =>
   `function f${i}()\n  local x${i} = ${i} -- note ${i}\n  return x${i}\nend\n\nThe hero walks on, ${i} steps.\n\n`;
 
-// A deliberate error near the bottom, which the edit must keep reported: a
-// `.` whose name is on the next line, which the validator reads past its line
-// to find.
 const tail = "function g(t)\n  local y = t.\n  Hello\nend\n\nThe hero stops.\n";
 
 const ANNOTATE = ["compilations", "validations"] as const;
@@ -42,12 +31,6 @@ function validations(registry: SparkdownDocumentRegistry, uri: string) {
   return found;
 }
 
-/**
- * How many slices the readers take of the document, before or after the
- * edit, while one edit at the bottom of a document of `count` blocks is
- * annotated: a comparison of the two documents takes them a chunk at a
- * time, and a read near the edit takes none of the whole document.
- */
 function slicesOnEdit(count: number) {
   const uri = `inmemory:///edit-range-readers-${count}.sd`;
   const source = Array.from({ length: count }, (_, i) => block(i)).join("") + tail;
@@ -82,12 +65,9 @@ test("an edit at the bottom of a long document does not compare it with the docu
   const short = slicesOnEdit(20);
   const long = slicesOnEdit(400);
   console.log("document slices on an edit", JSON.stringify({ short, long }));
-  // The long document is about twenty times the short one; the slices taken
-  // of it on an edit at its bottom must not grow with it.
   expect(long.slices).toBeLessThanOrEqual(short.slices + 4);
 });
 
-/** Every line's start and the next token at each of `probes`, as the readers give them for `text`. */
 function readings(text: string, probes: readonly number[]) {
   const lines = text.split("\n").length;
   return {
@@ -96,7 +76,6 @@ function readings(text: string, probes: readonly number[]) {
   };
 }
 
-/** What a whole-document lex and a fresh newline scan of `text` give. */
 function fresh(text: string, probes: readonly number[]) {
   const tokens = lexLuauDocumentForTesting(text);
   const starts = [0];
@@ -114,8 +93,6 @@ function fresh(text: string, probes: readonly number[]) {
 
 type Edit = { from: number; to: number; insert: string };
 
-// Edits as an editor sends them, each change's offsets in the document the
-// changes before it in the same event left.
 const SHAPES: [string, (source: string) => Edit[] | "replace"][] = [
   ["inserting lines above a Luau block", (s) => [{ from: s.indexOf("function f3"), to: s.indexOf("function f3"), insert: "\n\nThe hero waits.\n" }]],
   ["removing lines above a Luau block", (s) => [{ from: s.indexOf("The hero walks on, 2"), to: s.indexOf("function f3"), insert: "" }]],
@@ -127,7 +104,6 @@ const SHAPES: [string, (source: string) => Edit[] | "replace"][] = [
   ["several changes in one event", (s) => {
     const first = s.indexOf("function f6");
     const second = s.indexOf("-- note 2");
-    // The second change's offsets come after the first one's insertion.
     return [
       { from: first, to: first, insert: "local a = 1\nlocal b = 2\n" },
       { from: second, to: second + "-- note 2".length, insert: "--[==[ x\n]==]" },
@@ -143,7 +119,6 @@ test.each(SHAPES)("after %s the readers give a fresh read's positions and tokens
   const registry = new SparkdownDocumentRegistry([...ANNOTATE]);
   forget();
   registry.add({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
-  // The readers have read the document before the edit.
   const probesBefore = Array.from({ length: 16 }, (_, i) => Math.floor((source.length * i) / 16));
   expect(readings(source, probesBefore)).toEqual(fresh(source, probesBefore));
   const edits = shape(source);
@@ -164,7 +139,6 @@ test.each(SHAPES)("after %s the readers give a fresh read's positions and tokens
   expect(readings(edited, probes)).toEqual(fresh(edited, probes));
 });
 
-/** An edit through the registry, as one change; returns the edited text. */
 function applyEdit(registry: SparkdownDocumentRegistry, uri: string, version: number, source: string, { from, to, insert }: Edit) {
   registry.update({ textDocument: { uri, version }, contentChanges: [{
     range: { start: position(source, from), end: position(source, to) }, text: insert,
@@ -173,8 +147,6 @@ function applyEdit(registry: SparkdownDocumentRegistry, uri: string, version: nu
 }
 
 test("two registries holding one document leave the readers a fresh read's positions and tokens", () => {
-  // The language server's workspace and the compiler each keep a registry,
-  // with strings of their own for each version of the same document.
   const uri = "inmemory:///edit-range-readers-two.sd";
   let source = Array.from({ length: 12 }, (_, i) => block(i)).join("") + tail;
   const first = new SparkdownDocumentRegistry([...ANNOTATE]);
@@ -205,7 +177,6 @@ test("an edit after a deferred set leaves the readers a fresh read's positions a
   const registry = new SparkdownDocumentRegistry([...ANNOTATE]);
   forget();
   registry.add({ textDocument: { uri, text: source, version: 1, languageId: "sparkdown" } });
-  // A new text arrives deferred, then edits follow before anything reads it.
   const replaced = source.replace("function f5", "\n\nfunction f5");
   registry.set({ textDocument: { uri, text: replaced, version: 2, languageId: "sparkdown" } }, { defer: true });
   let text = applyEdit(registry, uri, 3, replaced, { from: 0, to: 0, insert: "-- top\n" });
@@ -216,15 +187,11 @@ test("an edit after a deferred set leaves the readers a fresh read's positions a
 });
 
 test("a reader several edits behind carries what it read through all of them", () => {
-  // The token lookups run only for some edits, so their last document can be
-  // several edits behind the one they are next asked about.
   const lines = 2000;
   let text = `${"local a = 1\n".repeat(lines)}local x = value\n`;
   const probes = (t: string) => [t.length - 20, t.length - 4, 30];
   forget();
   readings(text, probes(text));
-  // Edits near the end, counted back from it, so that together they leave
-  // the lines above them unchanged.
   const steps: Edit[] = [
     { from: 60, to: 60, insert: "\n\n" },
     { from: 6, to: 1, insert: "other\n" },
@@ -251,8 +218,6 @@ test("a reader several edits behind carries what it read through all of them", (
   } finally {
     spy.mockRestore();
   }
-  // `readings` asks for every line's start, which needs no search once the
-  // index is carried over; a fresh index searches once per line.
   expect(scans).toBeLessThan(lines / 10);
   expect(found).toEqual(fresh(text, probes(text)));
 });
@@ -263,25 +228,18 @@ test("an edit to another document between two reads makes the next read a fresh 
   const probes = [0, 13, 20];
   forget();
   readings(text, probes);
-  // The registry applies an edit to some other document, which this reader
-  // never read; then this reader is asked about an edited text of its own.
   noteLuauDocumentEdit("other\n", "other text\n", 5, 5, 10);
   expect(readings(edited, probes)).toEqual(fresh(edited, probes));
 });
 
 test("the readers take the edit's range as noted, without checking it against the texts", () => {
-  // What the shapes above rest on: the readers carry over what the noted
-  // edit says is unchanged, so a wrong range from the registry gives wrong
-  // positions and tokens, which those tests would catch.
   const before = "local a = 1\nlocal b = 2\nlocal c = 3\n";
   const after = "local a = 1\n\n\nlocal b = 2\nlocal c = 3\n";
   const probes = [0, after.indexOf("b"), after.indexOf("c")];
   forget();
   readings(before, probes);
-  // The two newlines were inserted at 12; noted as an edit of the last line only.
   noteLuauDocumentEdit(before, after, before.length - 2, before.length, after.length);
   expect(readings(after, probes)).not.toEqual(fresh(after, probes));
-  // The true range gives a fresh read's positions and tokens.
   forget();
   readings(before, probes);
   noteLuauDocumentEdit(before, after, 12, 12, 14);

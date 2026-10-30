@@ -1,26 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Luau's `_G` global environment table, implemented as a runtime
-// proxy rather than a real backing table:
-//
-//   - A bare `_G` reference resolves to an ObjectValue tagged with
-//     `GLOBALS_PROXY_TAG` (`__globals_proxy`) — same marker-keyed
-//     pattern as the `pairs`/`ipairs` builtin iterators.
-//   - The `Index` instruction routes proxy reads to
-//     `VariablesState.GetGlobalVariableValue` (global-ONLY lookup —
-//     never call-stack temporaries, so a shadowing local is
-//     invisible through `_G`). Misses push nil, not the generic
-//     empty-string sentinel.
-//   - The `StoreIndex` instruction routes proxy writes to
-//     `VariablesState.SetGlobal`, the same write an ordinary global
-//     assignment makes.
-//   - Dotted reads (`_G.foo`) lower to `VariableReference([_G, foo])`;
-//     the runtime's dotted-name fallback strips the `_G.` hop and
-//     starts the walk at the global binding.
-//
-// Unlocks basic.luau lines 48-49.
-
 describe("_G globals table", () => {
   test("dot write, bracket read (basic.luau line 48)", () => {
     const r = runConformanceSource(
@@ -53,8 +33,6 @@ describe("_G globals table", () => {
   });
 
   test("_G reads the global even when a local shadows it", () => {
-    // GetVariableWithName checks call-stack temps first (locals
-    // shadow globals), so the proxy must use the global-only lookup.
     const r = runConformanceSource(
       `g = 7
 local function f()
@@ -90,8 +68,6 @@ assert(f() == 7, "got " .. tostring(f()))`,
   });
 
   test("dynamic key through _G", () => {
-    // The proxy handles `[expr]` keys at runtime — no static-key
-    // rewrite involved.
     const r = runConformanceSource(
       `hp = 11
 local key = "hp"

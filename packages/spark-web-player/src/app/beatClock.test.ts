@@ -1,9 +1,3 @@
-// A beat's sound and reveal are stamped with one start time on the shared
-// clock (#681). These tests drive the page's real `AudioManager` and
-// `UIManager` with injected clocks, and read where each scheduled its part:
-// the audio player's `start` time and offset, and the reveal animation's
-// `startTime` on the document timeline.
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { UpdateAudioPlayersMessage } from "../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
@@ -15,19 +9,14 @@ import AudioManager from "./managers/AudioManager";
 import UIManager from "./managers/UIManager";
 import { getEventData } from "./utils/getEventData";
 
-/** The page's time origin on the shared clock, in milliseconds. */
 const ORIGIN = 1_000_000;
 
-/** A page whose shared clock, audio context and document timeline all
- *  advance only when the test says so. */
 const makePage = (outputLatency: number) => {
   let now = ORIGIN + 100;
   const context = {
     state: "running" as AudioContextState,
     currentTime: 2,
     outputLatency,
-    // An empty timestamp, as a context reports before it renders: the clock
-    // pairs `currentTime` with now instead.
     getOutputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }),
   };
   const audioClock = new AudioClock(ORIGIN, () => now);
@@ -71,8 +60,6 @@ const makePage = (outputLatency: number) => {
   };
 };
 
-/** A start shaped as the game sends a line's voice: no `now`, so it would
- *  wait for a cue on a player that has one. */
 const updateAudio = (
   time: number,
   update: Partial<AudioPlayerUpdate> = {},
@@ -91,15 +78,11 @@ const writeText = (time: number) =>
     time,
   });
 
-/** Every animation the reveal made, with the start time it was given. */
 let animations: { startTime: number | null }[] = [];
 
 beforeEach(() => {
   animations = [];
   const g = globalThis as any;
-  // Follows the Web Animations `play()` auto-rewind: an animation whose
-  // start time is still ahead is rewound to start from the beginning when
-  // the page is next ready, which leaves its start time unresolved.
   g.Animation = class {
     startTime: number | null = null;
     finished = Promise.resolve();
@@ -148,7 +131,6 @@ describe("a beat stamped on the shared clock", () => {
 
     expect(page.player.start).toHaveBeenCalledTimes(1);
     const [when, , , offset] = page.player.start.mock.calls[0]!;
-    // The stamp is 10 ms after the reading, which paired now with 2 s.
     expect(when).toBeCloseTo(2.01, 9);
     expect(offset).toBeUndefined();
     expect(animations.length).toBeGreaterThan(0);
@@ -206,8 +188,6 @@ describe("a stamped image write handled late", () => {
       }),
     );
     const display = stamp - ORIGIN;
-    // The wrapper takes no time, so the content starts at the stamp too, and
-    // is as far into its reveal as the write is late.
     expect(animations.map((a) => a.startTime)).toEqual([display, display]);
   });
 });
@@ -221,15 +201,12 @@ describe("a stamped audio update handled late", () => {
       updateAudio(stamp, { after: 0.1, at: 0.5 }),
     );
     const [when, , , offset] = page.player.start.mock.calls[0]!;
-    // 10 ms stamp + 100 ms after, from a reading at 2 s: 2.11 s, still ahead.
     expect(when).toBeCloseTo(2.11, 9);
     expect(offset).toBe(0.5);
   });
 
   it("counts a cue that lands on the due time, give or take rounding, as due", async () => {
     const page = makePage(0);
-    // A looping player's cue rebuilds the due time as start + loops *
-    // duration + offset, which can land a rounding step past it.
     page.player.getNextCueTime = (t: number) => t + 1e-16 * (1 + t);
     const stamp = page.now() + 10;
     page.advance(50);
@@ -256,7 +233,6 @@ describe("a stamped audio update handled late", () => {
       updateAudio(stamp, { after: 0.02, at: 0.5 }),
     );
     const [when, , , offset] = page.player.start.mock.calls[0]!;
-    // Due at 2.03 s, handled at 2.05 s: 20 ms into its sound.
     expect(when).toBeCloseTo(page.context.currentTime, 9);
     expect(offset).toBeCloseTo(0.52, 9);
   });
@@ -299,11 +275,9 @@ describe("the audio clock reading", () => {
     };
     gameClock.syncToClock(pageSource);
 
-    // Connected before the context runs: the shared clock alone.
     expect(clock.setContext(context)).toEqual({ time: now, outputLatency: 0 });
     expect(clock.toContextTime(now + 10)).toBeUndefined();
 
-    // The context starts later; the reading maps shared time onto it.
     now += 1000;
     context.state = "running";
     context.currentTime = 0.3;
@@ -313,12 +287,9 @@ describe("the audio clock reading", () => {
     expect(clock.read().outputLatency).toBe(0.02);
     expect(clock.toContextTime(now + 10)).toBeCloseTo(0.31, 9);
 
-    // Suspended: its time stands still, so it has no reading.
     context.state = "suspended";
     expect(clock.read().contextTime).toBeUndefined();
 
-    // Resumed two seconds later with its time where it stopped: a fresh
-    // reading maps now onto that time, not two seconds past it.
     now += 2000;
     context.state = "running";
     const resumed = (gameClock as any).getCurrentTime();

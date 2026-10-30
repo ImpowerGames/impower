@@ -1,17 +1,3 @@
-// A `>` BREAK marker inside a dialogue (or any display) block splits the
-// content into separate BEATS. Each beat must be its own `Continue()` at the
-// runtime level so the screenplay preview / planRoute can route to it by its
-// own checkpoint — otherwise every dialogue box after the first in a chain
-// collapses onto a single story-path checkpoint the preview cannot tell apart.
-//
-// Each beat is its own `display()` call, whose table carries the routing: the
-// cue is not in the visible beat text (`Continue()` output). Each continuation
-// names the cue again so it routes back to the same character's dialogue
-// target. These tests assert BOTH: the visible text (cue-free) AND the table's
-// routing (carries the cue).
-//
-// Run: npx vitest run .../ChainedDialogueBreak.test.ts
-
 import { describe, expect, test } from "vitest";
 import {
   continueShowedSomething,
@@ -20,8 +6,6 @@ import {
 } from "./runtimeTestHarness";
 import type { TestStory } from "../engineUnderTest";
 
-// Drive `Continue()` one line/beat at a time, collecting each beat's visible
-// text plus the routing of the beat's table, as `target:character`.
 function continueBeats(
   story: TestStory,
 ): { text: string; routing: string | null }[] {
@@ -50,10 +34,7 @@ end
     );
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);
-    // TWO separate Continue() boundaries — each independently routable.
     expect(beats.length).toBe(2);
-    // Visible text is cue-free; the cue lives in each beat's table so
-    // both beats route to the same character's dialogue target.
     expect(beats[0]).toEqual({
       text: "Different rope!\n",
       routing: "dialogue:RAFFLES",
@@ -65,7 +46,6 @@ end
   });
 
   test("a non-chained multi-line dialogue block stays a single beat", () => {
-    // No break marker → one box, one Continue (the lines join with `\n `).
     const ctx = makeRuntimeStoryFromSource(
       `scene start
   O:
@@ -77,8 +57,6 @@ end
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);
     expect(beats.length).toBe(1);
-    // The two lines join into one beat (the runtime trims the leading space
-    // off the continuation line); the cue is carried by the table.
     expect(beats[0]).toEqual({
       text: "A meteor.\nMake a wish.\n",
       routing: "dialogue:O",
@@ -105,7 +83,6 @@ end
   });
 
   test("a trailing break (no content after) stays one beat", () => {
-    // `>` at end of body is not a split point; it only makes the beat pause.
     const ctx = makeRuntimeStoryFromSource(`scene start\n  N: one line >\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);

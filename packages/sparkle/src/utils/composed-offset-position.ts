@@ -44,7 +44,6 @@ const ancestorTreeScopes = (element: Element): Set<Node> => {
 };
 
 const offsetParentPolyfill = (element: HTMLElement): HTMLElement | null => {
-  // Do an initial walk to check for display:none ancestors.
   for (
     let ancestor: ReturnType<typeof flatTreeParent> = element;
     ancestor;
@@ -69,7 +68,6 @@ const offsetParentPolyfill = (element: HTMLElement): HTMLElement | null => {
     }
 
     const style = getComputedStyle(ancestor);
-    // Display:contents nodes aren't in the layout tree so they should be skipped.
     if (style.display === "contents") {
       continue;
     }

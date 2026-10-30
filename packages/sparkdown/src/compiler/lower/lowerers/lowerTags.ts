@@ -18,17 +18,11 @@ function findChild(parent: SyntaxNode, name: string): SyntaxNode | null {
   return null;
 }
 
-// Lower a top-level `# tag` (or `# a # b`) line. Each `Tag` child of the
-// `Tags` wrapper emits a `BeginTag` / content / `EndTag` triplet so the
-// runtime collects the text into `currentTags` (and, when at the start
-// of a flow, into `globalTags` / `TagsForContentAtPath`).
 export function lowerTags(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
   const out: ParsedObject[] = [];
-  // The grammar wraps `Tag` children inside a `Tags_content` wrapper.
-  // Walk the wrapper to reach individual `Tag` nodes.
   const contentNode = findChild(nodeRef.node, "Tags_content") ?? nodeRef.node;
   let child = contentNode.firstChild;
   while (child) {

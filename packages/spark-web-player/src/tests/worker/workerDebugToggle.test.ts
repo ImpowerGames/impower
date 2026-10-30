@@ -1,6 +1,3 @@
-// The preview's debugger controls reach the worker's game that shows the
-// preview, and what the editor asks for before there is a game to ask holds
-// for the game built next.
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
@@ -24,11 +21,8 @@ end
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
 const FIRST = lineOf("The first line.");
 
-/** The worker's game that shows the preview. */
 const displayingGame = (h: any) => h.workerState.gameState.game;
 
-/** Whether a game stops at a source breakpoint on `line`: whether the
- *  addresses it compares each step with hold the line's address. */
 const stopsAt = (game: any, line: number): boolean =>
   (game._lineBreakAddresses as Set<number>).has(game.locator.addressAt(MAIN_URI, line));
 
@@ -39,8 +33,6 @@ describe("debugger settings", () => {
       startFrom: { file: MAIN_URI, line: FIRST },
     });
     try {
-      // The editor sets a breakpoint and turns debugging on before anything
-      // has compiled, so neither side has a game yet.
       expect(displayingGame(h) == null).toBe(true);
       const breakpoints = [{ file: MAIN_URI, line: FIRST }];
       const answered = await h.controller.handleSetGameBreakpoints(
@@ -56,9 +48,6 @@ describe("debugger settings", () => {
           dataBreakpoints: [{ dataId: "mood" }],
         }),
       );
-      // No game has resolved where any of them lands, so none is answered
-      // as a breakpoint: the editor's debugger reads each answer as a
-      // resolved breakpoint, with its verification and location.
       expect(answered.result).toEqual({ breakpoints: [] });
       expect(answeredFunctions.result).toEqual({ functionBreakpoints: [] });
       expect(answeredData.result).toEqual({ dataBreakpoints: [] });
@@ -70,12 +59,9 @@ describe("debugger settings", () => {
       await h.compile();
       await settle(40);
 
-      // The game that now shows the preview holds both.
       const game = displayingGame(h);
       expect(game != null).toBe(true);
       expect(game.context.system.debugging).toBe(true);
-      // The breakpoint the editor set is one the game now stops at: it
-      // resolved to a line of the script it holds.
       expect(stopsAt(game, FIRST)).toBe(true);
     } finally {
       h.dispose();
@@ -91,7 +77,6 @@ describe("debugger settings", () => {
       await h.compile();
       await h.select(FIRST);
       await settle(40);
-      // Debugging on, and a breakpoint on the line, while the preview shows.
       await h.controller.handleEnableGameDebug(EnableGameDebugMessage.type.request({}));
       await h.controller.handleSetGameBreakpoints(
         SetGameBreakpointsMessage.type.request({
@@ -100,8 +85,6 @@ describe("debugger settings", () => {
       );
       expect(displayingGame(h).context.system.debugging).toBe(true);
 
-      // The editor turns both off while PLAY runs, which only the running
-      // game hears.
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(40);
       await h.controller.handleDisableGameDebug(DisableGameDebugMessage.type.request({}));
@@ -114,8 +97,6 @@ describe("debugger settings", () => {
       await h.select(FIRST);
       await settle(40);
 
-      // The preview after STOP is shown by a game with the settings the
-      // editor made last.
       const game = displayingGame(h);
       expect(game.context.system.debugging).toBeFalsy();
       expect(stopsAt(game, FIRST)).toBe(false);
@@ -133,8 +114,6 @@ describe("a worker that cannot be asked, and PLAY that is starting", () => {
     });
     try {
       await h.compile();
-      // Whatever the worker's trouble is, the request is answered: an
-      // unanswered one leaves the editor waiting for ever.
       (h.link as any).request = async () => {
         throw new Error("the worker is gone");
       };
@@ -160,9 +139,6 @@ describe("a worker that cannot be asked, and PLAY that is starting", () => {
       await h.compile();
       await h.select(FIRST);
 
-      // PLAY asks the worker to build its game, and the editor turns
-      // debugging on before the request goes: the toolbar offers the control
-      // from the moment PLAY is pressed.
       let release!: () => void;
       const held = new Promise<void>((resolve) => (release = resolve));
       const request = h.link.request.bind(h.link);
@@ -182,7 +158,6 @@ describe("a worker that cannot be asked, and PLAY that is starting", () => {
       expect(await played).toBe(true);
       await settle(40);
 
-      // The game that is running is the one the editor was talking about.
       expect(h.playing()?.context?.system?.debugging).toBe(true);
     } finally {
       h.dispose();

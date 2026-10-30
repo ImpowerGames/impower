@@ -1,20 +1,3 @@
-// Ported from Luau's lexer tests (`luau/tests/Lexer.test.cpp`). Sparkdown has
-// no token stream: the TextMate grammar produces a parse tree, and malformed
-// tokens surface as diagnostics. Each upstream case is therefore restated as
-// the observable that corresponds to its lexeme: a node's name and extent, the
-// `=` level of a long bracket, or the diagnostic the broken token produces.
-//
-// Every snippet is quoted verbatim from upstream, under its upstream case
-// name. Snippets are Luau chunks, so they run inside `function run() ... end`
-// (see diagnosticTestHarness.ts); an expression snippet is additionally put on
-// the right of `local x = `, since a bare string is not a statement.
-//
-// Upstream reuses two case names (`lexer_determines_string_block_depth_1` and
-// `_2` each appear once for a string and once for a comment); the comment
-// variants are labelled "(comment)" here.
-//
-// Cases sparkdown does not match stay as `describe.skip` with the reason.
-
 import { describe, expect, test } from "vitest";
 import { parseSource } from "../compiler/grammarSnapshot";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
@@ -23,7 +6,6 @@ const PREFIX = "function run()\n";
 
 interface FoundNode {
   name: string;
-  /** Offsets relative to the start of the snippet. */
   from: number;
   to: number;
   text: string;
@@ -33,7 +15,6 @@ function wrap(body: string): string {
   return `${PREFIX}${body}\nend\n`;
 }
 
-/** Every node called `name` in the parse tree of the wrapped snippet. */
 function findNodes(body: string, name: string): FoundNode[] {
   const source = wrap(body);
   const found: FoundNode[] = [];
@@ -52,7 +33,6 @@ function findNodes(body: string, name: string): FoundNode[] {
   return found;
 }
 
-/** The name of every node in the parse tree of the wrapped snippet. */
 function nodeNames(body: string): string[] {
   const names: string[] = [];
   parseSource(wrap(body)).iterate({
@@ -69,7 +49,6 @@ function onlyNode(body: string, name: string): FoundNode {
   return found[0]!;
 }
 
-/** The `=` count of a long bracket's opening delimiter. */
 function blockDepth(text: string): number {
   const match = /^(?:--)?\[(=*)\[/.exec(text);
   expect(match, `not a long bracket: ${JSON.stringify(text)}`).not.toBeNull();
@@ -81,13 +60,7 @@ const UNFINISHED_INTERPOLATED_STRING = "Malformed interpolated string; did you f
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 
-// ---------------------------------------------------------------------------
-// Broken tokens
-// ---------------------------------------------------------------------------
-
 describe("broken tokens", () => {
-  // Luau: broken_string_works
-  // Upstream lexes `[[` as a BrokenString spanning the two brackets.
   test("broken_string_works: `[[`", () => {
     const body = "local x = [[";
     expect(diagnoseInFunction(body)).toContain(UNFINISHED_STRING);
@@ -95,8 +68,6 @@ describe("broken tokens", () => {
     expect(string.from).toBe("local x = ".length);
   });
 
-  // Luau: broken_comment
-  // Upstream lexes `--[[  ` as a BrokenComment spanning all six characters.
   test("broken_comment: `--[[  `", () => {
     const body = "--[[  ";
     expect(diagnoseInFunction(body)).toContain(UNFINISHED_COMMENT);
@@ -105,20 +76,11 @@ describe("broken tokens", () => {
     expect(comment.text.startsWith("--[[  ")).toBe(true);
   });
 
-  // Luau: broken_comment_kept
-  // With comment skipping on, a broken comment is still returned rather than
-  // skipped. Sparkdown has no skipping mode; the equivalent is that an
-  // unfinished comment is still reported even though a finished one is
-  // silent.
   test("broken_comment_kept: `--[[  ` is reported, `--[[  ]]` is not", () => {
     expect(diagnoseInFunction("--[[  ")).toContain(UNFINISHED_COMMENT);
     expect(diagnoseInFunction("--[[  ]]")).toEqual([]);
   });
 
-  // Luau: testBrokenEscapeTolerant
-  // Upstream: `'\3729472897292378'` is still one QuotedString spanning the
-  // whole input; the out-of-range escape is the parser's concern, not the
-  // lexer's. Luau's parser then reports it as a malformed escape.
   test("testBrokenEscapeTolerant: `'\\3729472897292378'`", () => {
     const literal = "'\\3729472897292378'";
     const body = `local x = ${literal}`;
@@ -130,14 +92,7 @@ describe("broken tokens", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Comments
-// ---------------------------------------------------------------------------
-
 describe("comments", () => {
-  // Luau: comment_skipped
-  // Upstream: with comment skipping on, `--  ` yields only Eof. The
-  // equivalent here is a line comment and nothing else in the body.
   test("comment_skipped: `--  `", () => {
     const body = "--  ";
     expect(onlyNode(body, "LuauLineComment").text).toBe("--  ");
@@ -146,10 +101,6 @@ describe("comments", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: multilineCommentWithLexemeInAndAfter
-  // Upstream: the comment spans (0,0)-(1,2), so the `function` inside it is
-  // not a token, and the `end` after it is ReservedEnd at (1,3)-(1,6).
-  // Here the snippet's `end` closes `run`, so the wrapper supplies none.
   test("multilineCommentWithLexemeInAndAfter: `--[[ function \\n]] end`", () => {
     const body = "--[[ function \n" + "]] end";
     const source = `${PREFIX}${body}\n`;
@@ -174,13 +125,7 @@ describe("comments", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Long brackets
-// ---------------------------------------------------------------------------
-
 describe("long brackets", () => {
-  // Luau: testBigDelimiters
-  // Upstream: a level-3 comment spanning (0,0)-(4,5).
   test("testBigDelimiters: `--[===[\\n\\n\\n\\n]===]`", () => {
     const body = "--[===[\n" + "\n" + "\n" + "\n" + "]===]";
     const comment = onlyNode(body, "LuauBlockComment");
@@ -190,9 +135,6 @@ describe("long brackets", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: lexer_determines_string_block_depth_*
-  // Upstream: each is one RawString with the given block depth. Here: one
-  // `LuauMultilineString` covering the whole literal, at that `=` level.
   describe("strings", () => {
     test.each([
       ["lexer_determines_string_block_depth_0", "[[ test ]]", 0],
@@ -213,8 +155,6 @@ describe("long brackets", () => {
     });
   });
 
-  // Upstream: each is one BlockComment with the given block depth. Here: one
-  // `LuauBlockComment` covering the whole comment, at that `=` level.
   describe("comments", () => {
     test.each([
       ["lexer_determines_comment_block_depth_0", "--[[ test ]]", 0],
@@ -228,8 +168,6 @@ describe("long brackets", () => {
       expect(diagnoseInFunction(body)).toEqual([]);
     });
 
-    // Upstream covers comment depths only on one line; the multi-line forms
-    // are added here so every level is pinned both ways for comments too.
     test.each([
       ["depth 0 across lines", "--[[ test\n    ]]", 0],
       ["depth 1 across lines", "--[=[\n    test ]=]", 1],
@@ -243,8 +181,6 @@ describe("long brackets", () => {
     });
   });
 
-  // Not upstream: a closing bracket of a different level does not end the
-  // literal, which is what the depth is for.
   test.each([
     ["a level-0 close inside a level-2 string", "local x = [==[ a ]] b ]==]", "LuauMultilineString"],
     ["a level-2 close inside a level-1 string", "local x = [=[ a ]==] b ]=]", "LuauMultilineString"],
@@ -255,9 +191,6 @@ describe("long brackets", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Not upstream: the `locals.luau` line that UpstreamConformance.test.ts
-  // skips. A multi-line `[[...]]` holding `%s` as a call argument parses
-  // cleanly inside a function body.
   test("a multi-line string argument holding `%s` (locals.luau)", () => {
     const body =
       "for i=2,31 do assert(loadstring(string.format([[a=%s\n]], 1))) end";
@@ -266,14 +199,7 @@ describe("long brackets", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Interpolation
-// ---------------------------------------------------------------------------
-
 describe("interpolation", () => {
-  // Luau: string_interpolation_basic
-  // Upstream: InterpStringBegin, QuotedString, InterpStringEnd, with the end
-  // lexeme starting at the `}` (column 11).
   test('string_interpolation_basic: `foo {"bar"}`', () => {
     const literal = '`foo {"bar"}`';
     const body = `local x = ${literal}`;
@@ -286,9 +212,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_full
-  // Upstream: Begin "`foo {", "bar", Mid "} {" at column 11, "baz", End
-  // "} end`" at column 19.
   test('string_interpolation_full: `foo {"bar"} {"baz"} end`', () => {
     const literal = '`foo {"bar"} {"baz"} end`';
     const body = `local x = ${literal}`;
@@ -303,11 +226,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_unmatched_brace
-  // Upstream: `{`, InterpStringBegin, QuotedString, then BrokenString for the
-  // unclosed backtick, and the table's `}` is still read as `}`: the
-  // backtick string ends at its line (I-1318), unfinished in its last
-  // section, which Luau's parser reports.
   test("string_interpolation_unmatched_brace", () => {
     const body =
       "local x = " +
@@ -321,9 +239,6 @@ describe("interpolation", () => {
     expect(onlyNode(body, "LuauInterpolatedString").text).toBe('`hello {"world"}');
   });
 
-  // Luau: string_interpolation_with_unicode_escape
-  // Upstream: one InterpStringSimple, then Eof; the `{` of `\u{...}` does not
-  // open an interpolation.
   test("string_interpolation_with_unicode_escape: `\\u{1F41B}`", () => {
     const body = "local x = `\\u{1F41B}`";
     expect(onlyNode(body, "LuauEscapeUnicode").text).toBe("\\u{1F41B}");
@@ -331,12 +246,6 @@ describe("interpolation", () => {
     expect(diagnoseInFunction(body)).toEqual([]);
   });
 
-  // Luau: string_interpolation_double_brace
-  // Luau: string_interpolation_double_but_unmatched_brace
-  // Upstream lexes `{{` inside a backtick string as BrokenInterpDoubleBrace.
-  // Deliberate divergence (#223, DIVERGENCES.md): `{{name}}` is sparkdown's
-  // call shorthand, so `{{` opens a call rather than a broken token. The
-  // parser-level counterpart is skipped in InterpolatedStringErrors.test.ts.
   describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => {
     test.each([
       ["string_interpolation_double_brace", "local x = `foo{{bad}}bar`"],
@@ -349,14 +258,7 @@ describe("interpolation", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Quotes
-// ---------------------------------------------------------------------------
-
 // Luau: single_quoted_string / double_quoted_string
-// Upstream: both are QuotedString, told apart by quote style. Sparkdown gives
-// them separate nodes because `"..."` interpolates and `'...'` does not
-// (DIVERGENCES.md, "`"..."` interpolates; `'...'` does not").
 describe("quotes", () => {
   test("single_quoted_string: `'test'`", () => {
     const body = "local x = 'test'";
@@ -379,13 +281,7 @@ describe("quotes", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Not applicable
-// ---------------------------------------------------------------------------
-
 // Luau: lookahead
-// Tests `Lexer::lookahead()` over a skipped comment. Sparkdown's grammar has
-// no token-stream API to peek with.
 describe.skip("lookahead (N/A: no lexer token-stream API)", () => {
   test("foo --[[ comment ]] bar : nil end", () => {});
 });

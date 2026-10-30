@@ -24,26 +24,14 @@ export const lineCubic = (a: Point, b: Point): Cubic => ({
   p1: [b[0], b[1]],
 });
 
-/** A closed polyline as straight cubics, one per edge. */
 export const polylineLoop = (pts: Point[]): Cubic[] =>
   pts.map((p, i) => lineCubic(p, pts[(i + 1) % pts.length]!));
 
-/**
- * Whether a segment is straight: both handles sit on their endpoints, to a
- * tolerance relative to the segment's own chord so tiny drawings behave
- * like large ones. A zero-length segment counts as a line.
- */
 export const isLine = (s: Cubic, relative = 1e-9): boolean => {
   const tol = relative * dist(s.p0, s.p1);
   return dist(s.c1, s.p0) <= tol && dist(s.c2, s.p1) <= tol;
 };
 
-/**
- * The loop without zero-length segments (a coincident anchor drawn twice),
- * which would otherwise read as a wrap-around when resampling. Segments
- * shorter than `relative` times the loop's extent are dropped; a loop that
- * would lose every segment is returned as is.
- */
 export function dropZeroSegments(loop: Cubic[], relative = 1e-9): Cubic[] {
   const tol = relative * loopExtent(loop);
   const kept = loop.filter((s) => !(dist(s.p0, s.p1) <= tol && dist(s.c1, s.p0) <= tol && dist(s.c2, s.p1) <= tol));
@@ -62,11 +50,6 @@ export function evalCubic(s: Cubic, t: number): Point {
   ];
 }
 
-/**
- * De Casteljau split at `t`; the two halves trace exactly the original. A
- * straight segment splits into straight segments whose handles sit on
- * their endpoints, so it still reads as a line afterwards.
- */
 export function splitCubic(s: Cubic, t: number): [Cubic, Cubic] {
   if (isLine(s)) {
     const m = lerpPoint(s.p0, s.p1, t);
@@ -84,14 +67,12 @@ export function splitCubic(s: Cubic, t: number): [Cubic, Cubic] {
   ];
 }
 
-/** The exact sub-cubic over the local parameter range `[t0, t1]`. */
 export function subCubic(seg: Cubic, t0: number, t1: number): Cubic {
   const right = t0 <= 1e-9 ? seg : splitCubic(seg, t0)[1];
   const t1b = t1 >= 1 - 1e-9 ? 1 : (t1 - t0) / (1 - t0);
   return t1b >= 1 - 1e-9 ? right : splitCubic(right, t1b)[0];
 }
 
-/** Arc length by chordal integration with `steps` samples. */
 export function segLength(s: Cubic, steps = 24): number {
   if (isLine(s)) return dist(s.p0, s.p1);
   let len = 0,
@@ -104,7 +85,6 @@ export function segLength(s: Cubic, steps = 24): number {
   return len;
 }
 
-/** The local `t` at which the segment has covered `frac` of its arc length. */
 export function tForFraction(s: Cubic, frac: number, steps = 32): number {
   if (isLine(s)) return Math.max(0, Math.min(1, frac));
   const target = frac * segLength(s, steps);
@@ -120,7 +100,6 @@ export function tForFraction(s: Cubic, frac: number, steps = 32): number {
   return 1;
 }
 
-/** The fraction of the segment's arc length covered at local `t`: the inverse of `tForFraction`. */
 export function fractionForT(s: Cubic, t: number, steps = 32): number {
   if (isLine(s)) return Math.max(0, Math.min(1, t));
   const total = segLength(s, steps);
@@ -140,15 +119,10 @@ export function fractionForT(s: Cubic, t: number, steps = 32): number {
 
 export const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
-/**
- * A closed loop parameterised by normalised cumulative arc length, so the
- * point at fraction `f` (cyclic) can be evaluated exactly on the source curve.
- */
 export class ArcLoop {
   readonly loop: Cubic[];
   readonly lengths: number[];
   readonly total: number;
-  /** Start fraction of each segment, plus a trailing 1. */
   readonly starts: number[];
 
   constructor(loop: Cubic[]) {
@@ -166,7 +140,6 @@ export class ArcLoop {
     this.starts = starts;
   }
 
-  /** Index of the segment containing cyclic fraction `f`. */
   segmentAt(f: number): number {
     const m = ((f % 1) + 1) % 1;
     for (let i = 0; i < this.loop.length; i++) {
@@ -184,14 +157,12 @@ export class ArcLoop {
     return evalCubic(this.loop[si]!, tForFraction(this.loop[si]!, clamp01(frac)));
   }
 
-  /** The cyclic fraction at which `pointAt` reaches local `t` of segment `segment`. */
   fractionAt(segment: number, t: number): number {
     const s0 = this.starts[segment]!,
       s1 = this.starts[segment + 1]!;
     return s0 + fractionForT(this.loop[segment]!, t) * (s1 - s0);
   }
 
-  /** Unit direction of travel at fraction `f`, from a small forward step. */
   directionAt(f: number, step = 0.002): Point {
     const a = this.pointAt(f),
       b = this.pointAt(f + step);
@@ -202,10 +173,6 @@ export class ArcLoop {
   }
 }
 
-/**
- * Signed area of a closed loop with each curve flattened, so a loop of few
- * long curves (a two-segment lash) still reports its true area and winding.
- */
 export function signedArea(loop: Cubic[]): number {
   let a = 0;
   for (const c of loop) {
@@ -239,11 +206,6 @@ export function reverseLoop(loop: Cubic[]): Cubic[] {
 export const rotateLoop = (loop: Cubic[], k: number): Cubic[] =>
   loop.slice(k).concat(loop.slice(0, k));
 
-/**
- * Appends a straight closing segment when the loop's ends do not meet,
- * judged relative to the loop's extent by default so a tiny drawing closes
- * the same way a large one does.
- */
 export function closeLoop(loop: Cubic[], eps = 1e-9 * loopExtent(loop)): Cubic[] {
   const f = loop[0]!.p0,
     l = loop[loop.length - 1]!.p1;
@@ -251,10 +213,6 @@ export function closeLoop(loop: Cubic[], eps = 1e-9 * loopExtent(loop)): Cubic[]
   return loop;
 }
 
-/**
- * Snaps a nearly closed loop's last endpoint onto its first when they are
- * within `tol` (inclusive), the manual "close path" cleanup for seam drift.
- */
 export function snapClosed(loop: Cubic[], tol: number): Cubic[] {
   const out = copyLoop(loop);
   const n = out.length;
@@ -263,7 +221,6 @@ export function snapClosed(loop: Cubic[], tol: number): Cubic[] {
   return out;
 }
 
-/** The mean of segment start points: the collapse centre used by `scale`. */
 export function anchorMean(loop: Cubic[]): Point {
   let x = 0,
     y = 0;
@@ -294,10 +251,6 @@ export function flattenCubic(c: Cubic, n = 8): Point[] {
   return out;
 }
 
-/**
- * Whether two segments cross strictly inside both. Parallel segments are
- * judged relative to the segments' lengths, so the test is scale-free.
- */
 export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   const dx1 = b[0] - a[0],
     dy1 = b[1] - a[1],
@@ -309,8 +262,6 @@ export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   const scale = l1 * l2;
   if (scale === 0) return false;
   if (Math.abs(den) < 1e-12 * scale) {
-    // Parallel. Collinear segments that overlap along more than a point
-    // retrace each other, which is a self-intersection too.
     const offset = ((c[0] - a[0]) * dy1 - (c[1] - a[1]) * dx1) / l1;
     if (Math.abs(offset) > 1e-9 * Math.max(l1, l2)) return false;
     const ux = dx1 / l1,
@@ -328,18 +279,8 @@ export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
   return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
 }
 
-/** Chords per curve used when a loop is flattened for crossing tests. */
 export const CROSSING_CHORDS = 16;
 
-/**
- * Whether a closed loop crosses itself, judged on chords: the whole loop
- * is flattened into one polyline (`CROSSING_CHORDS` per curve), so two
- * adjacent curves that meet at an anchor and cross elsewhere are caught,
- * and so is a loop of only one or two curves; only consecutive chords,
- * which share a point, are skipped. Each curve is also checked for a knot
- * inside itself. A crossing narrower than the chord resolution can escape
- * a chord test; this is a heuristic, not a proof of simplicity.
- */
 export function selfIntersects(loop: Cubic[]): boolean {
   if (loop.length < 1) return false;
   if (loop.some((c) => cubicKnots(c, CROSSING_CHORDS))) return true;
@@ -351,7 +292,6 @@ export function selfIntersects(loop: Cubic[]): boolean {
   return polygonSelfIntersects(pts);
 }
 
-/** Whether a single curve loops through itself (a knot), judged on chords. */
 export function cubicKnots(c: Cubic, n = 16): boolean {
   const pts = flattenCubic(c, n);
   for (let i = 0; i < pts.length - 1; i++) {
@@ -362,13 +302,6 @@ export function cubicKnots(c: Cubic, n = 16): boolean {
   return false;
 }
 
-/**
- * The parameters `s < t` at which the curve's cubic, extended past both ends,
- * crosses itself, or null when it has no such point; the curve itself knots
- * when both lie in [0, 1]. Exact rather than judged on chords: with the curve
- * written as `a t³ + b t² + c t + d`, `B(s) = B(t)` for `s ≠ t` reduces to
- * `a W + b u + c = 0` in `u = s + t` and `W = u² - s t`, a linear system.
- */
 export function cubicDoublePoint(c: Cubic): [number, number] | null {
   const ax = -c.p0[0] + 3 * c.c1[0] - 3 * c.c2[0] + c.p1[0],
     ay = -c.p0[1] + 3 * c.c1[1] - 3 * c.c2[1] + c.p1[1];
@@ -386,7 +319,6 @@ export function cubicDoublePoint(c: Cubic): [number, number] | null {
   return [(u - r) / 2, (u + r) / 2];
 }
 
-/** Whether a closed polyline crosses itself (non-adjacent edges only). */
 export function polygonSelfIntersects(pts: Point[]): boolean {
   const n = pts.length;
   if (n < 4) return false;
@@ -399,10 +331,6 @@ export function polygonSelfIntersects(pts: Point[]): boolean {
   return false;
 }
 
-/**
- * Whether two loops are the same drawing within `eps` per control point. A
- * still drawing must be detected before any resampling touches it.
- */
 export function sameLoop(a: Cubic[], b: Cubic[], eps = 1.2): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -415,12 +343,10 @@ export function sameLoop(a: Cubic[], b: Cubic[], eps = 1.2): boolean {
   return true;
 }
 
-/** The loop reversed if needed so its signed area has the sign of `wind`. */
 export function withWinding(loop: Cubic[], wind: number): Cubic[] {
   return Math.sign(signedArea(loop) || 1) !== Math.sign(wind || 1) ? reverseLoop(loop) : loop;
 }
 
-/** Evenly spaced points by arc length, `n` of them, starting at fraction `f0`. */
 export function loopToPolyline(loop: Cubic[], n: number, f0 = 0): Point[] {
   const arc = new ArcLoop(loop);
   const out: Point[] = [];
@@ -428,7 +354,6 @@ export function loopToPolyline(loop: Cubic[], n: number, f0 = 0): Point[] {
   return out;
 }
 
-/** `n` points evenly spaced by arc length along an open chain, ends included. */
 export function chainToPolyline(chain: Cubic[], n: number): Point[] {
   const lengths = chain.map((s) => segLength(s));
   const total = lengths.reduce((a, b) => a + b, 0) || 1;
@@ -450,12 +375,6 @@ export function chainToPolyline(chain: Cubic[], n: number): Point[] {
   return out;
 }
 
-/**
- * Interpolates handles in tangent space: each handle's direction rotates
- * the short way while its length blends linearly. Two collinear handles at
- * a smooth anchor stay collinear at every progress, so the anchor never
- * kinks mid-morph. Degenerate (zero-length) handles blend as offsets.
- */
 export function lerpLoopsAngular(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   const n = a.length;
   const wrapAngle = (d: number) => {
@@ -467,10 +386,6 @@ export function lerpLoopsAngular(a: Cubic[], b: Cubic[], t: number): Cubic[] {
     const o = b[i]!;
     return { p0: lerpPoint(s.p0, o.p0, t), c1: [0, 0], c2: [0, 0], p1: lerpPoint(s.p1, o.p1, t) };
   });
-  // Both handles of a node resolve a 180-degree tie the same way because
-  // `wrapAngle` maps the tie to +PI whichever side it is reached from, so
-  // a smooth node turning exactly half a circle keeps its handles collinear
-  // instead of each handle choosing an opposite direction.
   for (let i = 0; i < n; i++) {
     const prev = (i - 1 + n) % n;
     const P = out[i]!.p0;
@@ -497,7 +412,6 @@ export function lerpLoopsAngular(a: Cubic[], b: Cubic[], t: number): Cubic[] {
   return out;
 }
 
-/** The larger side of the control-point bounding box: the drawing's size. */
 export function loopExtent(loop: Cubic[]): number {
   let xmin = Infinity,
     ymin = Infinity,
@@ -514,23 +428,15 @@ export function loopExtent(loop: Cubic[]): number {
   return loop.length ? Math.max(xmax - xmin, ymax - ymin) : 0;
 }
 
-/** Whether the segment list ends where it starts, within `tol`. */
 export function endsMeet(segments: Cubic[], tol: number): boolean {
   if (!segments.length) return false;
   return dist(segments[0]!.p0, segments[segments.length - 1]!.p1) <= tol;
 }
 
-/** Normalised arc-length fraction at which each segment starts. */
 export function anchorFractions(loop: Cubic[]): number[] {
   return new ArcLoop(loop).starts.slice(0, loop.length);
 }
 
-/**
- * Resamples a closed loop so its anchors sit at `fractions` (cyclic order,
- * in [0, 1)). Every original anchor fraction must be present so each
- * interval lies within one original segment and comes out as an exact
- * sub-cubic: a straight segment stays straight and a curve keeps its shape.
- */
 export function resampleAtFractions(loop: Cubic[], fractions: number[]): Cubic[] {
   const arc = new ArcLoop(loop);
   const out: Cubic[] = [];
@@ -538,8 +444,6 @@ export function resampleAtFractions(loop: Cubic[], fractions: number[]): Cubic[]
   for (let k = 0; k < fractions.length; k++) {
     const a0 = fractions[k]!;
     let a1 = fractions[(k + 1) % fractions.length]!;
-    // Two equal fractions are a zero-length interval (a coincident
-    // anchor), not a trip around the loop; only a genuine decrease wraps.
     if (Math.abs(a1 - a0) <= 1e-12) {
       const p = arc.pointAt(a0);
       out.push(lineCubic(p, p));
@@ -559,12 +463,6 @@ export function resampleAtFractions(loop: Cubic[], fractions: number[]): Cubic[]
   return out;
 }
 
-/**
- * Least-squares fit of one cubic through `pts` with fixed end tangents
- * `t0` (leaving the first point) and `t3` (arriving at the last point,
- * pointing back along the curve). Handle lengths are clamped to the chord so
- * the fit never bows out past a tapered tip.
- */
 export function fitCubic(pts: Point[], t0: Point, t3: Point): { c1: Point; c2: Point } {
   const P0 = pts[0]!,
     P3 = pts[pts.length - 1]!;

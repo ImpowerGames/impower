@@ -1,5 +1,3 @@
-// Test fixtures from pinned Luau ClassFixture.cpp and TypeInfer.refinements.test.cpp.
-// These synthetic extern types belong to test environments, not a runtime host.
 import {
   AstExprConstantString,
   AstExprIndexName,
@@ -142,7 +140,6 @@ function registerExterns(f: Frontend): void {
     prop(instance, "Method", fn(instance, [], [s]));
     prop(staticType, "New", fn(undefined, [], [instance]));
     alias(name, instance);
-    // The pinned fixture binds these globals to ChildClass's static type.
     global(name, childStatic);
   }
   const unrelated = cls("UnrelatedClass"),

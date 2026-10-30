@@ -1,7 +1,3 @@
-// PLAY and the preview inside a scene that takes parameters (I-1608). A
-// line inside the scene starts as the run that reaches it stands there, with
-// the arguments the divert that enters the scene passes; a scene no run
-// reaches binds nil for each parameter (#664). The story saves either way.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it, vi } from "vitest";
@@ -31,7 +27,6 @@ scene s(a, b)
 end
 `;
 
-// No divert enters the scene.
 const UNREACHED = `scene start
   Top.
 end
@@ -41,8 +36,6 @@ scene s(a)
 end
 `;
 
-/** PLAY `source` from `line` (zero-based) and a second of frames; answers
- *  what the run showed and whether the story it plays saves and loads. */
 const playFrom = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
@@ -79,7 +72,6 @@ const playFrom = async (source: string, line: number) => {
   }
 };
 
-/** The text the first preview of `source` at `line` (zero-based) writes. */
 const previewAt = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
@@ -97,7 +89,6 @@ const previewAt = async (source: string, line: number) => {
 
 describe("PLAY inside a scene a divert enters with arguments", () => {
   it.each([
-    // The control: the divert's own line.
     ["the divert", ONE, 1, "First 10."],
     ["the scene's first line", ONE, 5, "First 10."],
     ["the scene's second line", ONE, 6, "Second 10."],
@@ -110,7 +101,6 @@ describe("PLAY inside a scene a divert enters with arguments", () => {
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain(shown);
     expect(outcome.text).not.toContain("nil");
-    // The story PLAY started saves (#664, #1204).
     expect(outcome.saved).toBe(true);
     expect(outcome.session).toBeDefined();
   }, 120_000);
@@ -163,8 +153,6 @@ describe("the preview inside a scene a divert enters with arguments", () => {
   }, 120_000);
 });
 
-// Forty beats before the divert: a search from the story's start limited to
-// twenty steps stops before it reaches the divert.
 const DEEP = `scene start
 ${Array.from({ length: 40 }, (_, i) => `  Top ${i}.`).join("\n")}
   -> s(10)
@@ -175,7 +163,6 @@ scene s(a)
 end
 `;
 
-/** A game started from `line` (zero-based) of `source`, with its compiler. */
 const gameAt = (source: string, line: number) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -205,7 +192,6 @@ const gameAt = (source: string, line: number) => {
   return { compiler, game, to: game.startAddress! };
 };
 
-/** Limits every search from the story's start to twenty steps. */
 const limitStartSearch = () => {
   const original = Game.planRouteFromStart.bind(Game);
   return vi

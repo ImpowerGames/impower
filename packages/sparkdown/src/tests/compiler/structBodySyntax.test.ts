@@ -21,11 +21,11 @@ function errors(text: string) {
 
 describe("struct bodies use blocks and ignore indentation", () => {
   test.each(["layout", "style"])("%s rejects colon headers and dash items", (type) => {
-    for (const [line, token] of [["title:", ":"], ["- title", "-"]]) {
+    for (const [line, token, message] of [["title:", ":", "Expected '=' when parsing field, got ':'"], ["- title", "-", "Invalid syntax"]]) {
       const text = `${type} example with\n  ${line}\nend\nscene start\nend`;
       const found = errors(text);
       expect(found).toHaveLength(1);
-      expect(typeof found[0]!.message === "string" ? found[0]!.message : found[0]!.message.value).toBe("Invalid syntax");
+      expect(typeof found[0]!.message === "string" ? found[0]!.message : found[0]!.message.value).toBe(message);
       expect(found[0]!.range.start.line).toBe(1);
       const { start, end } = found[0]!.range;
       expect(text.split("\n")[1]!.slice(start.character, end.character)).toBe(token);
@@ -64,11 +64,6 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
     const count = mode === "none" ? 0 : mode === "uniform" ? 4 : seed % 13;
     return " ".repeat(count) + line.trimStart();
   }).join("\n");
-  // Compares the program without its positions (`normalizeProgram`), and its
-  // code: each flow's instructions by the flow's name (`flowListings`). A
-  // binding evaluator's generated name ends with the source offset it was
-  // minted from, so each is numbered in the order of those offsets, which an
-  // indentation change keeps.
   const compile = (source: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({

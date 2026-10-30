@@ -24,11 +24,8 @@ const choose = (
     severity?: "info" | "warning" | "error";
     message?: string;
   }[] = [];
-  // The number of times we've made this choice.
   const visited = (Array.isArray(value) ? value[0] : value) || 0;
-  // A unique identifier for this choice.
   const key = String((Array.isArray(value) ? value[1] : undefined) || "");
-  // The seed for this playthrough.
   const seed = String((Array.isArray(value) ? value[2] : undefined) || "");
   const firstParamIndex = 0;
   const lastParamIndex = newArgs.length - 1;
@@ -41,17 +38,13 @@ const choose = (
   if (shuffled || randomized) {
     ignoreArgs.push(firstParamIndex);
     newArgs.shift();
-    // The number of times we've cycled through all the options.
     const cycled = Math.floor(visited / newArgs.length);
     const rng = shuffled
-      ? // When shuffling, we seed with cycle count so that
-        // the option order only changes when the cycle count changes (once we've cycled through all the options)
+      ?
         randomizer(seed + key + cycled)
-      : // When randomizing, we seed with visited count so that
-        // the option order changes every time we revisit this choice.
+      :
         randomizer(seed + key + visited);
     if (repeatLast) {
-      // Shuffle all except last option and repeat mark
       const repeatMark = newArgs.pop();
       const lastOption = newArgs.pop();
       newArgs = shuffle(newArgs, rng);
@@ -62,7 +55,6 @@ const choose = (
         newArgs.push(repeatMark);
       }
     } else {
-      // Shuffle all options
       newArgs = shuffle(newArgs, rng);
     }
   }

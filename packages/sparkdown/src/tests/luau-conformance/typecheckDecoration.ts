@@ -1,6 +1,3 @@
-// Luau's attachTypeData/prettyPrintWithTypes convention: inferred annotations
-// advance the output column; AST nodes retain source positions where those
-// columns have not already been consumed by inserted type text.
 import * as A from "../../compiler/typecheck/Ast";
 import type { Module, SourceModule } from "../../compiler/typecheck/Module";
 import { generateName } from "../../compiler/typecheck/ToString";
@@ -14,11 +11,7 @@ import {
   type TypePackId,
 } from "../../compiler/typecheck/Type";
 
-// Pinned TypeAttach.cpp rehydrates type cells into AST annotations before
-// PrettyPrinter.cpp prints them. Diagnostic toString text is a different format.
 function inferredPrinter() {
-  // Rehydrated AstName/c_str strings and singleton strlen share this boundary.
-  // Source AST string literals retain their separate explicit byte lengths.
   const cString = (value: string) => value.split("\0", 1)[0]!;
   const names = new Map<TypeId | TypePackId, string>();
   const active = new Set<TypeId | TypePackId>();
@@ -96,8 +89,7 @@ function inferredPrinter() {
           ][t.type]!;
         case "SingletonType":
           return t.variant.kind === "StringSingleton"
-            ? // TypeAttach rehydrates the c_str with strlen, unlike source AST
-              // strings whose explicit byte length preserves embedded NUL.
+            ?
               pinnedString(cString(t.variant.value))
             : String(t.variant.value);
         case "AnyType":
@@ -220,8 +212,6 @@ function inferredPrinter() {
   return { printType, printReturn };
 }
 
-// PrettyPrinter.cpp::StringWriter::string and StringUtils.cpp::escape at7d5.
-// Escape both quotes regardless of the chosen delimiter, plus control bytes.
 function pinnedString(value: string): string {
   const quote = value.includes("'") ? '"' : "'";
   const named: Record<number, string> = {
@@ -245,8 +235,6 @@ function pinnedString(value: string): string {
   return result + quote;
 }
 
-// PrettyPrinter.cpp::isIntegerish and the AST-only constant-number branch.
-// C's %.17g switches at decimal exponents -4/17, unlike JS toString/precision.
 function pinnedNumber(value: number): string {
   if (value === Infinity) return "1e500";
   if (value === -Infinity) return "-1e500";
@@ -254,8 +242,6 @@ function pinnedNumber(value: number): string {
   if (Object.is(value, -0)) return "-0";
   if (Number.isInteger(value) && value >= -2147483648 && value <= 2147483647)
     return String(value);
-  // JS decimal formatting rounds ties away from zero; C printf uses ties to
-  // even. Round the exact IEEE754 rational once to 17 significant digits.
   const data = new DataView(new ArrayBuffer(8));
   data.setFloat64(0, Math.abs(value));
   const bits = data.getBigUint64(0);
@@ -314,13 +300,7 @@ export function decorateSource(
   module: Module,
   ast: SourceModule,
 ): string {
-  // Port of the AST-only branches of PrettyPrinter.cpp at 7d5f7336.
-  // No source token is replayed: comments, spelling and CST separators cannot
-  // accidentally become code. TypeAttach's inferred cells are printed at their
-  // synthetic (0,0) positions; explicit annotations retain their AST positions.
   const printer = inferredPrinter();
-  // Luau stores literal values as byte strings and counts UTF-8 columns. The
-  // TS source AST uses editor UTF-16 columns; convert only at this test boundary.
   const sourceLines = source.split("\n");
   const encoder = new TextEncoder();
   const byteColumn = (p: { line: number; column: number }) =>
@@ -551,7 +531,6 @@ export function decorateSource(
     if (wrap) write(")");
   }
   function indexAccess(index: A.AstTableIndexer) {
-    // LuauPrettyPrintVisualizeIndexerAccess=true, as the test oracle bridge sets.
     if (index.access !== A.AstTableAccess.ReadWrite) {
       if (index.accessLocation) advance(index.accessLocation.begin);
       word(index.access === A.AstTableAccess.Read ? "read" : "write");
@@ -626,8 +605,6 @@ export function decorateSource(
     else if (node instanceof A.AstExprGlobal) word(node.name);
     else if (node instanceof A.AstExprVarargs) write("...");
     else if (node instanceof A.AstExprCall) {
-      // Preserve the existing explicit boundary; support for the other spelling
-      // is not a conformance exclusion and may be added as a separate branch.
       const lines = source.split("\n"),
         p = node.argLocation.begin;
       if (lines[p.line]?.[p.column - 1] !== "(")
@@ -862,8 +839,6 @@ export function decorateSource(
       Uint8Array.from(output, (c) => c.charCodeAt(0)),
     );
   } catch {
-    // C++ can return invalid UTF-8 bytes in std::string. A JS string cannot
-    // retain those bytes through the text API; fail rather than replace them.
     throw new Error(
       "unsupported source decoration: invalid UTF-8 output bytes",
     );

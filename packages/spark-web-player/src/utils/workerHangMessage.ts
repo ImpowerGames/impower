@@ -1,11 +1,5 @@
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 
-/** What the author is told when the player restarts its worker because the
- *  script it ran did not yield (#679): what happened, the line it was
- *  running, and what becomes of PLAY or the preview. The preview withholds
- *  the line the author was on, and every line once a route or display has
- *  stopped the worker after something was already set aside since the
- *  script last changed (`respondToWorkerHang`). */
 export function workerHangMessage(
   hang: {
     busyMs: number;

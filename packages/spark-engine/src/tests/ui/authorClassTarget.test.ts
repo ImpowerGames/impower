@@ -1,10 +1,3 @@
-// #863: an element in an author's layout whose class is the name of a builtin
-// text or image target (`text.title "Inventory"`) shows its content. A target
-// resolves to the elements named exactly as it is, so the story's writes and
-// clears of `title` reach the builtin `title` element and leave the author's
-// `text title` alone. A target no element is named after reaches the elements
-// that carry its classes, never a content element such as `text title`.
-
 import { describe, expect, test } from "vitest";
 import {
   createHarness,
@@ -130,10 +123,6 @@ end
 });
 
 describe("a target no element is named after", () => {
-  // The coordinator's decision for #863, with the #1813 rule
-  // (spark-web-player workerConnectRestore.test.ts): in a layout that
-  // replaces `main`, a container carrying a target's name as a class is that
-  // target's slot, and its text is a placeholder the story's write replaces.
   test("takes a container carrying its class as its slot in a layout that replaces `main`", async () => {
     const { h, writes, idsNamed, created } = await run(
       `layout main with

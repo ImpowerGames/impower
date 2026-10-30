@@ -1,26 +1,3 @@
-// Cumulative-path equivalence oracle: incremental == cold over MANY edits.
-//
-// The existing `incrementalEquivalence` oracle applies each edit from a FRESHLY
-// configured compiler (single-edit reuse). This one drives many edits through
-// ONE persistent compiler — the real editor HMR pattern — and after each edit
-// compares the FULL emitted program (the statement chunks by content, every
-// *Locations map, diagnostics, context and ui) to a cold compile of the same
-// text.
-//
-// It pins two cumulative-only drift classes that single-edit compiles never hit:
-//   1. compiler-synthesized identifiers (anonymous functions, define methods,
-//      method-call temps, loop vars/labels) minted from ABSOLUTE source
-//      offsets and frozen into a carried chunk, while a cold compile derives
-//      the current one.
-//   2. diagnostics: dedup flags left set on carried parsed nodes, so an
-//      incremental compile SKIPPED warnings a cold compile emits (e.g. the
-//      DivertTarget "Can't use a divert target like that" hint).
-//
-// The fixture ends with the constructs of `constructs()`. A fifth of the edits
-// are whole edit shapes rather than random keystrokes, and the test counts,
-// by chunk identity, the shaped edits that left each construct's chunk
-// carried, so that it cannot pass over constructs the compile always lowered
-// again.
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -28,7 +5,6 @@ import { fieldSig } from "./programSignature";
 
 const URI = "inmemory:///main.sd";
 
-// A string that starts each construct of the fixture's `constructs()`.
 const CONSTRUCT_MARKERS: Record<string, string> = {
   "tag line": "# chapter marker",
   "tagged scene": "scene deep_choice # arc",
@@ -39,7 +15,6 @@ const CONSTRUCT_MARKERS: Record<string, string> = {
   "layout with bindings": "layout hud with",
 };
 
-// The compilation chunk each construct still present in `text` starts in.
 function constructChunks(c: SparkdownCompiler, text: string) {
   const ranges: { from: number; to: number; chunk: object }[] = [];
   const cur = c.documents.annotations(URI).compilations.iter();
@@ -56,11 +31,6 @@ function constructChunks(c: SparkdownCompiler, text: string) {
   return { out, all: new Set(ranges.map((r) => r.chunk)) };
 }
 
-// Edit shapes applied whole, each a pair of texts the edit toggles between:
-// a function or a define inserted at the top of the file (#912's carried
-// chunk shape, #935, #936), a change to a parameter list (#841), and a
-// rename of a callee. A pair neither of whose texts the random edits have
-// left intact is skipped.
 const SHAPED_EDITS: [string, string][] = [
   ["store trust = 0", "function later()\n  return 7\nend\n\nstore trust = 0"],
   [
@@ -106,27 +76,16 @@ describe("compiler cumulative incremental equivalence", () => {
       });
       incr.compile({ textDocument: { uri: URI } });
 
-      // Deterministic LCG (no Math.random) so the fuzz is reproducible.
       let seed = 0x51ed5;
       const rand = () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      // "& f = function() ... end" makes an anonymous function, so the fuzz
-      // creates and destroys generated names — without it, drift class 1
-      // goes untested.
-      //
-      // The last six write pieces of the fixture's constructs: a `then`, a
-      // method call, a compound assignment, a binding, a closure and a
-      // `define` header. The header takes a name of its own on each edit,
-      // because a name declared twice stops the cold compile resolving the
-      // rest of the script (#979).
       const DEFINE_HEADER = "\ndefine header with\n";
       const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", DEFINE_HEADER];
 
       let version = 1;
       const failures: string[] = [];
-      // How many shaped edits left each construct's chunk carried.
       const carried = new Map<string, number>();
       const EDITS = 200;
       for (let n = 0; n < EDITS; n++) {
@@ -168,8 +127,6 @@ describe("compiler cumulative incremental equivalence", () => {
         }
       }
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
-      // Each construct was carried through at least one shaped edit, so the
-      // comparisons above covered it outside the reparse window.
       expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
     } finally {
       console.warn = realWarn;
@@ -177,10 +134,6 @@ describe("compiler cumulative incremental equivalence", () => {
     }
   });
 
-  // Deleting a generated name EARLIER in the document must leave the carried
-  // function after it compiled as a cold compile compiles it: the two
-  // functions here are same-shaped, so the deleted one's code must not stand
-  // in for the one that comes after it.
   it("a function after a deleted one compiles as a cold compile does", () => {
     const realWarn = console.warn;
     const realError = console.error;

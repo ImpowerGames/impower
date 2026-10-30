@@ -1,25 +1,3 @@
-// The Luau corpus gate (#1908): every vendored upstream Luau snippet
-// (`luauCorpus.ts`), placed in a function in a `.sd` document, must
-//
-// - leave no `ERROR_INCOMPLETE` node in its function: since the tiling
-//   catch-all (#1905) a pure-Luau body reads every token, so a rule that
-//   stops mid-content is a grammar defect;
-// - end the function where Luau's parser ends it: at its own `end`, or at the
-//   end of the input when Luau reports that the snippet left the function
-//   open (`Expected 'end' (to close 'function' at line 1), got <eof>`). A
-//   body that closes early hands the rest of the snippet to the story, and
-//   one that runs past its `end` takes in what follows;
-// - agree with Luau's parser on whether the snippet has a syntax error. A
-//   conformance file's agreement is `luauSyntaxAgreement.test.ts`'s, which the
-//   gate's CI job runs beside this file.
-//
-// What the gate finds on `main` is a Bug, filed under #1890 and listed with
-// its number in `KNOWN_CORPUS_FAILURES`, or a documented divergence listed
-// with its section. A listed input must still fail, so the entry goes in the
-// pull request that fixes it. The linter and autocomplete ports are read by
-// running them (`luauPortCapture.ts`); a harness call the run never reached
-// fails the gate.
-
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,8 +18,6 @@ import {
 import { captureLintPort, capturePortSnippets } from "./luauPortCapture";
 import { readings } from "./luauSyntaxReadings";
 
-// The type-checker port files hand their cases to `portUpstreamFile` as they
-// load. Here it keeps them instead of registering their tests.
 const ports = vi.hoisted(() => new Map<string, PortedCase[]>());
 vi.mock("../luau-conformance/typecheck/portedCases", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../luau-conformance/typecheck/portedCases")>()),
@@ -56,26 +32,13 @@ for (const file of readdirSync(PORTS).filter((f) => /^TypeInfer.*\.test\.ts$/.te
 
 const capture = await capturePortSnippets();
 const INPUTS = corpusInputs(ports, capture.snippets);
-// Luau reached the end of the input inside something still open, which the
-// wrapper's `function` encloses, so the function was left open too.
 const LEFT_OPEN = /, got <eof>/;
-// Luau closed the function before the wrapper's `end`, which it then reports.
 const CLOSED_EARLY = /^Expected <eof>, got 'end'/;
 
 type OfficialError = ReturnType<typeof officialSyntaxErrors>[number];
 
 const END_KEYWORD = /\bend\b/g;
 
-/**
- * Where Luau's parser ends the snippet's function, as an offset in the
- * document.
- * - Luau reports the wrapper's `end` as surplus: it closed the function at an
- *   earlier `end`. That is the first `end` at which the Luau, cut off just
- *   after it, leaves nothing open at the end of the input.
- * - A Luau error ends `, got <eof>`: something was still open there, inside
- *   the function, so the function runs to the end of the input.
- * - Otherwise the function ends at its own `end`.
- */
 function luauExtent(input: CorpusInput, errors: OfficialError[]): { end: number; says: string } {
   if (errors.some((error) => CLOSED_EARLY.test(error.message))) {
     for (const match of input.luau.matchAll(END_KEYWORD)) {
@@ -97,7 +60,6 @@ const compiler = new SparkdownCompiler();
 compiler.configure({ files: [] } as never);
 const parser = compiler.documents.parser;
 
-/** An offset in the input as `line:character` (0-based), with the text of its line. */
 function where(input: CorpusInput, offset: number): string {
   const start = input.text.lastIndexOf("\n", offset - 1) + 1;
   const end = input.text.indexOf("\n", offset);
@@ -105,10 +67,6 @@ function where(input: CorpusInput, offset: number): string {
   return `${line}:${offset - start} ${JSON.stringify(input.text.slice(start, end < 0 ? undefined : end))}`;
 }
 
-/**
- * The function that holds the snippet: the top-level node that begins where
- * the input's function does, or why there is none.
- */
 function snippetFunction(input: CorpusInput, tree: Tree): SyntaxNode | string {
   let node: SyntaxNode | null = tree.topNode.firstChild;
   while (node && node.to <= input.functionStart) node = node.nextSibling;
@@ -118,11 +76,6 @@ function snippetFunction(input: CorpusInput, tree: Tree): SyntaxNode | string {
   return node;
 }
 
-/**
- * The `ERROR_INCOMPLETE` nodes inside the function, each where it starts.
- * Text after a function that closed early is story, not a Luau body; the
- * extent check reports the early close.
- */
 function incompleteNodes(input: CorpusInput, fn: SyntaxNode): string[] {
   const found: string[] = [];
   const visit = (node: SyntaxNode): void => {
@@ -135,7 +88,6 @@ function incompleteNodes(input: CorpusInput, fn: SyntaxNode): string[] {
   return [...new Set(found)];
 }
 
-/** Fails unless `failed` is false, or is true and listed. A listed check that passes fails too. */
 function expectGate(input: CorpusInput, check: CorpusCheck, failed: boolean, report: string): void {
   const entry = known.get(`${input.name} ${check}`);
   if (entry) {
@@ -173,17 +125,12 @@ describe("Luau corpus gate", () => {
     ).toEqual([]);
   });
 
-  // The second `describe` of upstream DeprecatedApiUntyped has no `// Luau:`
-  // comment of its own; it continues the case above it (round 1 of #1996).
   test("reads a linter case's snippets from every group that continues it", () => {
     expect(
       INPUTS.filter((input) => input.name.startsWith("lint/LintExistingWarnings.test.ts/") && input.luau.includes("print(table.nogetn())")).length,
     ).toBe(1);
   });
 
-  // A loop over rows that reads each row's result stops at a row it cannot
-  // read; its later rows were never handed over, though the call site ran
-  // (round 2 of #1996). The capture reports the stopped body.
   test("reports a port body that stops before its later snippets", async () => {
     const port = [
       `import { expect, test } from "vitest";`,
@@ -203,9 +150,6 @@ describe("Luau corpus gate", () => {
     expect(result.aborted[0]).toMatch(/^LintRowsFixture\.test\.ts: rows: /);
   });
 
-  // Luau closes the function at the `end` of an unsupported `class` and then
-  // reports the wrapper's `end` as surplus. The gate expects exactly that
-  // `end`, so a function closing at any other point fails it.
   test("expects a function that Luau closes early to end at the `end` Luau closes it at", () => {
     const input = placeSnippet("surplus", "lint", "local a = 1\nclass A\n  x = 1\nend\nprint(a)");
     const errors = officialSyntaxErrors(input.luau);

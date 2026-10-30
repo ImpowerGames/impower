@@ -1,5 +1,3 @@
-// math.noise + debug.traceback + debug.info.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -61,7 +59,6 @@ end
   });
 
   test("integer inputs return 0 at the lattice corners", () => {
-    // Perlin noise is 0 at integer lattice points (gradient * 0 = 0).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -99,9 +96,6 @@ end
     for (const v of recorded) {
       expect(typeof v).toBe("number");
       const n = v as number;
-      // Perlin's nominal range is roughly [-sqrt(3)/2, sqrt(3)/2] ≈
-      // [-0.87, 0.87] but corner values can spill slightly. Allow
-      // a generous margin.
       expect(n).toBeGreaterThanOrEqual(-1.1);
       expect(n).toBeLessThanOrEqual(1.1);
     }
@@ -173,7 +167,6 @@ host_record(l)
 end
 `);
     expect(errors).toEqual([]);
-    // Source is a string, line is -1 (we don't track line info).
     expect(recorded).toEqual(["string", -1]);
   });
 

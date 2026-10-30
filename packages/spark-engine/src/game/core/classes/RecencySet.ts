@@ -1,14 +1,3 @@
-/**
- * An insertion-ordered set of addresses (`ProgramAddress`) whose entries move to the end when re-added,
- * so iteration order is "least recently added first".
- *
- * It holds and orders exactly what a `Set` holds when every `add` deletes the
- * value first, the spelling `RuntimeState.executedSinceCheckpoint` uses; here
- * `add` does both. Entries live in a doubly-linked list keyed by a `Map`, so
- * an add or a move is O(1).
- */
-
-/** An address, as the engine that ran it names it. */
 export type RecencyEntry = string | number;
 
 interface RecencyNode {
@@ -22,9 +11,6 @@ export class RecencySet implements Iterable<RecencyEntry> {
   protected _head: RecencyNode | null = null;
   protected _tail: RecencyNode | null = null;
 
-  /** Build from an ordered list. Duplicates keep their FIRST position, which
-   *  is what `new Set(values)` did — deserialization runs through here, so it
-   *  must not reorder a saved collection. */
   static from(values: Iterable<RecencyEntry>): RecencySet {
     const set = new RecencySet();
     for (const value of values) {
@@ -43,12 +29,10 @@ export class RecencySet implements Iterable<RecencyEntry> {
     return this._nodes.has(value);
   }
 
-  /** Add `value`, or move it to the end when it is already present. */
   add(value: RecencyEntry): this {
     const existing = this._nodes.get(value);
     if (existing) {
       if (existing === this._tail) {
-        // Already the most recent entry: nothing moves.
         return this;
       }
       this.unlink(existing);
@@ -60,9 +44,6 @@ export class RecencySet implements Iterable<RecencyEntry> {
     this.append(node);
     return this;
   }
-
-  // No `delete` or `clear`: nothing removes from this collection. It
-  // accumulates for a frame and is replaced wholesale.
 
   forEach(callback: (value: RecencyEntry) => void): void {
     for (const value of this) {
@@ -79,8 +60,6 @@ export class RecencySet implements Iterable<RecencyEntry> {
       yield node.value;
     }
   }
-
-  // --- list plumbing --------------------------------------------------------
 
   protected append(node: RecencyNode): void {
     this.link(node, this._tail, null);

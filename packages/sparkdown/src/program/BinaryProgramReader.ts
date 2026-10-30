@@ -9,9 +9,7 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 
-/** One instruction as the reader decodes it. */
 export interface Instruction {
-  /** The offset of the instruction's first word in the chunk's code. */
   offset: number;
   op: number;
   flags: number;
@@ -21,18 +19,9 @@ export interface Instruction {
 
 export type { SourceRange };
 
-/**
- * `BinaryProgramReader` iterates a flow's chunks and a chunk's instructions
- * in place, as a Lezer cursor does over a tree (docs/engine/binary-program.md,
- * section 9): nothing is constructed when a root arrives. The engine reads the
- * code words the same way through its integer cursor; the reader serves every
- * other consumer, and the line table.
- */
 export class BinaryProgramReader {
   constructor(readonly root: ProgramRoot) {}
 
-  /** The chunks of a sequence, with each one's entry and first line in its
-   *  script (counting from 0). */
   *statements(
     sequence: SequenceRow,
   ): IterableIterator<{ entry: number; chunk: ProgramChunk; line: number }> {
@@ -42,7 +31,6 @@ export class BinaryProgramReader {
     }
   }
 
-  /** The instructions of a chunk's code, in order. */
   *instructions(chunk: ProgramChunk): IterableIterator<Instruction> {
     const words = codeWords(chunk);
     for (let offset = 0; offset < words; offset += 2) {
@@ -61,9 +49,6 @@ export class BinaryProgramReader {
     };
   }
 
-  /** The source range of the instruction at `offset` of the statement at
-   *  `entry` of `sequence`: the line table row that covers it, placed at the
-   *  statement's first line. */
   rangeAt(
     sequence: SequenceRow,
     entry: number,
@@ -72,9 +57,6 @@ export class BinaryProgramReader {
     return this.root.rangeAt(sequence, entry, offset);
   }
 
-  /** The instructions of every statement of a sequence, one line of text
-   *  each, and the statements of each block statement's bodies below it,
-   *  indented under `block <k>`, for a test or a coverage report. */
   listing(sequence: SequenceRow, indent = ""): string[] {
     const out: string[] = [];
     for (const { entry, chunk, line } of this.statements(sequence)) {

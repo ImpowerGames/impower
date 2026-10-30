@@ -55,20 +55,13 @@ const components = parsed
   .map(({ component, attrs, inner }) => {
     const attrStr = renderAttrs(attrs);
     const escapedInner = JSON.stringify(inner);
-    // Default to decorative: aria-hidden, focusable=false. Consumers can
-    // override via props (spread comes after literals) for labelled icons:
-    //   <Check role="img" aria-label="confirm" />
     return `export const ${component}: IconComponent = (props) => (
   <svg ${attrStr} aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: ${escapedInner} }} />
 );`;
   })
   .join("\n\n");
 
-const out = `// This file is generated. Do not edit by hand.
-// Run \`npm run gen:icons\` from packages/impower-ui to regenerate.
-// Source: src/icons/svg/*.svg
-
-import type preact from "preact";
+const out = `import type preact from "preact";
 import type { JSX } from "preact";
 
 export type IconComponent = (

@@ -168,7 +168,6 @@
   min-height: var(--_min-panel-height);
 }
 
-/* If the container is less than 960px */
 @container (max-width: 960px) {
   :host([responsive="hide"]) > .root > .panel > .divider {
     display: none;
@@ -177,7 +176,6 @@
     display: none;
   }
 
-  /* Hide end panel */
   :host([responsive="hide"]:not([vertical], [primary="end"])) > .root > .end {
     display: none;
   }
@@ -192,7 +190,6 @@
     flex: 1;
   }
 
-  /* Hide start panel */
   :host([responsive="hide"][primary="end"]:not([vertical])) > .root > .panel {
     display: none;
   }
@@ -200,7 +197,6 @@
     min-width: 100%;
   }
 
-  /* Reveal end panel */
   :host([responsive="hide"][reveal]:not([vertical], [primary="end"]))
     > .root
     > .end {
@@ -213,7 +209,6 @@
     display: none;
   }
 
-  /* Reveal start panel */
   :host([responsive="hide"][reveal][primary="end"]:not([vertical]))
     > .root
     > .panel {

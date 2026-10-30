@@ -1,8 +1,3 @@
-// #1225: an element's parts may go on over later lines, and an event closure
-// may span lines. A closure over several lines runs each of its statements
-// when its element is clicked, and a wrapped layout mounts the elements its
-// one-line form mounts, with the same message stream.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
@@ -64,9 +59,7 @@ end
       expect(buttonId).toBeTruthy();
       h.reset();
       h.emitEvent("click", buttonId!);
-      // The first and last statements both ran, in order: (100 + 1) * 2.
       expect(hpText(h)).toBe("HP: 202");
-      // And the one between them.
       const clicks = h
         .snapshotFiltered("ui/update")
         .map((m: any) => m.params?.content?.text)

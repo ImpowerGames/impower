@@ -1,13 +1,3 @@
-// Restarting the compiler's worker (#679). The player restarts its worker when
-// a script runs in it without yielding, and nothing the old worker held
-// survives: the new one is given the project as the editor holds it, which
-// for an open document is the text the editor last sent, kept on the page for
-// this. Whatever was still waiting on the old worker settles, and nothing the
-// new worker was given is applied to it twice.
-//
-// The workspace is driven with stand-in compiler connections: the first never
-// answers, as a worker that is stuck does not, and each later one answers at
-// once, recording what it was sent.
 import { describe, expect, it } from "vitest";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
@@ -25,9 +15,6 @@ const settle = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
 
-/** A compiler connection that records every request, and answers each at
- *  once when it is given answers, or never; a request whose method it is
- *  told to hold waits until the test releases it. */
 class StandInConnection {
   requests: {
     method: string;
@@ -50,7 +37,6 @@ class StandInConnection {
     });
   }
 
-  /** Answer the held requests of `method`. */
   release(method: string) {
     for (const request of this.requests) {
       if (request.method === method) {
@@ -80,24 +66,18 @@ class StandInConnection {
   }
 }
 
-/** A compile's answer: a summary, which the page does not decode. */
 const compiled = (params: any) => ({
   textDocument: params.textDocument,
   program: { summary: true, uri: MAIN, scripts: { [MAIN]: 1 } },
 });
 
 class TestWorkspace extends SparkdownWorkspace {
-  // Set by `startCompilerWorker`, which the constructor calls before this
-  // class's own fields are initialized, so neither has an initializer.
   declare connections: StandInConnection[];
   declare terminated: number;
-  /** Methods each worker started from now on holds (`StandInConnection`). */
   declare hold: Set<string> | undefined;
 
   protected override _mirrorDocumentTexts = true;
 
-  // The compiles an open or an edit schedules are not under test: each test
-  // compiles when it means to.
   override debouncedCompile = (async () => undefined) as any;
   protected override scheduleChangeCompile() {}
 
@@ -121,7 +101,6 @@ class TestWorkspace extends SparkdownWorkspace {
   protected override startCompilerWorker() {
     this.connections ??= [];
     this.terminated ??= 0;
-    // The first worker is the one that gets stuck; the ones after answer.
     const connection = new StandInConnection(
       this.connections.length === 0
         ? undefined
@@ -201,7 +180,6 @@ describe("restarting the compiler's worker", () => {
     const workspace = new TestWorkspace();
     await open(workspace, "Line one.\n");
     await insertAtStart(workspace, 2, "BOB:\n  ");
-    // A compile the stuck worker never answers.
     const compiling = workspace.compile(MAIN, true);
     await settle();
     expect(workspace.stuck.sent).toContain(CompileProgramMessage.method);
@@ -211,7 +189,6 @@ describe("restarting the compiler's worker", () => {
 
     expect(workspace.terminated).toBe(1);
     expect(workspace.stuck.closed).toBe(true);
-    // The compile the stuck worker held settles, with nothing.
     expect(await compiling).toBeUndefined();
     const configure = workspace.restarted.requests.find(
       (r) => r.method === ConfigureCompilerMessage.method,
@@ -233,7 +210,6 @@ describe("restarting the compiler's worker", () => {
     const workspace = new TestWorkspace();
     await open(workspace, "Line one.\n");
     await settle();
-    // An edit whose update is still on its way when the restart begins.
     void insertAtStart(workspace, 2, "BOB:\n  ");
     const restarting = workspace.restartCompiler();
     await restarting;
@@ -246,7 +222,6 @@ describe("restarting the compiler's worker", () => {
       UpdateCompilerDocumentMessage.method,
     );
 
-    // A later edit reaches the new worker as an edit.
     await insertAtStart(workspace, 3, "~ ");
     await settle();
     const update = workspace.restarted.requests.find(
@@ -264,16 +239,12 @@ describe("restarting the compiler's worker", () => {
     let configured = false;
     void configuring.then(() => (configured = true));
 
-    // The second worker runs into the loop before it has been configured.
     const second = workspace.restartCompiler();
     await settle();
-    // A request that arrives now waits for the newest worker's configuration.
     let newestConfigured = false;
     void workspace.whenCompilerConfigured!.then(
       () => (newestConfigured = true),
     );
-    // The first restart ends quietly; its worker's configuration never came,
-    // and says nothing about the third worker's.
     await expect(first).resolves.toBeUndefined();
     expect((workspace as any)._compilerConfigured).toBe(false);
     expect(configured).toBe(false);
@@ -305,7 +276,6 @@ describe("restarting the compiler's worker", () => {
 
     await workspace.restartCompiler();
 
-    // Unrouted: the restarted worker routes to it as it compiles.
     expect(await selecting).toEqual(params);
   });
 
@@ -317,7 +287,6 @@ describe("restarting the compiler's worker", () => {
 
     await workspace.restartCompiler();
 
-    // It settles rather than throw, and the restarted worker has the file.
     expect((await creating)?.uri).toBe("file://proj/other.sd");
     const configure = workspace.restarted.requests.find(
       (r) => r.method === ConfigureCompilerMessage.method,
@@ -363,7 +332,6 @@ describe("restarting the compiler's worker", () => {
     await workspace.restartCompiler();
     await settle();
 
-    // The editor closes it and opens it again, its versions started over.
     await workspace.closeTextDocument({ textDocument: { uri: MAIN } });
     await open(workspace, "Line two.\n");
     await settle();

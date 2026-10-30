@@ -1,10 +1,3 @@
-// What a compile with statement chunks says it changed
-// (`ProgramChangeSummary.chunks`, #1643). The summary of a compile measured
-// against the root the chunk store built from is derived from the store's
-// records of that build, so its work scales with the edit; every other compile
-// (a first compile, a preview's, the compile after a preview) compares the two
-// whole roots. Either way it equals the whole-root comparison of the root it
-// is measured against and the root the compile built.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ChunkChanges } from "../../compiler/types/ProgramChangeSummary";
@@ -73,8 +66,6 @@ const preview = (
     ],
   } as never).program;
 
-/** A summary with its ids in ascending order, which is how two are compared:
- *  the order of the ids carries no meaning. */
 const sorted = (changes: ChunkChanges | undefined) =>
   changes && {
     dropped: [...changes.dropped].sort((a, b) => a - b),
@@ -83,9 +74,6 @@ const sorted = (changes: ChunkChanges | undefined) =>
     initializers: changes.initializers,
   };
 
-/** Scenes of two lines around an `if` whose body holds a `for` loop, after a
- *  global and a function, so a program has declarations, functions, nested
- *  bodies and many flows. */
 function screenplay(scenes: number): string {
   const L: string[] = ["store visits = 0", "", "function bonus(x)", "  return x * 2 + 1", "end", ""];
   for (let s = 0; s < scenes; s++) {
@@ -120,7 +108,6 @@ describe("the change summary of an edit inside one beat", () => {
       expect(symbols).toBeGreaterThan(60);
       const at = text.indexOf("Room 30 line one.") + "Room 30".length;
       text = update(c.compiler, text, 2, at, at, " concerned");
-      // Off for this compile: its check compares the whole roots as well.
       ChunkStore.verifyBuilds = false;
       const place = vi.spyOn(ProgramRoot.prototype, "place");
       let program: SparkProgram;
@@ -134,8 +121,6 @@ describe("the change summary of an edit inside one beat", () => {
       expect(program.chunks).toBeDefined();
       expect(program.changes?.chunks?.emitted.length).toBeGreaterThan(0);
       expect(program.changes?.chunks?.initializers).toBe(false);
-      // The whole-root comparison reads every symbol's definition in both
-      // roots, twice as many reads as the table has symbols.
       expect(reads, `definition reads of ${symbols} symbols`).toBeLessThan(20);
     });
   });
@@ -162,8 +147,6 @@ describe("the change summary equals the whole-root comparison", () => {
         sorted(rootChanges(first.chunks, previewed.chunks!)),
       );
 
-      // The next served compile is measured against the preview's root, the
-      // last stamped one, and not the store's current root it was built from.
       const edit = text.indexOf("Room 1 line one.") + "Room 1".length;
       text = update(c.compiler, text, 2, edit, edit, " edited");
       const next = c.compile().program;
@@ -175,7 +158,6 @@ describe("the change summary equals the whole-root comparison", () => {
         sorted(rootChanges(first.chunks, next.chunks!)),
       );
 
-      // And the compile after that is measured against the store's root again.
       const again = text.indexOf("Room 4 inside the if.") + "Room 4".length;
       text = update(c.compiler, text, 3, again, again, " again");
       const last = c.compile().program;
@@ -191,8 +173,6 @@ describe("the change summary equals the whole-root comparison", () => {
       let text = screenplay(8);
       const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
       let program = c.compile().program;
-      // The root the next compile is measured against: the last one stamped,
-      // which is nothing after a compile that built no chunks.
       let measured = program.chunks;
       const inserts = [
         "x",
@@ -210,7 +190,6 @@ describe("the change summary equals the whole-root comparison", () => {
         "",
       ];
       const edits = cumulativeEdits(0x1643, inserts);
-      // The previews draw their own edits, which are never applied.
       const previews = cumulativeEdits(0x1644, inserts);
       const failures: string[] = [];
       let compared = 0;

@@ -1,10 +1,3 @@
-// Phase 4 I8: dep-gated refresh.
-//
-// refreshLayouts now takes the turn's change-set (globals + tables written since
-// the last refresh) and re-evaluates a binding only when its read deps intersect
-// it. We prove the GATING (not just the equality-gated output) by spying on
-// EvaluateFunction: a binding whose deps didn't change is never called.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -13,7 +6,6 @@ function exprId(program: any, screen: string, childIndex: number): string {
   return node.content.find((p: any) => p.kind === "binding").binding.exprId;
 }
 
-/** Install a counting spy over story.EvaluateFunction; returns the call map. */
 function spyEvalFunction(h: UIHarness): Record<string, number> {
   const story: any = h.game.story;
   const calls: Record<string, number> = {};
@@ -58,10 +50,9 @@ end
 
     h.reset();
     const calls = spyEvalFunction(h);
-    run(h, "bumpA"); // a → 2 (a global change)
+    run(h, "bumpA");
     refresh(h);
 
-    // a's binding re-evaluated; b's binding skipped (its dep didn't change).
     expect(calls[aId]).toBeGreaterThanOrEqual(1);
     expect(calls[bId] ?? 0).toBe(0);
     expect(updates(h)).toContain("a=2");
@@ -90,7 +81,7 @@ end
 
     h.reset();
     const calls = spyEvalFunction(h);
-    run(h, "hurt"); // player.hp = 90 (a table-field change, no global change)
+    run(h, "hurt");
     refresh(h);
 
     expect(calls[hpId]).toBeGreaterThanOrEqual(1);
@@ -118,7 +109,6 @@ end
 
     h.reset();
     const calls = spyEvalFunction(h);
-    // Touch only `b`, which no shown binding reads.
     (h.game.story as any).variablesState.$("b", 5);
     refresh(h);
 

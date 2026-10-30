@@ -27,7 +27,6 @@ import {
 } from "./Type";
 import type { TypeCheckLimits } from "./TypeFunction";
 
-/** A copy of a level, as Luau copies the `TypeLevel` value into each type it makes. */
 function copyLevel(level: TypeLevel): TypeLevel {
   return new TypeLevel(level.level, level.subLevel);
 }
@@ -36,7 +35,6 @@ function sameElements<T>(a: T[], b: T[]): boolean {
   return a.length === b.length && a.every((x, i) => x === b[i]);
 }
 
-/** A substitution that replaces the generics of a given set, and generic tables, with free types. */
 export class ReplaceGenerics extends Substitution {
   builtinTypes: BuiltinTypes;
   level: TypeLevel;
@@ -60,11 +58,6 @@ export class ReplaceGenerics extends Substitution {
     this.genericPacks = [...genericPacks];
   }
 
-  /**
-   * Luau's `ReplaceGenerics::resetState`, which hides `Substitution::resetState`
-   * there; TypeScript cannot override a method with more parameters under
-   * the same name.
-   */
   resetStateWith(
     arena: TypeArena,
     builtinTypes: BuiltinTypes,
@@ -89,11 +82,6 @@ export class ReplaceGenerics extends Substitution {
     if (ftv) {
       if (ftv.hasNoFreeOrGenericTypes) return true;
 
-      // A generic function that binds these same generics is not recursed
-      // into, as happens with recursive types: if T = <a>(a, T) -> T, then
-      // instantiating T gives T' = (X, T) -> T, not T' = (X, T') -> T'.
-      // Comparing the lists is enough, as quantifying always makes fresh
-      // generics, so two lists overlap only when they are equal.
       return (
         (this.generics.length !== 0 || this.genericPacks.length !== 0) &&
         sameElements(ftv.generics, this.generics) &&
@@ -131,7 +119,6 @@ export class ReplaceGenerics extends Substitution {
       clone.definitionLocation = ttv.definitionLocation;
       return this.arena.addType(clone);
     } else {
-      // Luau's `TypeArena::freshType` at a level.
       return this.arena.addType({
         ...freeType(this.scope, this.builtinTypes.neverType, this.builtinTypes.unknownType),
         level: copyLevel(this.level),
@@ -144,7 +131,6 @@ export class ReplaceGenerics extends Substitution {
   }
 }
 
-/** A substitution that replaces generic functions with monomorphic ones. */
 export class Instantiation extends Substitution {
   builtinTypes: BuiltinTypes;
   level: TypeLevel;
@@ -190,10 +176,8 @@ export class Instantiation extends Substitution {
     clone.isDeprecatedFunction = ftv.isDeprecatedFunction;
     let result = this.arena.addType(clone);
 
-    // This runs even without generics, to replace any generic tables.
     this.reusableReplaceGenerics.resetStateWith(this.arena, this.builtinTypes, this.level, this.scope, ftv.generics, ftv.genericPacks);
 
-    // A failed substitution keeps the clone as it is, as no error can be reported from here.
     result = this.reusableReplaceGenerics.substitute(result) ?? result;
 
     result.documentationSymbol = ty.documentationSymbol;
@@ -205,19 +189,6 @@ export class Instantiation extends Substitution {
   }
 }
 
-/**
- * Instantiates a type; only used under local type inference. A generic
- * function type comes back as a copy with its generics replaced by fresh free
- * types; any other type, and a function type without generics, comes back
- * as is.
- *
- * Higher-order generics are left alone: instantiating
- * <X>(<Y>(Y) -> (X, Y)) -> (X, Y) gives (<Y>(Y) -> ('x, Y)) -> ('x, Y),
- * which replaces the generic X with the free 'x and keeps the generic Y.
- *
- * Instantiation fails, returning undefined, only when the type exceeds the
- * internal recursion limits.
- */
 export function instantiate(builtinTypes: BuiltinTypes, arena: TypeArena, limits: TypeCheckLimits, scope: Scope, ty: TypeId): TypeId | undefined {
   ty = follow(ty);
 
@@ -243,9 +214,6 @@ export function instantiate(builtinTypes: BuiltinTypes, arena: TypeArena, limits
 
   if (limits.instantiationChildLimit !== undefined) r.childLimit = limits.instantiationChildLimit;
 
-  // Persistent types are cloned too, so that generic builtins such as
-  // `table.find` can be instantiated: otherwise the lines after would corrupt
-  // the definition of the original function.
   const clonedFunctionTypeId = shallowClone(ty, arena, true);
   const ft2 = get(clonedFunctionTypeId, "FunctionType")!;
 

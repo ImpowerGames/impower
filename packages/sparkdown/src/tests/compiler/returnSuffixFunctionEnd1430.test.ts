@@ -1,8 +1,3 @@
-// A written function whose `return` is followed by two or more tokens on
-// its line ends where Luau's parser ends it, at the error for its missing
-// `end`, so the `end` that closes it in the text is met where Luau's
-// chunk ends, and every error Luau reports is reported, once each, in
-// Luau's words at Luau's range (I-1430, after I-1322 and I-1400).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -20,7 +15,6 @@ function errorsOf(compiler: SparkdownCompiler): string[] {
     .sort();
 }
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -31,17 +25,12 @@ function sparkdownErrors(text: string): string[] {
 
 const SUFFIXES = ["return 1 x y", "return 1 (x) y", "return x y z", "return 1 x y z"];
 
-// Each script's Luau is all of its lines but the story line after it. A form
-// that declares a local sits in a function `o`, where a `local` may be
-// written.
 const FORMS: [string, (line: string) => string][] = [
   ["a function", (line) => `function f()\n${line}\nend\n`],
   ["a local function", (line) => `function o()\nlocal function f()\n${line}\nend\nend\n`],
   ["a method", (line) => `function o()\nlocal t = {}\nfunction t:m()\n${line}\nend\nend\n`],
   ["a nested block", (line) => `function f()\nif true then\n${line}\nend\nend\n`],
   ["a nested loop", (line) => `function f()\nwhile true do\n${line}\nend\nend\n`],
-  // Closers Luau reads in a block they are not its own (an `else` in a
-  // function's body, an `until` in a function's).
   ["a branch before an else", (line) => `function f()\nif true then\n${line}\nelse\nreturn 2\nend\nend\n`],
   ["a branch before an elseif", (line) => `function f()\nif true then\n${line}\nelseif false then\nreturn 2\nend\nend\n`],
   ["an else branch", (line) => `function f()\nif true then\nreturn 2\nelse\n${line}\nend\nend\n`],
@@ -52,8 +41,6 @@ const FORMS: [string, (line: string) => string][] = [
   ["a function in a table", (line) => `t = {function()\n${line}\nend}\n`],
   ["a function on one line", (line) => `function f() ${line} end\n`],
   ["a nested block before a later statement", (line) => `function f()\nif true then\n${line}\nend\nprint(1)\nend\n`],
-  // A later return, which Luau reads in the block around the one it ended
-  // (round 1 of the review).
   ["a function with a second return", (line) => `function f()\n${line}\nreturn 2 a b\nend\n`],
   ["a function with a second return of one token", (line) => `function f()\n${line}\nreturn 2 a\nend\n`],
   ["a function with a second bare return", (line) => `function f()\n${line}\nreturn\nend\n`],
@@ -61,8 +48,6 @@ const FORMS: [string, (line: string) => string][] = [
   ["a nested block before a second return", (line) => `function f()\nif true then\n${line}\nend\nreturn 2 a b\nend\n`],
   ["a repeat loop before a second return", (line) => `function f()\nrepeat\n${line}\nuntil true\nreturn 2 a b\nend\n`],
   ["a function with a second return before a later function", (line) => `function f()\n${line}\nreturn 2 a b\nend\nfunction g()\nreturn 3\nend\n`],
-  // A block opened after the return, which Luau opens and reads as any
-  // other (round 2 of the review).
   ["a function opened after the return", (line) => `function f()\n${line}\nlocal function g()\nreturn 2 a b\nend\nend\n`],
   ["a function value opened after the return", (line) => `function f()\n${line}\nlocal g = function()\nreturn 2 a b\nend\nend\n`],
   ["an if opened after the return", (line) => `function f()\n${line}\nif true then\nreturn 2 a b\nend\nend\n`],
@@ -72,28 +57,19 @@ const FORMS: [string, (line: string) => string][] = [
   ["a block opened after the return and closed", (line) => `function f()\n${line}\ndo\nlocal a = 1\nend\nend\n`],
   ["an if with else opened after the return", (line) => `function f()\n${line}\nif true then\nlocal a = 1\nelse\nreturn 2 a b\nend\nend\n`],
   ["a nested block's return before a block opened after it", (line) => `function f()\nif true then\n${line}\ndo\nreturn 2 a b\nend\nend\nend\n`],
-  // Luau's words for the token where its chunk ends, and the block Luau's
-  // suggestion names for a missing closer (round 3 of the review).
   ["a function with a later return of a string with interpolations", (line) => `function f()\n${line}\nreturn 2; \`a {x} z {y} w\`\nend\n`],
   ["a nested block in a repeat", (line) => `function f()\nrepeat\nif true then\n${line}\nend\nuntil true\nend\n`],
   ["an indented nested block in a repeat", (line) => `function f()\n  repeat\n    if true then\n      ${line}\n    end\n  until true\nend\n`],
   ["a misindented end after a nested block's return", (line) => `function f()\n  repeat\n    do\n      if true then\n        ${line}\n    end\n      end\n  until true\nend\n`],
-  // Luau's recovery reading a wrong token and the closer after it, a
-  // closer Luau took before the textual block's own, and the suggestion
-  // at a later return (round 4 of the review).
   ["two shifts before a recovered until", (line) => `function f()\nrepeat\nrepeat\nif true then\n${line}\nreturn 2 a\nend\nuntil true\nuntil true\nend\n`],
   ["two shifts before a recovered end", (line) => `function f()\nwhile true do\nrepeat\nif true then\n${line}\nreturn 2 a\nuntil true\nend\nend\nend\n`],
   ["a later return after a shifted repeat", (line) => `function f()\nrepeat\nif true then\ndo\n${line}\nend\nuntil true\nreturn 2 a\nend\n`],
-  // A later return whose recovery Luau ends with a closer of a block
-  // around the one it is read in (round 4's undirected review).
   ["a later return recovered in an outer block", (line) => `function f()\nif true then\ndo\n${line}\nreturn 2 a\nend\nreturn 3 a\nend\nend\n`],
   ["a later return recovered in an outer loop", (line) => `function f()\nwhile true do\nrepeat\n${line}\nreturn 2 a\nuntil true\nreturn 3 a\nend\nend\n`],
   ["a later return recovered in its own block", (line) => `function f()\nif true then\n${line}\nend\nreturn 2 a\nend\nreturn 3 a\n`],
   ["a misindented end before a missing until", (line) => `function f()\n  while true do\n    repeat\n      if true then\n        ${line}\n    end\n  end\n  local a = 1\nend\n`],
 ];
 
-// Scripts whose function is never closed, which end at their Luau: a line
-// of story after it would be read as the function's.
 const UNCLOSED: [string, (line: string) => string][] = [
   ["a function with no end", (line) => `function f()\n${line}\n`],
   ["a nested block with one end", (line) => `function f()\nif true then\n${line}\nend\n`],
@@ -131,8 +107,6 @@ describe("a function's return followed by two or more tokens reports Luau's erro
     }
   }
 
-  // A define's method, which the lowerer reads alone (I-1368), stands for
-  // the function `function f() … end` on its lines.
   for (const line of SUFFIXES) {
     test(`${JSON.stringify(line)} in a define's method`, () => {
       const official = officialErrorList(`\n  function f()\n    ${line}\n  end\n`).sort();
@@ -141,8 +115,6 @@ describe("a function's return followed by two or more tokens reports Luau's erro
     });
   }
 
-  // Luau stops at the end of the chunk, but a later function of the
-  // document is compiled on its own, and its errors are its own.
   test("a later function reports its own errors", () => {
     const first = "function f()\nreturn 1 x y\nend\n";
     const second = "function g()\nlocal t = {1 2}\nend\n";
@@ -150,10 +122,6 @@ describe("a function's return followed by two or more tokens reports Luau's erro
     expect(sparkdownErrors(`${first}${second}Go.\n`)).toEqual([...officialErrorList(first), ...shifted].sort());
   });
 
-  // A repeat whose `end` Luau gives the function, so that Luau's chunk ends
-  // at the `until` after it (round 4 of the review). The reading reports
-  // Luau's list, and so does the compile: the stray `until`'s error is the
-  // reading's, and nothing after it is reported (I-1514).
   for (const line of SUFFIXES) {
     test(`${JSON.stringify(line)} in a repeat whose end Luau gives the function`, () => {
       const luau = `function f()\nrepeat\n${line}\nend\nuntil true\nend\n`;
@@ -177,8 +145,6 @@ describe("a function's return followed by two or more tokens reports Luau's erro
     expect(sparkdownErrors(text)).toEqual([...luau].sort());
   });
 
-  // One token after the return is Luau's lookahead recovery, which reads
-  // the `end` after it (I-1400).
   test("one token after the return is unchanged", () => {
     const text = "function f()\nreturn 1 x\nend\n";
     expect(sparkdownErrors(`${text}Go.\n`)).toEqual(officialErrorList(text).sort());

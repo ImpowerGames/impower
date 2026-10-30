@@ -20,24 +20,17 @@ const DECLARATIONS = nodeNameSet([
   "LuauFunctionTypeDeclaration",
 ]);
 
-// The statements a `function` declares with, unless it is `local`.
 const FUNCTIONS = nodeNameSet([
   "LuauFunctionDefinition",
   "LuauFunctionAttributes",
 ]);
 
-// A statement marked with `&`, which declares when the statement it marks
-// does.
 export const EXPLICIT = nodeNameSet(["LuauSparkdownExplicitStatement"]);
 
-// What separates the statements of a marked line.
 const SEPARATORS = nodeNameSet(["LuauSemicolonSeparator"]);
 
-// The flows: a scene, and a branch, which runs to its `end` as a scene does.
 export const FLOWS = nodeNameSet(["Scene", "Branch"]);
 
-// The lines a script's top level holds that neither run nor declare: the
-// `end` of a flow, and an `include` line, which reports an error of its own.
 const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
 
 export function topLevelStatements(
@@ -103,10 +96,6 @@ const declares = (
     return true;
   }
   if (EXPLICIT.has(node.name)) {
-    // `& store x = 1`, `& const x = 1` and `& function f() end` declare as
-    // the statements they mark do; `& x = 1` and `& f()` run. A marked line
-    // can hold several statements (`& store x = 1; x = 2`), and declares only
-    // when each of them does.
     const content = childEndingWith(node, "_content");
     const marked = content ? statementsOf(content) : [];
     return marked.length > 0 && marked.every((statement) => declares(statement, read));
@@ -121,7 +110,6 @@ const declares = (
   return false;
 };
 
-/** The first child of `node` whose name ends with `suffix`. */
 export const childEndingWith = (
   node: SyntaxNode,
   suffix: string,
@@ -134,9 +122,6 @@ export const childEndingWith = (
   return undefined;
 };
 
-/** The statements a marked line's content holds, without the separators,
- *  the comments and the whitespace between them. An assignment is read as its
- *  target and its operation, each a child of its own, and neither declares. */
 export const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
   const statements: SyntaxNode[] = [];
   for (let child = content.firstChild; child; child = child.nextSibling) {
@@ -151,7 +136,6 @@ export const statementsOf = (content: SyntaxNode): SyntaxNode[] => {
   return statements;
 };
 
-/** The first node named `name` inside `node`, at any depth. */
 export const findWithin = (node: SyntaxNode, name: string): SyntaxNode | undefined => {
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (child.name === name) {
@@ -165,10 +149,6 @@ export const findWithin = (node: SyntaxNode, name: string): SyntaxNode | undefin
   return undefined;
 };
 
-/** The scope a variable or function definition is written with (`local`,
- *  `store`, `const`), from the scope modifier the grammar gives its header,
- *  or undefined when it has none. The modifier is looked for in the header
- *  alone, since a statement of a function's body can have one of its own. */
 export const scopeOf = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,

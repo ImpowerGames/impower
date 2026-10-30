@@ -1,13 +1,5 @@
 const fontKit = require("fontkit");
 
-// Here we just return the ascents for the used font.
-// Its needed to correctly align the font inside of a textbox.
-// As fontkit only works with extra added .otf .ttf fonts
-// but doesn't know anything about the pdfKit standard fonts, the ascents
-// for the default fonts are returned manually. All other
-// fonts get measured by fontkit.
-// Thanks fontkit for being awesome ♥!
-
 export const getFontAscent = (font: string, fontSize: number) => {
   let ascentPerPoint = 0;
   switch (font) {

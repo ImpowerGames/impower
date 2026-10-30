@@ -16,9 +16,6 @@ const OPENED_EVENT = "opened";
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
-/**
- * Boxes are basic surfaces for styling and laying out content.
- */
 export default class Box extends SparkleComponent(spec) {
   protected _options: Button[] = [];
   get options(): Button[] {

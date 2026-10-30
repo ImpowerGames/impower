@@ -1,7 +1,3 @@
-// Luau's linter tests (`luau/tests/Linter.test.cpp`) that do not apply to
-// sparkdown, each with the reason. They are listed rather than ported so
-// that every upstream case is accounted for (LintCoverage.test.ts).
-
 import { test } from "vitest";
 
 const NOT_APPLICABLE: [name: string, reason: string][] = [

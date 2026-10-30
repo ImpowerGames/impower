@@ -35,10 +35,6 @@ import { createRasterImageDefinitions, isRasterLayerFile } from "../../attribute
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-// The builtins prelude is the raw `builtins.sd` text, imported directly via
-// `?raw` (Vite/vitest native; the repo's esbuild bundles add a `?raw` plugin).
-// No generated wrapper / codegen step — `builtins.sd` is the single source of
-// truth.
 import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import type { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
@@ -82,8 +78,6 @@ import type {
   ScriptStructure,
 } from "../utils/routeDecisions";
 
-/** The syntax nodes of a `repeat` loop, of every other loop, as the loops'
- *  lowerings read them, and of a function's body (`structureOf`). */
 const REPEAT_LOOP_NODES = nodeNameSet([
   "LuauRepeatLoop",
   "LuauSparkdownRepeatLoop",
@@ -245,39 +239,14 @@ import type {
   RunOperand,
 } from "./annotators/CompilationAnnotator";
 
-// The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
-// identifiers to. These names are POSITIONAL (document-order ordinals within
-// a top-level flow), so a name can refer to a different flow after an edit —
-// name-keyed caches must never reuse entries for flows matching this. Its
-// `$` is a character no identifier can contain
-// (docs/engine/binary-program.md, section 2), so no name an author writes
-// has this form.
 const CANONICAL_SYNTH_NAME = NUMBERED_SYNTHETIC_NAME;
 
-// Reseed the binary string table once it is half again its live size, provided
-// the absolute slack is worth a full remap. A ratio rather than a
-// fixed cap, because a large project legitimately holds more live strings than
-// a small one. See `maybeReseedBinaryTable`.
 const BINARY_TABLE_RESEED_RATIO = 1.5;
 const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
-// Synthetic URI for the bundled builtins prelude (used as the file URI when the
-// prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
 
-// The builtins prelude (builtins.sd) compiles to the same context + runtime
-// every time — its source is a constant. Compiling it as part of EVERY program
-// added ~110ms per compile (untenable for live LSP keystrokes). So compile it
-// exactly ONCE, process-wide, and reuse:
-//   - `context`  is merged into each program as the builtins base layer (the
-//     role the legacy JS `populateBuiltins` played), so authored defines that
-//     reuse a builtin name override it in place.
-//   - `root` is the root of the prelude's statement chunks, whose
-//     declarations name the globals a seeded story initializes
-//     (`getPreludeGlobalNames`).
-// The prelude is NOT included in any program's parsed story — keeping the cache
-// the single point where it is compiled.
 let _cachedPrelude: {
   context: Record<string, any>;
   root: ProgramRoot | undefined;
@@ -292,12 +261,6 @@ function getCompiledPrelude(): {
   if (_cachedPrelude) {
     return _cachedPrelude;
   }
-  // Compile the prelude in isolation. `useBuiltinsPrelude` MUST be false here so
-  // this compile doesn't recurse into itself (mergePreludeContext → here →
-  // mergePreludeContext → …, never reaching the `_cachedPrelude =` assignment →
-  // unbounded recursion/allocation). Set it explicitly rather than relying on the
-  // class default, which is now `true`. The prelude defines every builtin it
-  // needs, so no JS builtins are required.
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: false,
@@ -322,21 +285,10 @@ function getCompiledPrelude(): {
     root: result.program.chunks,
     sparkle: result.program.sparkle ?? {},
   };
-  // Publish the builtin type/namespace ROOT names (the context's top-level
-  // keys — color, character, animation, …) so the lowerer's shadow-warning
-  // (validateDefineTypeShadow) can flag a user `store`/`const` that reuses a
-  // reserved builtin name. Runs once (cached prelude); before any user
-  // compile's lowering, since `configure` reaches here eagerly and
-  // `mergePreludeSparkle` reaches here before the parse.
   setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
 
-/** A script's path as a message names it: relative to the main script's
- *  folder, which is the project's, as the file system names it
- *  (`projectPath`; a `#` or `?` the web editor keeps in a file name stays
- *  in it), or else its whole URI. `asWritten` is the host's
- *  `uriPathsAsWritten`. */
 function displayScriptPath(scriptUri: string, mainUri: string, asWritten = false): string {
   const root = projectRootUri(mainUri);
   if (root !== undefined && scriptUri.startsWith(root)) {
@@ -345,9 +297,6 @@ function displayScriptPath(scriptUri: string, mainUri: string, asWritten = false
   return scriptUri;
 }
 
-/** Whether a top-level object of a script declares something the story
- *  initializes or registers before any content runs, wherever the object is
- *  placed: a global, a constant or an external. */
 const isHoistedDeclaration = (obj: ParsedObject): boolean =>
   (obj instanceof ParsedVariableAssignment && obj.isGlobalDeclaration) ||
   obj instanceof ConstantDeclaration ||
@@ -364,53 +313,22 @@ function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
 }
 
 let _preludeGlobalNames: Set<string> | undefined;
-/** The bare global names the seeded prelude creates at runtime: the type
- *  roots (`config`, `game`, `color`, `world`, …). An unseeded compile declares
- *  exactly these so references such as `game.loading.percent` resolve
- *  (Story.DeclareBuiltinGlobals).
- *
- *  The names are the globals the cached prelude's declaration chunks
- *  declare (`ProgramRoot.initialization`, each global's `SetVar` with
- *  `SET_DECLARE | SET_GLOBAL`), the globals a seeded story initializes,
- *  rather than the prelude's `context`. The context also holds names that
- *  are never runtime globals — every layout and style, and each instance's
- *  bare name (`main` is a layout, a style, and a mixer; `red` a color;
- *  `title` a typewriter). Declaring one of those makes an authored scene of
- *  the same name unreachable: `-> main` binds to the declared variable
- *  instead of the scene, and the runtime then fails to find a variable that
- *  never existed (#437). A bare instance name is not a runtime global
- *  either: `assets` is reached as `config.assets`, and a seeded story fails
- *  at runtime on a bare `assets.predict_distance`, so the unseeded compile
- *  is right to warn on it.
- *
- *  The declarations also declare each leaf instance under its scoped
- *  `$<type>_<name>` key (`$config_assets`; see `scopeDefineInstances`). Those
- *  are left out: no authored source can spell a `$` name, so no reference
- *  needs them, and declaring them would occupy the very keys an authored
- *  override of the same builtin is scoped to, which either re-keys that
- *  override to `$color_$color_red` or drops it from the registry outright. */
 function getPreludeGlobalNames(): Set<string> {
   if (_preludeGlobalNames) {
     return _preludeGlobalNames;
   }
   const root = getCompiledPrelude().root;
   if (!root) {
-    // The prelude is a constant, which a test compiles with statement
-    // chunks (`preludeGlobalNames.test.ts`).
     throw new Error("The builtins prelude built no statement chunks");
   }
   _preludeGlobalNames = declaredGlobalNames(root);
   return _preludeGlobalNames;
 }
 
-/** The names the program-wide Luau lints treat as built-in besides the
- *  standard library's: the builtins prelude's globals and type names. */
 export function lintBuiltinNames(): Set<string> {
   return new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
 }
 
-/** The names of the globals `root`'s declaration chunks declare, without the
- *  scoped `$` names. */
 export function declaredGlobalNames(root: ProgramRoot): Set<string> {
   const names = new Set<string>();
   const declares = SET_DECLARE | SET_GLOBAL;
@@ -432,9 +350,6 @@ export function declaredGlobalNames(root: ProgramRoot): Set<string> {
   return names;
 }
 
-/** The index of `word` in `text` as a whole identifier (not part of a longer
- *  one), or -1. A literal search rather than a regular expression: `word`
- *  comes from data (the prelude's global names). */
 function indexOfWord(text: string, word: string): number {
   const isWordChar = (c: string | undefined): boolean =>
     c !== undefined && /[A-Za-z0-9_]/.test(c);
@@ -452,17 +367,10 @@ function indexOfWord(text: string, word: string): number {
   return -1;
 }
 
-/**
- * A diagnostic's message as markup. Luau's wording names a token class in
- * angle brackets (`got <eof>`, `<string>`), which a markdown renderer reads as
- * an HTML tag and hides, so a message with one outside a code span is plain
- * text, as the checker's messages are.
- */
 function diagnosticMarkup(message: string): MarkupContent {
   return { kind: message.replace(/`[^`]*`/g, "").includes("<") ? "plaintext" : "markdown", value: message };
 }
 
-/** Whether a position lies within a range, its ends included. */
 function rangeContains(range: Range, position: { line: number; character: number }): boolean {
   const { start, end } = range;
   const afterStart = position.line > start.line || (position.line === start.line && position.character >= start.character);
@@ -470,7 +378,6 @@ function rangeContains(range: Range, position: { line: number; character: number
   return afterStart && beforeEnd;
 }
 
-/** Whether two ranges start and end at the same positions. */
 function rangesEqual(a: Range, b: Range): boolean {
   return (
     a.start.line === b.start.line &&
@@ -481,21 +388,6 @@ function rangesEqual(a: Range, b: Range): boolean {
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
-/**
- * A deep copy of an asset channel that shares each image's attribute
- * vocabulary with the context it was copied from.
- *
- * The channel is a copy so the engine can never change `program.context`
- * through it. A vocabulary is safe to share: nothing changes one after the file
- * registry builds it (a compile that adds diagnostics replaces the object
- * instead), and vocabularies are nearly all of an illustrated project's asset
- * bytes (230KB for one layered portrait). Copying them cost hundreds of
- * milliseconds per compile, and the copy doubled what each compile sends to
- * the player; a shared object crosses the worker boundary once.
- *
- * Shared and cyclic objects are copied once, as `structuredClone` copies them;
- * anything but a plain object or array goes through `structuredClone`.
- */
 const cloneSharingVocabularies = <T>(value: T): T => {
   const copies = new Map<object, unknown>();
   const copy = (v: unknown, key?: string): unknown => {
@@ -523,8 +415,6 @@ const cloneSharingVocabularies = <T>(value: T): T => {
     const out: Record<string, unknown> = {};
     copies.set(v, out);
     for (const k of Object.keys(v)) {
-      // Assignment would invoke the inherited __proto__ setter instead of
-      // copying that asset name across the compiler/player boundary.
       Object.defineProperty(out, k, {
         value: copy((v as Record<string, unknown>)[k], k),
         writable: true, enumerable: true, configurable: true,
@@ -536,16 +426,11 @@ const cloneSharingVocabularies = <T>(value: T): T => {
 };
 
 export type SparkdownCompilerEvents = {
-  /** A compile finished. `produced` says whether it made a program that
-   *  runs (its statement chunks); a compile that threw, or met a construct
-   *  it cannot build, made none. */
   "compiler/didCompile": (
     params: CompiledProgramParams & { produced: boolean },
   ) => void;
   "compiler/didSelect": (params: SelectedCompilerDocumentParams) => void;
   "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
-  /** A preview compile finished. Listeners may fill in `checkpoint` and
-   *  `simulationFailure`, which are returned with the program. */
   "compiler/didPreviewCompile": (
     params: PreviewCompileProgramParams & {
       program: SparkProgram;
@@ -554,20 +439,6 @@ export type SparkdownCompilerEvents = {
   ) => void;
 };
 
-/**
- * Whether every name the compile numbers by document order that a memo
- * candidate's own objects hold (those of the statements of its bodies left
- * out, which their own memos judge) is one its stand-in names again or no
- * longer holds (#1683): a label, a local or a local's assignment a loop's
- * lowering made from its place in the document (`isLoopInternal`), which
- * the loop's stand-in holds again under the name its lowering gives it where
- * it stands then (`MemoHolder`), where the compile first meets the name, so
- * that the compile numbers it as for the loop; and the label a `break` or
- * `continue` leaves by,
- * whose loop's lowering names it. A name a statement holds otherwise (a
- * method call's receiver, a function written as a value), a continuation's
- * group or a statement's uuid keeps the statement's memo from being served.
- */
 const ownsItsNumbering = (candidate: MemoCandidate): boolean => {
   const names = new Set<string>();
   const own = new Set<string>();
@@ -603,13 +474,6 @@ const ownsItsNumbering = (candidate: MemoCandidate): boolean => {
   return !other && [...names].every((name) => own.has(name));
 };
 
-// Distinguishes the context revisions (#654) of two compilers alive at once.
-// The counter lives on the global symbol registry rather than in this module,
-// so two copies of this module in one process — a bundler resolving the same
-// source through two paths — still hand out different ordinals. A consumer
-// deciding whether to keep what it derived from a context compares revisions
-// for equality, so two producers minting the same one would let it keep a
-// context that has nothing to do with the program it was handed.
 const CONTEXT_REVISION_ORDINAL = Symbol.for(
   "@impower/sparkdown/contextRevisionOrdinal",
 );
@@ -642,12 +506,8 @@ export class SparkdownCompiler {
     return this._documents;
   }
 
-  /** Lints and names of each script's current tree. A tree is replaced
-   *  whenever its script changes, so an unchanged script is not walked
-   *  again. */
   protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
-  // Type checks each document's Luau, keeping results between compiles.
   protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
@@ -655,142 +515,47 @@ export class SparkdownCompiler {
     return this._files;
   }
 
-  // ---- Chunk identity across compiles -----------------------------------
-  // CompiledBlock identities seen in the PREVIOUS compile; a chunk is unchanged
-  // iff its identity is still present (carried forward by the annotation
-  // RangeSet for chunks outside the reparse window).
   protected _prevCompilationIds?: Set<object>;
-  // Accumulated during the current compile's chunk walk.
   protected _compilationIds?: Set<object>;
-  // True while parsing the SOURCE-INJECTED builtins prelude (seedBuiltinsIntoStory):
-  // its chunks contribute their parsed FlowBase (the builtin `__def` global
-  // declarations) but MUST NOT re-merge context/sparkle —
-  // those already came from mergePreludeContext, and re-merging would perturb
-  // program.context vs the flag-off path.
   protected _injectingPrelude = false;
-  // The parsed builtins prelude (a constant), cached after its first parse so
-  // seedBuiltinsIntoStory reuses it across compiles instead of re-lowering
-  // hundreds of builtin defines every keystroke. Reused by resetting only its
-  // per-compile RUNTIME state (the same thing the incremental path does for
-  // unchanged chunks); PreProcessTopLevelObjects re-parents the content on each
-  // splice. Per-instance (mutated/reset per compile), so never shared.
   protected _cachedPreludeParsedStory?: Story;
-  // The compiled blocks of the compile that built the chunk store's current
-  // root, against which a compile finds the blocks it
-  // lowered anew since then: a preview's compile in between moves
-  // `_prevCompilationIds` but not the store's root.
   protected _chunkStoreBlocks?: Set<object>;
-  // Those blocks' 0-based line ranges, per script uri, in this compile's
-  // lines (`ProgramSource.changed`).
   protected _chunkStoreChanges?: Map<string, Array<[number, number]>>;
 
-  // ---- Per-compile change summary (`program.changes`) ---------------------
-  // A counter over this instance's compiles, so a client can tell whether the
-  // program it is holding is the one this compile's changes are measured
-  // against. Document versions cannot answer that: a preview compile stamps a
-  // negative one, and two compiles of the same versions are indistinguishable.
   protected _changeSequence = 0;
-  // The id stamped on the last program served, which is what the next compile's
-  // changes are measured against.
   protected _lastChangeId?: number;
-  // The root of statement chunks of the last program served, which the next
-  // compile's chunk changes are measured against (`ProgramChangeSummary.chunks`).
   protected _lastChangeRoot?: ProgramRoot;
-  // Raised during a compile by any signal that means the changed source lines
-  // are NOT the whole difference between this program and the last one.
-  // Everything that raises it is a hazard listed on
-  // `ProgramChangeSummary.confined`.
   protected _changeHazard = false;
-  // Per script uri, the earliest 0-based line any content change applied since
-  // the last compile touched. Text above it is the same text the last compile
-  // read, which is what makes the line mean the same thing in both.
-  //
-  // Accumulated as the changes arrive rather than derived afterwards: an edit
-  // and the chunk it re-lowers are different spans, and only the edit itself
-  // bounds what the author can have changed.
   protected _editedFrom = new Map<string, number>();
-  // The file-registry epoch the last summary was stamped at. A file added,
-  // replaced or removed is a change no line number describes.
   protected _changeFilesEpoch = -1;
 
-  // ---- Assembled base context cache (#654) -----------------------------
-  // The context every compile of one project shares: the prelude's builtin
-  // structs, the structs this project's `define`s contribute, the structs
-  // derived from its files, and the `$default` merge over all of them. It is
-  // rebuilt only when its KEY moves; a compile whose key is unchanged layers
-  // its own implicit definitions over it copy-on-write and never writes into
-  // the shared tables (`_contextLayerTypes` records which type maps this
-  // compile has already copied).
-  //
-  // The key is the ordered identities of the chunks that feed it plus the
-  // file-registry epoch and the config fields that shape it. A chunk feeds it
-  // when it contributes `context`, `sparkle` or `defaultDefinitions` — and
-  // also when it declares a global, constant, struct or external, which
-  // is what `scanChunkForReuse` already answers per chunk identity. The second
-  // half is what makes the revision sound for the ENGINE's define tables: a
-  // define's property value can be computed from a global or constant declared
-  // elsewhere, so the compile-time structs alone would not notice that its
-  // runtime value moved. A re-lowered-but-unchanged chunk takes a new identity
-  // and so costs a rebuild it did not need — a miss, never a stale reuse.
   protected _contextBase?: {
     uri: string;
     ids: object[];
     filesEpoch: number;
     configKey: string;
     context: { [type: string]: { [name: string]: any } };
-    // The diagnostics `populateAssets` produced while the base was assembled
-    // (asset basename collisions, raster-folder warnings). They belong to the
-    // base, so a compile that reuses it has to replay them rather than re-run
-    // the pass that reports them.
     diagnostics: { [uri: string]: SparkDiagnostic[] };
     revision: number;
   };
-  // Contributions recorded by the chunk walk, applied by `buildContext` in
-  // walk order, and the identities that key the assembled result.
   protected _contextContributions?: Array<{ [type: string]: { [name: string]: any } }>;
   protected _contextKeyIds?: object[];
   protected _contextLayerTypes?: Set<string>;
-  // `type/name` of every entry this compile's own implicit definitions added
-  // over the base, in discovery order — the layer half of the context revision.
   protected _contextLayerAdded?: string[];
-  // The serial each distinct layer has been given, so the revision can name it
-  // in a few characters instead of spelling out thousands of entries.
   protected _contextLayerSerials?: Map<string, number>;
   protected _contextLayerSerialCounter = 0;
-  // Monotonic within this compiler, and prefixed with an ordinal unique to it
-  // so that a consumer fed by two different compilers (a worker restarted
-  // under a page that kept its Game) can never read one's first revision as
-  // the other's.
   protected _contextRevisionCounter = 0;
   protected readonly _contextRevisionToken = `c${nextCompilerOrdinal()}`;
-  // How many times the base has been assembled from nothing on this instance.
-  // Read by the tests that assert an edit reused it.
   protected _contextBaseBuilds = 0;
   get contextBaseBuilds() {
     return this._contextBaseBuilds;
   }
-  // Per context type, the channel last derived from it and the type map it was
-  // derived FROM. The copy-on-write layer hands out the base's own type map
-  // whenever this compile did not write to that type, so comparing the map by
-  // identity answers "is this channel still the right one" exactly, without a
-  // revision to keep in step.
   protected _engineChannelCache?: Map<
     string,
     { source: object; value: { [name: string]: any } }
   >;
-  // The last morph channel and what it was built from: the context revision
-  // and every effective morph. Binding walks every image variant, so an edit
-  // that touches neither keeps the channel it already has.
   protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel };
-  // The finished implicit definitions of each `type/name` this compiler has
-  // derived, including the `$default` merge, dropped whenever the base they
-  // were merged against is reassembled. An attribute directive implies the
-  // same struct on every compile, and a project the size of Raffles and Bunny
-  // has thousands of them.
   protected _implicitDefCache?: Map<string, any>;
-  // Each chunk's and each reference's validated outcomes, kept while its
-  // block or annotation is carried and what they read of the context holds
-  // (#411).
   protected _referenceCache?: ReferenceValidationCache;
   protected _referenceValidationStats = {
     validated: 0,
@@ -799,102 +564,42 @@ export class SparkdownCompiler {
     chunksValidated: 0,
     chunksServed: 0,
   };
-  /** What the last `validateReferences` did: the references it validated,
-   *  those whose own kept outcomes it reused in a chunk it visited, those it
-   *  stepped over in a chunk it served whole, and the chunks it visited and
-   *  served. */
   get referenceValidationStats() {
     return this._referenceValidationStats;
   }
-  // The user's define declarations per chunk, and the type names each
-  // chunk's were last classified under (#709).
   protected _defineScope = new DefineScopeRecord();
-  // The chunks of this compile's user scripts, in walk order, whose defines
-  // `_defineScope` scopes.
   protected _defineScopeBlocks?: object[];
-  // The parsed prelude whose defines were last scoped, and those defines.
   protected _scopedPrelude?: { story: Story; declarations: Set<ParsedObject> };
-  /** What the last compile's scoping of the user's defines did. */
   get defineScopeStats(): DefineScopeStats {
     return this._defineScope.stats;
   }
-  // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
-  // by top-level flow name plus "0" for root content, read from the program's
-  // chunks once they are built (`captureProgramAssets`).
   protected _flowAssetAccum?: Map<string, SceneAssetCapture>;
 
-  // The string/number table the statement chunks' operands refer to.
-  // Persisted across compiles on purpose: it is the analogue of lezer's
-  // grammar-fixed NodeSet, and it is what lets a kept chunk be read as it is
-  // instead of remapped operand by operand.
   protected _binaryTable: ProgramTable = createProgramTable();
 
-  // Table size once a freshly seeded table has settled, i.e. the LIVE string
-  // count for the current document. Zero means "recalibrate on the next
-  // compile"; see `maybeReseedBinaryTable`.
   protected _binaryTableBaseline = 0;
 
-  // Previous compile's buffer size, so the writer allocates once instead of
-  // regrowing geometrically. The program is nearly the same size every edit.
   protected _binarySlotHint = 0;
 
-  // ---- Statement chunks (#694) --------------------------------------------
-  // What the compilation annotator is configured with, kept as one object so
-  // that a later `configure` reaches it.
-  // The compilation annotator records each statement's lowering reads and
-  // serves statement memos (`_memoHost`, given when the registry is made in
-  // `configure`), which the chunk store needs.
   protected _compilationConfig: CompilationConfig = {
     recordLoweringReads: true,
   };
-  // The store a compile builds its root of statement chunks from, kept for the
-  // compiler's lifetime so that a statement keeps its chunk across compiles.
   protected _chunkStore?: ChunkStore;
-  // The compiled block each object the assembly placed in a weave came from.
-  // Keyed by the placed object, so a flow carried from an earlier compile,
-  // whose objects this compile's assembly does not place again, still
-  // answers.
   protected _placedBy = new WeakMap<ParsedObject, object>();
-  // What this compile knows of each compiled block: its script and line, its
-  // syntax and the lowering inputs it recorded.
   protected _statementRecords = new Map<object, StatementRecord>();
-  // The same for the builtins prelude's blocks, which the compiler lowers and
-  // places once and carries for as long as it keeps the prelude's parse.
   protected _preludeStatementRecords = new Map<object, StatementRecord>();
-  // Each block's record, kept for as long as the incremental parse carries
-  // the block, with where the block stands, which its readers read.
   protected _blockRecords = new WeakMap<
     object,
     { record: StatementRecord; place: { from: number; to: number; uri: string } }
   >();
-  // Set while `previewCompile` compiles, so the root it builds is dropped and
-  // the store's current root stays the last real compile's.
   protected _previewing = false;
-  /** What the last compile built: its root or the construct the writer has
-   *  no emit path for, and how many statements it emitted. */
   lastProgramBuild?: ProgramBuild & { declarations: number; functions: number };
 
-  /** The construct this compile's build met and had no emit path for, which
-   *  the compile reports once its validators have run. */
   protected _unsupported?: UnsupportedConstructSite;
-  // The program path's resolver, kept for
-  // the compiler's lifetime so that a statement's resolution is kept across
-  // compiles (#1607).
   protected _programResolver?: ProgramResolver;
-  // The objects whose names this compile's passes renamed in place before
-  // resolution (`canonicalizeSyntheticFlowNames`, `scopeDefineInstances`),
-  // which the program path's resolver resolves again.
   protected _renamedNames: ParsedObject[] = [];
-  // The objects whose names a preview compile's rollback put back, which the
-  // resolver last resolved as the preview named them: the next resolve
-  // resolves them again, as it does the objects a pass renamed.
   protected _namesRolledBack: ParsedObject[] = [];
-  // While a preview compile runs, the undo of each write it makes into the
-  // parsed objects it shares with the last real compile, in the order it made
-  // them, which its rollback replays backwards (`previewCompile`).
   protected _previewUndo?: (() => void)[];
-  // The statement memo (#656, `compiler/lower/statementMemo.ts`): the host the
-  // compilation annotator serves memos through.
   protected _memoHost: StatementMemoHost = {
     enabled: true,
     usable: (entry) =>
@@ -902,34 +607,10 @@ export class SparkdownCompiler {
       !!this._chunkStore &&
       this._chunkStore.holdsMemoChunk(entry.chunk, entry.generation),
   };
-  // The compiled blocks of the compile in progress that hold statements
-  // served from their memos, and the statements of the blocks it lowered anew
-  // whose memos its resolve and build complete, by each object each holds at
-  // its top. Dropped once the compile ends, so no parsed object outlives it
-  // here.
   protected _memoBlocks = new Set<CompiledBlock>();
   protected _memoCandidates = new Map<ParsedObject, MemoCandidate>();
-  // Which attempt of a compile is in progress (`compileStory`): the attempts
-  // after the first compile again what the first left undone, so they
-  // compare with the compile before the first, and add what their passes
-  // find to what the first found (the statement watch's marks).
   protected _memoAttempt = 0;
 
-  // ---- Constructed-flow reuse -------------------------------------------
-  // A top-level flow (knot/scene/function, plus its stitches) is assembled
-  // from a RUN of chunks: the declaration chunk plus every body chunk that
-  // attached content into it. When the whole run is carried forward
-  // unchanged, last compile's CONSTRUCTED flow node — with its assembled
-  // weaves — is pushed into the fresh Story as-is instead of being assembled
-  // again, and its chunks are only restamped when they moved. The program it
-  // compiles to is the same either way; what reuse saves is the assembly, and
-  // the program path's resolver generates and resolves fewer of the objects
-  // the compile adds to a flow outside any statement
-  // (`ResolverPasses.outside`).
-  //
-  // `_prevFlowRuns`: last compile's run record per DECLARATION chunk
-  // identity. `_nextFlowRuns` accumulates this compile's records (fresh
-  // constructions AND committed reuses) and is promoted on success.
   protected _prevFlowRuns?: Map<
     object,
     { flow: FlowBase; contentChunks: object[] }
@@ -938,34 +619,16 @@ export class SparkdownCompiler {
     object,
     { flow: FlowBase; contentChunks: object[] }
   >;
-  // Line offset each content chunk's debugMetadata was last stamped at —
-  // a reused chunk whose offset is unchanged skips the restamp walk entirely.
   protected _chunkStampOffset = new WeakMap<object, number>();
-  // Document line and offset each chunk's Sparkle binding spans were last
-  // moved to.
   protected _sparkleSpanOffset = new WeakMap<
     object,
     { line: number; from: number }
   >();
-  // Signature (arity + per-parameter flags) of every named flow last compile.
-  // A call site depends on its CALLEE's parameter list (a by-reference
-  // parameter, a trailing `...`), so a changed signature refuses reuse of every
-  // flow that might call it, even though the caller's own chunks are
-  // untouched.
   protected _prevFlowSignatures?: Map<string, string>;
-  // Per-file ordered ROOT-REGION STRUCTURE descriptors — `run`
-  // targets and `EXTERNAL` name+arity. A change to this sequence disables all
-  // reuse for that compile; ordinary root content (front matter, loose text,
-  // globals) is deliberately excluded. See the guard for the full rationale.
   protected _lastRootBlocksByUri?: Map<string, string[]>;
-  // Reuse kill-switches. `_flowReuseDisabled` is recomputed per compile;
-  // starts true so the first compile after construction never reuses.
   protected _flowReuseDisabled = true;
   protected _disableFlowReuseNextCompile = false;
-  // The flows this compile reused.
   protected _reusedFlowsThisCompile?: Set<FlowBase>;
-  // Per-chunk reuse-disqualifier scan results (see `scanChunkForReuse`),
-  // computed once per chunk identity.
   protected _chunkReuseScan?: WeakMap<
     object,
     {
@@ -973,52 +636,13 @@ export class SparkdownCompiler {
       declaredNames: string[];
     }
   >;
-  // Census of every constant and global NAME declared anywhere in the
-  // program, accumulated across all files of one compile and compared against
-  // the previous compile's. Before #705, when a reused flow skipped the
-  // current engine's generation, two distinct generation-time dependencies
-  // made a reused flow's bytecode sensitive to names declared OUTSIDE it:
-  //
-  //   - a LIST is inlined by value into every referencing flow, so one that
-  //     disappears leaves stale inlined bytecode behind; and
-  //   - `Divert.ResolveTargetContent` runs during GENERATION and consults
-  //     `story.variableDeclarations`, so a global whose name matches a flow
-  //     shadows it and flips every call site from knot-call codegen (a
-  //     static divert, whose arguments follow the callee's parameters) to
-  //     variable-target codegen, a divert through the variable.
-  //
-  // Neither is visible to the per-chunk scan: a DELETED declaration appears
-  // in no chunk at all. Names only — values may change freely, so editing a
-  // `store`'s value still keeps reuse.
   protected _censusEntries?: string[];
   protected _prevCensusKey?: string;
-  // Parsed nodes whose subtree provably contains no compiler-synthesized
-  // name, so `canonicalizeSyntheticFlowNames` can skip them wholesale on
-  // later compiles. Keyed by identity, which the incremental pipeline
-  // preserves for unchanged content and replaces on re-lowering.
-  // Value is the node's content length when it was marked. Assembly can APPEND
-  // to a carried-forward container (a later changed chunk's content is added
-  // into an existing weave), which would make a stale mark hide the new
-  // children. Comparing the length on lookup catches that in O(1); a subtree
-  // whose own nodes changed gets a new identity anyway.
   protected _synthFreeSubtrees = new WeakMap<object, number>();
-  // The name its last run gave each name it found (a name it gave before
-  // keeps its own key), which `programStatementMemo.test.ts` compares with a
-  // cold compile's for the names a served loop's holders take (#1683).
   protected _syntheticNamesLastRun: ReadonlyMap<string, string> = new Map();
 
-  // Bumped whenever the file registry changes (assets added/updated/removed,
-  // or a reconfigure). Part of the no-change compile short-circuit key:
-  // document versions alone can't see asset changes, but populateAssets and
-  // run resolution can be affected by them.
   protected _filesEpoch = 0;
-  // The registered files of the project the last compile started in
-  // (`projectFilesOf`), kept while the registry is unchanged.
   protected _projectFiles?: { uri: string; filesEpoch: number; files: File[] };
-  // The previous successful compile, reusable verbatim when nothing that
-  // feeds a compile has changed since. PLAY / init paths re-request compiles
-  // without any edit having happened, and a compile with every incremental
-  // cache warm still walks the whole program.
   protected _lastCompileResult?: {
     uri: string;
     scripts: Record<string, number>;
@@ -1026,16 +650,8 @@ export class SparkdownCompiler {
     program: SparkProgram;
     produced: boolean;
   };
-  // The last compile of the real documents: the root it compiled and the
-  // script versions it read. `_lastCompileResult` can describe a preview
-  // compile instead, so everything that answers for the real documents reads
-  // this.
   protected _canonical?: { uri: string; scripts: Record<string, number> };
-  // A preview compile has run since `_canonical` was compiled, so the runtime
-  // story that compile left behind is no longer intact.
   protected _previewedSinceCanonical = false;
-  // The version the last preview compile gave its edited copy of a script.
-  // Counts down from zero so no preview version can equal a real one.
   protected _lastPreviewVersion = 0;
   protected _builtinStructs: {
     [type: string]: {
@@ -1067,10 +683,7 @@ export class SparkdownCompiler {
   }
 
   configure(config: SparkdownCompilerConfig) {
-    // Anything a reconfigure can change (definitions, settings, files) feeds
-    // compiles, so retire the no-change short-circuit's snapshot.
     this._filesEpoch++;
-    // And the next resolve of the program path resolves every statement.
     this._programResolver?.invalidate();
     if (
       config.definitions?.builtins !== undefined &&
@@ -1173,16 +786,6 @@ export class SparkdownCompiler {
     }
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
-      // Populate the builtin type-name registry BEFORE `documents.add` — the
-      // registry adds trigger the annotator's lowering pass, which reads
-      // `getBuiltinTypeNames()` for the shadow warning. `getCompiledPrelude`
-      // publishes them, and a compile reaches it through
-      // `mergePreludeSparkle`, so without this eager call a fresh document's
-      // first lowering would miss the builtin shadow warnings until the next
-      // edit.
-      // `getCompiledPrelude` is cached, so this pays only once. Guarded on
-      // `useBuiltinsPrelude` so the prelude's own isolated compile (which sets
-      // it false) doesn't recurse.
       if (this._config.useBuiltinsPrelude) {
         getCompiledPrelude();
       }
@@ -1192,10 +795,6 @@ export class SparkdownCompiler {
           file.version !== undefined &&
           file.languageId !== undefined
         ) {
-          // Defer parses: the compile that follows pulls the trees it needs
-          // through tree()/annotations(), so scripts outside the project
-          // (`projectScripts`) are never parsed, and configure itself stays
-          // fast.
           this.documents.add(
             {
               textDocument: {
@@ -1223,8 +822,6 @@ export class SparkdownCompiler {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      // Deferred: the next compile pulls the tree if this script is part of
-      // its project (see configure()).
       this.documents.add(
         {
           textDocument: {
@@ -1271,11 +868,6 @@ export class SparkdownCompiler {
     return applied;
   }
 
-  /** Record where a set of applied content changes starts, for the next
-   *  compile's change summary.
-   *
-   *  A change with no range replaces the whole document, so it starts at its
-   *  first line. */
   protected noteDocumentEdits(
     uri: string,
     contentChanges: readonly TextDocumentContentChangeEvent[],
@@ -1296,8 +888,6 @@ export class SparkdownCompiler {
     this._filesEpoch++;
     this.files.remove(params);
     const file = params.file;
-    // Drop the root-region record for this file — it strongly references that
-    // file's chunk IR, and nothing else prunes this map.
     this._lastRootBlocksByUri?.delete(file.uri);
     const removed = this.documents.remove({ textDocument: { uri: file.uri } });
     this._events[RemovedCompilerFileMessage.method].forEach((l) => {
@@ -1316,21 +906,6 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
-  /**
-   * Has a script the last compiled program was built from been edited since
-   * that compile?
-   *
-   * The program's root is what turns a source line into a story address
-   * (`ProgramRoot.addressAt`), and it describes the scripts as they were when
-   * the program was compiled. Once one of those scripts is edited, the same line number names
-   * a different piece of the script, so anything resolved from a line against
-   * that program is an answer about a line the author is no longer looking at.
-   *
-   * `false` when there is nothing to compare against — no compile has
-   * completed, or the last one threw and left no record — because a consumer
-   * that has no fresher answer coming is better served by the program it
-   * holds than by nothing.
-   */
   isProgramOutdated(): boolean {
     const canonical = this._canonical;
     if (!canonical) {
@@ -1347,16 +922,8 @@ export class SparkdownCompiler {
       this._canonical &&
       !this.isProgramOutdated()
     ) {
-      // A preview compile replaced the story the listeners would route
-      // against. The real documents have not changed since the last real
-      // compile, so nothing else is going to restore it: recompile them, which
-      // gives the listeners the same program the player already holds.
       this.compile({ textDocument: { uri: this._canonical.uri } });
     }
-    // Stamped before the listeners run, so everything that answers a selection
-    // — the route search in the player's workspace worker, and the preview in
-    // the player itself — sees whether the program it would answer from still
-    // describes the document that was selected in.
     params.programOutdated = this.isProgramOutdated();
     this._events[SelectedCompilerDocumentMessage.method].forEach((l) => {
       l?.(params);
@@ -1364,16 +931,6 @@ export class SparkdownCompiler {
     return params;
   }
 
-  /**
-   * Give this compile its identity and its account of what it changed.
-   *
-   * Every compile gets one, including a compile that changed nothing and one
-   * that failed, because the identity is what lets a client tell whether the
-   * program it holds is the one these changes are measured against. Serving a
-   * program with no summary at all would be indistinguishable from serving one
-   * whose summary a client had already read.
-   *
-   */
   protected stampChangeSummary(
     confined: boolean,
     root?: ProgramRoot,
@@ -1389,8 +946,6 @@ export class SparkdownCompiler {
     for (const [uri, line] of this._editedFrom) {
       earliest(uri, line);
     }
-    // A file added, replaced or removed since the last summary is a change the
-    // edits cannot describe: no content change was applied for it.
     const filesSettled = this._filesEpoch === this._changeFilesEpoch;
     const summary: ProgramChangeSummary = {
       id: ++this._changeSequence,
@@ -1398,12 +953,6 @@ export class SparkdownCompiler {
       changedFrom,
       confined: confined && filesSettled,
     };
-    // A compile that built statement chunks says what it changed exactly,
-    // from the root it built and the root of the program measured against:
-    // read from the store's record of the build when that root is the one the
-    // build was built from, and otherwise from the two whole roots. A preview
-    // compile leaves the store's current root, so the compile after it is
-    // measured against the preview's root and compares the whole roots.
     if (root) {
       const before =
         this._lastChangeId !== undefined ? this._lastChangeRoot : undefined;
@@ -1423,10 +972,6 @@ export class SparkdownCompiler {
     this._lastChangeRoot = root;
     this._lastChangeId = summary.id;
     this._changeFilesEpoch = this._filesEpoch;
-    // Consumed: this summary reports them, and the next one is measured against
-    // this program rather than the one before it. The hazard flag is consumed
-    // with them, which gives it a lifetime of one summary to the next rather
-    // than one compile to the next.
     this._editedFrom.clear();
     this._changeHazard = false;
     return summary;
@@ -1438,12 +983,8 @@ export class SparkdownCompiler {
       program: SparkProgram;
       produced?: boolean;
     } = this.compileStory(params);
-    // The listeners get the result itself, with `produced`, and what they
-    // write into it (the route search's report, `RouteSearchLog.report`) is
-    // what the compile answers with.
     result.produced = !!result.produced;
     const event = result as typeof result & { produced: boolean };
-    // Only a compile of the real documents can answer for them.
     this._canonical = this._lastCompileResult
       ? {
           uri: this._lastCompileResult.uri,
@@ -1454,37 +995,10 @@ export class SparkdownCompiler {
     this._events[CompiledProgramMessage.method].forEach((l) => {
       l?.(event);
     });
-    // `produced` is the listeners'; the result is sent as it is.
     delete result.produced;
     return result;
   }
 
-  /**
-   * Compile the program as it would be with `params.contentChanges` applied to
-   * `params.textDocument`, without applying them to anything another request
-   * can see.
-   *
-   * A transaction (#666, docs/editor/completion-preview.md): the registry
-   * takes a snapshot of the script's parse, the changes are applied to its
-   * copy of the script, the program is compiled through the ordinary
-   * incremental pipeline, and before this returns, also when the edit or the
-   * compile throws, the snapshot is restored, the parser's compiler rolls
-   * back its journal, and `_previewUndo` takes back the names the compile
-   * numbered in place. So a preview reparses once, the cost of one small
-   * edit, and no second compiler or second copy of the project exists. The
-   * first preview inside a long block a from-scratch parse left whole also
-   * parses the unchanged text there once, kept, to split the block
-   * (`SparkdownDocumentRegistry.mintSplitPoints`).
-   *
-   * The compile's own caches then describe the edited text, which is sound
-   * because every compile compares against the one before it, and the
-   * restored blocks are blocks that compile never placed. The listeners that
-   * route against a compile (the route search in the player's workspace
-   * worker) last heard the preview's program, so until the next real compile
-   * nothing may be routed against them: `selectDocument` recompiles the real
-   * documents first when that is the case, and `isProgramOutdated` keeps
-   * answering for the last real compile throughout.
-   */
   previewCompile(
     params: PreviewCompileProgramParams,
   ): PreviewCompileProgramResult {
@@ -1493,9 +1007,6 @@ export class SparkdownCompiler {
     if (!document || document.version !== textDocument.version) {
       return { textDocument, outdated: true };
     }
-    // Taken before the edit and always put back, including when the edit or
-    // the compile throws: the snapshot has already swapped the registry's
-    // document for the copy the edit mutates.
     const snapshot = this.documents.snapshot(
       textDocument.uri,
       Math.min(
@@ -1504,12 +1015,7 @@ export class SparkdownCompiler {
         ),
       ),
     );
-    // Negative, and never reused, so neither the no-change short-circuit nor
-    // `isProgramOutdated` can mistake the edited text for a real version.
     const previewVersion = --this._lastPreviewVersion;
-    // What the preview's updates lower no compile completes, so a statement
-    // they lower anew keeps the memo a real compile completed for the
-    // lowerings after them (`StatementMemoHost.provisional`, #1757).
     const provisional = this._memoHost.provisional;
     this._memoHost.provisional = true;
     let applied = false;
@@ -1522,14 +1028,10 @@ export class SparkdownCompiler {
       if (applied) {
         this.noteDocumentEdits(textDocument.uri, contentChanges);
       }
-      // The root of statement chunks a preview builds is dropped with it.
       this._previewing = true;
       this._previewUndo = [];
       compiled = this.compileStory({ textDocument: root, startFrom });
       if (compiled.program.scripts[textDocument.uri] == null) {
-        // The edited script is not part of the root's project, and is then
-        // compiled on its own, as `SparkdownWorkspace.compile` does for a
-        // real edit.
         compiled = this.compileStory({ textDocument, startFrom });
       }
     } finally {
@@ -1548,9 +1050,6 @@ export class SparkdownCompiler {
       }
       profile("end", this._profilerId, "previewRollback", textDocument.uri);
       if (applied) {
-        // Putting the text back is itself an edit as far as the NEXT compile
-        // is concerned: the compile above is the one it will be measured
-        // against, and that compile read the suggested text.
         this.noteDocumentEdits(
           textDocument.uri,
           invertContentChanges(document.getText(), contentChanges),
@@ -1574,13 +1073,6 @@ export class SparkdownCompiler {
     };
   }
 
-  /**
-   * Compiles the program once, or, when the compile met a statement served
-   * from its memo that it cannot compile without the statement's objects
-   * (`StatementMemoRetry`), lowers again the blocks that hold it without
-   * that memo and compiles again: on a second such compile, without any memo
-   * those blocks were served.
-   */
   protected compileStory(params: CompileProgramParams) {
     for (let attempt = 0; ; attempt += 1) {
       this._memoAttempt = attempt;
@@ -1589,9 +1081,6 @@ export class SparkdownCompiler {
         return result;
       }
       if (attempt >= 2) {
-        // Every memo of the blocks was dropped on the attempt before, so a
-        // compile that still meets one has met a defect: it is reported as
-        // a compile that threw.
         console.error(memoRetry);
         const program = result.program;
         this.reportCompileThrow(
@@ -1632,16 +1121,8 @@ export class SparkdownCompiler {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
     this._unsupported = undefined;
-    // The diverts the program path's resolver kept resolved hold their
-    // targets in its epoch, which another compiler's resolve can have left.
     this._programResolver?.enterEpoch();
 
-    // No-change short-circuit: if every script the last compile read is at
-    // the same version and the file registry hasn't changed, this compile
-    // would reproduce the previous
-    // program bit-for-bit -- serve it instead of re-running the pipeline.
-    // (Per-request fields are re-stamped below; listeners still fire so
-    // downstream consumers observe the compile as usual.)
     const cached = this._lastCompileResult;
     if (
       cached &&
@@ -1653,11 +1134,6 @@ export class SparkdownCompiler {
       )
     ) {
       cached.program.startFrom = startFrom ?? this._config.startFrom;
-      // Nothing that feeds a compile has changed, so this program differs from
-      // the one before it nowhere at all — the strongest summary there is, and
-      // the one that lets a client keep everything it planned. It still needs a
-      // fresh identity: the program object is served again, and a client
-      // comparing identities has to see a compile it has not seen before.
       cached.program.changes = this.stampChangeSummary(
         !this._changeHazard,
         cached.program.chunks,
@@ -1680,9 +1156,6 @@ export class SparkdownCompiler {
       filesEpoch: this._filesEpoch,
     };
 
-    // Every other script of the project is part of the program, read after
-    // the script the compile starts from, in the order `projectScripts`
-    // gives.
     const state: SparkdownCompilerState = {
       projectScripts: this.projectScriptsOf(uri),
     };
@@ -1705,25 +1178,6 @@ export class SparkdownCompiler {
             : type === ErrorType.Hint
               ? DiagnosticSeverity.Hint
               : DiagnosticSeverity.Information;
-      // Surface the parse's and the resolver's diagnostics that have proper
-      // source metadata from the parsed object's DebugMetadata.
-      // Diagnostics without `filePath` are silently dropped: they're
-      // almost always emitted for synthesized parsed objects (e.g.
-      // sparkdown's `const`-as-`store` faux constants, locally-scoped
-      // `local x` temps in nested blocks) that have no real source
-      // Filter the one remaining known-spurious diagnostic class:
-      // sparkdown's `local x` block-scope creates a new temp in each
-      // nested scope, but inkjs's `CheckForNamingCollisions` walks a
-      // single flat scope and sees them as duplicates ("A temp named
-      // `x` already exists on null"). Emitting that as a user-facing
-      // error would be noise — sparkdown's `local` IS supposed to
-      // shadow. See docs/runtime/DIVERGENCES.md.
-      //
-      // (The previous "A variable must be initialized to a number,
-      // string, boolean, constant" filter was needed when `const`
-      // lowered to a global `store`; now that `const` lowers to a
-      // real `ConstantDeclaration`, that diagnostic no longer fires
-      // spuriously.)
       if (
         /^Duplicate identifier `\w+`\. A temp named `\w+` already exists on null/.test(
           message,
@@ -1731,11 +1185,6 @@ export class SparkdownCompiler {
       ) {
         return;
       }
-      // Fall back to the document URI when the diagnostic source
-      // lacks `filePath`. Many inkjs errors (e.g. "target not found")
-      // pass a freshly-constructed Identifier rather than the parsed
-      // node with stamped DebugMetadata, so source-side filePath is
-      // null and the diagnostic would otherwise be silently dropped.
       const diagUri = source?.filePath || uri;
       const startLine = source ? source.startLineNumber - 1 : 0;
       const startCharacter = source ? source.startCharacterNumber - 1 : 0;
@@ -1770,11 +1219,6 @@ export class SparkdownCompiler {
       }
     };
 
-    // `currentParentUri` is the URI of the file whose `run` chunks are
-    // currently being resolved. Mutated by `parseIncrementally` before each
-    // recursive descent and restored after, so a `run` resolves its path
-    // relative to the script that writes it rather than the script the
-    // compile starts from.
     const fileResolutionState = {
       currentParentUri: uri,
       runFiles: new Map<string, string>(),
@@ -1799,50 +1243,26 @@ export class SparkdownCompiler {
         return "";
       },
     };
-    // Stash on `state` so the recursive `parseIncrementally` can update
-    // `currentParentUri` before each run descent.
     state.fileResolutionState = fileResolutionState;
 
-    // Seed the builtin Sparkle trees as the base layer BEFORE parsing this
-    // file's chunks, so an authored `layout main` overrides the builtin one in
-    // place. The builtin CONTEXT is seeded the same way — builtins first, so an
-    // authored define reusing a builtin name overrides it while keeping the
-    // builtin key order — but inside `buildContext`, which assembles the whole
-    // base in one place so it can be reused across compiles (#654). The chunk
-    // walk records its context contributions instead of merging them here.
     if (this._config.useBuiltinsPrelude) {
       this.mergePreludeSparkle(program);
     }
 
-    // Begin a fresh per-compile record of chunk identities. Populated by the
-    // recursive `parseIncrementally` chunk walk(s), finalized below.
     this._compilationIds = new Set();
     this._defineScopeBlocks = [];
     this._chunkStoreChanges = new Map();
     this._statementRecords = new Map();
     this._memoBlocks = new Set();
     this._memoCandidates = new Map();
-    // Fresh per-compile record of what the chunks contribute to the context
-    // and of the identities that key the assembled base (#654).
     this._contextContributions = [];
     this._contextKeyIds = [];
     this._contextLayerTypes = new Set();
     this._contextLayerAdded = [];
-    // Set once the program's chunks are built; cleared first so a compile
-    // that never builds them cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
-    // Begin a fresh change summary. The verdict is only reached at the very end
-    // of the compile, where every hazard below has had its chance to speak; a
-    // compile that stops before then reports the answer that costs a client
-    // nothing but a full re-plan.
     this._changeHazard = false;
     let compileThrew = false;
-    // What the compile threw, reported once the validators have run.
     let thrown: unknown;
-    // What this compile compares with the compile before and records for
-    // the next one, which an attempt that meets a statement memo it cannot
-    // compile from (`StatementMemoRetry`) puts back, so that the attempt
-    // after it compares with the same compile.
     const lastRootBlocks = this._lastRootBlocksByUri;
     const baseline = {
       lastRootBlocks: lastRootBlocks?.get(uri),
@@ -1850,7 +1270,6 @@ export class SparkdownCompiler {
       signatures: this._prevFlowSignatures,
       disableReuse: this._disableFlowReuseNextCompile,
     };
-    // ---- Per-compile flow-reuse guards ----
     this._flowReuseDisabled = this._disableFlowReuseNextCompile;
     this._disableFlowReuseNextCompile = false;
     if (
@@ -1858,12 +1277,6 @@ export class SparkdownCompiler {
       this._lastCompileResult.uri === uri &&
       this._lastCompileResult.filesEpoch === this._filesEpoch
     ) {
-      // A change in any NON-entry script (the project's other scripts, `run`
-      // files) refuses CONSTRUCTION reuse for the whole compile, because that
-      // decision is committed during the parse walk: `tryReuseFlowRun`
-      // commits a flow as the walk reaches it, and the other scripts are read
-      // after flows that have already committed, so the answer has to be
-      // known up front rather than derived once every file has been seen.
       for (const [scriptUri, scriptVersion] of Object.entries(
         this._lastCompileResult.scripts,
       )) {
@@ -1876,16 +1289,11 @@ export class SparkdownCompiler {
         }
       }
     } else {
-      // A different entry script, or a files-epoch bump: the flow set this
-      // compile produces need not correspond to the one last compile's runs
-      // were recorded from at all.
       this._flowReuseDisabled = true;
     }
     this._reusedFlowsThisCompile = new Set();
     this._nextFlowRuns = new Map();
     this._censusEntries = [];
-    // The statement watch the compile's passes replaced, put back once they
-    // are done (or the compile throws).
     let restoreWatch: StatementWatch | null | undefined;
 
     try {
@@ -1904,26 +1312,6 @@ export class SparkdownCompiler {
         this.validateStartScene(uri, state.projectScripts ?? [], onDiagnostic);
       }
       profile("end", this._profilerId, "ink/parse", uri);
-      // Whole-program namespace scoping (P1). Scope leaf-instance defines to a
-      // synthetic `$<type>_<name>` global here — after assembly, before
-      // resolution reads each define's global key — rather than in
-      // per-document lowering, so a `define X` and its `as X`/`new X()` sites in
-      // DIFFERENT files classify consistently. `scopeDefineInstances` is
-      // idempotent, so re-running each compile on cached define objects is safe.
-      //
-      // Two passes with SEPARATE type sets. The source-injected builtins prelude
-      // is classified by its OWN type names (as if compiled in isolation) — NOT
-      // the user's — so the `character` duality survives: the prelude's `define
-      // character as synth` scopes to `$synth_character` even though user files
-      // use `character` as a type (`as character`). If the user's type set leaked
-      // in, `character` would stay bare and the synth-instance view would
-      // collapse into the character type table. The user pass then scopes the
-      // rest with the union across all USER files (the project's scripts), and skips
-      // the prelude VAs the first pass already handled.
-      //
-      // Each document's own set is maintained by the registry across edits, so
-      // this unions ready-made sets instead of walking every script's tree
-      // again on every compile.
       profile("start", this._profilerId, "scopeDefineInstances", uri);
       const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
         const names = new Set<string>();
@@ -1939,14 +1327,8 @@ export class SparkdownCompiler {
       };
       let preludeVAs = new Set<ParsedObject>();
       const preludeStory = this._cachedPreludeParsedStory;
-      // The names a preview compile's rollback put back were last resolved
-      // as the preview named them.
       this._renamedNames = this._namesRolledBack.slice();
       if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
-        // The prelude's story is parsed once and its type names never
-        // change, so its defines are scoped once per parsed prelude. A
-        // preview does not journal these keys: the parsed prelude it may
-        // have made outlives it too.
         if (this._scopedPrelude?.story === preludeStory) {
           preludeVAs = this._scopedPrelude.declarations;
         } else {
@@ -1958,17 +1340,10 @@ export class SparkdownCompiler {
           this._scopedPrelude = { story: preludeStory, declarations: preludeVAs };
         }
       }
-      // User files: the project's scripts (`program.scripts`), excluding
-      // the prelude — its defines were just scoped with the prelude's own types.
       const userUris = new Set<string>(Object.keys(program.scripts));
       userUris.add(uri);
       userUris.delete(BUILTINS_PRELUDE_URI);
       const userTypeNames = collectTypeNamesFor(userUris);
-      // The user's defines are found per chunk: only a chunk lowered since it
-      // was last seen is walked, and a chunk's defines are classified again
-      // only when the union of type names moved since they last were
-      // (`DefineScopeRecord`). The record hands back exactly the user's define
-      // VAs, so the override pass below needs no walk of its own.
       const previewUndo = this._previewing ? this._previewUndo : undefined;
       const userVAs = this._defineScope.scope(
         this._defineScopeBlocks ?? [],
@@ -1981,13 +1356,8 @@ export class SparkdownCompiler {
       if (DefineScopeRecord.verify) {
         DefineScopeRecord.check(parsedStory, userVAs, preludeVAs, userTypeNames);
       }
-      // Now that both sides carry their final global keys, let an authored
-      // define that reuses a builtin name override it rather than collide.
       this.applyBuiltinOverrides(preludeVAs);
       profile("end", this._profilerId, "scopeDefineInstances", uri);
-      // Declared-name census across every file of this compile — see
-      // `_censusEntries`. Compared here (not per file) so scripts can't
-      // clobber each other's census.
       const censusKey = (this._censusEntries ?? []).sort().join("");
       if (
         this._prevCensusKey !== undefined &&
@@ -1996,37 +1366,15 @@ export class SparkdownCompiler {
         this._flowReuseDisabled = true;
       }
       this._prevCensusKey = censusKey;
-      // The passes below name and resolve the program's parsed objects again,
-      // and report to the chunk store's statement watch each value a kept
-      // chunk recorded that now reads otherwise (`StatementWatch`).
       const watch = this._chunkStore?.watch;
-      // An attempt after the first keeps the marks of the attempts before
-      // it. The resolver resolves again now what they resolved, as no
-      // compile kept their resolves (`ProgramResolver.committed`), which
-      // marks again what still reads otherwise; a mark left from them only
-      // has the store build a chunk anew (`compileStory`).
       if (this._memoAttempt === 0) {
         watch?.changed.clear();
       }
       restoreWatch = watchStatements(watch ?? null);
-      // Canonicalize offset-derived synthetic names over the fully-assembled
-      // tree so incremental compiles emit the same program as cold ones (see
-      // method doc) — must run before the resolver resolves references.
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       this.dropNumberedMemos();
-      // The resolver resolves again the statements a synthetic rename
-      // touched (`ProgramResolver`).
-      //
-      // A callee's signature is part of how its CALLERS call it, so a
-      // signature change refuses reuse of flows whose own chunks are
-      // untouched (see `_prevFlowSignatures`). The current signatures aren't
-      // known until assembly finishes, so this is a post-hoc check.
-      // Collected after the canonicalization above, so a synthetic flow is
-      // keyed by its `__synth$<flow>$<n>` name in every compile: a freshly lowered
-      // chunk holds its offset name until the rename, and a carried chunk
-      // already holds the canonical one.
       const flowSignatures = this.collectFlowSignatures(parsedStory);
       if (this._prevFlowSignatures) {
         const prev = this._prevFlowSignatures;
@@ -2044,27 +1392,15 @@ export class SparkdownCompiler {
         }
       }
       this._prevFlowSignatures = flowSignatures;
-      // Late-discovered global change (e.g. a mid-file `run` whose .luau
-      // source changed re-lowered its virtual file's root region), or a
-      // callee-signature change discovered just above: the flows reused
-      // before the discovery are already placed, so this only stops counting
-      // them as reused.
       if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
         this._reusedFlowsThisCompile.clear();
       }
-      // An unseeded compile has no runtime table for any builtin define, but
-      // every host seeds them at runtime, so their names must still resolve.
       if (
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
       ) {
         parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
       }
-      // The program resolves its references with the program path's
-      // resolver, which resolves only the statements whose resolution can
-      // read otherwise and builds no runtime tree (#1607); it records what
-      // the program's engine reads of the story besides its chunks. The
-      // globals initialize with the declaration sequences.
       profile("start", this._profilerId, "program/resolve", uri);
       this._programResolver ??= new ProgramResolver();
       const tables = this._programResolver.resolve(
@@ -2079,8 +1415,6 @@ export class SparkdownCompiler {
         onDiagnostic,
       );
       profile("end", this._profilerId, "program/resolve", uri);
-      // A statement served from its memo whose names are declared
-      // otherwise, or that stands among other flows, is lowered again.
       const stale = this._programResolver.staleMemosLastResolve;
       if (stale.length > 0) {
         throw new StatementMemoRetry(stale, "a name its resolution read is declared otherwise");
@@ -2088,8 +1422,6 @@ export class SparkdownCompiler {
       this._namesRolledBack = [];
       watchStatements(restoreWatch ?? null);
       restoreWatch = undefined;
-      // After resolution: the diverts it reports are recorded while the
-      // resolver resolves references.
       if (
         this._config.useBuiltinsPrelude !== false &&
         !this._config.seedBuiltinsIntoStory
@@ -2101,9 +1433,6 @@ export class SparkdownCompiler {
           uri,
         );
       }
-      // A program runs from its statement chunks. A statement that holds a
-      // construct the program has no emit path for is a compile error at its
-      // line, and such a compile makes no program (`buildProgramChunks`).
       const chunked = this.buildProgramChunks(
         parsedStory,
         tables,
@@ -2115,17 +1444,9 @@ export class SparkdownCompiler {
         state.produced = true;
         state.structDefinitions =
           program.chunks!.tables?.structDefinitions ?? {};
-        // The program is located by its root (`ProgramRoot.addressAt`,
-        // `locationOf`), which holds each chunk's own line table
-        // (docs/engine/binary-program.md, section 8). What its flows
-        // reference is read from its chunks.
         this._flowAssetAccum = captureProgramAssets(program.chunks!);
       }
-      // Carry this compile's chunk-identity set forward so the next compile
-      // can tell which chunks are unchanged.
       this._prevCompilationIds = this._compilationIds;
-      // Promote this compile's flow-run records (fresh constructions and
-      // committed reuses) for the next compile's reuse decisions.
       this._prevFlowRuns = this._nextFlowRuns;
     } catch (e) {
       compileThrew = true;
@@ -2140,8 +1461,6 @@ export class SparkdownCompiler {
             ? e
             : undefined;
       if (memoRetry) {
-        // Nothing of the compile is kept: the blocks are lowered again and
-        // the compile runs again (`compileStory`).
         for (const phase of [
           "ink/parse",
           "scopeDefineInstances",
@@ -2152,9 +1471,6 @@ export class SparkdownCompiler {
           profile("end", this._profilerId, phase, uri);
         }
         this._memoCandidates = new Map();
-        // What this attempt recorded for the next compile goes back to what
-        // the compile before recorded, so that the next attempt compares
-        // with that compile, as this one did.
         if (baseline.lastRootBlocks) {
           lastRootBlocks!.set(uri, baseline.lastRootBlocks);
         } else {
@@ -2171,11 +1487,6 @@ export class SparkdownCompiler {
           memoRetry,
         };
       }
-      // Close whichever phase was in flight. This catch swallows the throw and
-      // the compiler keeps serving, so a phase left open here produces no
-      // measurement at all — losing exactly the compiles worth looking at.
-      // Ending a phase that already ended is a no-op, so naming them all is
-      // safe. Add any new phase opened inside this `try` to the list.
       for (const phase of [
         "ink/parse",
         "scopeDefineInstances",
@@ -2185,23 +1496,12 @@ export class SparkdownCompiler {
       ]) {
         profile("end", this._profilerId, phase, uri);
       }
-      // What threw, without the statement the build wrapped it with.
       console.error(e instanceof StatementFailure ? e.error : e);
-      // A threw compile can leave carried parsed/runtime state half-mutated;
-      // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;
       this._lastRootBlocksByUri = undefined;
-      // The census may be half-collected (the throw can land mid-parse), so
-      // drop it rather than compare a truncated one next compile.
       this._prevCensusKey = undefined;
       this._disableFlowReuseNextCompile = true;
-      // `_prevFlowSignatures` is kept: a throw before the signatures are
-      // collected leaves the table of an older compile, which the next compile
-      // compares against. That compile refuses reuse through the switch above
-      // whatever the comparison says, and records a fresh table.
     }
-    // The statements whose memos this compile completed hold parsed objects,
-    // which no structure of the compiler keeps past the compile.
     this._memoCandidates = new Map();
     this._memoBlocks = new Set();
 
@@ -2209,7 +1509,6 @@ export class SparkdownCompiler {
     this.warnSharedLuauNames(program);
     this.populateDeclarationLocations(program);
     if (!compileThrew) {
-      // Needs `functionLocations` (just populated) to classify divert edges.
       this.populateSceneAssets(program);
     }
     this.buildContext(state, program);
@@ -2222,19 +1521,12 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateLints(program);
       this.validateTypes(program);
-      // After every other reporter, which a store's own reports defer to.
       this.validateStores(program);
     }
-    // A construct the program has no emit path for, reported after the
-    // validators: a statement they report an error at (a malformed loop
-    // test's syntax error, which the type checker reports) is in error for
-    // that reason, and that error is the one to read.
     if (this._unsupported) {
       this.reportUnsupportedConstruct(this._unsupported, program, onDiagnostic);
       this._unsupported = undefined;
     }
-    // A compile that threw makes no program, and says so at the statement
-    // that threw.
     if (compileThrew) {
       this.reportCompileThrow(thrown, uri, program, onDiagnostic);
     }
@@ -2242,12 +1534,7 @@ export class SparkdownCompiler {
       program.workspace = this._config.workspace;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
-    // A compile of statement chunks says exactly what changed in its chunks
-    // (`ProgramChangeSummary.chunks`); it compares no flow shapes, so it
-    // claims no confined change of its own.
     program.changes = this.stampChangeSummary(false, program.chunks);
-    // Remember this compile for the no-change short-circuit -- but only if it
-    // completed cleanly (a compile that threw may hold a partial program).
     this._lastCompileResult = compileThrew
       ? undefined
       : {
@@ -2267,12 +1554,6 @@ export class SparkdownCompiler {
     };
   }
 
-  /** The scripts of the project a compile that starts from `uri` reads besides
-   *  `uri` itself, in the order their declarations register
-   *  (`projectScripts`): every registered `.sd` script under the folder of
-   *  `uri` that is in its project. A script is known by its file name, since
-   *  a host can register another file, such as the `.luau` file a `run` reads,
-   *  as a script. */
   protected projectScriptsOf(uri: string): string[] {
     const scripts: string[] = [];
     for (const file of this.files.all()) {
@@ -2293,11 +1574,6 @@ export class SparkdownCompiler {
     ).slice(1);
   }
 
-  /** The registered files of the project a compile that starts from `uri`
-   *  belongs to (`isInProject`): its assets and its scripts, under the folder
-   *  of `uri`, outside every folder that holds a main script of its own and
-   *  every skipped name. An entry with no folder is a project of its own
-   *  script alone, with no assets. */
   protected projectFilesOf(uri: string): File[] {
     const cached = this._projectFiles;
     if (cached?.uri === uri && cached.filesEpoch === this._filesEpoch) {
@@ -2319,9 +1595,6 @@ export class SparkdownCompiler {
     return files;
   }
 
-  /** The `.luau` files a `run` in the project a compile that starts from
-   *  `uri` finds by name (`projectLuauFiles`): every registered one under
-   *  the folder of `uri` that is in its project. */
   protected projectLuauFilesOf(uri: string): string[] {
     const files = this.files.all().map((file) => file.uri);
     return projectLuauFiles(
@@ -2333,17 +1606,6 @@ export class SparkdownCompiler {
     );
   }
 
-  /**
-   * The `.luau` file the operand of a `run` statement in the script
-   * `scriptUri` names, or the message that says why there is none (#1389).
-   * A quoted operand is a path relative to the script, `.luau` implied; an
-   * unquoted one is a name, the one `.luau` file of that name in the project
-   * of `program`. Both are case exact, and an operand that differs from
-   * files only by case names their spellings (#1334). A message comes with
-   * the operand's quick fixes, each the text that replaces the operand: an
-   * ambiguous name's candidates as paths quoted relative to the script, and
-   * a near miss's spellings in the operand's own form.
-   */
   protected resolveRunOperand(
     run: RunOperand,
     scriptUri: string,
@@ -2355,10 +1617,6 @@ export class SparkdownCompiler {
       return { uri };
     };
     if (run.quote) {
-      // Any registered Luau file, in the project or not, by its path as
-      // the file system names it (`findRunPath`); its case-only near misses
-      // come from the same files, in URI order so they are listed alike in
-      // every compile.
       const registered = [...this.files.all()]
         .map((file) => file.uri)
         .filter((file) => hasLuauExtension(file) && this.documents.has(file))
@@ -2411,9 +1669,6 @@ export class SparkdownCompiler {
     };
   }
 
-  /** Warns on each `.luau` file of the project of `program` that shares its
-   *  name with another, as an asset that shares its name does, since a
-   *  `run` that names it is ambiguous (#1389). */
   protected warnSharedLuauNames(program: SparkProgram) {
     const byName = new Map<string, string[]>();
     for (const uri of this.projectLuauFilesOf(program.uri)) {
@@ -2446,11 +1701,6 @@ export class SparkdownCompiler {
     declarationOnly = false,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
-    // A function whose declaration closes its body with its `end` takes no
-    // content from the chunks after it. The story content after it joins the
-    // flow or weave it would join if the function were not there: the scene
-    // the function is declared among, or the root flow. It never joins the
-    // function, where it would follow the function's `return`.
     const isClosedFunctionFlow = (obj: unknown): boolean =>
       obj instanceof FlowBase && obj.isFunction && obj._bodyClosed;
     const lastStoryEntry = <T,>(content: T[]): T | undefined => {
@@ -2478,15 +1728,6 @@ export class SparkdownCompiler {
       return undefined;
     };
 
-    // `getClosestWeave` follows a trailing weave into the content a chunk
-    // placed, and the chunks after it are appended there, so the assembly
-    // places a weave of its own in place of each trailing weave of a chunk.
-    // The chunk's objects are carried to the next compile, and their `content`
-    // stays as the chunk lowered it; the copy takes over as the `parent` of the
-    // children it holds. It holds them at the same indentation, so it
-    // generates what the chunk's weave would. A closed function is always a
-    // chunk of its own and never ends a chunk's content, so the last entry
-    // here is the one `getClosestWeave` follows.
     const assemblyWeave = (weave: Weave): Weave => {
       const copy = new Weave(
         withAssemblyWeaves(weave.content),
@@ -2513,9 +1754,6 @@ export class SparkdownCompiler {
       metadata.filePath = uri;
     };
 
-    // A node's positioned names: its `identifier`, the `variableIdentifier`
-    // an assignment names its target with, and the `unresolvedMember` a colon
-    // call's receiver reports its warning across.
     const ownIdentifiers = (c: ParsedObject): Identifier[] =>
       [
         (c as any).identifier,
@@ -2526,11 +1764,6 @@ export class SparkdownCompiler {
           id instanceof Identifier && !!id.debugMetadata,
       );
 
-    // A carried chunk keeps what preparation and resolution left on its
-    // objects: the resolver resolves only the statements whose resolution can
-    // read otherwise, clearing first what they hold, and keeps every other
-    // statement's resolution, which the chunk store and the writer read
-    // (`ProgramResolver`).
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2553,8 +1786,6 @@ export class SparkdownCompiler {
       }
     };
 
-    // The same walk as `remapContent`, for chunks feeding a REUSED flow,
-    // which the caller runs only when the chunk moved.
     const restampContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2587,15 +1818,6 @@ export class SparkdownCompiler {
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
 
-    // SOURCE-INJECT the builtins prelude (P5 prerequisite). For the ROOT parse
-    // only, prepend the prelude as a leading `IncludedFile` so its builtin
-    // `__def` global declarations initialize in THIS program —
-    // one coherent `global decl`, prelude FIRST (so an authored define reusing a
-    // builtin name re-registers/overrides in place), resolved with the rest of
-    // the program. The prelude's chunks contribute only parsed FlowBase here
-    // (`_injectingPrelude` suppresses their context/sparkle re-merge), so
-    // `program.context` is unchanged vs the flag-off path; only the program's
-    // declarations gain the builtins.
     if (
       !isInclude &&
       this._config.seedBuiltinsIntoStory &&
@@ -2603,10 +1825,6 @@ export class SparkdownCompiler {
     ) {
       let preludeStory = this._cachedPreludeParsedStory;
       if (preludeStory) {
-        // Reuse the cached parse (re-lowering hundreds of builtin defines
-        // every compile is too costly). The resolver keeps the prelude's
-        // statements resolved as it keeps every carried statement's
-        // (`ProgramResolver`).
       } else {
         if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
           this.documents.add({
@@ -2637,9 +1855,6 @@ export class SparkdownCompiler {
       topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
     }
 
-    // Materialize the chunk list so flow-run reuse decisions can look AHEAD —
-    // a flow's reusability depends on ALL the body chunks that fed it last
-    // compile reappearing unchanged, in order.
     const chunkRecords: { block: any; from: number; to: number }[] = [];
     {
       const cur = annotations.compilations.iter();
@@ -2653,8 +1868,6 @@ export class SparkdownCompiler {
       }
     }
 
-    // Where a chunk's content ATTACHES during assembly, discriminated the
-    // same way the assembly branches below do (first content object).
     const chunkFlowKind = (
       block: any,
     ): "knot" | "stitch" | "external" | "body" | "none" => {
@@ -2665,24 +1878,9 @@ export class SparkdownCompiler {
       if (first) return "body";
       return "none";
     };
-    // A chunk whose content is a function closed by its `end`, which takes
-    // no content from the chunks after it (see `lastStoryEntry`). A chunk
-    // that declares a function literal holds a weave, and is not one.
     const isClosedFunctionChunk = (block: any): boolean =>
       isClosedFunctionFlow(block?.content?.[0]);
 
-    // Reuse-disqualifier scan, computed ONCE per chunk identity (carried
-    // chunks keep their result). Its declared names also key the declared-name
-    // census and the assembled base context, and a changed chunk that
-    // disqualifies raises the change summary's hazard. Before #705 these
-    // rules protected the current engine's generation, which a reused flow
-    // skipped. A flow whose run contains any of these can
-    // never be reused, because skipping its generation loses a story-global
-    // side effect: global `var`/`store` declarations register into the fresh
-    // Story's variableDeclarations, EXTERNALs into `story.externals`, and
-    // const/struct declarations feed story-level maps. Constants are no
-    // longer inlined (#309), so they only cost the declaring flow its own
-    // reuse, not everyone else's.
     const scanChunkForReuse = (
       block: any,
     ): {
@@ -2698,18 +1896,6 @@ export class SparkdownCompiler {
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
           if (n instanceof ConstantDeclaration) {
-            // Constants are no longer inlined into referencing flows (#309),
-            // so a constant's VALUE changing can't invalidate anyone else's
-            // bytecode — editing a constant no longer kills flow reuse
-            // program-wide.
-            //
-            // The NAME still matters, and for the same reason a global's
-            // does: constants are registered in `story.variableDeclarations`,
-            // which `Divert.ResolveTargetContent` consults during GENERATION,
-            // so a constant named like a flow shadows it and changes call-site
-            // codegen. Hence a `g:` census entry, not the retired `c:` one.
-            // `disqualifies` also stays: the declaring flow still performs a
-            // story-global registration when it generates.
             disqualifies = true;
             if (n.constantName) {
               declaredNames.push(`g:${n.constantName}`);
@@ -2728,8 +1914,6 @@ export class SparkdownCompiler {
               declaredNames.push(`g:${globalName}`);
             }
           }
-          // Always recurse: the NAME census below must be complete, so this
-          // can't early-out once the boolean verdicts are both decided.
           if (n.content) {
             scan(n.content);
           }
@@ -2743,26 +1927,6 @@ export class SparkdownCompiler {
       return cached;
     };
 
-    // ---- Flow-reuse guards computed from this file's chunk list ----
-    // ROOT-REGION STRUCTURE: the ordered sequence of `run`
-    // targets and `EXTERNAL` signatures. These change which files contribute
-    // flows, and which call sites compile to external calls — neither of
-    // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
-    // (the target string / the external's name+arity), NOT by chunk identity:
-    // an identity comparison also fired for a re-lowered-but-unchanged chunk,
-    // and the incremental parser's reparse window routinely re-lowers a root
-    // chunk adjacent to an edit — which is why editing the front matter, or
-    // the first scene, used to kill reuse for that whole compile.
-    //
-    // Deliberately NOT part of the descriptor: front matter, loose top-level
-    // content, and top-level `store`/`var`/`define` declarations. None of
-    // them could alter a reused flow's bytecode on the current engine before
-    // #705 — top-level flows are
-    // name-addressed in `namedOnlyContent`, so their internal paths don't
-    // shift when top-level content grows or shrinks, and globals are read
-    // through runtime variable lookups rather than inlined — as are
-    // constants since #309. Their NAMES still matter, and are covered by the
-    // declared-name census (see `_censusEntries`).
     {
       const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {
@@ -2782,48 +1946,16 @@ export class SparkdownCompiler {
         }
         if (block.content) {
           const scan = scanChunkForReuse(block);
-          // Declared-NAME census (see `_censusEntries`). Cached per chunk
-          // identity, so unchanged chunks cost a map lookup. Accumulated
-          // across the WHOLE compile rather than per file — this function
-          // recurses once per script and `run`, so a per-file key would be
-          // overwritten by each other file and then compared against a
-          // different file's census on the next compile, permanently
-          // disabling reuse for any multi-file project.
-          //
-          // The source-injected builtins PRELUDE is excluded: its parse runs
-          // through here exactly once per compiler instance (the cached parse
-          // is reused thereafter, contributing nothing), so counting its ~360
-          // defines on compile 1 and zero on compile 2 would make the census
-          // keys differ and trip `_flowReuseDisabled` on precisely the first
-          // compile where flow reuse could pay off. The prelude is a constant,
-          // so its names can never actually change between compiles.
           if (!this._injectingPrelude) {
             for (const name of scan.declaredNames) {
               this._censusEntries?.push(`${uri}|${name}`);
             }
-            // A chunk that declares a global, constant, struct, external or
-            // list also keys the assembled base context (#654): a define's
-            // property value can be an expression over any of them, so its
-            // RUNTIME value — the define tables the engine reads — moves when
-            // one of those declarations moves, while the chunk that carries
-            // the define itself is untouched. The prelude is excluded for the
-            // same reason it is excluded from the census: its chunks are
-            // parsed once per compiler instance and contribute nothing
-            // afterwards, so counting them would move the key on the first
-            // compile that could reuse anything.
             if (scan.disqualifies) {
               this._contextKeyIds?.push(block);
             }
           }
           if (this._prevCompilationIds && !this._prevCompilationIds.has(block)) {
             if (scan.disqualifies) {
-              // A changed chunk that declares a constant, an external, a
-              // struct or a global. Every one of those is registered into the
-              // story at generation time and read back out of the variables a
-              // checkpoint carries, so a route resumed from a checkpoint taken
-              // before this compile would carry the OLD value forward however
-              // far below the route the declaration is written. The changed
-              // LINES cannot express that, so the summary declines instead.
               this._changeHazard = true;
             }
           }
@@ -2840,14 +1972,7 @@ export class SparkdownCompiler {
       (this._lastRootBlocksByUri ??= new Map()).set(uri, rootDescriptors);
     }
 
-    // Chunks whose content-assembly is skipped because they feed a flow
-    // reused from last compile's construction.
     const reuseSkipBlocks = new Set<object>();
-    // Each top-level flow built in the NORMAL assembly path, with the chunks
-    // that fed it, recorded so next compile knows each flow's full chunk run.
-    // A chunk after a closed function declaration can feed the flow declared
-    // before the function, so a flow's run is found through its flow, not by
-    // order.
     type FlowRun = { flow: FlowBase; contentChunks: object[] };
     const runsByFlow = new Map<ParsedObject, FlowRun>();
     const startRun = (flow: FlowBase, declBlock: object) => {
@@ -2963,9 +2088,6 @@ export class SparkdownCompiler {
         );
       }
     }
-    // The first line of the statement that starts at `from`, from its first
-    // character after its indentation to its last, as 1-based source
-    // metadata.
     const firstLineSource = (from: number): SourceMetadata => {
       const text = document?.getText() ?? "";
       const lineEnd = text.indexOf("\n", from);
@@ -3019,8 +2141,6 @@ export class SparkdownCompiler {
         uuid,
         hoistedKnots,
       } = rec.block;
-      // A `run` statement's content is the call of its file's wrapper, which
-      // the compiler makes once it has resolved the file (below).
       let content = rec.block.content;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
@@ -3036,10 +2156,6 @@ export class SparkdownCompiler {
         continue;
       }
       const hoisted = declares === true;
-      // A layout or component is declared in one script: one a script
-      // other than the first to declare it declares again is reported in
-      // both and left out, and the first declaration stands. Within one
-      // script the later declaration replaces the earlier, as below.
       const sparkleCollides =
         !!sparkle &&
         !this._injectingPrelude &&
@@ -3051,19 +2167,8 @@ export class SparkdownCompiler {
           firstLineSource(rec.from),
           onDiagnostic,
         );
-      // Track chunk identity. A chunk whose CompiledBlock object is carried
-      // forward from the previous compile (same identity) is unchanged; a new
-      // identity means it was re-lowered. Record the 0-based source line
-      // ranges of the chunks lowered anew since the chunk store's current
-      // root, tagged with this script's uri: the lines come from THIS script's
-      // document, and this function recurses through every script of the
-      // project and every document a `run` compiles, so the uri is what
-      // keeps a range from being read against another script's flows.
       const compiledBlock = rec.block as object;
       this._compilationIds?.add(compiledBlock);
-      // The source-injected prelude's defines are scoped by a pass of their
-      // own (`compileStory`). A compile of the prelude as its own root
-      // (`getCompiledPrelude`) injects nothing, and scopes its chunks here.
       if (!this._injectingPrelude) {
         this._defineScopeBlocks?.push(compiledBlock);
       }
@@ -3092,28 +2197,13 @@ export class SparkdownCompiler {
         : this._statementRecords
       ).set(compiledBlock, record);
       this.noteMemos(rec.block as CompiledBlock, record);
-      // Anonymous function literals lowered at chunk-top-level (i.e.
-      // outside any enclosing function definition) produce synthetic
-      // FlowBase objects that need to land at the story's top level.
-      // Anonymous fns lowered INSIDE another function body attach to
-      // that function as subFlows instead — they never reach this
-      // list. Both Knots (legacy path) and Functions (new path) are
-      // accepted.
       if (hoistedKnots) {
         remapContent(hoistedKnots, lineNumberOffset);
         for (const k of hoistedKnots) {
           if (k instanceof FlowBase) {
-            // A layout or component declared twice in one file mints the
-            // same binding evaluator names in both chunks. The later
-            // declaration is the one `program.sparkle` keeps (the
-            // `Object.assign` of each chunk's `sparkle` trees further down
-            // this loop, in the same chunk order), so its evaluators replace
-            // the earlier ones.
             const name = k.identifier?.name;
             if (name?.startsWith(BINDING_ID_PREFIX)) {
               if (sparkleCollides) {
-                // The declaration another script made first stands, with
-                // its evaluators.
                 continue;
               }
               const earlier = bindingEvaluators.get(name);
@@ -3135,8 +2225,6 @@ export class SparkdownCompiler {
         }
         const resolution = this.resolveRunOperand(run, uri, program);
         const resolvedFilePath = resolution.uri ?? null;
-        // The operand's range, 1-based like the lowerer's diagnostics,
-        // moved from the chunk to the script.
         const sourceMetadata: SourceMetadata = {
           fileName,
           filePath: uri,
@@ -3146,7 +2234,6 @@ export class SparkdownCompiler {
           endCharacterNumber: run.source.endCharacterNumber,
         };
         if (!resolvedFilePath) {
-          // The quick fixes travel in the diagnostic's data (`RunFixData`).
           const fixes = resolution.fixes ?? [];
           onDiagnostic(
             resolution.message!,
@@ -3169,33 +2256,17 @@ export class SparkdownCompiler {
             sourceMetadata,
           );
         } else {
-          // The file's wrapper function is named after the file alone
-          // (`runWrapperFunctionName`). Its declaration,
-          // `function <wrapper>() <content> end`, is compiled as a document
-          // of its own under a virtual URI derived from the .luau file's URI
-          // (the `?run` query suffix keeps it distinct from any raw .luau
-          // document registered separately; the compiler treats it as a
-          // normal `.sd` source), once per compile, at the first `run` of
-          // the file the compile reaches. As a flow it is hoisted to the end
-          // of the parent program, wherever the `run` stands. Each `run`
-          // statement is a call of the wrapper, placed as the statement's
-          // content where its line stands (I-1439).
           const wrapperName = runWrapperFunctionName(resolvedFilePath);
           const declared = state.fileResolutionState
             ? (state.fileResolutionState.runDeclared ??= new Set())
             : undefined;
           if (!declared?.has(resolvedFilePath)) {
             declared?.add(resolvedFilePath);
-            // What the program shows the wrapper by comes from this record,
-            // never from the wrapper's name.
             state.fileResolutionState?.runFiles?.set(
               wrapperName,
               resolvedFilePath,
             );
             const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
-            // A document is set again only when its text changed, under the
-            // next version, so the registry parses the new text (the .luau
-            // file was edited) and an unchanged one keeps its tree (#316).
             const documentText = runDeclarationText(
               wrapperName,
               fileHandler.LoadInkFileContents(resolvedFilePath),
@@ -3232,10 +2303,6 @@ export class SparkdownCompiler {
             }
             topLevelIncludedFileObjs.push(new IncludedFile(runStory));
           }
-          // The call, made anew each compile, as the statement's content: the
-          // assembly below places it where the line stands, as it places a
-          // call statement's (`lowerCallStatement`), and stamps it with the
-          // line's range moved from the chunk to the script.
           const call = new FunctionCall(new Identifier(wrapperName), []);
           call.shouldPopReturnedValue = true;
           const line = new DebugMetadata();
@@ -3252,7 +2319,6 @@ export class SparkdownCompiler {
       }
       forwardDiagnostics(diagnostics, lineNumberOffset);
       if (content) {
-        // ---- Flow-run reuse decision ----
         if (!reuseSkipBlocks.has(compiledBlock)) {
           const first = content[0];
           const declaresTopLevelFlow =
@@ -3268,9 +2334,6 @@ export class SparkdownCompiler {
           }
         }
         if (reuseSkipBlocks.has(compiledBlock)) {
-          // This chunk feeds a REUSED flow: skip re-assembly — the
-          // constructed flow already holds this chunk's parsed content by
-          // identity. Only re-stamp source positions if the chunk moved.
           if (this._chunkStampOffset.get(compiledBlock) !== lineNumberOffset) {
             restampContent(content, lineNumberOffset);
           }
@@ -3281,11 +2344,6 @@ export class SparkdownCompiler {
           const flow = content[0];
           if (flow) {
             if (flow instanceof Knot) {
-              // If the lowerer already populated a rootWeave with body content
-              // (e.g. function definitions whose body lives inside the same
-              // chunk), preserve it. Scene/Branch declarations leave _rootWeave
-              // unset so the staged-chunk pattern still creates an empty weave
-              // for subsequent body chunks to attach to.
               const rootWeave = flow._rootWeave
                 ? assemblyWeave(flow._rootWeave)
                 : new Weave([]);
@@ -3301,11 +2359,6 @@ export class SparkdownCompiler {
               knot.debugMetadata = flow.debugMetadata;
               knot._rootWeave = rootWeave;
               knot.AddContent(rootWeave);
-              // Preserve nested subFlows that the lowerer attached (e.g.
-              // anonymous-function literals and nested named function
-              // definitions lower to `Function` subFlows so they live at
-              // their lexical position instead of hoisting to top-level).
-              // Re-add them as content so the runtime traversal sees them.
               for (const [subName, subFlow] of flow._subFlowsByName) {
                 knot._subFlowsByName.set(subName, subFlow);
                 knot.AddContent(subFlow);
@@ -3339,7 +2392,6 @@ export class SparkdownCompiler {
                   last.content[0] instanceof Weave &&
                   last.content[0].content.length === 0
                 ) {
-                  // Remove empty internal weave, since we are not using it
                   last.content.pop();
                 }
                 last.AddContent(stitch);
@@ -3355,27 +2407,6 @@ export class SparkdownCompiler {
               topLevelContent.push(weave);
               this._placedBy.set(flow, compiledBlock);
             } else if (flow instanceof Weave) {
-              // This chunk's body weave is about to be UNWRAPPED — its children
-              // are re-parented directly under the closest existing weave (e.g.
-              // a scene's rootWeave) below. Children that carry no OWN debug
-              // metadata only have a source line by INHERITING this weave's; once
-              // re-parented they'd instead inherit the destination weave's line
-              // (the scene-header line), collapsing every body line of the scene
-              // onto that header — so the whole scene's lines would address
-              // one line and its content becomes unpreviewable (action/montage
-              // scenes like TEASER lost ALL per-line locations; action lines in
-              // dialogue scenes routed to a later beat). Carry this weave's
-              // (already chunk-offset) metadata down onto its OWN-metadata-less
-              // children first, mirroring `appendBlockContent`. Must guard on
-              // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
-              // which returns this weave's value and would skip everything).
-              // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
-              // content whose chunks need per-line positions. Stamping other
-              // child types (e.g. VariableAssignment, scope/flow ControlCommands)
-              // would give them an own source line they didn't have, which
-              // perturbs declaration-collection and scope/collision analysis
-              // (block-scoped `local` shadowing, scene/function call
-              // restrictions) — a whitelist keeps the fix to its purpose.
               if (flow.ownDebugMetadata) {
                 for (const child of flow.content) {
                   if (
@@ -3386,18 +2417,16 @@ export class SparkdownCompiler {
                   }
                 }
               }
-              // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
               const firstStatement = flow?.content[0];
               const isWeavePoint =
                 firstStatement instanceof Choice ||
                 firstStatement instanceof Gather;
               if (uuid && isWeavePoint) {
-                // Ensure choices and gathers use a stable name for their inner container
                 firstStatement.uuid = uuid;
               }
               const flowContent =
                 uuid && !isWeavePoint
-                  ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
+                  ? [new Statement(uuid, flow.content)]
                   : withAssemblyWeaves(flow.content);
               for (const placed of flowContent) {
                 this._placedBy.set(placed, compiledBlock);
@@ -3411,7 +2440,6 @@ export class SparkdownCompiler {
                   lastContent instanceof Weave &&
                   lastContent.content.length === 0
                 ) {
-                  // Remove empty internal weave, since we are not using it
                   closestWeave.content.pop();
                 }
                 closestWeave.AddContent(flowContent);
@@ -3428,13 +2456,6 @@ export class SparkdownCompiler {
         }
       }
       if (context && !this._injectingPrelude) {
-        // Record this chunk's pre-built structs for `buildContext`, which
-        // applies them over the builtins in walk order. Keeping the merge out
-        // of the walk is what lets the assembled result be reused by a compile
-        // whose contributing chunks are the same objects (#654). A layout or
-        // component another script declared first contributes nothing, as
-        // its reactive tree below contributes nothing, so the static and
-        // the reactive definitions are the first script's alike.
         if (!sparkleCollides) {
           this._contextContributions?.push(context);
         }
@@ -3442,10 +2463,6 @@ export class SparkdownCompiler {
       }
       if (sparkle && !this._injectingPrelude) {
         this._contextKeyIds?.push(compiledBlock);
-        // The lowerer gives binding spans relative to the chunk; move them to
-        // the chunk's current place in the document. A carried chunk's spans
-        // were already moved by an earlier compile, so only the difference
-        // is applied.
         const stamped = this._sparkleSpanOffset.get(sparkle) ?? {
           line: 0,
           from: 0,
@@ -3461,21 +2478,17 @@ export class SparkdownCompiler {
             from: rec.from,
           });
         }
-        // Merge the reactive UI trees consumed by the engine onto program.sparkle.
         for (const kind of ["layouts", "screens", "components"] as const) {
           const trees = sparkle[kind];
           if (trees && !sparkleCollides) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
-            // Later chunks replace earlier trees of the same name; the
-            // hoisted-knot loop above keeps the matching binding evaluators.
             Object.assign(program.sparkle[kind]!, trees);
           }
         }
       }
       if (defaultDefinitions && !this._injectingPrelude) {
         this._contextKeyIds?.push(compiledBlock);
-        // Copy default definitions to state
         for (const [type, struct] of Object.entries(defaultDefinitions)) {
           state.defaultDefinitions ??= {};
           state.defaultDefinitions[type] ??= struct;
@@ -3498,38 +2511,8 @@ export class SparkdownCompiler {
       }
     }
 
-    // Scene/`end` (and branch) pairing validation. This is a CROSS-CHUNK
-    // structural check — a scene's validity depends on a LATER root-level `end`
-    // sibling — so it runs fresh over the whole parse tree each compile rather
-    // than per-chunk during lowering. A per-chunk check would go stale when only
-    // the matching `end` chunk is edited (the earlier scene chunk isn't
-    // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
-    // A Luau block the grammar cuts off at a line it cannot read as Luau is
-    // closed by a later root-level `end` the same way, so it is checked here
-    // too.
     this.validateSceneStructure(uri, onDiagnostic);
 
-    // Auto-terminate non-function scenes / branches whose body doesn't end
-    // with an explicit terminator. Sparkdown narrative flows (`scene` /
-    // `branch`) are story content — running off the end without a
-    // `-> DONE` / `-> END` / `->->` causes the runtime to halt with a
-    // diagnostic. Authors almost always WANT `-> DONE` at the natural
-    // end of a scene, so we synthesize it when missing. This mirrors
-    // the existing `isRootStory` branch in `FlowBase.
-    // SplitWeaveAndSubFlowContent` which appends `Gather + Divert(Done)`
-    // to the top-level story for the same reason.
-    //
-    // Skipped for:
-    //   - Functions (`isFunction === true`) — they have explicit `return`
-    //     semantics; falling off the end is handled by the runtime as an
-    //     implicit `return Void`.
-    //   - Flows whose `_rootWeave` already ends with a `Divert` /
-    //     `TunnelOnwards` / `ReturnType` — author already terminated.
-    //
-    // Recurses into `subFlowsByName` so nested branches (sparkdown's
-    // `branch X` declared inside a `scene Y`) get the same treatment;
-    // those don't appear in `topLevelFlowBaseObjs` because the chunk
-    // dispatcher folds them under their parent knot.
     const autoTerminate = (flow: FlowBase): void => {
       if (!flow.isFunction) {
         const rootWeave = flow._rootWeave;
@@ -3541,9 +2524,6 @@ export class SparkdownCompiler {
             last instanceof ParsedReturnType;
           if (!alreadyTerminates) {
             const doneDivert = new Divert([Identifier.Done()]);
-            // Inherit debug metadata from the enclosing flow so any
-            // diagnostic pointing at the synthesized divert lands on
-            // the scene/branch declaration line rather than at offset 0.
             doneDivert.debugMetadata = flow.debugMetadata;
             rootWeave.AddContent(doneDivert);
           }
@@ -3576,10 +2556,6 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  // Call-relevant signature of every named flow, keyed by name. Walks the
-  // flow tree only (each flow's named sub-flows), never the full parsed tree,
-  // so this is O(flows) — negligible next to a compile. See
-  // `_prevFlowSignatures` for why call sites depend on it.
   protected collectFlowSignatures(
     flow: FlowBase,
     into: Map<string, string> = new Map(),
@@ -3587,8 +2563,6 @@ export class SparkdownCompiler {
     for (const sub of flow.subFlowsByName.values()) {
       const name = sub.identifier?.name;
       if (name) {
-        // One `p` per parameter, so the count is part of the signature even
-        // when no parameter carries a flag: `f(x)` and `f()` must differ.
         const args = (sub.args ?? [])
           .map(
             (a) =>
@@ -3604,121 +2578,29 @@ export class SparkdownCompiler {
     return into;
   }
 
-  // Canonicalize compiler-synthesized identifier names that are minted from a
-  // node's ABSOLUTE source offset at lowering time — anonymous/define
-  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`), method-call
-  // receiver temps (`__mcall_<from>`),
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …),
-  // compound property assignment temps (`__pa_base_<from>`, `__pa_key_<from>`)
-  // and multi-target assignment temps (`__mt_<from>_<i>`, `__mt_base_<from>_<i>`,
-  // `__mt_key_<from>_<i>`). Each
-  // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
-  // it, so two files never mint one raw name. The incremental pipeline carries
-  // an unchanged chunk's lowered IR into the next compile WITHOUT re-lowering
-  // it (only `debugMetadata` line numbers are rebased), so an offset baked into
-  // a carried name would stay what it was before an edit shifted the chunk
-  // while a cold compile of the same text derives the current offset, and
-  // since these names become symbols of the program's chunks the program
-  // would diverge.
-  //
-  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
-  // and incremental, before resolution) and renumbers each distinct synthetic
-  // name to `__synth$<flow>$<n>` by DOCUMENT-ORDER of first appearance among
-  // the names of the top-level flow it first stands in (`<flow>` is that
-  // flow's name, empty for the top-level content), rewriting the IR in place.
-  // A name added or removed therefore renumbers only the names of its own
-  // flow, and the flows after it keep theirs (#851). A function a statement
-  // writes is placed among the top-level flows under such a name, and what
-  // stands in it is numbered with the flow that writes it. A carried chunk
-  // therefore holds the `__synth$<flow>$<n>` names an
-  // earlier compile gave it, beside the raw names of freshly lowered chunks;
-  // a raw name begins with its family's prefix and a canonical one with
-  // `__synth$`, so the two never share a string. Both hold a `$`, which no
-  // identifier an author writes can contain, so neither is ever an author's
-  // name (#1729). Numbering by ORDER (not by the offset value) is what makes
-  // the result identical between a cold parse and an incremental parse of
-  // the same text: a carried node sits at the same tree position either
-  // way, so it gets the same ordinal regardless of the ordinal it carries from
-  // the earlier compile. A given synthetic name's definition
-  // and all of its references share the exact same string and are emitted within
-  // the same chunk, so a uniform string→string remap suffices (no need to link
-  // references back to definitions).
-  //
-  // A display call's continuation `group` (`ContinuationGroup`) is minted from
-  // its statement's offset the same way, as a string value rather than a name.
-  // The pass renumbers those to `__group$<flow>$<n>` in a sequence of their
-  // own within each flow, so adding a continuation leaves the synthetic names
-  // after it as they were, and the other way round.
-  //
-  // A tag line's `Statement` container (and a choice that carries its
-  // chunk's uuid) is named `id-<uuid>`, and the pass numbers those uuids
-  // in document order in a third sequence, so a container's name depends
-  // only on the tag lines above it and an edit below it leaves the name, and
-  // any path through the container, as it was.
   protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
-    // Every offset-derived synthetic family minted in the lowerers — PLUS the
-    // canonical `__synth$<flow>$<n>` form this pass itself produces. The pass
-    // mutates the parsed IR in place and the incremental pipeline carries
-    // those nodes into the next compile, so already-renamed names must be
-    // re-collected and renumbered too: when an edit adds/removes a synthetic
-    // earlier in the flow, a carried `__synth$<flow>$k`'s ordinal is stale
-    // and only re-running it through the document-order numbering matches
-    // what a cold compile derives. A raw name carries `syntheticId`: the
-    // document tag, `$`, then the offset. Every form requires a `$`, which an
-    // author's identifier cannot contain, so the pass never takes an authored
-    // name such as `f__redef_x__1` or `__synth_0` for one of its own. The
-    // canonical form is the one its readers share (`NUMBERED_SYNTHETIC_NAME`).
     const RAW_SYNTH =
       /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$/;
     const SYNTH = new RegExp(
       `${NUMBERED_SYNTHETIC_NAME.source}|${RAW_SYNTH.source}`,
     );
     const remap = new Map<string, string>();
-    // True once any collected name maps to a DIFFERENT canonical name. In the
-    // steady state (carried names already canonical and ordinals unchanged —
-    // the common case for most edits) every mapping is the identity and the
-    // whole rewrite phase is skipped.
     let changed = false;
-    // Matches recorded during the single collection walk so rewriting is
-    // O(matches) instead of a second full-tree walk. `matchedIds` is deduped
-    // (the same Identifier object can be aliased from several own-properties,
-    // e.g. `identifier` and a `pathIdentifiers` entry) so each object is
-    // rewritten exactly once — rewriting twice could CHAIN through the remap
-    // now that canonical `__synth$<flow>$<n>` names are themselves remappable.
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
-    // A string field is recorded once per node, with the name it held when
-    // the walk first reached it, so a node the walk reaches twice is not
-    // renamed twice. The walk reaches each node once when every script is
-    // read once; the record keeps a second visit harmless.
     const matchedStrings: Array<{ node: any; field: string; name: string }> =
       [];
     const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
-    // Every call of one continuation carries the same group text, so
-    // `groupRemap`, keyed by that text, gives the calls one name just as a
-    // synthetic's definition and references share one. Each call holds a
-    // group node of its own, and `seenGroups`, keyed by the node, records a
-    // node once, with the name it gets, for the same reason as a string field.
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; text: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
     const matchedUuids: Array<{ node: Statement | Choice; next: string }> = [];
     const seenUuids = new Set<Statement | Choice>();
-    // Each name and group is numbered among those of the top-level flow it
-    // first stands in, so a name added or removed renumbers only the names
-    // of its own flow (#851). The walk carries the flow it is in as a scope:
-    // `=` and the flow's name, or `=` alone for the top-level content. A
-    // function a statement writes is placed among the top-level flows under
-    // a name of this pass's own, so what stands in it takes `>` and that
-    // name, and is numbered with the flow that name first stands in.
     const nameScope = new Map<string, string>();
     const groupScope = new Map<string, string>();
     const noteScope = (scopes: Map<string, string>, key: string, scope: string) => {
       const was = scopes.get(key);
-      // A flow's own name never takes the flow as its scope, and a name
-      // first met in such a flow takes the first flow named outright that
-      // it stands in, when there is one.
       if (scope === `>${key}`) {
         return;
       }
@@ -3728,7 +2610,6 @@ export class SparkdownCompiler {
     };
 
     const considerName = (name: string, scope: string) => {
-      // Numbered once the walk has found every name.
       if (!remap.has(name)) {
         remap.set(name, "");
       }
@@ -3754,22 +2635,6 @@ export class SparkdownCompiler {
         matchedIds.push({ id, owner });
       }
     };
-    // Single walk: assign ordinals in document (pre-order content) traversal
-    // order, recording every match for the later targeted rewrite. Per node,
-    // Identifier-valued fields are visited before the plain string fields
-    // (same order the previous two-pass implementation used, so ordinal
-    // assignment is unchanged).
-    // Returns whether this subtree contains ANY synthetic name.
-    //
-    // Subtrees with none are remembered by node identity and skipped entirely
-    // on later compiles: the incremental pipeline carries unchanged nodes
-    // forward by identity, and a re-lowered node is a NEW object, so it is
-    // never wrongly skipped. The set stays valid across the rewrite below
-    // because renaming only ever rewrites names that already matched SYNTH
-    // (including the canonical `__synth$<flow>$<n>` form), so a synth-free subtree
-    // cannot acquire one. Most of a screenplay is display text with no
-    // synthetics at all, which is what makes this worth caching — the walk
-    // itself is otherwise whole-tree on every keystroke.
     const collect = (node: ParsedObject, outer: string): boolean => {
       const markedLength = this._synthFreeSubtrees.get(node);
       if (
@@ -3781,9 +2646,6 @@ export class SparkdownCompiler {
       let scope = outer;
       if (node instanceof FlowBase && node.parent instanceof Story) {
         const name = node.identifier?.name ?? "";
-        // A name holding a `$` would make the names numbered in it
-        // ambiguous, so the flows of such names, if any, number theirs
-        // with the top-level content's.
         scope = SYNTH.test(name)
           ? `>${name}`
           : name.includes("$")
@@ -3849,13 +2711,8 @@ export class SparkdownCompiler {
         node instanceof FlowBase &&
         (node._subFlowsByName.size > 0 || node.variableDeclarations.size > 0)
       ) {
-        // Only flows that actually contain a synthetic can need re-keying,
-        // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
-      // A stdlib or native call drops its proxy divert, which holds its
-      // arguments, from `content` when it generates, so a call carried from
-      // an earlier compile reaches its arguments only through `args`.
       for (const c of parsedChildren(node)) {
         if (collect(c, scope)) {
           found = true;
@@ -3867,9 +2724,6 @@ export class SparkdownCompiler {
       return found;
     };
     collect(root, "=");
-    // The flow a scope numbers in: its own, or for a function a statement
-    // wrote, the flow its name takes, and the top-level content's when no
-    // flow named outright holds it.
     const flowOf = (scope: string | undefined, seen = new Set<string>()): string => {
       if (scope === undefined) {
         return "";
@@ -3884,7 +2738,6 @@ export class SparkdownCompiler {
       seen.add(name);
       return flowOf(nameScope.get(name), seen);
     };
-    // Document order of first appearance within each flow.
     const ordinals = new Map<string, number>();
     const numbered = (family: string, flow: string): string => {
       const key = `${family}$${flow}`;
@@ -3906,8 +2759,6 @@ export class SparkdownCompiler {
         changed = true;
       }
     }
-    // A preview compile's renames are undone when it is rolled back
-    // (`previewCompile`), with this record of what each held.
     const undo = this._previewUndo;
     const lastRun = this._syntheticNamesLastRun;
     undo?.push(() => {
@@ -3918,9 +2769,6 @@ export class SparkdownCompiler {
       return;
     }
 
-    // Rewrite phase: only the recorded matches, then re-key each FlowBase's
-    // `_subFlowsByName` index and `variableDeclarations` map (both keyed by
-    // pre-rename names) after all names are final.
     for (const { id, owner } of matchedIds) {
       const next = id.name ? remap.get(id.name) : undefined;
       if (next) {
@@ -3957,7 +2805,6 @@ export class SparkdownCompiler {
           noteResolved(group);
         });
         group.text = next;
-        // A kept chunk recorded the group's name (`StatementWatch`).
         noteResolved(group);
       }
     }
@@ -3985,12 +2832,6 @@ export class SparkdownCompiler {
         }
       }
       flow._subFlowsByName = next;
-      // A carried flow keeps the temps it declared in an earlier compile under
-      // their names from then. Left there, an old `__synth$<flow>$<n>` key shadows
-      // whatever now holds that name, such as a loop label, whose back edge
-      // then resolves as a divert to an undeclared variable. Each synthetic
-      // entry is keyed by its declaration's name, which the rewrite above
-      // has already made final.
       if ([...flow.variableDeclarations.keys()].some((k) => SYNTH.test(k))) {
         const decls = FlowBase.declarationTable();
         for (const [key, decl] of flow.variableDeclarations) {
@@ -4001,14 +2842,6 @@ export class SparkdownCompiler {
     }
   }
 
-  // Whole-document scene/`end` + branch pairing validation. Walks the file's
-  // root-level Scene/Branch nodes and runs the same forward/backward `end`
-  // pairing checks the lowerer used to do per-chunk — but freshly, over the full
-  // tree, every compile. Because it never relies on a stale per-chunk result, an
-  // edit that breaks only the matching `end` keyword now correctly re-emits the
-  // "missing `end`" diagnostic incrementally. Source positions are absolute (the
-  // doc-level ctx returns document line/column directly), matching what the
-  // previous chunk-relative + lineNumberOffset path produced.
   validateSceneStructure(
     uri: string,
     onDiagnostic: (
@@ -4029,8 +2862,6 @@ export class SparkdownCompiler {
       read: (from: number, to: number) => doc.read(from, to),
       lineNumber: (pos: number) => doc.positionAt(pos).line,
       characterNumber: (pos: number) => doc.positionAt(pos).character,
-      // A block opened in a story statement cut at its unclosed bracket's
-      // line is Luau's reading's to report (`validateBlockEnds`, I-1532).
       documentText: () => (documentText ??= doc.getText()),
     } as unknown as LowerContext;
     const emit = (diags: ReturnType<typeof validateScene>) => {
@@ -4089,26 +2920,9 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Bound the append-only binary string table.
-   *
-   * Every edited flow interns strings for its changed lines, and those are
-   * dead the moment the next keystroke lands — measured at ~1 per keystroke on
-   * raffles-and-bunny. The table is not merely a compiler-side cache: it ships
-   * with the program's root (`ProgramRoot.table`), so unchecked growth costs
-   * payload size and per-hop clone time as well as memory.
-   *
-   * Reseeding is cheap in the amortized sense but not free: every chunk was
-   * minted against the old numbering, so the chunk store remaps the symbols
-   * its current root holds (`ChunkStore.reseed`). With the thresholds below
-   * that happens once per few thousand
-   * edits, which is why it is a ratio and not a fixed cap — a large project
-   * legitimately holds more live strings than a small one.
-   */
   protected maybeReseedBinaryTable(): void {
     const size = this._binaryTable.strings.length;
     if (this._binaryTableBaseline === 0) {
-      // First compile after a (re)seed: whatever is interned now is live.
       this._binaryTableBaseline = size;
       return;
     }
@@ -4117,10 +2931,6 @@ export class SparkdownCompiler {
       size > this._binaryTableBaseline * BINARY_TABLE_RESEED_RATIO &&
       grown > BINARY_TABLE_RESEED_MIN_SLACK
     ) {
-      // The chunk store, which interns into the same table, keeps the
-      // symbols its current root holds and the remap of each reseed
-      // (`ChunkStore.reseed`), so its roots and the symbol values made in
-      // them cross the reseed.
       if (this._chunkStore) {
         this._chunkStore.reseed();
       } else {
@@ -4130,12 +2940,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /** What the chunk store needs of a compiled block, read at its current
-   *  place in its script. Its syntax (the node's name, the column it starts
-   *  at and its text) is read only when the store compares it. The column
-   *  belongs to it because a statement that shares its first line with
-   *  another, such as tags after a label, moves along the line when the
-   *  other one changes, and its chunk's line rows hold columns. */
   protected statementRecord(
     block: CompiledBlock,
     from: number,
@@ -4143,10 +2947,6 @@ export class SparkdownCompiler {
     line: number,
     uri: string,
   ): StatementRecord {
-    // A carried block keeps its record, whose readers read where the block
-    // stands now: an edit above it moves it, and nothing of its own text.
-    // What `programFlows` builds from a record is then kept with it while
-    // the block stands on the same line (#1607).
     const kept = this._blockRecords.get(block);
     if (kept && kept.place.uri === uri) {
       kept.place.from = from;
@@ -4155,8 +2955,6 @@ export class SparkdownCompiler {
       return kept.record;
     }
     const place = { from, to, uri };
-    // A statement can run past its node, as a `repeat` loop runs to its
-    // `until` line.
     const shape = block.statement;
     const endOf = () =>
       shape ? Math.max(place.to, place.from + shape.to) : place.to;
@@ -4165,8 +2963,6 @@ export class SparkdownCompiler {
     const textOf = (a: number, b: number) =>
       this.documents.get(uri)?.getText().slice(a, b) ?? "";
     const sourceOf = () => (source ??= textOf(place.from, endOf()));
-    // A fingerprint reads the script's parse, offsets relative to the
-    // statement's start (`fingerprintSource`).
     const fingerprintOf = (
       a: number,
       b: number,
@@ -4218,15 +3014,6 @@ export class SparkdownCompiler {
     return record;
   }
 
-  /**
-   * Records the layouts and components a statement of the script `uri`
-   * declares (`sparkle`), whose first line is `source`, and reports each one
-   * another script declared first: in both scripts, naming both by their
-   * paths below the folder of `rootUri`. Declarations register main first and
-   * then by path, so the first is the one that stands. Within one script the
-   * later declaration replaces the earlier, as it always has. Returns whether
-   * the statement declares one another script declared first.
-   */
   protected recordSparkleDeclarations(
     sparkle: NonNullable<CompiledBlock["sparkle"]>,
     uri: string,
@@ -4261,10 +3048,6 @@ export class SparkdownCompiler {
     return collides;
   }
 
-  /** Notes what the compile in progress has to do with the statement memos
-   *  of `block` (`_memoBlocks`, `_memoCandidates`): a block lowered anew
-   *  since the last compile holds the statements whose memos the compile
-   *  completes, with each statement's lines in its script. */
   protected noteMemos(block: CompiledBlock, record: StatementRecord): void {
     if (block.memoized?.length) {
       this._memoBlocks.add(block);
@@ -4274,8 +3057,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /** Adds to the compile's memo candidates the statements of `block` whose
-   *  memos its lowering made, with each statement's lines in its script. */
   protected addMemoCandidates(
     block: CompiledBlock,
     record: StatementRecord,
@@ -4299,14 +3080,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Leaves out of the compile's memo candidates each statement that holds a
-   * name the compile numbers by document order, which the last
-   * `canonicalizeSyntheticFlowNames` found: a statement served from its memo
-   * would hold the name back from the numbering of the names after it. A
-   * loop's own names, and the label its `break` or `continue` leaves by, are
-   * kept (`ownsItsNumbering`, #1683).
-   */
   protected dropNumberedMemos(): void {
     for (const [obj, candidate] of this._memoCandidates) {
       if (
@@ -4318,13 +3091,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Adds to the compile's memo candidates the statements of `blocks`, blocks
-   * the compile carried, a statement of each of which the resolver resolves
-   * again (`ResolveInput.carriedMemos`): their memos are completed with what
-   * this resolution reports and reads, so that the next lowering of a block
-   * serves them by what their names declare now (#1974).
-   */
   protected noteCarriedMemos(blocks: Iterable<object>): void {
     let added = false;
     for (const block of blocks) {
@@ -4339,13 +3105,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Completes the memos of the statements this compile lowered anew, and of
-   * those of a carried block it resolved again (`noteCarriedMemos`), once
-   * its build is committed: with what their resolution reported and read
-   * (`ProgramResolver.memoResolutionsLastResolve`) and the chunk the store
-   * gave them (`ChunkStore.memoChunk`).
-   */
   protected completeMemos(): void {
     const resolutions = this._programResolver?.memoResolutionsLastResolve;
     const store = this._chunkStore;
@@ -4369,8 +3128,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /** Whether the last `canonicalizeSyntheticFlowNames` found no name it
-   *  numbers under `obj`: it marks such a subtree, or one above it. */
   protected isSynthFree(obj: ParsedObject): boolean {
     for (let at: ParsedObject | null = obj; at; at = at.parent) {
       const marked = this._synthFreeSubtrees.get(at);
@@ -4381,13 +3138,6 @@ export class SparkdownCompiler {
     return false;
   }
 
-  /**
-   * Lowers again the blocks that hold a statement served from a memo the
-   * compile could not compile from (`StatementMemoRetry`), after marking
-   * those memos stale, or with `all` every statement those blocks were
-   * served: the second attempt, after a first that still met a memo it
-   * could not compile from (`compileStory`).
-   */
   protected relowerMemos(retry: StatementMemoRetry, all: boolean): void {
     const entries = new Set(retry.entries);
     const ranges = new Map<string, { from: number; to: number }[]>();
@@ -4401,9 +3151,6 @@ export class SparkdownCompiler {
       for (const shape of stale) {
         const memo = shape.memo!;
         if (!memo.stale) {
-          // A memo a preview found stale may be found so only by the text the
-          // preview compiled: its rollback leaves the memo as it found it,
-          // for the next real compile's resolve to judge.
           this._previewUndo?.push(() => {
             memo.stale = false;
           });
@@ -4417,8 +3164,6 @@ export class SparkdownCompiler {
       }
       list.push({ from: place.from, to: place.to });
     }
-    // Lowering every statement those blocks were served lowers them again
-    // with no memo at all, so that the compile after it meets none.
     const enabled = this._memoHost.enabled;
     this._memoHost.enabled = enabled && !all;
     try {
@@ -4430,21 +3175,10 @@ export class SparkdownCompiler {
     }
   }
 
-  /** How many statements of blocks' bodies the last update of `uri`
-   *  lowered, and how many it served from their memos. */
   memoStats(uri: string): MemoStats | undefined {
     return this.documents.memoStats(uri);
   }
 
-  /**
-   * Builds the program's statement chunks from the assembled parsed story,
-   * and records the root on `program`. A statement that holds a construct the
-   * program has no emit path for is reported as an error at its line
-   * (`unsupportedConstructMessage`) once the validators have run, and the
-   * compile then makes no program.
-   * A preview compile's root is not made the store's current one. Returns
-   * whether the program has its chunks.
-   */
   protected buildProgramChunks(
     parsedStory: Story,
     tables: ProgramStoryTables,
@@ -4479,11 +3213,7 @@ export class SparkdownCompiler {
         };
       })(),
     });
-    // The store interns into the compiler's persistent table, which
-    // `maybeReseedBinaryTable` bounds, and keeps no table of its own.
     this._chunkStore ??= new ChunkStore(this._binaryTable);
-    // The blocks lowered anew since the compile that built the store's
-    // current root, when this compiler knows that compile's blocks.
     const changed =
       this._chunkStoreBlocks && this._chunkStore.current
         ? this._chunkStoreChanges
@@ -4506,10 +3236,6 @@ export class SparkdownCompiler {
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;
       this.completeMemos();
-      // The resolve whose memos this completes is kept; one of a preview, of
-      // an attempt that met a memo it could not compile from, or of a build
-      // that made no program is resolved again by the next resolve
-      // (`ProgramResolver.committed`).
       this._programResolver?.committed();
     }
     const unsupported = flows.unsupported ?? build.unsupported;
@@ -4524,24 +3250,15 @@ export class SparkdownCompiler {
       declarations: flows.declarations.length,
       functions: flows.functions,
     };
-    // Reported after the validators (`compileStoryOnce`), which may report
-    // the error that keeps the statement from being built.
     this._unsupported = unsupported;
     if (!unsupported) {
       program.chunks = build.root;
-      // After the build: a reseed installs fresh arrays on the table, and
-      // the root just built keeps reading the ones it was built with.
       this.maybeReseedBinaryTable();
     }
     profile("end", this._profilerId, "program/chunks", uri);
     return !unsupported;
   }
 
-  /** Reports the construct that kept the program from being built as an
-   *  error over the line of the statement that holds it, unless the compile
-   *  reported an error on that line already. The same per-statement
-   *  ownership rule decides a story store's Luau errors (`validateStores`):
-   *  a statement already in error keeps the report it has. */
   protected reportUnsupportedConstruct(
     unsupported: UnsupportedConstructSite,
     program: SparkProgram,
@@ -4553,12 +3270,6 @@ export class SparkdownCompiler {
   ): void {
     const message = unsupportedConstructMessage(unsupported.construct);
     const line = unsupported.line;
-    // A statement the compile already reported an error at is in error for
-    // that reason, which keeps it from being built (a malformed loop test):
-    // its error is the one to read. So is one whose construct the compile
-    // already reported in the same words on a line of its own, as lowering
-    // reports a stray choice mark on the choice's line inside the statement
-    // that holds it.
     const reported = program.diagnostics?.[unsupported.uri]?.some(
       (d) =>
         d.severity === DiagnosticSeverity.Error &&
@@ -4572,9 +3283,6 @@ export class SparkdownCompiler {
     onDiagnostic(message, ErrorType.Error, this.lineSource(unsupported.uri, line));
   }
 
-  /** Reports a throw the compile caught as an error over the line of the
-   *  statement whose emit or run threw (`StatementFailure`), or over the first
-   *  line of the compiled script when no statement is known. */
   protected reportCompileThrow(
     e: unknown,
     uri: string,
@@ -4586,10 +3294,6 @@ export class SparkdownCompiler {
     ) => void,
   ): void {
     const site = e instanceof StatementFailure ? e : undefined;
-    // A statement the compile already reported an error in is in error for
-    // that reason, as `reportUnsupportedConstruct` reads it: a malformed
-    // `store` value cannot run. An error elsewhere in the script says nothing
-    // about it.
     if (
       site &&
       program.diagnostics?.[site.uri]?.some(
@@ -4610,9 +3314,6 @@ export class SparkdownCompiler {
     );
   }
 
-  /** The source of a line's text, its indentation and trailing space left
-   *  out, or the whole line when it holds only spacing, whose trimmed range
-   *  would end before it starts and be dropped (`getDiagnostic`). */
   protected lineSource(uri: string, line: number): SourceMetadata {
     const text = this.documents.get(uri)?.getText().split("\n")[line] ?? "";
     const blank = text.trim() === "";
@@ -4625,21 +3326,14 @@ export class SparkdownCompiler {
     } as SourceMetadata;
   }
 
-  /** The chunk store of the compiler. */
   get chunkStore(): ChunkStore | undefined {
     return this._chunkStore;
   }
 
-  /** The program path's resolver. */
   get programResolver(): ProgramResolver | undefined {
     return this._programResolver;
   }
 
-  // Turn this compile's per-flow captures into `program.sceneAssets`: unions
-  // in first-use order, divert edges classified into calls (function flows,
-  // which return to the caller) and successors (everything else), and each
-  // flow's sets widened by the flows it calls. Runs after
-  // `populateDeclarationLocations`, which supplies `functionLocations`.
   populateSceneAssets(program: SparkProgram) {
     const accum = this._flowAssetAccum;
     if (!accum) {
@@ -4648,8 +3342,6 @@ export class SparkdownCompiler {
     const functionNames = new Set(
       Object.keys(program.functionLocations ?? {}),
     );
-    // Synthetic and binding-evaluator flows are reached like functions and
-    // return like them; they are never a scene the story "enters".
     const isInternal = (name: string) =>
       functionNames.has(name) ||
       CANONICAL_SYNTH_NAME.test(name) ||
@@ -4721,7 +3413,6 @@ export class SparkdownCompiler {
       };
       let dynamic = entry.capture.dynamic;
       const dynamicBases = [...entry.capture.dynamicBases];
-      // Widen by callees, transitively, each flow at most once.
       const visited = new Set<string>([name]);
       const pending = [...entry.calls];
       while (pending.length > 0) {
@@ -4751,8 +3442,6 @@ export class SparkdownCompiler {
       }
       const result: SceneAssets = {
         kind: name === "0" ? "root" : isInternal(name) ? "function" : "scene",
-        // A copy: the capture is carried across compiles by reference, so a
-        // consumer that sorts or appends must not reach the cache through it.
         beats: [...entry.capture.beats],
         ...names,
         successors: entry.successors,
@@ -4784,11 +3473,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
-  /** The header line and the closing `end`'s line of each scene and branch
-   *  of a script, counting from 0, in the order of those ends: each root-level
-   *  `end` the declarations channel marks closes the innermost open scene or
-   *  branch, a branch closing any branch still open under its scene, and a
-   *  stray `end` closes nothing. */
   flowEndsOf(uri: string): [headerLine: number, endLine: number][] {
     const doc = this.documents.get(uri);
     const cur = doc ? this.documents.annotations(uri).declarations.iter() : undefined;
@@ -4815,11 +3499,6 @@ export class SparkdownCompiler {
     return ends;
   }
 
-  /** A script's loops and function bodies, counting lines from 0: each
-   *  loop's first line, the line of its `end` (or its `until`) and whether
-   *  it is a `repeat` loop, whose body runs before its test; and each
-   *  function body's first and last line. Read from the syntax tree when
-   *  asked, which only a route's report does (`Game.previewRouteOf`). */
   structureOf(uri: string): ScriptStructure {
     const doc = this.documents.get(uri);
     const tree = doc ? this.documents.tree(uri) : undefined;
@@ -4858,9 +3537,6 @@ export class SparkdownCompiler {
       if (doc) {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
-        // The open scene and branch, then the latest label under them. A
-        // function is not a path part: its body holds no labels or branches,
-        // and the channel does not mark where it ends.
         let scopePathParts: {
           kind: "scene" | "branch" | "label";
           name: string;
@@ -4880,8 +3556,6 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "end") {
-              // Closes the innermost open scene or branch, along with the
-              // labels filed under it.
               const closed = scopePathParts.findLastIndex(
                 (p) => p.kind === "scene" || p.kind === "branch",
               );
@@ -4905,8 +3579,6 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "branch") {
-              // A branch sits directly under its scene, closing any branch
-              // still open there along with the labels filed under it.
               scopePathParts.length =
                 scopePathParts.findLastIndex((p) => p.kind === "scene") + 1;
               scopePathParts.push({
@@ -4924,7 +3596,6 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "label") {
-              // A label replaces the previous label in the same scope.
               if (scopePathParts.at(-1)?.kind === "label") {
                 scopePathParts.pop();
               }
@@ -4950,25 +3621,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateDeclarationLocations", uri);
   }
 
-  /** Assemble `program.context`: the project-wide base (builtins, this
-   *  project's defines, its files' structs, and the `$default` merge over all
-   *  of them) plus this compile's own implicit definitions layered over it.
-   *
-   *  The base is shared across compiles whose key is unchanged (#654) — an
-   *  edit to a line of dialogue changes none of its inputs, and rebuilding it
-   *  cost a project the size of Raffles and Bunny 27 to 55 ms per keystroke.
-   *  The layer is copy-on-write: a type map the implicit definitions add to is
-   *  copied first, so the shared base never learns about an entry that belongs
-   *  to one compile. That is what keeps a preview compile's speculative
-   *  filtered image out of the canonical compile that follows it.
-   *
-   *  The implicit definitions split by what they are derived from. The filtered
-   *  image every SVG or vocabulary-carrying image implies is derived from the
-   *  files, so it belongs to the base and is assembled with it, before the
-   *  `$default` merge that also belongs to the base. The filtered image an
-   *  attribute directive such as `[[bunny:phone]]` implies is derived from
-   *  scene content, so it is this compile's own and goes in the layer, with the
-   *  same `$default` merge applied to it as it is added. */
   buildContext(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "buildContext", uri);
@@ -4987,8 +3639,6 @@ export class SparkdownCompiler {
       this.buildContextBase(state, program, ids, configKey);
     }
     const base = this._contextBase!;
-    // The program's own view: a fresh top-level object whose type maps are the
-    // base's until this compile writes to one (`addImplicitDef`).
     profile("start", this._profilerId, "contextLayerCopy", uri);
     const layer: { [type: string]: { [name: string]: any } } = {};
     for (const [type, structs] of Object.entries(base.context)) {
@@ -5010,15 +3660,6 @@ export class SparkdownCompiler {
     }
     profile("end", this._profilerId, "contextDiagnosticsReplay", uri);
     this.populateImplicitDefs(state, program);
-    // A revision names the base AND the layer, because a consumer that keeps
-    // what it derived from the context has to notice either moving. The layer
-    // is named by a serial rather than by the names themselves: a project the
-    // size of Raffles and Bunny reaches thousands of implicit definitions, and
-    // spelling them out put 33 KB of the revision on the wire with every
-    // program. The serials are exact, not a hash — the same set of names always
-    // gets the same one — and they are never reused, so dropping the table to
-    // bound its size costs a consumer a rebuild it did not need rather than
-    // hiding one it did.
     const layerSignature = (this._contextLayerAdded ?? []).join(",");
     const serials = (this._contextLayerSerials ??= new Map());
     let layerSerial = serials.get(layerSignature);
@@ -5033,7 +3674,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "buildContext", uri);
   }
 
-  /** Assemble the shared base context from nothing and cache it under `ids`. */
   protected buildContextBase(
     state: SparkdownCompilerState,
     program: SparkProgram,
@@ -5043,9 +3683,6 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "buildContextBase", uri);
     const context: { [type: string]: { [name: string]: any } } = {};
-    // Assembled against a stand-in program so the passes below write into the
-    // base rather than into the program that happens to be compiling, and so
-    // the diagnostics they report can be kept with it for replay.
     const staging = {
       uri,
       scripts: program.scripts,
@@ -5053,27 +3690,11 @@ export class SparkdownCompiler {
       context,
       diagnostics: {} as { [uri: string]: SparkDiagnostic[] },
     } as SparkProgram;
-    // Builtins first, so an authored define reusing a builtin name overrides
-    // it below while keeping the builtin's key order.
     if (this._config.useBuiltinsPrelude) {
       this.mergePreludeContext(staging);
     } else {
       this.populateBuiltins(staging);
     }
-    // An authored define that reuses a builtin name OVERRIDES IN PLACE: its
-    // properties win, but the builtin's *unspecified* siblings are retained.
-    // Without this, a partial override silently drops every field it doesn't
-    // restate — e.g. `define ui as config with reactive = true` would lose the
-    // builtin `layouts_element_name` / `styles_element_name` / `breakpoints`,
-    // leaving `reveal()` unable to find the screen root (it bails on an
-    // undefined `layouts_element_name`), so screens stay at opacity:0 — a black
-    // preview with no error.
-    //
-    // Structural element-tree types (layout/screen/component) are REPLACED
-    // wholesale rather than deep-merged — merging two element trees would
-    // splice the builtin's children into the authored one. (They likewise
-    // override by replace in the reactive `sparkle` channel; see
-    // mergePreludeSparkle.)
     const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
     for (const contribution of this._contextContributions ?? []) {
       for (const [type, structs] of Object.entries(contribution) as [
@@ -5103,24 +3724,10 @@ export class SparkdownCompiler {
       diagnostics: staging.diagnostics ?? {},
       revision: ++this._contextRevisionCounter,
     };
-    // The cached implicit definitions were merged against the `$default`s of
-    // the base that has just been replaced, so they go with it.
     this._implicitDefCache = undefined;
     profile("end", this._profilerId, "buildContextBase", uri);
   }
 
-  /** Add one implicit definition to this compile's layer, copying the type map
-   *  out of the shared base the first time this compile writes to it, and
-   *  merging the type's `$default` under it exactly as
-   *  `populateDefinedDefaultProperties` does over the base. Returns false when
-   *  the entry is already present (in the base or the layer), which is what
-   *  keeps an implicit definition from shadowing an authored one.
-   *
-   *  `build` is a callback rather than a struct because a name this compiler
-   *  has already derived is served from `_implicitDefCache` without building or
-   *  merging anything: the same directive implies the same struct on every
-   *  compile, and a project the size of Raffles and Bunny reaches here
-   *  thousands of times per compile. */
   protected addImplicitDef(
     program: SparkProgram,
     type: string,
@@ -5158,35 +3765,9 @@ export class SparkdownCompiler {
     return true;
   }
 
-  /** Mirror the fully-assembled engine-facing context types into dedicated
-   *  channels (`program.layouts` / `screens` / `components` / `styles` / `assets`) the Game
-   *  runtime reads — so the engine can source them WITHOUT touching the LSP-only
-   *  `program.context`. Runs after `buildContext` (and the prelude merge), so it
-   *  captures builtin + authored entries with `$extends`/`$default` already
-   *  applied. Deep-cloned so later context mutation can't leak into the channel.
-   *  (Define-typed context — animation/character/config/… — comes from the
-   *  runtime instead; see `buildContextFromStory`.) */
   populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateEngineChannels", uri);
-    // A channel is a pure function of the context type map it mirrors, and the
-    // copy-on-write layer hands out the base's own type map for every type this
-    // compile did not write to (#654). Comparing that map by identity therefore
-    // answers "is the channel I built last time still the right one" exactly:
-    // an unchanged type keeps its clone, and only the types a compile actually
-    // touched — `filtered_image`, when a directive implies a new one — are
-    // cloned again.
-    //
-    // Successive programs then share the channels they have in common, which is
-    // sound because the only thing written onto a channel struct after it is
-    // handed over is a derivation OF that struct: `filterImage` caches
-    // `filtered_src` / `filtered_layers` on the filtered image it resolved. The
-    // struct's inputs cannot have moved without the type map being rebuilt, so
-    // the cached derivation is still the right answer; a root retyped from
-    // `image` to `layered_image` (#340) or an edited attribute list rebuilds the
-    // map and the next compile hands out fresh structs. Warm-up sweeps that
-    // resolve against a DIFFERENT define channel already work on their own
-    // copies (`resolveImageSrcs`).
     const channels = (this._engineChannelCache ??= new Map());
     const channelFor = (
       type: string,
@@ -5220,7 +3801,6 @@ export class SparkdownCompiler {
     if (styles) {
       program.styles = styles;
     }
-    // File-derived + implicit-def asset types (not defines).
     const ASSET_TYPES = ["image", "audio", "font", "video", "layered_image", "filtered_image"];
     for (const type of ASSET_TYPES) {
       const assets = channelFor(type, cloneSharingVocabularies);
@@ -5229,39 +3809,9 @@ export class SparkdownCompiler {
         program.assets[type] = assets;
       }
     }
-    // Define-typed context entries (animation/character/ease/config/…) are NOT
-    // emitted as a static channel: the Game sources them from the live runtime
-    // `__def` tables (buildDefinesContext) so authored→builtin inheritance is
-    // resolved by the VM __index chain. Only the structural/asset channels above
-    // remain. (The retired `program.defines` channel was a lossy compile-time
-    // snapshot; runtime-sourcing proved byte-identical and supersedes it.)
     profile("end", this._profilerId, "populateEngineChannels", uri);
   }
 
-  /** Let a project define REPLACE a same-named builtin (`define slate_80 as
-   *  color`, `define ui as config`) instead of colliding with it.
-   *
-   *  The builtins prelude is source-injected FIRST, and
-   *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
-   *  override used to fail the compile with "Duplicate identifier" — the
-   *  opposite of the intent recorded at the injection site. Tag the prelude's
-   *  declarations so the collision handler can tell an override (allowed,
-   *  authored wins) from two colliding authored defines (still an error).
-   *  `debugMetadata` can't distinguish them. The prelude's root defines are
-   *  marked too.
-   *
-   *  A partial override (`define ui as config with root_text_size =
-   *  "112.5%"`) keeps the builtin's other fields at runtime: the prelude's
-   *  `__def` runs first and registers the builtin, and the authored `__def`
-   *  fills its table from the member it replaces, records key by key, with
-   *  every authored key winning, computed ones included (`fillMissingEntries`
-   *  in the runtime's StdLib, #1951). An authored root merges into the
-   *  prelude's table the same way (`mergeIntoRootTable`). A compile-time
-   *  back-fill appended after the authored entries used to do this, so a
-   *  computed key naming a builtin key read the builtin's value and a
-   *  restated nested table lost the builtin's other nested keys.
-   *
-   *  Must run AFTER the scoping passes. */
   protected applyBuiltinOverrides(
     preludeVAs: ReadonlySet<ParsedObject>,
   ): void {
@@ -5272,12 +3822,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /** Merge the once-compiled builtins prelude context into `program.context` as
-   *  the base layer (the role the legacy JS `populateBuiltins` filled). Runs
-   *  before this file's own chunks populate context, so an authored define
-   *  reusing a builtin name overrides it in place. Structs are deep-cloned so
-   *  the shared cache can't be mutated by the per-program `$default` merge or
-   *  asset inference. */
   mergePreludeContext(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "mergePreludeContext", uri);
@@ -5292,15 +3836,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "mergePreludeContext", uri);
   }
 
-  /** Merge the once-compiled builtins prelude's reactive Sparkle AST into
-   *  `program.sparkle` as the base layer, mirroring {@link mergePreludeContext}.
-   *  Runs before this file's own chunks populate `program.sparkle`, so an
-   *  authored `layout main` overrides the builtin `main` in place (Object.assign
-   *  on the same key keeps the builtin's earlier insertion order: loading, main,
-   *  …). Trees are deep-cloned so the shared cache can't be mutated by later
-   *  per-program work. Keeps the reactive AST channel a faithful superset of the
-   *  static `context.layout`/`context.component` channels (it must carry the
-   *  builtin `loading`/`main` layouts the reactive runtime renders). */
   mergePreludeSparkle(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "mergePreludeSparkle", uri);
@@ -5318,25 +3853,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "mergePreludeSparkle", uri);
   }
 
-  /** Report the two ways a builtin global's name breaks a story, in an
-   *  unseeded compile (the editor's), whose diagnostics are the ones an
-   *  author sees:
-   *
-   *  1. A top-level scene or function named after a builtin global. Its
-   *     only route is a bare `-> name`, which binds to the global's variable
-   *     in every compile; the seeded compile rejects the same flow as a
-   *     duplicate identifier when the prelude's own declaration resolves its
-   *     references, and the marker of an unseeded compile has no parsed node
-   *     to do that from, so the clash is reported here, on the name.
-   *  2. Every divert whose target resolved to such a global (recorded in
-   *     `Story.builtinGlobalDiverts` while the resolver resolves references,
-   *     so this runs after it). `-> game` binds to a table and fails when run,
-   *     whether it meant a scene, a branch, or a label of that name, and
-   *     whether the slot holds the prelude's marker or an authored override.
-   *
-   *  A branch or label is not reported for its name alone: one reached by its
-   *  qualified path (`-> start.world`), or never diverted to, is correct in
-   *  every compile, and the seeded compile says nothing about it. */
   protected reportBuiltinGlobalCollisions(
     parsedStory: Story,
     names: ReadonlySet<string>,
@@ -5344,12 +3860,6 @@ export class SparkdownCompiler {
     uri: string,
   ): void {
     const reported = new Set<string>();
-    // Stamps carry 1-based line and character numbers (see
-    // lower/utils/debugMetadata.ts), and getDiagnostic takes 0-based
-    // positions on both axes. A target identifier's stamp is the name itself
-    // and is used as is. A flow's stamp covers its declaration line (a scene)
-    // or its whole body (a function), so that range narrows to the name when
-    // the name is on the stamp's first line.
     const report = (
       message: string,
       dm: DebugMetadata | null | undefined,
@@ -5397,8 +3907,6 @@ export class SparkdownCompiler {
         program.diagnostics[diagUri].push(diagnostic);
       }
     };
-    // `content` rather than `subFlowsByName`: the map keeps one flow per
-    // name, and two scenes sharing a builtin's name should both be marked.
     for (const child of parsedStory.content ?? []) {
       if (child instanceof FlowBase) {
         const name = child.identifier?.name;
@@ -5413,8 +3921,6 @@ export class SparkdownCompiler {
       }
     }
     for (const { name, divert, warning } of parsedStory.builtinGlobalDiverts) {
-      // The divert's own position is inherited from its statement or scene;
-      // its first target identifier carries the name's position.
       const target = divert instanceof Divert ? divert.pathIdentifiers?.[0] : null;
       const stamped = target?.debugMetadata ?? null;
       report(
@@ -5446,9 +3952,6 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "populateAssets", uri);
     program.context ??= {};
-    // Only the project's files: the same name in another project, or in a
-    // folder the project leaves out, is neither in its context nor a
-    // collision.
     const files = this.projectFilesOf(uri);
     const rasterAliases = new Map<string, number>();
     for (const file of files) {
@@ -5456,13 +3959,6 @@ export class SparkdownCompiler {
         rasterAliases.set(file.name, (rasterAliases.get(file.name) ?? 0) + 1);
     }
     if (files) {
-      // Track the first file to claim each (type, name) so we can flag basename
-      // collisions among non-script assets. Asset names are a FLAT namespace
-      // within a project — scripts reference an asset by its bare name
-      // (`[[show image forest]]` -> context["image"].forest) — so two assets
-      // of one project sharing a (type, name) in different folders are
-      // ambiguous and one would silently win. Scripts are
-      // exempt: they're keyed/bundled by full path, not by a flat basename.
       const claimedBy = new Map<string, string>();
       const flaggedCollision = new Set<string>();
       for (const file of files) {
@@ -5470,9 +3966,6 @@ export class SparkdownCompiler {
         const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
         const rasterFolder = rasterPath.split("/").at(-2) ?? "";
         const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterFolder) !== undefined;
-        // Preserve existing numbered image names when unambiguous. Repeated
-        // layer names across portraits stay private to their folder instead
-        // of flooding the project with irrelevant flat-name collisions.
         if (rasterFile && !explicitRaster && rasterAliases.get(file.name)! > 1) continue;
         const type = file.type;
         const name = file.name;
@@ -5502,8 +3995,6 @@ export class SparkdownCompiler {
           }
         }
         program.context[type] ??= {};
-        // File names are dictionary keys, including names such as toString
-        // and __proto__. Never reuse or mutate an inherited native object.
         if (!Object.hasOwn(program.context[type], name)) {
           Object.defineProperty(program.context[type], name, {
             value: { $type: type, $name: name },
@@ -5517,18 +4008,15 @@ export class SparkdownCompiler {
           ? definitions[name]
           : undefined;
         const contextFile = program.context[type][name] || {};
-        // Set $type and $name
         if (contextFile["$type"] === undefined) {
           contextFile["$type"] = type;
         }
         if (contextFile["$name"] === undefined) {
           contextFile["$name"] = name;
         }
-        // Infer asset src if not defined
         if (definedFile?.["src"] === undefined) {
           contextFile["src"] = file["src"];
         }
-        // Infer font settings if not defined
         if (type === "font") {
           const [family, attrs] = name.split("__");
           if (definedFile?.["font_family"] === undefined) {
@@ -5573,15 +4061,9 @@ export class SparkdownCompiler {
         program.context[type][name] = { ...file, ...contextFile };
         delete program.context[type][name].text;
         if (this._config.stripImageData) {
-          // #299: hosts that resolve filtered images through the on-demand
-          // `?filters=` service-worker route don't need the inlined SVG
-          // source, which dominated the program payload. Only the context
-          // COPY is stripped — the file registry keeps the source.
           delete program.context[type][name].data;
         }
         if (explicitRaster) {
-          // The convention uses private references, but an authored override
-          // may name the original file or its complete, dotted filename stem.
           const filename = rasterPath.split("/").at(-1)!;
           const stem = filename.slice(0, -(file.ext.length + 1));
           if (stem !== name) {
@@ -5649,11 +4131,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateAssets", uri);
   }
 
-  /**
-   * Emit a basename-collision warning on `targetUri` (an asset file), pointing
-   * at `otherUri` which provides the same flat asset name. Keyed by the asset's
-   * own uri so the file manager can flag the offending files.
-   */
   protected pushAssetCollisionDiagnostic(
     program: SparkProgram,
     targetUri: string,
@@ -5684,10 +4161,6 @@ export class SparkdownCompiler {
     });
   }
 
-  /** The filtered image every SVG, inline-data or vocabulary-carrying image
-   *  implies, so it only displays default layers by default. Derived from the
-   *  project's files, so it is assembled with the shared base context (#654)
-   *  rather than per compile. */
   populateImplicitImageDefs(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateImplicitImageDefs", uri);
@@ -5713,11 +4186,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateImplicitImageDefs", uri);
   }
 
-  /** The filtered image an attribute directive such as `[[bunny:phone]]`
-   *  implies. Derived from scene content, so it is this compile's own: every
-   *  entry goes through `addImplicitDef`, which copies the type map out of the
-   *  shared base before writing, so a preview compile's speculative entry never
-   *  reaches the compile that follows it. */
   populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateImplicitDefs", uri);
@@ -5728,8 +4196,6 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.implicits.iter();
         while (cur.value) {
-          // Clause parsing can leave trailing whitespace in AssetCommandName.
-          // Normalize separators and trim each part without changing its order.
           const text = doc.read(cur.from, cur.to).trim();
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
@@ -5757,20 +4223,6 @@ export class SparkdownCompiler {
   ) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateDefinedDefaultProperties", uri);
-    // `define X as <type>` is inheritance: X must inherit <type>'s default
-    // property values. The type's effective default lives in context under the
-    // reserved `$default` name (the builtin placed by `populateBuiltins`,
-    // possibly overridden by an authored `define $default as <type>`). Deep-
-    // merge it UNDER every authored instance of that type so omitted (incl.
-    // nested) properties fall back to the default — e.g. an authored
-    // `define pan_right as animation with keyframes = {...}` (no `timing`
-    // block) inherits the animation type's `timing` (delay/duration/easing/
-    // fill/…), and a partial `timing = { duration = "3s" }` keeps the other
-    // timing fields instead of dropping them.
-    //
-    // (The legacy `state.defaultDefinitions` source for this merge was never
-    // populated anywhere, so this inheritance previously didn't happen and
-    // consumers had to re-specify type defaults themselves.)
     const context = program.context;
     if (context) {
       for (const structs of Object.values(context)) {
@@ -5779,9 +4231,6 @@ export class SparkdownCompiler {
           continue;
         }
         for (const [name, struct] of Object.entries(structs)) {
-          // Reserved meta entries ($default, $optional, $optional:<name>,
-          // $schema, $recursive, …) describe the type, not instances — never
-          // merge into them.
           if (name.startsWith("$")) {
             continue;
           }
@@ -5798,10 +4247,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateDefinedDefaultProperties", uri);
   }
 
-  /** Deep-merge `override` ONTO `base`: `override` wins, `base` fills gaps, and
-   *  nested plain objects merge recursively (arrays and primitives are replaced
-   *  wholesale by `override`). Used to inherit a type's `$default` into an
-   *  authored define without clobbering sibling fields of nested objects. */
   inheritDefaults(base: any, override: any): any {
     if (
       base == null ||
@@ -5814,20 +4259,10 @@ export class SparkdownCompiler {
       return override;
     }
     const result: Record<string, any> = {};
-    // Inherit `base`'s properties EXCEPT reserved `$`-prefixed metadata
-    // ($type / $name / $recursive / …). Those describe identity and type-level
-    // behavior and must come from the instance itself — leaking `$default`'s
-    // (e.g. `$recursive: true`, or `$name: "$default"`) onto every instance
-    // would corrupt them. The instance carries its own `$type`/`$name`, which
-    // the override pass below preserves.
     for (const [k, bv] of Object.entries(base)) {
       if (k.startsWith("$")) {
         continue;
       }
-      // Clone anything with identity. Handing out the `$default`'s own
-      // array/object would alias it across every define that inherits it —
-      // one instance mutating a nested field (or a consumer memoizing onto
-      // it) would rewrite the type default and every sibling along with it.
       result[k] =
         typeof bv === "object" && bv !== null ? structuredClone(bv) : bv;
     }
@@ -5854,7 +4289,6 @@ export class SparkdownCompiler {
     structType: string,
     structProperty: string,
   ) {
-    // Use the default property value specified in $default and $optional to infer main type
     const recursive =
       program.context?.[structType]?.["$default"]?.["$recursive"];
     const propertyPath =
@@ -5963,7 +4397,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateSyntax", uri);
   }
 
-  /** Static artwork warnings belong to assets; selection warnings belong to scripts. */
   validateImageAttributes(program: SparkProgram) {
     if (!program.context) return;
     const artworkUri = (image: any, path?: string): string | undefined => {
@@ -5976,8 +4409,6 @@ export class SparkdownCompiler {
     };
     const artworkEmitted = new Set<string>();
     const assetRange = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
-    // Where each named look is declared, in script order, so a circular chain
-    // can be reported at the declaration that closes it.
     const lookDeclarations = new Map<any, { uri: string; order: number; from: number; to: number }>();
     for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
       const resolved = resolveImageAttributes(program.context, image);
@@ -6044,8 +4475,6 @@ export class SparkdownCompiler {
       const declarations = annotations.declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          // A define's context type is the name after `as`, so a character
-          // or any other define sharing an image's name is not that image.
           let header: SyntaxNode | null = tree?.resolveInner(declarations.from, 1) ?? null;
           while (header && header.name !== "LuauDefineNameAndInheritance") header = header.parent;
           const typeNode = header ? getDescendent("LuauDefineParentName", header) : undefined;
@@ -6062,9 +4491,6 @@ export class SparkdownCompiler {
         declarations.next();
       }
     }
-    // Every look in a loop reaches it, as does every look leading into it, so
-    // each loop is reported once, at its last declared look: the declaration
-    // whose `image` turns the chain back on itself.
     const reportedCycles = new Set<any>();
     for (const look of Object.values(program.context["filtered_image"] ?? {})) {
       const cycle = resolveImageAttributes(program.context, look, { visibility: false }).cycle;
@@ -6096,13 +4522,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * The program's scripts that can declare a morph, in the form the morph
-   * readers take. A morph block starts with the word `morph`, so a script
-   * whose text never contains it is skipped before its tree is walked: on a
-   * project the size of Raffles and Bunny the walk costs tens of
-   * milliseconds per compile, and almost every script has no morph.
-   */
   protected morphScripts(program: SparkProgram): (MorphScript & { uri: string })[] {
     const scripts: (MorphScript & { uri: string })[] = [];
     for (const scriptUri of Object.keys(program.scripts)) {
@@ -6120,12 +4539,6 @@ export class SparkdownCompiler {
     return scripts;
   }
 
-  /**
-   * The morph channel: each morph's recipe and the compact reference of every
-   * image variant it plays on. Built on every compile, validated or not,
-   * because hosts that skip validation still play morphs. A compile whose
-   * context and recipes are those of the one before reuses its channel.
-   */
   populateMorphChannel(program: SparkProgram) {
     if (!program.context) return;
     const uri = program.uri;
@@ -6152,7 +4565,6 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateMorphChannel", uri);
   }
 
-  /** Morph declarations are checked after inheritance, against the artwork. */
   validateMorphs(program: SparkProgram) {
     if (!program.context) return;
     const uri = program.uri;
@@ -6196,18 +4608,10 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateMorphs", uri);
   }
 
-  /** Luau lints (unused locals, unreachable code, repeated conditions,
-   *  suspicious numeric `for` ranges, reads of the placeholder `_`, locals
-   *  hiding another variable, functions nothing uses, locals read without a
-   *  value, value lists that do not match their names, functions defined
-   *  twice, names declared twice in one list); see
-   *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);
     const scripts: ({ uri: string } & Pick<LuauScriptLints, "names" | "globalShadows" | "uncertainGlobalUses" | "outermostLocals" | "mentionsUnplaced" | "mentionsUnplacedVariable" | "misreadStatements" | "topLevelMembers">)[] = [];
-    // Each script's lints, its own and the program-wide rules', reported in
-    // source order as Luau sorts its warnings.
     const lints = new Map<string, LuauLint[]>();
     const report = (scriptUri: string, lint: LuauLint) => {
       let list = lints.get(scriptUri);
@@ -6227,9 +4631,6 @@ export class SparkdownCompiler {
       for (const lint of script.lints) report(scriptUri, lint);
     }
     const names = indexProgramNames(scripts);
-    // Program-wide rules rerun on every compile over the cached facts. The
-    // prelude's own compile, which seeds the prelude's globals, has none (its
-    // script's version is 0, so presence is tested, not the version).
     if (!(BUILTINS_PRELUDE_URI in program.scripts)) {
       const builtins = lintBuiltinNames();
       for (const { uri: scriptUri, lint } of lintBuiltinGlobalWrites(names)) report(scriptUri, lint);
@@ -6253,17 +4654,12 @@ export class SparkdownCompiler {
       if (!doc) continue;
       list.sort((a, b) => a.from - b.from || a.to - b.to);
       for (const lint of list) {
-        // A deprecation is Information tagged Deprecated, as the compiler
-        // reports `table.getn` (`validateStdLibDeprecation`).
         const deprecated = lint.code === "DeprecatedApi";
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
           severity: deprecated ? DiagnosticSeverity.Information : DiagnosticSeverity.Warning,
           ...(deprecated ? { tags: [DiagnosticTag.Deprecated] } : {}),
-          // TableLiteral quotes the author's own text, a table's string key,
-          // which markdown would read as markup (`'<b>*x*</b>'`); the other
-          // rules quote only names.
           message: { kind: lint.code === "TableLiteral" ? "plaintext" : "markdown", value: lint.message },
           source: LANGUAGE_NAME,
         });
@@ -6273,21 +4669,6 @@ export class SparkdownCompiler {
     return names;
   }
 
-  /**
-   * Reports a story `store` declaration's syntax errors as Luau reads the
-   * declaration alone, in Luau's words at Luau's range (`storeSyntaxErrors`,
-   * I-1370), but each error another reporter already reported in the
-   * declaration's span: at the same token, or in the same words (I-1452).
-   * The type checker leaves a store's errors to Sparkdown, which reports what the tree
-   * marks missing or unread, in its own words and ranges; a store's errors
-   * have one owner, as a story statement's do (#931, #1907), and Luau's
-   * reading is theirs where Sparkdown's syntax reads the value token by token
-   * and reports nothing (`store t = {1 2}`). A backtick string's own
-   * errors (`LuauSyntaxError.ofString`) are reported whatever else is: the
-   * store's reading is their one owner (I-1435). A story `local` whose line
-   * runs on into story (`local a = 1 2`) reports the errors of that story
-   * the same way, which no statement of Luau's there reports (I-1424).
-   */
   validateStores(program: SparkProgram) {
     for (const scriptUri of Object.keys(program.scripts)) {
       if (scriptUri === BUILTINS_PRELUDE_URI || isLuauDocument(scriptUri)) continue;
@@ -6306,11 +4687,6 @@ export class SparkdownCompiler {
       );
       const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
-        // The declaration's span: from its line's indent, where a report of
-        // the statement may begin (`reportCompileThrow`), to where the
-        // reading of its line stops, the end of the story it runs on into.
-        // A declaration the tree ends with its line break ends on the line
-        // before it.
         const { from, to, readTo } = declaration;
         const last = to > from && doc.read(to - 1, to) === "\n" ? to - 1 : to;
         const lineStart = doc.offsetAt({ line: doc.positionAt(from).line, character: 0 });
@@ -6320,16 +4696,6 @@ export class SparkdownCompiler {
           const at = offsetOf(d.range.start);
           return at >= spanFrom && at <= spanTo;
         });
-        // A report in the span that copies an error the reading finds (its
-        // start and words) is that error's report alone. A report in other
-        // words is its reporter's report of what the reading finds at its
-        // token (an overlapping range, or the opener a missing closer's
-        // error names), all of it, as Sparkdown reads the construct its own
-        // way. A report at no error the reading finds is the report of one
-        // in its words (Sparkdown's own words may leave out Luau's `, got
-        // ...`). A report of the whole statement (a compile that stopped at
-        // it) is at no one token. Only the errors no report accounts for
-        // are left to report (I-1452).
         const spanOf = (range: Range) => {
           const start = offsetOf(range.start);
           return { start, end: Math.max(offsetOf(range.end), start + 1) };
@@ -6339,9 +4705,6 @@ export class SparkdownCompiler {
           const y = spanOf(b);
           return x.start < y.end && y.start < x.end;
         };
-        // A report of the statement begins at or before the declaration's
-        // first token (its line's start, or the token itself, leaving the
-        // indent out, as `statementSource` does) and runs to its end.
         const firstToken = from + (/^\s*/.exec(doc.read(from, last))?.[0].length ?? 0);
         const ofStatement = (d: SparkDiagnostic) => {
           const report = spanOf(d.range);
@@ -6369,7 +4732,6 @@ export class SparkdownCompiler {
           if (error) accounted.add(error);
         }
         for (const error of reported) {
-          // A backtick string's own error has no other reporter (I-1435).
           if (accounted.has(error) && !error.ofString) continue;
           diagnostics.push({
             range: { start: error.start, end: error.end },
@@ -6383,18 +4745,9 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Type checks the Luau of every script in the program and reports what the
-   * checker finds as warnings, and a type Luau's parser cannot read as an
-   * error. The project's mode is `config.typecheck.mode` ("nonstrict" unless
-   * a define changes it); a `.sd` file's `typecheck:` front matter field
-   * overrides it for that file, and a `.luau` file's own `--!` first line does
-   * for that file.
-   */
   validateTypes(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateTypes", uri);
-    // Plain text: a type's printed form (`<T>(T) -> T`, `*error-type*`) is not markdown.
     const report = (scriptUri: string, range: Range, code: string, message: string, severity: DiagnosticSeverity = DiagnosticSeverity.Warning) => {
       ((program.diagnostics ??= {})[scriptUri] ??= []).push({
         range,
@@ -6413,7 +4766,6 @@ export class SparkdownCompiler {
       if (mode !== undefined) {
         projectMode = mode;
       } else {
-        // Point at the define that sets it.
         const message = unknownModeMessage(String(configured));
         let placed = false;
         for (const scriptUri of userScripts) {
@@ -6442,13 +4794,6 @@ export class SparkdownCompiler {
         if (fileMode !== undefined) mode = fileMode;
         else report(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
       }
-      // A name Sparkdown's own resolver cannot find is already reported there,
-      // and so is a token Sparkdown already reports an error at. A syntax
-      // error of Luau's reading is Luau's own, in its words at its range, so
-      // Sparkdown's report of the same error where its range meets the
-      // reading's gives way to it; a different one at the reading's token (a
-      // Sparkdown limitation such as a 64-bit integer literal) keeps the
-      // token.
       const unresolved: { name: string; range: Range }[] = [];
       const errors: SparkDiagnostic[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
@@ -6464,13 +4809,8 @@ export class SparkdownCompiler {
         }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
-      // A syntax error's range ends with the token the reading found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
       const messageOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
-      // Two ranges meet where either holds the other's start, or the
-      // reading's token (an error at `<eof>` ends at the next line's start),
-      // or where only space lies between them (a comma Sparkdown marks and
-      // the token after it that Luau names).
       const meets = (e: Range, d: { start: Range["start"]; end: Range["end"] }) => {
         if (rangeContains(e, d.start) || rangeContains(e, tokenOf(d)) || rangeContains(d, e.start)) return true;
         const from = doc.offsetAt(e.end);
@@ -6490,8 +4830,6 @@ export class SparkdownCompiler {
       }
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        // A backtick string's own error has no other reporter, whatever
-        // Sparkdown reports over its token (I-1435).
         if (d.syntax && !d.ofString && !replacing.has(d) && errors.some((e) => !replaced.has(e) && rangeContains(e.range, tokenOf(d)))) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
@@ -6501,14 +4839,8 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateTypes", uri);
   }
 
-  /**
-   * The names Luau code may use without declaring them: every name the
-   * program declares in Sparkdown, and the namespaces Sparkdown's runtime
-   * adds to Luau's standard library.
-   */
   protected typecheckGlobalNames(program: SparkProgram): string[] {
     const names: string[] = [];
-    // A census entry is `<uri>|<kind>:<name>`.
     for (const entry of this._censusEntries ?? []) names.push(entry.slice(entry.indexOf(":", entry.indexOf("|")) + 1));
     for (const [type, structs] of Object.entries(program.context ?? {})) {
       names.push(type);
@@ -6523,7 +4855,6 @@ export class SparkdownCompiler {
     return names.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
   }
 
-  /** The type checker's counts of the units the last compile checked and reused. */
   get typecheckStats() {
     return this._typechecker.stats;
   }
@@ -6531,10 +4862,6 @@ export class SparkdownCompiler {
   validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
-    // A typed define can itself be a parent without having a $default entry.
-    // Collect declarations across the participating scripts, not context keys:
-    // context also contains file-derived assets and unrelated builtin values.
-    // Rebuild per compile so included-file edits cannot leave stale names.
     const declaredParentTypes = new Set<string>();
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
@@ -6544,9 +4871,6 @@ export class SparkdownCompiler {
         .annotations(scriptUri).declarations.iter();
       while (declarations.value) {
         if (declarations.value.type === "define") {
-          // The declaration channel also labels structural style/screen/etc.
-          // instances as "define". Only an OOP define's own header introduces
-          // a parent type; an enclosing define body is not sufficient.
           let header = tree.resolveInner(declarations.from, 1).parent;
           while (header && header.name !== "LuauDefineNameAndInheritance") {
             header = header.parent;
@@ -6558,25 +4882,11 @@ export class SparkdownCompiler {
         declarations.next();
       }
     }
-    // Whole-program set of top-level callables a Sparkle `@event` handler ref
-    // can target — mirrors the runtime's story.HasFunction (top-level functions
-    // + knots + scenes). Built across ALL scripts so a handler defined in an
-    // included file isn't falsely flagged. Stdlib names are intentionally NOT
-    // included: they aren't runtime knots, so a bare `@click=print` never fires.
     const handlerCallables = new Set<string>([
       ...Object.keys(program.functionLocations ?? {}),
       ...Object.keys(program.sceneLocations ?? {}),
       ...Object.keys(program.knotLocations ?? {}),
     ]);
-    // Per-COMPILE memos. Both of these are pure functions of the reference's
-    // `declaration` plus `program`/`config`/`state`, all of which are fixed
-    // for the duration of this call — but they were being recomputed once per
-    // reference, and a screenplay repeats the same declaration across
-    // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
-    // to this call deliberately: nothing here survives to the next compile,
-    // so there is no staleness surface.
-    // A declaration is an object, so it needs a key built from its fields;
-    // stringifying it directly would collapse every declaration onto one entry.
     const declarationCacheKey = (declaration: SparkDeclaration | undefined) =>
       declaration
         ? [
@@ -6588,20 +4898,11 @@ export class SparkdownCompiler {
         : "";
     const stringIdentifiersByDeclaration = new Map<string, string[]>();
     const selectorTypesByDeclaration = new Map<string, string[]>();
-    // A `[[show/hide/animate <layer> …]]` target names an ELEMENT in the
-    // mounted UI tree, which the engine looks up by name with
-    // `UIModule.findElements` — it is not a `define`d struct, so selector
-    // resolution can never find one. Validate those names against the elements
-    // the layouts actually declare instead. Built lazily because a script with
-    // no such command never needs it.
     let layerNames: Set<string> | undefined;
     const namesLayoutElement = (selector: SparkSelector | undefined) => {
       if (selector?.displayType !== "layer" || !selector.name) {
         return false;
       }
-      // A target may end in `#n` to pick one instance out of several. The
-      // engine reads that as an index and matches nothing at all unless it is a
-      // non-negative integer, so anything else has to stay a diagnostic.
       const [name, instance, ...rest] = selector.name.split("#");
       if (
         rest.length > 0 ||
@@ -6627,9 +4928,6 @@ export class SparkdownCompiler {
       }
       return cached;
     };
-    // Same per-compile scope, for the selector resolution itself. The key
-    // covers every field of `SparkSelector` — an incomplete key would resolve
-    // one selector to another's struct.
     const resolvedSelectors = new Map<string, any>();
     const resolveSelectorMemo = (
       selector: SparkSelector,
@@ -6671,9 +4969,6 @@ export class SparkdownCompiler {
       }
       return cached;
     };
-    // What a reference's validation reads of the context by name or by type,
-    // which a change to the context's layer is checked against
-    // (`ReferenceValidationCache`). Everything else it reads is compared whole.
     type Reads = { keys?: Set<string>; types?: Set<string> };
     const readKey = (reads: Reads, type: string, name: string) => {
       (reads.keys ??= new Set()).add(`${type}/${name}`);
@@ -6681,16 +4976,12 @@ export class SparkdownCompiler {
     const readType = (reads: Reads, type: string) => {
       (reads.types ??= new Set()).add(type);
     };
-    // `collectLayerNames` reads the layout, component and config tables.
     const readsLayout = (reads: Reads) => {
       readType(reads, "layout");
       readType(reads, "component");
       readType(reads, "config");
       return true;
     };
-    // `resolveSelector` looks a named selector up as `type/name`, then as the
-    // path `type.name`, whose first step is `type/<first segment>`. An empty
-    // segment searches the whole table, and so does a selector without a name.
     const readSelector = (
       reads: Reads,
       selector: SparkSelector,
@@ -6711,8 +5002,6 @@ export class SparkdownCompiler {
         }
       }
     };
-    // Validates the reference at `[from, to)`, adding what it reports to
-    // `outcomes` at offsets relative to `offset`.
     const check = (
       reference: Reference,
       from: number,
@@ -6729,8 +5018,6 @@ export class SparkdownCompiler {
         });
       };
       if (reference.usage === "handler") {
-        // A Sparkle `@event=handler` that names a function/knot the runtime
-        // can't invoke — warn (it silently never fires). See ReferenceAnnotator.
         const name = reference.symbolIds?.[0];
         if (name && !handlerCallables.has(name)) {
           report(
@@ -6741,11 +5028,6 @@ export class SparkdownCompiler {
         return;
       }
       if (reference.asset) {
-        // A define property's value naming an asset. A bare name the
-        // program declares as an asset of any of its types resolves, so the
-        // resolver's report that no variable has that name does not hold; a
-        // bare name declared nowhere keeps that report. A typed name must be
-        // declared under its type.
         const { types, name, typed } = reference.asset;
         const declared = types.some((type) => {
           readKey(reads, type, name);
@@ -6782,7 +5064,6 @@ export class SparkdownCompiler {
           outcomes.push({ from: from - offset, to: to - offset, color: true });
         }
         const selector = reference.selectors?.[0];
-        // Validate that reference resolves to existing an struct
         let found: any = undefined;
         for (const s of reference.selectors) {
           readSelector(reads, s, expectedSelectorTypes);
@@ -6796,9 +5077,7 @@ export class SparkdownCompiler {
           selector?.name &&
           possibleStringIdentifiers.includes(selector?.name)
         ) {
-          // Valid styling string identifier
         } else if (found) {
-          // Validate that resolved reference matches expected type
           if (
             expectedSelectorTypes &&
             expectedSelectorTypes.length > 0 &&
@@ -6806,7 +5085,6 @@ export class SparkdownCompiler {
             "$type" in found &&
             !expectedSelectorTypes.includes(found.$type)
           ) {
-            // Report type mismatch error
             report(
               DiagnosticSeverity.Warning,
               `Type '${found.$type}' is not assignable to type ${formatList(
@@ -6814,8 +5092,6 @@ export class SparkdownCompiler {
               )}`,
             );
           }
-          // An image command's name may be an image or a video; a name that
-          // is both leaves the command unable to tell which to display.
           const name = selector?.name;
           if (
             name &&
@@ -6833,14 +5109,11 @@ export class SparkdownCompiler {
             );
           }
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
-          // Valid layer: an element declared in the UI tree
         } else if (
           reference.declaration === "define_type_name" &&
           selector?.types?.some((type) => declaredParentTypes.has(type))
         ) {
-          // Valid declared parent; navigation still uses $default when present.
         } else {
-          // Report missing error
           const validDescription =
             selector && (selector.displayName || selector.name)
               ? selector.displayType
@@ -6880,7 +5153,6 @@ export class SparkdownCompiler {
         const structName = declaration?.name || "$default";
         const structProperty = declaration?.property;
         if (structType && structProperty) {
-          // Validate struct property types
           readKey(reads, structType, structName);
           const struct = getContextEntry(program.context, structType, structName);
           if (struct) {
@@ -6918,9 +5190,6 @@ export class SparkdownCompiler {
         }
       }
     };
-    // A preview compile neither reads nor keeps chunks' outcomes: what it
-    // validates is text the rollback takes back, and the blocks it lowers
-    // are never seen again (`previewCompile`).
     const cache = this._previewing
       ? undefined
       : (this._referenceCache ??= new ReferenceValidationCache());
@@ -6994,9 +5263,6 @@ export class SparkdownCompiler {
         }
       };
       let cur = annotations.references.iter();
-      // Reports every reference that starts before `end`, from the outcomes
-      // kept for its annotation when they still hold, and returns how many
-      // there were.
       const validateUntil = (
         end: number,
         offset: number,
@@ -7041,9 +5307,6 @@ export class SparkdownCompiler {
         const block = chunks.value.type as object;
         const from = chunks.from;
         const to = chunks.to;
-        // References outside every chunk belong to no block that could serve
-        // them whole, so they are visited on every compile, and each is served
-        // from its own annotation's outcomes when those still hold.
         const loose: ReferenceOutcome[] = [];
         validateUntil(from, 0, loose, {});
         emit(loose, 0);
@@ -7051,8 +5314,6 @@ export class SparkdownCompiler {
         if (kept && kept.length === to - from) {
           stats.chunksServed += 1;
           emit(kept.outcomes, from);
-          // Seek past the chunk rather than stepping over its references one
-          // by one, once there are enough of them to be worth a seek.
           if (kept.references >= 16) {
             cur = annotations.references.iter(to);
           }
@@ -7114,8 +5375,6 @@ export class SparkdownCompiler {
     tags?: number[],
   ): SparkDiagnostic | null {
     if (startCharacter < 0) {
-      // This error is occurring in a part of the script that was automatically added during transpilation
-      // Assume it will be properly reported elsewhere and do not report it here.
       console.warn(
         "HIDDEN",
         message,
@@ -7132,7 +5391,6 @@ export class SparkdownCompiler {
       startLine > endLine ||
       (startLine === endLine && startCharacter > endCharacter)
     ) {
-      // This error range is invalid.
       console.warn(
         "HIDDEN",
         message,

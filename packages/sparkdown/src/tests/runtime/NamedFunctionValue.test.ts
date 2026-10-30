@@ -1,8 +1,3 @@
-// A function expression takes no name in Luau, so a named function in a value
-// position (`store g = function named() ... end`) is a parse error at the
-// name. The compiler reports it there and still lowers the function as a
-// value, so the rest of the story compiles.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -12,7 +7,6 @@ import {
 
 const MESSAGE = "Expected '(' when parsing function, got 'named'";
 
-// The ranges of every error the compiler reports for `source`.
 function errorRanges(source: string): unknown[] {
   const uri = "inmemory:///main.sd";
   const compiler = new SparkdownCompiler();

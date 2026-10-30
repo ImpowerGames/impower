@@ -1,20 +1,6 @@
-// #637 — every line origin/main's preview reaches is reached, showing either
-// the value the program's own run gives or, where the search that follows the
-// program falls back (`planRoute`), the value origin/main's route gives. A
-// route that forces a loop's exit at its first test, because the routes that
-// run the loop's menus spend the search's levels first, shows origin/main's
-// value too: origin/main's route leaves every such loop there.
-//
-// What origin/main's preview shows for each script (routeReachesCases.ts) is
-// a literal, read by running the same scripts on origin/main 8e2ef08ec's
-// sources: an oracle that ran this branch's engine could not see a difference
-// in the engine itself.
-
 import { describe, expect, test } from "vitest";
 import { CASES, compileSrc, preview } from "./routeReachesCases";
 
-/** Whether origin/main's preview reaches each script's line, and the value it
- *  shows there. */
 const MAIN: Record<string, { reached: boolean; value: number }> = {
   "a while loop inside a called function": { reached: true, value: 0 },
   "a loop of 600 menus": { reached: true, value: 0 },

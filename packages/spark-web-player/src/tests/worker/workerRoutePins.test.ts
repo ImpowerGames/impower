@@ -1,9 +1,3 @@
-// #1657 — the host's pins reach the worker's games, and the line the preview
-// shows is shown again by the route the pins make: pinning an option there
-// takes it, and clearing the pins goes back to the route the search chooses.
-// The line on screen does not move when the pins change, so the display that
-// follows is a first display of it, which reports its route, never a repeat
-// of the one on screen. A suggestion on screen is drawn again the same way.
 import { SetRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
@@ -27,9 +21,6 @@ const lineOf = (text: string) =>
 const TARGET = lineOf("Trust is");
 const LIE = lineOf("[Lie.]");
 
-/** The route the worker's game reports for its display (`game/executed`),
- *  as each choice's kind and text, and the store it holds once the display
- *  is done. */
 const shown = (h: any) => {
   const game = h.workerState.gameState.game;
   return {
@@ -48,8 +39,6 @@ const setPins = async (h: any, pins: { uri: string; line: number; offer: number 
   await settle(40);
 };
 
-/** A menu whose options each show a beat of their own, then a beat both
- *  reach. */
 const BRANCHES = `store trust = 0
 
 scene interrogation

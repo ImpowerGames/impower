@@ -1,6 +1,3 @@
-// A `store` with more names than values (#1325, #1920): a name with no value
-// holds nil, and a call as the last value gives the names after it its
-// further values, as Luau's `local a, b = f()` does, evaluating the call once.
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -67,8 +64,6 @@ describe("a store with more names than values", () => {
     ).toEqual(["Value 1 and 10 after 1 call.\n"]);
   });
 
-  // Luau evaluates every value of a declaration, in order, and drops the
-  // ones after the last name (#1333).
   describe("evaluates the values after the last name", () => {
     const BUMP = [
       "store calls = 0",
@@ -124,8 +119,6 @@ describe("a store with more names than values", () => {
     });
   });
 
-  // A store's values run when the story starts, outside any function, so
-  // its `...` has no values to give the names after it.
   it("reports a `...` that would give the names after it its further values", () => {
     const { program } = compileScript(shown("store a, b = ...", "Value {a} and {b}."));
     expect(errorsOf(program)).toContainEqual([

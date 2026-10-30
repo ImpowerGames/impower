@@ -1,32 +1,3 @@
-// The cumulative randomized-edit run on the statement chunks (#1917), as the
-// "randomized incremental edits on the statement chunks" block of
-// `programDifferential.test.ts` ran it before #705 deleted that file with the
-// object engine (2a940a750): many edits through one compiler, over six
-// screenplays made of the constructs the writer emits (display lines, logic,
-// functions, functions that capture the locals around them, flow, and
-// `choose` blocks). After each edit, the chunks compared by content (with
-// their flows) and the diagnostics equal a cold compile's, and every chunk of
-// a statement the edit did not touch is the chunk it was before. The
-// two-engine comparison and the whole-project run of that file stay deleted.
-//
-// It is the run the second acceptance criterion of #1893 reads as. Its seeds
-// are the deleted run's (`0x51ed694 + index` per screenplay, and 12345 and
-// 99991 for the function screenplay) and every seed a sub-issue of #1893
-// names for a cumulative run on these screenplays and their inserts (listed
-// with `SCREENPLAYS`), and the seed 77 sequence of #1846 on the cumulative
-// oracle's fixture, with its inserts and the edit it makes and takes back.
-// The seeds the sub-issues found with inserts of their own, which no file
-// holds, are left out: flow 2, 6 and 9 (#1628, single edits), capture 4
-// (#1613) and choose 1 with fallback inserts (#1632); choose 1 runs with the
-// screenplay's inserts. A seed that still fails is kept and skipped, naming
-// the Bug filed for it: flow 3 (#1934).
-//
-// The full run takes about ten seconds a seed, too long for the Test Suite
-// workflow's sparkdown shards, so the suite runs a short form: the deleted
-// run's seed of each screenplay for its first `SHORT_EDITS` edits. The full
-// run, every seed for 120 edits and #1846's sequence through edit 99, runs
-// alone:
-//   SPARKDOWN_CUMULATIVE=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/program/programCumulativeEdits.test.ts --wait 1800
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -54,7 +25,6 @@ const silence = () => {
   };
 };
 
-// The display screenplay's edits.
 const INSERTS = [
   "x",
   "\n",
@@ -100,9 +70,6 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
-/** What an incremental compile and a cold compile of the same text must
- *  agree on: its chunks by content (with its flows), or none when the
- *  compile reported an error that stops them, and its diagnostics. */
 const surface = (program: SparkProgram) => ({
   chunks: program.chunks ? describeRoot(program.chunks) : null,
   diagnostics: stable(program.diagnostics ?? {}),
@@ -120,10 +87,6 @@ const coldSurface = (text: string) => {
 
 type Surface = ReturnType<typeof surface>;
 
-/** The first thing `field` of an incremental compile's surface holds that a
- *  cold compile's does not, or the other way round, as the failure reports
- *  it: a diagnostic by its line, column and message, a chunk by the first
- *  line of `describeRoot` that differs. */
 function firstDifference(incremental: Surface, cold: Surface, field: keyof Surface): string {
   const entries = (s: Surface): string[] => {
     if (field === "diagnostics") {
@@ -149,11 +112,6 @@ function firstDifference(incremental: Surface, cold: Surface, field: keyof Surfa
   return `${field}: ${missing !== undefined ? `cold has ${cut(missing)}` : ""}${extra !== undefined && missing !== undefined ? ", " : ""}${extra !== undefined ? `incremental has ${cut(extra)}` : ""}`;
 }
 
-// The keys of the statements that stand once before an edit. A key holds how
-// the names of its statement resolved, which the parsed objects report only
-// until any compiler compiles again (`CompileEpoch.ts`), so the keys of a
-// compile, and the untouched statements found by them, are taken before the
-// cold compile it is compared with.
 const keysOf = (c: SparkdownCompiler) => uniqueKeys(programStatements(c));
 
 interface Edit {
@@ -162,8 +120,6 @@ interface Edit {
   insert: string;
 }
 
-/** One compiler over `text`, compiled once, that makes edits and compares
- *  each compile with a cold compile of the text it leaves. */
 function cumulativeSession(text: string) {
   const c = programCompiler({ [MAIN_URI]: text });
   c.compile();
@@ -171,11 +127,7 @@ function cumulativeSession(text: string) {
   let version = 1;
   const failures: string[] = [];
   let chunked = 0;
-  // The untouched statements the edits' checks covered.
   let checked = 0;
-  // Whether the compile before the edit built chunks of this text, so that
-  // its root is the one the edit's untouched statements keep their chunks
-  // from.
   let previousChunked = true;
   const update = ({ offset, end, insert }: Edit) => {
     version += 1;
@@ -198,8 +150,6 @@ function cumulativeSession(text: string) {
     get checked() {
       return checked;
     },
-    /** Makes `edit`, compiles, and records how the compile differs from a
-     *  cold one. Returns whether the program built its chunks. */
     edit(n: number, edit: Edit, deleted: number): boolean {
       const label = `#${n} insert=${JSON.stringify(edit.insert)} del=${deleted} @${edit.offset}`;
       const current = c.compiler.chunkStore?.current;
@@ -244,8 +194,6 @@ function cumulativeSession(text: string) {
       previousChunked = !!incremental.chunks;
       return !!incremental.chunks;
     },
-    /** Makes `edit` and compiles, then takes it back without compiling, so
-     *  that the next compile's previous root is not of the text it edits. */
     editAndTakeBack(edit: Edit): void {
       const taken = text.slice(edit.offset, edit.end);
       update(edit);
@@ -257,31 +205,17 @@ function cumulativeSession(text: string) {
   };
 }
 
-// The screenplays the randomized edits run on, each with its edits and the
-// seeds besides the deleted run's `0x51ed694 + index`.
 const SCREENPLAYS = [
   { name: "display", text: displayScreenplay, inserts: INSERTS, seeds: [] },
-  // 5: a diagnostic's end column kept from before the edit (#1613).
   { name: "logic", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS, seeds: [5] },
-  // 12345 and 99991: statements an edit moved past the ones keeping their
-  // chunks (#1221). 1, 3 and 4: #1623. 3: a call's arguments carried with a
-  // line they no longer read (#1614). 4, 6 and 10: #1613. 12: #1627, and its
-  // edits #27 and #117 emitted an untouched `do` block's and `function
-  // inner()`'s chunks again (#1933).
   {
     name: "function",
     text: () => functionScreenplay(3),
     inserts: FUNCTION_INSERTS,
     seeds: [12345, 99991, 1, 3, 4, 6, 10, 12],
   },
-  // 2: #1613. 7: #1614's string case.
   { name: "capture", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS, seeds: [2, 7] },
-  // 3: #1611's inline alternator case; its edits #70 and #102, a branch
-  // named as a label, also #1934.
   { name: "flow", text: () => flowScreenplay(3), inserts: FLOW_INSERTS, seeds: [3] },
-  // 1, 2, 8, 9 and 10: chunks kept or dropped past a change to the
-  // anonymous symbols they read (#1611; 1 also #1632). 3: a `<` kept as text
-  // above a `>` an edit adds (#1614).
   {
     name: "choose",
     text: () => chooseScreenplay(3),
@@ -292,17 +226,10 @@ const SCREENPLAYS = [
 
 const FULL = process.env["SPARKDOWN_CUMULATIVE"] === "1";
 const EDITS = 120;
-// The short form's edits per seed, which keep the suite's file at about
-// twenty seconds.
 const SHORT_EDITS = 30;
 
 describe("cumulative randomized edits on the statement chunks", () => {
-  // Many edits through one compiler, each compared with a cold compile of
-  // the text it leaves. An edit after which the program built no chunks (a
-  // compile error stops them) is undone by the next edit (`cumulativeEdits`),
-  // so the run spends most of its edits on a program that has its chunks.
   const runs = SCREENPLAYS.flatMap((screenplay, index) =>
-    // A seed that still fails is `{ seed, skip }`.
     ([0x51ed694 + index, ...(FULL ? screenplay.seeds : [])] as (number | { seed: number; skip: string })[]).map((entry) =>
       typeof entry === "number"
         ? { screenplay, seed: entry, skip: undefined }
@@ -321,10 +248,7 @@ describe("cumulative randomized edits on the statement chunks", () => {
           edits.built(session.edit(n, edit, edit.deleted));
         }
         expect(session.failures, session.failures.join("\n")).toEqual([]);
-        // A run that never built chunks would pass the comparisons above
-        // without testing them.
         expect(session.chunked).toBeGreaterThan(count / 3);
-        // Every compile that built chunks checked some statement on average.
         expect(session.checked).toBeGreaterThan(session.chunked);
       } finally {
         quiet();
@@ -332,12 +256,6 @@ describe("cumulative randomized edits on the statement chunks", () => {
     }, 600_000);
   }
 
-  // #1846's sequence: seed 77's edits of the cumulative oracle's fixture,
-  // where edit 66 is made after a change compiled and taken back without a
-  // compile, which once lost the diagnostics of a `do` block served from its
-  // memo. The draws are the issue's, so that its edits are the ones it
-  // reported; the divergence it found lasted through edit 99. It runs in the
-  // full run only.
   it.runIf(FULL)("keeps the chunks of a cold compile through #1846's seed 77 sequence of the cumulative fixture", () => {
     const quiet = silence();
     try {
@@ -352,8 +270,6 @@ describe("cumulative randomized edits on the statement chunks", () => {
       const COUNT = 100;
       for (let n = 0; n < COUNT; n++) {
         const text = session.text;
-        // A name declared twice stops the cold compile resolving the rest of
-        // the script (#979), so each header takes a name of its own.
         const insert = INSERTS_1846[Math.floor(rand() * INSERTS_1846.length)]!.replace("define header", `define header_${n}`);
         const deleted = rand() < 0.4 ? Math.min(1 + Math.floor(rand() * 10), 16) : 0;
         const offset = Math.floor(rand() * text.length);

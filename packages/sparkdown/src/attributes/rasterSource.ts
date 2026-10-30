@@ -24,7 +24,6 @@ const rasterLayer = (file: File) => {
 
 export const isRasterLayerFile = (file: File): boolean => Boolean(rasterLayer(file));
 
-/** Assets are bottom-first; a lower export index paints above a higher one. */
 export const createRasterImageDefinitions = (files: readonly File[]) => {
   const folders = new Map<string, { file: File; layer: NonNullable<ReturnType<typeof rasterLayer>> }[]>();
   for (const file of files) {

@@ -26,23 +26,16 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
-  /** The box a beat that a `.. >` ended left for the next step to carry on
-   *  in. It is part of the saved state, so a checkpoint taken between the two
-   *  steps carries on in the same box when it is restored. */
   box?: ShownBox;
 }
 
-/** A dialogue cue as a beat shows it. */
 export interface Cue {
   name: string;
   parenthetical: string;
   position: string;
-  /** The character's identifier, whose settings type the text. */
   character?: string;
 }
 
-/** What a box shows: the text target, the cue over it (a dialogue box), and
- *  its text events, to be shown again at once. */
 export interface ShownBox {
   target: string;
   cue?: Cue;
@@ -58,16 +51,8 @@ export class InterpreterModule extends Module<
 > {
   MARKERS = ["^", "*", "_", "~~", "::"];
 
-  /** Control tags this interpreter acts on (see the Text Tag branch). */
   CONTROL_TAGS = ["speed", "pitch", "p", "wait", "w", "!", "/!"];
 
-  /**
-   * Tag names in parseRichText's vocabulary (ui/utils/parseRichText.ts), matched
-   * without case as it matches them. A line's text tag branch consumes these
-   * and the control tags, opening or closing, as it always has; any other
-   * closed `<...>` is not markup, so it stays on screen as written
-   * (`function: make.<anonymous>`).
-   */
   RICH_TEXT_TAGS = [
     "b",
     "i",
@@ -110,21 +95,10 @@ export class InterpreterModule extends Module<
     "load",
   ];
 
-  // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
-  // (openLayout/closeLayout/navigateScreen) instead of the image path. They reuse
-  // the asset clause parser (with/over/after/ease/wait) verbatim. `open`/`close`
-  // are overlay primitives; `navigate <container> to <screen>` routes WITHIN a
-  // container (close the open screens in that container, then open the target),
-  // leaving other containers / uncategorized screens untouched.
   LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate"];
 
-  // `[[load NAME…]]`: preload the named scenes (and worlds) behind the loading
-  // layout before the story goes on. Every `load` arrow lowers to this
-  // directive on its own line.
   LOAD_CONTROL_KEYWORDS = ["load"];
 
-  // `[[play NAME]]`: play the video NAME full screen as a cutscene. Inside
-  // `((…))` the same verb plays audio, so only the `[[…]]` branch reads this.
   MOVIE_CONTROL_KEYWORDS = ["play"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
@@ -147,39 +121,16 @@ export class InterpreterModule extends Module<
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
-  // A line of only `[[…]]` picture and `((…))` sound commands.
   ASSET_LINE_REGEX = /^[ \t]*(?:(?:\[\[.*?\]\]|\(\(.*?\)\))[ \t]*)+$/;
 
-  // Maps a directive marker → its target name (e.g. `"^" → "title"`), plus the
-  // empty-key default-target entry (`"" → "action"`). A beat's routing comes
-  // from its `display()` tables, so this map only resolves the DEFAULT target
-  // (`_targetPrefixMap[""]`).
   protected _targetPrefixMap: Record<string, string> = {};
 
   protected _characterNameMap: Record<string, string> = {};
 
-  // Memoize `Matcher`s by pattern string. `parse()` builds voiced/yelled/
-  // punctuated matchers from the (stable) typewriter config on EVERY call (per
-  // line + per phrase), and each `new Matcher` compiles a RegExp — a measurable
-  // per-beat cost in the display hot path. Keying by the pattern string keeps it
-  // correct across live-edits (a changed pattern is a new key, never stale).
   protected _matcherCache = new Map<string, Matcher>();
 
-  /** The routing of the last beat this RUN queued, and the glued continuation
-   *  whose table that beat carried (`group`), which is the only continuation
-   *  whose later beats may take this routing as their own.
-   *
-   *  It belongs to the run rather than to the story, so it is not part of the
-   *  saved state: a checkpoint holds what the story is, and two runs that
-   *  reach the same story position must save the same bytes, which is what
-   *  a resumed route is checked against (`routeResume.test.ts`). A run that
-   *  loads a checkpoint therefore remembers nothing, and a continuation's
-   *  beat reached that way routes by its own table, as one reached by a jump
-   *  does. */
   protected _routing?: { target: string; character?: string; group?: string };
 
-  /** Cached `Matcher` for a pattern; `undefined` for an absent/empty pattern
-   *  (matching the previous `pattern ? new Matcher(pattern) : undefined`). */
   protected getMatcher(pattern: string | undefined): Matcher | undefined {
     if (!pattern) {
       return undefined;
@@ -205,16 +156,7 @@ export class InterpreterModule extends Module<
   }
 
   override onProgramUpdate() {
-    // Re-derive the character-name / directive maps from the refreshed context
-    // so a live edit (e.g. removing a character's `name`) takes effect instead
-    // of resolving against the previous program's defines.
     this.setup();
-    // A continuation of the program just replaced is not a continuation of
-    // this one, however alike their sources are: an edit that keeps a line's
-    // length keeps its offsets too, so the name alone cannot tell them apart.
-    // Nor is the box a `.. >` of the replaced program left one this
-    // program's lines carry on in; a checkpoint loaded after the update
-    // brings back the box it was taken with.
     delete this._routing;
     delete this._state.box;
   }
@@ -223,8 +165,6 @@ export class InterpreterModule extends Module<
     this._characterNameMap = {};
     for (const [k, v] of Object.entries(this.context.character || {})) {
       const name = v.name;
-      // Only map a non-empty name → identifier; characters without a `name`
-      // inherit `name = ""` from the type default and must not register a "" key.
       if (typeof name === "string" && name) {
         this._characterNameMap[name] = k;
       }
@@ -237,19 +177,10 @@ export class InterpreterModule extends Module<
     }
   }
 
-  /**
-   * Coalesce character name into a valid identifier that can be used to lookup the character in context
-   * */
   getCharacterIdentifier(characterName: string): string {
     return getCharacterIdentifier(characterName);
   }
 
-  /**
-   * Merge a set of instructions into an existing set of instructions
-   * @param a the existing set of instructions
-   * @param b the instructions to merge into the existing set
-   * @param prefix If true, instructions will be prepended to the front of the sequence.
-   */
   merge(a: Instructions, b: Instructions, prefix = false): void {
     if (a.text || b.text) {
       a.text ??= {};
@@ -340,32 +271,18 @@ export class InterpreterModule extends Module<
     }
   }
 
-  /**
-   * A load beat of its own. While a box is waiting to be carried on in, the
-   * box stays on the page under the loading layout, with the pictures and the
-   * sound and voice it had.
-   */
   protected loadBeat(load: LoadInstruction[]): Instructions {
     const beat: Instructions = { load, end: 0 };
     if (this._state.box) beat.extended = {};
     return beat;
   }
 
-  /**
-   * A cutscene beat of its own, which leaves a box waiting to be carried on
-   * in on the page under the cutscene, as a load beat does.
-   */
   protected cutsceneBeat(cutscene: CutsceneInstruction): Instructions {
     const beat: Instructions = { cutscene: [cutscene], end: 0 };
     if (this._state.box) beat.extended = {};
     return beat;
   }
 
-  /**
-   * Resolve a dialogue cue declaration (`CHARACTER NAME (parenthetical) [>]`)
-   * into the name shown, its parenthetical, its position, and the character
-   * whose settings type the line.
-   */
   protected resolveCue(characterDeclaration: string): Cue {
     const match = characterDeclaration.match(this.CHARACTER_REGEX);
     const characterNameMatch = match?.[1] || "";
@@ -375,10 +292,6 @@ export class InterpreterModule extends Module<
     const characterId = this._characterNameMap[characterNameMatch] || "";
     const characterObj =
       characterMap?.[characterNameMatch] || characterMap?.[characterId];
-    // Fall back to the cue text when the character has no NON-EMPTY name:
-    // a character defined without a `name` inherits `name = ""` from the
-    // type default, so an empty string must be treated as absent (the same
-    // as an undefined character) rather than rendered as a blank speaker.
     const characterName =
       typeof characterObj?.name === "string" && characterObj.name
         ? characterObj.name
@@ -397,11 +310,6 @@ export class InterpreterModule extends Module<
     };
   }
 
-  /**
-   * The parenthetical on a line of its own before the first line of text, and
-   * the content without it. Only blank lines and lines of pictures and sound
-   * may come before it. Null when a line of text comes first.
-   */
   protected liftParenthetical(
     content: string,
   ): { parenthetical: string; rest: string } | null {
@@ -421,28 +329,6 @@ export class InterpreterModule extends Module<
     return null;
   }
 
-  /**
-   * Build a beat's instructions from an already-resolved target + optional
-   * dialogue cue + a final body string, and append them to the buffer: the
-   * cue resolution, the per-character `parse()`, the cue prefixing, and the
-   * empty-textbox fold. A `pause` beat waits for a click even with no text.
-   * Called by {@link queue}.
-   *
-   * While a box is waiting to be carried on in ({@link InterpreterState.box}),
-   * which {@link queue} keeps only for a line that begins with `..`, the
-   * first beat with text, or one a break ends, carries on in it: the box's
-   * text shown again at once, then this beat's text typed after it. The kind
-   * of box stays the one the box is. On a dialogue box, a cue on this beat
-   * names the speaker shown and the character whose settings type the text,
-   * and a parenthetical on its cue, or on a line of its own before its text,
-   * replaces the one shown; without them, the box's own stay. A beat with
-   * neither text nor a break (only pictures or sound) leaves the box waiting
-   * and on the page, with empty `extended` counts, unless its cue names a
-   * speaker for a dialogue box: then it carries on in the box too, so the new
-   * name shows over the box's text at the click.
-   * `extend` marks a beat a `.. >` ended: the box it shows is kept for the
-   * next step, with the `spaces` its table ends with, which join the two.
-   */
   protected appendBeat(
     target: string,
     characterDeclaration: string | undefined,
@@ -457,7 +343,6 @@ export class InterpreterModule extends Module<
     const ownCue = characterDeclaration
       ? this.resolveCue(characterDeclaration)
       : undefined;
-    // What this beat shows if it carries on in the box.
     let boxContent = content;
     let boxCue = box?.cue;
     let lifted: { parenthetical: string; rest: string } | null = null;
@@ -474,8 +359,6 @@ export class InterpreterModule extends Module<
       };
     }
     const boxTarget = box?.target ?? "";
-    // A continuation that names a speaker is typed with that speaker's
-    // settings, even in a box that shows no name.
     const typedBy = box?.cue ? boxCue : ownCue;
     const boxInstructions =
       box && (boxContent || pause || lifted)
@@ -484,8 +367,6 @@ export class InterpreterModule extends Module<
             position: typedBy?.position,
           })
         : undefined;
-    // A parenthetical of its own is shown in the box too, as a cue's is, and
-    // so is a speaker a beat of only pictures names.
     const carries = Boolean(
       box &&
         (boxInstructions?.text ||
@@ -517,19 +398,13 @@ export class InterpreterModule extends Module<
         );
       }
     }
-    // Queue content
     if (content || pause) {
-      // A beat that leaves the box waiting shows no text, so what it was
-      // parsed as for the box is what it shows.
       const contentInstructions =
         boxInstructions ?? this.parse(content, textTarget, options);
       if (pause && !contentInstructions.text) {
-        // A beat a `>` break ends waits for a click, so it shows its box even
-        // with no text to type.
         contentInstructions.text = { [textTarget]: [] };
       }
       if (carries && box) {
-        // The box's text shows again at once, ahead of what this beat types.
         const text = (contentInstructions.text ??= {});
         text[textTarget] = [...box.text, ...(text[textTarget] ?? [])];
         const extended: Record<string, number> = {
@@ -550,13 +425,10 @@ export class InterpreterModule extends Module<
         }
         contentInstructions.extended = extended;
       } else if (box) {
-        // A beat of only pictures or sound runs at the click and leaves the
-        // box on the page, still waiting for its text.
         contentInstructions.extended = {};
       }
       if (contentInstructions.text) {
         if (characterParentheticalInstructions) {
-          // prefix each textbox with character_parenthetical, if specified.
           this.merge(
             contentInstructions,
             characterParentheticalInstructions,
@@ -564,16 +436,9 @@ export class InterpreterModule extends Module<
           );
         }
         if (characterNameInstructions) {
-          // prefix each textbox with character_name, if specified.
           this.merge(contentInstructions, characterNameInstructions, true);
         }
       }
-      // A `[[load …]]` is always its own beat: the loading layout must never
-      // open over the line before it, and the beat advances by itself once
-      // loading is done. Whatever else the line carried is queued first.
-      // A `[[play …]]` cutscene is too: it covers the screen, and the beat
-      // advances by itself once the video has ended or been skipped. Each
-      // cutscene the line names plays in a beat of its own, after its loads.
       const loads = contentInstructions.load;
       delete contentInstructions.load;
       const cutscenes = contentInstructions.cutscene;
@@ -592,8 +457,6 @@ export class InterpreterModule extends Module<
           !lastTextbox?.load &&
           !lastTextbox?.cutscene
         ) {
-          // If previous textbox did not actually contain any text, fold this result into it.
-          // The merged beat is as much a part of the box as this one is.
           this.merge(lastTextbox, contentInstructions);
           if (contentInstructions.extended) {
             lastTextbox.extended = contentInstructions.extended;
@@ -601,7 +464,6 @@ export class InterpreterModule extends Module<
             delete lastTextbox.extended;
           }
         } else {
-          // Otherwise, add this result as a new textbox.
           this._state.buffer.push(contentInstructions);
         }
       }
@@ -612,8 +474,6 @@ export class InterpreterModule extends Module<
         this._state.buffer.push(this.cutsceneBeat(cutscene));
       }
       if (extend) {
-        // The next step carries on in this box: its text shown again at
-        // once, and the spaces the join keeps after it.
         const shown = (contentInstructions.text?.[textTarget] ?? []).map(
           (event) => {
             const copy = { ...event };
@@ -622,8 +482,6 @@ export class InterpreterModule extends Module<
             return copy;
           },
         );
-        // One event per space, as the text itself is written, so the page
-        // breaks words at them as it would in the same words shown at once.
         for (const space of extend.spaces) {
           shown.push({ control: "show", text: space });
         }
@@ -634,9 +492,7 @@ export class InterpreterModule extends Module<
       }
     }
     if (choices?.length > 0) {
-      // Choices end the box: what a choice leads to starts a new one.
       delete this._state.box;
-      // Show choices after last textbox is done typing.
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };
@@ -654,48 +510,10 @@ export class InterpreterModule extends Module<
     }
   }
 
-  /**
-   * Queue the beat of one story step: the step's `display(<table>)` tables,
-   * one {@link ObjectValue} per call the runtime made (collected via
-   * `story.currentDisplayInstructions`). Routing (`target`) and the dialogue
-   * cue (`character`) are table fields resolved at compile time.
-   *
-   * Table shape: `{ target?: string, character?: string, text: string,
-   * pause?: boolean, extend?: boolean, continues?: boolean, inherit?: boolean,
-   * group?: string, tags?: table }`, or `{ load: string }` for a `load` line,
-   * whose whitespace-separated names queue a load beat of their own. `pause`
-   * marks a beat a `>` break ends, which waits for a click even when it has no
-   * text, and `extend` one a `.. >` ends, whose box the next step carries on
-   * in when that step's first table is `continues`, a line that begins with
-   * `..` (see {@link appendBeat}). `group` names a glued continuation, and
-   * `inherit` marks its beats
-   * after one of its breaks: they take the routing of the beat the run joined
-   * the continuation to, which holds while the beat just queued carried the
-   * same `group`, and otherwise route by their own table, which names the
-   * line the source reads before the continuation.
-   *
-   * One step makes one beat. Several tables share a step only when glue joined
-   * their lines, and the body is the step's ordered visible text: every
-   * table's `text` and any flat string, in stream order. The first table that
-   * names a target supplies the routing. Tables without one (a glued
-   * continuation, an echoed choice, `print()`, an asset line) take the routing
-   * of the line they join. A step whose tables name no target, or that has
-   * flat text and no table at all, renders on the default target with no
-   * speaker.
-   *
-   * @param content the step's `story.currentText`.
-   */
   queue(tables: ObjectValue[], choices: string[], content: string): void {
     const read = (table: ObjectValue | undefined, key: string): unknown =>
       (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
     if (tables.some((table) => typeof read(table, "load") === "string")) {
-      // A `load` line is always a load beat of its own. A line that a divert
-      // or a picked choice holds open can reach the step ahead of it, and a
-      // divert on a `load` line can bring the next scene's `load` line into
-      // the same step. Walking the tables in order: text tables before the
-      // first load make a beat of their own, and each load takes the text
-      // tables after it, up to the next load, as more names (a glued
-      // continuation). The step's choices follow its last beat.
       const tableText = (table: ObjectValue) => {
         const text = read(table, "text");
         return typeof text === "string" ? text : "";
@@ -732,9 +550,6 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
-    // Only a step whose first line begins with `..` carries on in the box a
-    // `.. >` left; `display` has already taken the mark off a line that
-    // joins nothing. Any other step starts a new box.
     if (read(tables[0], "continues") !== true) {
       delete this._state.box;
     }
@@ -742,13 +557,6 @@ export class InterpreterModule extends Module<
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
-    // Two different continuations can meet in one step: the beat after one
-    // continuation's break, and a newer continuation the glue holds open for
-    // the beat after this one. So the continuation this beat inherits from
-    // and the one the NEXT beat will inherit from are read apart: the beat
-    // inherits by the group of the table that asks to (`inherit`), and the
-    // step is remembered by the last group in it, which is the continuation
-    // whose break produces the next beat.
     const groupOf = (table: ObjectValue | undefined): string | undefined => {
       const group = read(table, "group");
       return typeof group === "string" ? group : undefined;
@@ -757,11 +565,6 @@ export class InterpreterModule extends Module<
       tables.find((table) => read(table, "inherit") === true),
     );
     const group = tables.map(groupOf).filter((value) => value != null).at(-1);
-    // A glued continuation's beat after one of its breaks takes the routing
-    // of the beat the run joined the continuation to — but only when that
-    // beat is the one just queued, which is what the group establishes. A run
-    // that jumped straight to this beat routes by the table instead, which
-    // carries the line the source reads before the continuation.
     const remembered = this._routing;
     const inherits =
       inheritGroup != null && remembered?.group === inheritGroup;
@@ -776,15 +579,9 @@ export class InterpreterModule extends Module<
         routing.character = characterRaw;
       }
     }
-    // A beat with no table (choices alone, or flat text) names no routing of
-    // its own, so a continuation after it still inherits from the beat
-    // before.
     if (tables.length > 0) {
       this._routing = group == null ? routing : { ...routing, group };
     }
-    // A `.. >` ends the step with the table that asks the next step to carry
-    // on in its box. The step's text loses the spaces that end a line, so the
-    // spaces the join keeps are read off that table.
     const extending = tables.findLast((table) => read(table, "extend") === true);
     const extendText = read(extending, "text");
     this.appendBeat(
@@ -804,60 +601,32 @@ export class InterpreterModule extends Module<
     );
   }
 
-  /**
-   * Whether or not there is a textbox or choices to display.
-   * (Flow should continue until text can be flushed.)
-   * @returns True if there is queued text to be flushed to screen, otherwise False.
-   */
   shouldFlush(): boolean {
-    // There are worlds to load.
-    // Or there is text to display.
-    // Or a layout-lifecycle directive ([[open/close/navigate]]) to apply.
-    // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
       this._state.buffer?.[0]?.cutscene ||
       this._state.buffer?.[0]?.text ||
       this._state.buffer?.[0]?.layout ||
       Number(this._state.buffer?.[0]?.end) > 0 ||
-      // A load or cutscene beat anywhere in the queue: the beats before it
-      // cannot take more content, so they display now and it follows.
       this._state.buffer?.some((b) => b.load || b.cutscene),
     );
   }
 
-  /** Whether a beat is queued that no flush has taken yet. */
   get hasQueuedBeats(): boolean {
     return (this._state.buffer?.length ?? 0) > 0;
   }
 
-  /** Queue a beat a flush already took, ahead of any other, so the next
-   *  flush displays it again. */
   requeue(instructions: Instructions): void {
     this._state.buffer ??= [];
     this._state.buffer.unshift(instructions);
   }
 
-  /**
-   * Grabs the next set of instructions to execute.
-   * @returns instructions to execute.
-   */
   flush() {
     return this._state.buffer?.shift();
   }
 
-  /** Discard queued-but-unflushed beats. Called by the replay paths that
-   *  abandon a run in flight (`Game.start`/`preview`'s fail branches): the
-   *  story rewinds and re-queues from the start path, so anything still in
-   *  this FIFO belongs to the abandoned run — and it sits at index 0, so it
-   *  would render FIRST in the replay. Deliberately NOT part of `onStart` or
-   *  `onReset`: the simulation-success path restores a checkpoint whose
-   *  buffer holds beats the display still needs. */
   clearQueuedBeats(): void {
     this._state.buffer = [];
-    // The run those beats belonged to is over, so the beat a continuation
-    // would have inherited from is not this run's, and neither is the box a
-    // `.. >` left.
     delete this._routing;
     delete this._state.box;
   }
@@ -940,12 +709,6 @@ export class InterpreterModule extends Module<
   }
 
   protected getMinSynthDuration(synth: { envelope?: Record<string, number> }) {
-    // The synth arrives complete -- defines reach the context merged with
-    // their type's defaults (compile-time `$default` merge on the LSP
-    // channel; the runtime `__def` inheritance chain on the Game's channel)
-    // -- so an authored voice that never wrote an envelope still has the
-    // type's one here, and this duration agrees with what AudioModule
-    // actually plays (#268).
     const synthEnvelope = synth?.envelope;
     return synthEnvelope
       ? (synthEnvelope["attack"] ?? 0) +
@@ -964,12 +727,9 @@ export class InterpreterModule extends Module<
       "show",
       defaultLayer,
     );
-    // A name the static scan could not see (built at runtime) enters the
-    // pipeline here, before the line's gate runs.
     if (imageChunk.control !== "hide" && imageChunk.assets?.length) {
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
-    // Calculate how much time this command should take up
     const withEffectName =
       imageChunk.clauses?.["with"] || imageChunk.target || "";
     const afterDuration = imageChunk.clauses?.["after"];
@@ -1004,7 +764,6 @@ export class InterpreterModule extends Module<
     const maxAnimationDuration = Math.max(
       ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
     );
-    // Add to duration
     if (imageChunk.clauses?.wait) {
       imageChunk.duration += afterDuration ?? 0;
       imageChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
@@ -1014,33 +773,20 @@ export class InterpreterModule extends Module<
 
   protected createLayoutChunk(layoutTagContent: string): Chunk {
     const verb = layoutTagContent.replaceAll("\t", " ").trim().split(" ")[0];
-    // `navigate <screen> to <layout>` parses differently from open/close:
-    // the FIRST positional token is the SCREEN (not the layout), and the
-    // destination layout follows `to`.
     const layoutChunk =
       verb === "navigate"
         ? this.createNavigateChunk(layoutTagContent)
-        : // `open`/`close` share the asset clause parser. The layout NAME plays
-          // the role of the asset's `target` (e.g. `[[open hud with fade over
-          // 1s]]` → control="open", target="hud", clauses={with:"fade",
-          // over:1}). No default target — a nameless directive no-ops downstream.
+        :
           this.createAssetChunk(layoutTagContent, "layout", "open", "");
     this.applyScreenWaitDuration(layoutChunk);
     return layoutChunk;
   }
 
-  /** Parse `navigate <screen> to <layout> [clauses]`. The screen is the first
-   *  positional token (→ `chunk.target`, the AssetCommand "target" slot,
-   *  mirroring how `[[show <layer> <asset>]]` puts the layer in `target`); the
-   *  destination layout follows `to` (→ `chunk.assets[0]`). A bare
-   *  `navigate <screen>` leaves the destination empty (LSP warns it's
-   *  incomplete; the runtime no-ops). */
   protected createNavigateChunk(navigateTagContent: string): Chunk {
     const tokens = navigateTagContent
       .replaceAll("\t", " ")
       .split(" ")
       .filter((t) => t !== "");
-    // tokens[0] is the `navigate` verb.
     let screen = "";
     let destination = "";
     let i = 1;
@@ -1067,16 +813,10 @@ export class InterpreterModule extends Module<
     };
   }
 
-  /** `[[load A B with fade]]`: the first name lands in the asset `target` slot
-   *  and the rest in `assets`, exactly like `[[open hud with fade]]`; the
-   *  clause parser supplies `with`. */
   protected createLoadChunk(loadTagContent: string): Chunk {
     return this.createAssetChunk(loadTagContent, "load", "load", "");
   }
 
-  /** `[[play intro loop with fade]]`: the video's name lands in the asset
-   *  `target` slot, as a `load`'s scene does, since a cutscene has no layer;
-   *  the clause parser supplies `loop`, `mute` and `with`. */
   protected createCutsceneChunk(cutsceneTagContent: string): Chunk {
     const cutsceneChunk = this.createAssetChunk(
       cutsceneTagContent,
@@ -1084,18 +824,12 @@ export class InterpreterModule extends Module<
       "play",
       "",
     );
-    // A name the static scan could not see (built at runtime) enters the
-    // pipeline here, before the beat's gate runs.
     if (cutsceneChunk.target) {
       this._game.module?.assets?.notice("image", [cutsceneChunk.target]);
     }
     return cutsceneChunk;
   }
 
-  /** Mirror the image chunk's `wait` handling for screen directives: when the
-   *  author asks to block story advance until the enter/exit transition
-   *  finishes, inflate the chunk duration (which becomes `result.end`, the
-   *  Coordinator's auto-advance gate) by the start delay + transition duration. */
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
     const withEffectName =
       screenChunk.clauses?.["with"] || screenChunk.target || "";
@@ -1150,10 +884,8 @@ export class InterpreterModule extends Module<
     ) {
       this._game.module?.assets?.notice("audio", audioChunk.assets);
     }
-    // Calculate how much time this command should take up
     const afterDuration = audioChunk.clauses?.["after"];
     const overDuration = audioChunk.clauses?.["over"];
-    // Add to duration
     if (audioChunk.clauses?.wait) {
       audioChunk.duration += afterDuration ?? 0;
       audioChunk.duration += overDuration ?? 0;
@@ -1167,8 +899,6 @@ export class InterpreterModule extends Module<
     defaultControl: string,
     defaultTarget: string,
   ): Chunk {
-    // A run of spaces separates two tokens as one space does, as the scene
-    // asset scanner reads it: `[[play  intro]]` still names `intro`.
     let parts = assetTagContent
       .replaceAll("\t", " ")
       .split(" ")
@@ -1211,9 +941,6 @@ export class InterpreterModule extends Module<
     };
   }
 
-  /** Parse asset-directive clause args (`with X`, `over 1s`, `after 0.2s`,
-   *  `ease Y`, `to 0.5`, and flags like `wait`/`loop`) into a clause map. Shared
-   *  by the image/audio/screen `[[…]]` / `((…))` directive paths. */
   protected parseAssetClauses(args: string[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
     for (let i = 0; i < args.length; i += 1) {
@@ -1275,7 +1002,6 @@ export class InterpreterModule extends Module<
     const shakyIndexMap = new Map<[string], number>();
 
     const startNewPhrase = () => {
-      // Reset all inter-phrase trackers
       consecutiveLettersLength = 0;
       word = "";
       dashLength = 0;
@@ -1328,20 +1054,17 @@ export class InterpreterModule extends Module<
           const char = chars[i] ?? "";
           const nextChar = chars[i + 1] ?? "";
           if (!escaped) {
-            // Raw
             if (char === "`") {
               i += 1;
               raw = !raw;
               continue;
             }
             if (!raw) {
-              // Escape
               if (char === "\\") {
                 i += 1;
                 escaped = true;
                 continue;
               }
-              // Image Tag
               if (char === "[" && nextChar === "[") {
                 let imageTagContent = "";
                 let closed = false;
@@ -1350,9 +1073,6 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    // `[[open SCREEN]]` / `[[close SCREEN]]` route to the
-                    // screen-lifecycle path instead of the image path. The
-                    // control verb is the first whitespace-delimited word.
                     const verb = imageTagContent
                       .replaceAll("\t", " ")
                       .trimStart()
@@ -1378,7 +1098,6 @@ export class InterpreterModule extends Module<
                     allPhrases.push(phrase);
                     startNewPhrase();
                     i += 2;
-                    // consume trailing whitespace
                     while (i < chars.length) {
                       if (!this.isSpace(chars[i])) {
                         break;
@@ -1396,7 +1115,6 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              // Audio Tag
               if (char === "(" && nextChar === "(") {
                 let audioTagContent = "";
                 let closed = false;
@@ -1414,7 +1132,6 @@ export class InterpreterModule extends Module<
                     allPhrases.push(phrase);
                     startNewPhrase();
                     i += 2;
-                    // consume trailing whitespace
                     while (i < chars.length) {
                       if (!this.isSpace(chars[i])) {
                         break;
@@ -1432,7 +1149,6 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              // Text Tag
               if (char === "<" && !this.isWhitespace(chars[i + 1])) {
                 let control = "";
                 let arg = "";
@@ -1447,9 +1163,6 @@ export class InterpreterModule extends Module<
                   control += chars[i];
                   i += 1;
                 }
-                // `=` is the UI Toolkit separator (`<size=20>`); `:` is the
-                // original sparkdown form. Both accepted so control tags read
-                // the same way as the styling tags.
                 if (chars[i] === ":" || chars[i] === "=") {
                   i += 1;
                   while (chars[i] && chars[i] !== ">") {
@@ -1460,8 +1173,6 @@ export class InterpreterModule extends Module<
                 control = control.trimEnd();
                 arg = arg.trim();
                 const closed = chars[i] === ">";
-                // A tag is known by its leading name, opening or closing, so
-                // `<b x>` and `</speed>` are consumed as they always were.
                 const name = (control.split(/\s/)[0] ?? "").replace(/^\//, "");
                 const known =
                   this.CONTROL_TAGS.includes(name) ||
@@ -1469,10 +1180,6 @@ export class InterpreterModule extends Module<
                 if (closed && known) {
                   i += 1;
                   if (control) {
-                    // NOTE: no `s` shorthand — `<s>` is STRIKETHROUGH in UI
-                    // Toolkit's rich-text vocabulary, which sparkdown adopts for
-                    // inline styling (see ui/utils/parseRichText.ts). Control
-                    // tags keep their full names so the two never collide.
                     if (control === "speed") {
                       speedModifier = getNumberValue(arg, 1);
                     } else if (control === "pitch" || control === "p") {
@@ -1484,8 +1191,6 @@ export class InterpreterModule extends Module<
                         speed: 1,
                       };
                       if (!arg) {
-                        // No wait duration was specified, so assume we are waiting until the user clicks
-                        // (We take advantage of the fact that text chunks always require an interaction to advance.)
                         waitChunk.text = "";
                       }
                       const phrase = {
@@ -1507,7 +1212,6 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              // Style Tag
               const styleMarker = this.MARKERS.find(
                 (marker) =>
                   marker === chars.slice(i, i + marker.length).join(""),
@@ -1577,7 +1281,6 @@ export class InterpreterModule extends Module<
             Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
           const voiced = Boolean(voicedMatcher?.test(char));
 
-          // Determine offset from wavy mark
           if (activeWavyMark) {
             const wavyIndex = wavyIndexMap.get(activeWavyMark);
             if (wavyIndex != null) {
@@ -1588,7 +1291,6 @@ export class InterpreterModule extends Module<
           }
           const wavy = activeWavyMark ? wavyIndexMap.get(activeWavyMark) : 0;
 
-          // Determine offset from shaky mark
           if (activeShakyMark) {
             const shakyIndex = shakyIndexMap.get(activeShakyMark);
             if (shakyIndex != null) {
@@ -1640,9 +1342,7 @@ export class InterpreterModule extends Module<
             phrasePauseLength = 0;
             phraseUnpauseLength += 1;
           }
-          // Determine beep pitch
           const yelled = isYelled ? 1 : 0;
-          // centered level = number of `|`
           const centered =
             alignModifier === "center"
               ? 1
@@ -1651,16 +1351,13 @@ export class InterpreterModule extends Module<
                 : isCentered
                   ? 1
                   : 0;
-          // italicized level = number of `*`
           const italicized = isItalicized ? 1 : 0;
-          // bolded level = number of `*`
           const bolded =
             isBolded && activeBoldItalicMark
               ? activeBoldItalicMark.length
               : isBolded
                 ? 2
                 : 0;
-          // underlined level = number of `_`
           const underlined =
             isUnderlined && activeUnderlineMark
               ? activeUnderlineMark.length
@@ -1669,7 +1366,6 @@ export class InterpreterModule extends Module<
                 : 0;
           const pitch = pitchModifier;
 
-          // Determine beep timing
           const charIndex = phraseUnpauseLength - 1;
           const voicedSyllable = charIndex % syllableLength === 0;
           const speedWavy = activeWavyMark ? activeWavyMark[0].length - 1 : 1;
@@ -1700,7 +1396,6 @@ export class InterpreterModule extends Module<
                       : letterPause) / speed;
 
           if (phraseUnpauseLength === 1) {
-            // start voiced phrase
             currChunk = {
               text: char,
               duration,
@@ -1726,7 +1421,6 @@ export class InterpreterModule extends Module<
             linePhrases.push(phrase);
             allPhrases.push(phrase);
           } else {
-            // continue voiced phrase
             const currentPhrase = linePhrases.at(-1);
             if (currentPhrase) {
               currentPhrase.text ??= "";
@@ -1743,10 +1437,8 @@ export class InterpreterModule extends Module<
                 shaky === currChunk.shaky &&
                 speed === currChunk.speed
               ) {
-                // No need to create new element, simply append char to previous chunk
                 currChunk.text += char;
               } else {
-                // Create new element and chunk
                 currChunk = {
                   text: char,
                   duration,
@@ -1808,15 +1500,6 @@ export class InterpreterModule extends Module<
     return this.chunksToInstructions(allPhrases, uuids, target, options);
   }
 
-  /**
-   * Runtime half of display parsing: turn the structural Phrase/Chunk array the
-   * scan produced into timed Text/Image/Audio/Screen {@link Instructions} —
-   * applying the per-character timing/synth/prosody and style-from-context that
-   * can only be resolved against live game state. Split out of {@link parse}
-   * (the scan is the STRUCTURAL, compile-time-derivable half) so a future
-   * compile-time path can feed a pre-scanned chunk template straight in,
-   * skipping the char-by-char re-scan (the P4 double-parse elimination).
-   */
   protected chunksToInstructions(
     allPhrases: Phrase[],
     uuids: string[],
@@ -1833,8 +1516,6 @@ export class InterpreterModule extends Module<
       const letterPause = typewriter?.letter_pause ?? 0;
       const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
       const punctuatedMatcher = this.getMatcher(typewriter?.punctuated);
-      // Erase any syllables that occur on any unvoiced chars at the end of phrases
-      // (whitespace, punctuation, etc).
       if (phrase.chunks) {
         for (let c = phrase.chunks.length - 1; c >= 0; c -= 1) {
           const chunk = phrase.chunks[c]!;
@@ -1844,7 +1525,6 @@ export class InterpreterModule extends Module<
             break;
           }
         }
-        // Voice any phrases that are entirely composed of ellipsis.
         if (phrase.text) {
           if (punctuatedMatcher?.test(phrase.text)) {
             const typewriterSynth = this.lookupContextValue(
@@ -1898,7 +1578,6 @@ export class InterpreterModule extends Module<
       const animationOffset = typewriter?.animation_offset ?? 0;
       if (phrase.chunks) {
         for (const c of phrase.chunks) {
-          // Text Event
           if (c.text != null) {
             const event: TextInstruction = { control: "show", text: c.text };
             if (time) {
@@ -1928,7 +1607,6 @@ export class InterpreterModule extends Module<
               event.style["white_space"] = "pre";
             }
 
-            // Wavy animation
             if (c.wavy) {
               event.style ??= {};
               const animation = (this.context as any)?.animation?.["wavy"];
@@ -1943,7 +1621,6 @@ export class InterpreterModule extends Module<
                 event.style["animation_delay"] = c.wavy * animationOffset * -1;
               }
             }
-            // Shaky animation
             if (c.shaky) {
               event.style ??= {};
               const animation = (this.context as any)?.animation?.["shaky"];
@@ -1958,17 +1635,14 @@ export class InterpreterModule extends Module<
                 event.style["animation_delay"] = c.shaky * animationOffset * -1;
               }
             }
-            // Debug colorization
             if (debug) {
               if (c.duration > letterPause) {
-                // color pauses (longer time = darker color)
                 event.style ??= {};
                 event.style["background_color"] = `hsla(0, 100%, 50%, ${
                   0.5 - letterPause / c.duration
                 })`;
               }
               if (c.voicedSyllable) {
-                // color beeps
                 event.style ??= {};
                 event.style["background_color"] = `hsl(185, 100%, 50%)`;
               }
@@ -1977,7 +1651,6 @@ export class InterpreterModule extends Module<
             result.text[target] ??= [];
             result.text[target]!.push(event);
           }
-          // Image Event
           if (c.tag === "image") {
             const event: ImageInstruction = {
               control: (c.control || "show") as ImageInstruction["control"],
@@ -2020,8 +1693,6 @@ export class InterpreterModule extends Module<
             result.image[target] ??= [];
             result.image[target]!.push(event);
           }
-          // Load Event ([[load NAME…]]): one instruction per named flow or
-          // world, in the order written.
           if (c.tag === "load") {
             const names = [c.target, ...(c.assets ?? [])].filter(
               (name): name is string => Boolean(name),
@@ -2036,7 +1707,6 @@ export class InterpreterModule extends Module<
               result.load.push(event);
             }
           }
-          // Cutscene Event ([[play NAME]])
           if (c.tag === "cutscene" && c.target) {
             const event: CutsceneInstruction = { name: c.target };
             if (c.clauses?.loop) {
@@ -2052,20 +1722,12 @@ export class InterpreterModule extends Module<
             result.cutscene ??= [];
             result.cutscene.push(event);
           }
-          // Layout Event ([[open LAYOUT]] / [[close LAYOUT]] / [[navigate SCREEN to LAYOUT]])
           if (c.tag === "layout") {
-            // For `navigate`, the first positional token is the SCREEN
-            // (c.target) and the destination layout follows `to` (c.assets[0]);
-            // for `open`/`close`, the first token IS the layout (c.target).
             const isNavigate = c.control === "navigate";
             const screen = isNavigate ? c.target || "" : "";
             const layoutName = isNavigate
               ? c.assets?.[0] || ""
               : c.target || "";
-            // Emit even for an incomplete `[[navigate <screen>]]` (empty
-            // destination, screen present) so the directive isn't silently
-            // dropped — the LSP warns and the runtime no-ops. Skip only a truly
-            // empty directive.
             if (layoutName || screen) {
               const event: LayoutInstruction = {
                 control: (c.control || "open") as LayoutInstruction["control"],
@@ -2105,7 +1767,6 @@ export class InterpreterModule extends Module<
               result.layout[key]!.push(event);
             }
           }
-          // Audio Event
           if (c.tag === "audio") {
             const event: AudioInstruction = {
               control: (c.control || "play") as AudioInstruction["control"],
@@ -2152,7 +1813,6 @@ export class InterpreterModule extends Module<
             result.audio[target] ??= [];
             result.audio[target]!.push(event);
           }
-          // Synth Event
           if (c.duration) {
             if (c.punctuatedSyllable) {
               const synthName = this.lookupContextValueName(

@@ -1,30 +1,7 @@
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 
-/**
- * How a compiled program crosses from the compiler worker to its workspace.
- *
- * A structured clone costs time on both sides of the boundary for every object
- * in the program, and attribute vocabularies dominate it. An illustrated
- * project carries one per layered portrait (230KB for one), nearly all of its
- * asset bytes, and the same vocabulary objects come out of every compile until
- * their file changes. Each is sent once; later programs refer to it by number.
- *
- * The program's other bulky part, its path locations, needs nothing here: it is
- * already a list of paths and one typed array of their ranges, so it crosses as
- * it is and arrives ready to search.
- *
- * The encoder runs in the worker and the decoder in the workspace, one pair per
- * connection, and each program must be decoded in the order it was encoded:
- * the numbers a program refers to are the ones every earlier program sent.
- * After each program both sides keep exactly the vocabulary parts that program
- * used, so what they hold stays in step and never outgrows one program.
- */
-
-/** The parts of an attribute vocabulary worth sending once. */
 const SHARED_PARTS = ["layers", "folders", "groups"] as const;
 
-/** Where a vocabulary part was left out of a program because the receiver
- *  holds it, or sent once with `value` for the receiver to keep. */
 interface SharedPart {
   $shared: number;
   value?: unknown;
@@ -37,8 +14,6 @@ const isShared = (value: unknown): value is SharedPart =>
 
 type StructTables = Record<string, Record<string, any> | undefined>;
 
-/** Replace `table[name].attribute_vocabulary` through `mapVocabulary`,
- *  copying only the structs and tables that carry one. */
 const mapTable = (
   table: Record<string, any> | undefined,
   mapVocabulary: (vocabulary: any) => any,
@@ -77,8 +52,6 @@ const mapTables = (
   return out ?? tables;
 };
 
-/** Every attribute vocabulary in `tables`, a table of structs or a table of
- *  such tables. */
 const forEachVocabulary = (
   tables: Record<string, any> | undefined,
   depth: 1 | 2,
@@ -100,10 +73,8 @@ const forEachVocabulary = (
 export class ProgramTransportEncoder {
   protected _ids = new WeakMap<object, number>();
   protected _nextId = 1;
-  /** The parts the decoder holds: the ones the last program used. */
   protected _held = new Set<number>();
 
-  /** A copy of `program` to send. `program` itself is left as it was. */
   encode<T extends SparkProgram | undefined>(program: T): T {
     if (!program) {
       return program;
@@ -130,7 +101,6 @@ export class ProgramTransportEncoder {
       return out;
     };
     const out: SparkProgram = { ...program };
-    // The statement chunks are read by reference in the compiler's worker.
     delete out.chunks;
     if (program.files) {
       out.files = mapTable(program.files, encodeVocabulary) as SparkProgram["files"];
@@ -149,7 +119,6 @@ export class ProgramTransportEncoder {
 export class ProgramTransportDecoder {
   protected _held = new Map<number, unknown>();
 
-  /** Restore, in place, a program `ProgramTransportEncoder.encode` produced. */
   decode<T extends SparkProgram | undefined>(program: T): T {
     if (!program) {
       return program;

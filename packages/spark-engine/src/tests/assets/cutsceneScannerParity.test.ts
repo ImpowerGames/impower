@@ -1,9 +1,3 @@
-// The scene-asset scanner (`scanAssetDirectives`) feeds prediction the names a
-// beat will show before the story reaches it; the interpreter's chunks are what
-// the beat actually shows. For a `[[play NAME]]` cutscene the two must name the
-// same video, or prediction fetches the wrong file and the cutscene's gate
-// waits on one nobody asked for (I-1379, I-1382).
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { createSceneAssetCapture } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { scanAssetDirectives } from "@impower/sparkdown/src/compiler/utils/scanAssetDirectives";
@@ -20,7 +14,6 @@ const ASSETS: File[] = [
   },
 ];
 
-/** The image names the scanner records for one `[[…]]` body. */
 const scanned = (body: string): string[] => {
   const capture = createSceneAssetCapture();
   return scanAssetDirectives(`[[${body}]]`, 0, capture)?.image ?? [];
@@ -56,8 +49,6 @@ describe("the scanner and the interpreter agree on a cutscene's video", () => {
   }
 
   it("names no layer, as the generic asset chunk would read one", async () => {
-    // `createAssetChunk` puts the token after the verb in the target slot;
-    // the scanner reads a layered `show` from the token after that.
     const runtime = await interpreter();
     expect(
       runtime.createAssetChunk("play intro", "cutscene", "play", ""),

@@ -2,32 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Game } from "../../../core/classes/Game";
 import { InterpreterModule } from "./InterpreterModule";
 
-/**
- * These tests describe AUTHORED BEHAVIOUR -- "this markup produces this
- * visible text with this emphasis" -- not the shape of the runtime's
- * intermediate data.
- *
- * That distinction is deliberate: text-tag parsing is moving out of the
- * runtime and into the compiler. When that happens, `render()` and
- * `assets()` below are the only things that should need rewriting -- point
- * them at the compiler's output and every expectation in this file should
- * still hold verbatim.
- *
- * So, when adding cases here:
- *
- *   DO assert on visible text, on which spans carry which emphasis, and on
- *   which assets a line references. Those are what the author wrote and
- *   what the player perceives, and they survive the move.
- *
- *   DON'T assert on `Chunk` internals, per-letter splitting, durations, or
- *   theme-derived animation styles. Those are runtime bookkeeping, they
- *   depend on context/theme config this suite deliberately doesn't supply,
- *   and they are expected to change shape.
- */
-
 const TARGET = "textbox";
 
-/** The minimum context `parse()` reads. Deliberately bare -- see above. */
 const createModule = () => {
   const game = {
     context: {
@@ -41,11 +17,6 @@ const createModule = () => {
   return module;
 };
 
-/**
- * Maps the emitted presentation style back to the authored emphasis. The
- * left-hand side is what today's runtime emits; the right-hand side is the
- * authored concept, which is what the tests actually talk about.
- */
 const EMPHASIS: [key: string, value: string, name: string][] = [
   ["font_style", "italic", "italic"],
   ["text_decoration", "underline", "underline"],
@@ -62,12 +33,6 @@ const emphasisOf = (style: Record<string, unknown> | undefined): string[] => {
     .sort();
 };
 
-/**
- * Reduces a parsed line to what a reader perceives: the visible text, and
- * the runs of text carrying each emphasis. Adjacent pieces with identical
- * emphasis are merged, so per-letter splitting (an implementation detail of
- * the animated markers) doesn't leak into expectations.
- */
 const render = (source: string) => {
   const instructions =
     createModule().parse(source, TARGET).text?.[TARGET] ?? [];
@@ -84,12 +49,10 @@ const render = (source: string) => {
   return {
     text: spans.map((s) => s.text).join(""),
     spans,
-    /** Only the spans carrying emphasis, for concise assertions. */
     emphasized: spans.filter((s) => s.emphasis.length > 0),
   };
 };
 
-/** The assets a line references, keyed by layer. */
 const assets = (source: string) => {
   const instructions = createModule().parse(source, TARGET);
   const collect = (group: Record<string, any[]> | undefined) =>
@@ -111,8 +74,6 @@ describe("InterpreterModule text tags", () => {
       expect(render("Plain text.").text).toBe("Plain text.");
     });
 
-    // Whitespace is significant in dialogue -- the formatter is not allowed
-    // to collapse runs of spaces, so the interpreter must not either.
     it("preserves consecutive spaces", () => {
       expect(render("Two  spaces.").text).toBe("Two  spaces.");
     });
@@ -127,8 +88,6 @@ describe("InterpreterModule text tags", () => {
   });
 
   describe("emphasis markers", () => {
-    // Fountain conventions, not Markdown ones: a single `*` is italic and
-    // `_` is underline.
     const cases: [marker: string, source: string, emphasis: string[]][] = [
       ["*", "A *word* here.", ["italic"]],
       ["_", "A _word_ here.", ["underline"]],
@@ -167,17 +126,11 @@ describe("InterpreterModule text tags", () => {
       expect(result.emphasized).toEqual([]);
     });
 
-    // `~~` and `::` drive animations whose styling is theme-derived, so this
-    // suite asserts only that they don't disturb the text the player reads.
     it("leaves text intact for animated markers", () => {
       expect(render("A ~~wavy~~ word.").text).toBe("A wavy word.");
       expect(render("A ::shaky:: word.").text).toBe("A shaky word.");
     });
 
-    // An unclosed marker applies to the rest of the line rather than being
-    // treated as literal punctuation -- the author gets the emphasis they
-    // clearly meant instead of a stray marker on screen. Note this differs
-    // from unterminated `<tags>`, which DO stay on screen as literal text.
     const unclosed: [marker: string, source: string, emphasis: string[]][] = [
       ["*", "A *rest of line", ["italic"]],
       ["_", "A _rest of line", ["underline"]],
@@ -192,8 +145,6 @@ describe("InterpreterModule text tags", () => {
       });
     }
 
-    // "Rest of the line", not "rest of the text" -- the emphasis stops at
-    // the newline rather than bleeding into what follows.
     it("stops an unclosed marker at the end of the line", () => {
       const result = render("Start *emphasis\nSecond line");
       expect(result.text).toBe("Start emphasis\nSecond line");
@@ -230,8 +181,6 @@ describe("InterpreterModule text tags", () => {
       );
     });
 
-    // Only the control tags above and parseRichText's vocabulary are markup;
-    // any other closed `<...>` stays on screen as written (I-1404).
     it("keeps an unrecognised tag as literal text", () => {
       expect(render("Un<bogus> here.").text).toBe("Un<bogus> here.");
     });
@@ -247,8 +196,6 @@ describe("InterpreterModule text tags", () => {
     });
 
     it("keeps an unknown word a string interpolated into the line", () => {
-      // The interpreter sees a line after interpolation, so `{s}` holding
-      // 'a <b2> c' reaches it as this text.
       expect(render("Str a <b2> c end.").text).toBe("Str a <b2> c end.");
     });
 
@@ -266,16 +213,11 @@ describe("InterpreterModule text tags", () => {
       expect(render("Pitch<p:1> up</p>.").text).toBe("Pitch up.");
     });
 
-    // An unterminated tag is not a tag -- it stays on screen as authored,
-    // rather than silently swallowing the rest of the line. (Unterminated
-    // *emphasis markers* behave differently on purpose; see below.)
     it("keeps an unterminated tag as literal text", () => {
       expect(render("Un<speed here.").text).toBe("Un<speed here.");
     });
   });
 
-  // The interpreter consumes parseRichText's tags in a line, as it did before
-  // unknown tags were kept; this records that behaviour (I-1404).
   describe("rich-text tags", () => {
     const flags = [
       "b",
@@ -356,13 +298,6 @@ describe("InterpreterModule text tags", () => {
       });
     });
 
-    // An author spaces a mid-line asset tag out for readability. Removing the
-    // tag must leave exactly ONE space at the junction: the space before the
-    // tag is the word separator, and the space after it belongs to the tag's
-    // own spacing. Two spaces would look identical on screen (the text is laid
-    // out with collapsing whitespace) while lengthening the pause the
-    // letter-by-letter typing puts between the words, so this is asserted on
-    // the text the typing is driven from rather than by eye.
     it("leaves one space where a spaced-out asset tag was removed", () => {
       expect(render("The car ((sfx_vroom)) drove.").text).toBe(
         "The car drove.",
@@ -380,8 +315,6 @@ describe("InterpreterModule text tags", () => {
       );
     });
 
-    // Same rule as text tags: an unterminated asset tag is not a tag, so it
-    // stays on screen as authored rather than swallowing the rest of the line.
     it("keeps an unterminated image tag as literal text", () => {
       const result = render("Look [[img and more.");
       expect(result.text).toBe("Look [[img and more.");
@@ -397,7 +330,6 @@ describe("InterpreterModule text tags", () => {
 });
 
 describe("InterpreterModule.queue", () => {
-  /** A module whose directives name `action` as the default target. */
   const moduleWithDefaultTarget = () => {
     const game = {
       context: {
@@ -419,8 +351,6 @@ describe("InterpreterModule.queue", () => {
       ]),
     );
 
-  // No lowering produces such a step, but the rule holds for any host: text
-  // with no table renders on the default target with no speaker.
   it("renders a step with flat text and no table on the default target", () => {
     const module = moduleWithDefaultTarget();
     module.queue([], [], "Plain text.\n");

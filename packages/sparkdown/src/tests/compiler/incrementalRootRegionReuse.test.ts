@@ -1,8 +1,3 @@
-// Edits to the root region, above every flow: front matter, a top-level
-// `store` value, the first scene, and an `external` declaration. Each is
-// applied after a warm-up edit far from the top, and the incremental compile
-// has to build the chunks and report the diagnostics a cold compile of the
-// same text does.
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { describeRoot } from "../program/describeRoot";
@@ -91,10 +86,6 @@ function script(): string {
   return L.join("\n");
 }
 
-/**
- * Apply one warm-up edit far from the top, then the edit under test, and
- * return the incremental program beside a cold compile of the same text.
- */
 function measure(find: string, replace: string) {
   let text = script();
   const incr = configured(text);

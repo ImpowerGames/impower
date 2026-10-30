@@ -1,11 +1,3 @@
-// What stands between a sequential alternator's word (`cycle`, `queue`,
-// `chain`, `shuffle`, with its second keyword) and its first `|` is its head,
-// which takes no value: any content there is one error at its range, in story
-// braces, a block line, a store's value, a function body and a nested
-// alternator alike (I-1446). The head is not evaluated, and the alternator
-// runs as if it had none. The head's reading errors keep their one owner
-// (I-1435, I-1445), and a separator the head's `end` took (I-1408) is no head
-// content. A cold compile reports what an edit away from the form does.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -17,7 +9,6 @@ function messageOf(d: SparkDiagnostic): string {
   return typeof d.message === "string" ? d.message : (d.message as { value: string }).value;
 }
 
-/** Errors, as `start-end message` in 0-based lines and characters, sorted. */
 function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
   return diagnostics
     .filter((d) => d.severity === DiagnosticSeverity.Error)
@@ -48,7 +39,6 @@ function positionAt(text: string, offset: number) {
 
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   const offset = padded.indexOf("0");
@@ -66,13 +56,11 @@ function output(text: string): string {
   return makeRuntimeStoryFromSource(text).story.ContinueMaximally();
 }
 
-/** The error at the first occurrence of `head` in `text` (on one line). */
 function headError(text: string, head: string, keywords = "cycle"): string {
   const at = positionAt(text, text.indexOf(head));
   return `${at.line}:${at.character}-${at.line}:${at.character + head.length} A \`${keywords}\` takes no value before its first \`|\`; write its arms as \`| ...\``;
 }
 
-// [name, script, head, keywords, the same script with no head]
 const FORMS: [string, string, string, string, string][] = [
   ["story braces, a name", "scene start\n  Hello {cycle undefinedName | 'a' | 'b' end}.\nend\n", "undefinedName", "cycle", "scene start\n  Hello {cycle | 'a' | 'b' end}.\nend\n"],
   ["story braces, a call", "scene start\n  Hello {cycle error('boom') | 'a' | 'b' end}.\nend\n", "error('boom')", "cycle", "scene start\n  Hello {cycle | 'a' | 'b' end}.\nend\n"],

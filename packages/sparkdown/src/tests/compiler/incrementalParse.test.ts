@@ -3,17 +3,6 @@ import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTr
 import { stripAnsi } from "./grammarSnapshot";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
-// These tests guarantee that the parse tree produced via INCREMENTAL
-// updates matches a fresh full parse of the same final source. If
-// they diverge, downstream consumers (formatter, syntax highlighting,
-// compilation) will misbehave on any document the user edits.
-//
-// The historic offender: each incremental edit duplicated the
-// trailing-EOF `Newline` node (because the empty trailing-split chunk
-// in `Packet.add` was positioned at the token's `from` instead of the
-// chunk's `to`, making `packet.last.to` artificially small and
-// triggering a redundant re-emission of the final newline on append).
-
 type Edit = {
   range: {
     start: { line: number; character: number };
@@ -53,9 +42,6 @@ function incrementalTreeStr(initial: string, edits: Edit[][]): string {
 }
 
 function applyEditsToString(source: string, edits: Edit[]): string {
-  // Apply in reverse start-offset order so earlier edits don't shift
-  // later edits' positions. Mirrors the convention text-document
-  // clients use.
   const offsets = edits.map((e) => {
     const ls = e.range.start.line;
     const cs = e.range.start.character;
@@ -64,8 +50,6 @@ function applyEditsToString(source: string, edits: Edit[]): string {
     return { ls, cs, le, ce, text: e.text };
   });
   const lines = source.split("\n");
-  // For simplicity in these tests, only single-line edits at known
-  // positions are used; offset-based math is overkill here.
   for (const e of offsets.sort(
     (a, b) =>
       b.ls - a.ls || b.cs - a.cs,

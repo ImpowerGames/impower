@@ -5,8 +5,6 @@ import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/c
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
-// Front matter fields that tell the compiler how to check the script rather
-// than describe it, so they never reach the title page.
 const COMPILER_FIELDS = new Set(["typecheck"]);
 
 export default class ScreenplayParser {
@@ -33,14 +31,7 @@ export default class ScreenplayParser {
     let position: "l" | "r" | undefined = undefined;
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
-    // Whether the next text chunk begins after a `..` mark, at the start of
-    // its line or after a `>` break.
     let leading = false;
-    // A text chunk's words, without the `..` glue marks inside it (with the
-    // spaces written before each) and without the spaces after a mark it
-    // begins after. A mark joins lines in the player, which decides each join
-    // as the story runs; the export prints every branch of the script, so it
-    // cannot know which line a mark joins, and prints each line on its own.
     const readWords = (node: SyntaxNode): string => {
       let text = "";
       let pos = node.from;
@@ -69,7 +60,6 @@ export default class ScreenplayParser {
       }
     };
 
-    // Returns true if the source range contains only spaces/tabs.
     const isWhitespaceOnly = (start: number, end: number): boolean => {
       for (let i = start; i < end; i++) {
         const c = script.charCodeAt(i);
@@ -84,7 +74,6 @@ export default class ScreenplayParser {
         const from = nodeRef.from;
         const to = nodeRef.to;
 
-        // Separator
         if (nodeRef.node.parent?.name === "sparkdown") {
           if (
             name !== "FrontMatter" &&
@@ -107,19 +96,10 @@ export default class ScreenplayParser {
             name !== "Newline" &&
             name !== "Whitespace"
           ) {
-            // Add separator for hidden top-level nodes
             addSeparator();
           }
         }
         if (name === "Newline") {
-          // A line is "blank" if everything between the previous newline (or
-          // start of script) and this newline is only spaces/tabs. We check
-          // the source directly rather than tracking a flag across node
-          // visits, because the grammar wraps whitespace-only "blank" lines
-          // in `BlockLineBlank > BlockLineBlank_c1 > Indent` (whose `to >
-          // from` would otherwise be mis-read as "this line has content").
-          // The flag-based approach was fragile to changes in the grammar's
-          // wrapper node names.
           if (isWhitespaceOnly(lineStart, from)) {
             addSeparator();
           }
@@ -130,7 +110,6 @@ export default class ScreenplayParser {
           leading = true;
         }
 
-        // FrontMatter
         if (name === "FrontMatterFieldKeyword") {
           const text = read(from, to);
           frontMatterKey = text;
@@ -141,7 +120,6 @@ export default class ScreenplayParser {
           frontMatterValue += text;
         }
 
-        // Scene
         if (name === "Scene") {
           tokens.push({ tag: "page_break" });
         }
@@ -150,13 +128,11 @@ export default class ScreenplayParser {
           tokens.push({ tag: "scene", text });
         }
 
-        // Branch
         if (name === "BranchDeclarationName") {
           const text = read(from, to);
           tokens.push({ tag: "branch", text });
         }
 
-        // Title
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
           if (name === "TextChunk") {
             const text = readWords(nodeRef.node);
@@ -168,7 +144,6 @@ export default class ScreenplayParser {
           }
         }
 
-        // Heading
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
           if (name === "TextChunk") {
             const text = readWords(nodeRef.node);
@@ -180,7 +155,6 @@ export default class ScreenplayParser {
           }
         }
 
-        // Transitional
         if (
           stack.includes("BlockTransitional") ||
           stack.includes("InlineTransitional")
@@ -195,7 +169,6 @@ export default class ScreenplayParser {
           }
         }
 
-        // Action
         if (
           stack.includes("BlockAction") ||
           stack.includes("InlineAction") ||
@@ -211,7 +184,6 @@ export default class ScreenplayParser {
           }
         }
 
-        // Dialogue
         if (name === "DialogueCharacterName") {
           const text = read(from, to);
           character = text;
@@ -250,7 +222,6 @@ export default class ScreenplayParser {
           }
         }
 
-        // Choice
         if (stack.includes("Choice")) {
           if (name === "ChoiceMark") {
             const text = read(from, to);
@@ -266,7 +237,6 @@ export default class ScreenplayParser {
       },
       leave: (nodeRef) => {
         const name = nodeRef.name as SparkdownNodeName;
-        // FrontMatter
         if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
@@ -274,7 +244,6 @@ export default class ScreenplayParser {
           });
         }
 
-        // Title
         if (name === "BlockTitle" || name === "InlineTitle") {
           tokens.push({
             tag: "title",
@@ -283,7 +252,6 @@ export default class ScreenplayParser {
           title = "";
         }
 
-        // Heading
         if (name === "BlockHeading" || name === "InlineHeading") {
           tokens.push({
             tag: "heading",
@@ -292,7 +260,6 @@ export default class ScreenplayParser {
           heading = "";
         }
 
-        // Transitional
         if (name === "BlockTransitional" || name === "InlineTransitional") {
           tokens.push({
             tag: "transitional",
@@ -301,7 +268,6 @@ export default class ScreenplayParser {
           transitional = "";
         }
 
-        // Action
         if (
           name === "BlockAction" ||
           name === "InlineAction" ||
@@ -314,7 +280,6 @@ export default class ScreenplayParser {
           action = "";
         }
 
-        // Dialogue
         if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
@@ -327,7 +292,6 @@ export default class ScreenplayParser {
           position = undefined;
         }
 
-        // Choice
         if (name === "Choice") {
           tokens.push({
             tag: "choice",
@@ -345,11 +309,9 @@ export default class ScreenplayParser {
     });
 
     while (tokens.at(0)?.tag === "separator") {
-      // trim away leading separators
       tokens.shift();
     }
     while (tokens.at(-1)?.tag === "separator") {
-      // trim away trailing separators
       tokens.pop();
     }
 
@@ -361,7 +323,6 @@ export default class ScreenplayParser {
   }
 
   buildTree(script: string): Tree {
-    // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
     return this._parser.parse(paddedScript);
   }

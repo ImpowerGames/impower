@@ -1,8 +1,3 @@
-// ESLint plugin: enforces sparkdown-grammar YAML conventions.
-// See packages/sparkdown/docs/compiler/GRAMMAR.md for the conventions
-// these rules encode. The plugin runs over the YAML files via the
-// `yaml-eslint-parser` (provided by `eslint-plugin-yml`).
-
 import { readFileSync } from "node:fs";
 import tagNameSymmetry from "./rules/tag-name-symmetry.ts";
 import parseTagValid from "./rules/parse-tag-valid.ts";
@@ -21,9 +16,6 @@ import noLineCrossingClass from "./rules/no-line-crossing-class.ts";
 import luauUnreadToken from "./rules/luau-unread-token.ts";
 import luauForeignCloser from "./rules/luau-foreign-closer.ts";
 
-// Rules whose existing findings are baselined, keyed by rule name, then by
-// owner (`repository.Name`, `variables.NAME` or `patterns`) with the
-// number of findings allowed. Rewritten by `src/baseline-cli.ts --write`.
 export const BASELINE_FILE = new URL("../baseline.json", import.meta.url);
 export const BASELINED_RULES = [
   "tag-name-symmetry",

@@ -1,9 +1,3 @@
-// Where a declaration can be written (I-1673): a `local` binding belongs to a
-// scene, a branch, a choice's body or a function, and a hoisted declaration
-// (`store`, `const`, `define` and the definitions written like one,
-// `function`, `type`, `external`) to a script's top level. Each misplaced
-// one is an error on the line it starts.
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { File } from "../../compiler/types/File";
@@ -30,8 +24,6 @@ const file = (uri: string, text: string): File => ({
   languageId: "sparkdown",
 });
 
-/** The diagnostics of `uri` once main and the other script compile, each as
- *  its message and the text of its range. */
 const diagnose = (
   main: string,
   other = "",

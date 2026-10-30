@@ -19,8 +19,6 @@ export interface RouteViewProps {
   onPinLastRun: () => void;
 }
 
-/** Render the route button and the route list into the places a host gave
- *  them, or take them out of those places when `props` is null. */
 export const renderRouteViews = (
   targets: { button: HTMLElement | null; list: HTMLElement | null },
   props: RouteViewProps | null,

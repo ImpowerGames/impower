@@ -1,17 +1,3 @@
-// The order a display performs its steps in is the whole preview-audio fix,
-// and it is invisible from inside the engine.
-//
-// Connecting the game restores every module, and the audio module decides there
-// whether to resume the music the route left playing. It makes that decision
-// from `context.system.previewing`, so the mode has to be declared BEFORE the
-// checkpoint load and the connect — not by `preview()`, which runs last.
-//
-// The steps run on the worker's game (`displayPreviewFrom`), which is driven
-// here with a recording stand-in, and the controller waits for the worker's
-// answer. The controller's constructor only stores its host and refs
-// (`setup()` is what attaches listeners), so it can be driven directly with a
-// stand-in for its link to the worker.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { afterEach, describe, expect, test } from "vitest";
@@ -24,7 +10,6 @@ const PROGRAM = {
   scripts: { "file://proj/main.sd": {} },
 } as any;
 
-/** The program a compile of `text` as the script `uri` makes, at `version`. */
 function compiledProgram(uri: string, text: string, version: number) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -35,18 +20,13 @@ function compiledProgram(uri: string, text: string, version: number) {
   return { ...program, version } as any;
 }
 
-/** A game that records the order it is called in, and nothing else. */
 function recordingGame(calls: string[], state = "previewing") {
   return {
     state,
     program: { uri: PROGRAM.uri, version: 1 },
-    // No address resolves in `PROGRAM`, which holds no statement, so the
-    // controller falls back to the game's remembered preview point — which
-    // is what a real one does between edits.
     previewAddress: 0,
     previewFrom: { file: PROGRAM.uri, line: 4 },
     previewedAddress: undefined as number | undefined,
-    // The flow a route to an address starts from: here, the top level.
     routeStartOf: (_address: number) => "0",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
@@ -83,12 +63,6 @@ function controllerWith(app: any) {
   return controller;
 }
 
-/**
- * The display of `program` at `file`/`line` over `game`: the worker's
- * `displayPreviewFrom`, with the game connecting through a stand-in
- * application, so a test that holds the connect holds the display. Answers
- * whether the frame was completed.
- */
 function displayIn(game: any, app: any) {
   const controller: any = controllerWith(app);
   let displays = 0;
@@ -131,14 +105,10 @@ describe("preview session ordering", () => {
     expect(calls).toContain("markPreviewing");
     expect(calls.indexOf("markPreviewing")).toBeLessThan(calls.indexOf("load"));
     expect(calls.indexOf("markPreviewing")).toBeLessThan(calls.indexOf("connectGame"));
-    // And `preview()` still runs last — it is what picks the point to show.
     expect(calls.indexOf("connectGame")).toBeLessThan(calls.indexOf("preview"));
   });
 
   test("the previous preview's images are forgotten before the connect", async () => {
-    // Restore runs inside the connect and re-applies whatever the module
-    // still believes is displayed, so the record has to be dropped before
-    // then or the last preview's backdrop comes back up behind the new point.
     const calls: string[] = [];
     await displayIn(recordingGame(calls), stubApp(calls)).display(PROGRAM, PROGRAM.uri, 4);
 
@@ -165,11 +135,6 @@ describe("preview session ordering", () => {
   });
 
   test("marks the path the remembered point resolves to now, not the one it resolved to before", async () => {
-    // The cursor sits in a file the program does not know, so the display
-    // keeps the game's remembered point (main.sd line 4). The program has
-    // changed since that point last resolved: the mark, and so the beat the
-    // asset module centres its window on, must be the point's path in this
-    // program, the one `preview()` will resolve, not the path it had before.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
@@ -180,7 +145,6 @@ describe("preview session ordering", () => {
     );
     const locator = programLocator(program);
     const now = locator.addressAt(PROGRAM.uri, 4, { beat: "last" });
-    // The address the point had before the program changed: another beat's.
     const before = locator.addressAt(PROGRAM.uri, 1, { beat: "last" });
     expect(now != null && before != null && now !== before).toBe(true);
     game.previewAddress = before;
@@ -190,11 +154,6 @@ describe("preview session ordering", () => {
   });
 
   test("marks nothing for a remembered point that no longer resolves, and still previews", async () => {
-    // The remembered point's script is gone from the program (renamed, or
-    // deleted), so no path resolves for it now, and the cursor sits in a
-    // file the program does not know either; the point's old path must not
-    // be marked, or the connect would run a beat the preview cannot display.
-    // The preview still happens, so the game can reveal what it has.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
@@ -211,9 +170,6 @@ describe("preview session ordering", () => {
   });
 
   test("marks the game's own path for the remembered point while the program stands", async () => {
-    // The cursor sits on a line that resolves to nothing and nothing was
-    // recompiled: the remembered point's path is the one the game resolved
-    // for it, and it is marked without resolving the point again.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
@@ -223,8 +179,6 @@ describe("preview session ordering", () => {
   });
 
   test("the game leaves the editors' part out of its report while it shows a suggestion, and puts it back for the document", async () => {
-    // The report of a suggestion is never relayed to the editor, so only its
-    // first and last location, which label the preview, are worth taking.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.updateProgram = (p: any) => (game.program = p);
@@ -245,9 +199,6 @@ describe("preview session ordering", () => {
   });
 
   test("a project that resolves no path still reconnects on every selection", async () => {
-    // A UI-only project has no narrative path, so the remembered preview
-    // path stays undefined. Treating that as "already previewed this path"
-    // would skip the reconnect and freeze its bindings.
     const calls: string[] = [];
     const game = recordingGame(calls);
     game.previewAddress = undefined;
@@ -258,9 +209,6 @@ describe("preview session ordering", () => {
   });
 
   test("the elements the last preview left are not swept until the preview has settled", async () => {
-    // The preview waits for the beat's pictures before it writes the beat;
-    // a sweep before that would take the previous preview's elements away
-    // and then the beat's writes with them (#429).
     const calls: string[] = [];
     let settlePreview = (_address: number | null) => {};
     const game = recordingGame(calls);
@@ -282,10 +230,6 @@ describe("preview session ordering", () => {
   });
 
   test("the preview is not written until the connect has settled", async () => {
-    // The connect holds the restore gate: the pictures the checkpoint shows
-    // and the beat under the cursor is about to show. `preview()` writes
-    // that beat synchronously, so it has to wait for the connect to resolve,
-    // not merely to have been called (#429).
     const calls: string[] = [];
     let settleConnect = () => {};
     const app = stubApp(calls);
@@ -307,12 +251,6 @@ describe("preview session ordering", () => {
   });
 
   test("a display another overtakes while it waits does not sweep the newer display's pass", async () => {
-    // Each display's reconcile pass adopts the screen, and its sweep removes
-    // what the display did not re-emit. When a second display starts while
-    // the first waits for its preview, the second's pass owns the screen: a
-    // sweep by the first would take the second beat's content off it before
-    // that beat is written, and leave the second's own sweep nothing to
-    // remove.
     const calls: string[] = [];
     const settles: Array<(address: number | null) => void> = [];
     const game = recordingGame(calls);
@@ -332,7 +270,6 @@ describe("preview session ordering", () => {
       await Promise.resolve();
     }
     expect(calls.filter((c) => c.startsWith("preview:"))).toEqual(["preview:1", "preview:2"]);
-    // The engine lets the first preview go when the second starts.
     settles[0]!(null);
     await first;
     expect(calls).not.toContain("sweepReconcile");
@@ -343,9 +280,6 @@ describe("preview session ordering", () => {
   });
 
   test("a display overtaken while it waits for the connect neither previews nor sweeps", async () => {
-    // The older display is suspended inside the connect when the newer one
-    // arrives and runs to completion; released, it must not preview its own
-    // point over the newer one's, nor sweep.
     const calls: string[] = [];
     let releaseConnect = () => {};
     let connects = 0;
@@ -378,11 +312,6 @@ describe("preview session ordering", () => {
 describe("the controller's preview updates", () => {
   afterEach(() => setWorkspace(undefined as any));
 
-  /**
-   * A controller holding the program's summary, whose displays are
-   * requests the test answers; `finishDisplay` settles the oldest one still
-   * waiting.
-   */
   function controllerIn(calls: string[], holdDisplays = false) {
     const waiting: ((result: { displayed: boolean }) => void)[] = [];
     setWorkspace({

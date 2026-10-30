@@ -1,8 +1,3 @@
-// The `load` verb in every place the grammar accepts it: the `[[load …]]`
-// directive passes validation, `load` on a nested arrow of a chain, on an
-// alternator arm, and on a tunnel-onwards is seen by the lowerer (and warned
-// about where it makes no sense), and `((load …))` names nothing.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

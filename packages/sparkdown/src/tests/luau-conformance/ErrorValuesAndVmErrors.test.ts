@@ -1,19 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Each script is a fixture body; the harness wraps it in
-// `function run() ... end`, installs the `<fixture>:<line>: ` error
-// formatter, and reports a failed `assert` as a runtime error. A body
-// line N is reported as line N.
 const passes = (source: string, name = "repro.luau") => {
   const r = runConformanceSource(source, undefined, name);
   expect(r.errorMessages.join("\n")).toBe("");
   expect(r.returnedOK).toBe(true);
 };
 
-// I-1336: Luau's `error(v)` raises `v` itself; only a string (or
-// number) message gets the position prefix, so `pcall` and `xpcall`
-// hand a non-string value back unchanged.
 describe("error with a non-string value", () => {
   test("pcall returns the table error raised", () => {
     passes(`local t = {1}
@@ -80,7 +73,6 @@ assert(not ok and err == t)`);
   });
 
   test("a metamethod that is error raises the table it receives", () => {
-    // Upstream events.luau lines 401-403.
     passes(`local t = {}
 setmetatable(t, { __len = error })
 local ok, err = pcall(function() return #t end)
@@ -127,9 +119,6 @@ assert(not ok and rawequal(err, t))`);
   });
 });
 
-// I-1337: an error the VM raises carries the position of the line that
-// raised it, as `error` and `assert` already do, in Luau's wording; an
-// error a builtin raises for a bad argument carries none.
 describe("a VM-raised error trapped by pcall", () => {
   const trapped = (body: string, expected: string) =>
     passes(`local ok, err = pcall(function()
@@ -149,7 +138,6 @@ f()`, "repro.luau:3: attempt to call a number value");
   });
 
   test("calling the nil an __index returned", () => {
-    // Upstream tmerror.luau lines 37-40.
     trapped(`local t = setmetatable({}, { __index = function() return nil end })
 t.f()`, "repro.luau:3: attempt to call a nil value");
   });
@@ -199,7 +187,6 @@ return #f`, "repro.luau:3: attempt to get length of a function value");
   });
 
   test("an index key is quoted up to 64 bytes", () => {
-    // 21 three-byte characters are 63 bytes; 22 are 66.
     trapped(`local t, k = nil, string.rep("界", 21)
 return t[k]`, `repro.luau:3: attempt to index nil with '${"界".repeat(21)}'`);
     trapped(`local t, k = nil, string.rep("界", 22)

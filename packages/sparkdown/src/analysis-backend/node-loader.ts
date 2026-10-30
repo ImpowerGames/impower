@@ -1,6 +1,5 @@
 import { Worker } from "node:worker_threads";
 import { createWasmAnalysisBackend, type AnalysisTransport } from "./wasm-adapter";
-/** Production Node entry point. One dedicated worker/WASM instance per project. */
 export function createNodeAnalysisBackend() {
   return createWasmAnalysisBackend((): AnalysisTransport => {
     const worker = new Worker(new URL("./node-worker.mjs", import.meta.url));

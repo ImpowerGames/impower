@@ -1,19 +1,7 @@
-// An application tears down once, after it has finished initializing, and
-// every caller of `destroy` waits for that teardown: the controller builds the
-// next application only once the last one has let go of the page. A failed
-// initialization is finished too, so its application can still be torn down
-// and a later PLAY can build its own. And the editor can step its clock
-// while it initializes: the clock moves, and nothing is drawn yet.
-//
-// These run `Application`'s own methods on an instance whose renderer,
-// managers and connection are stand-ins.
-
 import { describe, expect, test } from "vitest";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Application } from "../app/Application";
 
-/** An application whose initialization steps are `steps`, and a count of
- *  its managers' teardowns. */
 function application(steps: {
   renderer?: () => Promise<void>;
   connect?: () => Promise<void>;
@@ -34,14 +22,12 @@ function application(steps: {
   return { app, disposed };
 }
 
-/** A promise a test settles when it is ready. */
 const gate = () => {
   let open!: () => void;
   const opened = new Promise<void>((resolve) => (open = resolve));
   return { opened, open };
 };
 
-/** Whether `work` has settled once everything already queued has run. */
 const settled = async (work: Promise<unknown>) => {
   let done = false;
   work.then(

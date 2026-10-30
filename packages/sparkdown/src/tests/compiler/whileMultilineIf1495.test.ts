@@ -62,8 +62,6 @@ describe("a multiline if expression after a keyword that begins a condition (#14
     expectAccepted(withStart(text));
   });
 
-  // A story header ends at its line (#1907), so there the if expression is
-  // missing its value at the line's end; a function reads it on (above).
   test.each([
     ["a story-level while loop", `store c = true\nscene start\n  while if c then\n    false\n  else true do\n    Hello\n  end\nend\n`],
     ["a story-level if statement", `store c = true\nscene start\n  if if c then\n    false\n  else true then\n    Hello\n  end\nend\n`],

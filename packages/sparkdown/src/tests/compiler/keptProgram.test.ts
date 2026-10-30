@@ -1,16 +1,3 @@
-// Keeping an earlier compile's program runnable (#680).
-//
-// The player's worker shows the real document again after a suggestion was
-// compiled, and a suggestion again after a later one was compiled, from the
-// programs it kept, so a kept program has to stay exactly the program a cold
-// compile of its text builds however many compiles follow, and the compiles
-// after it have to be unaffected. A program's statement chunks are not
-// written after they are built, and a later compile shares the ones it keeps
-// (docs/engine/binary-program.md, section 1); these tests hold that to the
-// cold compile of each text.
-//
-// The root described by content (`describeRoot`) is the oracle here, beside
-// running the program.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -19,8 +6,6 @@ import { describeRoot } from "../program/describeRoot";
 
 const URI = "inmemory:///main.sd";
 
-// Cross-flow coupling (diverts between scenes, read counts, a function, a
-// define), as the incremental equivalence oracle uses.
 function coupledScreenplay(): string {
   const L: string[] = [];
   L.push("title: Activation Fixture");
@@ -116,7 +101,6 @@ function change(text: string, find: string, replace: string) {
   return changeAt(text, offset, find.length, replace);
 }
 
-/** A compiler over one script that hands back the root of each compile. */
 function compilerFor(text: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -148,7 +132,6 @@ function compilerFor(text: string) {
 }
 
 const coldCache = new Map<string, string>();
-/** The root a cold compile of `text` builds, described by content. */
 function cold(text: string): string {
   let found = coldCache.get(text);
   if (found === undefined) {
@@ -158,12 +141,9 @@ function cold(text: string): string {
   return found;
 }
 
-/** A root described by content, or a note that the compile made none. */
 const described = (root: ProgramRoot | undefined): string =>
   root ? JSON.stringify(describeRoot(root)) : "(no program)";
 
-/** The text the program of `root` prints from the start of `path`, over
- *  `lines` lines. */
 function run(root: ProgramRoot, path: string, lines = 8): string[] {
   const story = new ProgramStory(root);
   story.ChoosePathString(path);
@@ -176,7 +156,6 @@ function run(root: ProgramRoot, path: string, lines = 8): string[] {
 
 describe("a program kept across later compiles", () => {
   it("runs like a cold compile of the real text after a preview compile", () => {
-    // Scenes that only divert, so any one of them runs without the root.
     const base = Array.from(
       { length: 6 },
       (_, s) =>
@@ -186,8 +165,6 @@ describe("a program kept across later compiles", () => {
     const canonical = c.compile().root!;
     c.preview(change(base, "Action describing room 4.", "Action describing room 4, as the suggestion has it.").contentChanges);
 
-    // scene_1 is unchanged, so the preview compile kept its chunk; its
-    // divert to scene_4 must reach the real scene_4.
     const coldRoot = compilerFor(base).compile().root!;
     expect(run(canonical, "scene_1")).toEqual(run(coldRoot, "scene_1"));
   });
@@ -199,7 +176,6 @@ describe("a program kept across later compiles", () => {
       const canonical = c.compile().root!;
       const first = change(base, edit.find, edit.replace);
       const suggestion = c.preview(first.contentChanges);
-      // A later suggestion keeps both programs' chunks again.
       c.preview(change(base, "Line one of dialogue in scene 1.", "Line one, later suggestion.").contentChanges);
 
       expect(described(canonical)).toBe(cold(base));
@@ -207,7 +183,6 @@ describe("a program kept across later compiles", () => {
         expect(described(suggestion)).toBe(cold(first.after));
       }
 
-      // The next real compile is the one it would have been.
       const typed = change(base, "Line one of dialogue in scene 2.", "Line one of dialogue in scene 2, typed.");
       c.edit(typed.contentChanges);
       const next = c.compile();
@@ -221,7 +196,6 @@ describe("a program kept across later compiles", () => {
     let canonical = c.compile().root!;
     let shown: { root: ProgramRoot; text: string } | undefined;
 
-    // Deterministic LCG, as the cumulative equivalence fuzz uses.
     let seed = 0x680;
     const rand = () => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -244,7 +218,6 @@ describe("a program kept across later compiles", () => {
     for (let n = 0; n < 60; n++) {
       const roll = rand();
       if (roll < 0.3) {
-        // The author types: a real compile, which becomes the canonical one.
         const typed = randomChange(text);
         c.edit(typed.contentChanges);
         text = typed.after;
@@ -253,7 +226,6 @@ describe("a program kept across later compiles", () => {
           canonical = root;
         }
       } else {
-        // A suggestion is compiled, and sometimes becomes the one shown.
         const suggested = randomChange(text);
         const root = c.preview(suggested.contentChanges);
         if (root && rand() < 0.5) {
@@ -302,7 +274,6 @@ describe("a program kept across later compiles", () => {
 
     const c = compilerFor(base);
     const canonical = c.compile().root!;
-    // The suggestion adds two lines above `second`, whose chunk it keeps.
     c.preview(change(base, "  First.", "  First.\n  Added one.\n  Added two.").contentChanges);
     expect(errorsOf(canonical)).toEqual(coldErrors);
     expect(described(canonical)).toBe(cold(base));

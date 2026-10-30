@@ -1,14 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
-// The ReferenceAnnotator feeds find-references, rename, go-to-definition, and
-// hover (via the `references` channel). The Luau port renamed the declaration/
-// reference grammar nodes, so its function/variable/param/define branches went
-// dead. These tests lock in the restored CORE behavior (D1): a declaration
-// emits a `write` mark and references emit `read` marks sharing a symbolId, so
-// the providers can match them. (Struct-property + define-type-model references
-// are covered separately.)
-
 interface Ref {
   declaration?: string;
   kind?: string;
@@ -27,7 +19,6 @@ function collectReferences(source: string): Ref[] {
   const out: Ref[] = [];
   const cur = annotations.references.iter();
   while (cur.value) {
-    // The marked payload (the Reference object) lives at `.type`.
     const v = (cur.value as any).type ?? {};
     out.push({
       declaration: v.declaration,
@@ -53,7 +44,6 @@ end
     const decl = find(refs, "greet", "write");
     expect(decl?.declaration).toBe("function");
     expect(decl?.symbolIds).toContain("greet");
-    // The call site is a read referencing the same symbol.
     const reads = refs.filter((r) => r.text === "greet" && r.kind === "read");
     expect(reads.length).toBeGreaterThan(0);
     expect(reads.some((r) => r.symbolIds?.includes("greet"))).toBe(true);
@@ -80,9 +70,7 @@ function bump()
 end
 {score}
 `);
-    // The write (declaration) exists.
     expect(find(refs, "score", "write")?.declaration).toBe("var");
-    // At least one read carries a symbolId matching the declaration.
     const reads = refs.filter((r) => r.text === "score" && r.kind === "read");
     expect(reads.length).toBeGreaterThan(0);
     expect(reads.some((r) => r.symbolIds?.includes("score"))).toBe(true);

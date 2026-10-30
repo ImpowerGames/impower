@@ -4,15 +4,6 @@ import type { InkObject } from "./Object";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./Value";
 
-// The rules both story engines apply to their output (the current
-// engine's `StoryState` and the binary program's `ProgramStoryState`), kept in
-// one place so the two cannot drift apart.
-
-/**
- * `str` as a story shows it: escapes processed when `processEscapes` is set,
- * and runs of spaces and tabs collapsed to one space, with none at the start
- * or end of a line, when `collapseWhitespace` is set. A game turns both off.
- */
 export function cleanOutputWhitespace(
   str: string,
   processEscapes: boolean,
@@ -64,13 +55,6 @@ export function cleanOutputWhitespace(
   }
 }
 
-/**
- * `single` split at the newlines that open and close it, so that each
- * newline reaches the output on its own: the spaces before the first newline,
- * that newline, the inner text, the last newline and the spaces after it, each
- * where present. Null when the text neither starts nor ends with a newline
- * after its spaces and tabs.
- */
 export function splitHeadTailWhitespace(
   single: StringValue,
 ): StringValue[] | null {
@@ -101,7 +85,6 @@ export function splitHeadTailWhitespace(
     else break;
   }
 
-  // No splitting to be done?
   if (headFirstNewlineIdx == -1 && tailLastNewlineIdx == -1) return null;
 
   let listTexts: StringValue[] = [];
@@ -140,16 +123,6 @@ export function splitHeadTailWhitespace(
   return listTexts;
 }
 
-/**
- * The index of the outermost `BeginString` in `stream`, or -1 when the output
- * is not inside a string evaluation. `hint` is the index a previous call
- * returned: it is trusted only while it still holds a `BeginString`, so any
- * rewrite of the stream in between costs at most one scan.
- *
- * The engine asks this on every push. Inside an interpolation the
- * `BeginString` sits before everything the evaluation pushes, so walking the
- * stream on each call made a loop there cost more with every step (#1134).
- */
 export function findOpenString(stream: InkObject[], hint: number): number {
   if (hint >= 0 && hint < stream.length && isBeginString(stream[hint])) {
     return hint;

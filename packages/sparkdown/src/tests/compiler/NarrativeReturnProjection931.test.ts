@@ -32,9 +32,6 @@ function locationPairs(text: string, corrupt?: (actual: Json) => void) {
     const realNodes = (root: Json) => {
       const nodes = jsonNodes(root);
       if (unit.kind !== "flow") return nodes;
-      // The unit root and __flow function are synthesized, with no written
-      // tokens to locate. Its parameters and every body statement still
-      // participate, including real blocks and nested function definitions.
       const block = root as { [key: string]: Json };
       const flow = (block["body"] as { [key: string]: Json }[])[0]!;
       const fn = flow["func"] as { [key: string]: Json };
@@ -101,9 +98,6 @@ describe("independent narrative-return oracle projection", () => {
     agrees("& repeat return 5 until true\nProse.\n& f()\n", 0);
   });
   test("bounded divert expressions retain the checker's complete structural view", () => {
-    // The primary official location oracle accounts for the existing _G()
-    // substitution's shorter synthetic spans in bounded-expression-family.sd.
-    // This helper's strict location pairs remain reserved for written Luau.
     for (const { official, islandErrors, ours, actual, expected } of readings("& local target = -> place\nscene place\nProse.\nend\n")) {
       expect(islandErrors).toEqual([]);
       expect(official.errors).toEqual([]);

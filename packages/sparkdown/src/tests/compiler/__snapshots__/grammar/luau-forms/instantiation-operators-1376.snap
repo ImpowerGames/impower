@@ -296,13 +296,13 @@ sparkdown [0..161]
  │   │       │   │   │   │   │   │       └─ LuauVariable_c1 [117..118]
  │   │       │   │   │   │   │   │           └─ LuauVariableName [117..118]: "t"
  │   │       │   │   │   │   │   └─ LuauAccessPart [118..120]
- │   │       │   │   │   │   │       └─ LuauPropertyAccessor [118..120]
- │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c1 118
- │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c2 [118..119]
+ │   │       │   │   │   │   │       └─ LuauMethodNameAccessor [118..120]
+ │   │       │   │   │   │   │           ├─ LuauMethodNameAccessor_c1 118
+ │   │       │   │   │   │   │           ├─ LuauMethodNameAccessor_c2 [118..119]
  │   │       │   │   │   │   │           │   └─ LuauAccessorOperator [118..119]: ":"
- │   │       │   │   │   │   │           ├─ LuauPropertyAccessor_c3 119
- │   │       │   │   │   │   │           └─ LuauPropertyAccessor_c4 [119..120]
- │   │       │   │   │   │   │               └─ LuauPropertyName [119..120]: "m"
+ │   │       │   │   │   │   │           ├─ LuauMethodNameAccessor_c3 119
+ │   │       │   │   │   │   │           └─ LuauMethodNameAccessor_c4 [119..120]
+ │   │       │   │   │   │   │               └─ LuauFunctionName [119..120]: "m"
  │   │       │   │   │   │   └─ LuauAccessPath_end 120
  │   │       │   │   │   │       └─ LuauAccessPath_end_c1 120
  │   │       │   │   │   │           └─ LuauAccessPath_end_c1 120

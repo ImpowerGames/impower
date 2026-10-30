@@ -36,7 +36,6 @@ const file = (text: string) => ({
   languageId: "sparkdown",
 });
 
-/** A compiler and a story of its latest compile's program. */
 function compiler(text: string) {
   const c = testCompiler();
   c.configure({ files: [file(text)] as never });
@@ -47,8 +46,6 @@ function compiler(text: string) {
   };
 }
 
-/** What running scene `scene`, or the story from its start, shows: its text
- *  and the errors it raised. */
 function play(story: any, scene?: string) {
   const errors: string[] = [];
   const text: string[] = [];
@@ -63,9 +60,6 @@ function play(story: any, scene?: string) {
   return { text, errors };
 }
 
-/** Scene B, or with `fromStart` the story from its start, run on the story of
- *  a compile that followed an edit of scene A, and on a cold compile's story
- *  of the edited text. */
 function afterEditingSceneA(text: string, fromStart = false) {
   const scene = fromStart ? undefined : "B";
   const { warn, error } = console;
