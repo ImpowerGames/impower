@@ -698,6 +698,53 @@ await asyncCheck("advance reports each click's text, launch state and game notif
   assert.match(noFrame.reason, /player frame/);
 });
 
+function gamePage({ frameUrl = "http://localhost:1/__player/index.html", box = { x: 800, y: 100, width: 400, height: 600 } } = {}) {
+  const clicks = [];
+  const listeners = [];
+  const win = { __editorProtocol: { subscribe: (fn) => { listeners.push(fn); return () => {}; } } };
+  const main = { url: () => "http://localhost:1/" };
+  const player = { url: () => frameUrl, locator: (sel) => ({ first: () => ({ boundingBox: async () => (sel === "#game" ? box : null) }) }) };
+  const page = {
+    mainFrame: () => main,
+    frames: () => [main, player],
+    mouse: { click: async (x, y) => { clicks.push({ x, y }); for (const fn of listeners) fn({ method: "game/exited", params: { reason: "finished" } }); } },
+    waitForFunction: async () => {},
+    evaluate: async (fn) => fn(),
+  };
+  return { page, win, clicks, listeners, emit: (message) => listeners.forEach((fn) => fn(message)) };
+}
+
+await asyncCheck("advance's own click finds the player frame and clicks the centre of #game, and its own collector reports the game notifications", async () => {
+  let launchState = "play";
+  const { page, win, clicks, listeners, emit } = gamePage();
+  const saved = globalThis.window;
+  globalThis.window = win;
+  try {
+    const opts = { request: async () => ({ launchState }), settle: async () => ({ settled: true, text: "Hello." }) };
+    const out = await advanceGame(page, 2, opts);
+    assert.equal(out.reason, undefined);
+    assert.deepEqual(clicks, [{ x: 1000, y: 400 }, { x: 1000, y: 400 }]);
+    assert.equal(listeners.length, 1);
+    assert.deepEqual(out.clicks.map((c) => c.at), [{ x: 1000, y: 400 }, { x: 1000, y: 400 }]);
+    assert.deepEqual(out.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+    emit({ method: "game/stale", params: null });
+    emit({ method: "editor/didChange", params: {} });
+    const again = await advanceGame(page, 1, opts);
+    assert.equal(listeners.length, 1);
+    assert.deepEqual(again.clicks[0].notifications, [{ method: "game/exited", params: { reason: "finished" } }]);
+    const noFrame = await advanceGame(gamePage({ frameUrl: "http://localhost:1/other.html" }).page, 1, opts);
+    assert.equal(noFrame.clicked, 0);
+    assert.match(noFrame.reason, /no same-origin player frame/);
+    const hidden = gamePage({ box: { x: 0, y: 0, width: 0, height: 0 } });
+    const noView = await advanceGame(hidden.page, 1, opts);
+    assert.equal(noView.clicked, 0);
+    assert.deepEqual(hidden.clicks, []);
+    assert.match(noView.reason, /#game\) is not on screen/);
+  } finally {
+    globalThis.window = saved;
+  }
+});
+
 await asyncCheck("insert puts text at the position, reads it back and reports the preview route", async () => {
   let doc = "line one\nline two", version = 1, selection = { start: { line: 0, character: 0 } };
   const inserted = [];
