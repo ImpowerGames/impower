@@ -164,6 +164,20 @@ describe("one resolver owns each name and its value", () => {
   });
 
   test.each([
+    ["width", "max-content", [["width", "max-content"]]],
+    ["min-width", "min-content", [["min-width", "min-content"]]],
+    ["max-height", "fit-content", [["max-height", "fit-content"]]],
+    ["max-width", "stretch", [["max-width", "stretch"]]],
+    ["border-width", "thin", [["border-width", "thin"]]],
+    ["border-top-width", "thick", [["border-top-width", "thick"]]],
+    ["outline-width", "medium", [["outline-width", "medium"]]],
+    ["width", "md", [["width", "8px"]]],
+    ["border-width", "gutter", [["border-width", "var(--theme-size-gutter)"]]],
+  ])("native size keyword %s = %s stays native", (key, value, expected) => {
+    expect(getCssEquivalent(key, value)).toEqual(expected);
+  });
+
+  test.each([
     ["filter", "none", [["filter", "none"]]],
     ["backdrop-filter", "none", [["backdrop-filter", "none"]]],
     ["filter", "dim", [["filter", "var(--theme-filter-dim)"]]],
@@ -251,6 +265,12 @@ describe("an animation player keyframe resolves through the same table", () => {
     [{ filter: "revert-layer" }, { filter: "revert-layer" }],
     [{ margin: "auto" }, { margin: "auto" }],
     [{ margin: "auto 0" }, { margin: "auto 0px" }],
+    [{ width: "max-content" }, { width: "max-content" }],
+    [{ min_width: "min-content" }, { minWidth: "min-content" }],
+    [{ max_height: "fit-content" }, { maxHeight: "fit-content" }],
+    [{ max_width: "stretch" }, { maxWidth: "stretch" }],
+    [{ border_width: "thin" }, { borderWidth: "thin" }],
+    [{ border_top_width: "thick" }, { borderTopWidth: "thick" }],
     [{ color: "INITIAL" }, { color: "initial" }],
     [{ flex_direction: "inherit" }, { flexDirection: "inherit" }],
   ])("the native keyword in %j plays unchanged", (keyframe, played) => {

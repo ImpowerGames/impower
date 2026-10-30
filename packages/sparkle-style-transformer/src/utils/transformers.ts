@@ -2,6 +2,16 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
+const NATIVE_SIZE_KEYWORDS = new Set([
+  "auto",
+  "min-content",
+  "max-content",
+  "fit-content",
+  "stretch",
+  "thin",
+  "medium",
+  "thick",
+]);
 const GRADIENT_KEYWORDS = new Set([
   "left",
   "right",
@@ -916,7 +926,7 @@ export const getCssSize = (
   if (value === "none") {
     return "0";
   }
-  if (value === "auto") {
+  if (typeof value === "string" && NATIVE_SIZE_KEYWORDS.has(value)) {
     return value;
   }
   if (value === "") {
