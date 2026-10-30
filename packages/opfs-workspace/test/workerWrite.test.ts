@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 
 afterEach(() => {
   vi.clearAllTimers();
@@ -17,13 +18,18 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
   const close = vi.fn(() => { locked = false; });
   const removeEntry = vi.fn(async (name: string) => { await remove(name); exists = false; });
   const thumbnails: string[] = [];
+  const thumbnailCache = new Map<string, Response>();
+  const decode = vi.fn(async () => { await thumbnailGate; return { width: 2, height: 2, close() {} }; });
   if (thumbnailGate) {
-    vi.stubGlobal("createImageBitmap", async () => { await thumbnailGate; return { width: 2, height: 2, close() {} }; });
+    vi.stubGlobal("createImageBitmap", decode);
     vi.stubGlobal("OffscreenCanvas", class {
       getContext() { return { drawImage() {} }; }
       async convertToBlob() { return new Blob(["thumbnail"], { type: "image/webp" }); }
     });
-    vi.stubGlobal("caches", { open: async () => ({ put: async (key: string) => { thumbnails.push(key); } }) });
+    vi.stubGlobal("caches", { open: async () => ({
+      match: async (key: string) => thumbnailCache.get(key),
+      put: async (key: string, response: Response) => { thumbnails.push(key); thumbnailCache.set(key, response); },
+    }) });
   }
   const file = {
     createSyncAccessHandle: vi.fn(async () => {
@@ -69,7 +75,7 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
     return messages.find(message => message.id === id && ("result" in message || "error" in message));
   };
   const send = (id: string, data = [1, 2, 3], uri = "file://local/main.sd", elapsed = 101) => request(id, "workspace/willCreateFiles", { files: [{ uri, data: new Uint8Array(data).buffer }] }, elapsed);
-  return { send, request, messages, close, removeEntry, thumbnails, exists: () => exists, locked: () => locked, bytes: () => bytes };
+  return { send, request, messages, close, removeEntry, thumbnails, thumbnailCache, decode, file, exists: () => exists, locked: () => locked, bytes: () => bytes };
 }
 
 it("answers successful imports on the real worker message handler", async () => {
@@ -100,6 +106,23 @@ it("keeps a raster import pending until its thumbnail is cached", async () => {
   await vi.advanceTimersByTimeAsync(0);
   expect(h.thumbnails).toEqual([expect.stringContaining("local/zz.png?thumb=144")]);
   expect(h.messages.find(message => message.id === "image")).toHaveProperty("result");
+});
+
+it("caches the import-time thumbnail under the key the service worker serves", async () => {
+  const h = await worker({ thumbnail: Promise.resolve() });
+  await h.send("image", [1, 2], "file://local/zz.png");
+  expect(h.decode).toHaveBeenCalledTimes(1);
+  const stored = await h.file.getFile();
+  const served = await getOrCreateThumbnail(
+    { match: async key => h.thumbnailCache.get(key), put: async () => { throw new Error("service worker regenerated the thumbnail"); } },
+    "local/zz.png",
+    Object.assign(new Blob([new Uint8Array(2)]), { lastModified: stored.lastModified }),
+    "144",
+    "/file:/",
+  );
+  expect(served).toBeInstanceOf(Response);
+  expect(h.decode).toHaveBeenCalledTimes(1);
+  expect(h.thumbnailCache.size).toBe(1);
 });
 
 it("does not acknowledge deletion while storage is still removing the file", async () => {

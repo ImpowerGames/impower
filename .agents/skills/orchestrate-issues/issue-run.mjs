@@ -10,7 +10,7 @@ import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
-import { liveDeps, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
+import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
@@ -1307,6 +1307,39 @@ export function filedActions(record) {
   return out.sort((a, b) => a.number - b.number);
 }
 
+export function cleanArtifacts(record, { ticket: number, processes = liveDeps.processes, remove = removeJobDir }) {
+  const ticket = ticketOf(record, number);
+  if (ticket.owner) throw new Error(`#${number} still has a writer; release it before its artifacts go`);
+  if (ticket.pending) throw new Error(`#${number} has a pending start; settle it before its artifacts go`);
+  const parents = new Set((ticket.history ?? []).map((h) => h.owner?.artifactParent ?? h.artifactParent).filter((p) => typeof p === "string" && path.isAbsolute(p)));
+  const listing = processes();
+  const removed = [], kept = [];
+  for (const parent of parents) {
+    let entries;
+    try { entries = fs.readdirSync(parent, { withFileTypes: true }); }
+    catch (error) { if (error.code === "ENOENT") continue; kept.push({ dir: parent, reason: `could not be listed (${error.code ?? error.message})` }); continue; }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const kind = /^(writer|launch|resume)-(\d+)-/.exec(entry.name);
+      if (!kind || Number(kind[2]) !== number) continue;
+      const dir = path.join(parent, entry.name);
+      if (kind[1] === "writer") {
+        let owner;
+        try { owner = JSON.parse(fs.readFileSync(path.join(dir, "owner.json"), "utf8")); }
+        catch (error) { kept.push({ dir, reason: `its owner.json could not be read (${error.code ?? error.message})` }); continue; }
+        if (owner?.issue !== number) { kept.push({ dir, reason: `its owner.json names #${owner?.issue}` }); continue; }
+      }
+      if (!listing.ok) { kept.push({ dir, reason: `the processes on this machine could not be listed (${listing.err})` }); continue; }
+      const users = usersOf(dir, listing.list, process.pid);
+      if (users.length) { kept.push({ dir, reason: `its path is on the command line of pid ${users.map((p) => p.pid).join(", ")}` }); continue; }
+      try { remove(dir); removed.push(dir); }
+      catch (error) { kept.push({ dir, reason: `removal failed (${error.code ?? error.message}); the directory is ${fs.existsSync(dir) ? "still there" : "gone"}` }); }
+    }
+  }
+  log(record, "artifacts-cleaned", { ticket: number, removed, kept });
+  return { removed, kept };
+}
+
 export function diskRecovery(record, { removed, branch, classifier }) {
   if (!removed || !classifier) throw new Error("--removed and --classifier must name the removed path and the classifier's merged-and-removable row");
   record.diskRecoveries.push({ time: new Date().toISOString(), removed, branch: branch ?? null, classifier });
@@ -1721,13 +1754,14 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "release": return mutate((r) => release(r, { ticket: number(), observations: readOptional(o.observations) ?? {}, evidence: o.evidence }));
     case "result": return mutate((r) => result(r, { ticket: number(), report: absolute(o.report, "report") }));
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
+    case "clean-artifacts": return mutate((r) => cleanArtifacts(r, { ticket: number() }));
     case "filed": return mutate((r) => filed(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), pr: o.pr === undefined ? undefined : integer(o.pr, "pr"), source: o.source, reading: o.reading }));
     case "dismiss": return mutate((r) => dismiss(r, { filed: integer(o.filed, "filed"), ticket: o.ticket === undefined ? undefined : number(), evidence: o.evidence }));
     case "triage": return mutate((r) => triage(r, { filed: integer(o.filed, "filed"), outcome: o.outcome, slice: o.slice === undefined ? undefined : integer(o.slice, "slice"), under: o.under === undefined ? undefined : integer(o.under, "under"), reason: o.reason, question: o.question }));
     case "interim": { if ((o.decision?.length ?? 0) > 1) throw new Error("--decision given twice"); return mutate((r) => interim(r, { filed: integer(o.filed, "filed"), decision: o.decision?.[0], evidence: o.evidence })); }
     case "brief": return brief(readRecord(absolute(o.record, "record")), absolute(o.plan, "plan"), number(), o.decision ?? [], defaults);
     case "recover-lock": return { result: recoverLock(absolute(o.record, "record")) };
-    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
+    default: throw new Error("Usage: issue-run.mjs init|snapshot|plan|claim|launch|launched|acknowledged|deliver|delivered|request|relay|answer|answered|adopt|reconcile|withdraw|verify|writer-session|release|result|open|opened|resume|contact|contacted|schedule|check-in|checked-in|disk-recovery|clean-artifacts|filed|dismiss|triage|interim|brief|recover-lock --option value ...");
   }
 }
 

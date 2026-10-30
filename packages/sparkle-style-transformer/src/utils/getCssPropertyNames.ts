@@ -1,20 +1,16 @@
-import { CSS_ALIASES } from "../constants/CSS_ALIASES.js";
 import { CSS_UTILITIES } from "../constants/CSS_UTILITIES.js";
-import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
+import { getSparklePropertyName } from "./getCssEquivalent.js";
+import { getCssPropertyName } from "./getCssPropertyName.js";
 
 export const getCssPropertyNames = (key: string): string[] => {
-  const aliases: Record<string, string> = {
-    ...STYLE_ALIASES,
-    ...CSS_ALIASES,
-  };
   const cssUtilities: Record<
     string,
     Record<string, Record<string, string>>
   > = CSS_UTILITIES;
 
-  const cssUtility = cssUtilities[aliases[key] ?? key];
+  const cssUtility = cssUtilities[getSparklePropertyName(key)];
   if (!cssUtility) {
-    return [key];
+    return [getCssPropertyName(key)];
   }
   const names = new Set<string>();
   for (const selector of Object.values(cssUtility)) {

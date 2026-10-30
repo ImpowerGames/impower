@@ -1,5 +1,6 @@
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
+import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
@@ -72,7 +73,7 @@ const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
-const THUMB_VERSION = 2;
+const RESOURCE_PROTOCOL = "/file:/";
 const RASTER_IMAGE_REGEX = /[.](png|jpe?g|gif|webp)$/i;
 const THUMBNAILS_SUPPORTED =
   typeof createImageBitmap === "function" &&
@@ -798,38 +799,13 @@ const generateThumbnail = async (fileUri: string): Promise<void> => {
   } catch {
     return;
   }
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file, {
-      resizeWidth: THUMB_WIDTH,
-      resizeQuality: "low",
-    });
-  } catch {
-    return;
-  }
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    bitmap.close();
-    return;
-  }
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const webp = await canvas.convertToBlob({
-    type: "image/webp",
-    quality: 0.75,
-  });
-  const key = `/file:/${relativePath}?thumb=${THUMB_WIDTH}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
   const cache = await caches.open(THUMB_CACHE_NAME);
-  await cache.put(
-    key,
-    new Response(webp, {
-      headers: {
-        "Content-Type": "image/webp",
-        "Content-Length": String(webp.size),
-        "Cache-Control": "max-age=31536000, immutable",
-      },
-    }),
+  await getOrCreateThumbnail(
+    cache,
+    relativePath,
+    file,
+    String(THUMB_WIDTH),
+    RESOURCE_PROTOCOL,
   );
 };
 

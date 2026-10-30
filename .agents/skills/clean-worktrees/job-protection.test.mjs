@@ -57,12 +57,14 @@ try {
     assert.equal(fs.readFileSync(path.join(checkout, 'ignored.txt'), 'utf8'), 'preserve ignored');
     assert.ok(isRegistered(checkout));
   }
+  const openDeps = { ...deps, exec: (cmd, args, cwd) => cmd === 'gh' ? { status: 0, out: 'open PR' } : deps.exec(cmd, args, cwd) };
   const embedded = job();
   fs.mkdirSync(path.join(embedded.dir, 'embedded', '.git'), { recursive: true });
-  assert.equal(classifyJob(embedded.name, embedded.dir, deps, ctx).remove, false, 'embedded repository was removable');
   fs.writeFileSync(path.join(embedded.dir, 'embedded', 'ignored.txt'), 'embedded sentinel');
+  assert.equal(classifyJob(embedded.name, embedded.dir, openDeps, ctx).remove, false, 'an open PR\'s embedded repository was removable');
+  assert.equal(classifyJob(embedded.name, embedded.dir, deps, ctx).remove, true, 'a closed PR\'s embedded repository kept it');
   cleanJobs(ctx, deps, true, () => {});
-  assert.equal(fs.readFileSync(path.join(embedded.dir, 'embedded', 'ignored.txt'), 'utf8'), 'embedded sentinel');
+  assert.equal(fs.existsSync(embedded.dir), false, 'the closed PR\'s embedded repository survived apply');
   for (const kind of ['bare', 'uppercase']) {
     const fixture = job();
     const repository = path.join(fixture.dir, 'repository');
@@ -72,9 +74,57 @@ try {
       fs.renameSync(path.join(repository, '.GIT-temp'), path.join(repository, '.GIT'));
     }
     fs.writeFileSync(path.join(repository, 'ignored.txt'), `${kind} sentinel`);
-    assert.equal(classifyJob(fixture.name, fixture.dir, deps, ctx).remove, false, `${kind} repository was removable`);
+    const openVerdict = classifyJob(fixture.name, fixture.dir, openDeps, ctx);
+    assert.equal(openVerdict.remove, false, `an open PR's ${kind} repository was removable`);
+    assert.ok(openVerdict.reason.includes(`protected embedded Git repository ${repository}`), openVerdict.reason);
+    assert.equal(classifyJob(fixture.name, fixture.dir, deps, ctx).remove, true, `a closed PR's ${kind} repository kept it`);
     cleanJobs(ctx, deps, true, () => {});
-    assert.equal(fs.readFileSync(path.join(repository, 'ignored.txt'), 'utf8'), `${kind} sentinel`);
+    assert.equal(fs.existsSync(repository), false, `the closed PR's ${kind} repository survived apply`);
+  }
+  {
+    const inside = job();
+    git('init', path.join(inside.dir, 'repo'));
+    fs.mkdirSync(path.join(inside.dir, 'checkout'));
+    fs.writeFileSync(path.join(inside.dir, 'checkout', '.git'), `gitdir: ${path.join(inside.dir, 'repo', '.git')}\n`);
+    assert.equal(classifyJob(inside.name, inside.dir, deps, ctx).remove, true, 'a .git file pointing inside the job directory kept it');
+    const outsideRepo = path.join(scratch, 'outside-repo');
+    git('init', outsideRepo);
+    const outside = job();
+    fs.mkdirSync(path.join(outside.dir, 'checkout'));
+    fs.writeFileSync(path.join(outside.dir, 'checkout', '.git'), `gitdir: ${path.join(outsideRepo, '.git')}\n`);
+    const outsideVerdict = classifyJob(outside.name, outside.dir, deps, ctx);
+    assert.equal(outsideVerdict.remove, false, 'a .git file pointing outside the job directory was removable');
+    assert.match(outsideVerdict.reason, /worktree of a repository outside the job directory/);
+    const linkedOut = job();
+    const linkedRepo = path.join(linkedOut.dir, 'repo');
+    git('init', linkedRepo);
+    fs.mkdirSync(path.join(linkedRepo, '.git', 'worktrees', 'probe'), { recursive: true });
+    fs.writeFileSync(path.join(linkedRepo, '.git', 'worktrees', 'probe', 'gitdir'), `${path.join(scratch, 'linked-elsewhere', '.git')}\n`);
+    const linkedVerdict = classifyJob(linkedOut.name, linkedOut.dir, deps, ctx);
+    assert.equal(linkedVerdict.remove, false, 'a repository with a linked worktree outside the job directory was removable');
+    assert.match(linkedVerdict.reason, /linked worktree .* is outside the job directory/);
+    const linkedIn = job();
+    const innerRepo = path.join(linkedIn.dir, 'repo');
+    git('init', innerRepo);
+    fs.mkdirSync(path.join(innerRepo, '.git', 'worktrees', 'probe'), { recursive: true });
+    fs.writeFileSync(path.join(innerRepo, '.git', 'worktrees', 'probe', 'gitdir'), `${path.join(linkedIn.dir, 'probe', '.git')}\n`);
+    assert.equal(classifyJob(linkedIn.name, linkedIn.dir, deps, ctx).remove, true, 'a repository whose linked worktree is inside the job directory kept it');
+    cleanJobs(ctx, deps, true, () => {});
+    assert.equal(fs.existsSync(inside.dir), false);
+    assert.equal(fs.existsSync(linkedIn.dir), false);
+    assert.ok(fs.existsSync(outside.dir) && fs.existsSync(linkedOut.dir), 'a job directory something outside depends on was removed');
+    assert.ok(fs.existsSync(path.join(outsideRepo, '.git')));
+    fs.rmSync(outside.dir, { recursive: true, force: true });
+    fs.rmSync(linkedOut.dir, { recursive: true, force: true });
+  }
+  {
+    const testDir = path.join(root, 'test-fixture-abc');
+    fs.mkdirSync(testDir, { recursive: true });
+    fs.writeFileSync(path.join(testDir, 'owner.jsonl'), JSON.stringify({ event: 'test-owner', pid: 4000000 }) + '\n');
+    git('init', path.join(testDir, 'fixture-repo'));
+    assert.equal(classifyJob('test-fixture-abc', testDir, deps, ctx).remove, true, 'a dead test\'s embedded repository kept its scratch directory');
+    cleanJobs(ctx, deps, true, () => {});
+    assert.equal(fs.existsSync(testDir), false);
   }
   const unknown = job();
   assert.equal(classifyJob(unknown.name, unknown.dir, { ...deps, exec: (cmd, ...args) => cmd === 'git' ? { status: 1, err: 'inventory denied' } : deps.exec(cmd, ...args) }, ctx).remove, false, 'unknown inventory was removable');
@@ -208,34 +258,30 @@ try {
       assert.equal(inClone('status', '--porcelain', '--untracked-files=all'), '', 'the fixture change shows in status');
     }
     const verdict = classifyJob(fixture.name, fixture.dir, deps, ctx);
-    assert.equal(verdict.remove, false, `a ${state} probe clone was removable`);
-    assert.match(verdict.reason, state === 'untracked' ? /uncommitted or untracked files/ : state === 'linked' ? /has linked worktrees/ : state === 'am' ? /unfinished in it \(rebase-apply\)/ : state === 'assume-unchanged' ? /assume-unchanged or skip-worktree/ : /is not on origin\/main/);
+    if (state === 'linked') {
+      assert.equal(verdict.remove, false, 'a probe clone with a linked worktree outside the job directory was removable');
+      assert.match(verdict.reason, /linked worktree .* is outside the job directory/);
+      cleanJobs(ctx, deps, true, () => {});
+      assert.ok(fs.existsSync(path.join(clone, '.git')), 'apply removed the linked probe clone');
+      assert.ok(fs.existsSync(path.join(external, '.git')), 'apply broke the linked worktree');
+      inClone('worktree', 'remove', '--force', external);
+      fs.rmSync(fixture.dir, { recursive: true, force: true });
+    } else {
+      assert.equal(verdict.remove, true, `a ${state} probe clone kept its closed PR's directory: ${verdict.reason}`);
+      cleanJobs(ctx, deps, true, () => {});
+      assert.equal(fs.existsSync(fixture.dir), false, `apply kept the ${state} probe clone`);
+    }
+  }
+  {
+    const fixture = job();
+    const clone = probeClone(fixture.dir);
+    fs.writeFileSync(path.join(clone, '.git', 'HEAD'), 'ref: refs/heads/no-such\n');
+    const damaged = path.join(fixture.dir, 'round-1', 'reviewer-a-1', 'damaged');
+    fs.mkdirSync(path.join(damaged, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(damaged, '.git', 'HEAD'), 'garbage');
+    assert.equal(classifyJob(fixture.name, fixture.dir, deps, ctx).remove, true, 'a damaged repository kept the closed PR\'s directory');
     cleanJobs(ctx, deps, true, () => {});
-    assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
-    if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
-  }
-  {
-    const fixture = job();
-    const clone = probeClone(fixture.dir);
-    let statusCalls = 0;
-    const unlinking = { ...deps, exec: (cmd, args, cwd, timeout) => {
-      if (cmd === 'git' && args[0] === 'status' && path.resolve(cwd) === path.resolve(clone) && ++statusCalls > 1) return { status: 0, out: 'D tracked-link', err: '' };
-      return deps.exec(cmd, args, cwd, timeout);
-    } };
-    const run = cleanJobs(ctx, unlinking, true, () => {});
-    assert.ok(run.rows.some((row) => row.name === fixture.name && row.decision === 'removed'), JSON.stringify(run.rows.filter((row) => row.name === fixture.name)));
-    assert.equal(statusCalls, 1, 'the approved clone was judged once');
     assert.equal(fs.existsSync(fixture.dir), false);
-  }
-  {
-    const fixture = job();
-    const clone = probeClone(fixture.dir);
-    const headless = { ...deps, exec: (cmd, args, cwd, timeout) => cmd === 'git' && args[0] === 'rev-parse' && args.includes('HEAD^{commit}') ? { status: 128, out: '', err: 'fixture: HEAD unreadable' } : deps.exec(cmd, args, cwd, timeout) };
-    const verdict = classifyJob(fixture.name, fixture.dir, headless, ctx);
-    assert.equal(verdict.remove, false, 'a clone with an unreadable HEAD was removable');
-    assert.match(verdict.reason, /HEAD could not be read/);
-    cleanJobs(ctx, headless, true, () => {});
-    assert.ok(fs.existsSync(path.join(clone, '.git')));
   }
   const openJob = job();
   const openClone = probeClone(openJob.dir);
