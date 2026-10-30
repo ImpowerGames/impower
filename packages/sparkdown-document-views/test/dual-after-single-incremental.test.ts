@@ -1,15 +1,3 @@
-// Incremental version of dual-after-single.test.ts.
-//
-// User report: dual dialogue not displaying. From-scratch renders OK
-// (see dual-after-single.test.ts). The plausible mechanism is the same
-// class of incremental-edit drift that produced the trailing-line
-// "delete and replace" symptom — but applied to the dual-dialogue
-// widget instead of the trailing line.
-//
-// Strategy: dispatch single-character insertions to build the same
-// fixture as dual-after-single.test.ts and assert the resulting DOM
-// matches a from-scratch render.
-
 import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -68,10 +56,6 @@ const contentHTML = (view: EditorView): string => {
 
 describe("dual dialogue incremental construction", () => {
   it("character-by-character insertion produces the same DOM as a from-scratch render", () => {
-    // Start with nothing, build the fixture one character at a time.
-    // ~600 single-char dispatches; passes in a few seconds alone but crosses
-    // the default 5s timeout when other test files are running in parallel
-    // workers — hence the suite-wide `testTimeout` in vitest.config.ts.
     const incremental = mount("");
     for (let i = 0; i < FIXTURE.length; i++) {
       incremental.dispatch({
@@ -87,9 +71,6 @@ describe("dual dialogue incremental construction", () => {
   });
 
   it("inserting the dual pair into an already-rendered single dialogue matches from-scratch", () => {
-    // The case the user likely actually hit: had the BUNNY single + the
-    // final RAFFLES single, then opened a hole between them and pasted /
-    // typed the dual pair in.
     const before =
       `BUNNY:\n` +
       `  [[animate stage with shake]]\n` +
@@ -128,11 +109,6 @@ describe("dual dialogue incremental construction", () => {
   });
 
   it("changing a single dialogue into the LEFT half of a dual pair (typing ` [<]`) matches from-scratch", () => {
-    // Suspected workflow: the user had RAFFLES: as a single dialogue
-    // and converted it to `RAFFLES [<]:` by typing ` [<]` between
-    // RAFFLES and the colon. The cue mutates partway through and the
-    // adjacent BUNNY block that was already typed as dual right doesn't
-    // re-render its container.
     const before =
       `RAFFLES:\n` +
       `  B--\n` +

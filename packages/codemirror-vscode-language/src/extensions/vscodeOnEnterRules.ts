@@ -86,7 +86,6 @@ export function onEnterRulesCommand(view: EditorView) {
 
       triggeredRule = onEnterRule;
 
-      // 1. Calculate the base indentation for the NEW line
       let newIndentSize = currentIndentSize;
       if (
         onEnterRule.action.indent === "indent" ||
@@ -100,12 +99,10 @@ export function onEnterRulesCommand(view: EditorView) {
       let newIndent = indentString(state, Math.max(0, newIndentSize));
       let afterIndent = "";
 
-      // 2. Handle 'indentOutdent' which adds an extra line below the cursor
       if (onEnterRule.action.indent === "indentOutdent") {
         afterIndent = state.lineBreak + indentString(state, currentIndentSize);
       }
 
-      // 3. Handle 'removeText' (removes N characters from the new line's indentation)
       if (onEnterRule.action.removeText) {
         newIndent = newIndent.slice(
           0,
@@ -113,13 +110,10 @@ export function onEnterRulesCommand(view: EditorView) {
         );
       }
 
-      // 4. Handle 'appendText'
       const append = onEnterRule.action.appendText || "";
 
-      // Assemble the final string to insert
       const insert = state.lineBreak + newIndent + append + afterIndent;
 
-      // 5. Calculate where the replacement starts and ends (handling 'deleteText')
       let deleteFrom = pos;
       let deleteTo = pos;
 
@@ -127,9 +121,6 @@ export function onEnterRulesCommand(view: EditorView) {
         deleteFrom = range.from;
         deleteTo = range.to;
       } else if (onEnterRule.action.indent === "indentOutdent") {
-        // Splitting a pair (`{ | }`, `then | end`): the whitespace around the
-        // cursor would trail the opener's line and push the closer off its
-        // indentation, so it goes.
         if (lineTextBeforeCursor.trim()) {
           deleteFrom =
             pos - (lineTextBeforeCursor.length - lineTextBeforeCursor.trimEnd().length);
@@ -143,8 +134,6 @@ export function onEnterRulesCommand(view: EditorView) {
         deleteFrom = pos - onEnterRule.action.deleteText.length;
       }
 
-      // 6. Calculate exactly where the cursor should land
-      // It should be right after the appended text, before any 'afterIndent'
       const newCursorPos =
         deleteFrom + state.lineBreak.length + newIndent.length + append.length;
 

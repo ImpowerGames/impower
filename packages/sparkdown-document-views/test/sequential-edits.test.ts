@@ -1,18 +1,3 @@
-// Sequential edits — the user types character-by-character (or fires
-// many small change events between syntax-tree reparses). The previous
-// incremental-sync test does ONE dispatch and confirms the result
-// matches a from-scratch decoration set, but doesn't cover the case
-// where decorations drift across MULTIPLE dispatches that happen before
-// the parser reparses.
-//
-// Bug we're hunting: when oldTree === newTree (the parser hasn't
-// caught up yet), the StateField returned decorations unchanged
-// without mapping them through transaction.changes. Existing
-// decorations stayed glued to outdated source positions, producing
-// the "the preview deletes the old line and replaces it with the new
-// one" symptom — line decorations on character cues / dialogue
-// content stop matching the lines that contain them.
-
 import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -40,11 +25,6 @@ const mount = (source: string): EditorView => {
 };
 
 const contentHTML = (view: EditorView): string => {
-  // Force the incremental parser to catch up before sampling the DOM.
-  // Otherwise the partial tree leaks decorations into the trailing
-  // viewport area, producing spurious classes like 17 `collapse`s on
-  // the final cm-line. (settleParse also commits the finished tree back into
-  // the state field so decorate() re-runs against it — see helpers/parseSettle.)
   settleParse(view);
   const c = view.dom.querySelector(".cm-content");
   if (!c) return "";
@@ -67,8 +47,6 @@ describe("sequential edit sync", () => {
     expect(insertPos).toBeGreaterThan(-1);
     const after = before.slice(0, insertPos) + insertion + before.slice(insertPos);
 
-    // Sequential: dispatch ONE character at a time, like a real user
-    // typing. The parser may or may not reparse between each.
     const incremental = mount(before);
     for (let i = 0; i < insertion.length; i++) {
       incremental.dispatch({
@@ -89,11 +67,7 @@ describe("sequential edit sync", () => {
       `  Hello.\n` +
       `\n` +
       `He waits.\n`;
-    // Simulate two distinct edits (e.g. user presses Enter, then types).
-    // Each dispatch happens before the parser reparses the whole doc.
     const edits = [
-      // (1) Press Enter at end of "Hello.": insert "\n  " (newline + indent)
-      // for a continuation line under BUNNY.
       { pos: before.indexOf("\n\nHe waits"), insert: "\n  Are you home?" },
     ];
     let after = before;
@@ -124,9 +98,6 @@ describe("sequential edit sync", () => {
       `\n` +
       `RAFFLES:\n` +
       `  Goodbye.\n`;
-    // Three edits at different positions, applied in order. After each
-    // dispatch, the cursor positions of LATER edits shift by the
-    // length of the inserts before them.
     const edits: { needle: string; insert: string }[] = [
       { needle: "A neon sign flickers.", insert: "A neon sign flickers BRIGHTLY." },
       { needle: "Hello.", insert: "Hello, friend." },

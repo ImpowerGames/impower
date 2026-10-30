@@ -33,9 +33,6 @@ export const stickyScrollTheme = EditorView.theme({
   },
   ".cm-sticky-header-row": {
     display: "flex",
-    // Explicit: the host page's global reset makes `column` the effective
-    // default, which stacks the cloned gutter above the header text instead
-    // of beside it -- a double-height row with the text flush to the edge.
     flexDirection: "row",
     backgroundColor: "inherit",
     width: "100%",
@@ -44,7 +41,7 @@ export const stickyScrollTheme = EditorView.theme({
     paddingLeft: 0,
     whiteSpace: "pre",
     flex: 1,
-    pointerEvents: "auto", // Enable clicking
+    pointerEvents: "auto",
     cursor: "pointer",
   },
 
@@ -69,11 +66,9 @@ export interface DocumentSymbol extends Omit<
   children?: DocumentSymbol[];
 }
 
-// Effect triggered when new symbols arrive from the LSP server
 export const updateDocumentSymbolsEffect =
   StateEffect.define<DocumentSymbol[]>();
 
-// State field holding the hierarchical symbol tree
 export const documentSymbolsField = StateField.define<DocumentSymbol[]>({
   create() {
     return [];
@@ -133,8 +128,6 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   >("textDocument/documentSymbol", {
     textDocument: { uri: plugin.uri },
   });
-  // A result for a version the editor has moved past is dropped: the change
-  // that moved it pulled again (#1785).
   if (client.workspace.getFile(uri)?.version !== version) return;
   if (LSPPlugin.get(view) !== plugin) return;
   if (result) {
@@ -147,7 +140,6 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   }
 }
 
-// Compartment for dynamically configuring top scroll margins
 export const stickyScrollMargin = new Compartment();
 
 export const stickyScrollPlugin = ViewPlugin.fromClass(
@@ -162,7 +154,6 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
       this.dom.className = "cm-sticky-headers";
       this.view.dom.appendChild(this.dom);
 
-      // Listen to native scroll events to handle pixel-perfect removal
       this.view.scrollDOM.addEventListener("scroll", this.onScroll);
     }
 
@@ -237,7 +228,6 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
             );
           }
 
-          // Dynamically adjust the top margin based on the new DOM height
           const newHeight = this.dom.offsetHeight;
           if (this.lastHeight !== newHeight) {
             this.lastHeight = newHeight;
@@ -287,30 +277,25 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
         const row = this.dom.appendChild(document.createElement("div"));
         row.className = "cm-sticky-header-row";
 
-        // Gutters Container
         const guttersEl = row.appendChild(document.createElement("div"));
         guttersEl.className = "cm-gutters";
         guttersEl.style.width = `${contentOffsetLeft}px`;
 
-        // Gutter For Line Numbers
         const lineNumbersGutterEl = guttersEl.appendChild(
           document.createElement("div"),
         );
         lineNumbersGutterEl.className = "cm-gutter cm-lineNumbers";
         lineNumbersGutterEl.style.width = `${lineNumbersGutterWidth}px`;
 
-        // Gutter Line Number
         const lineNumberEl = lineNumbersGutterEl.appendChild(
           document.createElement("div"),
         );
         lineNumberEl.className = "cm-gutterElement";
         lineNumberEl.textContent = line.number.toString();
 
-        // Code
         const textEl = row.appendChild(document.createElement("div"));
         textEl.className = "cm-sticky-header-text cm-line";
         textEl.innerHTML = this.renderCode(line.text);
-        // Navigation Click Handler
         textEl.onclick = (e) => {
           e.preventDefault();
           const stickyHeight = this.dom.offsetHeight;
@@ -391,7 +376,6 @@ export function serverDocumentSymbols(): LSPClientExtension {
       documentSymbolsField,
       stickyScrollPlugin,
       stickyScrollTheme,
-      // Initialize the compartment with a 0 margin
       stickyScrollMargin.of(EditorView.scrollMargins.of(() => ({ top: 0 }))),
     ],
   };

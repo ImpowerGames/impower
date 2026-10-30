@@ -7,11 +7,6 @@ import {
 import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
 import { afterEach, describe, expect, it } from "vitest";
 
-// Enter between `{` and `}` in a brace body (#1228), through the web editor's
-// own Enter command and the generated language configuration: the cursor goes
-// to an indented line of its own and the `}` to the line below it, at the
-// block line's indentation, with no whitespace left around either.
-
 let view: EditorView | undefined;
 
 afterEach(() => {
@@ -19,8 +14,6 @@ afterEach(() => {
   view = undefined;
 });
 
-/** Press Enter at the `|` in `source`; returns the document with `|` at the
- *  cursor. */
 const pressEnter = (source: string): string => {
   const cursor = source.indexOf("|");
   view = new EditorView({

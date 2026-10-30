@@ -1,14 +1,3 @@
-// After the 2026-06-13 fix moved the "render-the-blank" responsibility
-// from PREVIEW_THEME (`min-height: 1em` on `.cm-line.collapse`) to the
-// decorator (skip Indent replace on whitespace-only lines), an indented
-// blank line should produce a cm-line with NATURAL line-height — same as
-// a truly-empty blank that CodeMirror auto-injects `<br>` into.
-//
-// This test pins both cases and asserts they render with the same
-// effective height-producing shape: the indented blank has source
-// whitespace as a text node (anchoring the line-box), the empty blank
-// has a `<br>` (anchoring the line-box). Either way the cm-line should
-// NOT be collapsed to zero height.
 import { describe, expect, it } from "vitest";
 import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
@@ -19,12 +8,9 @@ import {
 } from "../src/modules/screenplay-preview/utils/screenplayFormatting";
 import { settleParse } from "./helpers/parseSettle";
 
-// Indented blank line between dialogue and following action.
 const FIXTURE_INDENTED_BLANK =
   `BUNNY:\n` + `  I-I know...\n` + `  \n` + `A beat.\n`;
 
-// Same logical structure but the "blank" line has NO indent — i.e., a
-// truly empty `\n`. This is what CodeMirror considers a real blank line.
 const FIXTURE_EMPTY_BLANK =
   `BUNNY:\n` + `  I-I know...\n` + `\n` + `A beat.\n`;
 
@@ -44,8 +30,6 @@ const mountAndExtractCollapseLine = (
       }),
       parent,
     });
-    // The initial parse is wall-clock budgeted, so the `collapse` line we're
-    // looking for may not exist yet on a loaded machine (#281).
     settleParse(view);
     const lineEls = Array.from(
       view.dom.querySelectorAll(".cm-line"),
@@ -58,11 +42,9 @@ const mountAndExtractCollapseLine = (
     if (collapseEl) {
       collapseEl.childNodes.forEach((n: any) => {
         if (n.nodeType === 3) {
-          // Text node
           childKinds.push(`#text:${JSON.stringify(n.textContent)}`);
           if ((n.textContent ?? "").length > 0) hasText = true;
         } else if (n.nodeType === 1) {
-          // Element
           childKinds.push(n.nodeName.toLowerCase());
           if (n.nodeName === "BR") hasBr = true;
         } else {

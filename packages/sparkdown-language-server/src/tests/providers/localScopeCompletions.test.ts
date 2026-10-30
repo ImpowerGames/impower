@@ -1,15 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { labelsAt } from "./completionHarness";
 
-// A Luau `local` is offered from the statement after its declaration to the
-// end of the block it is declared in, whether the block is written in a
-// function, in a scene's body or at the top of a script, and a function or
-// method parameter inside its function's body. A `local` written directly in
-// a scene's body is offered after it within that scene. A `store` or `const`
-// is global wherever it is written. The upstream cases in
-// autocompleteScope.test.ts cover function bodies; these cover the other
-// blocks and the declarations that stay global.
-
 describe("completion · Luau local scope", () => {
   test("a local in an if branch is offered later in that branch and not in the next branch or after the if", () => {
     const source = [

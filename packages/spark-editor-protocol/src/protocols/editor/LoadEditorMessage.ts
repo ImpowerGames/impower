@@ -15,8 +15,6 @@ export interface LoadEditorParams {
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
-  /** The document's pins on the options the Game Preview takes, which the
-   *  editor keeps on their lines through edits. */
   routePins?: EditorRoutePin[];
   languageServerInitializeParams: InitializeParams;
   languageServerInitializeResult: InitializeResult;

@@ -1,14 +1,10 @@
 import { expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// Formatting gives `expected`, and formatting that result changes nothing.
 function expectFormatsTo(source: string, expected: string) {
   expect(formatSource(source)).toBe(expected);
   expect(formatSource(expected)).toBe(expected);
 }
-
-// I-874: each case changed again on a second format, or changed what the
-// script means on the first.
 
 test("formatting an empty document leaves it empty", () => {
   expectFormatsTo("", "");
@@ -253,8 +249,6 @@ end
 `,
   );
 });
-
-// What the first format used to change in the script's meaning.
 
 test("a single-quoted string left open keeps its quote", () => {
   const source = `function f()

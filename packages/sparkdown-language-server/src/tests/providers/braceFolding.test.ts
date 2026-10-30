@@ -2,9 +2,6 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { describe, expect, test } from "vitest";
 import { getFoldingRanges } from "../../utils/providers/getFoldingRanges";
 
-// Folding of brace blocks (#1228): a block that spans lines folds from its
-// header line to the line of its `}`, whatever its indentation.
-
 const URI = "file:///fold.sd";
 
 function foldsOf(source: string) {

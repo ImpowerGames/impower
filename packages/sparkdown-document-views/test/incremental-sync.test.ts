@@ -1,7 +1,3 @@
-// Incremental action-line edits must produce the same preview as rendering
-// the updated document from scratch. The pinned long fixture exercises edits
-// beyond CodeMirror's initial parse viewport without another repository.
-
 import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -31,8 +27,6 @@ const mount = (source: string) => {
 };
 
 const contentHTML = (view: EditorView): string => {
-  // Commit the whole parse before comparing, avoiding wall-clock-dependent
-  // truncation (#281). Ignore jsdom's variable off-screen gap heights.
   settleParse(view);
   const content = view.dom.querySelector(".cm-content");
   expect(content).not.toBeNull();

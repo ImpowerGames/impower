@@ -112,7 +112,6 @@ interface EditorConfig {
   breakpointLineNumbers?: number[];
   pinpointLineNumbers?: number[];
   highlightLineNumbers?: number[];
-  /** The document's pins on the options the Game Preview takes. */
   routePins?: DocumentRoutePin[];
   mobileTopContainer?: HTMLElement;
   mobileBottomContainer?: HTMLElement;
@@ -124,12 +123,6 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
-  /**
-   * Fired once, while the initial background parse is still running, as soon
-   * as the syntax tree covers the visible viewport AND the restored scroll
-   * target. Lets the host reveal the editor without waiting for the whole
-   * document to parse (which takes many seconds on large scripts).
-   */
   onViewportParsed?: () => void;
   onSelectionChanged?: (
     update: ViewUpdate,
@@ -139,10 +132,8 @@ interface EditorConfig {
   onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
-  /** An edit moved the document's pins or deleted the line of one. */
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
   onHeightChanged?: () => void;
-  /** An autocomplete option was highlighted, or the list closed. */
   onCompletionPreview?: (
     event: CompletionPreviewEvent,
     state: EditorState,
@@ -236,7 +227,6 @@ const createEditorView = (
   let prevRoutePins = config?.routePins ?? [];
   let notifiedViewportParsed = false;
 
-  // Using state.doc.line() errors on Mac
   const lines = doc.replace(NEWLINE_REGEX, "\n").split("\n");
   const initialText = Text.of(lines);
   const scrollToLine =
@@ -255,13 +245,8 @@ const createEditorView = (
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
-  // Pin the EditorView's `root` to the parent's actual root at construction
-  // time so style-mod attaches theme stylesheets to the correct shadow root
-  // (it defaults to `document` otherwise, where adopted sheets are invisible
-  // to elements inside a shadow tree).
   const root = parent.getRootNode() as Document | ShadowRoot;
 
-  // Create Editor View
   const view: EditorView = new EditorView({
     parent,
     root,
@@ -287,7 +272,6 @@ const createEditorView = (
             breakpointLineNumbers
               ?.map((lineNumber) => {
                 try {
-                  // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                   return breakpointMarker.range(
                     initialText.line(lineNumber).from,
                   ) as Range<GutterMarker>;
@@ -305,7 +289,6 @@ const createEditorView = (
               add: pinpointLineNumbers
                 .map((lineNumber) => {
                   try {
-                    // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                     return pinpointDeco.range(
                       initialText.line(lineNumber).from,
                     );
@@ -326,7 +309,6 @@ const createEditorView = (
               add: highlightLineNumbers
                 .map((lineNumber) => {
                   try {
-                    // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                     return highlightDeco.range(
                       initialText.line(lineNumber).from,
                     );
@@ -340,8 +322,6 @@ const createEditorView = (
           }
           return decorations;
         }),
-        // Using state.doc.line() errors on Mac, so the pins start on the
-        // lines of initialText.
         routePins(config?.routePins ?? [], initialText),
         sparkdownLanguageExtension({
           textDocument,
@@ -387,12 +367,6 @@ const createEditorView = (
             onReady?.();
             debouncedIdle();
           } else if (!notifiedViewportParsed && onViewportParsed) {
-            // While the initial parse of a large document is still grinding
-            // through the rest of the file, the tree usually covers the
-            // visible region within a few frames -- that is enough to show
-            // the editor. Evaluate against the restored scroll target too,
-            // so a deep saved position doesn't reveal (and then jump) before
-            // its own region has parsed.
             const target = Math.max(
               u.view.viewport.to,
               scrollToLine ? scrollToLine.to : 0,
@@ -444,7 +418,6 @@ const createEditorView = (
             }
           }
           if (u.transactions.some(setsRoutePins)) {
-            // The host's own pins, which it already holds.
             prevRoutePins = getRoutePins(u.state);
           } else if (u.docChanged) {
             const currentRoutePins = getRoutePins(u.state);
@@ -471,9 +444,6 @@ const createEditorView = (
             }
           }
           if (setEditorState) {
-            // Serializing editor state (history + folds + the full doc via
-            // toJSON) costs several ms per dispatch on large documents, so
-            // only pay for it when a consumer actually wires setEditorState.
             const json: {
               history: SerializableHistoryState;
               folded: SerializableFoldedState;
@@ -534,9 +504,6 @@ const createEditorView = (
     }),
   });
 
-  // No editor-view-level protocol subscriptions today. If one is needed
-  // later (e.g. reacting to CompiledProgram), register it with
-  // `onProtocolMessage` and dispose it here.
   const disposable = {
     dispose: () => {},
   };

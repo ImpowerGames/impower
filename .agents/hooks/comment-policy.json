@@ -8,11 +8,21 @@
     { "form": "^@vitest-environment\\s+\\S", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^@vite-ignore$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^/\\s*<(?:reference|amd-module|amd-dependency)\\b", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
-    { "form": "^@(?:type|param|returns?)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^@(?:type|param|returns?|property|prop)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^@type\\s+[A-Za-z_$]", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
     { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
+  ],
+  "licences": [
+    { "form": "\\bSPDX-(?:License-Identifier|FileCopyrightText):\\s*\\S" },
+    { "form": "^(?:Copyright\\b|©)(?:\\s*\\([cC]\\))?\\s*\\S" },
+    { "form": "(?<![\\w./-])(?:[\\w.-]+/)*LICEN[CS]E(?:\\.[A-Za-z]+|-[\\w.-]*\\w)?(?![\\w-])" },
+    { "form": "\\bThis\\s+Source\\s+Code\\s+Form\\s+is\\s+subject\\s+to\\s+the\\s+terms\\s+of\\s+the\\s+Mozilla\\s+Public\\s+License\\b" },
+    { "form": "\\bLicensed\\s+under\\s+the\\s+Apache\\s+License\\b" },
+    { "form": "\\bPermission\\s+is\\s+hereby\\s+granted,\\s+free\\s+of\\s+charge\\b" },
+    { "form": "\\bRedistribution\\s+and\\s+use\\s+in\\s+source\\s+and\\s+binary\\s+forms\\b" }
   ],
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [

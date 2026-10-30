@@ -1,10 +1,3 @@
-// Autocomplete suggestion previews (#634): what the editor reports for each
-// highlighted option, and the edit it reports.
-//
-// The preview compiles the document as accepting the highlighted option would
-// leave it, so the reported edit has to be the one acceptance makes, computed
-// without making it: the real document, its history and its version must not
-// move while an author only browses.
 import {
   acceptCompletion,
   autocompletion,
@@ -30,8 +23,6 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import type * as lsp from "vscode-languageserver-protocol";
 
-// The trigger characters the Sparkdown language server declares for image
-// directives, which decide where a completion's replaced range starts.
 const TRIGGERS = ["[", ":", " ", "."];
 const validFor = getValidFor(TRIGGERS);
 
@@ -42,8 +33,6 @@ afterEach(() => {
   view = undefined;
 });
 
-/** An editor whose completion source offers `items` through the same option
- *  builder the language-server source uses. */
 function mount(
   doc: string,
   cursor: number | EditorSelection,
@@ -51,9 +40,6 @@ function mount(
   ...extensions: Extension[]
 ) {
   const events: CompletionPreviewEvent[] = [];
-  // Every transaction created with a document change. The web editor's
-  // extender announces each one as an edit and a save, so browsing must
-  // create none, dispatched or not.
   const changing: string[] = [];
   const source = (context: CompletionContext) => ({
     from: context.matchBefore(validFor)?.from ?? context.pos,
@@ -84,20 +70,15 @@ function mount(
   return { view, events, changing };
 }
 
-/** Open the list and wait until an option is highlighted. */
 async function open(v: EditorView) {
   startCompletion(v);
   for (let i = 0; i < 100 && currentCompletions(v.state).length === 0; i++) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
   expect(completionStatus(v.state)).toBe("active");
-  // CodeMirror ignores accepting and moving for its interaction delay (75ms)
-  // after the list opens, so a keystroke that raced the list cannot pick.
   await new Promise((resolve) => setTimeout(resolve, 100));
 }
 
-/** The document accepting the highlighted option produces, in a separate
- *  editor, so the comparison is with acceptance itself. */
 async function accepted(
   doc: string,
   cursor: number | EditorSelection,
@@ -166,8 +147,6 @@ describe("the edit reported for a highlighted option", () => {
       expect(focus.changes).toBeTruthy();
       const previewed = focus.changes!.apply(v.state.doc).toString();
       expect(previewed).toBe(await accepted(c.doc, c.cursor, c.items));
-      // Browsing never touched the real document or its history, and never
-      // created a transaction a host could take for an edit.
       expect(v.state.doc.toString()).toBe(c.doc);
       expect(undoDepth(v.state)).toBe(0);
       expect(changing).toEqual([]);
@@ -239,7 +218,6 @@ describe("the options reported", () => {
     const close = events.at(-1)!;
     expect(close.state).toBe("close");
     expect(close.accepted).toBeTruthy();
-    // Acceptance made exactly the edit the last highlight reported.
     expect(close.accepted!.changes.apply(before).toString()).toBe(
       last.changes!.apply(before).toString(),
     );

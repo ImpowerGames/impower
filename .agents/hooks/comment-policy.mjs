@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
 const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
 const FAMILIES = {
@@ -17,7 +18,7 @@ const FAMILIES = {
 };
 
 export const rule =
-  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
+  "The repository's comment rule (AGENTS.md, Repository-wide rules) allows a code comment only as a directive a tool reads, a licence or copyright notice, or a `workaround(<name>): ...` note naming a lockfile dependency or a listed platform. " +
   "Restructure or rename the code, or fix the cause, instead of explaining it; the rationale belongs in the ticket.";
 
 const posix = (file) => String(file).replaceAll("\\", "/").replace(/^\.\//, "");
@@ -762,35 +763,115 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
-export function classifyComment(text, file, { root = defaultRoot } = {}) {
+function licenceNotice(lines) {
+  const body = lines.join("\n");
+  return licences.some(({ form }) => form.test(body));
+}
+
+const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
+
+function jsdocTypescript(file, options) {
+  if (!JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase())) return null;
+  return options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
+}
+
+function readTag(ts, tag) {
+  const { SyntaxKind: K } = ts;
+  if (tag.kind === K.JSDocParameterTag || tag.kind === K.JSDocPropertyTag || tag.kind === K.JSDocReturnTag) return Boolean(tag.typeExpression);
+  const read = ["JSDocTypeTag", "JSDocTypedefTag", "JSDocTemplateTag", "JSDocCallbackTag", "JSDocSatisfiesTag", "JSDocThisTag", "JSDocEnumTag", "JSDocImportTag", "JSDocOverloadTag", "JSDocAugmentsTag", "JSDocImplementsTag", "JSDocPrivateTag", "JSDocProtectedTag", "JSDocPublicTag", "JSDocReadonlyTag", "JSDocOverrideTag", "JSDocDeprecatedTag", "JSDocClassTag"];
+  return read.some((name) => K[name] !== undefined && tag.kind === K[name]);
+}
+
+function jsdocTags(ts, comment) {
+  const source = ts.createSourceFile("probe.js", `${comment}\nvar probe;`, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const docs = source.statements[0]?.jsDoc;
+  const doc = docs?.[docs.length - 1];
+  if (!doc || doc.end !== comment.length) return null;
+  const prose = typeof doc.comment === "string" ? doc.comment : (doc.comment ?? []).map((part) => source.text.slice(part.pos, part.end)).join("");
+  const tags = (doc.tags ?? []).map((tag) => ({
+    read: readTag(ts, tag),
+    text: source.text.slice(tag.getStart(source), tag.end).replace(/\s+$/, "").replace(/(?:\r\n|[\n\r])[ \t]*\*$/, "").replace(/\s+$/, ""),
+  }));
+  return { prose: prose.trim(), tags };
+}
+
+function jsdocKeptTags(comment, file, options) {
+  if (!comment.startsWith("/**")) return null;
+  const ts = jsdocTypescript(file, options);
+  if (!ts) return /(?:^|\s)@[A-Za-z]/.test(comment) && JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase()) ? { whole: true } : null;
+  const parsed = jsdocTags(ts, comment);
+  const kept = parsed?.tags.filter((t) => t.read).map((t) => t.text) ?? [];
+  return kept.length ? { kept } : null;
+}
+
+export function classifyComment(text, file, options = {}) {
+  const root = options.root ?? defaultRoot;
   const rel = posix(file);
   if (exemptPath(rel)) return { kind: "exempt", reason: `${rel} is under a path the rule exempts` };
   const extension = path.posix.extname(rel).toLowerCase();
   if (!FAMILIES[extension]) return { kind: "exempt", reason: `${extension || rel} is not a code file type the rule covers` };
   const lines = bodyLines(text);
   if (!lines.length) return { kind: "refused", reason: "an empty comment" };
+  if (licenceNotice(lines)) return { kind: "licence", reason: "a licence or copyright notice" };
   if (/^workaround\b/i.test(lines[0])) {
     const marker = /^workaround\(([^()\s]+)\):\s*\S/.exec(lines[0]);
     if (!marker) return { kind: "refused", reason: "a workaround note takes the form `workaround(<name>): <what the dependency or platform does wrong, with the version or link that retires the note>`" };
     const reason = workaroundNameReason(marker[1], root);
     return reason ? { kind: "refused", reason } : { kind: "workaround", reason: `a workaround note for \`${marker[1]}\`` };
   }
-  const allowed = directives.filter((d) => !d.extensions || d.extensions.includes(extension));
-  if (lines.every((line) => allowed.some((d) => d.form.test(line)))) return { kind: "directive", reason: "a directive a tool reads" };
+  if (text.startsWith("/**")) {
+    const ts = jsdocTypescript(rel, options);
+    const parsed = ts && jsdocTags(ts, text);
+    if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
+  }
+  if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
+}
+
+function directiveLine(line, extension) {
+  return directives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
 }
 
 export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
+  const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
   let previous = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
-    const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
     }
     previous = comment;
+  }
+  const runs = [];
+  for (const comment of comments) {
+    const run = runs[runs.length - 1], last = run?.[run.length - 1];
+    if (!single(comment)) continue;
+    if (last && comment.line === last.endLine + 1 && comment.column === last.column) run.push(comment);
+    else runs.push([comment]);
+  }
+  for (const run of runs) {
+    const paragraphs = [];
+    let current = null;
+    for (const comment of run) {
+      if (!bodyLines(comment.text).length) {
+        paragraphs.push({ separator: comment });
+        current = null;
+      } else if (current) current.members.push(comment);
+      else paragraphs.push((current = { members: [comment] }));
+    }
+    for (const p of paragraphs) {
+      if (!p.members) continue;
+      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text))) : p.members[0].kind === "licence";
+      if (p.licence) for (const c of p.members) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${p.members[0].line}` });
+    }
+    paragraphs.forEach((p, k) => {
+      if (!p.separator) return;
+      const before = paragraphs.slice(0, k).reverse().find((q) => q.members);
+      const after = paragraphs.slice(k + 1).find((q) => q.members);
+      if (before?.licence && after?.licence) Object.assign(p.separator, { kind: "licence", reason: `separates the licence notice on line ${before.members[0].line}` });
+    });
   }
   return comments;
 }
@@ -813,16 +894,35 @@ export function stripComments(text, file, options = {}) {
     }
     return out + text.slice(at);
   }
+  const cuts = [];
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const removals = [];
+  for (const c of refused) {
+    const jsdoc = family === "js" ? jsdocKeptTags(c.text, file, options) : null;
+    if (jsdoc?.whole) continue;
+    if (!jsdoc) {
+      removals.push(c);
+      continue;
+    }
+    const kept = jsdoc.kept;
+    const before = text.slice(c.lineStart, c.start);
+    const alone = /^[ \t]*$/.test(before);
+    const pad = alone ? before : "";
+    const breaks = /[\n\r\u2028\u2029]/.test(c.text);
+    const single = kept.length === 1 && !/[\n\r]/.test(kept[0]) && (alone || !breaks);
+    const block = kept.map((tag) => tag.split(/\r\n|[\n\r]/).map((line, k) => (k ? line : `${pad} * ${line}`)).join(eol)).join(eol);
+    const replacement = single ? `/** ${kept[0]} */` : `/**${eol}${block}${eol}${pad} */`;
+    cuts.push({ from: c.start, to: c.end, replacement, rewrite: true });
+  }
   const removed = new Uint8Array(text.length);
-  for (const c of refused) removed.fill(1, c.start, c.end);
+  for (const c of removals) removed.fill(1, c.start, c.end);
   const code = (from, to) => {
     for (let k = from; k < to; k++) if (!removed[k] && !/\s/.test(text[k])) return true;
     return false;
   };
   const { starts, ends, lineOf } = lineIndex(text, family === "js");
   const nextLine = (offset) => starts[lineOf(offset) + 1] ?? text.length;
-  const cuts = [];
-  for (const c of refused) {
+  for (const c of removals) {
     const leading = code(c.lineStart, c.start), following = code(c.end, c.lineStop);
     if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true });
     else if (!following) {
@@ -845,7 +945,7 @@ export function stripComments(text, file, options = {}) {
   const merged = [];
   for (const cut of cuts) {
     const last = merged[merged.length - 1];
-    if (last && cut.from <= last.to) {
+    if (last && (cut.from < last.to || (cut.from === last.to && !cut.rewrite && !last.rewrite))) {
       last.to = Math.max(last.to, cut.to);
       last.whole ||= cut.whole;
       if (strength(cut.replacement) > strength(last.replacement)) last.replacement = cut.replacement;

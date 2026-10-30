@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// #1227: the spacing and indentation rules of brace bodies that the format
-// fixtures under `__snapshots__/format/ui/` do not single out. Each case also
-// formats its own output to itself.
-
 function expectFormat(source: string, expected: string, tabs = false) {
   const options = tabs ? { insertSpaces: false } : {};
   const formatted = formatSource(source, options);
@@ -14,9 +10,6 @@ function expectFormat(source: string, expected: string, tabs = false) {
 
 describe("formatting the spacing of a brace body", () => {
   test("a class is glued to the name or class before it, and keeps one space after anything else", () => {
-    // Glued after `#w=1` the class would join the value (`1.y`), after the
-    // content it would join the string, and after a call's arguments or a
-    // closure's `}` it would no longer follow a name.
     expectFormat(
       `layout a with
   column {
@@ -40,8 +33,6 @@ end
   });
 
   test("a class is glued to any name the grammar takes, a letter outside ASCII or a final `-` included", () => {
-    // Round 1 of PR #1319: the name was recognised by an ASCII test of the
-    // character before the class, which kept these spaces.
     expectFormat(
       `layout a with
   column {

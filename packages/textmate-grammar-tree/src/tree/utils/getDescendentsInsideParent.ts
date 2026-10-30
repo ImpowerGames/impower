@@ -1,9 +1,5 @@
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
-/**
- * `N` is the grammar's node-name union, inferred from `stack`; the looked-up
- * names `T` and `P` must belong to it. See `getDescendent`.
- */
 export const getDescendentsInsideParent = <
   N extends string,
   T extends N = N,

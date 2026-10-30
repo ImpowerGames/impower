@@ -8,8 +8,6 @@ describe("bounded expression consumers", () => {
     const declarations = "store data = { score = 5, title = \"name\" }\n";
     const marked = declarations + "& do local n = data.@1 end\n";
     const ordinary = declarations + "function f()\n  local n = data.@1\nend\n";
-    // https://github.com/ImpowerGames/impower/issues/867 also pins this
-    // limitation in autocompleteMembers. Do not invent member inference here.
     expect(labelsAt(marked, { trigger: "." })).toEqual(labelsAt(ordinary, { trigger: "." }));
     expect(labelsAt(marked, { trigger: "." })).toEqual([]);
     const tree = parseSource(marked.replace("@1", ""));
