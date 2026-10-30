@@ -361,7 +361,16 @@ export class SparkDebugSession extends LoggingDebugSession {
     _args: DebugProtocol.PauseArguments,
     _request?: DebugProtocol.Request,
   ) {
+    if (await this.answerEnded(response)) {
+      return;
+    }
     await this._connection.emit(PauseGameMessage.type.request({}));
+    if (this._launchState === "ended") {
+      await this._connection.emit(UnpauseGameMessage.type.request({}));
+      this.sendResponse(response);
+      await this.sendStoppedEvent("end");
+      return;
+    }
     this.sendResponse(response);
     this.sendStoppedEvent("pause");
   }

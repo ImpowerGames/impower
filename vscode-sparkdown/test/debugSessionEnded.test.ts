@@ -28,13 +28,16 @@ const location = (line: number) => ({
   },
 });
 
-const session = () => {
+const session = (
+  beforeReply: (method: string) => Promise<void> | void = () => {},
+) => {
   const sent: { method: string; params: any }[] = [];
   const events: { event: string; body: any }[] = [];
   const connection = {
     connectInput() {},
     emit: async (message: { method: string; params: any }) => {
       sent.push(message);
+      await beforeReply(message.method);
       if (message.method === "game/threads") {
         return { threads: [{ id: 0, name: "main" }] };
       }
@@ -137,6 +140,37 @@ describe("the debug adapter at the end of the story", () => {
     events.length = 0;
     await request("nextRequest");
     expect(sent.map((m) => m.method)).toContain("game/step");
+  });
+
+  it("answers a pause on an ended run with the end stop, and sends the game nothing", async () => {
+    const { notify, events, sent, request } = await session();
+    await notify(launch("ended"));
+    await request("pauseRequest");
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+    ]);
+    expect(sent.map((m) => m.method)).toEqual(["game/threads"]);
+  });
+
+  it("undoes a pause the run ended during and reports the end, not a pause", async () => {
+    let s: Awaited<ReturnType<typeof session>>;
+    s = session(async (method) => {
+      if (method === "game/pause") {
+        await s.notify(launch("ended"));
+      }
+    });
+    await s.notify(launch("play"));
+    await s.request("pauseRequest");
+    expect(s.sent.map((m) => m.method)).toEqual([
+      "game/pause",
+      "game/unpause",
+      "game/threads",
+    ]);
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+    ]);
   });
 
   it("sends no continued event while launch states change without leaving an ended run", async () => {
