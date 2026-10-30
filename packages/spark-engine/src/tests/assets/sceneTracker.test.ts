@@ -4,8 +4,6 @@ import { SceneTracker } from "../../game/core/classes/SceneTracker";
 describe("SceneTracker", () => {
   const functions = new Set(["Helper", "__binding$3"]);
   const tracker = () => new SceneTracker((flow) => functions.has(flow));
-  // Each observation names the flow the story stands in, as the program's
-  // locator names it (`sceneAt`).
 
   it("reports a transition only when the flow changes", () => {
     const t = tracker();

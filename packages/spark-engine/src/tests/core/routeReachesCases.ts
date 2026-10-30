@@ -1,9 +1,3 @@
-// #637 — the scripts routeReachesWhatMainReaches.test.ts previews: the ones
-// the reviews of #637 raised, with the loops of menus that fall back in a long
-// scene. Kept apart from the test, importing nothing this branch adds, so the
-// same scripts can be run on origin/main's sources to read what its preview
-// shows.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
@@ -41,8 +35,6 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** Preview the line holding `label` from the top: whether the replay reached
- *  it, the value of `store` it shows, and whether its route fell back. */
 export function preview(
   program: unknown,
   lines: string[],
@@ -137,10 +129,6 @@ const loopWithBranch = (passes: number) => [
   ),
 ];
 
-/** Twelve menus after a choice with a condition: the search that follows the
- *  program spends its budget, and origin/main's search, which tries a
- *  choice's condition true first, skips the loop. The program, which can
- *  only take Available, shows 62. */
 const conditionalChoice = () => {
   const menus: string[] = [];
   for (let m = 0; m < 12; m += 1) {
@@ -175,8 +163,6 @@ const conditionalChoice = () => {
   return lines;
 };
 
-/** [name, script, label of the previewed line, store it shows, the value
- *  it shows: the program's own, or origin/main's ("main")] */
 export const CASES: [string, string[], string, string, number | "main"][] = [
   [
     "a while loop inside a called function",

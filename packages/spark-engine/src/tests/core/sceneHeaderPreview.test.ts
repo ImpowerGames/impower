@@ -1,15 +1,7 @@
-// Previewing a scene's header line, or a line above the scene's first content
-// line, displays the scene's first beat (#1096).
-//
-// Driven through the production scrub path: an UNCONNECTED game plans and
-// replays the route (what `workspace.worker` does) and its checkpoint is loaded
-// into a fresh CONNECTED game that previews the point (what the player does).
-
 import { describe, expect, test } from "vitest";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
-// The reproduction from the issue, verbatim.
 const SOURCE = `-> START
 
 scene START
@@ -28,7 +20,6 @@ const lineOf = (needle: string): number => {
   return line;
 };
 
-/** Every character the engine wrote to the screen, across all targets. */
 const writtenText = (harness: any): string =>
   harness
     .snapshotFiltered("ui/write-text")
@@ -37,7 +28,6 @@ const writtenText = (harness: any): string =>
     )
     .join(" ");
 
-/** Scrub to `line` the way the editor does, and return what got written. */
 async function scrubTo(line: number) {
   const simulator = createHarness(SOURCE, 0, { connect: false });
   const simulated: any = simulator.game;

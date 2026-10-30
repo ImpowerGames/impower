@@ -1,7 +1,3 @@
-// Interactive widget coverage (spec §10.1): link (clickable), dropdown/option
-// (native <select>/<option> with selected value + @change write-back), and the
-// slider's engine-computed `--_fill-percentage`.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -65,8 +61,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // The selected value is applied via a ui/update AFTER the options mount
-    // (a <select>.value can't select an option that doesn't exist yet).
     const update = h
       .snapshotFiltered("ui/update")
       .find(
@@ -132,8 +126,6 @@ end
     h.reset();
     (h.game.story as any).variablesState.$("label", "Cherry");
     (h.game.module.ui as any).refreshLayouts();
-    // The option's value attribute must follow its reactive label, not stay
-    // stale at "Apple" (which would mismatch the visible "Cherry").
     const valueUpdate = h
       .snapshotFiltered("ui/update")
       .find(
@@ -156,14 +148,12 @@ end
       { reactive: true },
     );
     await h.ready;
-    // The interpolated prop is applied as an attribute on create.
     const input = created(h, "input")[0];
     expect(input?.params?.attributes?.placeholder).toBe("Hi World");
 
     h.reset();
     (h.game.story as any).EvaluateFunction("rename", []);
     (h.game.module.ui as any).refreshLayouts();
-    // …and re-evaluates its `{who}` part on refresh (not stuck at "Hi World").
     const update = h
       .snapshotFiltered("ui/update")
       .find((m: any) => m.params?.attributes?.placeholder === "Hi Friend");

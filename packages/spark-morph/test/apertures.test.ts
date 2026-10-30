@@ -4,14 +4,8 @@ import { buildApertures, pairShapes, parsePathData, bendTrack } from "../src/ind
 import type { EdgeTrack, LabelledShape, BendTrack } from "../src/index";
 import { closedLash, loop, lowerOpen, runtimeProgress, shift, upperOpen } from "./fixtures";
 
-// A closed aperture reports an area at floating-point noise, not exactly zero.
 const AREA_ZERO = 1e-6;
 
-/**
- * Whether a closed polyline has a proper crossing. A closed stretch of an
- * aperture is a zero-width slit whose two runs overlap by design, so
- * collinear overlaps are not counted here.
- */
 function properlyCrosses(pts: [number, number][]): boolean {
   const n = pts.length;
   const cross = (a: [number, number], b: [number, number], c: [number, number], d: [number, number]) => {
@@ -63,10 +57,7 @@ describe("buildApertures", () => {
     const ap = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerOpen, closedLash)]).apertures[0]!;
     const closed = ap.loop(1);
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
-    // The closed lash bows up from the line through its tips at y = 50, so
-    // its midline does too; a loop on the chord would sit flat on it.
     expect(Math.min(...closed.map(([, y]) => y))).toBeLessThan(49);
-    // It keeps the open loop's run of points, so a player can blend into it.
     expect(closed.length).toBeGreaterThanOrEqual(ap.loop(0.5).length - 4);
   });
 
@@ -79,10 +70,6 @@ describe("buildApertures", () => {
   });
 
   test("a rigid rotation of the whole eye is not mistaken for closure", () => {
-    // Two synthetic edge tracks that rotate rigidly about (50, 50) through
-    // 180 degrees: the opening turns but never changes. The aperture must
-    // keep its area rather than collapsing once the opening direction
-    // passes 90 degrees from where it started.
     const rotate = (p: [number, number], angle: number): [number, number] => {
       const c = Math.cos(angle),
         s = Math.sin(angle),
@@ -91,7 +78,6 @@ describe("buildApertures", () => {
       return [50 + x * c - y * s, 50 + x * s + y * c];
     };
     const arcTrack = (bulge: number): BendTrack => {
-      // A ribbon whose two edges are arcs above (or below) the tip line.
       const edgeAt = (t: number, points: number, offset: number): [number, number][] => {
         const out: [number, number][] = [];
         for (let i = 0; i < points; i++) {
@@ -141,9 +127,6 @@ describe("buildApertures", () => {
   });
 
   test("open lashes whose corner tips miss each other pair through the closed lash they share", () => {
-    // The lower lash's inner tip stops 31 units short of the upper's, past
-    // the open pose's tolerance, as drawn on some portraits; both still
-    // close onto one closed lash, whose tips are shared.
     const lowerShort = "M25,68 C45,80 75,78 100,50 C72,88 40,88 25,68Z";
     const r = buildApertures([edge("upper", upperOpen, closedLash), edge("lower", lowerShort, closedLash)]);
     expect(r.diagnostics).toEqual([]);
@@ -151,8 +134,6 @@ describe("buildApertures", () => {
     const ap = r.apertures[0]!;
     expect(ap.area(0)).toBeGreaterThan(1000);
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
-    // Boundaries whose samples sit offset along the lash still close
-    // without the loop crossing itself, whichever edge comes first.
     for (const lower of [lowerShort, "M35,80 C50,92 75,78 100,50 C72,88 50,100 35,80Z", "M25,40 C40,52 75,78 100,50 C72,88 40,60 25,40Z"]) {
       for (const order of ["upper first", "lower first"]) {
         const pair = [edge("upper", upperOpen, closedLash), edge("lower", lower, closedLash)];
@@ -163,7 +144,6 @@ describe("buildApertures", () => {
         }
       }
     }
-    // Authored closed-to-open, the shared lash is at progress 0 instead.
     const reverse = buildApertures([edge("upper", closedLash, upperOpen), edge("lower", closedLash, lowerShort)]);
     expect(reverse.diagnostics).toEqual([]);
     expect(reverse.apertures[0]!.area(1)).toBeCloseTo(ap.area(0), 0);
@@ -232,8 +212,6 @@ describe("buildApertures", () => {
   });
 
   test("an opening that appears only between the rest poses is still an aperture", () => {
-    // Two boundaries that coincide at progress 0, 0.5 and 1 but separate in
-    // between: three probes would call the aperture closed for good.
     const bump = (t: number) => 300 * t * (t - 0.5) * (t - 1);
     const edge = (sign: number): BendTrack => ({
       from: [],
@@ -250,9 +228,6 @@ describe("buildApertures", () => {
       ],
       edges: (t, points) => {
         const line = (y: number): [number, number][] => Array.from({ length: points }, (_, i) => [(100 * i) / (points - 1), y]);
-        // The outer boundary is listed first and sits 40 units out, so a
-        // facing choice made where the edges coincide would measure the
-        // wrong opening.
         return [line(50 + sign * (bump(t) + 40)), line(50 + sign * bump(t))];
       },
     });
@@ -262,8 +237,6 @@ describe("buildApertures", () => {
     ]);
     expect(r.diagnostics).toEqual([]);
     expect(r.apertures).toHaveLength(1);
-    // Inner boundaries 2 * 14.0625 apart at 0.25, 100 wide; their ends met
-    // at both rest poses, so the corners close straight.
     expect(r.apertures[0]!.area(0.25)).toBeCloseTo(2812.5, 6);
     expect(r.apertures[0]!.area(0.5)).toBeLessThan(AREA_ZERO);
   });

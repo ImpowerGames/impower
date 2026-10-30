@@ -3,8 +3,6 @@ import { type AssetsProgressParams } from "../../types/AssetsProgressParams";
 
 export type AssetsProgressMethod = typeof AssetsProgressMessage.method;
 
-/** Page to engine: progress of one pinned request. A notification because
- *  the engine routes requests only to its first module. */
 export class AssetsProgressMessage {
   static readonly method = "assets/progress";
   static readonly type = new MessageProtocolNotificationType<

@@ -1,9 +1,3 @@
-// What the page needs from the game arrives in the game's messages, so the
-// page never reads the game itself: which stream a message belongs to, where
-// a reconcile pass opens and closes, the mixer a player plays through, and
-// every src an image layer paints. And every message survives the structured
-// clone that carries it to another thread.
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
 import { cloneMessage } from "../harness/cloneMessage";
@@ -70,7 +64,6 @@ describe("page messages", () => {
     const first = [...harness.messages];
     expect(first.length).toBeGreaterThan(0);
     expect(new Set(first.map((m) => m.epoch))).toEqual(new Set([1]));
-    // The pass opens ahead of every element the connect re-emits.
     const ui = first.filter((m) => m.method.startsWith("ui/"));
     expect(ui[0].method).toBe("ui/reconcile-begin");
 
@@ -87,11 +80,6 @@ describe("page messages", () => {
   });
 
   test("a connect that a newer one superseded while it waited sends nothing more", async () => {
-    // The main layout's font keeps the first connect waiting; the page
-    // connects again meanwhile, and that connect finishes before the first
-    // one's font arrives. Whatever the first connect would
-    // send then would be stamped with the newer stream's epoch and taken as
-    // part of it, so it must send nothing.
     const fonts: File[] = [
       {
         uri: "inmemory:///fancy.ttf",
@@ -111,7 +99,6 @@ describe("page messages", () => {
       harness.messages.filter((m) => m.method === "assets/load");
     expect(fontLoads()).toHaveLength(1);
     const first = harness.ready;
-    // The newer connect gets its font at once and finishes.
     const second = harness.reconnect();
     await flushMicrotasks(20);
     const [olderLoad, newerLoad] = fontLoads();
@@ -125,26 +112,19 @@ describe("page messages", () => {
     answer(newerLoad);
     await second;
     await flushMicrotasks(20);
-    // The newer connect built its screen and cleared its transient targets.
     const newer = flattenMessages(
       harness.messages.filter((m) => m.epoch === 2),
     ).map((m) => m.method);
     expect(newer).toContain("ui/create");
     expect(newer).toContain("ui/write-text");
-    // Then the older connect's font arrives.
     const mark = harness.messages.length;
     answer(olderLoad);
     await first;
     await flushMicrotasks(20);
-    // Anything it sent now (rebuilding the screen over the newer one's,
-    // clearing targets the newer stream may have written since) would carry
-    // the newer stream's epoch.
     expect(harness.messages.slice(mark).map((m) => m.method)).toEqual([]);
   });
 
   test("a restore superseded while a re-opened layout's font loads does not mount it", async () => {
-    // The checkpoint had `hud` open; restoring it waits for its font, and a
-    // newer connect begins meanwhile. That connect restores its own layouts.
     const fonts: File[] = [
       {
         uri: "inmemory:///fancy.ttf",
@@ -179,7 +159,6 @@ describe("page messages", () => {
         .filter((m) => m.method === "ui/create")
         .map((m) => m.params.name);
     };
-    // Unsuperseded, the restore mounts `hud` once its font is in.
     expect(await restoreHud(false)).toContain("hud");
     expect(await restoreHud(true)).toEqual([]);
   });
@@ -193,7 +172,6 @@ describe("page messages", () => {
       });
       await harness.ready;
       const connection = harness.game.connection;
-      // The page holds this restore's load until the newer connect began.
       const sent: any[] = [];
       connection.connectOutput((message) => sent.push(cloneMessage(message)));
       const audio: any = harness.game.module.audio;
@@ -218,7 +196,6 @@ describe("page messages", () => {
       await flushMicrotasks(20);
       return sent.slice(mark).map((m) => m.method);
     };
-    // Unsuperseded, the restore resumes the loop once it has loaded.
     expect(await restoreLoop(false)).toContain("audio/update");
     expect(await restoreLoop(true)).toEqual([]);
   });
@@ -232,7 +209,6 @@ describe("page messages", () => {
       "sound",
       "typewriter",
     ]);
-    // What the page used to look up in the game's context for itself.
     const context: any = harness.game.context;
     for (const load of loads) {
       const channel = load.params.channel;

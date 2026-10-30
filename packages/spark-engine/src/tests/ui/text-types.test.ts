@@ -1,12 +1,3 @@
-// Golden-master: the non-dialogue text targets — title, scene-heading,
-// transition, action — plus multi-line / whitespace / text-align wrapping and
-// the `wavy` / `shaky` inline animations.
-//
-// Authors reach these targets via directive prefixes (`^:` title, `$:` scene
-// heading, `%:` transition, bare = action). Each routes through the same
-// per-glyph typewriter realization as dialogue but with target-specific
-// typewriter timing — the stream locks both routing and decomposition.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 

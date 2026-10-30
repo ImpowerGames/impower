@@ -1,7 +1,3 @@
-// Phase 2 widget builtins: radio, switch, textarea, and narrowing the generic
-// `input` to any HTML input type. Drives the real engine through the real
-// UIManager under jsdom and asserts the realized DOM controls.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -23,7 +19,6 @@ end
     ) as HTMLInputElement | null;
     expect(radio).toBeTruthy();
     expect(radio!.checked).toBe(true);
-    // Grouping still works — `name` is passed through as an attribute.
     expect(radio!.getAttribute("name")).toBe("plan");
   });
 
@@ -44,7 +39,6 @@ end
     ) as HTMLInputElement | null;
     expect(sw).toBeTruthy();
     expect(sw!.checked).toBe(true);
-    // It must NOT be confused with a plain checkbox in the style layer.
     expect(sw!.classList.contains("switch")).toBe(true);
   });
 
@@ -64,7 +58,6 @@ end
       "textarea",
     ) as HTMLTextAreaElement | null;
     expect(ta).toBeTruthy();
-    // `value` is a live PROPERTY (an attribute would not populate the control).
     expect(ta!.value).toBe("Dear diary");
     expect(ta!.getAttribute("rows")).toBe("4");
   });
@@ -91,7 +84,6 @@ end
     expect(email!.value).toBe("a@b.co");
     expect(h.overlay.querySelector("input[type=date]")).toBeTruthy();
     expect(h.overlay.querySelector("input[type=password]")).toBeTruthy();
-    // The default `text` type must not leak through when narrowed.
     expect(h.overlay.querySelectorAll("input[type=text]").length).toBe(0);
   });
 

@@ -1,10 +1,3 @@
-// Phase 3c: HTML attributes on otherwise-generic elements.
-//
-// `#prop` normally lowers to an inline STYLE (spec §4.2), which is right for
-// `#padding` / `#child-gap`. But `#href` on a link, `#open` on a dialog and
-// `#colspan` on a cell have no meaning as CSS — those are routed to attributes
-// instead, so the semantic elements added in Phase 3a are actually usable.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -24,13 +17,9 @@ end
     const a = h.overlay.querySelector("a") as HTMLAnchorElement;
     expect(a.getAttribute("href")).toBe("/docs");
     expect(a.getAttribute("target")).toBe("_blank");
-    // Must NOT have leaked into the inline style.
     expect(a.getAttribute("style") ?? "").not.toContain("href");
   });
 
-  // Regression: the `:` in `://` used to read as a block-opening colon (the
-  // header test accepted a bare `//` as a trailing comment), so the value came
-  // back as the fragment `"https`. See sparkleValueComments.test.ts.
   test("absolute and protocol-relative URLs survive in a prop value", async () => {
     const h = await render(`layout main with
   link "Docs" #href="https://example.com/a/b?x=1"
@@ -115,10 +104,6 @@ end
 });
 
 describe("props the validator accepts actually reach the DOM", () => {
-  // These validated clean and then did nothing: the runtime's routing list was
-  // a separate hand-maintained copy that had drifted from the validator's, so
-  // they were sent to `style[prop]` and dropped by CSSOM. No attribute, no
-  // style, no warning.
   test("minlength/spellcheck/size land as attributes, not as style", async () => {
     const h = await render(`layout main with
   input #maxlength=10 #minlength=3 #spellcheck="false" #size=20
@@ -129,12 +114,9 @@ end
     expect(input.getAttribute("minlength")).toBe("3");
     expect(input.getAttribute("spellcheck")).toBe("false");
     expect(input.getAttribute("size")).toBe("20");
-    // Nothing leaked into the inline style.
     expect(input.getAttribute("style") ?? "").toBe("");
   });
 
-  // `spellcheck`/`draggable` are ENUMERATED, not boolean: `="false"` is a real
-  // value that must survive rather than being removed as "absent".
   test("an enumerated attribute keeps its explicit false", async () => {
     const h = await render(`store off = false
 layout main with
@@ -146,7 +128,6 @@ end
     expect(box.getAttribute("spellcheck")).toBe("false");
   });
 
-  // `translate` is the CSS property, as it is in a `style` block (I-1619).
   test("`#translate` moves the element instead of writing an attribute", async () => {
     const h = await render(`layout main with
   box "x" #translate="40px 0"
@@ -159,8 +140,6 @@ end
 });
 
 describe("an inline custom property reaches the element", () => {
-  // The compiler-side test proves the line parses; this proves the declaration
-  // is actually written, which is what the warning promised the author.
   test("`#--my-var` becomes a real custom property", async () => {
     const h = await render(`layout main with
   box #--my-var=4 #gap=12 #background-color=red {
@@ -170,7 +149,6 @@ end
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.style.getPropertyValue("--my-var")).toBe("4");
-    // And the attributes after it survived.
     expect(box.style.getPropertyValue("gap")).toBe("12px");
     expect(box.style.getPropertyValue("background-color")).toContain("red");
   });

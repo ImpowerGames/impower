@@ -27,9 +27,6 @@ const vec3 = new Float32Array(3);
 const mat4 = new Float32Array(16);
 const vec4 = new Float32Array(4);
 
-/**
- * Camera is a device from which the world is viewed.
- */
 export class Camera extends Container3D implements TransformId {
   private _transformId = 0;
 
@@ -51,11 +48,6 @@ export class Camera extends Container3D implements TransformId {
     undefined,
   );
 
-  /**
-   * Used for making the frustum oblique, which means that one side is at a
-   * smaller angle to the centre line than the opposite side. Only works with
-   * perspective projection.
-   */
   get obliqueness() {
     return this._obliqueness;
   }
@@ -64,16 +56,10 @@ export class Camera extends Container3D implements TransformId {
     this._obliqueness.copyFrom(value);
   }
 
-  /** Main camera which is used by default. */
   static main: Camera;
 
   _localID = -1;
 
-  /**
-   * Creates a new camera using the specified renderer. By default the camera
-   * looks towards negative z and is positioned at z = 5.
-   * @param renderer Renderer to use.
-   */
   constructor(public renderer: Renderer) {
     super();
 
@@ -94,10 +80,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /**
-   * The camera's half-size when in orthographic mode. The visible area from
-   * center of the screen to the top.
-   */
   get orthographicSize() {
     return this._orthographicSize;
   }
@@ -109,9 +91,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /**
-   * Camera will render objects uniformly, with no sense of perspective.
-   */
   get orthographic() {
     return this._orthographic;
   }
@@ -124,7 +103,6 @@ export class Camera extends Container3D implements TransformId {
   }
 
   protected _pixelsPerUnit = 100;
-  /** The number of texture pixels (texels) that correspond to one unit of world space. */
   get pixelsPerUnit() {
     return this._pixelsPerUnit;
   }
@@ -134,12 +112,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /**
-   * Converts screen coordinates to a ray.
-   * @param x Screen x coordinate.
-   * @param y Screen y coordinate.
-   * @param viewSize The size of the view when not rendering to the entire screen.
-   */
   screenToRay(
     x: number,
     y: number,
@@ -158,14 +130,6 @@ export class Camera extends Container3D implements TransformId {
     return undefined;
   }
 
-  /**
-   * Converts screen coordinates to world coordinates.
-   * @param x Screen x coordinate.
-   * @param y Screen y coordinate.
-   * @param distance Distance from the camera.
-   * @param out Point to set.
-   * @param viewSize The size of the view when not rendering to the entire screen.
-   */
   screenToWorld(
     x: number,
     y: number,
@@ -173,17 +137,12 @@ export class Camera extends Container3D implements TransformId {
     out = new Point3D(),
     viewSize: { width: number; height: number } = this.renderer.screen,
   ) {
-    // Make sure the transform is updated in case something has been changed,
-    // otherwise it may be using wrong values.
     this.transform.updateTransform(
       (this.parent as unknown as Container3D)?.transform,
     );
 
     let far = this.far;
 
-    // Before doing the calculations, the far clip plane is changed to the same
-    // value as distance from the camera. By doing this we can just set z value
-    // for the clip space to 1 and the desired z position will be correct.
     this.far = distance;
 
     let invertedViewProjection = Mat4.invert(this.viewProjection.array, mat4);
@@ -211,14 +170,6 @@ export class Camera extends Container3D implements TransformId {
     return out.set(worldSpace[0]!, worldSpace[1]!, worldSpace[2]!);
   }
 
-  /**
-   * Converts world coordinates to screen coordinates.
-   * @param x World x coordinate.
-   * @param y World y coordinate.
-   * @param z World z coordinate.
-   * @param out Point to set.
-   * @param viewSize The size of the view when not rendering to the entire screen.
-   */
   worldToScreen(
     x: number,
     y: number,
@@ -226,8 +177,6 @@ export class Camera extends Container3D implements TransformId {
     out = new Point(),
     viewSize: { width: number; height: number } = this.renderer.screen,
   ) {
-    // Make sure the transform is updated in case something has been changed,
-    // otherwise it may be using wrong values.
     this.transform.updateTransform(
       (this.parent as unknown as Container3D)?.transform,
     );
@@ -247,18 +196,14 @@ export class Camera extends Container3D implements TransformId {
   }
 
   worldToView(x: number, y: number, z: number, out = new Point3D()): Point3D {
-    // Ensure the view matrix is up to date
     this.transform.updateTransform(
       (this.parent as unknown as Container3D)?.transform,
     );
 
-    // Convert Point3D to Vec4
     const worldVec = Vec4.set(x, y, z, 1, vec4);
 
-    // Transform by the view matrix
     const viewVec = Vec4.transformMat4(worldVec, this.view.array, vec4);
 
-    // Return as a Point3D
     return out.set(viewVec[0]!, viewVec[1]!, viewVec[2]!);
   }
 
@@ -269,15 +214,12 @@ export class Camera extends Container3D implements TransformId {
   }
 
   prerender() {
-    // Update the projection matrix if the aspect ratio changed.
     if (this.renderer.width / this.renderer.height !== this._aspect) {
       this._transformId++;
       this._aspect = this.renderer.width / this.renderer.height;
     }
     // @ts-ignore: _localID do exist, but be careful if this changes.
     if (!this.parent && this._localID !== this.transform._localID) {
-      // When the camera is not attached to the scene hierarchy the transform
-      // needs to be updated manually.
       this.transform.updateTransform();
       // @ts-ignore: _localID do exist, but be careful if this changes.
       this._localID = this.transform._localID;
@@ -295,10 +237,6 @@ export class Camera extends Container3D implements TransformId {
   private _far = 1000;
   private _aspect?: number;
 
-  /**
-   * The aspect ratio (width divided by height). If not set, the aspect ratio of
-   * the renderer will be used by default.
-   */
   get aspect() {
     return this._aspect;
   }
@@ -310,7 +248,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /** The vertical field of view in degrees, 60 is the default value. */
   get fieldOfView() {
     return this._fieldOfView;
   }
@@ -322,7 +259,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /** The near clipping plane distance, 0.1 is the default value. */
   get near() {
     return this._near;
   }
@@ -334,7 +270,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /** The far clipping plane distance, 1000 is the default value. */
   get far() {
     return this._far;
   }
@@ -346,7 +281,6 @@ export class Camera extends Container3D implements TransformId {
     }
   }
 
-  /** Returns the projection matrix. */
   get projection() {
     if (!this._projection) {
       this._projection = new MatrixComponent<Matrix4x4>(
@@ -382,7 +316,6 @@ export class Camera extends Container3D implements TransformId {
     return this._projection.data;
   }
 
-  /** Returns the view matrix. */
   get view() {
     if (!this._view) {
       this._view = new MatrixComponent<Matrix4x4>(
@@ -406,7 +339,6 @@ export class Camera extends Container3D implements TransformId {
     return this._view.data;
   }
 
-  /** Returns the view projection matrix. */
   get viewProjection() {
     if (!this._viewProjection) {
       this._viewProjection = new MatrixComponent<Matrix4x4>(

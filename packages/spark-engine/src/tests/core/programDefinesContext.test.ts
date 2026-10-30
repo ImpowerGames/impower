@@ -1,7 +1,3 @@
-// `buildDefinesContext` over the binary program's engine (#698): the define
-// tables the program's declaration chunks build, with the functions each
-// define writes as its methods. For the builtins prelude, which the player
-// seeds into every story it compiles.
 import { describe, expect, it } from "vitest";
 import {
   MAIN_URI,
@@ -11,8 +7,6 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 
-/** The define context the program engine builds for `files`, compiled as the
- *  player's worker configures its compiler. */
 function context(files: any[]) {
   const compiler = new SparkdownCompiler();
   const startFrom = { file: MAIN_URI, line: 0 };
@@ -39,9 +33,6 @@ describe("the define context over the program engine", () => {
   it("holds the builtins prelude's defines", () => {
     const program = context([script(MAIN_URI, "A line.\n")]);
     expect(Object.keys(program).length).toBeGreaterThan(10);
-    // Each type the prelude defines with props of its own has its defaults
-    // under `$default`, and then each define of that type, in the prelude's
-    // order.
     const names = (type: string) => Object.keys(program[type] ?? {});
     expect({
       transition: names("transition"),

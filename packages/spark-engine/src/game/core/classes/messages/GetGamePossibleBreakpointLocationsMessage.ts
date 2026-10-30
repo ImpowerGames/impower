@@ -11,9 +11,6 @@ export interface GetGamePossibleBreakpointLocationsParams {
 }
 
 export interface GetGamePossibleBreakpointLocationsResult {
-  /**
-   * All possible lines that a breakpoint could be set.
-   */
   lines: number[];
 }
 

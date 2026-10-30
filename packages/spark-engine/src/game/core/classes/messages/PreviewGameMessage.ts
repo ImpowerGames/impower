@@ -10,8 +10,6 @@ export interface PreviewGameParams {
 }
 
 export interface PreviewGameResult {
-  /** The address of the beat previewed, or null when the point resolves
-   *  to none or the preview was taken over. */
   previewAddress: ProgramAddress | null;
 }
 

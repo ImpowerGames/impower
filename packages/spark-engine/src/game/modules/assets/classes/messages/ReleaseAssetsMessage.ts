@@ -3,7 +3,6 @@ import { type ReleaseAssetsParams } from "../../types/ReleaseAssetsParams";
 
 export type ReleaseAssetsMethod = typeof ReleaseAssetsMessage.method;
 
-/** Let go of pins, optionally evicting what they leave unpinned. */
 export class ReleaseAssetsMessage {
   static readonly method = "assets/release";
   static readonly type = new MessageProtocolNotificationType<

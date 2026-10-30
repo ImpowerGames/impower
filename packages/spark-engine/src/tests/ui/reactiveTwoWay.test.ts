@@ -1,7 +1,3 @@
-// Two-way binding: input widgets render as real <input>s with a one-way bound
-// value/checked, and @input/@change handlers receive an `event` table
-// (event.value / event.checked) to write back into Luau state.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -122,9 +118,6 @@ end
   });
 
   test("a numeric input writes a NUMBER back (store keeps its type)", async () => {
-    // A range/number control sends a JS number (getEventData), so the write-back
-    // must keep `volume` numeric — not flip it to the string "80", which would
-    // make `volume > 100` lexicographic.
     const h = createHarness(
       `store volume = 50
 layout form with
@@ -196,10 +189,6 @@ end
   });
 
   test("@input inline-closure writes a property target (`obj.field = event.value`)", async () => {
-    // A property-target write inside a closure (`player.name = …`) is what a
-    // table reinterpretation of `{…}` could NOT express — verify it works, and
-    // observe it through the re-rendered bound value (the runtime table isn't a
-    // plain JS object, so we assert the binding sees the new value).
     const h = createHarness(
       `store player = { name = "Zelda" }
 layout form with

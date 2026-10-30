@@ -8,9 +8,6 @@ export type GetGameThreadsMethod = typeof GetGameThreadsMessage.method;
 export interface GetGameThreadsParams {}
 
 export interface GetGameThreadsResult {
-  /**
-   * All threads.
-   */
   threads: Thread[];
 }
 

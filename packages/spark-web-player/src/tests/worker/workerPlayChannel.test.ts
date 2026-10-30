@@ -1,9 +1,3 @@
-// PLAY's game sends the page its stream on a
-// `BroadcastChannel` of the page's sink rather than on the connection the
-// workspace compiles through. After input, Chromium holds a message from a
-// worker or a port until the page has rendered its next frame, which put a
-// median of 8 ms between a click and the game's answer; a broadcast
-// channel's messages are not held (#811).
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -20,7 +14,6 @@ end
 
 const FIRST = SOURCE.split("\n").findIndex((l) => l.includes("The first line."));
 
-/** STOP waits a frame between its steps, which this page does not draw. */
 const framesForStop = (h: { overlay: HTMLElement }) => {
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
@@ -46,8 +39,6 @@ describe("PLAY's stream from the worker", () => {
 
       const fromGame = h.toPage.slice(before).filter((m) => typeof m.epoch === "number");
       const onChannel = new Set(h.onChannel);
-      // The game showed its line, and all it sent for that came on the
-      // channel.
       expect(h.overlay.textContent).toContain("The first line.");
       expect(fromGame.length).toBeGreaterThan(0);
       expect(fromGame.filter((m) => !onChannel.has(m))).toEqual([]);
@@ -84,7 +75,6 @@ describe("PLAY's stream from the worker", () => {
       expect(names).toHaveLength(2);
       expect(names[0]).not.toBe(names[1]);
 
-      // A message on a stopped run's channel reaches nothing on the page.
       const heard: unknown[] = [];
       h.link.addListener("ui/update", (m) => heard.push(m));
       const stale = new BroadcastChannel(names[0]!);

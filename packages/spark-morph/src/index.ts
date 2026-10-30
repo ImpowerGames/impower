@@ -1,6 +1,3 @@
-// The public surface: the pipeline entry points, the explicit method
-// builders and their result types. Geometry helpers stay internal so the
-// algorithms can change without a breaking change.
 export type {
   Cubic,
   MorphFailure,

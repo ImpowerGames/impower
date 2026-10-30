@@ -9,13 +9,6 @@ const NUMBER = /[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/y;
 const COMMAND = /[MmLlHhVvCcSsQqTtAaZz]/y;
 const SEPARATOR = /[\s,]*/y;
 
-/**
- * Splits path data into commands with their numeric arguments. Numbers may
- * run together as SVG allows (`1.5.3`, `1-2`, `1e3`), and separators are any
- * whitespace or comma. The fourth and fifth arguments of every arc are
- * single-character flags, so `0110,10` reads as flags `0` and `1` followed
- * by `10,10`, as compact SVG writes it.
- */
 function tokenize(d: string): Token[] {
   const out: Token[] = [];
   let cur: Token | null = null;
@@ -44,7 +37,6 @@ function tokenize(d: string): Token[] {
     NUMBER.lastIndex = i;
     const n = NUMBER.exec(d);
     if (!n || NUMBER.lastIndex === i) {
-      // Unparseable character: skip it rather than loop forever.
       i++;
       continue;
     }
@@ -54,10 +46,6 @@ function tokenize(d: string): Token[] {
   return out;
 }
 
-/**
- * Converts one elliptical arc to cubics using the SVG endpoint-to-centre
- * conversion, splitting into sweeps of at most 90 degrees.
- */
 export function arcToCubics(
   p0: Point,
   rx: number,
@@ -67,8 +55,6 @@ export function arcToCubics(
   sweep: number,
   p1: Point,
 ): Cubic[] {
-  // The SVG rule: an arc whose endpoints coincide is omitted entirely, and
-  // an arc with a zero radius is a straight line.
   if (p0[0] === p1[0] && p0[1] === p1[1]) return [];
   if (rx === 0 || ry === 0) return [{ p0, c1: p0, c2: p1, p1 }];
   const phi = (phiDeg * Math.PI) / 180;
@@ -137,11 +123,6 @@ export function arcToCubics(
   return segs;
 }
 
-/**
- * Parses SVG path data into subpaths of absolute cubic segments. Lines,
- * quadratics, smooth variants, and arcs are all promoted to cubics. A
- * subpath with no drawing command after its move is dropped.
- */
 export function parsePathData(d: string): Subpath[] {
   const toks = tokenize(d);
   const subs: Subpath[] = [];
@@ -240,7 +221,6 @@ export function parsePathData(d: string): Subpath[] {
         if (pos[0] !== startPt[0] || pos[1] !== startPt[1]) line([startPt[0], startPt[1]]);
         closed = true;
         pos = [startPt[0], startPt[1]];
-        // A drawing command after Z without a new M starts at the same point.
         if (cur.length) subs.push({ segments: cur, closed });
         cur = [];
         closed = false;

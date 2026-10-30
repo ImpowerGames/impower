@@ -31,87 +31,46 @@ export type AssetsMessageMap = LoadAssetsMessageMap;
 
 const MEGABYTE = 1024 * 1024;
 
-/** Flows the prediction window may spill into beyond the current one. */
 const MAX_PREDICTED_FLOWS = 16;
 
 const EMPTY_RESULT: LoadAssetsResult = { loaded: [], failed: [], pinned: [] };
 
-/**
- * Decides what the page should have resident and when the story must wait for
- * it (docs/engine/asset-preloading-spec.md).
- *
- * The engine owns the decisions — which names, in which order, pinned under
- * which pin, waited for by which beat — and resolves names to URLs with the
- * same resolvers the renderer uses, so a preloaded URL is exactly the URL
- * that will be requested. The page (`AssetManager`) owns fetching, decoding,
- * the cache size, and eviction.
- *
- * Every wait is bounded: a line, a mount, a restore, or a `load` that the
- * page cannot satisfy in time proceeds with a warning rather than hanging.
- */
 export class AssetModule extends Module<
   AssetsState,
   AssetsMessageMap,
   AssetsBuiltins
 > {
-  /** Flows whose explicitly loaded sets are pinned (`load:<flow>`). */
   protected _loadPins = new Set<string>();
 
-  /** Layouts whose fonts are pinned (`layout:<name>`). */
   protected _layoutPins = new Set<string>();
 
-  /** The pins of layouts a composed close retired, held until their
-   *  elements have gone (#1820). */
   protected _retiringPins = new Set<string>();
 
   protected _retiredLayouts = 0;
 
-  /** Keys already handed to prediction since the last scene entry, so the
-   *  window does not resend the same items after every beat. */
-  /** Beat pins whose lines have not been written to the page yet; released
-   *  by {@link onBeatDisplayed} once they are, or on destroy. */
   protected _pendingBeatPins = new Set<string>();
 
-  /** Whether the restore gate's pin is held. */
   protected _restorePending = false;
 
-  /** Counts the preview gates issued, to give each its own pin. */
   protected _previewGates = 0;
 
-  /** Pins of the preview gates not yet released, so destroy can let them
-   *  go with the rest. */
   protected _previewPins = new Set<string>();
 
-  /** Pins of the preview gates a take-over abandoned, let go with the next
-   *  beat's gate (right after its request, or at once when the beat has
-   *  nothing to wait for), with their own load's settle, or on destroy,
-   *  whichever is first. A release before the next beat's request would let
-   *  the page's background queue, which pauses while a gate is pending,
-   *  start loads beside the picture that beat waits on; the connect's own
-   *  gates settle before that request, so they do not release. */
   protected _abandonedPins = new Set<string>();
 
-  /** Font names per layout, resolved once per program: the walk over a
-   *  layout's tree and styles is repeated for every predicted beat otherwise. */
   protected _fontNamesByLayout = new Map<string, string[]>();
 
-  /** The window a preview last sent: its flow and the beat it was centred
-   *  on, so the beats one preview writes do not each send it again, and a
-   *  cursor that stays inside half of it does not either. */
   protected _previewWindow: { flow: string; index: number } | null = null;
 
-  /** Latest progress per pin, as the page reports it. */
   protected _progress = new Map<
     string,
     { loaded: number; failed: number; total: number }
   >();
 
-  /** Pins of the `load` beat currently holding the loading layout. */
   protected _activeLoadPins: string[] | null = null;
 
   protected _warned = new Set<string>();
 
-  /** Per-flow `address -> beat index`, rebuilt when the program changes. */
   protected _beatIndex?: {
     program: object;
     byFlow: Map<string, Map<ProgramAddress, number>>;
@@ -127,8 +86,6 @@ export class AssetModule extends Module<
     return [];
   }
 
-  /** The `assets` config block with defaults filled in for anything the
-   *  author left out or mistyped. */
   get config(): AssetsConfig {
     const defaults = assetsBuiltinDefinitions().config.assets;
     const authored = (this.context.config?.["assets"] ?? {}) as Partial<
@@ -170,7 +127,6 @@ export class AssetModule extends Module<
     };
   }
 
-  /** A route replay produces no output and must never wait on the page. */
   protected get silent(): boolean {
     return (
       this._destroyed ||
@@ -183,14 +139,10 @@ export class AssetModule extends Module<
     return Boolean(this.context.system.previewing);
   }
 
-  /** Timed assets (audio, video) are only worth loading when the story can
-   *  play them, which a preview never does. */
   protected get timed(): boolean {
     return !this.previewing;
   }
 
-  /** Where a preview stands: the address the cursor resolved to, which the
-   *  story may not have executed yet. In play, the executing address. */
   protected get anchorAddress(): ProgramAddress | null | undefined {
     const previewing = this.context.system.previewing;
     return typeof previewing === "number"
@@ -198,9 +150,6 @@ export class AssetModule extends Module<
       : this._game.executingAddress;
   }
 
-  /** The cursor's address as the window's anchor inside `scene`, or nothing
-   *  when the cursor is in another scene (a preview whose line diverts on
-   *  into the next scene enters it from its first beat). */
   protected previewAnchorIn(scene: string): ProgramAddress | undefined {
     const anchor = this.anchorAddress;
     return anchor != null && this._game.sceneOf(anchor) === scene
@@ -208,13 +157,6 @@ export class AssetModule extends Module<
       : undefined;
   }
 
-  // ---------------------------------------------------------------------------
-  // Resolution: names as authored -> what the page fetches
-  // ---------------------------------------------------------------------------
-
-  /** Image names (verbatim, `~`-tagged and `+`-split) to the URLs the renderer
-   *  will request. A name that is not an image but is a video yields a video
-   *  item. */
   resolveImageItems(names: Iterable<string>): AssetItem[] {
     const items: AssetItem[] = [];
     const seen = new Set<string>();
@@ -248,8 +190,6 @@ export class AssetModule extends Module<
     return items;
   }
 
-  /** Audio names to the load parameters `schedule` would build. Synths are
-   *  generated per line, so they are skipped. */
   resolveAudioItems(names: Iterable<string>): AssetItem[] {
     const items: AssetItem[] = [];
     const seen = new Set<string>();
@@ -270,7 +210,6 @@ export class AssetModule extends Module<
     return items;
   }
 
-  /** The font faces the styles of these layouts reference. */
   resolveFontItems(layoutNames: Iterable<string>): AssetItem[] {
     const items: AssetItem[] = [];
     const seen = new Set<string>();
@@ -312,8 +251,6 @@ export class AssetModule extends Module<
     return items;
   }
 
-  /** Everything a run of beats references, resolved and deduped. Timed items
-   *  are dropped in preview. */
   protected itemsForBeats(beats: Iterable<SceneBeat>): AssetItem[] {
     const images: string[] = [];
     const layouts: string[] = [];
@@ -349,10 +286,6 @@ export class AssetModule extends Module<
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Requests
-  // ---------------------------------------------------------------------------
-
   protected request(
     items: AssetItem[],
     priority: 0 | 1,
@@ -364,12 +297,6 @@ export class AssetModule extends Module<
     return this.emit(LoadAssetsMessage.type.request({ items, priority, pin }));
   }
 
-  /** Release the abandoned preview pins, or those of the given pins that
-   *  are abandoned, in one message. The beat gates call this right after
-   *  their request, when the new gate is pinned on the page and the
-   *  background queue stays paused, or at once when the beat has nothing
-   *  to wait for; the connect's gates (fonts, the restore) do not, since
-   *  they settle before the beat's request goes out. */
   protected releaseAbandoned(pins?: string[]): void {
     const going = (pins ?? [...this._abandonedPins]).filter((pin) =>
       this._abandonedPins.delete(pin),
@@ -379,10 +306,6 @@ export class AssetModule extends Module<
     }
   }
 
-  /** Let the abandoned preview pins go now: for a take-over that issues no
-   *  gate at all (a preview of a point that resolves to none, a debug step
-   *  that reaches no beat), where nothing waits and a held pin would only
-   *  keep the page's prefetching paused. */
   releaseAbandonedGates(): void {
     this.releaseAbandoned();
   }
@@ -412,19 +335,12 @@ export class AssetModule extends Module<
     console.warn(`spark-engine: ${message}`);
   }
 
-  /**
-   * Request items and wait until every one has settled or the timeout
-   * elapses, whichever comes first. Never rejects and never waits for ever;
-   * on timeout the story proceeds and the missing keys are named.
-   */
   protected ensureResident(
     items: AssetItem[],
     priority: 0 | 1,
     pin: string,
     timeoutSeconds: number,
     what: string,
-    // Whether anyone still waits on the gate when its timeout fires: an
-    // abandoned gate settles silently.
     wanted: () => boolean = () => true,
   ): Promise<{ timedOut: boolean; result: LoadAssetsResult | null }> {
     if (items.length === 0 || this._destroyed) {
@@ -473,18 +389,7 @@ export class AssetModule extends Module<
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Gates
-  // ---------------------------------------------------------------------------
-
-  /**
-   * The names of every image a beat's instructions show, and in play the
-   * video its cutscene plays, so the file is resident before the page shows
-   * it. A preview shows a cutscene's first frame from the file itself.
-   */
   protected imageNamesOf(instructions: Instructions): string[] {
-    // The first beat after a connect shows again what the connect cleared
-    // from the layers it keeps (#1662).
     const names: string[] =
       this._game.module.ui.clearedPictureNames(instructions);
     for (const events of Object.values(instructions.image ?? {})) {
@@ -502,14 +407,6 @@ export class AssetModule extends Module<
     return names;
   }
 
-  /**
-   * Start loading everything a beat shows and return a trigger the
-   * Coordinator waits on before displaying it, or null when nothing needs
-   * loading. The pin is released once the beat's writes have been sent: the
-   * page handles them in order and builds the image layers as soon as it
-   * handles a write, before the beat's reveal starts, and a built layer pins
-   * its images on the page's side.
-   */
   prepareBeat(instructions: Instructions): number | null {
     if (this.silent) {
       return null;
@@ -517,16 +414,11 @@ export class AssetModule extends Module<
     const names = this.imageNamesOf(instructions);
     const items = this.resolveImageItems(names);
     if (items.length === 0) {
-      // Nothing to wait for, so nothing for an abandoned preview pin to
-      // protect (play may have begun over a waiting preview).
       this.releaseAbandoned();
       return null;
     }
     const id = this.nextTriggerId();
     const pin = `beat:${id}`;
-    // Held until the beat is on the page ({@link onBeatDisplayed}): the
-    // trigger fires a moment before the write, and an unpinned image with no
-    // element yet is what eviction is allowed to take.
     this._pendingBeatPins.add(pin);
     this.ensureResident(
       items,
@@ -537,18 +429,10 @@ export class AssetModule extends Module<
     ).then(() => {
       this.enableTrigger(id);
     });
-    // This gate is pinned on the page now; a preview's abandoned pin, if
-    // play began over a waiting preview, goes with it.
     this.releaseAbandoned();
     return id;
   }
 
-  /**
-   * Make a layout's fonts resident before it mounts. Returns nothing at all,
-   * synchronously, when there is nothing to load, so a mount with no fonts
-   * keeps its exact timing (the UI batches on microtasks, and directive
-   * ordering guarantees depend on a font-less open not yielding).
-   */
   prepareLayout(name: string): Promise<void> | undefined {
     if (this.silent || !name) {
       return undefined;
@@ -573,13 +457,6 @@ export class AssetModule extends Module<
     }
   }
 
-  /**
-   * Hand a closing layout's fonts to a pin of their own (#1820): a composed
-   * close keeps the layout's element on the page, retiring, while its exit
-   * plays, and a reopen of the layout meanwhile pins them again under the
-   * layout's name. Returns the retiring pin, for {@link releaseRetiredLayout}
-   * once that element has gone; nothing for a layout with no fonts pinned.
-   */
   retireLayout(name: string): string | undefined {
     if (!this._layoutPins.delete(name)) {
       return undefined;
@@ -587,8 +464,6 @@ export class AssetModule extends Module<
     this._retiredLayouts += 1;
     const pin = `layout:${name}:retiring:${this._retiredLayouts}`;
     this._retiringPins.add(pin);
-    // Pinned again before the layout's own pin goes, so the fonts are never
-    // free to evict in between.
     void this.request(this.resolveFontItems([name]), 0, pin).catch(() => {});
     this.release([`layout:${name}`], false);
     return pin;
@@ -600,18 +475,11 @@ export class AssetModule extends Module<
     }
   }
 
-  /**
-   * Let interpolated names into the pipeline the moment the interpreter
-   * parses them, before the line's gate runs.
-   */
   notice(kind: "image" | "audio", names: string[]): void {
     if (this.silent || names.length === 0) {
       return;
     }
     if (kind === "image") {
-      // A preview's beat running with its flush held is about to be gated
-      // on exactly these pictures; a prefetch now would start them in a
-      // background slot first.
       if (this._game.holdingFlush) {
         return;
       }
@@ -623,10 +491,6 @@ export class AssetModule extends Module<
       this.prefetch(this.resolveAudioItems(names), 2);
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Prediction
-  // ---------------------------------------------------------------------------
 
   protected beatIndexFor(
     flow: string,
@@ -650,16 +514,9 @@ export class AssetModule extends Module<
     if (exact != null) {
       return exact;
     }
-    // Not a beat's address: the last beat at or before the current position
-    // in the source, which is what "the beats after this one" means.
     return beatIndexIn(beats, this._game.locator, address);
   }
 
-  /**
-   * Prefetch the assets of the next `predict_distance` beats after `address` in
-   * `flow`, spilling into the flows it loads and diverts to when the window
-   * runs past the end. With `inclusive`, the beat at `address` is included.
-   */
   protected predictFrom(
     flow: string,
     address: ProgramAddress | null | undefined,
@@ -684,9 +541,6 @@ export class AssetModule extends Module<
     this.prefetchBeats(spill, 3);
   }
 
-  /** The first `remaining` beats of the flows `flow` loads and diverts to,
-   *  breadth first, each from its first beat: where the window goes once it
-   *  has run past the end of the flow. */
   protected spillBeats(flow: string, remaining: number): SceneBeat[] {
     const sceneAssets = this._game.program.sceneAssets;
     const entry = sceneAssets?.[flow];
@@ -737,18 +591,6 @@ export class AssetModule extends Module<
     this.prefetch(items, priority);
   }
 
-  /**
-   * Preview: the cursor can land anywhere in a scene, so all of it warms,
-   * but the beats around the cursor first, at the window's priority, and
-   * the rest of the scene behind them; then the window's spill into the
-   * scenes that follow, so the first click into the next scene is not cold.
-   * The rest of the scene and the spill are sent once, on entering the
-   * scene (`wholeScene`); the window around the cursor is sent when the
-   * cursor moves more than half the window's reach from where the last one
-   * was centred, and not for the beats one preview writes with the cursor
-   * where it was. Nothing here can delay what the author clicked: that
-   * beat's images go through the gate at priority 0 ({@link onConnected}).
-   */
   protected predictAround(
     flow: string,
     address: ProgramAddress | null | undefined,
@@ -761,8 +603,6 @@ export class AssetModule extends Module<
     const distance = this.config.predict_distance;
     const index = Math.max(0, this.beatIndexFor(flow, address));
     const last = this._previewWindow;
-    // The last window still covers a cursor that moved less than half its
-    // reach, so it is not sent again for that.
     if (
       !wholeScene &&
       last &&
@@ -783,11 +623,6 @@ export class AssetModule extends Module<
     }
   }
 
-  /** Advance the prediction window past the beat whose writes were just
-   *  sent to the page (it shows them at the beat's stamp); in
-   *  preview, send the window around the cursor if it moved since the last
-   *  one (each scrub declares its cursor before it connects, and a scrub
-   *  inside a scene enters no scene). */
   onBeatDisplayed(): void {
     if (this._pendingBeatPins.size > 0) {
       const pins = [...this._pendingBeatPins];
@@ -808,16 +643,6 @@ export class AssetModule extends Module<
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Explicit loads
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Run a `load` beat: pin the named scenes' sets (and load their worlds)
-   * behind the loading layout, and return a trigger the Coordinator waits on.
-   * In preview only the visual prefetch happens and the trigger is ready at
-   * once.
-   */
   runLoad(loads: LoadInstruction[]): number {
     const id = this.nextTriggerId();
     if (this.silent) {
@@ -906,9 +731,6 @@ export class AssetModule extends Module<
       );
     };
     if (tasks.length === 0) {
-      // Nothing left to fetch (an asset-free scene, or one that is already
-      // resident): the screen still shows for its minimum display, so every
-      // `load` looks the same.
       finish();
       return id;
     }
@@ -928,10 +750,6 @@ export class AssetModule extends Module<
     return id;
   }
 
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
-
   override async onConnected(): Promise<void> {
     this._destroyed = false;
     if (this.silent) {
@@ -943,17 +761,9 @@ export class AssetModule extends Module<
         loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
       }),
     );
-    // The restore gate: what the checkpoint displays must be resident before
-    // `restore()` writes it, or a preview shows its backdrop late. Fonts are
-    // gated by the layouts as they mount. A target the connect clears (a
-    // portrait, which shows only with the beat that writes it) is not
-    // restored, so its picture is not waited for: the beat's own gate asks
-    // for the portrait the beat shows.
     await this.gateRestore(this._game.module.ui.restoredPictureNames());
   }
 
-  /** Hold the restore until `names` are resident, under the `restore` pin
-   *  that `onRestore` lets go. */
   protected async gateRestore(names: string[]): Promise<void> {
     const items = this.resolveImageItems(names).filter(
       (item) => this.timed || item.kind !== "video",
@@ -968,13 +778,6 @@ export class AssetModule extends Module<
     );
   }
 
-  /**
-   * A beat-only display's part of the redisplay that takes the connect's
-   * place (#657). The cache's sizes are the program's, which the display
-   * leaves as they were. The restore waits only for the pictures it writes
-   * that the page was not showing when the last display went up (`shown`):
-   * those are on the page, so they need no round trip.
-   */
   async onRedisplay(shown: string[]): Promise<void> {
     this._destroyed = false;
     if (this.silent) {
@@ -990,9 +793,6 @@ export class AssetModule extends Module<
     await this.gateRestore(names);
   }
 
-  /** The program's scenes changed under the cursor's scene (#657): the
-   *  prediction window was laid out over the old ones, and the next scene
-   *  entry lays out its own. */
   onSceneMapChanged(): void {
     this._previewWindow = null;
   }
@@ -1004,23 +804,6 @@ export class AssetModule extends Module<
     }
   }
 
-  /**
-   * The preview's gate: the pictures the beat under the cursor shows, once
-   * the preview has run it and holds what it flushed. A preview has no clock
-   * to wait on, so the preview awaits this before it writes the beat, and
-   * the line and its portrait land together; behind a burst of background
-   * loads the portrait still takes the express lane. Returns null when
-   * there is nothing to wait for (a beat with no picture, or a run that
-   * reached no flush), so that beat displays at once, and lets any
-   * abandoned pin go then; otherwise a gate, requested and then followed
-   * by the abandoned pins' release, whose `settled` is bounded by `restore_timeout`,
-   * after which the beat displays anyway, whose `release` lets the
-   * pictures go once the beat is written, and whose `abandon` (a take-over)
-   * keeps the pin until the next gate's request, the load's own settle, or
-   * destroy, whichever is first, and silences the gate's timeout. Each gate
-   * holds a pin of its own (`preview:<n>`), so a preview that another takes
-   * over while it waits lets go only what it asked for.
-   */
   gatePreviewBeat(instructions: Instructions | null): {
     settled: Promise<unknown>;
     release: () => void;
@@ -1035,7 +818,6 @@ export class AssetModule extends Module<
         )
       : [];
     if (items.length === 0) {
-      // Nothing to wait for, so nothing for an abandoned pin to protect.
       this.releaseAbandoned();
       return null;
     }
@@ -1050,8 +832,6 @@ export class AssetModule extends Module<
       "preview",
       () => this._previewPins.has(pin),
     );
-    // This gate is pinned on the page now; the pins abandoned since the
-    // last beat's can go without un-pausing the background queue.
     this.releaseAbandoned();
     return {
       settled,
@@ -1098,16 +878,12 @@ export class AssetModule extends Module<
   override onProgramUpdate(): void {
     this._beatIndex = undefined;
     this._fontNamesByLayout.clear();
-    // The prediction window stands while the program's scenes do: the game
-    // tells this module when they changed (`onSceneMapChanged`, #657).
   }
 
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AssetsProgressMessage.type.isNotification(msg)) {
       const { pin, loaded, failed, total } = msg.params;
       const active = this._activeLoadPins;
-      // Only a running load reads progress; a report for any other pin (a
-      // gate that already opened, a load that already finished) is noise.
       if (!active || !active.includes(pin)) {
         return;
       }
@@ -1140,8 +916,6 @@ export class AssetModule extends Module<
       ...[...this._layoutPins].map((name) => `layout:${name}`),
       ...this._retiringPins,
     ];
-    // Unpin without dropping: the cache outlives this game (STOP then PLAY
-    // must not re-fetch), and the next game re-pins what it needs.
     if (pins.length > 0) {
       this.release(pins, false);
     }

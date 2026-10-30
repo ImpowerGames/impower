@@ -68,9 +68,6 @@ const isType = (token: PathToken, type: number): boolean => {
   return token.type === type;
 };
 
-/**
- * Parse path string to segment array
- */
 export const parsePath = (d: string): PathCommand[] => {
   const segments: PathCommand[] = [];
   const tokens = tokenize(d);

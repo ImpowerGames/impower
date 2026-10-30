@@ -5,11 +5,6 @@ export type PageFramedMethod = typeof PageFramedMessage.method;
 
 export interface PageFramedParams {}
 
-/**
- * The page has finished rendering a frame. A game in a worker ticks on it
- * (`installGameWorker`), so what the tick posts reaches a page that is not
- * rendering.
- */
 export class PageFramedMessage {
   static readonly method = "game/pageFramed";
   static readonly type = new MessageProtocolNotificationType<

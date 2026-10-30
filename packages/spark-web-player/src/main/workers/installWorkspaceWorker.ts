@@ -39,28 +39,16 @@ export function installWorkspaceWorker(connection: MessageConnection) {
   {
     readonly gameLink: WorkerGameLink;
 
-    // The worker can be restarted in place (#679), so the text of each open
-    // document is kept here too.
     protected override _mirrorDocumentTexts = true;
 
-    // The page shows the story, and judges every program by its point in it
-    // (`compiledElsewhere`). A compile of a script the story does not
-    // include (each script VS Code opens, and the document compiled last
-    // when a file changes) compiles the story first; when the story changed,
-    // the page takes that program, which names it to the worker and gives a
-    // display the story compile took over a new one (#1874).
     protected override publishesStoryOfStandaloneCompiles = true;
 
-    // The preview's compile waits a debounce from the key, not from when the
-    // edit got here past the editor's own work on it (#1881).
     protected override debouncesFromEdit = true;
 
     protected _watchdog!: WorkerWatchdog;
 
     protected _hangListeners = new Set<(hang: WorkerHang) => void>();
 
-    /** Counts edits to open documents, which with the files revision says
-     *  whether the project has changed since a point was set aside. */
     protected _documentsRevision = 0;
 
     protected _setAside = new SetAsidePoints(() =>
@@ -80,7 +68,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           try {
             applyPreviewHint(cache, message.params);
           } catch (e) {
-            // A hint is an optimization; it must never take anything down.
             console.warn("Could not prefetch the selected scene's images:", e);
           }
         }
@@ -93,12 +80,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       this.listenToCompiler(compiler);
     }
 
-    /** The worker has run a story without yielding for longer than the page
-     *  waits. Whatever it was asked since is unanswered and will stay so: it
-     *  is terminated and another started in its place, which is given the
-     *  project as the editor holds it and routes to the author's selection,
-     *  unless that is set aside (`respondToWorkerHang` decides what is, and
-     *  tells the listeners first). */
     protected onWorkerHang = (busy: WorkerBusyParams) => {
       this._watchdog.dispose();
       respondToWorkerHang(busy, {
@@ -135,10 +116,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       this._documentsRevision += 1;
     }
 
-    /** An edit that says where it left the author's selection moves the
-     *  point its compile routes to at once. The selection the editor sends
-     *  after it can be handled after the compile is sent, which would route
-     *  to where the author was before the edit (#1881). */
     override async changeTextDocument(
       params: Parameters<SparkdownWorkspace["changeTextDocument"]>[0] & {
         selection?: { selectedRange: Range; userEvent?: boolean };
@@ -159,14 +136,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       return selected && !this.isSetAside(selected) ? selected : undefined;
     }
 
-    /** Only the author's selections move the point compiles route to, as
-     *  only they move the page's preview point
-     *  (`GamePlayerController.handleSelectedCompilerDocument`). The page and
-     *  the worker each judge a program by the point it was compiled for
-     *  (`compiledElsewhere`), so the two points must agree: one a selection
-     *  the author did not make moved (a jump from the Problems panel) would
-     *  have the worker keep, as a program the page can name, one the page
-     *  never takes, and drop one the page takes (#1874). */
     protected override movesCompilePoint(params: { userEvent?: boolean }) {
       return Boolean(params.userEvent);
     }
@@ -185,9 +154,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         return super.selectTextDocument(params);
       }
       const received = this.receiveSelection();
-      // The worker routes to a selection as it arrives, and a route to this
-      // point is what stopped it answering: the selection is the author's,
-      // but the worker is not asked to route to it until the project changes.
       const movesCompilePoint = this.movesCompilePoint(params);
       if (movesCompilePoint) {
         this._documentSelected = point;
@@ -273,8 +239,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
 
     override async onChangedFile(file: File) {
       if (ASSET_FILE_TYPES.has(file?.type) && file?.src) {
-        // Editing an asset re-stamps its `?v=` signature, so every resident
-        // url of the file is dead. Whatever needs the new bytes asks again.
         cache.evictFile(file.src);
       }
       return file;
@@ -285,13 +249,8 @@ export function installWorkspaceWorker(connection: MessageConnection) {
 
   connection.addEventListener("message", async (e) => {
     const message = e.data;
-    // Handle Workspace Events
     if (InitializeMessage.type.is(message)) {
       connection.sendResponse(message, async () => {
-        // The initial compile inside initialize() already delivers the
-        // program to the game via the CompiledProgram notification; no caller
-        // reads it from this response, so don't clone the multi-MB program
-        // into it too.
         await state.workspace.initialize(message.params);
         return {
           capabilities: {},

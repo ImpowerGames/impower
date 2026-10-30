@@ -1,9 +1,3 @@
-// A glued chain lowers to several `display(<table>)` calls that one engine step
-// joins into one beat: routing comes from the first table that names a target
-// and the body is the
-// step's ordered text, so a continuation reached through control flow (an `if`
-// branch, where the base line cannot see it at compile time) keeps its words.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
@@ -90,8 +84,6 @@ describe("display() glue join", () => {
     ]);
   });
 
-  // The break's beat waits for a click, and the next line carries on in its
-  // box (extendAfterBreak.test.ts), joining with no space.
   test("touching `.. >` then `..` waits, then carries on in the box", async () => {
     expect(await beats(`  Abso.. >\n  ..lutely.\n  After.`)).toEqual([
       { target: "action", text: "Abso" },
@@ -100,10 +92,6 @@ describe("display() glue join", () => {
     ]);
   });
 
-  // What shows between a caption and its choices ends the caption's beat,
-  // and the next beat, which the engine carried over from the caption's
-  // continue, shows it. That line is not a caption, so it returns at its
-  // newline like any line, and the choices come in a beat of their own.
   test("a caption a print follows is a beat of its own", async () => {
     const harness = createHarness(
       story(

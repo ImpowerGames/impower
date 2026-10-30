@@ -1,18 +1,3 @@
-// #637 — the preview replays a route to the line it shows, and a store that a
-// loop before that line changes must hold what the loop wrote.
-//
-// The route search forks at every decision a story reaches, a loop's test
-// included. A route that forces a loop's test false the first time it is
-// asked reaches the line after the loop in fewer decisions than one that lets
-// the loop run, so a search that counts every decision alike replays the
-// shorter route and the preview shows the store as it was before the loop.
-//
-// What must hold: a route takes every decision the program's way, a loop's
-// test, a branch inside or around the loop and a `break` included, wherever
-// that leads to the target; it forces a verdict only when that is the way
-// there; and a branch the program skips stays reachable beside a loop that
-// never ends.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -51,8 +36,6 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** The value the store `name` holds once the preview's replay has reached
- *  the 1-based `line`, as the preview displays that line with it. */
 function previewedStore(
   src: string,
   line: number,
@@ -169,8 +152,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   }, 120_000);
 
   test("a line inside a branch the program skips is still reached", () => {
-    // The control: forcing a verdict is still the way to a line only a
-    // forced verdict reaches.
     const src = [
       "store seen = 0",
       "",
@@ -187,8 +168,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   }, 120_000);
 
   test("a branch the program skips is reached beside a loop that never ends", () => {
-    // The program's own side runs a loop forever, each pass changing the
-    // store; the forced side is the only way to the line.
     const src = [
       "store flag = false",
       "store laps = 0",
@@ -223,9 +202,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   }, 120_000);
 
   test("a branch the program skips is reached before the menus after it", () => {
-    // Every way through the menus is the program's own, but each takes
-    // choices; none of them leads to the line, so they are not explored
-    // before the forced branch.
     const menus = Array.from({ length: 9 }, (_, i) => [
       "  choose",
       `  + [Left ${i}]`,
@@ -294,8 +270,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   }, 120_000);
 
   test("a run of menus after a loop leaves the loop's writes in place", () => {
-    // Every way through the nine menus reaches the line, each with its own
-    // `path`, so none of them merges with another.
     const menus = Array.from({ length: 9 }, (_, i) => [
       "  choose",
       `  + [Left ${i}]`,
@@ -438,7 +412,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   }, 120_000);
 });
 
-/** The route a search with `options` finds to the line holding `label`. */
 function routeTo(lines: string[], label: string, options?: object) {
   const program = compileSrc(lines.join("\n"));
   const game: any = newGame(program);
@@ -488,9 +461,6 @@ describe("a search whose level spends its bound", () => {
   }, 120_000);
 
   test("does not run a long call before the first condition twice", () => {
-    // The call takes more than a level's bound before the search meets its
-    // first condition. The bound is counted from that condition, so the call
-    // is charged against no bound, and nothing runs it a second time.
     const src = [
       "store total = 0",
       "scene start",
@@ -521,7 +491,6 @@ describe("a search whose level spends its bound", () => {
     expect(previewedStore(src, 9, "total")).toBe(600);
   }, 120_000);
 
-  // Each pass of this loop is about twenty steps of work with nothing shown.
   const longLoop = (passes: number) => [
     "store total = 0",
     "scene start",
@@ -534,8 +503,6 @@ describe("a search whose level spends its bound", () => {
   ];
 
   test("a long loop with no beat in it runs every pass within the search's budget", () => {
-    // About 80,000 steps, which the program's own way follows to the end
-    // within `faithfulBudget` (#1636).
     const lines = longLoop(4000);
     expect(previewedStore(lines.join("\n"), 6, "total")).toBe(4000);
     const route = routeTo(lines, "Target total");
@@ -546,17 +513,12 @@ describe("a search whose level spends its bound", () => {
   }, 120_000);
 
   test("a loop with no beat in it longer than the search's budget shows origin/main's value", () => {
-    // About 500,000 steps: the budget ends the program's own way inside the
-    // loop, and the route is origin/main's, which leaves the loop at its
-    // first test (#1636).
     const lines = longLoop(25000);
     expect(previewedStore(lines.join("\n"), 6, "total")).toBe(0);
     expect(routeTo(lines, "Target total").fallback).toBe(true);
   }, 120_000);
 
   test("a branch the program skips before a loop that outlasts the search's budget is still reached", () => {
-    // The program's own way runs the loop until the budget ends it, and the
-    // route is origin/main's, which forces the branch (#1636).
     const lines = [
       "store flag = false",
       "store total = 0",

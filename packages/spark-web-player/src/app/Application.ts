@@ -33,7 +33,7 @@ import { getEventData } from "./utils/getEventData";
 export const loadBuffer: LoaderParser = {
   extension: {
     name: "loadBuffer",
-    priority: LoaderParserPriority.Normal, // Actually will be last priority according to the console.log
+    priority: LoaderParserPriority.Normal,
     type: ExtensionType.LoadParser,
   },
   test(resolvedAsset?: ResolvedAsset) {
@@ -47,10 +47,6 @@ export const loadBuffer: LoaderParser = {
 } as LoaderParser;
 extensions.add(loadBuffer);
 
-/**
- * Whether the event target is somewhere the player is typing, in which case
- * keys belong to that field rather than to the game.
- */
 const isEditableTarget = (target: EventTarget | null): boolean => {
   const el = target as HTMLElement | null;
   if (!el || typeof el.tagName !== "string") {
@@ -65,15 +61,10 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
   );
 };
 
-/** The game an application shows, which runs in the player's worker: the
- *  application reaches it only by messages, and it ticks on the worker's own
- *  frames. */
 export interface GameEndpoint {
-  /** Start a new stream of the game's messages to `send`. */
   connect(
     send: (message: Message, transfer?: ArrayBuffer[]) => void,
   ): Promise<void>;
-  /** Hand the game what the page answers or reports. */
   receive(message: Message): void;
 }
 
@@ -85,10 +76,6 @@ export class Application implements IApplication {
   protected _clock = new Clock(
     {
       get currentTime() {
-        // Seconds, not milliseconds -- `ClockSource` is documented in
-        // seconds and the frame budget is computed as `1 / maxFPS`, so
-        // handing this `performance.now()` raw inflates every duration
-        // 1000x until an AudioContext takes over as the time source.
         return performance.now() / 1000;
       },
     },
@@ -189,17 +176,13 @@ export class Application implements IApplication {
     return this._audioContext;
   }
 
-  /** Maps the shared clock onto the audio context and document timeline. */
   protected _audioClock = new AudioClock();
   get audioClock() {
     return this._audioClock;
   }
 
-  /** The context whose state changes re-read the audio clock. */
   protected _watchedAudioContext?: AudioContext;
 
-  /** When the audio clock was last read and sent to the game (page
-   *  `performance.now()`), or undefined before the game is connected. */
   protected _audioClockSentAt?: number;
 
   private _resolveInit!: () => void;
@@ -232,13 +215,8 @@ export class Application implements IApplication {
     view: HTMLElement,
     overlay: HTMLElement,
     options: {
-      /** A preview shows the game without running it: no renderer, and no
-       *  audio context of its own. */
       previewing: boolean;
       audioContext?: AudioContext;
-      /** Shared by the host across the applications it builds, so STOP then
-       *  PLAY does not re-fetch a scene. Without one, the asset manager makes
-       *  its own. */
       assetCache?: AssetCache;
     },
   ) {
@@ -248,7 +226,6 @@ export class Application implements IApplication {
     this._assetCache = options.assetCache;
 
     if (loadTextures.config) {
-      // these workers don't work in iframe environments
       loadTextures.config.preferWorkers = false;
     }
 
@@ -273,14 +250,6 @@ export class Application implements IApplication {
       resolution: window.devicePixelRatio,
     };
 
-    // Use the shared AudioContext the controller owns (passed in via
-    // `audioContext`), including in preview mode, so preview audio (character
-    // voices, sfx) plays. A preview never creates a context of its own: the
-    // controller builds a new Application after every detach and for every
-    // PLAY, and a context minted each time would exhaust the browser's
-    // per-page context limit. The controller creates a single shared context
-    // once and reuses it; here we only adopt it. Outside preview (e.g. the
-    // standalone player), fall back to creating one if none was passed.
     const sharedAudioContext =
       audioContext || (this._previewing ? undefined : new AudioContext());
     if (sharedAudioContext) {
@@ -325,7 +294,6 @@ export class Application implements IApplication {
 
     try {
       if (!this._previewing) {
-        // Don't initialize renderer in preview mode
         await this.initializeRenderer();
       }
 
@@ -335,8 +303,6 @@ export class Application implements IApplication {
 
       this._initialized = true;
     } finally {
-      // A failed initialization is over too, so a teardown waiting for it
-      // goes ahead with whatever was set up.
       this._resolveInit();
     }
   }
@@ -360,11 +326,6 @@ export class Application implements IApplication {
     this.sendAudioClock();
   }
 
-  /**
-   * Reads the audio clock and tells the game. Sent at connect, whenever the
-   * audio context starts, stops or resumes, and once a second while running,
-   * so the reading follows any drift between the two clocks.
-   */
   protected sendAudioClock() {
     this._audioClockSentAt = performance.now();
     this.emit(AudioClockMessage.type.notification(this._audioClock.read()));
@@ -463,8 +424,6 @@ export class Application implements IApplication {
           manager.onUpdate(time);
         }
       }
-      // A renderer draws only once it has initialized; a clock step before
-      // then moves the clock and the managers all the same.
       if (this._renderer && this._initialized) {
         this._renderer.render(this._stage);
       }
@@ -473,8 +432,6 @@ export class Application implements IApplication {
 
   protected _destroying?: Promise<void>;
 
-  /** Tear the application down once. Every call answers when that teardown
-   *  has finished, which waits for the application to initialize. */
   destroy(removeCanvas?: boolean): Promise<void> {
     this._destroying ??= this.tearDown(removeCanvas);
     return this._destroying;
@@ -483,8 +440,6 @@ export class Application implements IApplication {
   protected async tearDown(removeCanvas?: boolean) {
     try {
       this._destroyed = true;
-      // Whatever the game still waits on from this page will not finish:
-      // answer it now, so the game is not left waiting.
       this._router.disconnect();
       await this.initializing;
       this._overlay?.classList.remove("pause-game");
@@ -523,9 +478,6 @@ export class Application implements IApplication {
       this._overlay.addEventListener("pointerup", this.onPointerUpOverlay);
       this._overlay.addEventListener("click", this.onClickOverlay);
     }
-    // Keys don't target the canvas or the overlay (neither is focusable), so
-    // they have to be picked up at the window level. The player is its own
-    // frame, so this can't swallow keys meant for the surrounding editor.
     window.addEventListener("keydown", this.onKeyDown);
   }
 
@@ -555,8 +507,6 @@ export class Application implements IApplication {
     this._game.receive(message);
   }
 
-  /** Answer a request a manager met inside another message once `work`
-   *  settles, as every request the page receives is answered. */
   answer(message: RequestMessage, work: Promise<unknown>) {
     this._router.answer(message, work as Promise<any>);
   }
@@ -587,7 +537,6 @@ export class Application implements IApplication {
 
   onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === " " && !isEditableTarget(event.target)) {
-      // Otherwise space scrolls the player document out from under the game
       event.preventDefault();
     }
     this.emit(EventMessage.type.notification(getEventData(event)));

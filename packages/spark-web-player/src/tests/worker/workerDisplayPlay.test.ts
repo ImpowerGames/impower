@@ -1,7 +1,3 @@
-// PLAY runs the program the preview shows, which is the last one that compiled
-// and ran (#682): the page holds its summary, and the worker builds PLAY's
-// game from the same program whole, with its statement chunks. A later edit
-// that does not compile leaves both where they were.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { describe, expect, it } from "vitest";
@@ -33,11 +29,9 @@ describe("after PLAY and STOP", () => {
         await h.select(LINE);
         expect(await h.controller.startGameAndApp()).toBe(true);
         await settle();
-        // STOP waits a frame between its steps; this page has no frames.
         const win = h.overlay.ownerDocument.defaultView as any;
         win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
         await h.controller.stopGame("quit");
-        // The editor selects where the game stopped, as STOP asks it to.
         await h.select(LINE);
         await settle(40);
         return {
@@ -69,8 +63,6 @@ describe("the program PLAY runs", () => {
       await h.select(LINE);
       const goodId = programIdentity(good.program);
 
-      // The author edits, and the compile of the edit fails inside the
-      // compiler: it answers, but with nothing that runs.
       const first = SOURCE.split("\n").findIndex((l) => l.includes("The first line."));
       await h.edit([
         {
@@ -101,7 +93,6 @@ describe("the program PLAY runs", () => {
       expect(played).toHaveLength(1);
       expect(programIdentity(played[0])).toBe(goodId);
       expect(played[0].summary).toBeUndefined();
-      // The game runs the program's statement chunks.
       expect(played[0].chunks).toBeTruthy();
       expect(isRunnableProgram(played[0])).toBe(true);
       await h.controller.destroyGameAndApp();
@@ -120,8 +111,6 @@ describe("the program PLAY runs", () => {
       await h.select(LINE);
       const heldId = programIdentity(held.program);
 
-      // A suggestion is on screen, so the preview last displayed is not
-      // the real program.
       const first = SOURCE.split("\n").findIndex((l) => l.includes("The first line."));
       await h.suggest(
         [
@@ -133,8 +122,6 @@ describe("the program PLAY runs", () => {
         first,
       );
 
-      // The author edits, and PLAY is pressed while the compile of the
-      // edit is still ahead of it in the worker.
       await h.edit([
         {
           range: { start: { line: first, character: 4 }, end: { line: first, character: 19 } },
@@ -151,8 +138,6 @@ describe("the program PLAY runs", () => {
       expect(await started).toBe(true);
       await settle();
 
-      // The game that runs is the program the page held when PLAY was
-      // pressed.
       expect(played).toHaveLength(1);
       expect(programIdentity(played[0])).toBe(heldId);
       await h.controller.destroyGameAndApp();

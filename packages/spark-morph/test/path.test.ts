@@ -39,7 +39,6 @@ describe("parsePathData", () => {
     expect(compact[0]!.segments.length).toBeGreaterThan(0);
     expect(serializePathData(compact)).toBe(serializePathData(spaced));
     expect(compact[0]!.segments[compact[0]!.segments.length - 1]!.p1).toEqual([10, 10]);
-    // Flags can also run into the following coordinate with a sign or point.
     const signed = parsePathData("M0 0a10 10 0 01-10 10");
     expect(signed[0]!.segments[signed[0]!.segments.length - 1]!.p1).toEqual([-10, 10]);
   });
@@ -118,7 +117,6 @@ describe("basic shapes", () => {
     expect(basicShapeToPathData({ kind: "circle", r: -10 })).toBe("");
     expect(basicShapeToPathData({ kind: "ellipse", rx: 10, ry: 0 })).toBe("");
     expect(basicShapeToSubpaths({ kind: "ellipse", rx: -10, ry: 5 })).toEqual([]);
-    // A negative corner radius is ignored rather than mirrored.
     expect(basicShapeToPathData({ kind: "rect", width: 10, height: 10, rx: -3 })).toBe("M0,0H10V10H0Z");
   });
 });

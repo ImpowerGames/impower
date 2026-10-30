@@ -1,15 +1,9 @@
-// The manager's derived pins cover every layer a displayed image paints and
-// every video on screen, and dispose withdraws what it installed on the
-// shared cache.
-
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { describe, expect, it } from "vitest";
 import { AssetCache } from "../assets/AssetCache";
 import AssetManager from "./AssetManager";
 import UIManager from "./UIManager";
 
-// jsdom has no `CSS.escape`, which the write's target lookup uses; the
-// class names here need no escaping.
 const g = globalThis as any;
 g.CSS ??= {};
 g.CSS.escape ??= (value: string) => value;
@@ -22,8 +16,6 @@ class FakeImage {
   onerror: (() => void) | null = null;
 }
 
-// The page has nothing of the game's: no context to resolve an image name
-// through. What it pins comes from what it was told to write.
 const makeApp = () => {
   const overlay = document.createElement("div");
   const cache = new AssetCache({ createImage: () => new FakeImage() });
@@ -48,8 +40,6 @@ describe("AssetManager derived pins", () => {
     content.className = "image";
     backdrop.appendChild(content);
     overlay.appendChild(backdrop);
-    // Both layers paint through the span's background; only the first gets
-    // an element.
     await ui.onReceiveRequest(
       WriteImageMessage.type.request({
         target: "backdrop",
@@ -138,8 +128,6 @@ describe("AssetManager derived pins", () => {
     const video = content.querySelector("video.object");
     expect(video?.getAttribute("src")).toBe("blob:page/1");
     expect([...manager.derivedPins()]).toContain(wave);
-    // Two more movies predicted past the budget: the oldest that is not on
-    // screen goes, and the one on screen stays resident under its element.
     cache.prefetch([{ kind: "video", src: "/file:/a.webm?v=1" }], 2);
     await new Promise((resolve) => setTimeout(resolve, 0));
     cache.prefetch([{ kind: "video", src: "/file:/b.webm?v=1" }], 2);
@@ -161,8 +149,6 @@ describe("AssetManager derived pins", () => {
     manager.onDispose();
     expect([...(cache as any)._derivedPins()]).toEqual([]);
     expect((cache as any)._deps.decodeAudio).toBeUndefined();
-    // A successor that installed its own provider is not disturbed by the
-    // predecessor disposing later.
     const next = makeApp();
     (next.app as any).assetCache = cache;
     const successor = new AssetManager(next.app);

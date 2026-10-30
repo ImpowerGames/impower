@@ -1,7 +1,3 @@
-// PLAY and the preview at a line the story's own run reaches (I-1620). The
-// route there is the one the story runs, whatever its depth: a shallower route
-// that forces a condition reaches the line too, but shows a beat the story
-// never leaves on screen there.
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
@@ -16,7 +12,6 @@ const NESTED = `scene start
 end
 `;
 
-// The line is reached only by forcing the condition.
 const FORCED_ONLY = `scene start
   Before.
   if false then
@@ -26,16 +21,12 @@ const FORCED_ONLY = `scene start
 end
 `;
 
-/** PLAY `source` from `line` (zero-based) and a second of frames; answers
- *  what the run wrote and how the game stood afterwards. */
 const playFrom = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line },
     manualClock: true,
   });
-  // A run that ends stops the game, which waits a frame this page does not
-  // draw.
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   try {
@@ -58,7 +49,6 @@ const playFrom = async (source: string, line: number) => {
   }
 };
 
-/** The text the first preview of `source` at `line` (zero-based) writes. */
 const previewAt = async (source: string, line: number) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
@@ -76,7 +66,6 @@ const previewAt = async (source: string, line: number) => {
 
 describe("a line the story's own run reaches after nested conditions", () => {
   it.each([
-    // The control: the line that holds the beat.
     ["the beat inside the conditions", 4],
     ["the done after them", 7],
   ])("PLAY from %s waits on the beat the run displayed", async (_name, line) => {

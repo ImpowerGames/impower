@@ -1,7 +1,3 @@
-// I-1620: the route to a line past a choice is the story's own run through
-// the choice the player makes, on the first scrub and on every later one.
-// A later search favors the choices the route before it took; it must not
-// change the route a scrub of the same line gets.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";
@@ -10,7 +6,6 @@ import { searchRouteFor } from "../main/workers/searchRouteTo";
 
 const URI = "file:///local/main.sd";
 
-// The `done` is line 9, counting from zero.
 const SOURCE = `scene start
   choose
     * [Continue]
@@ -58,7 +53,6 @@ describe("a line past a choice nothing favors", () => {
 
     const first = scrub(9);
     expect(first.conditions).toEqual([{ selected: true }, { selected: true }]);
-    // Another line between, as an author scrubs.
     scrub(3);
     expect(scrub(9)).toEqual(first);
   }, 120_000);

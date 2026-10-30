@@ -1,9 +1,3 @@
-// Real-DOM verification of wrapperless control flow: drives the engine through
-// the actual UIManager under jsdom and asserts the realized DOM order/parentage
-// (not just the message stream). This is what proves a region's content lands at
-// the right sibling position with NO wrapper element, and that dynamic dropdown
-// <option>s are direct children of the <select>.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -14,8 +8,6 @@ const refresh = async (h: any): Promise<void> => {
   h.game.module.ui.refreshLayouts();
   await flushMicrotasks();
 };
-/** Visible rendered text in document order, excluding the injected stylesheet
- *  and constant screen chrome (e.g. the ▼ continue indicator). */
 const visibleText = (h: any): string => {
   const root = (h.overlay.querySelector("#game") ?? h.overlay) as HTMLElement;
   const clone = root.cloneNode(true) as HTMLElement;
@@ -40,14 +32,10 @@ end
     );
     await h.ready;
     await flushMicrotasks();
-    // Empty branch → A, C with nothing between.
     expect(visibleText(h)).toBe("AC");
-    // Toggling true must place B at the region's slot (between A and C), not at
-    // the end — the whole point of positional, wrapperless mounting.
     setGlobal(h, "show", true);
     await refresh(h);
     expect(visibleText(h)).toBe("ABC");
-    // And back to empty, order preserved.
     setGlobal(h, "show", false);
     await refresh(h);
     expect(visibleText(h)).toBe("AC");
@@ -73,9 +61,6 @@ end
   });
 
   test("a nested `if` that is the LAST item of an enclosing branch positions correctly on toggle", async () => {
-    // Escalation case: the inner `if` is the last node of the outer branch, so
-    // its local sibling group has nothing live after it — its anchor must
-    // escalate to the outer region's slot (before Z), not append to the parent.
     const h = createDOMHarness(
       `store outer = true
 store inner = false
@@ -98,7 +83,7 @@ end
     expect(visibleText(h)).toBe("<OZ");
     setGlobal(h, "inner", true);
     await refresh(h);
-    expect(visibleText(h)).toBe("<OIZ"); // I lands between O and Z, not after Z
+    expect(visibleText(h)).toBe("<OIZ");
     setGlobal(h, "inner", false);
     await refresh(h);
     expect(visibleText(h)).toBe("<OZ");
@@ -130,15 +115,10 @@ end
     expect(visibleText(h)).toBe("OZ");
     setGlobal(h, "inner", true);
     await refresh(h);
-    // `inner` is followed only by the empty `never` region, so its anchor must
-    // still escalate past it to Z.
     expect(visibleText(h)).toBe("OIZ");
   });
 
   test("a nested region re-mounted on a branch switch still escalates correctly", async () => {
-    // After switching away and back, the inner `if` is freshly mounted by the
-    // branch-switch path — it must still get an owner so a later toggle escalates
-    // (lands between A and Z, not after Z).
     const h = createDOMHarness(
       `store mode = 1
 store inner = false
@@ -167,7 +147,6 @@ end
     setGlobal(h, "mode", 1);
     await refresh(h);
     expect(visibleText(h)).toBe("<AZ");
-    // The re-mounted inner `if` toggles and must land between A and Z.
     setGlobal(h, "inner", true);
     await refresh(h);
     expect(visibleText(h)).toBe("<AIZ");
@@ -212,8 +191,6 @@ end
     await flushMicrotasks();
     const select = h.overlay.querySelector("select") as HTMLSelectElement | null;
     expect(select).toBeTruthy();
-    // Wrapperless: every option is a direct child, so .options enumerates them
-    // and the bound value can select.
     expect(select!.options.length).toBe(3);
     expect(
       Array.from(select!.children).every((c) => c.tagName === "OPTION"),

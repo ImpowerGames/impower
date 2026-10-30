@@ -10,7 +10,6 @@ const getRelativeSectionName = <
   expression: "<<" | ">>" | "--" | "++" | "<<--" | string,
 ): string => {
   if (expression === "<<") {
-    // FIRST SIBLING
     const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const siblingIds = sections?.[parentId]?.children;
@@ -25,7 +24,6 @@ const getRelativeSectionName = <
     return Object.values(sections).at(0)?.name || "";
   }
   if (expression === ">>") {
-    // LAST SIBLING
     const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const siblingIds = sections?.[parentId]?.children;
@@ -42,7 +40,6 @@ const getRelativeSectionName = <
     return Object.values(sections).at(-1)?.name || "";
   }
   if (expression === "--") {
-    // PREVIOUS SECTION
     const sectionsArray = Object.values(sections);
     const block = sections?.[currentSectionName];
     if (block) {
@@ -55,7 +52,6 @@ const getRelativeSectionName = <
     return sectionsArray.at(0)?.name || "";
   }
   if (expression === "++") {
-    // NEXT SECTION
     const sectionsArray = Object.values(sections);
     const block = sections?.[currentSectionName];
     if (block) {
@@ -68,7 +64,6 @@ const getRelativeSectionName = <
     return sectionsArray.at(-1)?.name || "";
   }
   if (expression === "<<--") {
-    // PARENT
     const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const parent = sections?.[parentId];
@@ -80,7 +75,6 @@ const getRelativeSectionName = <
     return sectionsArray.at(0)?.name || "";
   }
   if (expression === "^") {
-    // THIS (repeat current section)
     const currentSection = sections?.[currentSectionName];
     if (currentSection != null) {
       return currentSection?.name;

@@ -1,9 +1,3 @@
-// The page answers every request the game sends: with a manager's answer,
-// with an error when no manager handles the method, and with an error for
-// each request still open when the page disconnects. The game's end is the
-// engine's own `Connection`, and every message crosses through
-// `cloneMessage`, as it would to and from a worker.
-
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { INTERNAL_ERROR } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import {
@@ -23,8 +17,6 @@ import { describe, expect, it } from "vitest";
 import { Manager } from "./Manager";
 import { MessageRouter } from "./MessageRouter";
 
-/** A manager that takes these methods and never finishes them, like a
- *  reveal still playing or a fetch still in flight. */
 class StalledManager extends Manager {
   received: string[] = [];
 
@@ -57,8 +49,6 @@ const settle = (promise: Promise<unknown>) =>
     (error) => ({ rejected: error }),
   );
 
-/** A beat carrying one animation on its own and one inside a batch, with
- *  the engine waiting on both, as `UIModule` waits when it composes one. */
 const sendBeat = (connection: Connection) => {
   const animate = (element: string) =>
     AnimateElementsMessage.type.request({
@@ -136,7 +126,6 @@ describe("MessageRouter", () => {
       ),
     ].map(settle);
     await flush();
-    // All three reached the page and are waiting on it.
     expect(stalled.received).toEqual([
       "ui/write-text",
       "assets/load",
@@ -154,7 +143,6 @@ describe("MessageRouter", () => {
       { rejected: { code: DISCONNECTED, data: "assets/load" } },
       { rejected: { code: DISCONNECTED, data: "audio/load" } },
     ]);
-    // And one sent after the page went away is not left waiting either.
     expect(
       await settle(
         connection.emit(
@@ -179,7 +167,6 @@ describe("MessageRouter", () => {
 
   it("answers the animations of a beat from a superseded stream", async () => {
     const { connection, router } = connect([new StalledManager([])]);
-    // The page has seen a newer stream than the one this beat is stamped with.
     router.receive({
       ...BatchElementsMessage.type.notification({ messages: [] }),
       epoch: connection.epoch + 1,

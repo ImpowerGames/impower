@@ -1,12 +1,3 @@
-// Phase 4 I7: the fine-grained change primitive + read-tracking.
-//
-// VariablesState now accumulates (while reactiveDepsEnabled) the global names +
-// table identities that change, and — bracketed by begin/endReactiveRead — the
-// globals + tables a single binding evaluation READS. The reactive runtime
-// re-runs a binding only when its read-set intersects the change-set. A
-// table-field write (`player.hp = 5`) mutates in place and fires no global
-// change, so it must register as a TABLE change keyed by identity.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
@@ -42,7 +33,6 @@ end
     vs.beginReactiveRead();
     story.EvaluateFunction(bindingAt(program, "hud", 1).exprId, []);
     const playerDeps = vs.endReactiveRead();
-    // `{player.hp}` depends on the global `player` AND the table it read into.
     expect(playerDeps.globals.has("player")).toBe(true);
     expect(playerDeps.tables.size).toBeGreaterThan(0);
   });
@@ -60,7 +50,7 @@ end
     await h.ready;
     const vs = (h.game.story as any).variablesState;
     vs.reactiveDepsEnabled = true;
-    vs.takeReactiveChanges(); // clear residue
+    vs.takeReactiveChanges();
     vs.$("hp", 42);
     const changes = vs.takeReactiveChanges();
     expect(changes.globals.has("hp")).toBe(true);
@@ -85,28 +75,21 @@ end
     vs.reactiveDepsEnabled = true;
     const program = h.game.program as any;
 
-    // Capture the binding's read deps.
     vs.beginReactiveRead();
     story.EvaluateFunction(bindingAt(program, "hud", 0).exprId, []);
     const deps = vs.endReactiveRead();
 
-    // Mutate player.hp via a function (a StoreIndex on the player table).
-    vs.takeReactiveChanges(); // clear
+    vs.takeReactiveChanges();
     story.EvaluateFunction("hurt", []);
     const changes = vs.takeReactiveChanges();
 
-    // The whole-global `player` did NOT change — only the table did.
     expect(changes.globals.has("player")).toBe(false);
     expect(changes.tables.size).toBeGreaterThan(0);
-    // The field write's table identity intersects the binding's read deps.
     const intersects = [...changes.tables].some((t) => deps.tables.has(t));
     expect(intersects).toBe(true);
   });
 
   test("dep tracking is enabled once reactive screens mount", async () => {
-    // Reactive screens are the only render path now, so mounting them turns on
-    // dep tracking. (The flag still defaults off at VariablesState construction —
-    // zero-cost until a mount — but a connected game always mounts.)
     const h = createHarness(
       `store hp = 100
 layout hud with

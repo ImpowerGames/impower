@@ -1,19 +1,6 @@
-// Live-preview DOM reconcile (the HMR DOM-patching win).
-//
-// The Layer-1 goldens cover a SINGLE render. These cover the cross-render
-// behavior that the player added: on a live-preview edit the overlay DOM is
-// NOT torn down and rebuilt — the persistent UIManager adopts the previous
-// render's nodes, the re-emitted create stream reuses unchanged ones by their
-// (now deterministic, structural) id, and a mark-and-sweep tail removes whatever
-// disappeared. `h.rerender(src)` models exactly what
-// GamePlayerController.updatePreview does on an edit (minus pixi).
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
-// Two nested regions + leaves under one screen. V2 drops `portrait` (a structural
-// edit); everything else is identical, so the unchanged subtrees must keep their
-// node identity across the re-render.
 const V1 = `layout main with
   stage {
     backdrop {
@@ -66,12 +53,9 @@ describe("UIManager reconcile (live-preview DOM patching)", () => {
 
     await h.rerender(V1);
 
-    // SAME node objects — reused in place, not rebuilt. (A torn-down/rebuilt tree
-    // would yield brand-new elements here.)
     expect(h.overlay.querySelector(".main .backdrop")).toBe(backdrop);
     expect(h.overlay.querySelector(".main .portrait")).toBe(portrait);
     expect(h.overlay.querySelector(".main .dialogue")).toBe(dialogue);
-    // …and no duplicates were introduced by replaying the create stream.
     expect(h.overlay.querySelectorAll(".main .backdrop").length).toBe(1);
     expect(h.overlay.querySelectorAll(".main .dialogue").length).toBe(1);
   });
@@ -84,12 +68,10 @@ describe("UIManager reconcile (live-preview DOM patching)", () => {
     const dialogue = h.overlay.querySelector(".main .dialogue");
     expect(h.overlay.querySelector(".main .portrait")).toBeTruthy();
 
-    await h.rerender(V2); // portrait removed
+    await h.rerender(V2);
 
-    // Unchanged subtrees keep their identity (focus / scroll / decoded bg survive).
     expect(h.overlay.querySelector(".main .backdrop")).toBe(backdrop);
     expect(h.overlay.querySelector(".main .dialogue")).toBe(dialogue);
-    // The removed element (and its subtree) is gone — swept, not orphaned.
     expect(h.overlay.querySelector(".main .portrait")).toBeNull();
     expect(h.overlay.querySelectorAll(".main .backdrop").length).toBe(1);
   });
@@ -101,10 +83,10 @@ describe("UIManager reconcile (live-preview DOM patching)", () => {
     const backdrop = h.overlay.querySelector(".main .backdrop");
     expect(h.overlay.querySelector(".main .portrait")).toBeNull();
 
-    await h.rerender(V1); // portrait added back
+    await h.rerender(V1);
 
-    expect(h.overlay.querySelector(".main .backdrop")).toBe(backdrop); // reused
-    expect(h.overlay.querySelector(".main .portrait")).toBeTruthy(); // created
+    expect(h.overlay.querySelector(".main .backdrop")).toBe(backdrop);
+    expect(h.overlay.querySelector(".main .portrait")).toBeTruthy();
     expect(h.overlay.querySelectorAll(".main .portrait").length).toBe(1);
   });
 
@@ -143,10 +125,6 @@ end
     await h.ready;
     await flushMicrotasks();
     const count = () => h.overlay.querySelectorAll("[id]").length;
-    // Baseline at the STEADY STATE (after one edit). The very first harness
-    // render is connect-only; a real edit (and every rerender) also previews,
-    // which reveals a couple more nodes (e.g. image-layer spans) — that one-time
-    // jump isn't a leak. A leak would show as growth across SUBSEQUENT edits.
     await h.rerender(V1);
     const steady = count();
     expect(steady).toBeGreaterThan(0);
@@ -164,11 +142,8 @@ end
     expect(button).toBeTruthy();
 
     await h.rerender(BTN);
-    // The button node is reused (so it was re-observed, not recreated).
     expect(h.overlay.querySelector(".main .button")).toBe(button);
 
-    // One click must produce exactly one engine event. A stacked duplicate
-    // listener (re-observe that didn't remove the prior handler) would fire twice.
     let emits = 0;
     (h.ui as any).app.emit = () => {
       emits += 1;
