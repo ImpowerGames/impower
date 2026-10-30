@@ -998,7 +998,7 @@ end
     expect(diagnosticsOf(flat).filter((d) => d.severity === 1)).toEqual([]);
   });
 
-  test("an invalid colon mark before a block's `{` is invalid syntax, not a key", () => {
+  test("an invalid colon mark before a block's `{` is reported on the colon, not read as a key", () => {
     const text = `theme t with
   values { - { a = 1 } }
   colors { accents: { value = red } }
@@ -1006,7 +1006,7 @@ end
 `;
     expect(errorsOf(text)).toMatchObject([
       { message: "Invalid syntax", line: 1, text: "-" },
-      { message: "Invalid syntax", line: 2, text: ":" },
+      { message: "Expected '=' when parsing field, got ':'", line: 2, text: ":" },
     ]);
     const struct = structOf(text, "theme", "t");
     expect(struct.values).toEqual([{ a: 1 }]);
@@ -1062,7 +1062,7 @@ end
     expect(struct.flags).toHaveLength(2);
   });
 
-  test("an invalid colon `key:` header or `-` item inside a block is invalid syntax", () => {
+  test("an invalid colon `key:` header or `-` item inside a block is reported on its mark", () => {
     const text = `theme t with
   colors {
     accents:
@@ -1072,7 +1072,7 @@ end
 `;
     const errors = errorsOf(text);
     expect(errors).toMatchObject([
-      { message: "Invalid syntax", line: 2, text: ":" },
+      { message: "Expected '=' when parsing field, got ':'", line: 2, text: ":" },
       { message: "Invalid syntax", line: 3, text: "-" },
     ]);
     const quoted = `style t with
@@ -1086,9 +1086,9 @@ end
 end
 `;
     expect(errorsOf(quoted).map((d) => [d.message, d.line, d.text])).toEqual([
-      ["Invalid syntax", 2, ":"],
-      ["Invalid syntax", 4, ":"],
-      ["Invalid syntax", 6, ":"],
+      ["Expected '=' when parsing field, got ':'", 2, ":"],
+      ["Expected '=' when parsing field, got ':'", 4, ":"],
+      ["Expected '=' when parsing field, got ':'", 6, ":"],
     ]);
     const comma = `theme t with
   outer {
@@ -1100,8 +1100,8 @@ end
 end
 `;
     expect(errorsOf(comma).map((d) => [d.message, d.line, d.text])).toEqual([
-      ["Invalid syntax", 2, ":"],
-      ["Invalid syntax", 4, ":"],
+      ["Expected '=' when parsing field, got ':'", 2, ":"],
+      ["Expected '=' when parsing field, got ':'", 4, ":"],
     ]);
     expect(structOf(comma, "theme", "t").outer).toEqual({ v: 1, w: 2 });
   });

@@ -146,8 +146,14 @@ function reportDefineProperty(
   const value = readExpressionAst(consumed, ctx);
   if (value && value.source.errors.length === 0) return null;
   const end = Math.max(propNode.to, last.to);
-  const read = (from: number, to: number) => ctx.read(from, to);
-  const { errors } = luauStatementErrors(propNode, propNode.from, read, end, ctx.documentText);
+  const colon = getDescendent("LuauStructInvalidColon", propNode);
+  const withEquals = (text: string, from: number) =>
+    colon && colon.from >= from && colon.from < from + text.length
+      ? text.slice(0, colon.from - from) + "=" + text.slice(colon.from - from + 1)
+      : text;
+  const read = (from: number, to: number) => withEquals(ctx.read(from, to), from);
+  const documentText = colon ? () => withEquals(ctx.documentText?.() ?? ctx.read(0, end), 0) : ctx.documentText;
+  const { errors } = luauStatementErrors(propNode, propNode.from, read, end, documentText);
   if (errors.length === 0 && value) return null;
   reportStatementErrors(propNode, last.from >= propNode.to ? last : propNode, errors, ctx, structureErrors);
   return end;
@@ -695,7 +701,7 @@ function reportUnreadValueErrors(propNode: SyntaxNode, ctx: LowerContext): void 
 }
 
 function propertyValueNodes(propNode: SyntaxNode, ctx: LowerContext): { opNode: SyntaxNode | undefined; consumed: SyntaxNode[] } {
-  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation"], propNode);
+  const opNode = getDescendent(["LuauAssignmentOperation", "LuauSparkdownExplicitAssignmentOperation", "LuauPropertyColonOperation"], propNode);
   const valueNodes = opNode ? containerValueNodes(opNode) : [];
   const candidates = [...valueNodes];
   for (let next = propNode.nextSibling; next; next = next.nextSibling) {
@@ -750,7 +756,7 @@ function readPropertyDefinition(
     const keywordKey = begin ? getDescendent("LuauDefineKeywordKey", begin) : null;
     const variableAssignment = keywordKey
       ? null
-      : getDescendent("LuauVariableAssignment", propNode);
+      : getDescendent(["LuauVariableAssignment", "LuauPropertyColonAssignment"], propNode);
     const nameNode = keywordKey ?? (variableAssignment
       ? getDescendent("LuauVariableName", variableAssignment)
       : null);

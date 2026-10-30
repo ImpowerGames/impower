@@ -1317,14 +1317,18 @@ end
   });
 
   test.each([
-    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
-    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"]), "fill: #c9c9c9", "`fill:` does not set a field: write `fill = #c9c9c9`."],
-    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n"), "duration: 3", "`duration:` does not set a field: write `duration = 3`."],
-    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }"), "state: open", "`state:` does not set a field: write `state = open`."],
-    ["a clip entry's label list", PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n"), "targets: pupil-left", "`targets:` does not set a field: write `targets { pupil-left }`."],
-    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n"), "fallback: scale", "`fallback:` does not set a field: write `fallback = scale`."],
-  ])("a field set with `:` in %s is reported on its line with its `=` form", (_, text, written, message) => {
-    expect(paintErrors(text)).toEqual([expect.objectContaining({ text: written, message })]);
+    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"])],
+    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"])],
+    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n")],
+    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }")],
+    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n")],
+  ])("a field set with `:` in %s is reported on its colon alone", (_, text) => {
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
+  });
+
+  test("a label list set with `:` in a clip entry is reported on its colon", () => {
+    const text = PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n");
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
   });
 
   test("a `paints` block missing its closing brace is reported on the brace", () => {

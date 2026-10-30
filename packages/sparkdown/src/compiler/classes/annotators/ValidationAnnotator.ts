@@ -21,6 +21,7 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { FIELD_COLON } from "../../lower/utils/fieldColon";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -141,7 +142,6 @@ const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
-  "LuauStructInvalidColon",
   "LuauStructBlockItemMark",
 ]);
 const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
@@ -627,6 +627,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (INVALID_SPARKLE_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
+    }
+    if (nodeRef.name === "LuauStructInvalidColon") {
+      this.error(annotations, FIELD_COLON, nodeRef.from, nodeRef.to);
       return true;
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {

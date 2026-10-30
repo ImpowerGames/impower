@@ -115,7 +115,7 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
   const cursor = property.cursor();
   let operator: SyntaxNode | null = null;
   do {
-    if (cursor.name === "LuauAssignmentOperator") {
+    if (cursor.name === "LuauAssignmentOperator" || cursor.name === "LuauPropertyColonOperation_begin") {
       operator = cursor.node;
       break;
     }
