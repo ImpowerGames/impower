@@ -894,7 +894,7 @@ export class ScriptEditorController {
             ) {
               if (!this._searching) {
                 const findInput = this.host.querySelector(
-                  ".cm-search input[name='search']",
+                  ".cm-search [contenteditable][name='search']",
                 );
                 if (findInput) {
                   findInput.addEventListener(
@@ -905,7 +905,7 @@ export class ScriptEditorController {
                   this.handleFocusFindInput();
                 }
                 const replaceInput = this.host.querySelector(
-                  ".cm-search input[name='replace']",
+                  ".cm-search [contenteditable][name='replace']",
                 );
                 if (replaceInput) {
                   replaceInput.addEventListener(
@@ -918,7 +918,7 @@ export class ScriptEditorController {
                   );
                 }
                 const gotoLineInput =
-                  this.host.querySelector(".cm-gotoLine input");
+                  this.host.querySelector(".cm-gotoLine [contenteditable]");
                 if (gotoLineInput) {
                   gotoLineInput.addEventListener(
                     "focus",
@@ -1124,7 +1124,6 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
-    this._loadingRequest = undefined;
   };
 
   protected handleViewportParsed = () => {
