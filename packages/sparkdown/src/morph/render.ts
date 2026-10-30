@@ -415,14 +415,17 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
   const before = new Set(own(states, segment.from.state) ?? []);
   const after = new Set(own(states, segment.to.state) ?? []);
   const switched = new Set(Object.values(states).flat());
+  const posed = new Set(own(states, entry.state) ?? []);
   const drawing = new Set(p > 0 && p < 1 ? segment.transitions.flatMap((t) => (t.kind === "morph" || t.kind === "scale" ? [t.draw] : [])) : []);
   for (const [node, base] of Object.entries(entry.nodes)) {
     if (drawing.has(node)) continue;
-    const both = !switched.has(node) || (before.has(node) && after.has(node));
+    const both = !switched.has(node) || (before.has(node) && after.has(node)) || !posed.has(node);
     write(node, base, both ? w : 1);
   }
   for (const t of segment.transitions) {
-    if (t.kind === "scale" && t.node in entry.nodes && drawing.has(t.draw)) write(t.draw, undefined, 1);
+    if (t.kind !== "scale" || !(t.node in entry.nodes) || !drawing.has(t.draw)) continue;
+    if (posed.has(t.node)) write(t.draw, undefined, 1);
+    else write(t.draw, entry.nodes[t.node], w);
   }
   if (p <= 0 || p >= 1) return;
   for (const track of entry.tracks) {

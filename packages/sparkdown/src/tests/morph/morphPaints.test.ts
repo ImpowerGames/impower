@@ -4,7 +4,8 @@ import { parseMorphEasing } from "../../morph/easing";
 import { renderMorphAt } from "../../morph/render";
 import type { MorphArtifact } from "../../morph/types";
 import { parse } from "../../txml/txml";
-import { MASKED_VARIANTS, maskedBlink, maskedPortrait } from "./fixtures";
+import { buildMorphRecipe } from "../../morph/recipe";
+import { MASKED_VARIANTS, maskedBlink, maskedPortrait, partnerPortrait } from "./fixtures";
 
 type Element = { tagName: string; attributes: Record<string, string>; children: unknown[] };
 const elements = (svg: string): Element[] => {
@@ -151,5 +152,60 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
     expect(masked.diagnostics[0]!.message).toContain("eyelash-right");
     expect(fills(masked, CLOSED)).toEqual([GREY]);
     expect(bake("unmasked", [missing]).diagnostics).toEqual([]);
+  });
+});
+
+describe("`paints` recolours a drawing a partner carries to its pose", () => {
+  const SHADOW_ENTRY = { targets: ["eyeball-shadow-left"], state: "eyes.closed", fill: "transparent", span: "40%" };
+  const carriedBake = (paints: Record<string, unknown>[]) =>
+    bakeMorphArtifact({
+      source: partnerPortrait(),
+      selection: {},
+      recipe: buildMorphRecipe("blink", {
+        blend: "morph",
+        method: "bend",
+        fallback: "fade",
+        layers: { "eyeball-shadow-left": { partner: "eyelash-left" } },
+        keyframes: [
+          { offset: 0, eyes: { state: "open" } },
+          { offset: 0.5, eyes: { state: "closed" } },
+          { offset: 1, eyes: { state: "open" } },
+        ],
+        paints,
+      }),
+      key: "carried-paints",
+      variant: "open",
+      uri: "file:///partner.svg",
+    });
+  const nodeNamed = (artifact: MorphArtifact, name: string, state: string) => {
+    const names = new Map<string, string>();
+    for (const part of artifact.parts) {
+      if (part.kind !== "live") continue;
+      for (const e of elements(part.svg)) if (e.attributes["data-morph"]) names.set(e.attributes["data-morph"]!, e.attributes["data-name"] ?? "");
+    }
+    return artifact.visibility["eyes"]![state]!.filter((node) => names.get(node) === name);
+  };
+
+  test("an entry for the carried shadow lists its node with its own colour and the closing and opening tracks, with no warning", () => {
+    const artifact = carriedBake([SHADOW_ENTRY]);
+    expect(artifact.status).toBe("live");
+    expect(artifact.diagnostics).toEqual([]);
+    const [shadow] = nodeNamed(artifact, "eyeball-shadow-left", "open");
+    const entry = artifact.paints![0]!;
+    expect(entry.nodes).toEqual({ [shadow!]: { fill: [204, 204, 204, 1] } });
+    expect(entry.tracks).toEqual([
+      { segment: 0, draw: shadow, ends: { fill: [[204, 204, 204, 1], [204, 204, 204, 1]] } },
+      { segment: 1, draw: shadow, ends: { fill: [[204, 204, 204, 1], [204, 204, 204, 1]] } },
+    ]);
+  });
+
+  test("an entry for the lash lists the lash and leaves the shadow's tracks alone", () => {
+    const artifact = carriedBake([{ targets: ["eyelash-left"], state: "eyes.closed", fill: "#c9c9c9", span: "40%" }]);
+    expect(artifact.diagnostics).toEqual([]);
+    const [shadow] = nodeNamed(artifact, "eyeball-shadow-left", "open");
+    const lashes = nodeNamed(artifact, "eyelash-left", "closed");
+    const entry = artifact.paints![0]!;
+    expect(Object.keys(entry.nodes)).toEqual(lashes);
+    expect(entry.tracks.some((t) => t.draw === shadow)).toBe(false);
   });
 });
