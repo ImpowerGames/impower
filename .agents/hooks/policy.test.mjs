@@ -214,6 +214,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// not a node name, since it is a global"), "refused");
     assert.equal(kind("// Luau: LintGlobalAsLocal / LintSameLineStatement", "src/tests/a.test.ts"), "directive", "packages/sparkdown/src/tests/compiler/luauPortCapture.ts and luau-conformance/LintCoverage.test.ts read the case marker");
     assert.equal(kind("// Luau:", "src/tests/a.test.ts"), "refused");
+    assert.equal(kind("// Luau: statement_error_recovery_* / parse_nesting_based_end_detection*", "src/tests/a.test.ts"), "directive");
+    assert.equal(kind("// Luau: ImportOnlyUsedInTypeAnnotation (adapted)", "src/tests/a.test.ts"), "directive");
+    assert.equal(kind("// Luau: LocalRegisterLimit / UpvalueRegisterLimit /", "src/tests/a.test.ts"), "directive");
+    assert.equal(kind("// Luau: `assert(v, ...)` returns ALL its arguments on success", "src/tests/a.test.ts"), "refused", "prose after the marker is not a case name either reader takes");
+    assert.equal(kind("// Luau: extra_token_in_consume / extra_token_in_consume_match are the", "src/tests/a.test.ts"), "refused");
+    assert.equal(kind("// Luau: extra_table_indexer_recovery — exactly one error.", "src/tests/a.test.ts"), "refused");
     assert.equal(kind("// Sparkdown-specific", "src/tests/a.test.ts"), "directive", "packages/sparkdown/src/tests/compiler/luauPortCapture.ts ends a Luau case group at it");
     assert.equal(kind("// Sparkdown-specific: the rules about loop ranges", "src/tests/a.test.ts"), "refused");
     assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
