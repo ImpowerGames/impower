@@ -768,6 +768,8 @@ function licenceNotice(lines) {
   return licences.some(({ form }) => form.test(body));
 }
 
+const POWERSHELL_HELP_KEYWORD = /^\.(?:SYNOPSIS|DESCRIPTION|PARAMETER|EXAMPLE|INPUTS|OUTPUTS|NOTES|LINK|COMPONENT|ROLE|FUNCTIONALITY|FORWARDHELPTARGETNAME|FORWARDHELPCATEGORY|REMOTEHELPRUNSPACE|EXTERNALHELP)(?:\s|$)/i;
+
 const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
 
 function jsdocTypescript(file, options) {
@@ -824,6 +826,7 @@ export function classifyComment(text, file, options = {}) {
     const parsed = ts && jsdocTags(ts, text);
     if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
   }
+  if (extension === ".ps1" && text.startsWith("<#") && POWERSHELL_HELP_KEYWORD.test(lines[0])) return { kind: "directive", reason: "comment-based help Get-Help reads" };
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
 }

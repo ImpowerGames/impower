@@ -1,6 +1,6 @@
 import { baseName, readCommand } from "./typed-issue-hook.mjs";
 
-// workaround(git): git classifies a file holding a C0 control byte other than tab, carriage return or newline as binary, so every diff of it shows only "Binary files differ"
+// workaround(git): git classifies a file holding a NUL byte as binary, so every diff of it shows only "Binary files differ"
 const CONTROL_BYTE = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 
 export function controlByteReason(texts) {
