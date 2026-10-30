@@ -102,7 +102,6 @@ export const stressPhrases = (
               ? lineLevel + lineIncrement
               : lineLevel - lineIncrement;
         }
-
       }
     }
   });
