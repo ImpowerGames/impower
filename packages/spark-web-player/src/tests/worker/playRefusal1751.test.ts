@@ -176,3 +176,70 @@ describe("the player's start and restart gate while the story has no start scene
     }
   });
 });
+
+describe("a start the refusal cancels", { timeout: 120000 }, () => {
+  const NO_START = "scene other\n  Other.\nend\n";
+
+  const exits = (h: Awaited<ReturnType<typeof harness>>) =>
+    h.toEditor.filter((m: unknown) => GameExitedMessage.type.isNotification(m));
+
+  const holdingStart = async () => {
+    const h = await harness();
+    await h.compile();
+    await settle(20);
+    const { release } = holdFirstInit(h);
+    const starting = within(h.controller.handleStartGame({ id: 9, params: {} }));
+    await settle(40);
+    return { h, release, starting };
+  };
+
+  it("leaves the preview of the story that refused it on screen", async () => {
+    const { h, release, starting } = await holdingStart();
+    try {
+      await h.edit([{ text: NO_START }]);
+      await h.compile();
+      release();
+      expect(await starting).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
+      await settle(60);
+      await vi.waitFor(() => expect(h.overlay.textContent).toContain("Other."), { timeout: 15000 });
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("keeps the play button and sends no exit when another PLAY is refused meanwhile", async () => {
+    const { h, release, starting } = await holdingStart();
+    try {
+      await h.edit([{ text: NO_STORY }]);
+      await h.compile();
+      expect(
+        await within(h.controller.handleStartGame({ id: 10, params: {} })),
+      ).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
+      release();
+      await starting;
+      await settle(60);
+      expect(h.refs.playButton.style.display).not.toBe("none");
+      expect(exits(h)).toHaveLength(0);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("sends one exit when the author stops while the refusal cancels the start", async () => {
+    const { h, release, starting } = await holdingStart();
+    try {
+      await h.edit([{ text: NO_STORY }]);
+      await h.compile();
+      const stopping = h.controller.stopGame("quit");
+      release();
+      await starting;
+      await stopping;
+      await settle(60);
+      expect(exits(h)).toHaveLength(1);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  });
+});

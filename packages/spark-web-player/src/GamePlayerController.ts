@@ -464,15 +464,20 @@ export class GamePlayerController {
     this._gameResizeObserver?.disconnect();
   }
 
+  protected _playButtonShows = 0;
+
   protected async hidePlayButton() {
     if (this.refs.playButton) {
+      const shows = this._playButtonShows;
       this.refs.playButton.style.pointerEvents = "none";
       this.refs.playButton.style.opacity = "0";
       const animations = this.refs.playButton.getAnimations();
       await Promise.allSettled(
         animations.map((animation) => animation.finished),
       );
-      this.refs.playButton.style.display = "none";
+      if (shows === this._playButtonShows) {
+        this.refs.playButton.style.display = "none";
+      }
     }
   }
 
@@ -481,7 +486,7 @@ export class GamePlayerController {
     if (refusal) {
       this._resolveLoadingInitialProgram();
       if (this._workerPlay && !this._workerPlay.startSent) {
-        this.stopGame("invalidated").catch((e) => reportUnlessRestarted(e));
+        this.endWorkerPlay().catch((e) => reportUnlessRestarted(e));
       }
     }
     const button = this.refs.playButton;
@@ -498,6 +503,7 @@ export class GamePlayerController {
   }
 
   protected async showPlayButton() {
+    this._playButtonShows += 1;
     if (this.refs.playButton) {
       this.refs.playButton.style.pointerEvents = "";
       this.refs.playButton.style.opacity = "";
@@ -1591,6 +1597,9 @@ export class GamePlayerController {
       this.hidePlayButton();
     }
     const success = await this.startGameAndApp();
+    if (!success && this._playRefusal) {
+      this.showPlayButton();
+    }
     this.updateLaunchStateIcon();
     return success
       ? StartGameMessage.type.response(message.id, { success })
@@ -2070,11 +2079,11 @@ export class GamePlayerController {
   protected _plays = 0;
 
   async startGameAndApp(restarted?: boolean) {
-    const plays = ++this._plays;
-    const stops = this._stops;
-    if (this._disposed) {
+    if (this._disposed || this._playRefusal) {
       return false;
     }
+    const plays = ++this._plays;
+    const stops = this._stops;
     this.endCompletionPreview();
     if (!this._program) {
       await this.loadingInitialProgram;
@@ -2106,7 +2115,19 @@ export class GamePlayerController {
     if (!link) {
       return false;
     }
-    return this.startWorkerPlay(this._program, link, restarted);
+    const started = await this.startWorkerPlay(this._program, link, restarted);
+    if (!started && this._playRefusal && plays === this._plays) {
+      await this.showPreviewAfterRefusal();
+    }
+    return started;
+  }
+
+  protected async showPreviewAfterRefusal() {
+    const startFrom = this._options?.startFrom;
+    if (this.playing || !this._mounted || !this._program || !startFrom) {
+      return;
+    }
+    await this.updatePreview(this._program, startFrom.file, startFrom.line);
   }
 
   protected async startWorkerPlay(
@@ -2476,9 +2497,15 @@ export class GamePlayerController {
       wasPlaying &&
       this._playRefusal &&
       stops === this._stops &&
-      this._mounted
+      this._mounted &&
+      !this.playing
     ) {
-      await this.stopGame("invalidated");
+      this.showPlayButton();
+      sendProtocolMessage(
+        GameExitedMessage.type.notification({ reason: "invalidated" }),
+        this.host,
+      );
+      await this.showPreviewAfterRefusal();
     }
     return false;
   }
