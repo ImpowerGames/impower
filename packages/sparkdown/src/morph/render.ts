@@ -535,6 +535,10 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
       const own = base?.[name];
       if (w >= 1 || own) values[name] = formatColor(w >= 1 || !own ? color : blendColor(own, color, w));
     }
+    if (entry.opacity !== undefined && (w >= 1 || base?.opacity !== undefined)) {
+      const own = w >= 1 ? entry.opacity : base!.opacity!;
+      values["opacity"] = fmt(own + (entry.opacity - own) * w);
+    }
     if (Object.keys(values).length) state.paint.set(node, values);
   };
   if ("state" in pose) {
@@ -577,6 +581,8 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
       const ends = track.ends[name];
       if (ends) base[name] = blendColor(ends[0], ends[1], p);
     }
+    const opacity = track.ends.opacity;
+    if (opacity) base.opacity = opacity[0] + (opacity[1] - opacity[0]) * p;
     write(track.draw, base, w);
   }
 }

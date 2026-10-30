@@ -9,7 +9,7 @@
  * inputs, so every cache keyed by it misses rather than serving the old
  * output.
  */
-export const MORPH_BAKE_FORMAT = 17;
+export const MORPH_BAKE_FORMAT = 18;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -68,6 +68,7 @@ export interface MorphPaintEntry {
   when?: string;
   fill?: string;
   stroke?: string;
+  opacity?: number;
   /** How much of each segment next to the pose the change takes, from 0 to 1. */
   span: number;
 }
@@ -318,6 +319,7 @@ export interface MorphGradientBlend {
 export interface MorphPaintBase {
   fill?: MorphColor;
   stroke?: MorphColor;
+  opacity?: number;
 }
 
 /**
@@ -336,8 +338,13 @@ export interface MorphPaintPose {
   span: number;
   fill?: MorphColor;
   stroke?: MorphColor;
+  opacity?: number;
   nodes: Record<string, MorphPaintBase>;
-  tracks: { segment: number; draw: string; ends: { fill?: [MorphColor, MorphColor]; stroke?: [MorphColor, MorphColor] } }[];
+  tracks: {
+    segment: number;
+    draw: string;
+    ends: { fill?: [MorphColor, MorphColor]; stroke?: [MorphColor, MorphColor]; opacity?: [number, number] };
+  }[];
 }
 
 /** One clip entry's aperture through a segment: an `apertures` table entry. */
