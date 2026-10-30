@@ -526,7 +526,13 @@ function foldedComments(text, from, to, indent, scan) {
 
 function scanYaml(text) {
   const comments = [];
-  let i = 0, quote = null, records = null;
+  let i = 0, quote = null, records = null, flow = 0;
+  const valueStart = (code) => {
+    const before = code.trimEnd(), last = before.slice(-1), spaced = before.length < code.length;
+    if (!before.trim()) return true;
+    if (flow > 0 && /[[{,]/.test(last)) return true;
+    return spaced && (last === ":" || /^\s*(?:-\s+)*[-?]$/.test(before));
+  };
   while (i < text.length) {
     const lineStart = i;
     const end = lineEnd(text, i);
@@ -543,7 +549,9 @@ function scanYaml(text) {
         comments.push({ start: j, end });
         break;
       } else {
-        if ((c === "'" || c === '"') && /^$|[:\-[{,?]$/.test(code.trimEnd().slice(-1))) quote = c;
+        if ((c === "'" || c === '"') && valueStart(code)) quote = c;
+        else if ((c === "[" || c === "{") && valueStart(code)) flow++;
+        else if ((c === "]" || c === "}") && flow > 0) flow--;
         code += c;
       }
     }
