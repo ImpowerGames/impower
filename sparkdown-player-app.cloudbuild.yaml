@@ -1,7 +1,4 @@
 steps:
-  # 1) Build the container image. The multi-stage Dockerfile installs the npm
-  #    workspace, builds the Vite app inside Docker, then serves /dist via nginx.
-  #    Context is the monorepo root so `npm ci` can use the root lockfile.
   - name: gcr.io/cloud-builders/docker
     entrypoint: bash
     args:
@@ -15,7 +12,6 @@ steps:
           .
     id: Build
 
-  # 2) Push image to Artifact Registry
   - name: gcr.io/cloud-builders/docker
     args:
       - push
@@ -23,7 +19,6 @@ steps:
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
 
-  # 3) Deploy to Google Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run

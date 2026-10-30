@@ -22,9 +22,6 @@ const runnerDocs = new Set([
   ".agents/skills/references/runner-filing.md",
   ".agents/skills/references/runner-writing.md",
 ]);
-// A skill copied verbatim from upstream (pinned in skills-lock.json) may name
-// a runner the shared skills otherwise must not. Each allowance lists that
-// file's exact violations, so any added token fails and a stale one is noticed.
 const vendoredAllowances = new Map([
   [".agents/skills/modern-web-guidance/SKILL.md", ["CLAUDE.md"]],
   [".agents/skills/modern-web-guidance/guides/built-in-ai/language-model.md", ["haiku"]],
@@ -37,8 +34,6 @@ export const unexpectedViolations = (file, text) => {
   if (!allowed || JSON.stringify(found) === JSON.stringify(allowed)) return allowed ? [] : found;
   return found.length ? found : ["stale allowance: " + allowed.join(", ")];
 };
-// Every tracked .agents Markdown file except the runner docs is scanned; the
-// scan is one unit so the probes below exercise its real file selection.
 const isScanned = (f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f);
 export const scanFindings = (fileList, read) => fileList
   .filter(isScanned)
@@ -46,10 +41,8 @@ export const scanFindings = (fileList, read) => fileList
   .filter(([, found]) => found.length);
 for (const skill of skills) assert.ok(isScanned(skill), "the scan covers " + skill);
 for (const [file, found] of scanFindings(files, (f) => fs.readFileSync(path.join(root, f), "utf8"))) assert.deepEqual(found, [], file);
-// Runner-specific material is reached conditionally through AGENTS.md.
 for (const token of ["opus", "sonnet", "haiku", "fable", "claude-x", "gpt-6-test", "Skill tool", "Agent tool", "subagent_type", "Write/Edit", "set_session_title", "scratchpad", "CLAUDE.md"]) assert.ok(violations("instruction " + token).length, token);
 assert.deepEqual(violations("Read the repository's agent instructions; use an editor capability and a private directory."), []);
-// The allowance covers only its own file and only its exact token list.
 for (const file of vendoredAllowances.keys()) assert.ok(files.includes(file), "allowance names a tracked file: " + file);
 const vendoredFile = ".agents/skills/modern-web-guidance/SKILL.md";
 assert.deepEqual(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md"), []);
@@ -67,18 +60,11 @@ assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
 const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
 const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
 const template = fs.readFileSync(path.join(root, ".agents/skills/review-pr/references/reviewer-prompt.md"), "utf8");
-// Wording is free to change; only mechanical properties are checked here. The
-// rules the review workflow must keep are listed in references/skill-maintenance.md.
 assert.doesNotMatch(prompt, /runtime identity|runtime introspection|self-report|reviewer route mismatch|identity check validates/i);
-// The default remains a three-round autonomous cap. Extensions are only valid
-// with caller-recorded, explicit user authorization and remain bounded by the
-// launcher's reviewRoundLimit validation.
 assert.doesNotThrow(() => checkReviewRound(3, 2, false));
 assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
 assert.doesNotThrow(() => checkReviewRound(4, 3, false, 4));
-// The workflow prose must name the launcher fields that gate round extensions.
 for (const field of ["reviewRoundLimit", "extendedReviewAuthorization"]) assert.ok(prompt.includes(field), field);
-// Concrete event mappings belong in the runner adapter, never policy logic.
 for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
   const source = fs.readFileSync(path.join(root, ".agents/hooks", file), "utf8");
   assert.doesNotMatch(source, /\b(?:claude|codex|opus|sonnet|haiku)\b|gpt-\d/i, file);
@@ -89,9 +75,6 @@ assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substi
 assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
 const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
 assert.equal(generation.status, 0, generation.stdout + generation.stderr);
-// An orphan .claude/agents/reviewer-*.md with no .claude/reviewer-models.json
-// entry must fail --check (this is how #612's stray reviewer-opus-4-8.md went
-// unnoticed); the probe file is removed in `finally` regardless of outcome.
 const orphan = path.join(root, ".claude/agents/reviewer-portability-probe.md");
 fs.writeFileSync(orphan, fs.readFileSync(path.join(root, ".claude/agents/reviewer-opus-5-5.md"), "utf8"));
 try {
@@ -115,17 +98,9 @@ for (const { name } of reviewerModels) {
 }
 const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
 for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository"]) assert.ok(instructions.includes(rule), rule);
-// The feature review skills share one mechanics reference, and they read the
-// filing model from the marker file-feature writes; both are mechanical
-// properties, while the rules themselves are the editor's checklist in
-// references/skill-maintenance.md.
 for (const skill of ["review-feature-engineering", "review-feature-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/feature-review.md)"), skill + " links the shared reference");
 const filedBy = "Filed by <model> at reasoning effort <effort>";
 for (const file of [".agents/skills/file-feature/references/publishing.md", ".agents/skills/references/feature-review.md"]) assert.ok(fs.readFileSync(path.join(root, file), "utf8").includes(filedBy), file + " names the filing-model marker");
-// The interface exercise helper's four items, four tasks and three columns
-// are restated by the experience skill, and the items by the publishing
-// reference's example block; the restatements must use the helper's words,
-// in any of the label spellings the helper accepts.
 const { REQUIRED_ITEMS, REQUIRED_TASKS, COLUMNS } = await import("./review-feature-experience/interface-exercise.mjs");
 const experienceSkill = fs.readFileSync(path.join(root, ".agents/skills/review-feature-experience/SKILL.md"), "utf8").toLowerCase();
 for (const phrase of [...REQUIRED_ITEMS, ...REQUIRED_TASKS, ...COLUMNS]) assert.ok(experienceSkill.includes(phrase.toLowerCase()), "review-feature-experience/SKILL.md restates: " + phrase);

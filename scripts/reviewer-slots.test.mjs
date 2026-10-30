@@ -1,7 +1,3 @@
-// The Windows identity probe reads a process caught mid-exit as absent (#2025).
-// Get-Process can return such a process with a null StartTime, which used to
-// throw InvokeMethodOnNull; the stand-in objects below take the place of that
-// lookup rather than racing a real exit.
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {windowsProcessIdentity} from './reviewer-slots.mjs';
@@ -13,7 +9,6 @@ test('an exited process whose StartTime is null reads as absent', windows, () =>
 });
 
 test('a null StartTime that never resolves stays unknown, not absent', windows, () => {
-  // An access-denied process reads both getters as null; it is not absence.
   assert.throws(() => windowsProcessIdentity(1234, '[pscustomobject]@{StartTime=$null;HasExited=$null}'), /Process start identity unavailable/);
 });
 

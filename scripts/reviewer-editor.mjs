@@ -1,5 +1,3 @@
-// Structured editor data is the only reviewer-authored input executed here.
-// The coordinator selects every executable, flag, path and session identity.
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -42,8 +40,6 @@ export function validateEditorRequest(value) {
     if (!valid) throw new Error("Unknown or invalid editor step; only bounded built-in UI actions are delegated");
   }
   if (value.steps.filter(step => step.action === "shot").length > 4) throw new Error("At most four surface screenshots per request");
-  // Text becomes argv. JSON escaping conservatively accounts for quotes and
-  // backslashes; leave the rest of Windows' 32767-character limit for paths.
   if (JSON.stringify(value.steps).length > 16384) throw new Error("Editor step payload exceeds 16384 serialized characters; split it into smaller requests");
   return value;
 }
@@ -53,7 +49,6 @@ export const executionPassed = result => result.exit === 0 && !result.signal && 
 export function createEditorSession(command, root, directory, run) {
   const session = `review-${randomUUID()}`;
   const environment = { IMPOWER_DRIVER_SESSION: session };
-  // This cache is coordinator configuration, never a reviewer request field.
   if (process.env.PLAYWRIGHT_BROWSERS_PATH !== undefined) environment.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH;
   const sessionDirectory = fs.mkdtempSync(path.join(directory, `editor-${command.id}-`));
   fs.writeFileSync(path.join(sessionDirectory, "session.json"), JSON.stringify({ root, session, driver: command.args[0] }), { flag: "wx" });
@@ -61,12 +56,11 @@ export function createEditorSession(command, root, directory, run) {
   const invoke = async (id, args, dir) => run({ id, args: [command.args[0], ...args], timeoutSeconds: command.timeoutSeconds, environment }, root, dir);
   return {
     async run(request) {
-      // Validate before creating files, starting servers or invoking the driver.
       validateEditorRequest(request);
       const requestDirectory = fs.mkdtempSync(path.join(sessionDirectory, "request-"));
       fs.writeFileSync(path.join(requestDirectory, "request.json"), JSON.stringify(request, null, 2), { flag: "wx" });
       if (!started) {
-        started = true; // Even a failed startup must be drained through down.
+        started = true;
         const result = await invoke("up", ["up"], sessionDirectory);
         if (!executionPassed(result)) throw new Error(`Editor startup failed; inspect ${result.log ?? sessionDirectory}`);
       }
@@ -87,8 +81,6 @@ export function createEditorSession(command, root, directory, run) {
         if (step.action === "type") args.push("--type", `${step.field}=${step.text}`);
         else if (step.action === "hover") args.push("--hover", `${step.line}:${step.column}`);
         else if (step.action === "complete") args.push("--complete", `${step.line}:${step.column}=${step.text}`);
-        // The driver's --insert reads backslash-backslash as a backslash and
-        // backslash-n as a line break; escape both so the text arrives as sent.
         else if (step.action === "insert") args.push("--insert", `${step.line}:${step.column}=${step.text.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n")}`);
         else if (step.action === "scrub") args.push("--scrub", String(step.line));
         else if (step.action === "shot") args.push(...shot(step.target));
@@ -96,7 +88,6 @@ export function createEditorSession(command, root, directory, run) {
       }
       args.push(...shot("page"));
       const result = await invoke("attempt", args, requestDirectory);
-      // A failed UI attempt still has useful screenshots and a transcript.
       const images = screenshots.filter(file => fs.existsSync(file));
       return { ...result, requestId: request.requestId, session, images };
     },
@@ -109,7 +100,6 @@ export function createEditorSession(command, root, directory, run) {
   };
 }
 
-// Only coordinator-generated files are returned, never a path from a request.
 export function editorImages(files = []) {
   return files.map((file, index) => {
     const stat = fs.lstatSync(file);

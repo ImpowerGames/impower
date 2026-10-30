@@ -1,26 +1,3 @@
-// What inserting and replacing a statement's chunk costs in the structure that
-// holds the chunks of a sequence in order (#693).
-//
-// Run through engine-bench.mjs, one candidate per process, with the
-// configuration as one JSON argument: { project, line, candidate, samples,
-// warmup, json }. The sizes come from the named project's statement chunks: the
-// largest sequence of the flow that holds the line, in statements, which is the
-// sequence an edit near the bottom of a real scene lands in; and every
-// statement of that flow in one sequence, which is what the flow would be with
-// no nesting.
-//
-//   flat-copy       a sequence is an array of chunks beside an array of line
-//                   starts; an edit builds new arrays and leaves the old
-//                   sequence as it was, which is what lets a preview compile
-//                   share everything it did not touch and be dropped
-//   flat-splice     the same arrays edited in place, which a preview would have
-//                   to undo
-//   tree-copy       a persistent tree of 32-wide nodes that carry their chunk
-//                   and line counts; an edit copies the path to one leaf
-//
-// An insert also moves the line start of every later statement, and a replace
-// does when the statement's line count changed, so both are timed with that
-// restamp. Each is timed at the top, the middle and the bottom of the sequence.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { silenceConsole, stats } from "./benchProject";
@@ -46,17 +23,10 @@ const newChunk = () => new Int32Array(16);
 interface Structure {
   insert(at: number, chunk: Chunk, lines: number): void;
   replace(at: number, chunk: Chunk, lines: number): void;
-  /** The chunk at `at` and the line it starts on, so that every candidate can
-   *  be shown to hold the same sequence. */
   read(at: number): [Chunk, number];
   readonly length: number;
 }
 
-// An edit builds a new sequence over the same chunks. The result is dropped, as
-// a preview's is, so every operation starts from the same sequence.
-//
-// The line starts are a plain array of small integers and not a typed array:
-// allocating a typed array costs more than copying a few hundred numbers does.
 function flatCopy(chunks: Chunk[], spans: number[]): Structure {
   const lineStarts: number[] = [0];
   for (let i = 1; i < chunks.length; i++) lineStarts.push(lineStarts[i - 1]! + spans[i - 1]!);
@@ -85,12 +55,6 @@ function flatCopy(chunks: Chunk[], spans: number[]): Structure {
   };
 }
 
-// The same arrays edited in place. An insert is taken back out again so the
-// sequence keeps its size, and the removal is not timed apart from it: a real
-// compile that inserted would not remove, so this candidate's insert figure is
-// an insert and a delete. A replace restamps once, as a real one would, and
-// every second replace at an entry gives the statement its first line count
-// back, so the line starts return to where they were every two operations.
 function flatSplice(chunks: Chunk[], spans: number[]): Structure {
   const list = chunks.slice();
   const lineStarts = new Int32Array(chunks.length + 1);
@@ -121,8 +85,6 @@ function flatSplice(chunks: Chunk[], spans: number[]): Structure {
   };
 }
 
-// A persistent tree: leaves hold up to WIDTH chunks with their line counts, and
-// a branch holds up to WIDTH children with the chunks and lines under each.
 const WIDTH = 32;
 interface Leaf {
   chunks: Chunk[];
@@ -152,7 +114,6 @@ function buildTree(chunks: Chunk[], spans: number[]): TreeNode {
   return level[0] ?? leaf([], []);
 }
 
-// The node with the edit applied, as one node or as two when it overflowed.
 function edited(node: TreeNode, at: number, chunk: Chunk, lines: number, insert: boolean): TreeNode[] {
   if (isLeaf(node)) {
     const chunks = node.chunks.slice();
@@ -216,8 +177,6 @@ function timeStructure(make: (chunks: Chunk[], spans: number[]) => Structure, st
     ["middle", statements >> 1],
     ["bottom", statements - 1],
   ];
-  // Shown before anything is timed: an insert and a replace leave the chunk
-  // where it was put, on the line it should start on, with the rest shifted.
   const probe = newChunk();
   const at = statements >> 1;
   structure.insert(at, probe, 5);
@@ -225,8 +184,6 @@ function timeStructure(make: (chunks: Chunk[], spans: number[]) => Structure, st
     if (structure.length !== statements + 1 || structure.read(at)[0] !== probe || structure.read(at)[1] !== at * LINES_PER_STATEMENT || structure.read(at + 1)[1] !== at * LINES_PER_STATEMENT + 5) throw new Error("the insert did not produce the expected sequence");
   }
   structure.replace(at, probe, 5);
-  // A statement that grew by two lines leaves the one after it two lines
-  // further down.
   const after = Math.min(at + 1, statements - 1);
   const moved = after > at ? 2 : 0;
   if (structure.read(at)[0] !== probe || structure.read(after)[1] !== after * LINES_PER_STATEMENT + moved) throw new Error("the replace did not produce the expected sequence");

@@ -1,4 +1,3 @@
-// Private pinned dependencies for the focused integration job; no repo install.
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
@@ -28,7 +27,6 @@ export function verifyDependencies(directory) {
   return canonical;
 }
 
-// Fixture seam uses an ordinary owned child, never another dependency install.
 export async function runPrivateInstaller({directory,command=process.execPath,args,
   identify=processIdentity,launch=spawn,timeoutMs=300000,cleanupMs=10000}) {
   const evidence={directory,pid:null,identity:null,close:null,timedOut:false,launchError:null,
@@ -48,19 +46,16 @@ export async function runPrivateInstaller({directory,command=process.execPath,ar
   } catch(error) {
     evidence.logSetupError=error.message;closeDescriptors();publish('install-result.json');return evidence;
   }
-  // Record possible launch before spawn. Any publication refusal starts no child.
   if(!publish('install-request.json')) {closeDescriptors();publish('install-result.json');return evidence;}
   const began=Date.now();
   let child,completion;
   try {
     child=launch(command,args,{cwd:directory,windowsHide:true,stdio:['ignore',...descriptors]});
     evidence.pid=child.pid??null;
-    // Install both listeners before identity inspection or closing parent logs.
     completion=new Promise(resolve=>{
       child.once('error',error=>{evidence.launchError=error.message;});
       child.once('close',(exit,signal)=>{
         evidence.close={exit,signal};evidence.installMs=Date.now()-began;
-        // Preserve observed close before any later await/publication can fail.
         publish('install-close.json');resolve(evidence.close);
       });
     });

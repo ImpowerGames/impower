@@ -11,14 +11,10 @@ const node = `"${process.execPath}"`;
 const originalComSpec = process.env.ComSpec;
 const cmdShell = WIN && process.env.SystemRoot ? path.join(process.env.SystemRoot, "System32", "cmd.exe") : "cmd.exe";
 try {
-  // These fixtures exercise cmd, including Node's shell:true route. A custom
-  // ComSpec is not evidence about cmd; pin this child process's fixture only.
   if (WIN) {
     process.env.ComSpec = cmdShell;
     console.log(`Fixture ComSpec: ${cmdShell} (restored after checks)`);
   }
-  // These diagnostic controls run on both platforms; the live probes below
-  // establish what the installed shells actually emit.
   for (const output of ["/bin/sh: 1: absent: not found", "/bin/bash: line 1: absent: command not found", "/bin/sh: 1: ./script: Permission denied"]) {
     assert.equal(classifyRedFailure(output), "shell");
   }
@@ -39,7 +35,6 @@ try {
     const childReport = runTest(`${node} child-report.mjs`, dir, shell);
     assert.equal(childReport.exit, 1, childReport.output);
     assert.equal(classifyRedFailure(childReport.output, childReport), "unknown", childReport.output);
-    // Exercise the competing provenance, not just synthetic diagnostic text.
     const isCmd = WIN && (shell === true || /cmd(?:\.exe)?$/i.test(String(shell)));
     const separator = isCmd ? "&" : ";";
     const chain = runTest(`${node} assertion.mjs ${separator} impower_command_that_does_not_exist_507`, dir, shell);

@@ -1,6 +1,3 @@
-// The Codex reviewer route for a Linux cloud container (#1281): which platform
-// accepts which grammar, the authentication secret, and a coordinator-posted
-// report through the real launcher with a native-CLI stand-in.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -25,9 +22,6 @@ import {readRepos} from '../.agents/repos.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const scratch=testScratch('cloud-codex',here);
 console.log(`Scratch repository: ${scratch}`);
-// Each cutover position is read from its own copy of the repos file. The
-// coordinator-posted route runs with the switch on: the plan names the internal
-// ticket, and the journal names it as the review thread the report goes on.
 const committed=readRepos();
 const pinRepos=cutover=>{const file=path.join(scratch,`repos-${cutover?'on':'off'}.json`);fs.writeFileSync(file,JSON.stringify({...committed,cutover}));return readRepos(file);};
 const OFF=pinRepos(false),ON=pinRepos(true);
@@ -41,13 +35,8 @@ const credential=`fixture-codex-credential-${randomUUID()}`;
 const ghCredential=`fixture-github-credential-${randomUUID()}`;
 const ambient={[secretName]:JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:credential}}),GH_TOKEN:ghCredential,GITHUB_TOKEN:ghCredential};
 const previous=Object.fromEntries(Object.keys(ambient).map(key=>[key,process.env[key]]));
-// The secret's home goes to the machine's temp directory, which a run under
-// check-agent-tooling has redirected away from os.tmpdir().
 const systemTemp=process.env.IMPOWER_SYSTEM_TMPDIR||os.tmpdir();
 const secretHomes=()=>new Set(fs.readdirSync(systemTemp).filter(name=>name.startsWith('impower-codex-home-')));
-// The homes this check itself created, by name; the launcher removes each one
-// and the final cleanup covers only an assertion failure in between, never a
-// home another launcher created meanwhile.
 const createdHomes=new Set();
 try {
   Object.assign(process.env,ambient);
@@ -57,7 +46,6 @@ try {
   const head=git('rev-parse','HEAD').trim();
   const job=path.join(scratch,'pr-1281','round-1');fs.mkdirSync(job,{recursive:true});
   const privateDir=path.join(job,'reviewer-cloud-1');fs.mkdirSync(privateDir);
-  // The launcher's journal and evidence live apart from the reviewer's directory.
   const handoff=path.join(job,'handoff');fs.mkdirSync(handoff);
   const report=path.join(privateDir,'report.md');
   const prompt=path.join(job,'prompt.txt');fs.writeFileSync(prompt,'Review the frozen repository and return the full report.');
@@ -66,8 +54,6 @@ try {
   const permissions={sandbox:'danger-full-access',approvalPolicy:'never',networkAccess:true,artifactWrites:'handoff-directory',cwd:privateDir,codexAuthEnv:secretName};
   const codexPlan={reviewer:'gpt-test',worktree:repo,jobDir:handoff};
 
-  // The full-access grammar is accepted on Windows and Linux, the sandboxed
-  // grammar on Windows only, and neither elsewhere; the version gates stay.
   {
     let version,versionCalls=0;
     childProcess.execFileSync=(exe,args,options)=>{if(exe==='/fixture/codex'&&args[0]==='--version'){versionCalls++;return `codex-cli ${version}\n`;}return originalExec(exe,args,options);};
@@ -87,8 +73,6 @@ try {
     console.log('PASS: the full-access Codex grammar is accepted on Windows and Linux, the sandboxed grammar on Windows only, with both version gates unchanged');
   }
 
-  // The secret is named in the plan and read from the launcher's environment;
-  // a refusal never echoes it, and a partial grammar lists every problem.
   {
     const validate=(changes={},args=fullArgs)=>validateCodexReviewer({args,effort:'high',permissions:{...permissions,...changes}},codexPlan);
     assert.doesNotThrow(()=>validate(),'the full-access grammar accepts an authentication secret');
@@ -107,8 +91,6 @@ try {
     console.log('PASS: the authentication secret is validated without echoing it, and a partial grammar is refused with every problem listed');
   }
 
-  // A coordinator-posted report holds exactly one native Codex review, and the
-  // supervised route, which verifies reviewer-posted reports, refuses it.
   {
     const step={role:'review',round:1,model:'gpt-test',nativeResult:'codex-jsonl',executable:process.execPath,args:fullArgs,effort:'high',permissions,prompt,next:[null]};
     const shape=(changes={},steps={check:step})=>({pr:1281,first:Object.keys(steps)[0],maxSteps:1,reportPosting:'coordinator',steps,...changes});
@@ -123,7 +105,6 @@ try {
     console.log('PASS: a coordinator-posted report is limited to a one-review awaited plan');
   }
 
-  // A refusal after the secret's copy was written removes the copy.
   {
     const before=secretHomes(),written=[];
     childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh'){written.push(...[...secretHomes()].filter(name=>!before.has(name)));throw new Error('fixture: no gh login');}return originalExec(exe,args,options);};
@@ -137,8 +118,6 @@ try {
     assert.equal(fs.existsSync(path.join(systemTemp,written[0])),false,'a refused launch removes the private home with its authentication copy');
     assert.deepEqual([...secretHomes()].filter(name=>!before.has(name)),[]);
     assert.throws(()=>removeSecretCodexHome(path.join(systemTemp,'other-home')),/not a secret route Codex home/,'only a home this launcher created is removed');
-    // The guard takes a canonical direct child of the temporary directory, so
-    // a traversal through a real home, or a home elsewhere, is refused.
     const realHome=fs.mkdtempSync(path.join(systemTemp,'impower-codex-home-')),sibling=fs.mkdtempSync(path.join(systemTemp,'impower-sibling-'));
     createdHomes.add(realHome);
     try {
@@ -152,13 +131,11 @@ try {
     console.log('PASS: a launch refused after the secret was copied removes the private home');
   }
 
-  // The version probe is a child too: it runs without the secret variable.
   {
     let probeEnv;
     childProcess.execFileSync=(exe,args,options)=>{if(exe==='/fixture/codex'&&args[0]==='--version'){probeEnv=options.env;return `codex-cli ${minimumFullAccessCodexVersion}\n`;}return originalExec(exe,args,options);};
     syncBuiltinESMExports();
     try {
-      // Windows spells PATH as Path, so the kept variable is a marker of our own.
       const sanitized={...process.env,IMPOWER_TEST_PROBE_MARKER:'kept'};delete sanitized[secretName];
       verifyReviewerExecutable({transport:'native-codex-jsonl',executable:'/fixture/codex',args:fullArgs},{platform:'linux',env:sanitized});
       assert.equal(Object.hasOwn(probeEnv,secretName),false,'the version probe does not inherit the secret');
@@ -167,9 +144,6 @@ try {
     console.log('PASS: the version probe runs without the authentication secret');
   }
 
-  // Codex reports a recovered stream disconnect or transport fallback as
-  // top-level error rows and still completes the turn; the result check keeps
-  // those as warnings and still refuses a failed or interrupted turn.
   {
     const stream=[{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'item_0',type:'error',message:'`--dangerously-bypass-hook-trust` is enabled.'}},{type:'error',message:'Reconnecting... 2/5 (stream disconnected before completion: Attack attempt detected)'},{type:'item.completed',item:{id:'item_2',type:'error',message:'Falling back from WebSockets to HTTPS transport.'}},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}];
     const output=path.join(job,'warnings.jsonl');
@@ -184,7 +158,6 @@ try {
     console.log('PASS: a Codex turn that recovers from stream errors completes with warnings, and a failed or interrupted turn is still refused');
   }
 
-  // The report token must end the report; a prompt quoting it does not count.
   {
     const file=path.join(job,'final-message.md'),token='handoff-report-fixture';
     const accepts=text=>{fs.writeFileSync(file,text);return coordinatorReport(file,head,token);};
@@ -194,8 +167,6 @@ try {
     console.log('PASS: a final message is a report only when the launch token is its last line');
   }
 
-  // With the proxy adding the token, the variable holds a template that can
-  // authenticate nothing by itself, and a real login there is refused.
   {
     const tokenSecret=`fixture-access-${randomUUID()}`,refreshSecret=`fixture-refresh-${randomUUID()}`,signature=`fixture-signature-${randomUUID()}`;
     const jwt=part=>Buffer.from(JSON.stringify(part)).toString('base64url');
@@ -239,12 +210,9 @@ try {
     console.log('PASS: the proxied route takes a template holding no usable token, refuses a real login without echoing it, and renews its refresh time');
   }
 
-  // The cleanup keeps what it is told to keep, unlinks links without entering
-  // them, and refuses a directory that is not a real one.
   {
     const dir=fs.mkdtempSync(path.join(scratch,'cleanup-')),outside=fs.mkdtempSync(path.join(scratch,'cleanup-outside-'));
     fs.writeFileSync(path.join(outside,'keep.txt'),'survives');
-    // Entries the directory held before the reviewer ran (another round's journal, a later step's prompt) are never removed.
     fs.writeFileSync(path.join(dir,'adjudication.txt'),'later prompt');fs.mkdirSync(path.join(dir,'other-round'));fs.writeFileSync(path.join(dir,'other-round','handoff.jsonl'),'j');
     const had=snapshotReviewerDirectory(dir);
     fs.mkdirSync(path.join(dir,'clone','deep'),{recursive:true});fs.mkdirSync(path.join(dir,'clone','.git'));fs.mkdirSync(path.join(dir,'reports'));fs.writeFileSync(path.join(dir,'reports','first-pass.md'),'first pass');fs.writeFileSync(path.join(dir,'clone','deep','a.js'),'a');
@@ -258,7 +226,6 @@ try {
     assert.deepEqual([counts.files,counts.links],[1,2]);
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives','links are not followed');
     assert.deepEqual(removeProbeCheckouts(dir,{preserve:had,keep:[keepReport]}).files,0,'a second run removes nothing');
-    // A kept report that is a link (to a file, through a chain, or to a directory) refuses the whole cleanup before anything is removed.
     const linkedDir=fs.mkdtempSync(path.join(scratch,'cleanup-report-link-')),linkedHad=snapshotReviewerDirectory(linkedDir);
     fs.writeFileSync(path.join(linkedDir,'answer.md'),'the report');fs.writeFileSync(path.join(linkedDir,'junk.txt'),'j');fs.mkdirSync(path.join(linkedDir,'alias-target'));
     fs.symlinkSync(path.join(linkedDir,'alias-target'),path.join(linkedDir,'report.md'),'junction');
@@ -271,7 +238,6 @@ try {
       assert.equal(fs.readFileSync(path.join(linkedDir,'report.md'),'utf8'),'the report','the chain is still readable');
     } catch(error){if(error.code!=='EPERM')throw error;console.log('SKIP: a report linked through a chain of file symlinks (creating a file symlink needs a privilege this account lacks)');}
     fs.rmSync(linkedDir,{recursive:true});
-    // On a Windows volume with 8.3 short names, the report named by its short alias is the same file as the long entry the directory lists.
     {
       const aliasDir=fs.mkdtempSync(path.join(scratch,'cleanup-alias-')),aliasHad=snapshotReviewerDirectory(aliasDir),longName=path.join(aliasDir,'Report long filename.md');
       fs.writeFileSync(longName,'the report');
@@ -287,22 +253,17 @@ try {
     const linked=path.join(scratch,'cleanup-link');fs.symlinkSync(outside,linked,'junction');
     assert.throws(()=>removeProbeCheckouts(linked),/not a directory/,'a linked reviewer directory is refused');
     assert.equal(fs.readFileSync(path.join(outside,'keep.txt'),'utf8'),'survives');
-    // Later scans of the scratch folder read every entry as a file. A POSIX link unlinks; a Windows junction needs rmdir.
     try{fs.unlinkSync(linked);}catch{fs.rmdirSync(linked);}
     fs.rmSync(dir,{recursive:true});fs.rmSync(outside,{recursive:true});
     console.log('PASS: probe cleanup removes the directories and links the reviewer created, keeps its files and the pre-existing entries, unlinks links without following them and refuses a linked directory');
   }
 
-  // A file under a non-ASCII directory name is removed (npm ships `snow ☃`
-  // fixtures), and an entry that cannot be removed leaves the rest of the walk
-  // running and names its path in the error.
   {
     const directory=fs.mkdtempSync(path.join(scratch,'cleanup-unicode-'));
     fs.mkdirSync(path.join(directory,'probe-repo','snow ☃'),{recursive:true});fs.mkdirSync(path.join(directory,'probe-repo','.git'));fs.writeFileSync(path.join(directory,'probe-repo','snow ☃','index.html'),'x');
     assert.equal(removeProbeCheckouts(directory).files,1);
     assert.deepEqual(fs.readdirSync(directory),[],'the non-ASCII directory and its file are gone');
     fs.mkdirSync(path.join(directory,'a-stuck','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'a-stuck','f'),'x');fs.mkdirSync(path.join(directory,'b-later','.git'),{recursive:true});fs.writeFileSync(path.join(directory,'b-later','g'),'x');
-    // Entries are moved aside before deletion, so the stuck file is named inside the aside directory.
     const unlink=fs.unlinkSync;let stuck;
     fs.unlinkSync=function(target,...args){if(path.basename(target)==='f'&&path.basename(path.dirname(path.dirname(target))).startsWith('.probe-cleanup-')){stuck=target;throw Object.assign(new Error('EBUSY: stuck'),{code:'EBUSY'});}return unlink(target,...args);};
     try{assert.throws(()=>removeProbeCheckouts(directory),error=>!!stuck&&error.message.includes(stuck));}finally{fs.unlinkSync=unlink;}
@@ -310,8 +271,6 @@ try {
     assert.equal(left.length,1,'the walk continues past a failed entry');assert.match(left[0],/^\.probe-cleanup-/);
     assert.deepEqual(fs.readdirSync(path.join(directory,left[0])).map(name=>fs.readdirSync(path.join(directory,left[0],name))),[['f']],'only the stuck file and its directory remain');
     fs.rmSync(directory,{recursive:true});
-    // An entry discovery cannot read is reported and left in place, and a
-    // healthy clone beside it is still removed.
     {
       const denied=fs.mkdtempSync(path.join(scratch,'cleanup-denied-'));
       fs.mkdirSync(path.join(denied,'a-denied'));fs.writeFileSync(path.join(denied,'a-denied','note.md'),'kept');
@@ -332,8 +291,6 @@ try {
     const refill=()=>{fs.mkdirSync(path.join(probe,'.git'),{recursive:true});fs.mkdirSync(path.join(sentinelDir,'.git'),{recursive:true});fs.writeFileSync(proof,'canonical proof bytes');fs.mkdirSync(sentinelDir,{recursive:true});fs.writeFileSync(sentinel,'untouched');};
     refill();
     const file=path.join(cleanupReservationRoot,'reservation.json');
-    // An unreadable entry, one naming a path inside the directory, and one
-    // naming a directory that holds it each preserve everything.
     for(const bytes of ['{',JSON.stringify({run:directory,supervision:{proofFile:proof}}),JSON.stringify({run:path.dirname(scratch)})]) {
       fs.writeFileSync(file,bytes);
       const result=removeProbeCheckouts(directory);
@@ -342,15 +299,12 @@ try {
       assert.equal(fs.readFileSync(sentinel,'utf8'),'untouched');assert.equal(fs.readFileSync(file,'utf8'),bytes);
       fs.unlinkSync(file);
     }
-    // A direct run whose journal names a probe clone as its package root preserves it too.
     const directRun=fs.mkdtempSync(path.join(scratch,'cleanup-direct-run-'));
     fs.writeFileSync(path.join(directRun,'run.json'),JSON.stringify({packageRoot:path.join(probe,'packages','sparkdown')}));
     fs.writeFileSync(file,JSON.stringify({run:directRun}));
     assert.equal(removeProbeCheckouts(directory).skipped,true,'a run testing inside the directory preserves it');
     assert.equal(fs.readFileSync(proof,'utf8'),'canonical proof bytes');
     fs.unlinkSync(file);
-    // So does an entry that reaches the directory only through a junction
-    // outside it, and one naming a path that exists but does not resolve.
     const alias=path.join(scratch,'cleanup-probe-alias');fs.symlinkSync(probe,alias,'junction');
     const brokenAlias=path.join(scratch,'cleanup-broken-alias');fs.symlinkSync(path.join(scratch,'no-such-target'),brokenAlias,'junction');
     try{
@@ -362,8 +316,6 @@ try {
         fs.unlinkSync(file);
       }
     } finally {for(const link of [alias,brokenAlias]){try{fs.unlinkSync(link);}catch{fs.rmdirSync(link);}}}
-    // Another session's run holding the reservation does not delay the
-    // cleanup (#1793): the probe goes and the reservation entry is untouched.
     const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,memory:()=>65536,census:()=>[]});
     const foreignBytes=fs.readFileSync(file,'utf8');
     let result;
@@ -372,10 +324,6 @@ try {
     assert.equal(fs.existsSync(probe),false);assert.equal(fs.existsSync(sentinelDir),false);
     assert.deepEqual(fs.readdirSync(directory),[],'the aside directory is gone too');
     refill();
-    // Entries move aside under the guard, so no run is admitted between the
-    // reservation check and the move; the deletion runs after the guard is
-    // released, so admission meanwhile succeeds. Only the store is private;
-    // identity and guard mechanics are real.
     const rename=fs.renameSync,remove=fs.unlinkSync;let moving=false,deleting=false;
     fs.renameSync=function(from,...args){
       if(from===probe){moving=true;assert.throws(()=>acquire('competing admission during the move',{root:cleanupReservationRoot,memory:()=>65536,census:()=>[],guardWaitMs:0,admitWaitMs:0}),/transaction unavailable/);}
@@ -411,9 +359,6 @@ try {
     console.log('PASS: a reservation naming the reviewer directory, or one that cannot be read, preserves it; another session\'s reservation does not delay cleanup; entries move aside under the guard and are deleted after it');
   }
 
-  // The real launcher, with a stand-in for the Codex CLI: the reviewer gets
-  // the secret only in its private home and no GitHub access, its slot is held
-  // while it runs, and the journal awaits the coordinator's post.
   if(['win32','linux'].includes(process.platform)) {
     const slots=path.join(scratch,'slots'),capture=path.join(scratch,'capture.json'),stand=path.join(scratch,'codex-stand-in.mjs');
     fs.writeFileSync(stand,`import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';
@@ -431,13 +376,10 @@ fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify
 for(const row of [{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}])console.log(JSON.stringify(row));
 console.error('diagnostic after terminal result');
 `);
-    // A directory outside the reviewer's that a probe links to; cleanup must never enter it.
-    // A later step's prompt kept in the reviewer directory is there before the reviewer runs and must survive.
     fs.writeFileSync(path.join(privateDir,'adjudication.txt'),'later step prompt');
     const external=path.join(scratch,'external');fs.mkdirSync(external);fs.writeFileSync(path.join(external,'keep.txt'),'survives');
     const journal=path.join(handoff,'handoff.jsonl'),planFile=path.join(job,'plan.json');
     const plan={worktree:repo,journal,pr:1281,ticket:12,writer:'claude-opus-5',writerEffort:'high',reviewer:'gpt-test',completedReviewRound:0,maxSteps:1,first:'check',reportPosting:'coordinator',steps:{check:{role:'review',round:1,model:'gpt-test',nativeResult:'codex-jsonl',executable:process.execPath,args:fullArgs,effort:'high',permissions,prompt,next:[null]}}};
-    // A partial grammar is refused before the lock, journal or a slot exists.
     const partialFile=path.join(job,'partial.json');
     fs.writeFileSync(partialFile,JSON.stringify({...plan,journal:path.join(handoff,'partial.jsonl'),steps:{check:{...plan.steps.check,args:fullArgs.filter(arg=>arg!=='--strict-config')}}}));
     await assert.rejects(runHandoff(partialFile,{jobRoot:scratch,slotRoot:slots,probeCleanup:removeProbeCheckouts}),/--strict-config/);
@@ -478,7 +420,6 @@ console.error('diagnostic after terminal result');
     assert.equal(at('blocked'),-1);
     assert.equal(rows.at(-1).event,'report-awaiting-post');assert.equal(rows.at(-1).report,report);assert.equal(outcome.pendingReport.reportSha256,rows.at(-1).reportSha256);
     assert.equal(rows.find(row=>row.event==='launching').reportPosting,'coordinator');
-    // The validated review's probe clones, installs and links are removed (#1451); the report stays.
     assert.ok(beforeRun.includes('adjudication.txt'));
     assert.deepEqual(fs.readdirSync(privateDir).sort(),[...beforeRun,'report.md'].sort(),'only the report and what was there before the reviewer ran remain');
     assert.equal(fs.readFileSync(path.join(external,'keep.txt'),'utf8'),'survives','a link inside a probe is unlinked, never followed');
@@ -486,16 +427,11 @@ console.error('diagnostic after terminal result');
     assert.ok(removedRow&&at('exited')<rows.indexOf(removedRow)&&rows.indexOf(removedRow)<at('completed'),'cleanup is journalled after exit and before completion');
     assert.deepEqual([removedRow.files,removedRow.links],[2,1]);
     assert.equal(at('probe-cleanup-failed'),-1);
-    // On Windows, a home on another drive than the scratch folder has no relative
-    // path; path.relative then returns the absolute target.
     const homeFromScratch=path.relative(scratch,observed.home);
     assert.equal(homeFromScratch.startsWith('..')||path.isAbsolute(homeFromScratch),true,'the private home lies outside the job and review directories');
     assert.equal(fs.existsSync(observed.home),false,'the private home, authentication copy included, is removed after confirmed exit');
     console.log('PASS: the launcher runs a Codex stand-in with the secret only in its private home and no GitHub access, holds its slot until confirmed exit and awaits the coordinator\'s post');
 
-    // The coordinator posts the report verbatim on the internal ticket and
-    // records the comment from its read-back, the comment as GitHub's REST API
-    // returns it.
     const text=fs.readFileSync(report,'utf8'),readBack=path.join(job,'read-back.json');
     const ticketUrl=`https://api.github.com/repos/${ON.internal}/issues/12`;
     const writeBack=(body,id,issue_url=ticketUrl)=>fs.writeFileSync(readBack,JSON.stringify({id:Number(id),issue_url,body}));
@@ -517,9 +453,6 @@ console.error('diagnostic after terminal result');
     assert.throws(()=>recordCoordinatorReport(journal,5704126199,readBack),/does not end awaiting/,'a recorded report cannot be recorded twice');
     console.log('PASS: the coordinator\'s verbatim post on the internal ticket is recorded with its comment ID, and a post on the public pull request or an edited, unprefixed or changed report is refused');
 
-    // A host that appends an attribution footer to every comment still posts
-    // the report verbatim, and a record interrupted after its first row is
-    // completed by the same command without a second post.
     const footer='\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_';
     const awaiting=recorded.slice(0,-2);
     const rewrite=rows=>fs.writeFileSync(journal,rows.map(row=>JSON.stringify(row)).join('\n')+'\n');
@@ -542,15 +475,12 @@ console.error('diagnostic after terminal result');
     assert.equal(rows2.filter(row=>row.event==='report-posted').length,1);
     console.log('PASS: the read-back may end with the host\'s attribution footer, and a record interrupted before finished is completed by the same command');
 
-    // Neither credential reaches the journal, logs, argv or any job file.
     const walk=directory=>fs.readdirSync(directory,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(path.join(directory,entry.name)):[path.join(directory,entry.name)]);
     const files=[...walk(scratch)];
     assert.ok(files.includes(journal)&&files.some(file=>file.endsWith('process.log'))&&files.some(file=>file.endsWith('stderr.log')));
     for(const file of files){const content=fs.readFileSync(file,'utf8');for(const secret of [credential,ghCredential])assert.equal(content.includes(secret),false,`${file} holds a credential`);}
     console.log(`PASS: neither the Codex nor the GitHub credential appears in any of ${files.length} files under the job and review directories, and the private home is gone`);
 
-    // A usable stand-in report does not authorize deletion of unresolved native
-    // ownership evidence. Only the store is injected, through the cleanup seam.
     {
       const directory=path.join(job,'reviewer-preserved'),preservedReport=path.join(directory,'report.md');fs.mkdirSync(directory);
       const preservedJournal=path.join(handoff,'preserved.jsonl'),preservedPlan=path.join(job,'preserved-plan.json');
@@ -579,9 +509,6 @@ console.error('diagnostic after terminal result');
       console.log('PASS: a validated launcher report survives skipped cleanup while unresolved ownership preserves original scratch');
     }
 
-    // Each case below runs the real launcher with the stand-in in its own
-    // reviewer directory; `env` adds stand-in variables and `options` the
-    // launcher seams.
     const launchCase=async(name,{env={},options={}}={})=>{
       const directory=path.join(job,`reviewer-${name}`);fs.mkdirSync(directory);
       const caseReport=path.join(directory,'report.md'),caseJournal=path.join(handoff,`${name}.jsonl`),casePlan=path.join(job,`plan-${name}.json`);
@@ -603,9 +530,6 @@ console.error('diagnostic after terminal result');
       return {directory,caseReport,caseJournal,casePlan,planBytes,failure,rows:readRows(),readRows};
     };
 
-    // A review whose report fails validation still frees its probe checkouts
-    // once the reviewer has exited (#1793), keeping its report for diagnosis
-    // and journalling the cleanup before the blocked row.
     {
       const {directory,failure,rows}=await launchCase('unvalidated',{env:{FIXTURE_NO_TOKEN:'1'}});
       assert.ok(failure,'the unvalidated report blocks the chain');
@@ -618,8 +542,6 @@ console.error('diagnostic after terminal result');
       console.log('PASS: a review whose report fails validation frees its probe checkouts, keeps its report and journals the cleanup before blocking');
     }
 
-    // Another session holding the machine test reservation does not delay the
-    // cleanup of an exited reviewer (#1793).
     {
       const foreign=acquire(path.join(scratch,'another-session-run'),{root:cleanupReservationRoot,memory:()=>65536,census:()=>[]});
       let outcome;
@@ -634,9 +556,6 @@ console.error('diagnostic after terminal result');
       console.log('PASS: another session\'s test reservation does not keep an exited reviewer\'s probe checkouts');
     }
 
-    // When the launcher's own cleanup could not run, the adjudicating writer's
-    // journal command removes the same entries, keeping the report, the
-    // journal and the plan; it refuses a journal whose reviewer has not exited.
     {
       const {directory,caseReport,caseJournal,casePlan,planBytes,rows}=await launchCase('adjudicated',{options:{probeCleanup:()=>{throw new Error('fixture: cleanup interrupted');}}});
       assert.ok(rows.some(row=>row.event==='probe-cleanup-failed'));
@@ -656,8 +575,6 @@ console.error('diagnostic after terminal result');
       const running=path.join(handoff,'still-running.jsonl');
       fs.writeFileSync(running,journalBytes.split('\n').filter(Boolean).map(line=>JSON.parse(line)).filter(row=>row.event!=='exited').map(row=>JSON.stringify(row)).join('\n')+'\n');
       assert.throws(()=>cleanupFromJournal(running,{reservationRoot:cleanupReservationRoot}),/has no exited row/);
-      // A later launch into the same directory that has not exited refuses the
-      // whole journal before the earlier launch's cleanup touches anything.
       const shared=path.join(job,'reviewer-shared');fs.mkdirSync(shared);
       const sharedJournal=path.join(handoff,'shared.jsonl');
       const launchRow=(index,had)=>({event:'launching',index,role:'review',reviewerDirectory:shared,reviewerHad:had,args:['--output-last-message',path.join(shared,`report-${index}.md`)]});
@@ -667,14 +584,10 @@ console.error('diagnostic after terminal result');
       writeShared([launchRow(0,[]),{event:'exited',index:0},launchRow(1,['earlier-clone','report-0.md'])]);
       assert.throws(()=>cleanupFromJournal(sharedJournal,{reservationRoot:cleanupReservationRoot}),/launch 1 has no exited row/);
       assert.deepEqual(fs.readdirSync(shared).sort(),['active-clone','earlier-clone','report-0.md'],'nothing was removed before the refusal');
-      // Once both have exited, the directory is cleaned once against the earliest snapshot.
       writeShared([launchRow(0,[]),{event:'exited',index:0},launchRow(1,['earlier-clone','report-0.md']),{event:'exited',index:1}]);
       const sharedResults=cleanupFromJournal(sharedJournal,{reservationRoot:cleanupReservationRoot});
       assert.deepEqual(sharedResults.map(result=>result.indexes),[[0,1]]);
       assert.deepEqual(fs.readdirSync(shared),['report-0.md']);
-      // A reviewer the launcher stops after an error still leaves exit
-      // evidence, so the journal command can remove its probes when the
-      // launcher's own cleanup could not.
       {
         const realWrite=fs.writeSync;let probeDir;
         fs.writeSync=(fd,data,...rest)=>{
@@ -699,8 +612,6 @@ console.error('diagnostic after terminal result');
       console.log('PASS: the adjudication command removes an exited reviewer\'s probe checkouts from its journal, keeping the report, journal and plan, and refuses one still running');
     }
 
-    // A failure writing the reservation's launching row refuses before the
-    // spawn and removes the authentication copy with the slot.
     {
       const homes=secretHomes();
       const journal2=path.join(handoff,'reservation-failure.jsonl'),planFile2=path.join(job,'plan-reservation-failure.json');
@@ -731,6 +642,5 @@ console.error('diagnostic after terminal result');
   restore();
   for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
   removeScratch(scratch);
-  // The private homes this check created outside the scratch folder.
   for(const home of createdHomes)if(fs.existsSync(home))removeScratch(home);
 }

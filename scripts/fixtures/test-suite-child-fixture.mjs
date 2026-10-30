@@ -25,7 +25,6 @@ fs.appendFileSync(inventory, JSON.stringify({pid:process.pid,mode,start:process.
 if(mode==='console-grandchild') {
   if(process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true')throw new Error('Visible console control is restricted to hosted Windows CI');
   const [executable,windows]=process.argv.slice(4);
-  // Caller is the explicitly CI-only visibility control; false is deliberate.
   const options={stdio:'ignore',windowsHide:false};
   const child=/* windows-hide: caller */ spawn(executable,['record',windows],options);
   child.unref();

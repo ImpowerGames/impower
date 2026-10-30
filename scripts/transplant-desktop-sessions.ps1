@@ -176,7 +176,6 @@ $ids = @(@(Read-ArchivedIds $sourceIdx) + @(Read-ArchivedIds $targetIdx) | Where
 $kept = @($ids | Where-Object {
     $present = [IO.File]::Exists((Join-Path $target.Path ($_ + '.json')))
     if (-not $present -and -not $doIt) {
-      # A dry run has not copied yet, so count ids whose file will exist after the copy.
       $present = [IO.File]::Exists((Join-Path $source.Path ($_ + '.json')))
     }
     $present

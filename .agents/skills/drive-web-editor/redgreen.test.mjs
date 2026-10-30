@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// Pins the red/green cycle in redgreen.mjs (#426). Run:
-//   node .agents/skills/drive-web-editor/redgreen.test.mjs
-//
-// Each case builds a throwaway git repository holding a one-line module, a
-// check script that fails until the module carries the fix, and a commit of
-// the pre-fix state. The cases are weighted toward the ways the by-hand cycle
-// this replaces went wrong, and toward the ways the command itself could lie:
-// a snapshot that goes stale while the tree is reverted, a "baseline" that
-// already contains the fix, a red run that fails for a reason other than the
-// defect, a restore that never reached the disk, and a verdict that ignores a
-// problem it reported.
-//
-// Pure Node plus a real git binary. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -22,14 +9,9 @@ import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen,
 
 const WIN = process.platform === "win32";
 
-// Every repository, snapshot and link the cases make goes under one scratch
-// directory, removed when the check ends, so running it leaves no redgreen-*
-// directory in the system temp directory.
 const SCRATCH = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "impower-redgreen-checks-")));
 console.log(`Scratch directory: ${SCRATCH}`);
 process.on("exit", () => fs.rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
-// os.tmpdir() reads these on every call, so a run given no snapshotDir makes
-// its redgreen-* directory under SCRATCH too.
 for (const name of ["TEMP", "TMP", "TMPDIR"]) process.env[name] = SCRATCH;
 
 let failures = 0;
@@ -54,7 +36,6 @@ const NODE = JSON.stringify(process.execPath);
 const OLD = 'export const value = "old";\n';
 const NEW = 'export const value = "new";\n';
 
-/** A repo whose HEAD holds the pre-fix module and a check that wants the fix. */
 function makeRepo() {
   const dir = fs.mkdtempSync(path.join(SCRATCH, "redgreen-test-"));
   git(dir, "init", "-q");
@@ -108,9 +89,6 @@ check("a snapshot directory the run makes itself names the run's process in owne
   assert.ok(!fs.existsSync(path.join(given.snapshotDir, "owner.json")), "owner.json was written into a caller's snapshot directory");
 });
 
-// Vitest renders a failing assertion's received value ten levels deep before
-// any length cap applies, so a red assertion on an engine object (a Game, a
-// Story, a program) exhausts the heap exactly when red/green needs it (#968).
 check("an out-of-memory red run names the large-object failure message as a cause", () => {
   const dir = makeRepo();
   fs.writeFileSync(
@@ -128,19 +106,13 @@ check("an out-of-memory red run names the large-object failure message as a caus
   assert.match(problems, /assert on an identity or a boolean instead/);
 });
 
-// A base that has moved on since the branch point (origin/main after a fetch,
-// with another PR merged) holds a newer file than the one the fix was written
-// against. The pre-fix content is the file at the merge base (#972).
 check("a base that moved past the branch point reverts to the merge base, not the base's tip", () => {
   const dir = makeRepo();
-  // The checkouts below rewrite lib.mjs; keep its bytes as committed.
   git(dir, "config", "core.autocrlf", "false");
   const branchPoint = git(dir, "rev-parse", "HEAD").trim();
   git(dir, "branch", "upstream");
-  // The branch commits the fix.
   applyFix(dir);
   git(dir, "commit", "-q", "-am", "fix");
-  // Upstream moves on and rewrites the same file so it no longer loads here.
   git(dir, "checkout", "-q", "upstream");
   fs.writeFileSync(path.join(dir, "lib.mjs"), 'export { value } from "./moved-away.mjs";\n');
   git(dir, "commit", "-q", "-am", "upstream rewrite");
@@ -156,8 +128,6 @@ check("a base that moved past the branch point reverts to the merge base, not th
   assert.equal(libText(dir), NEW);
 });
 
-// Each case below leaves no single merge base to read from, and each is
-// refused before the working tree is touched.
 check("a base with two merge bases (a criss-cross merge) is refused, naming both", () => {
   const dir = makeRepo();
   git(dir, "config", "core.autocrlf", "false");
@@ -206,35 +176,14 @@ check("a shallow clone cut above the branch point is refused with how to deepen 
   );
 });
 
-// A vitest run reporting several failures prints the "Test Files" / "Tests"
-// summary lines well before the end of its output, followed by trailing
-// per-test detail; `tail` (the last 40 lines) then ends on that detail, not
-// the summary, which is why the PR quotes `summary` instead of `tail` (#495).
-//
-// The summary lines below carry the exact escape bytes vitest 2.1.9 prints on
-// this machine (captured from a real `node vitest.mjs run` on Windows,
-// PR #503's redgreen-realvitest-* demonstration): tinyrainbow enables colour
-// unconditionally on `platform === "win32"`, with no TTY check, so `\x1b[2m
-// Test Files \x1b[22m …` is what every run here actually produces, never the
-// plain-ASCII line a hand-written fixture would default to.
 const RED_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
 const RED_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m2 failed\x1b[39m\x1b[22m\x1b[2m | \x1b[22m\x1b[1m\x1b[32m3 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
 const GREEN_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m1 passed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
 const GREEN_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m5 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
 
-// A test file that fails to collect (a broken import, for instance) leaves
-// vitest with nothing to count: it still prints a "Test Files" line naming
-// the collection failure, but the "Tests" line reads "no tests" instead of a
-// count. Bytes below captured from a real `node vitest.mjs run` on this
-// machine against a file whose import does not resolve (round 2 of #503's
-// review, both reviewers independently).
 const COLLECT_FAIL_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
 const NO_TESTS_LINE = "\x1b[2m      Tests \x1b[22m \x1b[2mno tests\x1b[22m";
 
-// vitest's own banner, printed at the start of every run whatever `--test`
-// says; bytes also captured from a real run. Used to prove a red run gets
-// flagged for a missing summary even when the command text never says
-// "vitest" (an `npm test` that runs `vitest run` under the hood, for one).
 const VITEST_RUN_BANNER =
   "\x1b[1m\x1b[7m\x1b[36m RUN \x1b[39m\x1b[27m\x1b[22m \x1b[36mv2.1.9 \x1b[39m\x1b[90mC:/scratch/vt\x1b[39m";
 
@@ -277,8 +226,6 @@ check("parseVitestSummary reads either line alone (ANSI-coloured or plain) and r
 });
 
 check("parseVitestSummary ignores a line that starts with the label but carries no count, per its own docstring", () => {
-  // A test's own diagnostic output, or a runner other than vitest, can start
-  // a line with "Tests" or "Test Files" without meaning the summary.
   assert.equal(parseVitestSummary("Test Files  1 passed (1)\nTests are slow today\n"), "Test Files  1 passed (1)");
   assert.equal(parseVitestSummary("Test Files were deleted by the fix\n"), null);
   assert.equal(parseVitestSummary("Tests are slow today\nTest Files were deleted by the fix\n"), null);
@@ -301,31 +248,13 @@ check("parseVitestSummary reads vitest's \"no tests\" Tests line -- the shape a 
 });
 
 check("parseVitestSummary pairs the last Test Files line with the FIRST Tests line after it, and falls back to the LAST Tests line when no Test Files line anchors the pair", () => {
-  // Two Tests lines follow the last Test Files line: the invocation's own
-  // ("no tests", what a collection failure prints) and a later one. The rule
-  // is first-after, so the pair is the invocation's own. No vitest 2.1.9
-  // output prints this shape -- every real one puts the two lines adjacent,
-  // which is why independent-last agrees with pairing on real output -- so
-  // this case is what holds the stated rule against an edit that would read
-  // the last Tests line instead, and it pins the "no tests" shape inside a
-  // multi-invocation run at the same time.
   const trailing = [` ${COLLECT_FAIL_TEST_FILES}`, `${NO_TESTS_LINE}`, "--- later output ---", ` ${GREEN_TESTS}`].join("\n");
   assert.equal(parseVitestSummary(trailing), "Test Files  1 failed (1) / Tests  no tests");
-  // With no Test Files line to anchor on, the direction reverses: the
-  // fallback scans backwards and takes the last Tests line in the output.
   const noAnchor = ["      Tests  1 passed (1)", "--- second invocation ---", ` ${GREEN_TESTS}`].join("\n");
   assert.equal(parseVitestSummary(noAnchor), "Tests  5 passed (5)");
 });
 
 check("parseVitestSummary pairs Test Files / Tests by invocation, not by taking the last of each independently, when the second invocation's Tests line is a shape this parser does not recognise", () => {
-  // Invocation 1 passed, with a real count on both lines. Invocation 2
-  // failed, and its own Tests line ("cancelled") is neither the count shape
-  // nor "no tests" -- some reporter or vitest version this parser does not
-  // know. Taking the last Test Files line and the last Tests line
-  // independently reaches back into invocation 1 for the Tests half and
-  // reports invocation 2's failure paired with invocation 1's passing
-  // count, a combination no single vitest run ever prints. Pairing by
-  // invocation instead reports only the half it actually has.
   const twoRuns = [
     ` ${GREEN_TEST_FILES}`,
     ` ${GREEN_TESTS}`,
@@ -339,9 +268,6 @@ check("parseVitestSummary pairs Test Files / Tests by invocation, not by taking 
 check("a red run naming vitest that fails on assertion with no parseable summary is a problem, not a silent null", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // A real assertion failure (the classifier reads it as "assertion") from a
-  // command that names vitest but prints no Test Files / Tests summary (a
-  // reporter or version this parser does not expect).
   fs.writeFileSync(
     path.join(dir, "check.mjs"),
     'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }\nconsole.log("ok");\n',
@@ -365,7 +291,7 @@ check("a red run whose output carries vitest's own run banner is flagged for a m
       'console.log("ok");',
     ].join("\n") + "\n",
   );
-  const r = run(dir, { test: `${NODE} check.mjs` }); // the command text never mentions vitest
+  const r = run(dir, { test: `${NODE} check.mjs` });
   assert.equal(r.ok, false);
   assert.equal(r.red.reason, "assertion");
   assert.equal(r.red.summary, null);
@@ -375,11 +301,6 @@ check("a red run whose output carries vitest's own run banner is flagged for a m
 check("a red run whose output merely carries the words RUN, Tests and node in other positions is not read as a vitest run", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // The banner test is `RUN` followed by a version. A plain runner's output
-  // can hold every word of it in other positions -- a Node stack frame names
-  // `node:internal` in effectively every real failure -- and loosening the
-  // regex would turn this honest red/green cycle into a missing-summary
-  // problem and flip ok to false.
   fs.writeFileSync(
     path.join(dir, "check.mjs"),
     [
@@ -394,7 +315,7 @@ check("a red run whose output merely carries the words RUN, Tests and node in ot
       'console.log("ok");',
     ].join("\n") + "\n",
   );
-  const r = run(dir); // a plain node command; the command text never says vitest either
+  const r = run(dir);
   assert.equal(r.ok, true, JSON.stringify(r.problems));
   assert.equal(r.red.reason, "assertion");
   assert.equal(r.red.summary, null);
@@ -404,10 +325,6 @@ check("a red run whose output merely carries the words RUN, Tests and node in ot
 check("a red run whose summary says no test ran is a problem, not a proof", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // What a collection failure prints: the test file threw at module scope,
-  // so vitest counts a failed file and no tests at all. The FAIL token reads
-  // as an assertion and the exit code is non-zero, so the summary is the only
-  // thing that says nothing was asserted.
   fs.writeFileSync(
     path.join(dir, "check.mjs"),
     [
@@ -434,7 +351,7 @@ check("a red run whose summary says no test ran is a problem, not a proof", () =
 check("a red run that does not name vitest and has no summary is not flagged for a missing summary (plain runners have none to begin with)", () => {
   const dir = makeRepo();
   applyFix(dir);
-  const r = run(dir); // the default check.mjs command, a plain node invocation
+  const r = run(dir);
   assert.equal(r.ok, true, JSON.stringify(r.problems));
   assert.equal(r.red.reason, "assertion");
   assert.equal(r.red.summary, null);
@@ -454,8 +371,6 @@ check("a test that passes on the base is reported as pinning nothing", () => {
 check("a file edited during the red run is named and left alone, not overwritten by the stale snapshot", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // The "test" stands in for a review round landing mid-cycle: it appends to
-  // the reverted file and then fails like a real red run.
   fs.writeFileSync(
     path.join(dir, "mutate.mjs"),
     [
@@ -471,8 +386,6 @@ check("a file edited during the red run is named and left alone, not overwritten
   assert.equal(r.files[0].restored, false);
   assert.match(r.problems.join("\n"), /lib\.mjs changed while it was reverted/);
   assert.equal(r.green.skipped, true);
-  // The edit survives on top of the base content, and the snapshot of the fix
-  // is still on disk for the merge.
   assert.equal(libText(dir), OLD + "// review-round edit\n");
   assert.equal(fs.readFileSync(r.files[0].snapshotPath, "utf8"), NEW);
 });
@@ -480,9 +393,6 @@ check("a file edited during the red run is named and left alone, not overwritten
 check("a restore that never reached the disk is reported as a hash mismatch, not a success", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // The red run makes the reverted file read-only, so the restore's write
-  // fails while the file still holds the base content. A hash taken from the
-  // buffer just written would say "matches"; one read back from disk cannot.
   fs.writeFileSync(
     path.join(dir, "lock.mjs"),
     ['import fs from "node:fs";', 'fs.chmodSync("lib.mjs", 0o444);', 'console.error("AssertionError: still old");', "process.exit(1);"].join("\n") + "\n",
@@ -502,7 +412,6 @@ check("a restore that never reached the disk is reported as a hash mismatch, not
 check("a red run that dies on an import is not accepted as proof of the defect", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // The fix also adds a module the check imports; reverting removes it.
   fs.writeFileSync(path.join(dir, "added.mjs"), "export const added = 1;\n");
   fs.writeFileSync(
     path.join(dir, "check.mjs"),
@@ -513,7 +422,6 @@ check("a red run that dies on an import is not accepted as proof of the defect",
   assert.equal(r.red.outcome, "failed");
   assert.equal(r.red.reason, "import");
   assert.match(r.problems.join("\n"), /simulate the old behaviour in place/);
-  // Both files are restored all the same, the added one included.
   assert.equal(r.files[1].baseSha, null);
   assert.equal(r.files[1].matches, true);
   assert.equal(fs.readFileSync(path.join(dir, "added.mjs"), "utf8"), "export const added = 1;\n");
@@ -554,8 +462,6 @@ check("naming the test file in --files (so the revert removes it) is reported as
 check("a shell failure on the red alone still fails the verdict when the green passes", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // Fails like a shell only while the base is in place; a gate that looked
-  // only at the exit code would call this an honest red.
   fs.writeFileSync(
     path.join(dir, "gate.mjs"),
     'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("bash: line 1: nosuchcmd: command not found"); process.exit(127); }\n',
@@ -671,8 +577,6 @@ check("a file that cannot be reverted is a problem, the red run is skipped, and 
   git(dir, "add", "other.mjs");
   git(dir, "commit", "-q", "-m", "other");
   fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 2;\n");
-  // The second file is read-only before the call, so its revert write fails
-  // after the first file has already been reverted.
   fs.chmodSync(path.join(dir, "other.mjs"), 0o444);
   const r = run(dir, { files: ["lib.mjs", "other.mjs"] });
   fs.chmodSync(path.join(dir, "other.mjs"), 0o644);
@@ -680,8 +584,6 @@ check("a file that cannot be reverted is a problem, the red run is skipped, and 
   assert.equal(r.red, null);
   assert.equal(r.green.skipped, true);
   assert.match(r.problems.join("\n"), /other\.mjs could not be reverted/);
-  // The first file was reverted and comes back; the second was never touched
-  // and is not accused of changing.
   assert.equal(r.files[0].reverted, true);
   assert.equal(r.files[0].matches, true);
   assert.equal(r.files[1].reverted, false);
@@ -700,8 +602,6 @@ check("a revert failure in the middle of the list leaves the files after it unto
   applyFix(dir);
   for (const n of ["a", "b", "c"]) fs.writeFileSync(path.join(dir, `${n}.txt`), `${n} fixed\n`);
   fs.chmodSync(path.join(dir, "b.txt"), 0o444);
-  // c.txt is never reverted; something rewrites it under us anyway, and the
-  // restore must notice from the disk rather than assume it is the fix.
   const r = runRedGreen({
     repoRoot: dir,
     test: `${NODE} check.mjs`,
@@ -724,9 +624,6 @@ check("a revert failure in the middle of the list leaves the files after it unto
 check("an error after the snapshot becomes a problem and the report still comes back", () => {
   const dir = makeRepo();
   applyFix(dir);
-  // The caller's own log callback throws on the red line, which is an error
-  // outside every inner try: the outer catch must turn it into a problem, the
-  // finally must restore, and the report must still be returned.
   const r = runRedGreen({
     repoRoot: dir,
     test: `${NODE} check.mjs`,
@@ -783,8 +680,6 @@ check("a file that cannot be read back during the restore does not stop the othe
   git(dir, "add", "c.mjs");
   git(dir, "commit", "-q", "-m", "c");
   fs.writeFileSync(path.join(dir, "c.mjs"), "export const c = 2;\n");
-  // The red run replaces lib.mjs with a directory, so the restore's read of it
-  // throws; c.mjs must still be restored and the report must still return.
   fs.writeFileSync(
     path.join(dir, "swap.mjs"),
     ['import fs from "node:fs";', 'fs.rmSync("lib.mjs");', 'fs.mkdirSync("lib.mjs");', 'console.error("AssertionError: still old");', "process.exit(1);"].join("\n") + "\n",
@@ -1044,7 +939,6 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
     "unknown",
     "a later invocation's positive summary cannot validate an earlier no-test diagnostic",
   );
-  // An assertion that quotes an ENOENT is still an assertion.
   assert.equal(
     classifyRedFailure(
       " FAIL  src/tests/loadAsset.test.ts > loads the fixture\nAssertionError: expected [Error: ENOENT: no such file or directory, open 'fixtures/a.png'] to be undefined\n Test Files  1 failed (1)",
@@ -1053,41 +947,32 @@ check("classifyRedFailure tells the reasons apart on real runner output", () => 
   );
   assert.equal(classifyRedFailure("Error: ENOENT: no such file or directory, open 'x'"), "unknown");
   assert.equal(classifyRedFailure(""), "unknown");
-  // Word-bounded: a date is not an assertion, and TAP is one.
   assert.equal(classifyRedFailure("Error: could not reach the license server on 3 October 2026; aborting"), "unknown");
   assert.equal(classifyRedFailure("TAP version 13\nnot ok 1 - value is new\n  operator: strictEqual"), "assertion");
   assert.equal(classifyRedFailure("expect(received).toBe(expected)\nExpected: 2\nReceived: 3"), "assertion");
   assert.equal(classifyRedFailure("Error: Worker exited unexpectedly"), "crash");
   assert.equal(classifyRedFailure("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
-  // A test name or an assertion that carries a crash word mid-line is still an assertion.
   assert.equal(classifyRedFailure(" FAIL src/game.test.ts > the enemy is killed when health reaches 0\nAssertionError: expected 1 to be 0\nTests  1 failed | 12 passed"), "assertion");
   assert.equal(classifyRedFailure("AssertionError: expected 'FATAL ERROR: heap' to be 'ok'\nTests  1 failed"), "assertion");
-  // A quoted OOM message, or a test name mentioning it, is still an assertion.
   assert.equal(
     classifyRedFailure("AssertionError: expected the log to contain 'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory' but it did not\nTests  1 failed | 3 passed"),
     "assertion",
   );
   assert.equal(classifyRedFailure(" FAIL  src/a.test.ts > reports when the worker dies from heap out of memory\nAssertionError: expected 1 to be 0\nTests  1 failed"), "assertion");
-  // ESM import breaks carry no requireStack; alone or beside a missing entry script they are import breaks.
   const esm = "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\\x\\added.mjs' imported from C:\\x\\check.mjs\n{ code: 'ERR_MODULE_NOT_FOUND', url: 'file:///C:/x/added.mjs' }";
   assert.equal(classifyRedFailure(esm), "import");
   assert.equal(classifyRedFailure(esm + "\nError: Cannot find module 'C:\\x\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }"), "import");
-  // A script the fix adds, spawned by the test and removed by the revert, is the child's own entry script and still an import break.
   const spawned = "Error: Cannot find module 'C:\\x\\scripts\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
   assert.equal(classifyRedFailure(spawned), "shell");
   assert.equal(classifyRedFailure(spawned, { removed: ["scripts/tool.mjs"] }), "import");
-  // The removed-file match needs a path boundary: "a.mjs" is not "schema.mjs".
   const schema = "Error: Cannot find module 'C:\\x\\scripts\\schema.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
   assert.equal(classifyRedFailure(schema, { removed: ["a.mjs"] }), "shell");
   assert.equal(classifyRedFailure(schema, { removed: ["scripts/schema.mjs"] }), "import");
   assert.equal(classifyRedFailure(schema, { removed: ["schema.mjs"] }), "import");
   if (process.platform === "win32") {
-    // Windows paths are case-insensitive; a --test that spells the removed script differently still matches.
     assert.equal(classifyRedFailure("Error: Cannot find module 'C:\\x\\Scripts\\Tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }", { removed: ["scripts/tool.mjs"] }), "import");
   }
-  // A runner that indents forwarded stderr still reports the crash.
   assert.equal(classifyRedFailure("    FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
-  // A second, unrelated empty requireStack later in the output does not turn an import break into a shell failure.
   assert.equal(
     classifyRedFailure("Error: Cannot find module './added.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [ 'C:/x/check.mjs' ] }\n--- second runner ---\nError: Cannot find module 'z'\n{ requireStack: [] }"),
     "import",
@@ -1110,8 +995,6 @@ check("parseRedGreenArgs takes several files and an optional base, and refuses a
   assert.throws(() => parseRedGreenArgs(["--files", "a"]), /--test <command> is required/);
 });
 
-// scripts/test-suite.mjs prints this marker and exits 75 when it could not take
-// the machine-wide reservation, so no test ran.
 const NOT_RUN = "test-suite: not run: Reservation transaction unavailable at guard.json: EEXIST";
 const notRunWhen = (dir, condition) => fs.writeFileSync(
   path.join(dir, "check.mjs"),
@@ -1147,9 +1030,6 @@ check("a red run the test-suite runner never started is not run, never a red", (
   assert.match(r.problems.join("\n"), /red run never started.*run redgreen again/s);
 });
 
-// A Luau conformance test compares the checker's diagnostics, whose text and
-// code are `SyntaxError`, so a genuine red prints the word inside its diff
-// (#1439). The word decides nothing there; only a runner-level line does.
 check("SyntaxError text inside an assertion diff is an assertion, not a syntax failure", () => {
   const runnerSummary = "\n Test Files  1 failed (1)\n      Tests  5 failed | 17 passed (22)";
   const diffs = [
@@ -1192,9 +1072,6 @@ check("a red run whose assertion diff prints SyntaxError is accepted end to end"
   assert.equal(r.ok, true, JSON.stringify(r.problems));
 });
 
-// The runner's marker can follow unterminated text from the process-identity
-// probe on the same line, so it is not at a line start; its exit status (75) and
-// the marker together say no test ran (#1439).
 check("a not-run marker after other output on its line is still not run", () => {
   for (const half of ["green", "red"]) {
     const dir = makeRepo();
@@ -1263,8 +1140,6 @@ check("a genuinely failing green run is still reported as failing against the fi
   assert.match(r.problems.join("\n"), /failed against the fix/);
 });
 
-// Round 1 review: the real tsc --pretty shape, the shared assertion predicate
-// and an exit-75 assertion that quotes the marker (#1439).
 check("a pretty tsc compile error is a syntax failure even when its source frame holds assertion words", () => {
   const pretty = "lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n\nFound 1 error in lib.ts:1\n";
   assert.equal(classifyRedFailure(pretty, { exit: 2 }), "syntax");
@@ -1313,13 +1188,10 @@ check("an assertion that quotes the not-run marker and exits 75 is a red, not a 
   assert.equal(r.ok, true, JSON.stringify(r.problems));
 });
 
-// Round 1, second reviewer: a compiler path with spaces, and the unchanged
-// context lines of a multiline diff, which carry no +/- prefix (#1439).
 check("a compiler error in a path with spaces is a syntax failure", () => {
   const output = "folder space/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n";
   assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax");
   assert.equal(classifyRedFailure("C:\\repo with space\\lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
-  // Quotes are legal in a filename; a labelled assertion that quotes a diagnostic is still an assertion.
   assert.equal(classifyRedFailure("O'Connor/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
   assert.equal(classifyRedFailure("O'Connor/lib.ts(1,21): error TS1109: Expression expected.", { exit: 2 }), "syntax");
   assert.equal(classifyRedFailure("/srv/a:b c/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
@@ -1350,11 +1222,9 @@ check("unchanged context lines of a multiline assertion diff never decide a synt
     "      Tests  1 failed (1)",
   ].join("\n");
   assert.equal(classifyRedFailure(vitest, { exit: 1 }), "assertion");
-  // The same diff, indented as a nested reporter prints it, and Node's own assert diff.
   assert.equal(classifyRedFailure(vitest.replace(/^(  header|  SyntaxError.*|- old|\+ new|- Expected|\+ Received)$/gm, "    $1"), { exit: 1 }), "assertion");
   const node = "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n  header\n  SyntaxError: diagnostic\n+ new\n- old\n";
   assert.equal(classifyRedFailure(node, { exit: 1 }), "assertion");
-  // A runner line after the block still decides.
   assert.equal(classifyRedFailure(node + "SyntaxError: Unexpected token '}'\n", { exit: 1 }), "syntax");
 });
 
@@ -1364,14 +1234,11 @@ check("a Vitest run that ran and failed an assertion is not a syntax failure bec
   assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nSyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
 });
 
-// Round 3: assertion vocabulary in a compiler path, and a file that failed to
-// load beside a file that asserted (#1439).
 check("assertion words in a compiler path do not make a compile error an assertion", () => {
   for (const file of ["AssertionError.ts", "Expected files/lib.ts", "expected dir/Received.ts"]) {
     const output = `${file}:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n`;
     assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax", file);
   }
-  // A runner's own assertion record beside a compiler line is mixed evidence, never accepted as a red.
   assert.equal(classifyRedFailure("lib.ts(1,2): error TS1109: x\nAssertionError: expected 1 to be 2\n", { exit: 1 }), "unknown");
 });
 
@@ -1390,7 +1257,6 @@ check("a file that failed to load beside a file that asserted is still a syntax 
     "      Tests  1 failed (1)",
   ].join("\n");
   assert.equal(classifyRedFailure(output, { exit: 1 }), "syntax");
-  // The same output without the load-failure header is a test printing the line.
   assert.equal(classifyRedFailure(output.replace(" FAIL  collection.test.mjs [ collection.test.mjs ]\n", ""), { exit: 1 }), "assertion");
 });
 

@@ -1,14 +1,3 @@
-// Typing benchmark for the language server's compiler (#704). Replays what
-// the language server's compiler worker does on a keystroke without a
-// browser: the document update, the compile with the configuration the
-// language server gives its compiler (validation on, no builtins seeded into
-// the story, the start position the workspace routes to) and the encoding of
-// the program it answers the language server with (`ProgramTransportEncoder`).
-// It runs no game: the language server runs none.
-//
-// Run through language-server-bench.mjs, which bundles this file with
-// esbuild and runs it in a process of its own; it passes the configuration as
-// one JSON argument: { project, line, word, options, samples, warmup, json }.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -34,8 +23,6 @@ const config: BenchConfig = JSON.parse(process.argv[2] ?? "null");
 if (!config?.project) throw new Error("run through scripts/bench/language-server-bench.mjs");
 const PROFILER_ID = "bench";
 
-// The profiler's measures since the last call, summed per method. Names are
-// `<profilerId> <method> <uri>`.
 function takeMeasures(): Record<string, number> {
   const sums: Record<string, number> = {};
   for (const entry of performance.getEntriesByType("measure")) {
@@ -69,7 +56,6 @@ let realLog = console.log;
 
 async function main() {
   setRetainProfilerEntries(true);
-  // The files as the language server's workspace hands them to its compiler.
   const files = loadProjectFiles(config.project);
   const mainUri = MAIN_URI;
   const mainFile = files.find((f) => f.uri === mainUri);
@@ -90,8 +76,6 @@ async function main() {
   const compiler = new SparkdownCompiler();
   compiler.profilerId = PROFILER_ID;
   const startFrom = { file: mainUri, line: line0 };
-  // What the language server's hosts send (`initializationOptions`), less
-  // what the workspace keeps for itself.
   compiler.configure({
     files,
     definitions: {
@@ -136,8 +120,6 @@ async function main() {
         initializerRuns: (compiler.chunkStore?.initializerRuns ?? 0) - runsBefore,
         emitted: compiler.chunkStore?.emittedLastBuild,
         fallback: compiler.lastProgramBuild?.unsupported?.construct ?? null,
-        // References `validateReferences` validated, and those it served
-        // from the chunks it kept (#411).
         references: { ...compiler.referenceValidationStats },
       },
     });

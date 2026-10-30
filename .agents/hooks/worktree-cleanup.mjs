@@ -6,8 +6,7 @@ import { baseName, isShellCommandString, programBefore, readCommand } from "./ty
 
 const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session> for owned filing trees, or the guarded clean-worktrees --remove route for other trees.";
 function hasAncestorMetadata(cwd) {
-  // Git can silently skip incomplete metadata (for example a missing HEAD).
-  // Absence of a recognized repository is not absence of ownership evidence.
+  // workaround(git): discovery silently skips incomplete repository metadata (e.g. a missing HEAD) and reports not a git repository
   for (const start of new Set([path.resolve(cwd), fs.realpathSync.native(cwd)])) {
     let count = 0;
     for (let at = start; ; at = path.dirname(at)) {
@@ -20,8 +19,6 @@ function hasAncestorMetadata(cwd) {
   return false;
 }
 function git(cwd, args) {
-  // Discovery concerns this cwd's repository. Inherited Git overrides can
-  // redirect or hide it; locale aliases can translate the diagnostic below.
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key) && !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(key)));
   Object.assign(env, { LC_ALL: "C", LANG: "C", LANGUAGE: "C" });
   const r = spawnSync("git", args, { cwd, env, encoding: "utf8", windowsHide: true, timeout: 2000 });
@@ -34,7 +31,6 @@ function git(cwd, args) {
 }
 const under = (p, root) => { const r = path.relative(root, p); return r === "" || (r !== ".." && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r)); };
 const real = p => fs.realpathSync.native(p);
-// path.resolve would erase link/.. before filesystem identity can inspect it.
 const absoluteLiteral = (cwd, target) => path.isAbsolute(target) ? target : `${cwd}${path.sep}${target}`;
 const volumeLessRooted = target => process.platform === "win32" && typeof target === "string" && path.isAbsolute(target) && path.parse(target).root.length === 1;
 const hasParentComponent = target => target.split(process.platform === "win32" ? /[\/\\]/ : /\//).includes("..");
@@ -42,8 +38,6 @@ const sourceCheckout = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 function exists(p) { try { fs.lstatSync(p); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 function owned(tree) { return exists(path.join(git(tree, ["rev-parse", "--absolute-git-dir"]), "filer-owner.json")); }
 function entrySpelling(candidate) {
-  // POSIX lstat follows a directory link with a trailing slash. Inspect the
-  // entry itself without erasing internal separators or link/.. traversal.
   const rootLength = path.parse(candidate).root.length;
   const separator = process.platform === "win32" ? /[\/\\]/ : /\//;
   let end = candidate.length;
@@ -64,8 +58,6 @@ function identity(target) {
             if (visitedLinks.size >= 64) throw new Error("Cleanup link-chain identity exceeds its supported bound");
             visitedLinks.add(key);
             traversals.push({ link: at, target: real(at), source: path.join(real(path.dirname(at)), path.basename(at)) });
-            // realpath collapses A -> T/node_modules -> E into E. Inspect the
-            // raw destination too, so the intermediate registered T survives.
             inspectAncestors(absoluteLiteral(path.dirname(at), fs.readlinkSync(at)));
           }
         }
@@ -74,8 +66,6 @@ function identity(target) {
       if (at === entrySpelling(path.dirname(at))) break;
     }
   };
-  // Inspect every lexical ancestor before resolving the final target: a path
-  // may enter owned T through A, then leave T through T/node_modules into E.
   inspectAncestors(target, true);
   if (!nearest) throw new Error("No readable existing path ancestor");
   return { physical: path.resolve(real(nearest), path.relative(nearest, target)), traversals };
@@ -83,8 +73,6 @@ function identity(target) {
 function links(p, budget = { deadline: Date.now() + 500, count: 0 }) {
   if (++budget.count > 10000 || Date.now() > budget.deadline) return `Direct cleanup inspection exceeded its bounded check. ${route}`;
   const stat = fs.lstatSync(p);
-  // Even internal junctions are handed to the guard, which unlinks them
-  // before removal. Do not skip a junction's possible external descendants.
   if (stat.isSymbolicLink()) return `Linked cleanup entry refused: ${p} -> ${real(p)}. ${route}`;
   if (stat.isDirectory()) for (const name of fs.readdirSync(p)) { const reason = links(path.join(p, name), budget); if (reason) return reason; }
   return null;
@@ -93,8 +81,6 @@ const gitValueOptions = new Set(["-C", "-c", "--git-dir", "--work-tree", "--name
 const singlePowerShellLiteral = /^(?:'(?:[^']|'')*'|"[^"$`]*")$/;
 const singleBashLiteral = /^(?:'[^']*'|"(?:[^"$`\\]|\\[^\r\n])*")$/;
 const canonicalCmdlets = new Set(["remove-item", "set-location", "push-location", "pop-location", "new-item"]);
-// Installed PowerShell built-ins share the canonical command's grammar. Do
-// not reinterpret these spellings in Bash or infer arbitrary custom aliases.
 const powerShellAliases = new Map([
   ...["del", "erase", "rd", "ri", "rm", "rmdir"].map(name => [name, "remove-item"]),
   ...["cd", "chdir", "sl"].map(name => [name, "set-location"]),
@@ -102,17 +88,11 @@ const powerShellAliases = new Map([
 ]);
 const commandName = (name, shell) => shell === "powershell" ? powerShellAliases.get(name) ?? name : name;
 const shellPrograms = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd", "env", "eval"]);
-// These are refusal boundaries for the existing reader's wrapper traversal;
-// this policy does not implement another wrapper argument parser.
 const wrappers = new Set(["sudo", "doas", "env", "xargs", "time", "timeout", "nice", "stdbuf", "npx", "nohup", "command", "builtin", "exec", "winpty"]);
-// Preserve fish's existing raw-name uncertainty refusal without claiming that
-// the established shell-string reader analyzes fish child scripts.
 const supportedPrograms = new Set([...shellPrograms, ...wrappers, ...canonicalCmdlets, "fish", "rm", "rmdir", "rd", "del", "erase", "cd", "pushd", "popd", "git", "npm", "ln", "mklink"]);
 const npmValueOptions = new Set(["--prefix", "-C", "--workspace", "-w", "--registry", "--cache", "--userconfig", "--globalconfig", "--loglevel"]);
 const npmDestinationOptions = new Set(["--prefix", "-C", "--workspace", "-w"]);
 const npmBooleanOptions = new Set(["--global", "-g", "--silent", "-s", "--yes", "-y", "--no-audit", "--no-fund", "--ignore-scripts"]);
-// Explicit install/ci aliases reported by the installed npm CLI. This is not
-// npm's general abbreviation resolver or recognition of arbitrary scripts.
 const npmSetupSelectors = new Set(["install", "add", "i", "in", "ins", "inst", "insta", "instal", "isnt", "isnta", "isntal", "isntall", "ci", "clean-install", "ic", "install-clean", "isntall-clean"]);
 const rawCandidate = (token, command) => token ? command.slice(token.start, token.end).replace(/["']/g, "").replace(/\\(.)/g, "$1") : "";
 const encodedLiteral = (token, command) => token && /\$['"]/.test(command.slice(token.start, token.end));
@@ -151,8 +131,6 @@ function literalArguments(tokens, shell, command) {
   }
   return values;
 }
-// PowerShell's IsDash recognizes these three additional parameter prefixes.
-// Normalize only a raw parameter start; quoted filenames retain their bytes.
 const powerShellParameter = (token, command) => /^[-\u2013\u2014\u2015]/.test(command.slice(token.start, token.end));
 const powerShellFlag = token => token.text.replace(/^[-\u2013\u2014\u2015]/, "-");
 function pathArguments(args, shell, command) {
@@ -198,8 +176,6 @@ function npmSetupTargets(args, shell, command) {
       } else {
         const raw = command.slice(token.start, token.end), prefix = `${flag}=`;
         if (raw.startsWith(prefix)) {
-          // Verify the value's original spelling, not a candidate assembled
-          // from discarded option text. Ordinary inline quoting is supported.
           const valueRaw = raw.slice(prefix.length);
           values = literalArguments([{ ...token, text: token.text.slice(equal + 1), start: token.start + prefix.length, quoted: /^["']/.test(valueRaw) }], shell, command);
         } else {
@@ -218,8 +194,6 @@ function npmSetupTargets(args, shell, command) {
 function itemLinkTargets(args, targets, command) {
   const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(powerShellFlag(arg)) ? [at] : []);
   if (!selectors.length) {
-    // Native parameter abbreviations can dispatch link creation. They are
-    // refusal candidates only; do not invent a verified selector position.
     const prefixes = new Set(["-i", "-it", "-ite", "-item", "-itemt", "-itemty", "-itemtyp", "-t", "-ty", "-typ"]);
     if (args.some((arg, at) => powerShellParameter(arg, command) && prefixes.has(powerShellFlag(arg).split(":")[0].toLowerCase()) && /^(junction|symboliclink)$/i.test(targets[arg.text.includes(":") ? at : at + 1] ?? ""))) {
       const paths = [...targets]; paths.error = targets.error ?? "Link setup ItemType selector cannot be verified"; return paths;
@@ -324,8 +298,6 @@ function linkPaths(spec, cwd) {
     else destination = absoluteLiteral(cwd, sources.pop());
     let directory = spec.directory !== null || spec.operands.length === 1;
     if (!directory && !spec.noDirectory) {
-      // This is a command role decision, not link-entry inspection: POSIX
-      // trailing slashes make even a -n destination denote the directory.
       try { directory = (!spec.noDereference || !fs.lstatSync(destination).isSymbolicLink()) && fs.statSync(destination).isDirectory(); }
       catch (error) { if (error.code !== "ENOENT") throw error; }
     }
@@ -339,9 +311,6 @@ function linkPaths(spec, cwd) {
   }
   return paths;
 }
-// Reuse the established tokenizer; quoted prose/comments are not commands.
-// Indirect runtimes and computed paths outside known repositories remain outside
-// coverage. Literal location changes and shell command strings are recognized.
 function operations(command, shell, cwd, depth = 0, locationState = null) {
   if (depth > 3) return [{ kind: "analysis-limit", cwd, cwds: locationState?.cwds ?? [cwd], targets: Object.assign([], { error: "Supported cleanup/setup analysis nesting exceeded" }) }];
   const { segments, subs } = readCommand(command, shell), found = [];
@@ -363,8 +332,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
   const locationStack = [];
   for (const { tokens, positions } of segments) {
     childLocationError = null;
-    // Let the existing shell-string recognizer inspect verified quoted shell
-    // names. Quoted command wrappers refuse independently below.
     const recognitionTokens = tokens.map((token, i) => shell === "bash" && positions.has(i) && token.quoted && shellPrograms.has(baseName(token)) && !literalArguments([token], shell, command).error ? { ...token, quoted: false } : token);
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i], name = commandName(baseName(token), shell);
@@ -373,8 +340,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         if (literal.error) { emit({ kind: "analysis-limit", targets: literal }); continue; }
         const before = programBefore(recognitionTokens, i - 1);
         const childProgram = before >= 0 ? baseName(tokens[before]) : "";
-        // CMD text has different comments, switches and command boundaries.
-        // Refuse its execution rather than passing that text to a Bash reader.
         if (childProgram === "cmd") { emit({ kind: "cmd-boundary", targets: [] }); continue; }
         const innerShell = /^(pwsh|powershell)$/.test(childProgram) ? "powershell" : "bash";
         found.push(...operations(token.text, innerShell, cwd, depth + 1, { cwds: [...possibleCwds], error: locationError ?? childLocationError }));
@@ -395,8 +360,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
           continue;
         }
         const literal = literalArguments([token], shell, command);
-        // This candidate is only a refusal trigger, never a trusted decoded
-        // command or pathname. Unsupported computed commands remain excluded.
         const candidate = baseName({ text: rawCandidate(token, command) });
         if (literal.error && supportedPrograms.has(candidate)) {
           emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Cleanup/setup command literal cannot be verified" }) });
@@ -425,8 +388,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       if (["popd", "pop-location"].includes(name)) {
         hasLocation = true;
         if (locationStack.length) for (const previous of locationStack.pop()) addCwd(previous);
-        // A preceding push could fail or be skipped; never assume the shell's
-        // pre-existing stack is known merely because a push appears in text.
         locationError = "Location stack restore cannot be verified";
         continue;
       }
@@ -447,11 +408,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
             try {
               const id = identity(next);
               if (!fs.statSync(next).isDirectory()) throw new Error("not a directory");
-              // Shell logical/physical cd modes can disagree after link/..
-              // traversal. Retain uncertainty for relative child mutations.
               if (hasParentComponent(next) && id.traversals.length) throw new Error("linked parent location");
-              // Relative children must retain how this location was reached:
-              // its physical directory can be outside the original inventory.
               if (id.traversals.length) addCwd(next);
               addCwd(id.physical);
             }
@@ -499,9 +456,6 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
       if (name === "new-item") { const linkSpec = itemLink(args, targets, command); if (linkSpec) emit({ kind: "link-setup", targets: [], linkSpec }); }
     }
   }
-  // The tokenizer collects substitutions without their execution positions.
-  // A location transition elsewhere in this command cannot give their relative
-  // mutations an invented known cwd; verified absolute operands stay independent.
   if (hasLocation) for (const op of substitutionOps) op.locationError ??= "Substitution execution location cannot be verified";
   found.hasLocation = hasLocation;
   return found;
@@ -519,13 +473,9 @@ function inspectAt(op) {
     if (fromRepository && owned(top)) return `Direct setup or cleanup in owned filing checkout ${top} is refused, including ambiguous targets. ${route}`;
     roots = git(registryCwd, ["worktree", "list", "--porcelain"]).split(/\r?\n/).filter(line => line.startsWith("worktree ")).map(line => real(line.slice(9)));
   } catch (error) {
-    // The source checkout is the only fallback inventory. Do not discover
-    // arbitrary repositories or treat unreadable identity as unrelated.
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
   if (op.kind === "cmd-boundary") return (fromRepository || op.contextKnown) ? `Explicit CMD execution is refused in a known repository; use direct PowerShell/Bash or the guarded lifecycle. ${route}` : null;
-  // Preserve original operands before link-role resolution can anchor them to
-  // Node's drive. A volume-less Windows root depends on the executing shell.
   const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : op.targets;
   if ((fromRepository || op.contextKnown) && originalPaths.some(volumeLessRooted)) return `Windows rooted cleanup/setup path has no volume and cannot be verified; use a fully qualified path. ${route}`;
   if (op.linkSpec) {
@@ -543,9 +493,6 @@ function inspectAt(op) {
       const containing = roots.find(tree => under(id.physical, tree));
       const reachesCheckout = containing || roots.some(tree => under(tree, id.physical)) || id.traversals.some(link => roots.some(tree => under(link.source, tree) || under(link.target, tree)));
       if (!reachesCheckout) continue;
-      // The next command can use an alias created by this setup. Hand direct
-      // links touching checkout identity to the lifecycle, not future-state
-      // simulation; unrelated external links and ordinary npm setup stay local.
       if (op.kind === "link-setup") return `Direct link setup touches registered checkout ${target}. ${route}`;
       if (id.traversals.length) { const link = id.traversals[0]; return `Linked cleanup/setup path refused: ${link.link} -> ${link.target}. ${route}`; }
       if (containing && owned(containing)) return `Direct setup or cleanup targeting owned filing tree ${containing} is refused. ${route}`;
@@ -580,7 +527,6 @@ export function decide(command, shell, cwd = process.cwd()) {
     }
     catch (error) {
       if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
-      /* inspect each operation's explicit location below */
     }
   }
   for (const op of ops) { const reason = inspect(op); if (reason) return reason; }

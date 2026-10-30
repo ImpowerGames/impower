@@ -1,4 +1,3 @@
-// Executed only by test-suite under its machine-wide reservation and heap cap.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -64,27 +63,17 @@ const admitCoverageAggregation = async context => {
 };
 try {
   if (mode === "discover") {
-    // Pure inventory needs no configured reporter construction or lifecycle.
     ctx = await createVitest("test", { ...options, reporters: [{}] }, viteOptions);
-    // Vitest 2 records automatically discovered workspace files on the context;
-    // explicit workspace/projects configuration is also rejected, even with one project.
+    // workaround(vitest): Vitest 2 records auto-discovered workspace files on the context (_workspaceConfigPath), not in config.workspace
     if (ctx.config.workspace || ctx.config.projects || ctx._workspaceConfigPath || ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
       throw new Error("Use a single Node test package with its own root (workspace/browser/typecheck/pool-routing configurations are unsupported)");
     const specs = await (vitestVersion === "3.2.6" ? ctx.globTestSpecifications() : ctx.globTestFiles());
     fs.writeFileSync(output, JSON.stringify(specs.map(spec => spec.moduleId ?? spec[1])), "utf8");
     progress("discovered");
   } else if (mode === "select") {
-    // Inline reporters are supported by pinned Vitest. Override before creation
-    // so configured custom modules/constructors and onInit/onClose cannot create
-    // an unfinished second lifecycle. Finalization owns ordinary reporters.
     ctx = await createVitest("test", { ...options, reporters: [{}] }, viteOptions);
-    // CLI reporter overrides do not erase the authored Vite test configuration.
-    // Inspect its native name/tuple/instance forms without constructing it.
     directSupported(ctx, { reporterReferences: ctx.server.config.test?.reporters ?? [] });
     await admitCoverageAggregation(ctx);
-    // This invocation-level initialization owns configured coverage.clean.
-    // Later file attempts use private report directories and cannot leave an
-    // older green report looking current when a clean=true command stops early.
     await ctx.init();
     const configured = await configuredSpecifications(ctx);
     fs.writeFileSync(output, JSON.stringify({ version: 1, specifications: configured.map(specification),
@@ -100,16 +89,11 @@ try {
     ctx.reporters.push(reporter);
     if (direct) {
       directSupported(ctx, { configuredBlob: false });
-      // Defer only reporting/threshold publication; instrumentation and native
-      // generated coverage maps remain configured. The final owned merge runs
-      // the original reporters and thresholds once for the requested set.
       ctx.config.coverage.thresholds = undefined;
       ctx.config.coverage.reporter = [];
       ctx.config.coverage.reportsDirectory = path.join(path.dirname(output), "coverage");
       await admitCoverageAggregation(ctx);
     }
-    // Keep Vitest's configured projects, include/exclude, and changed/related
-    // selection. CLI filename filters are substring matches, not identities.
     await ctx.init();
     const configured = await configuredSpecifications(ctx);
     let requested;
@@ -123,8 +107,6 @@ try {
       console.error("Requested file is absent from the configured Vitest selection: " + file);
       process.exitCode = 75;
     } else {
-      // Match the pinned native start(): stats precede execution and true enables its
-      // complete-run coverage finalization. Every selected project spec stays.
       await ctx.cache.stats.populateStats(ctx.config.root, selected);
       if (vitestVersion === "3.2.6") await ctx.runTestSpecifications(selected, true);
       else await ctx.runFiles(selected, true);
@@ -139,8 +121,6 @@ try {
     await ctx.initCoverageProvider();
     if (ctx.config.coverage.enabled && typeof ctx.coverageProvider?.mergeReports !== "function")
       throw new Error("Configured coverage provider cannot finalize combined reports");
-    // Native pinned merge validates versions, replays ordinary configured
-    // reporters, combines generated maps and evaluates original thresholds.
     await ctx.mergeReports();
     fs.writeFileSync(output, JSON.stringify({ version: 1, status: process.exitCode ? "failed" : "passed",
       blobs: expected, coverageEnabled: ctx.config.coverage.enabled }), "utf8");

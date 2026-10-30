@@ -1,5 +1,4 @@
 // agent-tooling-timeout-ms: 600000
-// Ran 190 s on a Windows runner with four checks in flight (#1937).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -18,9 +17,6 @@ for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skill
 const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, name)), { recursive: true }); fs.writeFileSync(path.join(scratch, name), content); };
 put(".gitignore", ".claude/skills\n.codex/skills\n.github/skills\n");
 const summaryPath = path.join(scratch, "summary.md");
-// Serial by default: the abort cases below assert which checks were never
-// launched, which only the inventory order makes deterministic. The
-// concurrency cases pass their own setting.
 const run = (extraEnv = {}, args = []) => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs", ...args], { cwd: scratch, encoding: "utf8", windowsHide: true, timeout: 45000, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath, AGENT_TOOLING_CONCURRENCY: "1", ...extraEnv } });
 const unlinked = run();
 assert.notEqual(unlinked.status, 0, "missing discovery links must refuse");
@@ -28,7 +24,6 @@ assert.match(unlinked.stderr, /Skill discovery links missing or foreign: \.claud
 assert.doesNotMatch(unlinked.stdout, /^(?:Discovered|CHECK:)/m, "the refusal comes before discovery and before any check runs");
 const linked = spawnSync(process.execPath, ["scripts/link-agent-skills.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true });
 assert.equal(linked.status, 0, linked.stderr);
-// A real directory in place of one link is foreign: it does not resolve to the shared skills.
 fs.unlinkSync(path.join(scratch, ".codex", "skills"));
 put(".codex/skills/local.md", "local");
 const foreign = run();
@@ -46,8 +41,6 @@ const complete = run();
 assert.equal((complete.stdout.match(/^DONE:/gm) || []).length, expected, "every check has a completion result");
 assert.match(complete.stdout, /0 not run/);
 assert.match(complete.stdout, new RegExp(`Selected ${expected} of ${expected} checks: every tier`));
-// Tiers select after discovery: the count still covers every tracked check,
-// and the drivers tier holds the scripts/ and driver-skill checks only.
 const skillsTier = run({}, ["--tier", "skills"]);
 assert.equal(skillsTier.status, 0, skillsTier.stderr);
 assert.match(skillsTier.stdout, new RegExp(`Selected ${expected - 1} of ${expected} checks: the skills tier`));
@@ -65,11 +58,6 @@ assert.match(onlyPolicy.stdout, /1 run, 0 failed, 0 not run/);
 const noMatch = run({}, ["--tier", "skills", "--only", "no-such-check"]);
 assert.notEqual(noMatch.status, 0, "an empty selection refuses rather than passing vacuously");
 assert.match(noMatch.stderr, /No check selected by --tier skills --only no-such-check/);
-// Concurrency: checks overlap up to the bound, a serial-only check runs with
-// nothing else active, each check's lines stay grouped, and a failure still
-// fails the aggregate. The four fixtures record when they start and finish;
-// git lists them in order, so coverage-10 and -11 launch first, coverage-12
-// (serial-only) waits for both, and coverage-13 waits for it.
 const stamp = (name, extra = "") => `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(path.join(scratch, name + ".started"))}, String(Date.now())); ${extra} setTimeout(() => { fs.writeFileSync(${JSON.stringify(path.join(scratch, name + ".finished"))}, String(Date.now())); }, 1200);`;
 put(".agents/skills/coverage-10.test.mjs", stamp("a", 'console.log("par-a output");'));
 put(".agents/skills/coverage-11.test.mjs", stamp("b"));
@@ -105,11 +93,6 @@ assert.notEqual(concurrentFailure.status, 0, "a failing check fails a concurrent
 assert.match(concurrentFailure.stdout, /DONE: .agents\/skills\/coverage-11.test.mjs: failed; exit=1/);
 assert.match(concurrentFailure.stdout, /1 failed, 0 not run/);
 for (const i of [10, 11, 12, 13]) put(`.agents/skills/coverage-${i}.test.mjs`, 'console.log("fixture passed");');
-// A timeout stops launches the moment it fires, not when the child's close
-// is confirmed. The preload makes the runner's kill fail, so the timed-out
-// check (coverage-10, which exits by itself at 5 s) closes late; the check
-// beside it (coverage-11) finishes at 3.5 s, and nothing queued behind them
-// may start in between.
 put("kill-refused.mjs", 'import cp from "node:child_process"; import { syncBuiltinESMExports } from "node:module"; const original = cp.execFileSync; cp.execFileSync = (file, ...rest) => { if (file === "taskkill") throw new Error("fixture: taskkill refused"); return original(file, ...rest); }; const kill = process.kill; process.kill = (pid, ...rest) => { if (pid < 0) throw new Error("fixture: group kill refused"); return kill(pid, ...rest); }; syncBuiltinESMExports();');
 put(".agents/skills/coverage-10.test.mjs", "setTimeout(() => {}, 5000);");
 put(".agents/skills/coverage-11.test.mjs", "// agent-tooling-timeout-ms: 10000\nsetTimeout(() => {}, 3500);");
@@ -186,7 +169,6 @@ const descendant = Number(fs.readFileSync(path.join(scratch, "child.pid"), "utf8
 const exited = (pid = descendant) => {
   try {
     process.kill(pid, 0);
-    // Linux can retain an exited orphan as a zombie until its new parent reaps it.
     return process.platform === "linux" && /\) Z /.test(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
   } catch (error) {
     if (["ESRCH", "ENOENT"].includes(error.code)) return true;
@@ -201,8 +183,6 @@ fs.unlinkSync(path.join(scratch, ".agents/skills/after-abort.test.py"));
 put(hungFile, 'import fs from "node:fs"; import { spawn } from "node:child_process"; const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 6500)"], { stdio: "inherit", windowsHide: true }); fs.writeFileSync("early-child.pid", String(child.pid)); process.exit(0);');
 const earlyExit = run({ AGENT_TOOLING_TIMEOUT_MS: "5000" });
 if (process.platform === "win32") {
-  // Windows closes these inherited pipe handles with the parent. This is not
-  // proof of descendant cleanup; the fixture independently expires below.
   assert.equal(earlyExit.status, 0, earlyExit.stderr);
 } else {
   assert.equal(earlyExit.status, 1, earlyExit.stderr);

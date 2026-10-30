@@ -1,23 +1,8 @@
 #!/usr/bin/env node
-// Reads a heap snapshot that preview-bench.mjs --heap-probe wrote, with the
-// parsed classes it counted beside it, and measures what the parsed objects
-// hold (#1712): their own size, and the heap that only they keep alive, which
-// is everything reachable from the snapshot's root that stops being reachable
-// once no path may pass through a parsed object. That is the heap a compile
-// with no parsed objects would not hold, provided whatever they lead to is
-// not kept some other way.
-//
-//   node scripts/bench/heap-retained.mjs <file>.edit
-//
-// reads <file>.edit.heapsnapshot and <file>.edit.parsed.json. Weak edges
-// keep nothing alive and are not followed; a WeakMap's value is reached only
-// through its key while its map is reached.
 
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
-// The numbers of one flat array of the snapshot ("nodes" or "edges"),
-// read from the bytes after its opening bracket.
 function readNumbers(buffer, key, count) {
   const at = buffer.indexOf(`"${key}":[`);
   if (at < 0) throw new Error(`no ${key} in the snapshot`);
@@ -36,7 +21,7 @@ function readNumbers(buffer, key, count) {
         value = 0;
         inNumber = false;
       }
-      if (c === 93) break; // ]
+      if (c === 93) break;
     }
   }
   if (n !== count) throw new Error(`${key}: read ${n} numbers, expected ${count}`);
@@ -57,8 +42,6 @@ export function readSnapshot(file) {
   return { meta, nodes, edges, strings };
 }
 
-// Sizes in bytes: every node reachable from the root, the parsed objects'
-// own, and what stays reachable when no path passes through one of them.
 export function retainedBy(snapshot, isParsedName) {
   const { meta, nodes, edges, strings } = snapshot;
   const nf = meta.meta.node_fields;
@@ -96,16 +79,9 @@ export function retainedBy(snapshot, isParsedName) {
     c.count += 1;
     c.selfBytes += nodes[i * N + SIZE];
   }
-  // A WeakMap's entry: V8 writes the edge to its value twice, from the key
-  // and from the map's table, both named `part of key (… @<key id>) ->
-  // value (… @<value id>) pair in WeakMap (table @<table id>)`. The value is
-  // kept only while both the key and the table are, so neither edge alone
-  // reaches it: the key's edge is followed once the table is reached, and
-  // the table's never.
   const ID = nf.indexOf("id");
   const indexOfId = new Map();
   for (let i = 0; i < count; i++) indexOfId.set(nodes[i * N + ID], i);
-  // The name may start with the entry's index (`3 / part of key …`).
   const EPHEMERON = /(?:^|\/ )part of key \(.* @(\d+)\) -> value \(.* @(\d+)\) pair in WeakMap \(table @(\d+)\)$/;
   const ephemeronOf = new Map();
   const ephemeron = (nameIndex) => {
@@ -119,7 +95,6 @@ export function retainedBy(snapshot, isParsedName) {
   const named = new Set(["context", "property", "internal", "shortcut", "weak"].map((t) => edgeTypes.indexOf(t)));
   const reach = (skipParsed) => {
     const seen = new Uint8Array(count);
-    // Values waiting on their table, by the table's index.
     const waiting = new Map();
     const stack = [0];
     seen[0] = 1;

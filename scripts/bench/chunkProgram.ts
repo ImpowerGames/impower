@@ -1,31 +1,3 @@
-// A throwaway model of the program layout chosen in docs/engine/binary-program.md
-// (#693). It exists to be measured, and nothing that ships imports it.
-//
-// A program is a root over immutable chunks, one per statement. A chunk is one
-// Int32Array: a header, then two-word instructions, then its block table. A
-// jump inside a chunk is an offset relative to the next instruction; anything
-// outside the chunk is named by a symbol id that the root resolves. A block
-// statement (`if`, `choose`) is one chunk whose code says `EnterBlock k`; the
-// statements of block k are chunks of their own in a child sequence, which row
-// k of the chunk's block table names by id. A sequence id stays with its body:
-// a root that rebuilt the body holds the new arrays under the same id, so
-// replacing a statement inside a block builds no new owner, and a body below
-// the edit finds its owner's new sequence through the root (`position`).
-//
-// Lines are held so that an edit moves no stored line beside or below it. A
-// sequence's line starts are relative to its body's first line, the root's row
-// holds how many lines the body spans, and the owner's block row holds the
-// lines of the owner's own parts above the body, so where a body starts is
-// worked out from its owner and the bodies above it. The JSON tree carries no
-// source lines, so the program is laid out on synthetic ones: a plain
-// statement takes one line, and a block statement one line for each of its own
-// parts (`if`, `else`, a choice, `then`, `end`) beside what its bodies take.
-//
-// The writer here does not lower source. It translates a JSON tree of the
-// shape the object-hierarchy compiler emitted, for display calls,
-// reassignments, `if` blocks, diverts to a scene and one `choose`, and throws,
-// naming the construct, on anything else. Its one caller left,
-// chunkSymbolBench.ts, writes such a tree itself.
 import { NativeFunctionCall } from "../../packages/sparkdown/src/runtime/NativeFunctionCall";
 import { IntValue, StringValue } from "../../packages/sparkdown/src/runtime/Value";
 
@@ -56,17 +28,10 @@ export const enum Op {
   End,
 }
 
-/** `CallStd`: the call's result is discarded, so none is pushed. */
 export const FLAG_DISCARD = 1;
-/** `Choice`: the flags the JSON tree's choice point carries. */
 export const CHOICE_HAS_START_CONTENT = 2;
 export const CHOICE_HAS_CHOICE_ONLY_CONTENT = 4;
 
-// Header words of a chunk. The code follows the header; the block table, one
-// row per block, follows the code. A block row is the id of the block's
-// sequence, the position at which the chunk resumes when that sequence runs
-// out, and the lines of the chunk's own parts between the body above (or the
-// statement's first line) and this body.
 export const H_CODE_WORDS = 0;
 export const H_BLOCKS = 1;
 export const H_ID = 2;
@@ -75,36 +40,21 @@ export const BLOCK_ROW = 3;
 export const B_SEQUENCE = 0;
 export const B_RESUME = 1;
 export const B_GAP = 2;
-/** The synthetic layout: a plain statement's lines, and the lines of a block
- *  statement's own parts below its last body (its `end`). */
 export const PLAIN_LINES = 1;
 export const TAIL_LINES = 1;
 export const FLOW_HEAD_LINES = 1;
 
 export const encode = (op: Op, flags = 0, aux = 0) => op | (flags << 8) | (aux << 16);
 
-// A root's row for one sequence. The arrays are shared between roots and say
-// nothing about where the sequence sits; the rest of the row does, and names
-// the owner by chunk id and never by entry, which an insertion would shift.
 export interface Sequence {
-  /** Stays with the body from one root to the next. */
   readonly id: number;
   readonly chunks: Int32Array[];
-  /** The chunk id of each entry, which is how a chunk's entry is found. */
   readonly ids: number[];
-  /** Each entry's first line, relative to the body's own first line, so that
-   *  an edit beside or above the body leaves the array as it is. */
   readonly lineStarts: number[];
-  /** How many lines the body spans. */
   readonly lines: number;
-  /** A flow's first line in the script, and -1 for a block, whose first line
-   *  follows from its owner and the bodies above it. */
   readonly firstLine: number;
-  /** The chunk that owns this sequence as one of its blocks, or -1 for a flow.
-   *  Which sequence holds the owner is the root's to say (`chunkSeq`). */
   readonly owner: number;
   readonly block: number;
-  /** The symbol of the flow this sequence belongs to. */
   readonly flow: number;
 }
 
@@ -119,30 +69,16 @@ export interface ProgramRoot {
   readonly numberValues: IntValue[];
   readonly natives: NativeFunctionCall[];
   readonly symbolNames: string[];
-  /** Per sequence id, this root's row for it. */
   readonly sequences: Sequence[];
-  /** Per chunk id, the id of the sequence that holds the chunk, -1 when this
-   *  root holds no such chunk. The design keeps it in pages so that a compile
-   *  copies the pages it writes; here it is one array. */
   readonly chunkSeq: Int32Array;
-  /** What a display statement costs in each form, smallest and largest: the
-   *  instructions of its chunk, and the runtime objects of the JSON tree it
-   *  was translated from. Not part of the layout. */
   readonly displayBeat: { instructions: [number, number]; objects: [number, number] };
-  /** Per symbol: the sequence, entry and position that define it, -1 when the
-   *  program defines no such symbol. */
   readonly symSeq: Int32Array;
   readonly symIndex: Int32Array;
   readonly symPc: Int32Array;
-  /** What a compiler that resolved every divert at compile time would hold in
-   *  place of a symbol: the target itself. Only the `direct` candidate of the
-   *  symbol measurement reads it. */
   readonly direct: DirectTarget[];
   readonly chunkCount: number;
   readonly instructionCount: number;
   readonly words: number;
-  /** Not part of the layout: the flows the writer left out, and the construct
-   *  that caused each, for the report. */
   readonly skipped: Map<string, string>;
 }
 
@@ -159,22 +95,14 @@ class ChunkBuilder {
   readonly code: number[] = [];
   readonly blocks: number[] = [];
   emit(op: Op, flags = 0, aux = 0, arg = 0): number {
-    // What can outgrow 16 bits rides in word 1. An operand that still does not
-    // fit its field is a construct the writer does not emit, like any other.
     if (aux < 0 || aux > 0xffff || flags < 0 || flags > 0xff) throw new UnsupportedConstruct(`an operand wider than its field in instruction ${op}`);
     this.code.push(encode(op, flags, aux), arg);
     return this.code.length - 2;
   }
-  /** Enters `sequence` as the chunk's next block, which resumes after the
-   *  instruction emitted here. `gap` is the lines of the statement's own parts
-   *  above this body and below the one before it. */
   enterBlock(sequence: number, gap: number) {
     this.emit(Op.EnterBlock, 0, 0, this.blocks.length / BLOCK_ROW);
     this.blocks.push(sequence, HEADER + this.code.length, gap);
   }
-  /** Points the jump or the `Choice` at `at` to the next instruction to be
-   *  emitted. The distance is word 1, a full 32 bits, so a `choose` of any size
-   *  reaches its choices' entry code. */
   land(at: number) {
     this.code[at + 1] = this.code.length - (at + 2);
   }
@@ -196,8 +124,6 @@ class ChunkBuilder {
   }
 }
 
-/** `resolveDirect` swaps every `JumpSym` for a `JumpDirect`, for the measurement
- *  of what the symbol lookup costs. */
 export function writeChunkProgram(compiled: Record<string, any>, options: { resolveDirect?: boolean } = {}): ProgramRoot {
   const strings: string[] = [];
   const stringIds = new Map<string, number>();
@@ -243,8 +169,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     sequences.push(seq);
     return seq;
   };
-  // `lines` is what the statement takes in the synthetic layout: its own parts
-  // and its bodies.
   const add = (seq: Building, builder: ChunkBuilder, id: number, lines = PLAIN_LINES) => {
     const chunk = builder.finish(id);
     seq.chunks.push(chunk);
@@ -266,8 +190,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     throw new Error(`${open} without ${close}`);
   };
 
-  // The tokens between `str` and `/str`. A literal is one push; anything else
-  // is built through the output, as the engine builds it.
   const stringLiteral = (b: ChunkBuilder, items: any[], from: number, to: number) => {
     if (to - from === 1 && typeof items[from] === "string" && items[from].startsWith("^")) {
       b.emit(Op.Str, 0, 0, string(items[from].slice(1)));
@@ -286,9 +208,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     b.emit(Op.EndString);
   };
 
-  // The tokens between `ev` and `/ev`, with the stack depth followed so that a
-  // table is built from a count known here and not from a marker found at run
-  // time.
   const expression = (b: ChunkBuilder, items: any[], from: number, to: number) => {
     let depth = 0;
     const marks: number[] = [];
@@ -306,8 +225,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       } else if (t === "obj{") marks.push(depth);
       else if (t === "}obj") {
         const mark = marks.pop()!;
-        // The pair count is word 1: a table literal is as long as its author
-        // made it.
         b.emit(Op.MakeTable, 0, 0, (depth - mark) / 2);
         depth = mark + 1;
       } else if (t === "pop") {
@@ -341,8 +258,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     const id = chunkCount++;
     const b = new ChunkBuilder();
     const toEnd: number[] = [];
-    // The `end` line, then a line for each branch's `if` or `else` and what
-    // its body takes.
     let lines = TAIL_LINES;
     let i = from;
     for (; isBranch(items[i]); i++) {
@@ -389,16 +304,9 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
   const weave = (seq: Building, item: any[], flow: number) => {
     const id = chunkCount++;
     const b = new ChunkBuilder();
-    // The `end` line, then the `choose` line with the first choice's, a line
-    // for each later choice and for `then`, and what each body takes.
     let lines = TAIL_LINES;
     const named: Record<string, any[]> = item.at(-1);
     if (Object.keys(named).some((key) => !/^c-\d+$/.test(key))) throw new UnsupportedConstruct("a choose block with named content other than its choices");
-    // The block holds its choices, a hold, and its end: a gather entered
-    // inline, holding the `then` clause's statements or none. The hold stops
-    // the flow when the block offered one of its own choices. Every choice the
-    // writer takes is offered, having no condition and not being once only, so
-    // the hold always stops, as `Done` does.
     const hold = item.findIndex((t) => typeof t === "string" && /^hold:\d+$/.test(t));
     if (hold < 0) throw new UnsupportedConstruct("a choose block with no hold");
     const end: unknown = item[hold + 1];
@@ -424,8 +332,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
         b.emit(Op.EndString);
       }
       const name: string = star["*"].split(".").at(-1);
-      // The `Choice` holds its target. Its count symbol is the operand of the
-      // `Visit` that opens the entry code it points at.
       const count = symbol(`${symbolNames[flow]}#${id}.${name}`);
       points.push({ at: b.emit(Op.Choice, flags), count, start, body: named[name]!, name });
     }
@@ -433,8 +339,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     const toThen: number[] = [];
     for (const point of points) {
       b.land(point.at);
-      // Once chosen, a choice counts, repeats its start content as output, ends
-      // that line, and runs its body.
       b.emit(Op.Visit, 0, 0, point.count);
       for (const text of point.start) b.emit(Op.Text, 0, 0, string(text));
       let body = point.body.slice(0, -1);
@@ -452,8 +356,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       lines += gap + child.lines;
     }
     for (const at of toThen) b.land(at);
-    // The tree does not say whether an empty end had a `then` line; the
-    // writer counts none, as for a block without `then`.
     const thenBody = (end as any[]).slice(0, -1);
     if (thenBody.length) {
       b.emit(Op.Visit, 0, 0, symbol(`${symbolNames[flow]}#${id}.${endName}`));
@@ -465,7 +367,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     add(seq, b, id, lines);
   };
 
-  // One chunk per statement of a body.
   const statements = (seq: Building, items: any[], flow: number) => {
     let i = 0;
     while (i < items.length) {
@@ -482,8 +383,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
           i = close + 2;
         } else {
           if (displays && !items.slice(i + 1, close).includes("ev")) {
-            // A beat whose text interpolates nothing. The engine steps every
-            // token from `ev` to `/ev`.
             const objects = close - i + 1;
             const instructions = b.code.length / 2;
             displayBeat.objects = [Math.min(displayBeat.objects[0], objects), Math.max(displayBeat.objects[1], objects)];
@@ -517,15 +416,10 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     }
   };
 
-  // Every top-level flow the writer can emit. One it cannot is left undefined,
-  // and a divert to it fails when it runs.
   const skipped = new Map<string, string>();
   const root: any[] = compiled["root"];
   const flows = Object.entries(root.at(-1) as Record<string, any>).filter(([name, flow]) => Array.isArray(flow) && FLOW_NAME.test(name));
-  // Every flow is interned before any is emitted, so a flow's id follows the
-  // order the flows are declared in and not the order diverts first name them.
   for (const [name] of flows) symbol(name);
-  // Where the next flow's header line falls in the synthetic script.
   let scriptLine = 0;
   for (const [name, flow] of flows) {
     const sym = symbol(name);
@@ -535,7 +429,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       const seq = newSequence(-1, -1, sym);
       statements(seq, flow.slice(0, -1), sym);
       if (seq.chunks.length) definitions.push([sym, seq.id, 0, HEADER]);
-      // A header line, the body, and an `end` line.
       seq.firstLine = scriptLine + FLOW_HEAD_LINES;
       scriptLine = seq.firstLine + seq.lines + TAIL_LINES;
     } catch (error) {
@@ -586,10 +479,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
   };
 }
 
-/** Where `root` holds a chunk: the row of its sequence, and its entry there.
- *  The entry is searched for and never stored, because an insertion shifts it;
- *  the design searches outward from the entry a position was last seen at, or
- *  through an index the arrays build on first use. */
 export function position(root: ProgramRoot, chunkId: number): { sequence: Sequence; entry: number } | undefined {
   const id = root.chunkSeq[chunkId];
   if (id === undefined || id < 0) return undefined;

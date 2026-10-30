@@ -1,5 +1,3 @@
-// Bounded tooling fixture; never loads or impersonates the real Vitest API.
-// OS containment is still supplied by the production native supervisor.
 import fs from "node:fs";
 import path from "node:path";
 const [mode, root, output, file] = process.argv.slice(2);

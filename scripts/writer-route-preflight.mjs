@@ -5,24 +5,10 @@ import { fileURLToPath } from "node:url";
 import { routeVendor, writerEfforts } from "./reviewer-defaults.mjs";
 import { systemTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
-// Decides, before an orchestrator dispatches a batch of writers, whether the
-// chosen writer route can run exactly the requested model at each ticket's
-// effort. A route that cannot is a per-ticket blocker; the preflight never
-// proposes another model or effort in its place.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// Every route a writer may run on. The retired ones, listed with their
-// reasons in .claude/writer-defaults.json, are never dispatched; an existing
-// writer on one is still confirmed against its observed model and effort.
 export const writerRoutes = { "claude-agent": "claude", "claude-desktop": "claude", "claude-adopted": "claude", "claude-cli": "claude", "codex-cli": "codex", "codex-app": "codex" };
 const retiredRoutes = (repo) => JSON.parse(fs.readFileSync(path.join(repo, ".claude", "writer-defaults.json"), "utf8")).retiredRoutes ?? {};
 
-// Each route's check returns an empty result when the host provides the model
-// at that effort, or the reason it does not.
-
-// A detached writer process starts without the coordinator's environment, so
-// the probe drops the session's CLAUDE* variables too. Its result names the
-// model that answered; the effort in force is read after launch from the
-// writer's own shell, because the result does not report it.
 function claudeCliCheck(model, request) {
   const command = request.evidence?.claude ?? "claude";
   const [program, ...prefix] = Array.isArray(command) ? command : [command];
@@ -47,11 +33,6 @@ function claudeCliCheck(model, request) {
   };
 }
 
-// The CLI accepts an effort its model does not support and records it in the
-// rollout unchanged, so the model catalog is the only source for supported
-// efforts. The catalog also lists models an account refuses, so a short
-// launch with the exact model and effort proves the account accepts them.
-// Confirming a launched writer reads the catalog without the probe.
 function codexCliCheck(model, request, repo, { probe = true } = {}) {
   const command = request.evidence?.codex ?? "codex";
   const [program, ...prefix] = Array.isArray(command) ? command : [command];
@@ -86,8 +67,6 @@ function codexCliCheck(model, request, repo, { probe = true } = {}) {
   };
 }
 
-// The app's collaboration tools describe their model parameter as a list of
-// "<model> (<description>; supported reasoning efforts: a, b, c)" entries.
 export function parseAdvertisedModels(description) {
   const models = new Map();
   for (const m of description.matchAll(/([a-z0-9][a-z0-9.-]*) \((?:[^()]*?;\s*)?supported reasoning efforts:\s*([a-z, ]+)\)/g)) models.set(m[1], m[2].split(",").map((e) => e.trim()).filter(Boolean));
@@ -106,13 +85,8 @@ function codexAppCheck(model, request) {
 }
 
 const checks = { "claude-cli": claudeCliCheck, "codex-cli": codexCliCheck, "codex-app": codexAppCheck };
-// A Codex rollout records the requested effort even when the model does not
-// support it, so a matching Codex observation still needs the host's list of
-// supported efforts. Claude session metadata reports the effort in force.
 const confirmChecks = { "codex-cli": (model, request, repo) => codexCliCheck(model, request, repo, { probe: false }), "codex-app": codexAppCheck };
 
-// What the launched writer actually runs: the model and effort from its own
-// metadata, or a Codex rollout file whose latest turn_context records them.
 function observedRoute(observed, number) {
   const pair = (value, source) => {
     if (typeof value?.model !== "string" || !value.model || typeof value?.effort !== "string" || !value.effort) throw new Error(`Ticket ${number} ${source} needs a model and an effort`);
@@ -121,7 +95,6 @@ function observedRoute(observed, number) {
   if (observed === null || typeof observed !== "object" || Array.isArray(observed)) throw new Error(`Ticket ${number} observed must be { model, effort } or { rollout }`);
   if (!Object.hasOwn(observed, "rollout")) return pair(observed, "observed");
   if (typeof observed.rollout !== "string" || !path.isAbsolute(observed.rollout)) throw new Error(`Ticket ${number} observed.rollout must be an absolute path`);
-  // A live writer may be mid-append, so only newline-terminated records count.
   const text = fs.readFileSync(observed.rollout, "utf8");
   const context = text.slice(0, text.lastIndexOf("\n") + 1).split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)).findLast((row) => row.type === "turn_context")?.payload;
   if (!context) throw new Error(`${observed.rollout} has no turn_context row`);
@@ -139,8 +112,6 @@ export function preflight(request, repo = root) {
     if (!allowed.includes(ticket.effort)) throw new Error(`Ticket ${ticket.number} effort must be one of ${allowed.join(", ")}`);
   }
   const observations = new Map(tickets.filter((ticket) => ticket.observed !== undefined).map((ticket) => [ticket, observedRoute(ticket.observed, ticket.number)]));
-  // Built on first use, so a batch that only confirms launched Claude writers
-  // needs no pre-launch evidence.
   let check, confirmCheck;
   const verdicts = tickets.map((ticket) => {
     const { number, effort } = ticket;
@@ -161,8 +132,6 @@ export function preflight(request, repo = root) {
   return { route, model, verdicts };
 }
 
-// Prints the verdicts as JSON; exits 1 when any ticket is blocked and 2 when
-// the request itself is malformed.
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const file = process.argv[2];

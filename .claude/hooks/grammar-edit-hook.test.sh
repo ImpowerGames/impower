@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Extracts the literal PreToolUse "command" string for the Write|Edit hook
-# from .claude/settings.json and exercises it directly, so this test can
-# never drift from what actually ships. Run:
-#   bash .claude/hooks/grammar-edit-hook.test.sh
-#
-# The shared hook uses Node, the repository runtime. A missing runtime must
-# produce a blocking exit rather than silently allowing the edit.
 set -u
 
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -23,9 +16,6 @@ make_payload() {
   node -e 'process.stdout.write(JSON.stringify({tool_name:"Write",tool_input:{file_path: process.argv[1]}}))' "$1"
 }
 
-# Both assertions check exit status and stderr too, not just stdout -- a
-# hook that crashed also produces empty stdout, which must not read as a
-# clean "allow".
 assert_denies() {
   local desc="$1" path="$2" out rc err errfile
   errfile=$(mktemp)

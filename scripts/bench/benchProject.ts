@@ -1,6 +1,3 @@
-// What the benchmarks under scripts/bench share: a project directory read the
-// way the player's workspace hands it to its compiler, the compiler configured
-// as the player configures it, and min/median/max over samples.
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -27,8 +24,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-// The files as the player's workspace hands them to its compiler: images
-// prepared by the vocabulary cache, then stripped of their data.
 export function loadProjectFiles(project: string) {
   const vocab = new ImageVocabularyCache();
   const files: any[] = [];
@@ -72,7 +67,6 @@ export function configurePlayerCompiler(compiler: SparkdownCompiler, files: any[
   } as any);
 }
 
-// What a Game needs from its host, with nothing behind it.
 export const benchSystem = {
   now: () => performance.now(),
   setTimeout: (h: any, t?: number, ...a: any[]) => setTimeout(h, t, ...a) as any,
@@ -86,8 +80,6 @@ export const stats = (a: number[]) => {
   return { min: s[0] ?? 0, median: s[Math.floor(s.length / 2)] ?? 0, max: s.at(-1) ?? 0 };
 };
 
-// The compiler, the games and the route search log to the console as they
-// run; a benchmark prints its own report through the returned function.
 export function silenceConsole() {
   const realLog = console.log;
   console.log = console.warn = console.error = console.info = console.debug = () => {};
