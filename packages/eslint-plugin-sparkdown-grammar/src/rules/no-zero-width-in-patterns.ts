@@ -1,19 +1,3 @@
-// Rule: refuse to include a zero-width-matchable rule in any rule's
-// `patterns:` list — whether the include is direct, or transitive
-// through a `Switch` rule (one with only `patterns:`, no `match`/
-// `begin`/`end`). Mirrors the build-time check in
-// `definitions/src/language.ts > checkNoZeroWidthInPatterns`. See
-// GRAMMAR.md §12 for the convention.
-//
-// The classic offender is `OptionalWhitespace` (`match: ({{WS}}*)`) —
-// it's meant to be used as a capture target, where a zero-width match
-// is the natural "no whitespace here" signal. Inside a `patterns:`
-// dispatch loop, the same zero-width match wedges the loop with no
-// progress and trips the parser's
-//   `[ScopedRule:...] Too many consecutive empty matches at pos=...`
-// warning. Capture-level use is left alone; only `patterns:`
-// inclusion is rejected.
-
 import type { Rule } from "eslint";
 import {
   findPair,
@@ -34,11 +18,6 @@ interface RuleShape {
   patternIncludes: string[];
 }
 
-// Same probe-based check used by the build pipeline. A regex is
-// "unconditionally zero-width" iff it sticky-matches at position 0
-// with length 0 against ANY of these probe inputs. Lookaround-anchored
-// patterns (e.g. `(?=$|]])`) only fire at specific positions and fail
-// every probe — they're correctly allowed.
 function isUnconditionallyZeroWidth(source: string): boolean {
   const PROBES = ["x", " ", "\n", "(", "1"];
   try {
@@ -67,7 +46,6 @@ function buildVariables(root: YAMLMapping): Record<string, string> {
     if (value && value.type === "YAMLScalar" && typeof value.value === "string") {
       out[key] = value.value;
     } else if (value && value.type === "YAMLSequence") {
-      // Array-of-strings → auto-wrapped to `\b(?:a|b|c)\b`.
       const items: string[] = [];
       for (const entry of (value as YAMLSequence).entries) {
         if (
@@ -84,7 +62,6 @@ function buildVariables(root: YAMLMapping): Record<string, string> {
   return out;
 }
 
-// Fixed-point variable substitution (same loop as the build).
 function resolveVariables(rawPatterns: Record<string, string>): Record<string, string> {
   const TOKEN_REGEX = /{{([A-Za-z_][A-Za-z0-9_]*)}}/g;
   const isFullyResolved = (s: string): boolean => {
@@ -121,7 +98,6 @@ function substitute(
   );
 }
 
-// Walks `repository:` and collects every rule's shape.
 function buildRuleMap(
   root: YAMLMapping,
   variables: Record<string, string>,
@@ -164,9 +140,6 @@ function computeEffectivelyZeroWidth(rules: Map<string, RuleShape>): Set<string>
       zw.add(name);
     }
   }
-  // Propagate through Switch rules (no match, no begin/end — pure
-  // dispatchers). A Switch is effectively zero-width if any include
-  // resolves to a known zero-width rule.
   for (let pass = 0; pass < rules.size + 1; pass++) {
     let changed = false;
     for (const [name, shape] of rules) {
@@ -196,14 +169,10 @@ const rule: Rule.RuleModule = {
     },
   },
   create(context) {
-    // Lazily compute the effectively-zero-width set once we encounter
-    // the document root. ESLint visits the program top-down so the
-    // document mapping fires before any nested patterns: sequence.
     let effectivelyZW: Set<string> | null = null;
 
     function ensureComputed(node: YAMLNode | null): void {
       if (effectivelyZW !== null) return;
-      // Walk up from any node to find the document root mapping.
       let cur: YAMLNode | null = node;
       while (cur && !(isMapping(cur) && cur.parent?.type === "YAMLDocument")) {
         cur = cur.parent;
@@ -218,18 +187,7 @@ const rule: Rule.RuleModule = {
       effectivelyZW = computeEffectivelyZeroWidth(rules);
     }
 
-    // A `patterns:` pair only counts as "rule dispatch" when it's a
-    // direct child of a rule mapping (which itself sits under
-    // `repository:` or another rule's `patterns:`). The `patterns:`
-    // key that appears inside `captures:` / `beginCaptures:` /
-    // `endCaptures:` is a different beast — it's the handler applied
-    // to a captured substring whose length is already bounded by the
-    // outer match, so zero-width inclusions are harmless there.
     const isCaptureHandlerPatterns = (pair: YAMLPair): boolean => {
-      // Walk up: pair → its parent mapping → that mapping's parent pair.
-      // If THAT pair's key is one of the capture keys (or it's a
-      // numeric capture index inside such a block), it's a capture
-      // handler.
       let cur: YAMLNode | null = pair.parent;
       while (cur) {
         if (cur.type === "YAMLPair") {
@@ -241,7 +199,6 @@ const rule: Rule.RuleModule = {
           ) {
             return true;
           }
-          // Hit a rule-level key — definitively NOT a capture handler.
           if (
             key === "repository" ||
             key === "patterns" ||

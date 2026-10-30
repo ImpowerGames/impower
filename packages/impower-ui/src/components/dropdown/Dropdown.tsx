@@ -1,15 +1,3 @@
-// A RESPONSIVE menu under impower-ui's roof — a faithful port of the old
-// impower-app `DrawerMenu`: a small dropdown/popover on desktop, a bottom sheet
-// on mobile (below the editor's 960px breakpoint). The same authoring API
-// (Root/Trigger/Content/Item/CheckboxItem) renders the matching presentation.
-//
-//  - DESKTOP keeps Radix DropdownMenu (popover + keyboard nav). Its enter/exit
-//    is a MUI `Grow` keyframe on Radix's `data-state` (style.css) — Radix
-//    DropdownMenu's Presence drives that reliably.
-//  - MOBILE is a fully custom bottom sheet (a portal + backdrop + panel driven
-//    by `useMountTransition`, the same pattern as the file-manager dialogs).
-//    Radix Dialog's Presence races on exit under preact, so we own the mount
-//    ourselves — giving a reliable slide-up AND slide-down (MUI `Drawer`).
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cva } from "class-variance-authority";
 import {
@@ -26,7 +14,6 @@ import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import Ripple from "../ripple/Ripple";
 
-// Keep the sheet mounted this long after close so its slide-down finishes.
 const SHEET_MS = 240;
 
 type Mode = "menu" | "sheet";
@@ -42,8 +29,6 @@ const ModeContext = createContext<MenuCtx>({
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-// Re-exports for the un-styled bits not used responsively in impower-dev — they
-// stay desktop (DropdownMenu) primitives.
 export const DropdownPortal = DropdownMenuPrimitive.Portal;
 export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
@@ -56,11 +41,6 @@ type RootProps = {
   children?: ComponentChildren;
 };
 
-/**
- * Menu root. On desktop it's a Radix DropdownMenu (Radix owns the open state);
- * on mobile it owns the open state itself (the custom sheet is controlled) and
- * publishes mode + open + setOpen to its descendants.
- */
 export function DropdownRoot({
   open: openProp,
   defaultOpen = false,
@@ -112,8 +92,6 @@ export function DropdownTrigger({
 }) {
   const ctx = useMenuCtx();
   if (ctx.mode === "sheet") {
-    // No Radix root on mobile — wire the (asChild) trigger straight to setOpen,
-    // preserving the child's own onClick (e.g. a row's stopPropagation).
     const child = (Array.isArray(children) ? children[0] : children) as
       VNode<{ onClick?: (e: MouseEvent) => void }> | undefined;
     if (child && typeof child === "object" && "props" in child) {
@@ -133,24 +111,13 @@ export function DropdownTrigger({
   );
 }
 
-// Popup surface styling. `bg-popup` (a fixed dark neutral, ~rgb(18,18,18)) is
-// the canonical "floating panel" surface — distinct from `engine-800` (inline
-// surfaces). py-2 / px-0 matches the legacy `<s-box p="8 0">`; items provide
-// their own horizontal padding.
 const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
   "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
-  // MUI Grow keyframe on Radix's data-state (see style.css).
   "origin-[--radix-dropdown-menu-content-transform-origin]",
   "data-[state=open]:anim-menu-in data-[state=closed]:anim-menu-out",
 ]);
 
-/**
- * Mobile bottom sheet — a portal with a dim backdrop (fade) and a full-width
- * panel pinned to the bottom (8px rounded top, matching the old Drawer) that
- * slides up. `useMountTransition` owns the mount so the slide-down plays on
- * close. Backdrop click + Escape dismiss; body scroll is locked while open.
- */
 function Sheet({
   open,
   setOpen,
@@ -162,7 +129,6 @@ function Sheet({
   class?: string;
   children?: ComponentChildren;
 }) {
-  // Own the mount so the slide-DOWN plays before unmount.
   const { mounted } = useMountTransition(open, SHEET_MS);
 
   useEffect(() => {
@@ -186,10 +152,6 @@ function Sheet({
   if (!mounted || typeof document === "undefined") {
     return null;
   }
-  // Keyframe animations keyed off `open` (a stable prop): the class swaps from
-  // the "up"/"in" animation to the "down"/"out" one when closing, which restarts
-  // the animation. `forwards` on the exits holds the closed frame until
-  // useMountTransition unmounts.
   return createPortal(
     <div class="fixed inset-0 z-50">
       <div
@@ -230,10 +192,7 @@ export function DropdownContent({
   class?: string;
   sideOffset?: number;
   align?: "start" | "center" | "end";
-  /** Which edge of the trigger the menu opens from. */
   side?: "top" | "right" | "bottom" | "left";
-  /** Runs as the menu closes, before Radix moves focus back to the
-   *  trigger; call `preventDefault()` to keep focus where it is. */
   onCloseAutoFocus?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
@@ -259,11 +218,6 @@ export function DropdownContent({
   );
 }
 
-// `pointer-events-auto` is explicit because sparkle's normalize.css declares
-// `* { pointer-events: none }` as a defensive base. Item geometry matches the
-// legacy `<s-button variant="option">`: 40px tall, 20px horizontal padding,
-// 14px label, 70% white foreground. No outer corner radius (the popup is the
-// rounded surface).
 const dropdownItem = cva([
   "relative overflow-hidden",
   "flex h-10 w-full cursor-pointer pointer-events-auto flex-row items-center gap-2 px-5",
@@ -284,13 +238,11 @@ export function DropdownItem({
   class?: string;
   children?: ComponentChildren;
   disabled?: boolean;
-  // Radix's onSelect (fires on item activation). Declared explicitly because
-  // preact's DOM `onSelect` (text-selection) has an incompatible signature.
+  // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared
   onSelect?: (event: Event) => void;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
   const ctx = useMenuCtx();
   if (ctx.mode === "sheet") {
-    // In the sheet, items are plain buttons that run onSelect and dismiss.
     return (
       <button
         type="button"
@@ -338,8 +290,6 @@ export function DropdownCheckboxItem({
 >) {
   const ctx = useMenuCtx();
   if (ctx.mode === "sheet") {
-    // Toggle in place — a checkbox shouldn't dismiss the sheet (you may flip
-    // several), so it does NOT call setOpen.
     return (
       <button
         type="button"

@@ -1,10 +1,5 @@
 import { AnimationName } from "../types/animationName";
 
-/**
- * Animation names that are supported by default.
- *
- * @summary AnimationName
- */
 export const DEFAULT_ANIMATIONS: AnimationName[] = [
   "spin",
   "ping",

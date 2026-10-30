@@ -1,29 +1,3 @@
-// Rule: a lookaround is the last resort (GRAMMAR.md §10). Every
-// negative lookahead `(?!…)`, every lookbehind `(?<=…)` / `(?<!…)`, and
-// every positive lookahead `(?=…)` that is not a line-end or `{{BEAT}}`
-// bail-out must be justified by a `# lookaround:` comment in the comment
-// block directly above its rule or variable (or above the inline rule or
-// pattern key that holds it). The comment names the rival rule the
-// lookaround steps aside for and says why §10.1's structural fixes
-// (reorder, split a Switch, let the parent's `end:` carry it, tighten a
-// variable) do not work. The rule checks that the comment exists and
-// names at least one existing rule or variable other than its own
-// owner; whether the reason holds is the reviewer's call (§10.2).
-//
-// Positive lookaheads in an `end:` pattern are exempt: stopping before
-// a terminator that belongs to the parent is what §10.1 ("let an `end:`
-// pattern carry the load") and §11.3 recommend. A negative lookahead or
-// lookbehind there still needs the comment.
-//
-// Variables are checked too, array entries included: a lookaround moved
-// into a variable still steps aside for a rival.
-//
-// Only real YAML comments count (not `#` text inside a block scalar), and
-// the innermost marked block wins: a `# lookaround:` comment above an
-// inline rule or pattern key is checked before one above the owner.
-//
-// Existing findings are baselined per owner (see utils/baseline.ts).
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import {
   getGrammarIndex,
@@ -40,8 +14,6 @@ import {
 
 export const MARKER = "lookaround:";
 
-// One alternative of a bail-out lookahead: an optional run of `{{WS}}`
-// and then a line end or the next beat.
 const BAIL_OUT_ALTERNATIVE =
   /^(?:\{\{WS\}\}\*)?(?:\$|\{\{BEAT\}\}|\{\{NL\}\}|\{\{EOL\}\}|\\r\\n|\\r|\\n)$/;
 
@@ -58,7 +30,6 @@ const KIND_LABEL: Partial<Record<GroupKind, string>> = {
   "negative-lookbehind": "Negative lookbehind",
 };
 
-// Lookarounds in `site` that need a justification.
 export function unjustifiedCandidates(site: PatternSite) {
   return regexGroups(site.source).filter((group) => {
     if (group.kind === "lookahead") {

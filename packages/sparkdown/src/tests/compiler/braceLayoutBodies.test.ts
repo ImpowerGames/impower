@@ -848,7 +848,7 @@ end
         .sort((a, b) => (a[1] as number) - (b[1] as number)),
     ).toEqual([
       ["Invalid syntax", 2, "-"],
-      ["Invalid syntax", 3, ":"],
+      ["Expected '=' when parsing field, got ':'", 3, ":"],
       ["Invalid syntax", 4, "{"],
       ["Invalid syntax", 6, "}"],
     ]);

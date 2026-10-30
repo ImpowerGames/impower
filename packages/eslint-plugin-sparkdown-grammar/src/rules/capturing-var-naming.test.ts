@@ -1,7 +1,3 @@
-// Runs with `node --test` (Node strips the types). The cases pin the rule
-// to the build check in `definitions/src/language.ts`, which counts
-// captures in each variable's fully resolved value.
-
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Linter } from "eslint";

@@ -25,16 +25,11 @@ export type PreactElement<Props> = HTMLElement &
 
 export interface PreactElementConstructor<Props> {
   new (): PreactElement<Props>;
-  // Default tag name baked in by PreactComponent(); callers can override.
   register(tagName?: string): Promise<CustomElementConstructor>;
 }
 
 export interface Lifecycle {
-  // Runs in connectedCallback BEFORE preact-custom-element renders into the
-  // host. Use this to set default attributes (tabindex, role) and attach
-  // host-level event listeners.
   connectedCallback?(this: HTMLElement): void;
-  // Runs in disconnectedCallback BEFORE preact-custom-element unmounts.
   disconnectedCallback?(this: HTMLElement): void;
 }
 
@@ -45,9 +40,6 @@ export function PreactComponent<Props>(
   options: Options,
   lifecycle?: Lifecycle,
 ): PreactElementConstructor<Props> {
-  // SSR / Node guard. `customElements` is browser-only. Returning a stub
-  // here is safe because the constructor isn't instantiated server-side and
-  // .register() is a no-op when called in a non-browser environment.
   if (typeof customElements === "undefined") {
     class SSRStub {
       static async register() {
@@ -59,11 +51,6 @@ export function PreactComponent<Props>(
 
   const observedAttributes = Object.keys(propDefaults as object) as (keyof Props)[];
 
-  // Build the custom-element class WITHOUT defining it. preact-custom-element
-  // always calls customElements.define when given a Component (falling back
-  // to Component.name if no tagName), so we no-op define temporarily, let
-  // register() build the class and return it, then restore. Registration is
-  // deferred to the static .register() method below.
   const originalDefine = customElements.define.bind(customElements);
   let BaseCtor: CustomElementConstructor;
   customElements.define = (() => undefined) as typeof customElements.define;
@@ -78,10 +65,6 @@ export function PreactComponent<Props>(
     customElements.define = originalDefine;
   }
 
-  // Patch lifecycle on the base prototype BEFORE define snapshots it. Per the
-  // HTML spec, customElements.define captures the connectedCallback /
-  // disconnectedCallback methods at registration time; later prototype edits
-  // are never invoked. So we apply our wrappers eagerly, here.
   if (lifecycle) {
     const proto = BaseCtor.prototype as PreactElement<Props>;
     if (lifecycle.connectedCallback) {
@@ -102,10 +85,6 @@ export function PreactComponent<Props>(
     }
   }
 
-  // Don't extend with `class X extends BaseCtor` — preact-custom-element
-  // builds its PreactElement as a function-style class that throws
-  // "Illegal constructor" when subclassed via ES class syntax. Tack the
-  // static .register onto the existing class instead.
   (BaseCtor as unknown as {
     register: (tagName?: string) => Promise<CustomElementConstructor>;
   }).register = async function (tagName: string = defaultTagName) {

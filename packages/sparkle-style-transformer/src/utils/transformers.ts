@@ -32,28 +32,10 @@ const GRADIENT_KEYWORDS = new Set([
   "xyz-d65",
 ]);
 
-/**
- * Quick positive‑list validator for CSS values we generate from the Sparkle
- * property helpers.
- *
- *  - Identifiers / numbers / operators handled by the helper that calls us.
- *  - `var(--foo)` references.
- *  - `url(...)` – permissive so we can embed `data:image/svg+xml,<svg …>` with
- *    raw angle‑brackets.
- *
- * If you need stronger guarantees (e.g. to block remote network URLs), wrap the
- * call site with an additional check.  For the in‑engine authoring context this
- * validator is primarily a typo‑guard to avoid breaking the style block.
- */
 // eslint-disable-next-line no-useless-escape
 const SAFE_CSS_VALUE_RE =
   /^(?:url\([^)]*\)|var\(.*\)|(?:rgb|rgba|hsl|hsla|lch)\([^)]*\)|(?:linear-gradient|radial-gradient|conic-gradient|repeating-linear-gradient|repeating-radial-gradient|repeating-conic-gradient)\([^)]*\)|#[0-9a-f]{3,8}|[a-z0-9_-]+(?:\s+[a-z0-9_-]+)*|[0-9.+-]+(?:deg|px|rem|em|%|vh|vw|vmin|vmax)?)$/i;
 
-/**
- * Whitelist‑based guard for values that will be concatenated into the `style`
- * attribute. Anything outside the allow‑list is replaced with the CSS keyword
- * `unset`, preventing malformed declarations from breaking the block.
- */
 export function validateCss(value: string | null | undefined): boolean {
   if (value == null) {
     return true;
@@ -67,7 +49,6 @@ function transformColors(css: string): string {
   let i = 0;
 
   while (i < css.length) {
-    // 1. Skip Block Comments /* ... */
     if (css[i] === "/" && css[i + 1] === "*") {
       const end = css.indexOf("*/", i + 2);
       if (end !== -1) {
@@ -77,12 +58,11 @@ function transformColors(css: string): string {
       }
     }
 
-    // 2. Skip Strings "..." or '...'
     if (css[i] === '"' || css[i] === "'") {
       const quote = css[i];
       let end = i + 1;
       while (end < css.length && css[end] !== quote) {
-        if (css[end] === "\\") end++; // Handle escaped quotes
+        if (css[end] === "\\") end++;
         end++;
       }
       result += css.slice(i, end + 1);
@@ -90,8 +70,6 @@ function transformColors(css: string): string {
       continue;
     }
 
-    // 3. Process potential identifiers
-    // We look for alphanumeric sequences
     if (/[a-z]/i.test(css[i]!)) {
       let identifier = "";
       const start = i;
@@ -100,7 +78,6 @@ function transformColors(css: string): string {
         i++;
       }
 
-      // If the identifier is not a recognized keyword, assume it is a color
       if (!GRADIENT_KEYWORDS.has(identifier) && isBoundary(css, start, i)) {
         result += getCssColor(identifier);
       } else {
@@ -109,7 +86,6 @@ function transformColors(css: string): string {
       continue;
     }
 
-    // 4. Default: Just append the character
     result += css[i];
     i++;
   }
@@ -117,21 +93,14 @@ function transformColors(css: string): string {
   return result;
 }
 
-/**
- * Ensures the word is a standalone CSS identifier,
- * not part of a class name (.blue-btn) or variable (--blue).
- */
 function isBoundary(css: string, start: number, end: number): boolean {
   const prev = css[start - 1];
   const next = css[end];
 
-  // If it starts with - it is a variable, not a named color
   if (prev === "-") return false;
 
-  // If it ends with (, it is a function, not a named color
   if (next === "(") return false;
 
-  // Standard CSS delimiters
   const delimiters = /[\s,()!:;]/;
   const isStartOk = !prev || delimiters.test(prev);
   const isEndOk = !next || delimiters.test(next);
@@ -213,18 +182,6 @@ export const getCssColor = (value: string): string => {
     value === "white" ||
     value === "currentColor" ||
     value.startsWith("#") ||
-    // ANY css function: var() rgb() hsl() lch() oklch() color-mix() light-dark()
-    // and whatever gets added next. A theme token is an IDENTIFIER, so it can
-    // never contain a parenthesis — a value carrying one is not a token name.
-    //
-    // This replaces a prefix WHITELIST, which silently mangled every function it
-    // had not been taught about. `color-mix(in srgb, currentColor 50%,
-    // transparent)` came out as `var(--theme-color-color-mix(in srgb, ...))`: a
-    // valid-looking reference to a variable that cannot exist, so the browser
-    // dropped the declaration and the property fell back to its initial value.
-    // Nothing errored. A whitelist here fails CLOSED into corruption rather than
-    // open into passthrough, which is the wrong direction for a value we do not
-    // recognize.
     value.includes("(")
   ) {
     return value;
@@ -307,9 +264,6 @@ export const getCssZ = (value: string): string => {
   return `var(--theme-z-index-${value})`;
 };
 
-// A bare number inside a CSS function (`calc(1px * 2)`) is an operand whose
-// meaning the function defines, so only numbers outside every parenthesis take
-// the default unit.
 const withUnitOutsideFunctions = (parts: string[], unit: string): string[] => {
   let depth = 0;
   return parts.map((part) => {
@@ -411,7 +365,7 @@ export const getCssTextStroke = (value: string): string => {
   if (r === 0) {
     return "none";
   }
-  const n = Math.ceil(2 * Math.PI * r); /* number of shadows */
+  const n = Math.ceil(2 * Math.PI * r);
   let str = "";
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
@@ -1045,42 +999,35 @@ export function generateShadow(elevation: number): string {
   const keyShadowOpacity = 0.3;
   const ambientShadowOpacity = 0.15;
 
-  // --- Key Shadow Calculations ---
   const keyL1y = Math.max(0, Math.min(elevation, 1));
   const keyL4y = Math.max(0, Math.min(elevation - 3, 1));
   const keyL5y = 2 * Math.max(0, Math.min(elevation - 4, 1));
   const keyOffsetY = keyL1y + keyL4y + keyL5y;
 
-  // Blur Radius for Key Shadow
   const keyL1Blur = 2 * Math.max(0, Math.min(elevation, 1));
   const keyL3Blur = Math.max(0, Math.min(elevation - 2, 1));
   const keyL5Blur = Math.max(0, Math.min(elevation - 4, 1));
   const keyBlurRadius = keyL1Blur + keyL3Blur + keyL5Blur;
 
-  // Spread Radius for Key Shadow is 0px
   const keySpreadRadius = 0;
 
-  // --- Ambient Shadow Calculations --
   const ambL1y = Math.max(0, Math.min(elevation, 1));
   const ambL2y = Math.max(0, Math.min(elevation - 1, 1));
   const ambL3to5y = 2 * Math.max(0, Math.min(elevation - 2, 3));
   const ambientOffsetY = ambL1y + ambL2y + ambL3to5y;
 
-  // Blur Radius for Ambient Shadow
   const ambL1to2Blur = 3 * Math.max(0, Math.min(elevation, 2));
   const ambL3to5Blur = 2 * Math.max(0, Math.min(elevation - 2, 3));
   const ambientBlurRadius = ambL1to2Blur + ambL3to5Blur;
 
-  // Spread Radius for Ambient Shadow
   const ambL1to4Spread = Math.max(0, Math.min(elevation, 4));
   const ambL5Spread = 2 * Math.max(0, Math.min(elevation - 4, 1));
   const ambientSpreadRadius = ambL1to4Spread + ambL5Spread;
 
-  // If all calculated metrics that define a shadow are zero, return 'none'.
   if (
     keyOffsetY === 0 &&
     keyBlurRadius === 0 &&
-    keySpreadRadius === 0 && // keySpreadRadius is always 0 in this specific model
+    keySpreadRadius === 0 &&
     ambientOffsetY === 0 &&
     ambientBlurRadius === 0 &&
     ambientSpreadRadius === 0
@@ -1097,11 +1044,6 @@ export function generateShadow(elevation: number): string {
   return `${keyShadowString}, ${ambientShadowString}`;
 }
 
-/** CSS `content` takes a STRING, which must be quoted — `content: hello` and
- *  `content: ` are both invalid, and an unrendered pseudo-element is the silent
- *  result. Authors write the value bare (`content = ""`, `content = "New"`), so
- *  quote it here unless it is a keyword or a function/counter form that must
- *  stay unquoted. */
 const CSS_CONTENT_KEYWORDS = new Set([
   "none",
   "normal",

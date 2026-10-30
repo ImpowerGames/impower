@@ -45,7 +45,6 @@ label {
   height: 100%;
 }
 
-/* checkbox property-label */
 .property-label:has(+ input[type="checkbox"]) {
   width: auto;
   min-width: 0;
@@ -90,8 +89,8 @@ input[type="range"] {
 input[type="text"]:focus,
 input[type="range"]:focus {
   outline: none;
-  border-color: var(--vscode-focusBorder); /* Focus border color */
-  box-shadow: 0 0 0 1px var(--vscode-focusBorder); /* Focus shadow */
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
 input[type="checkbox"] {
@@ -153,14 +152,12 @@ input.slider-value:focus {
   box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
-/* Hide arrows in number input for Webkit (Chrome, Edge, Safari) */
 input.slider-value::-webkit-outer-spin-button,
 input.slider-value::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* Hide arrows in number input for Firefox */
 input.slider-value[type="number"] {
   -moz-appearance: textfield;
 }

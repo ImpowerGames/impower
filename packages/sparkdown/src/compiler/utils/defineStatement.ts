@@ -210,7 +210,7 @@ export function readsDefineProperty(property: SyntaxNode): boolean {
   let operator: SyntaxNode | null = null;
   do {
     // The key is before the `=`.
-    if (cursor.name === "LuauAssignmentOperator") {
+    if (cursor.name === "LuauAssignmentOperator" || cursor.name === "LuauPropertyColonOperation_begin") {
       operator = cursor.node;
       break;
     }

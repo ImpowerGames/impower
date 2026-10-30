@@ -2,16 +2,6 @@ import Graphic from "./types/graphic";
 import extractAllGraphics from "./utils/extractAllGraphics";
 import generateStyledHtml from "./utils/generateStyledHtml";
 
-/**
- * Transforms sparkle styling attributes into inline styles that set the appropriate css variables.
- *
- * This facilitates SSG (static site generation) by allowing the component
- * to appear styled even when no javascript is loaded.
- *
- * @param component - the component to apply inline styles to.
- * @param config - specifies the css data which static graphics (like patterns and icons) should be extracted from.
- * @returns A component that will return html with the necessary inline styles.
- */
 const transformer = (
   html: string,
   config: {

@@ -55,8 +55,6 @@ test("\\s inside a lookaround fails", () => {
 });
 
 test("a comment on a variable does not exempt the line break it brings in", () => {
-  // The `# reads-past-line:` marker once exempted a variable; since I-1283
-  // no pattern can read past its line, so nothing is exempt.
   const trivia = `# reads-past-line: skips blank lines to the next token.
 TRIVIA: (?:[\\r\\n]|{{WS}})*
 WS: (?:[^\\S\\n\\r])`;

@@ -15,8 +15,6 @@ import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
 import { splitEmojiRuns } from "../emoji/emojiText";
 
-// pdfkit accepts sizes in PDF points (72 per inch)
-// https://pdfkit.org/docs/getting_started.html
 const PDF_POINTS_PER_INCH = 72;
 
 const REGEX_INDENT = /^(\s+)/;
@@ -89,15 +87,11 @@ export default class ScreenplayPrinter {
     const bodySpans = this.getBodySpans();
     for (const span of bodySpans) {
       if (span.tag === "meta") {
-        // Already handled meta span
       } else if (span.tag === "page_break") {
-        // Add a new page
         this.addPage();
       } else if (span.tag === "separator") {
-        // Add a blank line
         this.printSeparator();
       } else if (span.tag === "dual") {
-        // Print layout split into two columns
         if (span.positions?.l || span.positions?.r) {
           const height = Math.max(
             this.getHeightOfLines(span.positions.l || []),
@@ -119,7 +113,6 @@ export default class ScreenplayPrinter {
           this._state.y = Math.max(firstYEnd, secondYEnd);
         }
       } else {
-        // Print block
         this.printBlockOfLinesAcrossPages(span.lines);
       }
       this.incrementProgress();
@@ -169,7 +162,6 @@ export default class ScreenplayPrinter {
     const innerWidthHalf = innerWidth / 2;
 
     if (this._config?.screenplay_print_title_page && span.positions) {
-      //top left
       const tlText = this.getCombinedContent(span?.positions?.["tl"]);
       const tlTextHeight = this.getHeightOfText(tlText, innerWidthThird, {
         align: "left",
@@ -185,7 +177,6 @@ export default class ScreenplayPrinter {
         },
       );
 
-      //top center
       const tcText = this.getCombinedContent(span?.positions?.["tc"]);
       const tcTextHeight = this.getHeightOfText(tcText, innerWidthThird, {
         align: "center",
@@ -201,7 +192,6 @@ export default class ScreenplayPrinter {
         },
       );
 
-      //top right
       const trText = this.getCombinedContent(span?.positions?.["tr"]);
       const trTextHeight = this.getHeightOfText(trText, innerWidthThird, {
         align: "right",
@@ -217,7 +207,6 @@ export default class ScreenplayPrinter {
         },
       );
 
-      //bottom left
       const blText = this.getCombinedContent(span?.positions?.["bl"]);
       const blTextHeight = this.getHeightOfText(blText, innerWidthHalf, {
         align: "left",
@@ -233,7 +222,6 @@ export default class ScreenplayPrinter {
         },
       );
 
-      //bottom right
       const brText = this.getCombinedContent(span?.positions?.["br"]);
       const brTextHeight = this.getHeightOfText(brText, innerWidthHalf, {
         align: "right",
@@ -249,7 +237,6 @@ export default class ScreenplayPrinter {
         },
       );
 
-      //center center
       const topHeight = Math.max(tlTextHeight, tcTextHeight, trTextHeight, 0);
       const bottomHeight = Math.max(blTextHeight, brTextHeight, 0);
 
@@ -321,8 +308,7 @@ export default class ScreenplayPrinter {
         (Math.atan(this._profile.page_height / this._profile.page_width) *
           180) /
         Math.PI;
-      // underline and rotate pdfkit bug (?) workaround
-      // un-format
+      // workaround(pdfkit): underline combined with rotation renders wrongly, so formatting is reset first (suspected bug, no version recorded)
       const len = watermarkString.length;
       let diagonal;
       diagonal = Math.sqrt(
@@ -529,10 +515,6 @@ export default class ScreenplayPrinter {
       const after = [...wrappedLinesAfterBreak, ...linesAfterBreak];
 
       if (lineAtBreak?.tag === "dialogue_content") {
-        // For dialogue, require at least one dialogue content line to remain
-        // on the before-page; a lone character name followed by (MORE) with
-        // no actual dialogue above it is never acceptable. If that condition
-        // can't be met, defer the whole block to the next page.
         const beforeHasDialogueContent = before.some(
           (l) => l.tag === "dialogue_content",
         );
@@ -555,32 +537,22 @@ export default class ScreenplayPrinter {
     let height = 0;
     if (lines.length > 0) {
       if (this._state.y + this.getHeightOfLines(lines) <= this.getMaxY()) {
-        // block can fit on the page
         height += this.printLines(lines);
       } else {
-        // block is too large to fit on the page
-        // so try to find a preferred spot to break the block into two
         const [linesBeforeBreak, linesAfterBreak] = this.breakLines(lines);
         if (
           this._state.y + this.getHeightOfLines(linesBeforeBreak) <=
           this.getMaxY()
         ) {
-          // lines before the break will fit on the page
           height += this.printLines(linesBeforeBreak);
           this.addPage();
           height += this.printBlockOfLinesAcrossPages(linesAfterBreak);
         } else {
-          // lines before the break are too long to fit on the page
-          // so force all lines to the next page
           this.addPage();
           if (this._state.lastForciblyDeferredLines !== lines) {
             this._state.lastForciblyDeferredLines = lines;
             height += this.printBlockOfLinesAcrossPages(lines);
           } else {
-            // we are attempting to force the same lines to a new page again,
-            // so to prevent an infinite loop,
-            // just let the lines overflow the page and then force a page break
-            // (this should only ever happen for extremely long unsplittable blocks)
             height += this.printLines(lines);
             this.addPage();
           }
@@ -591,12 +563,10 @@ export default class ScreenplayPrinter {
   }
 
   getMetaSpan() {
-    // First span is always meta layout
     return this._spans[0]?.tag === "meta" ? this._spans[0] : undefined;
   }
 
   getBodySpans() {
-    // First span is always meta layout, so skip it
     return this._spans.slice(1);
   }
 
@@ -675,8 +645,6 @@ export default class ScreenplayPrinter {
             : base.italic
               ? "italic"
               : "normal");
-      // Split emoji clusters into their own chunks so they can be drawn from
-      // the SVG table instead of the (glyph-less) Courier fonts.
       return splitEmojiRuns(base.text ?? "").map((run) => ({
         ...base,
         font,
@@ -725,7 +693,6 @@ export default class ScreenplayPrinter {
     print: PrintProfile | undefined,
   ) {
     if (line.content.at(-1)?.text === text) {
-      // already suffixed with text, so no need to do anything
       return line;
     }
     return {
@@ -770,7 +737,6 @@ export default class ScreenplayPrinter {
       return obj;
     }
     if (obj.children.length > 0) {
-      //get the last child
       currentDepth++;
       const child = obj.children[obj.children.length - 1];
       if (child) {
@@ -795,7 +761,6 @@ export default class ScreenplayPrinter {
     const contentWithFonts = this.getContentWithFonts(content, options);
 
     if (options?.highlight) {
-      // sizes specified in inches must be converted to PDF points (72 per inch)
       this._doc.highlight(
         x * PDF_POINTS_PER_INCH,
         y * PDF_POINTS_PER_INCH + this._doc.currentLineHeight() / 2,
@@ -805,7 +770,6 @@ export default class ScreenplayPrinter {
       );
     }
 
-    // sizes specified in inches must be converted to PDF points (72 per inch)
     printTextbox(
       this._doc,
       contentWithFonts,
@@ -823,7 +787,6 @@ export default class ScreenplayPrinter {
 
   getWidthOfText(content: FormattedText[], options: TextOptions = {}): number {
     const contentWithFonts = this.getContentWithFonts(content, options);
-    // sizes specified in inches must be converted to PDF points (72 per inch) and then converted back to inches
     return getWidthOfTextbox(this._doc, contentWithFonts) / PDF_POINTS_PER_INCH;
   }
 
@@ -833,7 +796,6 @@ export default class ScreenplayPrinter {
     options: TextOptions = {},
   ): number {
     const contentWithFonts = this.getContentWithFonts(content, options);
-    // sizes specified in inches must be converted to PDF points (72 per inch) and then converted back to inches
     return (
       getHeightOfTextbox(
         this._doc,
@@ -849,7 +811,6 @@ export default class ScreenplayPrinter {
 
   wrapText(content: FormattedText[], width: number, options: TextOptions = {}) {
     const contentWithFonts = this.getContentWithFonts(content, options);
-    // sizes specified in inches must be converted to PDF points (72 per inch)
     return wrapTextbox(
       this._doc,
       contentWithFonts,

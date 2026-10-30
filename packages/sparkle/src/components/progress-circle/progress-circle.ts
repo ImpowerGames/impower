@@ -12,9 +12,6 @@ const DEFAULT_TRANSFORMERS = {
   speed: (v: string) => v,
 };
 
-/**
- * Progress circles are used to show the progress of an operation in a circular fashion.
- */
 export default class ProgressCircle extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

@@ -57,8 +57,6 @@ Dead:
   assert.deepEqual(names(source), ["Dead"]);
 });
 
-// The reachability test pins the grammar's unreachable rules and unused
-// variables; this rule and no-unreferenced-variable must find the same.
 test("findings on the grammar agree with grammarReachability.test.ts", () => {
   const root = new URL("../../../../", import.meta.url);
   const reachability = readFileSync(
@@ -90,8 +88,6 @@ test("findings on the grammar agree with grammarReachability.test.ts", () => {
     owners("no-unreferenced-variable", "variables."),
     list("KNOWN_UNUSED_VARIABLES"),
   );
-  // Without the `# referenced-from:` comments, the variables TypeScript
-  // reads are reported too.
   const uncommented = collectFindings(
     source.replace(/^\s*# referenced-from:.*$/gm, "#"),
   );

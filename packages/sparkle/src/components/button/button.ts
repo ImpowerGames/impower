@@ -20,9 +20,6 @@ const DEFAULT_TRANSFORMERS = {
   "icon-size": getCssSize,
 };
 
-/**
- * Buttons represent actions that are available to the user.
- */
 export default class Button extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

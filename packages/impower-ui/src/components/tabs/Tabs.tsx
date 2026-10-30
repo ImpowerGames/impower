@@ -26,21 +26,11 @@ const tabsList = cva("flex w-full", {
   defaultVariants: { orientation: "horizontal" },
 });
 
-// Tab trigger button — base layout. No per-tab indicator rules anymore;
-// the underline slides via a single shared <div> rendered by Tabs.
 const tabTrigger = cva(
   [
-    // `relative overflow-hidden` clips the active-underline + crossfade
-    // copies to the tab shape. (Tabs intentionally do NOT ripple — see the
-    // hover/active overlay note below.)
     "group relative flex flex-1 items-center justify-center overflow-hidden",
     "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer pointer-events-auto",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
-    // Static hover/active overlay — matches sparkle's universal
-    // --theme-opacity-hover (0.05) and --theme-opacity-press (0.12).
-    // This is the ONLY press feedback: main's s-tab is rendered with
-    // `disable-ripple` in every spark-editor usage, so tabs get the color
-    // tint but no radial wave. (Button/Dropdown still ripple.)
     "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   ],
   {
@@ -50,15 +40,7 @@ const tabTrigger = cva(
         vertical: "w-full",
       },
       iconLayout: {
-        // Icon stacked above the label (bottom-nav style). py-4 matches
-        // sparkle's bottom-nav padding (16px top/bottom, 20px left/right);
-        // height comes out to 60px with icon=21px + label scaled-down.
         above: "flex-col py-4",
-        // Icon to the left of the label (page sub-tab style, e.g. share
-        // pane's Game/Screenplay top tabs). Sparkle's s-tab in row mode is
-        // height-fixed at panel-nav (48px) via `--_height: 48px` and centers
-        // content with flex justify+align — vertical padding is 0. Setting
-        // h-12 (48px) and not adding py-* matches main's geometry exactly.
         beside: "flex-row h-12",
       },
     },
@@ -66,16 +48,10 @@ const tabTrigger = cva(
   },
 );
 
-// Surface knobs that don't live on RadixTabs.Root (indicator style, vertical,
-// icon/label layout). Tab uses these via context to render its underline +
-// label layout.
 type TabsContextValue = {
   indicator: "underline" | "none";
   vertical: boolean;
   iconLayout: "above" | "beside";
-  // px size for the icon overlay box. `beside` defaults to 16, `above`
-  // defaults to 21 — sparkle's s-tab uses different icon sizes in row vs
-  // column mode and we mirror them.
   iconSize: number;
 };
 const TabsContext = createContext<TabsContextValue>({
@@ -86,35 +62,16 @@ const TabsContext = createContext<TabsContextValue>({
 });
 
 export type TabsProps = {
-  /** Currently active tab `value`. */
   value: string | null;
-  /** Fires when the user clicks (or keyboard-activates) a tab. */
   onChange: (value: string) => void;
-  /** "underline" shows the active-tab underline; "none" hides it. */
   indicator?: "underline" | "none";
-  /** Stack tabs vertically instead of in a row. */
   vertical?: boolean;
-  /**
-   * Icon position relative to the label inside each Tab.
-   * - `above` (default): icon-on-top + label-below (bottom-nav style)
-   * - `beside`: icon-on-left + label-right (page sub-tab style)
-   */
   iconLayout?: "above" | "beside";
-  /** Tailwind classes for the tablist container. */
   class?: string;
   containerRef?: Ref<HTMLDivElement>;
   children: ComponentChildren;
 };
 
-/**
- * A horizontal (or vertical) row of `<Tab>` children with an underline
- * indicator under the active one. Controlled — pass `value` + `onChange`.
- *
- * Built on Radix's accessible Tabs primitive: keyboard arrow navigation,
- * roving tabindex, ARIA `role="tab"`/`role="tablist"` are handled for us.
- * We add an `<Tab>` wrapper component for the icon + active-icon swap and
- * the underline indicator visuals.
- */
 export default function Tabs({
   value,
   onChange,
@@ -125,14 +82,7 @@ export default function Tabs({
   containerRef,
   children,
 }: TabsProps) {
-  // Icon size depends on layout — sparkle uses 21px for column (bottom-nav)
-  // and 16px for row (sub-tabs). Match them so the port lines up pixel-
-  // identical against main.
   const iconSize = iconLayout === "above" ? 21 : 16;
-  // Sliding-underline indicator. We measure the active trigger's offset +
-  // size on every value change and translate a single shared <div> to it.
-  // Sparkle's <s-tabs> did this with the same trick — gives the smooth
-  // glide-between-tabs animation that a per-tab ::after pseudo can't.
   const listRef = useRef<HTMLDivElement | null>(null);
   const [indicatorRect, setIndicatorRect] = useState<{
     x: number;
@@ -161,7 +111,6 @@ export default function Tabs({
       });
     };
     measure();
-    // Re-measure on container resize (responsive layout, sidebar collapse).
     const ro = new ResizeObserver(measure);
     ro.observe(list);
     return () => ro.disconnect();
@@ -200,10 +149,6 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    // duration-150 + Tailwind's default ease (cubic-bezier
-                    // (0.4,0,0.2,1)) matches main's tabs.css indicator slide
-                    // (--_duration 150ms, --_ease cubic-bezier(0.4,0,0.2,1)).
-                    // (No ease-out: that's cubic-bezier(0,0,0.2,1), wrong curve.)
                     "pointer-events-none absolute bg-tab-foreground transition-transform duration-150",
                     vertical
                       ? "left-auto right-0 w-0.5"
@@ -231,31 +176,15 @@ export default function Tabs({
 }
 
 export type TabProps = {
-  /** Identifier matched against the parent `<Tabs value>`. */
   value: string;
-  /** Icon component shown when this tab is inactive. */
   icon?: IconComponent;
-  /** Icon component shown when this tab is active. Falls back to `icon`. */
   activeIcon?: IconComponent;
   disabled?: boolean;
-  /** Tailwind classes for the tab button. */
   class?: string;
-  /**
-   * Optional Tailwind text-color class (e.g. `"text-warning-500"`).
-   * If set, this color is applied to BOTH the icon and label in
-   * BOTH active and inactive states — overriding the default
-   * `text-engine-500` / `text-foreground` coloring. Used to surface
-   * lint/diagnostic severity on a tab regardless of selection.
-   */
   color?: string;
   children: ComponentChildren;
 };
 
-/**
- * A single tab button. Active state, keyboard nav, and ARIA are handled by
- * RadixTabs.Trigger underneath. The visual styling (icon, active-icon swap,
- * underline indicator) is layered on top here.
- */
 export function Tab({
   value,
   icon,
@@ -266,23 +195,13 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  // Active icon/label color. `text-tab-foreground` is a muted off-white
-  // (rgb(242,242,242)) — softer than the pure-white header title. Matches
-  // sparkle s-tab's `active-text-color="tab-active-text"`.
   const activeColorClass = "text-tab-foreground";
-  // A `color` prop overrides BOTH active and inactive coloring — so a
-  // diagnostic-colored tab stays the same color regardless of selection.
   const inactiveColor = color || "text-engine-500";
   const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
-      {/* Radix injects data-state="active"|"inactive" on the rendered element.
-          We don't drive color on the button itself — instead each icon and
-          label has TWO copies (inactive / active) crossfaded via opacity, so
-          the transition runs on the compositor thread and survives a
-          main-thread stall (e.g. <se-assets> mounting hundreds of rows).
-          Using `asChild` lets us render a real <button> while still getting
-          Radix's keyboard/ARIA wiring. */}
+      {
+}
       <button
         type="button"
         class={cn(
@@ -298,9 +217,8 @@ export function Tab({
             class="relative inline-flex flex-col items-center justify-center"
             style={{ width: `${ctx.iconSize}px`, height: `${ctx.iconSize}px` }}
           >
-            {/* Inactive icon copy — visible by default, fades out on active.
-                No hover color change — matches the legacy s-tab behavior
-                (active state is the only color signal; hover is silent). */}
+            {
+}
             {icon ? (
               <span
                 class={cn(
@@ -321,7 +239,7 @@ export function Tab({
                 })()}
               </span>
             ) : null}
-            {/* Active icon copy — overlaid, fades in on active. */}
+            {}
             {(activeIcon ?? icon) ? (
               <span
                 class={cn(
@@ -344,12 +262,8 @@ export function Tab({
             ) : null}
           </span>
         )}
-        {/* sparkle's s-tab scaled the label 0.8 → 0.9 on activation ONLY in
-            column mode (bottom-nav) — row mode (top sub-tabs) renders the
-            label at 1.0× always. Mirror that so the bottom-nav label sizes
-            match main pixel-for-pixel without shrinking top-tab labels.
-            Transform runs on the compositor so this transition survives a
-            heavy mount, same as the icons. */}
+        {
+}
         <span
           class={cn(
             "relative inline-block leading-none transition-transform duration-100",
@@ -357,7 +271,7 @@ export function Tab({
               "scale-80 group-data-[state=active]:scale-90",
           )}
         >
-          {/* Inactive label copy — takes layout space, fades out on active. */}
+          {}
           <span
             class={cn(
               "group-data-[state=active]:opacity-0 transition-opacity duration-100",
@@ -366,10 +280,8 @@ export function Tab({
           >
             {children}
           </span>
-          {/* Active label copy — overlaid, fades in on active. Using opacity
-              (compositor) instead of color (paint) means the crossfade
-              continues smoothly even while the main thread is busy mounting
-              the new pane's DOM. */}
+          {
+}
           <span
             class={cn(
               "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
