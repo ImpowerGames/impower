@@ -636,6 +636,8 @@ export class SparkdownCombinedAnnotator {
           iteratingFrom,
           iteratingTo,
           new Set<keyof SparkdownAnnotators>(["validations"]),
+          undefined,
+          wide.from > 0 ? text.lineAt(wide.from - 1).from : 0,
         );
       }
     }
@@ -787,14 +789,6 @@ export class SparkdownCombinedAnnotator {
     compilations.markDocumentNamesChecked();
   }
 
-  /**
-   * Re-run the annotators over `[windowFrom, windowTo]` (to the end of the
-   * document when `windowTo` is undefined) and replace the annotations that
-   * window overlaps. `iteratingFrom` and `iteratingTo` are only reported to
-   * each annotator's `end`; the window alone bounds the walk. `changes`, when
-   * given, first maps the carried annotations through the edit; it is applied
-   * once per update.
-   */
   protected reannotate(
     tree: Tree,
     windowFrom: number,
@@ -803,10 +797,11 @@ export class SparkdownCombinedAnnotator {
     iteratingTo: number,
     annotate?: Set<keyof SparkdownAnnotators>,
     changes?: ChangeDesc,
+    walkFrom: number = windowFrom,
   ) {
     const filterTo = windowTo ?? Infinity;
     for (const [key, add] of Object.entries(
-      this.annotate(tree, windowFrom, windowTo, annotate),
+      this.annotate(tree, walkFrom, windowTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator: SparkdownAnnotator<SparkdownAnnotation<any>> =
