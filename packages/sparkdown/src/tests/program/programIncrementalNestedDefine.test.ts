@@ -39,12 +39,51 @@ describe("a declaration nested in a block or a function, compiled incrementally"
     ["a define whose method captures a function's local", inScene(["& local f = function()", "  local k = 2", "  define header with", "    function get() return k end", "  end", "end"])],
     ["a define whose method captures a function's parameter", inScene(["& local f = function(k)", "  define header with", "    function get() return k end", "  end", "end"])],
     ["a define in a named function whose method captures its parameter", ["function outer(k)", "  define header with", "    function get() return k end", "  end", "end", ...inScene([])]],
+    ["a define in a store's function whose method captures its parameter", ["store outer = function(k)", "  define header with", "    function get() return k end", "  end", "  return header", "end", ...inScene([])]],
+    ["a define in a const's function whose method captures its parameter", ["const outer = function(k)", "  define header with", "    function get() return k end", "  end", "  return header", "end", ...inScene([])]],
     ["a const holding a function", inScene(["if trust > 2 then", "  const LIMIT = function(n) return n end", "end"])],
     ["a store holding a function", inScene(["if trust > 2 then", "  store saved = function(n) return n end", "end"])],
   ])("builds %s and matches the cold compile after an edit in another scene", (_, rest) => {
     const result = editedElsewhere(rest);
     expect(result.built, "first, incremental and cold compiles built programs").toEqual([true, true, true]);
     expect(result.divergence).toBeUndefined();
+  });
+
+  it("matches the cold compile while a later define of the same name is removed and restored", () => {
+    const later = "\ndefine holder with\n  function get() return 99 end\nend\n";
+    let text = [
+      "function outer(k)",
+      "  local doubled = k * 2",
+      "  define holder with",
+      "    function get() return doubled end",
+      "  end",
+      "  return holder",
+      "end",
+      "scene start",
+      "  Opening line.",
+      "  & local h = outer(4)",
+      "  Holder says {h.get()}.",
+      "end",
+      "",
+    ].join("\n") + later;
+    const edits: ((t: string) => [number, number, string])[] = [
+      (t) => [t.indexOf(later), t.indexOf(later) + later.length, ""],
+      (t) => [t.indexOf("Opening line"), t.indexOf("Opening line") + "Opening line".length, "Opening line, edited"],
+      (t) => [t.length, t.length, later],
+      (t) => [t.indexOf("Opening line"), t.indexOf("Opening line") + "Opening line".length, "Opening line, edited"],
+    ];
+    quiet(() => {
+      const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
+      expect(!!c.compile().program.chunks, "the first compile built a program").toBe(true);
+      edits.forEach((edit, n) => {
+        const [from, to, insert] = edit(text);
+        text = update(c.compiler, text, n + 2, from, to, insert);
+        const incremental = surface(c.compile().program);
+        const cold = coldSurface(text);
+        expect([!!incremental.chunks, !!cold.chunks], `edit ${n + 1} built programs`).toEqual([true, true]);
+        expect(divergence(incremental, cold), `edit ${n + 1}`).toBeUndefined();
+      });
+    });
   });
 
   it("runs a define's method with the value its function captured, before and after an edit", () => {

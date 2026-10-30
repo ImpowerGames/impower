@@ -372,6 +372,13 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   for (const flow of flows) {
     flow.statements = withoutBodiesOf(flow.statements, globalFunctions);
   }
+  for (const declaration of out.declarations) {
+    if (declaration.bodies) {
+      (declaration as { bodies?: BodySource[] }).bodies = declaration.bodies.map(
+        (body) => withinBody(body, globalFunctions),
+      );
+    }
+  }
   out.declarations.push(...withoutBodiesOf(writes, globalFunctions));
   return out;
 };
@@ -384,23 +391,21 @@ const withoutBodiesOf = <T extends StatementSource>(
     if (!statement.bodies?.length) {
       return statement;
     }
-    let changed = false;
-    const bodies: BodySource[] = [];
-    for (const body of statement.bodies) {
-      if (body.fn && owned.has(body.fn)) {
-        changed = true;
-        continue;
-      }
-      const nested = withoutBodiesOf(body.statements, owned);
-      if (nested.some((s, i) => s !== body.statements[i])) {
-        changed = true;
-        bodies.push({ ...body, statements: nested });
-      } else {
-        bodies.push(body);
-      }
-    }
-    return changed ? { ...statement, bodies } : statement;
+    const bodies = statement.bodies
+      .filter((body) => !body.fn || !owned.has(body.fn))
+      .map((body) => withinBody(body, owned));
+    return bodies.length === statement.bodies.length &&
+      bodies.every((body, k) => body === statement.bodies![k])
+      ? statement
+      : { ...statement, bodies };
   });
+
+const withinBody = (body: BodySource, owned: ReadonlySet<ParsedObject>): BodySource => {
+  const statements = withoutBodiesOf(body.statements, owned);
+  return statements.every((statement, i) => statement === body.statements[i])
+    ? body
+    : { ...body, statements };
+};
 
 export class FlowEntry extends ParsedObject {
   constructor(
