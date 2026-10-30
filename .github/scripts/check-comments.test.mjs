@@ -99,6 +99,7 @@ try {
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 1;\n");
   const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
   write("src/licensed.ts", `${mpl}\nexport const l = 1;\n`);
+  write("src/escape.ts", "export const e = [\"\\u0001\"];\n");
   const base = commit("base");
 
   write("src/existing.ts", "export const a = 2; // legacy note kept from before the rule\n// re-asserts the border, since the normalize reset clears it\nexport const b = 2;\n");
@@ -118,7 +119,9 @@ try {
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
   write("src/licensed-copy.ts", `${mpl}\nexport const m = 1;\n`);
   write("src/licence-prose.ts", "export const p = 1;\n// keeps the copyright header because the generator depends on it\n");
+  write("src/escape.ts", "export const e = [\"\\u0001\", \"\\u001f\"];\n// prose beside a control-character escape\n");
   commit("head");
+  const caretNotation = (patch) => patch.replace(/\\u00([01][0-9a-f])/gi, (_, hex) => `\\^${String.fromCharCode(parseInt(hex, 16) + 64)}`);
 
   const records = [
     record(base, "src/existing.ts"),
@@ -138,6 +141,7 @@ try {
     { ...record(base, "src/unpatched-legacy.ts"), patch: undefined },
     record(base, "src/licensed-copy.ts", "added"),
     record(base, "src/licence-prose.ts", "added"),
+    { ...record(base, "src/escape.ts"), patch: caretNotation(record(base, "src/escape.ts").patch) },
   ];
   const result = checkComments({ root: checkout, records, mergeBase: base });
   const at = (file) => result.findings.filter((f) => f.file === file);
@@ -166,6 +170,7 @@ try {
   assert.deepEqual(at("src/unpatched-legacy.ts"), [], "a file without a patch keeps the comments its merge base held");
   assert.deepEqual(at("src/licensed-copy.ts"), [], "an added licence notice passes, even where the same notice is already in another file");
   assert.deepEqual(at("src/licence-prose.ts").map((f) => f.line), [2], "prose that mentions copyright is a finding");
+  assert.deepEqual(at("src/escape.ts").map((f) => f.line), [2], "a patch whose control-character escapes the listing rewrites in caret notation is still judged");
 
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/comment-check.yml"), "utf8");
   assert.match(workflow, /compare\/\$BASE_SHA\.\.\.\$HEAD_SHA" --jq '\.merge_base_commit\.sha'/, "the workflow takes the merge base the files endpoint diffs against");
