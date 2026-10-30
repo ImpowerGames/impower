@@ -111,6 +111,18 @@ interface CallSite {
   variant: "ghost" | "outline";
   label: string;
   classText: string;
+  unresolved: string[];
+}
+
+interface ClassSources {
+  text: string[];
+  unresolved: string[];
+}
+
+interface ParsedFile {
+  path: string;
+  source: ts.SourceFile;
+  constants: Map<string, ts.Expression>;
 }
 
 const tsxFiles = (dir: string): string[] =>
@@ -122,7 +134,25 @@ const tsxFiles = (dir: string): string[] =>
     return entry.name.endsWith(".tsx") ? [path] : [];
   });
 
-const literalText = (node: ts.Node): string[] => {
+const parseFile = (path: string): ParsedFile => {
+  const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const constants = new Map<string, ts.Expression>();
+  const collect = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      constants.set(node.name.text, node.initializer);
+    }
+    node.forEachChild(collect);
+  };
+  collect(source);
+  return { path, source, constants };
+};
+
+const classSources = (file: ParsedFile, node: ts.Node, seen = new Set<string>()): ClassSources => {
+  const result: ClassSources = { text: [], unresolved: [] };
+  const add = (other: ClassSources) => {
+    result.text.push(...other.text);
+    result.unresolved.push(...other.unresolved);
+  };
   if (
     ts.isStringLiteral(node) ||
     ts.isNoSubstitutionTemplateLiteral(node) ||
@@ -130,45 +160,114 @@ const literalText = (node: ts.Node): string[] => {
     ts.isTemplateMiddle(node) ||
     ts.isTemplateTail(node)
   ) {
-    return [node.text];
+    result.text.push(node.text);
+  } else if (ts.isConditionalExpression(node)) {
+    add(classSources(file, node.whenTrue, seen));
+    add(classSources(file, node.whenFalse, seen));
+  } else if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    add(classSources(file, node.right, seen));
+  } else if (ts.isElementAccessExpression(node) || ts.isPropertyAccessExpression(node)) {
+    add(classSources(file, node.expression, seen));
+  } else if (ts.isPropertyAssignment(node)) {
+    add(classSources(file, node.initializer, seen));
+  } else if (ts.isIdentifier(node)) {
+    const constant = file.constants.get(node.text);
+    if (constant && !seen.has(node.text)) {
+      add(classSources(file, constant, new Set([...seen, node.text])));
+    } else if (!constant) {
+      result.unresolved.push(node.text);
+    }
+  } else {
+    node.forEachChild((child) => add(classSources(file, child, seen)));
   }
-  const parts: string[] = [];
-  node.forEachChild((child) => {
-    parts.push(...literalText(child));
-  });
-  return parts;
+  return result;
+};
+
+const jsxAttribute = (file: ParsedFile, node: ts.JsxOpeningElement | ts.JsxSelfClosingElement, name: string) =>
+  node.attributes.properties.find(
+    (p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText(file.source) === name,
+  );
+
+const locationOf = (file: ParsedFile, node: ts.Node) => {
+  const { line } = file.source.getLineAndCharacterOfPosition(node.getStart(file.source));
+  return `${relative(resolve(".."), file.path).split("\\").join("/")}:${line + 1}`;
+};
+
+const classPropOf = (node: ts.Node): { component: string; local: string } | undefined => {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isFunctionDeclaration(parent) && parent.name) {
+      const props = parent.parameters[0]?.name;
+      if (!props || !ts.isObjectBindingPattern(props)) {
+        return undefined;
+      }
+      for (const element of props.elements) {
+        const prop = (element.propertyName ?? element.name).getText();
+        if ((prop === "class" || prop === "className") && ts.isIdentifier(element.name)) {
+          return { component: parent.name.text, local: element.name.text };
+        }
+      }
+      return undefined;
+    }
+  }
+  return undefined;
 };
 
 const unfilledCallSites = (): CallSite[] => {
   const roots = [resolve("src"), resolve("../packages/impower-ui/src")];
+  const files = roots.flatMap(tsxFiles).map(parseFile);
   const sites: CallSite[] = [];
-  for (const file of roots.flatMap(tsxFiles)) {
-    const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const wrappers: { component: string; local: string; site: CallSite }[] = [];
+  for (const file of files) {
     const visit = (node: ts.Node) => {
       if (
         (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-        node.tagName.getText(source) === "Button"
+        node.tagName.getText(file.source) === "Button"
       ) {
-        const attribute = (name: string) =>
-          node.attributes.properties.find(
-            (p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText(source) === name,
-          );
-        const variant = attribute("variant")?.initializer;
+        const variant = jsxAttribute(file, node, "variant")?.initializer;
         if (variant && ts.isStringLiteral(variant) && (variant.text === "ghost" || variant.text === "outline")) {
-          const classInit = (attribute("class") ?? attribute("className"))?.initializer;
-          const labelInit = attribute("aria-label")?.initializer;
-          const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
-          sites.push({
-            location: `${relative(resolve(".."), file).split("\\").join("/")}:${line + 1}`,
+          const classInit = (jsxAttribute(file, node, "class") ?? jsxAttribute(file, node, "className"))?.initializer;
+          const labelInit = jsxAttribute(file, node, "aria-label")?.initializer;
+          const sources = classInit ? classSources(file, classInit) : { text: [], unresolved: [] };
+          const site: CallSite = {
+            location: locationOf(file, node),
             variant: variant.text,
             label: labelInit && ts.isStringLiteral(labelInit) ? labelInit.text : "",
-            classText: classInit ? literalText(classInit).join(" ") : "",
-          });
+            classText: sources.text.join(" "),
+            unresolved: sources.unresolved,
+          };
+          const prop = classPropOf(node);
+          if (prop && site.unresolved.includes(prop.local)) {
+            wrappers.push({ ...prop, site });
+          } else {
+            sites.push(site);
+          }
         }
       }
       node.forEachChild(visit);
     };
-    visit(source);
+    visit(file.source);
+  }
+  for (const wrapper of wrappers) {
+    for (const file of files) {
+      const visit = (node: ts.Node) => {
+        if (
+          (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+          node.tagName.getText(file.source) === wrapper.component
+        ) {
+          const classInit = (jsxAttribute(file, node, "class") ?? jsxAttribute(file, node, "className"))?.initializer;
+          const sources = classInit ? classSources(file, classInit) : { text: [], unresolved: [] };
+          sites.push({
+            location: `${locationOf(file, node)} via ${wrapper.site.location}`,
+            variant: wrapper.site.variant,
+            label: wrapper.site.label,
+            classText: `${wrapper.site.classText} ${sources.text.join(" ")}`,
+            unresolved: [...wrapper.site.unresolved.filter((name) => name !== wrapper.local), ...sources.unresolved],
+          });
+        }
+        node.forEachChild(visit);
+      };
+      visit(file.source);
+    }
   }
   return sites;
 };
@@ -180,6 +279,19 @@ describe("ghost and outline Button call sites", () => {
 
   it("finds the call sites", () => {
     expect(unfilledCallSites().length).toBeGreaterThan(50);
+  });
+
+  it("read every call site's classes, through constants and wrapper components", () => {
+    const sites = unfilledCallSites();
+    expect(
+      sites.filter(({ unresolved }) => unresolved.length > 0).map(({ location, unresolved }) => `${location}: ${unresolved.join(", ")}`),
+    ).toEqual([]);
+    const options = sites.filter(({ location }) => location.includes("FileOptionsButton.tsx"));
+    expect(options.length).toBe(2);
+    expect(options.every(({ classText }) => classText.includes("text-foreground/50"))).toBe(true);
+    const throughWrapper = sites.filter(({ location }) => location.includes(" via ") && location.includes("OptionButton.tsx"));
+    expect(throughWrapper.length).toBeGreaterThan(0);
+    expect(throughWrapper.every(({ classText }) => classText.includes("text-foreground/80"))).toBe(true);
   });
 
   it("leave no hover or press background in the merged classes", () => {
