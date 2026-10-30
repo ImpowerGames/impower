@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { treeStopped, treeSurvivors, windowsProcessTable } from "../.agents/skills/drive-web-editor/driver.mjs";
+import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skill = path.join(here, "..", ".agents", "skills", "drive-web-editor");
@@ -46,6 +48,13 @@ for (const [dir, role] of [["impower-dev", "editor"], ["sparkdown-player-app", "
 
 const baseEnv = { ...process.env };
 for (const name of ["EDITOR_PORT", "PLAYER_PORT", "HMR_PORT", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete baseEnv[name];
+const driverEnv = { ...baseEnv, IMPOWER_DRIVER_HOME: path.join(scratch, "home"), IMPOWER_DRIVER_SESSION: "dev-preview-test" };
+const stateFile = path.join(sessionDir({ root: repo, session: "dev-preview-test", env: driverEnv }), "state.json");
+const record = () => JSON.parse(fs.readFileSync(stateFile, "utf8"));
+const runDriver = (file, ...args) => {
+  const result = spawnSync(process.execPath, [driver, ...args], { cwd: repo, encoding: "utf8", windowsHide: true, timeout: 180_000, env: { ...driverEnv, DEV_PREVIEW_ROWS: file } });
+  return { status: result.status, out: `${result.stdout ?? ""}${result.stderr ?? ""}` };
+};
 let runs = 0;
 const rowsFile = () => path.join(scratch, `rows-${++runs}.jsonl`);
 const rows = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : []);
@@ -64,8 +73,8 @@ const collect = (child) => {
 };
 const exitOf = (child) => new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
 const within = (promise, ms) => Promise.race([promise, sleep(ms).then(() => null)]);
-function startLauncher(file) {
-  const child = spawn(process.execPath, [launcher, "--mode", "same-origin"], {
+function startLauncher(file, args = []) {
+  const child = spawn(process.execPath, [launcher, "--mode", "same-origin", ...args], {
     cwd: repo,
     env: { ...baseEnv, DEV_PREVIEW_ROWS: file },
     stdio: ["ignore", "pipe", "pipe"],
@@ -168,6 +177,34 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
+  if (IS_WIN || process.platform === "linux") {
+    await check("a launcher with an idle exit stops its tree once no client is connected, and not while one is", async () => {
+      const file = rowsFile();
+      const run = startLauncher(file, ["--idle-exit-seconds", "10"]);
+      let before = null;
+      try {
+        await serving(file, run.output, true);
+        const port = Number(run.output().match(/editor\s+http:\/\/localhost:(\d+)/)?.[1]);
+        assert.ok(port > 0, `the launcher printed no editor port:\n${run.output()}`);
+        const client = net.connect({ port, host: "localhost" });
+        await new Promise((resolve, reject) => { client.once("connect", resolve); client.once("error", (error) => reject(new Error(`the client could not connect to the fixture editor: ${error.message}\n${run.output()}`))); });
+        if (IS_WIN) before = await census(run.child.pid);
+        assert.equal(await within(run.exited, 14_000), null, `the launcher stopped while a client was connected:\n${run.output()}`);
+        client.destroy();
+        assert.deepEqual(await within(run.exited, 40_000), { code: 0, signal: null }, `the launcher did not stop itself once the client left:\n${run.output()}`);
+        assert.match(run.output(), /Idle exit: no client held a connection to the servers for 10 s/);
+        if (before) await assertTreeGone(before, run.child.pid, run.output());
+      } finally {
+        if (run.child.exitCode === null) {
+          if (!IS_WIN) try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
+          else if (!censused(run.child.pid)) stopTree(run.child.pid);
+        }
+      }
+    });
+  } else {
+    console.log("SKIP: the idle exit reads the TCP table through netstat or ss, which only Windows and Linux supply");
+  }
+
   if (IS_WIN) {
     await check("a launcher killed outright leaves no process of its tree running", async () => {
       const file = rowsFile();
@@ -214,21 +251,31 @@ try {
 
     await check("killing the driver's wrapper without its tree leaves no process of that tree running", async () => {
       const file = rowsFile();
-      const up = spawnSync(process.execPath, [driver, "up"], {
-        cwd: repo,
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 180_000,
-        env: { ...baseEnv, DEV_PREVIEW_ROWS: file, IMPOWER_DRIVER_HOME: path.join(scratch, "home"), IMPOWER_DRIVER_SESSION: "dev-preview-test" },
-      });
-      const out = `${up.stdout ?? ""}${up.stderr ?? ""}`;
+      const { out } = runDriver(file, "up");
       const pid = Number(out.match(/launching dev servers \(same-origin\) pid (\d+)/)?.[1]);
       assert.ok(pid > 0, `up named no launcher pid:\n${out}`);
       const before = await census(pid);
       assert.match(out, /READY/, out);
+      assert.match(out, /stop themselves after 15 min without a browser connection/, out);
+      assert.equal(record().idleExitSeconds, 900, "up did not record the launcher's idle exit");
       await serving(file);
       process.kill(pid);
       await assertTreeGone(before, pid, out);
+    });
+
+    await check("up --keep starts a launcher with no idle exit, and down stops its tree", async () => {
+      const file = rowsFile();
+      const { out } = runDriver(file, "up", "--keep");
+      const pid = Number(out.match(/launching dev servers \(same-origin\) pid (\d+)/)?.[1]);
+      assert.ok(pid > 0, `up --keep named no launcher pid:\n${out}`);
+      const before = await census(pid);
+      assert.match(out, /READY/, out);
+      assert.doesNotMatch(out, /stop themselves/, out);
+      assert.equal(record().idleExitSeconds, undefined, "up --keep recorded an idle exit");
+      await serving(file);
+      const down = runDriver(file, "down");
+      assert.equal(down.status, 0, down.out);
+      await assertTreeGone(before, pid, `${out}\n${down.out}`);
     });
     console.log("SKIP: SIGHUP from a signal; Windows delivers a terminal close as CTRL_CLOSE_EVENT, checked above through a pseudo-console");
   } else {

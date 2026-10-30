@@ -138,6 +138,8 @@ function pidAlive(pid, kill = process.kill) {
 
 const READY_WAIT_MS = 15 * 60_000;
 
+const IDLE_EXIT_SECONDS = 15 * 60;
+
 const LAUNCH_SLACK_MS = 60_000;
 const START_GRAIN_MS = 2_000;
 async function recordStands(record, probe = liveProbe) {
@@ -434,12 +436,13 @@ export async function up(args) {
   removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
+  const idleExitSeconds = args.includes("--keep") ? null : IDLE_EXIT_SECONDS;
   const ports = await pickPorts();
   const url = `http://localhost:${ports.editor}`;
 
   const child = spawnDetached(
     process.execPath,
-    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode],
+    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode, ...(idleExitSeconds === null ? [] : ["--idle-exit-seconds", String(idleExitSeconds)])],
     {
       cwd: REPO_ROOT,
       env: {
@@ -455,9 +458,10 @@ export async function up(args) {
   observeLauncherExit(child);
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION, ...(idleExitSeconds === null ? {} : { idleExitSeconds }) });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
+  if (idleExitSeconds !== null) log(`the servers stop themselves after ${idleExitSeconds / 60} min without a browser connection; \`up\` starts them again, and \`up --keep\` launches servers that keep running`);
   await waitReady(url, mode);
 }
 
@@ -781,7 +785,7 @@ async function reportFreshWorker(...args) {
   return worker.reportFreshWorker(...args);
 }
 
-async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
   const record = state();
   if (!record?.url)
     die(
@@ -791,6 +795,11 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
         "whose values are baked into each bundle at build time, so a reload cannot fix a mismatched one.",
     );
   const { url } = record;
+  if (!(await probe(url)))
+    die(
+      `the recorded servers at ${url} (pid ${record.pid}) are not answering${record.idleExitSeconds ? `; they stop themselves after ${record.idleExitSeconds / 60} min without a browser connection` : ""}. ` +
+        "Run `up` to start them again (`up --keep` launches servers that keep running); `status` shows the record, and `down` removes one whose launcher has exited.",
+    );
   const mode = record.mode ?? "same-origin";
   const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
@@ -3442,7 +3451,7 @@ switch (cmd) {
         "usage: node .agents/skills/drive-web-editor/driver.mjs <command>",
         "",
         "  preflight [--tooling-only]  check disk headroom, playwright, gh auth BEFORE doing work; --tooling-only skips the browser and install probes",
-        "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
+        "  up [--cross-origin] [--keep]   boot both dev servers, wait for ready, record the URL; they stop themselves after 15 min without a browser connection unless --keep",
         "  status [--all]        is it up? prints the editor URL (--all: every session's servers for this checkout)",
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",

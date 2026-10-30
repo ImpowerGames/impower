@@ -451,6 +451,12 @@ check("the missing-record refusal names the hand-launch that renders the preview
   carriesAdvice("no editor URL", "baked into each bundle at build time");
 });
 
+check("the silent-record refusal names the idle stop, the relaunch and the record's cleanup", () => {
+  carriesAdvice("are not answering", "stop themselves after");
+  carriesAdvice("are not answering", "up` to start them again");
+  carriesAdvice("are not answering", "down` removes one whose launcher has exited");
+});
+
 check("a seed refused because the editor remembers another project names how to forget it", () => {
   carriesAdvice("the seed does not write to; nothing was written", 'localStorage.removeItem("project")');
 });

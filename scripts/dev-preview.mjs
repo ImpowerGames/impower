@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
+import { execFile, spawn, spawnSync } from "node:child_process";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -156,8 +156,90 @@ function parseMode() {
   return mode;
 }
 
+function parseIdleExitSeconds() {
+  const i = process.argv.indexOf("--idle-exit-seconds");
+  if (i < 0) return null;
+  const seconds = Number(process.argv[i + 1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    process.stderr.write(`--idle-exit-seconds needs a positive number of seconds, not "${process.argv[i + 1]}".\n`);
+    process.exit(1);
+  }
+  return seconds;
+}
+
+const portOf = (address) => Number(address.slice(address.lastIndexOf(":") + 1));
+
+function parseNetstat(text) {
+  const listeners = [];
+  const established = [];
+  for (const line of text.split(/\r?\n/)) {
+    const [proto, local, foreign, state, pid] = line.trim().split(/\s+/);
+    if (proto !== "TCP") continue;
+    if (state === "LISTENING") listeners.push({ port: portOf(local), pid: Number(pid) });
+    else if (state === "ESTABLISHED") established.push({ localPort: portOf(local), foreignPort: portOf(foreign), pid: Number(pid) });
+  }
+  return { listeners, established };
+}
+
+function parseSs(text) {
+  const listeners = [];
+  const established = [];
+  for (const line of text.split(/\r?\n/)) {
+    const [state, , , local, peer, ...rest] = line.trim().split(/\s+/);
+    if (!local || !peer) continue;
+    const pid = Number(/pid=(\d+)/.exec(rest.join(" "))?.[1] ?? NaN);
+    if (state === "LISTEN") listeners.push({ port: portOf(local), pid });
+    else if (state === "ESTAB") established.push({ localPort: portOf(local), foreignPort: portOf(peer), pid });
+  }
+  return { listeners, established };
+}
+
+const CENSUS = IS_WIN
+  ? { command: "netstat", args: ["-ano"], parse: parseNetstat }
+  : process.platform === "linux"
+    ? { command: "ss", args: ["-Htnap"], parse: parseSs }
+    : null;
+
+function readConnections() {
+  if (!CENSUS) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    execFile(CENSUS.command, CENSUS.args, { encoding: "utf8", windowsHide: true, timeout: 20_000, maxBuffer: 64 * 1024 * 1024 }, (error, stdout) => {
+      resolve(error ? null : CENSUS.parse(stdout));
+    });
+  });
+}
+
+function clientConnections(table, ports) {
+  const servers = new Set(table.listeners.filter((row) => ports.includes(row.port) && Number.isInteger(row.pid)).map((row) => row.pid));
+  return table.established.filter((row) => (ports.includes(row.localPort) || ports.includes(row.foreignPort)) && !servers.has(row.pid));
+}
+
+function stopWhenIdle(seconds, ports) {
+  const pollMs = Math.max(250, Math.min(30_000, (seconds * 1000) / 4));
+  let idleSince = Date.now();
+  let censusFailed = false;
+  const poll = async () => {
+    if (shuttingDown) return;
+    const table = await readConnections();
+    if (table === null || !table.listeners.some((row) => ports.includes(row.port))) {
+      if (!censusFailed) process.stdout.write(`\n  ! Idle exit suspended: the connection census (${CENSUS ? CENSUS.command : process.platform}) ${table === null ? "is unavailable" : "does not list the servers"}.\n\n`);
+      censusFailed = true;
+      idleSince = Date.now();
+    } else if (clientConnections(table, ports).length) {
+      idleSince = Date.now();
+    } else if (Date.now() - idleSince >= seconds * 1000) {
+      process.stdout.write(`\n  Idle exit: no client held a connection to the servers for ${seconds} s; stopping both.\n\n`);
+      shutdown(0);
+      return;
+    }
+    setTimeout(poll, pollMs);
+  };
+  setTimeout(poll, pollMs);
+}
+
 async function main() {
   const mode = parseMode();
+  const idleExitSeconds = parseIdleExitSeconds();
   if (IS_WIN) {
     const problem = joinKillOnCloseJob();
     if (problem) {
@@ -217,8 +299,10 @@ async function main() {
         (mode === "same-origin"
           ? " (game DOM reachable via window.__preview)\n"
           : "\n") +
-        `    (Ctrl+C stops both servers.)\n\n`,
+        `    (Ctrl+C stops both servers.)\n` +
+        (idleExitSeconds === null ? "\n" : `    (They stop themselves after ${idleExitSeconds} s without a client connection.)\n\n`),
     );
+    if (idleExitSeconds !== null) stopWhenIdle(idleExitSeconds, [editorPort, playerPort, hmrPort]);
   } else {
     process.stdout.write(
       `\n  ! Editor did not become ready within the timeout — check the logs above.\n\n`,
