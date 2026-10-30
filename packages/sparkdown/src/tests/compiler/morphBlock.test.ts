@@ -1631,7 +1631,7 @@ end
     expect(parseMorphRecipe(recipeText(text))).toEqual(JSON.parse(recipeText(text)));
   });
 
-  test.each(["2", "1em", "wide"])("`spread = %s` is reported on its value", (value) => {
+  test.each(["2", "1em", "wide", "1e999px"])("`spread = %s` is reported on its value", (value) => {
     const found = errors(CLIPPED(`; spread = ${value}`));
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ text: value, severity: 1 });

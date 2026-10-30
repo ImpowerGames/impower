@@ -104,7 +104,8 @@ export function parseMorphSpread(value: unknown): number | undefined {
   if (value === 0) return 0;
   if (typeof value !== "string") return undefined;
   const match = /^([-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?)px$/i.exec(value.trim());
-  return match ? Number(match[1]) || 0 : undefined;
+  const pixels = match ? Number(match[1]) : NaN;
+  return Number.isFinite(pixels) ? pixels || 0 : undefined;
 }
 
 export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "opacity", "span"] as const;
