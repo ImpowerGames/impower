@@ -210,7 +210,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("/**\n * @param {string} a the name\n * @returns {number}\n */", "src/a.js"), "directive");
     assert.equal(kind("/**\n * Describes the function.\n * @param {string} a\n */", "src/a.js"), "refused");
     assert.equal(kind("// value-level: the token carries the flag"), "directive");
-    assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
+    assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive", "packages/eslint-plugin-sparkdown-grammar/src/rules/lookaround-needs-rival-comment.ts reads the justification");
+    assert.equal(kind("# referenced-from: packages/a/src/b.ts", "definitions/yaml/g.yaml"), "directive", "packages/eslint-plugin-sparkdown-grammar/src/rules/no-unreferenced-rule.ts and no-unreferenced-variable.ts read the marker");
+    assert.equal(kind("# referenced-from:", "definitions/yaml/g.yaml"), "refused");
     assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
     assert.equal(kind("<!-- prettier-ignore -->", "a.html"), "directive");
     assert.equal(kind("// @vitest-environment jsdom", "src/a.test.ts"), "directive");
@@ -254,6 +256,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
+    const grammar = "# prose above\n# lookaround: steps aside for\n  # LuauRival, since it\n#\n# owns the suffix\nA:\n  match: x # trailing\n# lookaround: Rival\nB: 1\n# after code\n# lookaround: inside a comment\n";
+    assert.deepEqual(refusedLines(grammar, "definitions/yaml/g.yaml"), [1, 7, 10], "packages/eslint-plugin-sparkdown-grammar/src/utils/grammar-index.ts markedComment reads from a lookaround: line to the end of its block of whole-line comments, so those lines are the directive");
+    assert.deepEqual(refusedLines("// lookaround: x\n// more\nexport {};\n"), [1, 2], "the through-block form is a YAML directive only");
     const luau = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n//\n// The clone walks each type once.\nexport {};\n";
     assert.deepEqual(refusedLines(luau), [3, 4], "a paragraph of line comments holding a notice form is kept whole, and the paragraph after an empty comment line is judged alone");
     assert.deepEqual(refusedLines("// Constraints, ported from Luau's `Constraint.h`; Luau is\n// MIT-licensed (see `LICENSE-luau.txt`). The generator emits\n// one per relationship.\nexport {};\n"), [], "a licence file token on a later line covers its paragraph");

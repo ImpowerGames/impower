@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
-const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions, throughBlock: d.throughBlock === true }));
 const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
@@ -832,12 +832,21 @@ function directiveLine(line, extension) {
   return directives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
 }
 
+function throughBlockLine(line, extension) {
+  return line !== undefined && directives.some((d) => d.throughBlock && (!d.extensions || d.extensions.includes(extension)) && d.form.test(line));
+}
+
 export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
   const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
-  let previous = null;
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  let previous = null, block = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
+    if (block && single(comment) && comment.line === previous.endLine + 1) {
+      if (comment.kind === "refused") Object.assign(comment, { kind: "directive", reason: `continues the directive on line ${block.line}, whose reader takes the rest of its comment block` });
+    } else block = null;
+    if (!block && comment.kind === "directive" && single(comment) && throughBlockLine(bodyLines(comment.text)[0], extension)) block = comment;
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
