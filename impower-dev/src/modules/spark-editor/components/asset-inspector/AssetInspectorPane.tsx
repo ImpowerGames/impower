@@ -47,7 +47,7 @@ export default function AssetInspectorPane() {
           variant="ghost"
           aria-label="Close inspector"
           onClick={() => inspectAsset(null)}
-          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
         >
           <X class="size-4" />
         </Button>

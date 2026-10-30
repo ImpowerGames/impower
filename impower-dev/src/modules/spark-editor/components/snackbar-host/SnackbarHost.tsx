@@ -38,7 +38,7 @@ export default function SnackbarHost() {
               shown.onAction?.();
               dismissSnackbar();
             }}
-            class="h-7 flex-none rounded px-2 text-sm font-medium text-primary hover:bg-primary/10"
+            class="h-7 flex-none rounded px-2 text-sm font-medium text-primary"
           >
             {shown.actionLabel}
           </Button>
