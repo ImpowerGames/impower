@@ -3,6 +3,7 @@ import { own, table } from "./own";
 import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyframes";
 import {
   MORPH_BLENDS,
+  MORPH_CLIP_SPREAD_DEFAULT,
   MORPH_FALLBACKS,
   MORPH_DEPTH_REST,
   MORPH_METHODS,
@@ -11,6 +12,7 @@ import {
   parseMorphPartner,
   parseMorphQualifiedState,
   parseMorphSpan,
+  parseMorphSpread,
 } from "../compiler/morph/morphSchema";
 import type {
   MorphBlend,
@@ -114,7 +116,9 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
       if (!isRecord(clip)) continue;
       const between = labels(clip["between"]);
       const targets = labels(clip["targets"]);
-      if (between.length && targets.length) clips.push({ between, targets });
+      const spread = clip["spread"] === undefined ? MORPH_CLIP_SPREAD_DEFAULT : parseMorphSpread(clip["spread"]);
+      if (!between.length || !targets.length || spread === undefined) continue;
+      clips.push({ between, targets, ...(spread === MORPH_CLIP_SPREAD_DEFAULT ? {} : { spread }) });
     }
   }
   const named = new Map<string, Set<string>>();
@@ -181,6 +185,11 @@ export function parseMorphRecipe(text: string): MorphRecipe | undefined {
   if (!isRecord(value) || typeof value["name"] !== "string") return undefined;
   const recipe = buildMorphRecipe(value["name"], {
     ...value,
+    clips: Array.isArray(value["clips"])
+      ? value["clips"].map((clip) =>
+          isRecord(clip) && typeof clip["spread"] === "number" ? { ...clip, spread: `${clip["spread"]}px` } : clip,
+        )
+      : value["clips"],
     keyframes: Array.isArray(value["keyframes"])
       ? value["keyframes"].map((k) => {
           if (!isRecord(k)) return {};
