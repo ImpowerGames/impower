@@ -17,7 +17,7 @@ export function testScratch(prefix, from) {
   return dir;
 }
 
-const NOT_JOB_STATE = /^(?:reviewer-.*|codex-home-.*|gh-config-.*|\.git|node_modules|npm-cache|\.npm|_cacache)$/;
+export const NOT_JOB_STATE = /^(?:reviewer-.*|codex-home-.*|gh-config-.*|\.git|node_modules|npm-cache|\.npm|_cacache)$/;
 const vanished = (error) => error.code === "ENOENT" || error.code === "ENOTDIR";
 export function reviewJobFiles(jobDir) {
   const files = [];
