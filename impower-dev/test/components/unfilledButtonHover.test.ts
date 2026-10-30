@@ -109,6 +109,7 @@ describe.each(["ghost", "outline"] as const)(
 interface CallSite {
   location: string;
   variant: "ghost" | "outline";
+  label: string;
   classText: string;
 }
 
@@ -155,10 +156,12 @@ const unfilledCallSites = (): CallSite[] => {
         const variant = attribute("variant")?.initializer;
         if (variant && ts.isStringLiteral(variant) && (variant.text === "ghost" || variant.text === "outline")) {
           const classInit = (attribute("class") ?? attribute("className"))?.initializer;
+          const labelInit = attribute("aria-label")?.initializer;
           const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
           sites.push({
             location: `${relative(resolve(".."), file).split("\\").join("/")}:${line + 1}`,
             variant: variant.text,
+            label: labelInit && ts.isStringLiteral(labelInit) ? labelInit.text : "",
             classText: classInit ? literalText(classInit).join(" ") : "",
           });
         }
@@ -191,7 +194,9 @@ describe("ghost and outline Button call sites", () => {
   });
 
   it("compose a real caller's classes without a hover or press background rule", async () => {
-    const caller = unfilledCallSites().find(({ location }) => location.includes("AudioPreview.tsx"));
+    const caller = unfilledCallSites().find(
+      ({ location, label }) => location.includes("AudioPreview.tsx") && label === "Loop",
+    );
     expect(caller).toBeDefined();
     const merged = twMerge(buttonVariants({ variant: caller!.variant }), caller!.classText)
       .split(/\s+/)
