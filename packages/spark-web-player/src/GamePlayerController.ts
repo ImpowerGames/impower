@@ -182,6 +182,12 @@ const reportUnlessRestarted = (e: unknown) => {
   }
 };
 
+interface PlayOutcome {
+  started: boolean;
+  refusal?: string;
+  previewShown?: boolean;
+}
+
 interface WorkerPlay {
   program: SparkProgram;
   state: "starting" | "running";
@@ -190,6 +196,7 @@ interface WorkerPlay {
   stepped: number;
   startSent?: boolean;
   finished?: boolean;
+  exitClaimed?: boolean;
 }
 
 export interface GamePlayerRefs {
@@ -235,6 +242,7 @@ export class GamePlayerController {
   _debugging = false;
   _program?: SparkProgram;
   _playRefusal?: string;
+  protected _lastStartedRun?: WorkerPlay;
   private _mounted = false;
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
@@ -485,9 +493,6 @@ export class GamePlayerController {
     this._playRefusal = refusal;
     if (refusal) {
       this._resolveLoadingInitialProgram();
-      if (this._workerPlay && !this._workerPlay.startSent) {
-        this.endWorkerPlay().catch((e) => reportUnlessRestarted(e));
-      }
     }
     const button = this.refs.playButton;
     if (!button) {
@@ -1593,11 +1598,12 @@ export class GamePlayerController {
   };
 
   protected handleStartGame = async (message: StartGameMessage.Request) => {
-    if (!this._playRefusal) {
+    const hid = !this._playRefusal;
+    if (hid) {
       this.hidePlayButton();
     }
-    const success = await this.startGameAndApp();
-    if (!success && this._playRefusal) {
+    const { started: success, refusal } = await this.startPlay();
+    if (!success && refusal && hid) {
       this.showPlayButton();
     }
     this.updateLaunchStateIcon();
@@ -1606,7 +1612,7 @@ export class GamePlayerController {
       : StartGameMessage.type.error(message.id, {
           code: 1,
           message:
-            this._playRefusal ??
+            refusal ??
             (!isRunnableProgram(this._program)
               ? "The program contains errors that prevent it from being compiled"
               : `The game could not be started`),
@@ -1619,12 +1625,12 @@ export class GamePlayerController {
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    const restarted = await this.restartGame();
-    return restarted || !this._playRefusal
+    const { started, refusal } = await this.restartPlay();
+    return started || !refusal
       ? RestartGameMessage.type.response(message.id, {})
       : RestartGameMessage.type.error(message.id, {
           code: 1,
-          message: this._playRefusal,
+          message: refusal,
         });
   };
 
@@ -2079,8 +2085,15 @@ export class GamePlayerController {
   protected _plays = 0;
 
   async startGameAndApp(restarted?: boolean) {
-    if (this._disposed || this._playRefusal) {
-      return false;
+    return (await this.startPlay(restarted)).started;
+  }
+
+  protected async startPlay(restarted?: boolean): Promise<PlayOutcome> {
+    if (this._disposed) {
+      return { started: false };
+    }
+    if (this._playRefusal) {
+      return { started: false, refusal: this._playRefusal };
     }
     const plays = ++this._plays;
     const stops = this._stops;
@@ -2088,7 +2101,7 @@ export class GamePlayerController {
     if (!this._program) {
       await this.loadingInitialProgram;
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
-        return false;
+        return { started: false };
       }
     }
     const afterRestart = this._programAfterRestart;
@@ -2105,21 +2118,30 @@ export class GamePlayerController {
         this._programAfterRestart = undefined;
       }
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
-        return false;
+        return { started: false };
       }
     }
-    if (!this._program || this._playRefusal) {
-      return false;
+    if (this._playRefusal) {
+      return { started: false, refusal: this._playRefusal };
     }
     const link = workspace?.gameLink;
-    if (!link) {
-      return false;
+    if (!this._program || !link) {
+      return { started: false };
     }
-    const started = await this.startWorkerPlay(this._program, link, restarted);
-    if (!started && this._playRefusal && plays === this._plays) {
-      await this.showPreviewAfterRefusal();
+    const refused: { refusal?: string } = {};
+    const started = await this.startWorkerPlay(
+      this._program,
+      link,
+      restarted,
+      refused,
+    );
+    if (refused.refusal) {
+      if (plays === this._plays) {
+        await this.showPreviewAfterRefusal();
+      }
+      return { started: false, refusal: refused.refusal, previewShown: true };
     }
-    return started;
+    return { started };
   }
 
   protected async showPreviewAfterRefusal() {
@@ -2134,6 +2156,7 @@ export class GamePlayerController {
     program: SparkProgram,
     link: WorkerGameLink,
     restarted?: boolean,
+    refused?: { refusal?: string },
   ): Promise<boolean> {
     const play: WorkerPlay = { program, state: "starting", stepped: 0 };
     this._workerPlay = play;
@@ -2219,7 +2242,14 @@ export class GamePlayerController {
         current,
         play,
       );
-      if (!current()) {
+      const refusal = this._playRefusal;
+      if (!current() || refusal) {
+        if (refusal && current()) {
+          this._workerPlay = undefined;
+          if (refused) {
+            refused.refusal = refusal;
+          }
+        }
         if (play.sink) {
           link.detach(play.sink);
         }
@@ -2235,6 +2265,7 @@ export class GamePlayerController {
       const seconds = play.stepped;
       play.stepped = 0;
       play.startSent = true;
+      this._lastStartedRun = play;
       await link.request(StartPlayMessage.type, {
         run: play.run!,
         paused: workerPaused,
@@ -2404,6 +2435,9 @@ export class GamePlayerController {
     if (overtaken()) {
       return;
     }
+    if (this._lastStartedRun) {
+      this._lastStartedRun.exitClaimed = true;
+    }
     sendProtocolMessage(
       GameExitedMessage.type.notification({
         reason,
@@ -2476,38 +2510,46 @@ export class GamePlayerController {
   protected _stops = 0;
 
   async restartGame(): Promise<boolean> {
+    return (await this.restartPlay()).started;
+  }
+
+  protected async restartPlay(): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
-    const wasPlaying = this.playing;
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
-      return false;
+      return { started: false };
     }
     const restarted = plays + 1;
-    await this.startGameAndApp(true);
+    const outcome = await this.startPlay(true);
     if (
       stops === this._stops &&
       restarted === this._plays &&
       this._mounted &&
       this.playing
     ) {
-      return true;
+      return { started: true };
     }
     if (
-      wasPlaying &&
-      this._playRefusal &&
+      outcome.refusal &&
       stops === this._stops &&
       this._mounted &&
       !this.playing
     ) {
+      const ended = this._lastStartedRun;
+      if (ended && !ended.exitClaimed) {
+        ended.exitClaimed = true;
+        sendProtocolMessage(
+          GameExitedMessage.type.notification({ reason: "invalidated" }),
+          this.host,
+        );
+      }
       this.showPlayButton();
-      sendProtocolMessage(
-        GameExitedMessage.type.notification({ reason: "invalidated" }),
-        this.host,
-      );
-      await this.showPreviewAfterRefusal();
+      if (!outcome.previewShown) {
+        await this.showPreviewAfterRefusal();
+      }
     }
-    return false;
+    return { started: false, refusal: outcome.refusal };
   }
 
   protected _restartGameTimeout?: ReturnType<typeof setTimeout>;

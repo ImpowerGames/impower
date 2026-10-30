@@ -243,3 +243,56 @@ describe("a start the refusal cancels", { timeout: 120000 }, () => {
     }
   });
 });
+
+describe("the start's own check of the refusal", { timeout: 120000 }, () => {
+  const exits = (h: Awaited<ReturnType<typeof harness>>) =>
+    h.toEditor.filter((m: unknown) => GameExitedMessage.type.isNotification(m));
+
+  it("lets a start go ahead, with its app, when a valid compile clears the refusal before it plays", async () => {
+    const h = await harness();
+    try {
+      await h.compile();
+      await settle(20);
+      const { apps, release } = holdFirstInit(h);
+      const starting = within(h.controller.handleStartGame({ id: 11, params: {} }));
+      await settle(40);
+      await h.edit([{ text: NO_STORY }]);
+      await h.compile();
+      await h.edit([{ text: START }]);
+      await h.compile();
+      expect(h.controller._playRefusal).toBeUndefined();
+      release();
+      expect(await starting).toMatchObject({ result: { success: true } });
+      expect(h.controller.playing).toBe(true);
+      expect(apps[0].destroyed).toBeFalsy();
+      expect(exits(h)).toHaveLength(0);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("sends one exit for the one run that began when two restarts overlap the refusal", async () => {
+    const h = await harness();
+    try {
+      await h.compile();
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      h.controller.scheduleRestartGame = () => {};
+      const { release } = holdFirstInit(h);
+      const first = h.controller.restartGame();
+      await settle(40);
+      const second = h.controller.restartGame();
+      await settle(40);
+      await h.edit([{ text: NO_STORY }]);
+      await h.compile();
+      release();
+      await Promise.all([within(first), within(second)]);
+      await settle(60);
+      expect(exits(h)).toHaveLength(1);
+      expect(exits(h)[0]?.params.reason).toBe("invalidated");
+      expect(h.controller.playing).toBe(false);
+      expect(h.refs.playButton.style.display).not.toBe("none");
+    } finally {
+      h.dispose();
+    }
+  });
+});
