@@ -10,6 +10,10 @@ const FILLED_SHADOW =
   "hover:shadow-[0_3px_3px_hsl(0_0%_0%/0.32),0_3px_3px_hsl(0_0%_0%/0.46)] " +
   "active:shadow-none";
 
+const UNFILLED_OVERLAY =
+  "after:absolute after:inset-0 after:rounded-[inherit] after:bg-current after:opacity-0 " +
+  "hover:after:opacity-[0.05] active:after:opacity-[0.12]";
+
 export const buttonVariants = cva(
   [
     "relative",
@@ -26,10 +30,8 @@ export const buttonVariants = cva(
           `bg-primary text-background before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
         secondary:
           `bg-engine-700 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
-        outline:
-          "border-solid border border-foreground bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
-        ghost:
-          "bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
+        outline: `border-solid border border-foreground bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
+        ghost: `bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
         link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
         destructive:
           `bg-danger-500 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
@@ -86,8 +88,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       {...rest}
     >
       {children}
-      {
-}
       {!asChild && <Ripple />}
     </Comp>
   );

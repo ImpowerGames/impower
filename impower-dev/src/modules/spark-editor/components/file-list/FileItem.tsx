@@ -465,13 +465,11 @@ function FileItem({
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
         } ${
-          "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
-        } ${
           bulkSelected || contextMenu
-            ? "bg-primary/15 hover:bg-primary/15 active:bg-primary/15"
+            ? "bg-primary/15"
             : selected
-              ? "bg-engine-800/40 hover:bg-engine-800/40 active:bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
-              : "hover:bg-transparent active:bg-transparent"
+              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              : ""
         }`}
         onClick={onRowClick}
         onContextMenu={onRowContextMenu}
