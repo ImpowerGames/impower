@@ -170,8 +170,25 @@ export default class WorkspaceWindow {
       onProtocolMessage(CompiledProgramMessage.type, (m) =>
         this.handleCompiledProgram(m),
       ),
+      onProtocolMessage(
+        {
+          is: (m: unknown): m is StartGameMessage.Response =>
+            this._startGameRequestId !== undefined &&
+            StartGameMessage.type.isResponse(m, this._startGameRequestId),
+        },
+        (m) => this.handleStartGameResponse(m),
+      ),
     );
   }
+
+  protected _startGameRequestId?: string | number;
+
+  protected handleStartGameResponse = (message: StartGameMessage.Response) => {
+    this._startGameRequestId = undefined;
+    if ("error" in message && message.error) {
+      this.endGame();
+    }
+  };
 
   get store() {
     return workspace.current;
@@ -963,7 +980,9 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendProtocolMessage(StartGameMessage.type.request({}));
+      const request = StartGameMessage.type.request({});
+      this._startGameRequestId = request.id;
+      sendProtocolMessage(request);
       if (this.store.preview.modes.game.paused) {
         this.unpauseGame();
       }

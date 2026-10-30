@@ -6,6 +6,9 @@ import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/sr
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The Workspace singleton instantiates 3 Workers at module load and
@@ -651,5 +654,109 @@ describe("Route pins", () => {
         .filter((m) => m.method === "preview/setRoutePins")
         .map((m) => m.params.pins),
     ).toEqual([[{ uri: MAIN, line: 7, offer: 1 }]]);
+  });
+});
+
+describe("PLAY for a story with no start scene", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+  let started: StartGameMessage.Request[] = [];
+
+  const STORY = "file://proj/main.sd";
+
+  const listener = (e: Event) => {
+    if (e instanceof CustomEvent && StartGameMessage.type.isRequest(e.detail)) {
+      started.push(e.detail);
+    }
+  };
+
+  const compiled = (uri: string, playRefusal?: string) =>
+    sendProtocolMessage(
+      CompiledProgramMessage.type.notification({
+        textDocument: { uri, version: 1 },
+        program: { uri, scripts: { [uri]: 1 }, files: {}, playRefusal },
+      }),
+    );
+
+  const play = () => {
+    render(h(PreviewGameToolbar, {}), container);
+    return container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Play Game"]',
+    );
+  };
+
+  const game = () => workspace.current.preview.modes.game;
+
+  beforeEach(() => {
+    localStorage.clear();
+    started = [];
+    window.addEventListener(MessageProtocol.event, listener);
+    win = new WorkspaceWindow();
+    current.window = win;
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id: "proj" },
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game: {} },
+      },
+    };
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    current.window = undefined;
+    window.removeEventListener(MessageProtocol.event, listener);
+    win.dispose();
+  });
+
+  it("disables PLAY with the missing-start message until a start scene compiles", async () => {
+    compiled(STORY, NO_START_SCENE_MESSAGE);
+    expect(play()?.getAttribute("aria-disabled")).toBe("true");
+    expect(play()?.getAttribute("title")).toBe(NO_START_SCENE_MESSAGE);
+    play()!.click();
+    win.toggleGameRunning();
+    await Promise.resolve();
+    expect(started).toEqual([]);
+    expect(game().running).toBeFalsy();
+
+    compiled(STORY);
+    expect(play()?.getAttribute("aria-disabled")).toBeNull();
+    expect(play()?.getAttribute("title")).toBeFalsy();
+  });
+
+  it("keeps the story's refusal when a script the story does not include compiles on its own", () => {
+    compiled(STORY);
+    compiled("file://proj/elsewhere/stray.sd", NO_START_SCENE_MESSAGE);
+    expect(game().playRefusal).toBeUndefined();
+    compiled(STORY, NO_START_SCENE_MESSAGE);
+    compiled("file://proj/elsewhere/stray.sd");
+    expect(game().playRefusal).toBe(NO_START_SCENE_MESSAGE);
+  });
+
+  it("stops showing a game as running when the player refuses a PLAY asked for before the refusal arrived", () => {
+    win.toggleGameRunning();
+    expect(started).toHaveLength(1);
+    expect(game().running).toBe(true);
+    compiled(STORY, NO_START_SCENE_MESSAGE);
+    sendProtocolMessage(
+      StartGameMessage.type.error(started[0]!.id, {
+        code: 1,
+        message: NO_START_SCENE_MESSAGE,
+      }),
+    );
+    expect(game().running).toBe(false);
+    expect(play()?.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps a started game running when the player answers PLAY with success", () => {
+    win.toggleGameRunning();
+    sendProtocolMessage(
+      StartGameMessage.type.response(started[0]!.id, { success: true }),
+    );
+    expect(game().running).toBe(true);
   });
 });
