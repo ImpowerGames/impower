@@ -1,9 +1,3 @@
-/**
- * Adds the lines to highlight for a script's executed ranges (flattened
- * `[start, end, ...]`, sorted and merged) to `lines`: every executed line, and
- * the lines of a gap between two ranges when every line in it is blank or a
- * comment, so a run of executed lines reads as one.
- */
 export const addExecutedHighlightLines = (
   lines: Set<number>,
   ranges: number[],

@@ -1,8 +1,3 @@
-// The Variables view shows the temporaries of the frame selected in the Call
-// Stack (#1727): the debug adapter gives each engine frame an id unique across
-// threads, and a Temps scope it creates for a frame names that thread and
-// frame in the requests it sends the game, as an expression it evaluates for
-// hover or Watch does (#1740).
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/managers/SparkdownDebugManager", () => ({
@@ -19,8 +14,6 @@ const location = (line: number) => ({
   },
 });
 
-/** The engine's frames of each thread, outermost last, as the game numbers
- *  them: from 0 in each thread. */
 const FRAMES: Record<number, { id: number; name: string; line: number }[]> = {
   0: [
     { id: 1, name: "show", line: 10 },
@@ -29,8 +22,6 @@ const FRAMES: Record<number, { id: number; name: string; line: number }[]> = {
   1: [{ id: 0, name: "side", line: 20 }],
 };
 
-/** A session over a game that answers with `FRAMES`, recording each
- *  variables request it is sent and each response the session gives. */
 const session = () => {
   const sent: { method: string; params: any }[] = [];
   const responses: any[] = [];
@@ -85,7 +76,6 @@ describe("the debug adapter's frames", () => {
       (f: { id: number }) => f.id,
     );
     expect(new Set(ids).size).toBe(3);
-    // The same frame keeps its id when the stack is read again.
     const again = await s.call("stackTraceRequest", { threadId: 0 });
     expect(again.stackFrames.map((f: { id: number }) => f.id)).toEqual(
       first.stackFrames.map((f: { id: number }) => f.id),
@@ -99,7 +89,6 @@ describe("the debug adapter's frames", () => {
       });
       return s.variablesSent().at(-1);
     };
-    // `main`, the caller in thread 0, selected below `show`.
     expect(await temps(first.stackFrames[1].id)).toEqual({
       scope: "temps",
       threadId: 0,
@@ -110,7 +99,6 @@ describe("the debug adapter's frames", () => {
       threadId: 0,
       frameId: 1,
     });
-    // Thread 1's frame, whose engine number is `main`'s too.
     expect(await temps(second.stackFrames[0].id)).toEqual({
       scope: "temps",
       threadId: 1,
@@ -147,8 +135,6 @@ describe("the debug adapter's frames", () => {
     expect(s.variablesSent().at(-1)).toEqual({ scope: "temps" });
   });
 
-  // Hover and Watch evaluate in the frame selected in the Call Stack, as
-  // its Temps scope reads it (#1740).
   it("evaluates an expression in the frame selected, and in the running frame for one it never gave", async () => {
     const s = session();
     const first = await s.call("stackTraceRequest", { threadId: 0 });
@@ -177,8 +163,6 @@ describe("the debug adapter's frames", () => {
     expect(await evaluate(undefined)).toEqual({});
   });
 
-  // Sparkdown has no list type (#1752), so the Variables view shows no
-  // Lists scope and never asks the game for one (#1805).
   it("offers the Temps, Vars and Defines scopes and asks the game for each", async () => {
     const s = session();
     const { stackFrames } = await s.call("stackTraceRequest", { threadId: 0 });

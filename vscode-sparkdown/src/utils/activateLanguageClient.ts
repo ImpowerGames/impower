@@ -54,8 +54,6 @@ export const activateLanguageClient = async (
     return null;
   };
   const client = await createSparkdownLanguageClient(context, {
-    // A `.luau` file is the `sparkdown-luau` language, which the server
-    // reads from the grammar's Luau root.
     documentSelector: [{ language: "sparkdown" }, { language: "sparkdown-luau" }],
     synchronize: {
       fileEvents: fileWatchers,
@@ -65,22 +63,15 @@ export const activateLanguageClient = async (
       supportHtml: true,
     },
     initializationOptions: {
-      // We have to pre-stringify and parse settings, for some reason, or else the worker errors out
       settings: JSON.parse(JSON.stringify(sparkdownConfig)),
       files,
       definitions: {
-        // builtins now come from the implicitly-imported builtins prelude
-        // (useBuiltinsPrelude is the compiler default).
         optionals: DEFAULT_OPTIONAL_DEFINITIONS,
         schemas: DEFAULT_SCHEMA_DEFINITIONS,
         descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
       },
       uri: editor?.document?.uri.toString(),
       omitImageData: true,
-      // Receive only {uri, scripts, version} + diagnosticsSummary per
-      // compile instead of the multi-MB full program (which was structured-
-      // cloned across two threads on every keystroke). Consumers that need
-      // the full program pull it on demand via SparkProgramManager.
       slimProgramNotifications: true,
     },
     middleware: {
@@ -151,8 +142,6 @@ const onCompile = async (
   _context: vscode.ExtensionContext,
   params: CompiledProgramParams,
 ) => {
-  // With slimProgramNotifications this is only the {uri, scripts, version}
-  // projection -- enough to know WHAT recompiled, not the program itself.
   const program = params.program;
   const textDocument = params.textDocument;
   const document = await getOpenTextDocument(
@@ -161,10 +150,5 @@ const onCompile = async (
   if (document) {
     SparkProgramManager.instance.updateSlim(document.uri, program);
     updateCommands(document.uri);
-    // TODO:
-    // SparkdownStatusBarManager.instance.updateStatusBarItem(
-    //   program?.metadata?.actionDuration ?? 0,
-    //   program?.metadata?.dialogueDuration ?? 0
-    // );
   }
 };

@@ -4,18 +4,6 @@ import { useEffect, useState } from "preact/hooks";
 export const propDefaults = {};
 export type HeaderSyncConflictToolbarProps = Partial<typeof propDefaults>;
 
-/**
- * Conflict-resolution toolbar shown in the top header when
- * `sync.status === "sync_conflict"`. Two columnar buttons (PUSH / PULL)
- * each open a confirm dialog warning that the action is irreversible.
- *
- * Replaces the legacy `<se-header-sync-conflict-toolbar>` (sparkle
- * `<s-button>` + `<s-dialog>`). The dialog is a plain Preact-native
- * modal; the shared Dialog (#1511) replaces it. Animated SVG decorations from the
- * spec have been simplified to a single arrow icon next to the
- * heading — the imperative SVG animations from the spec were
- * impressive but not essential to the action.
- */
 export default function HeaderSyncConflictToolbar(
   _p: HeaderSyncConflictToolbarProps,
 ) {
@@ -76,10 +64,6 @@ export default function HeaderSyncConflictToolbar(
   );
 }
 
-/**
- * Plain Preact-native modal. Only renders when `open`. Overlay click
- * and Escape both call `onClose`. Confirm button calls `onConfirm`.
- */
 function ConfirmDialog({
   open,
   onClose,

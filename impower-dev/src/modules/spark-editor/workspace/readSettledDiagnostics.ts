@@ -2,7 +2,6 @@ import { DocumentDiagnosticMessage } from "@impower/spark-editor-protocol/src/pr
 import type { DiagnosticsSettledParams, DiagnosticsSettledResult } from "@impower/spark-editor-protocol/src/protocols/textDocument/DiagnosticsSettledMessage";
 import type { DocumentDiagnosticReport } from "@impower/spark-editor-protocol/src/types";
 
-/** Pull after the server has compiled; never cache a first-paint/past revision. */
 export async function readSettledDiagnostics(
   params: DiagnosticsSettledParams,
   request: (method: string, params: unknown) => Promise<DocumentDiagnosticReport>,

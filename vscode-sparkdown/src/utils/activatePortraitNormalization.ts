@@ -1,7 +1,6 @@
 import { normalizeSVGAttributeNames } from "@impower/sparkdown/src/attributes";
 import * as vscode from "vscode";
 
-/** Preserve artist-authored names without changing SVG IDs or references. */
 export const activatePortraitNormalization = (context: vscode.ExtensionContext) => {
   context.subscriptions.push(vscode.commands.registerCommand(
     "sparkdown.normalizePortraitLayerNames",
@@ -20,7 +19,6 @@ export const activatePortraitNormalization = (context: vscode.ExtensionContext) 
       }
       const edit = new vscode.WorkspaceEdit();
       edit.replace(uri, new vscode.Range(document.positionAt(0), document.positionAt(source.length)), normalized);
-      // A workspace edit participates in undo and leaves saving to the author.
       await vscode.workspace.applyEdit(edit);
     },
   ));

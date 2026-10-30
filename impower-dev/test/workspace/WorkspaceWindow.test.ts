@@ -8,10 +8,6 @@ import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The Workspace singleton instantiates 3 Workers at module load and
-// circular-imports WorkspaceWindow. Stub it; the only method our tested actions
-// reach is fs.writeProjectMetadata (the project-rename path). `window` is the
-// window a test sets, which the preview toolbar's controls reach.
 const current = vi.hoisted(() => ({ window: undefined as unknown }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
@@ -26,10 +22,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
-// impower-ui's barrel pulls Radix primitives whose CommonJS helpers require
-// "react", which only the app's bundler aliases to preact/compat. The toolbar
-// is rendered against plain elements instead: a button keeps every prop it is
-// given, so labels, state and handlers are the toolbar's own.
 vi.mock("@impower/impower-ui/components", async () => {
   const { h } = await import("preact");
   const element =
@@ -62,8 +54,6 @@ vi.mock("@impower/impower-ui/components", async () => {
   };
 });
 
-// The game preview's channel to its player iframe. Each connection records
-// what the editor posts and hands its listeners whatever the player "sends".
 const channels = vi.hoisted(() => ({
   all: [] as {
     posted: unknown[];
@@ -116,8 +106,6 @@ describe("WorkspaceWindow store transitions", () => {
     win = new WorkspaceWindow();
   });
 
-  // The window is shared by every file in the run; a live instance would keep
-  // answering requests dispatched by later files.
   afterEach(() => {
     win.dispose();
   });
@@ -155,7 +143,6 @@ describe("WorkspaceWindow store transitions", () => {
     win.openFileEditor("chapters/intro.sd");
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.open).toBe(true);
-    // The path (not just the basename) is the stored identity.
     expect(editor?.filename).toBe("chapters/intro.sd");
   });
 
@@ -163,9 +150,7 @@ describe("WorkspaceWindow store transitions", () => {
     win.openFileEditor("chapters/intro.sd");
     const active = win.getActiveEditorForFile("chapters/intro.sd");
     expect(active?.filename).toBe("chapters/intro.sd");
-    // The reconstructed uri carries the folder, not just the basename.
     expect(active?.uri.endsWith("/chapters/intro.sd")).toBe(true);
-    // A same-basename file in another folder is NOT the active editor.
     expect(win.getActiveEditorForFile("acts/intro.sd")).toBeUndefined();
   });
 
@@ -197,9 +182,6 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.preview.mode).toBe("screenplay");
   });
 
-  // openPane just updates the reactive store now — it no longer broadcasts a
-  // DidOpenPane protocol event (that event had no consumers anywhere; it was a
-  // web-component-era artifact). In-page UI reads the store signal directly.
   it("openPane updates the store without broadcasting a (dead) protocol event", () => {
     const received: unknown[] = [];
     const listener = (e: Event) => {
@@ -214,10 +196,6 @@ describe("WorkspaceWindow store transitions", () => {
     expect(received).toHaveLength(0);
   });
 
-  // Inbound flow: an editor (the framework-agnostic CodeMirror view, a separate
-  // "process") reports scroll position via the protocol bus; WorkspaceWindow's
-  // handleProtocol folds it into the store. This view→store direction is
-  // legitimate and the refactor must preserve it.
   it("folds an inbound ScrolledEditor protocol event into the store", () => {
     const visibleRange = {
       start: { line: 3, character: 0 },
@@ -244,7 +222,6 @@ describe("WorkspaceWindow store transitions", () => {
 
     it("finishEditingProjectName with an unchanged name clears the flag without persisting", async () => {
       const id = workspace.current.project.id;
-      // Seed a known name.
       workspace.current = {
         ...workspace.current,
         project: { ...workspace.current.project, id, name: "Same" },
@@ -285,7 +262,6 @@ describe("Animate portraits preference", () => {
     }
   };
 
-  // Each construction is one editor page load.
   const load = () => {
     const win = new WorkspaceWindow();
     windows.push(win);
@@ -479,20 +455,17 @@ describe("Animate portraits preference", () => {
         render(h(PreviewGame, {}), container);
         const iframe = container.querySelector("iframe")!;
         iframe.dispatchEvent(new Event("load"));
-        // Initialize completes: the new player hears the saved value.
         await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
           timeout: 15000,
         });
         const channel = channels.all[0]!;
         await vi.waitFor(() => expect(portraits(channel.posted)).toEqual([false]));
-        // Its controller announces itself later: it hears it again.
         channel.receive({
           jsonrpc: "2.0",
           method: "preview/connected",
           params: { type: "game" },
         });
         expect(portraits(channel.posted)).toEqual([false, false]);
-        // A reloaded player gets a new channel and the same value.
         iframe.dispatchEvent(new Event("load"));
         await vi.waitFor(() => expect(channels.all).toHaveLength(2));
         await vi.waitFor(() =>
@@ -515,10 +488,6 @@ describe("Animate portraits preference", () => {
   });
 });
 
-// #1657 — the project's pins on the options the Game Preview takes are kept in
-// the workspace cache, beside the breakpoints: the player's route list asks to
-// change them, an editor that moved them through an edit reports their new
-// lines, and every change goes to the player and to the script editors.
 describe("Route pins", () => {
   let windows: WorkspaceWindow[] = [];
   let sent: { method: string; params: any }[] = [];
@@ -544,7 +513,6 @@ describe("Route pins", () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
-    // The store outlives a window; each test starts with no pins.
     workspace.current = {
       ...workspace.current,
       debug: { ...workspace.current.debug, routePins: {} },
@@ -572,7 +540,6 @@ describe("Route pins", () => {
       { uri: MAIN, line: 7, offer: 1 },
       { uri: OTHER, line: 2, offer: 2 },
     ]);
-    // Pinning another option at the stop unpins the one there.
     expect(
       win.changeRoutePins({
         add: [{ uri: MAIN, line: 11, offer: 1 }],
@@ -619,11 +586,9 @@ describe("Route pins", () => {
     const win = load();
     win.openFileEditor("main.sd");
     win.changeRoutePins({ add: [{ uri: MAIN, line: 7, offer: 1 }] });
-    // The workspace cache is written a moment after the change.
     await new Promise((resolve) => setTimeout(resolve, 400));
     win.dispose();
     windows = [];
-    // Only what the cache kept comes back.
     workspace.current = {
       ...workspace.current,
       debug: { ...workspace.current.debug, routePins: {} },

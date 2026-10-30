@@ -14,34 +14,17 @@ import Account from "../account/Account";
 export const propDefaults = {};
 export type HeaderMenuButtonProps = Partial<typeof propDefaults>;
 
-/**
- * Hamburger button in the top-left of the header. Click opens a left-
- * side drawer with a close button, the "Spark Engine" wordmark + 4-color
- * logo, and the Account widget. Mirrors the legacy
- * `<se-header-menu-button>` (sparkle `<s-drawer>`).
- *
- * The drawer is a plain Preact-native modal — no Radix dependency
- * (its `react-dialog` package's portal helpers were causing CJS-import
- * crashes during Vite SSR module load).
- *
- * Auto-closes when the workspace enters `pickingResource` state (the
- * file-picker preempts the drawer in the legacy too).
- *
- * The inner Account widget stays as a legacy `<se-account>` custom
- * element for now — its own port is a follow-up.
- */
+// workaround(vite): @radix-ui/react-dialog's CJS portal helpers crash Vite SSR module load, so the drawer is a Preact-native modal
 export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
   const [open, setOpen] = useState(false);
   const pickingResource = useComputed(
     () => !!workspace.state.value.screen?.pickingResource,
   ).value;
 
-  // Close when a resource picker opens — matches legacy `onStoreUpdate`.
   useEffect(() => {
     if (pickingResource && open) setOpen(false);
   }, [pickingResource, open]);
 
-  // Escape closes the drawer.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -63,20 +46,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
       >
         <Menu class="size-5" />
       </Button>
-      {/* Drawer is portalled to <body> so it escapes the HeaderNavigation
-          wrapper's stacking context (`relative z-10`). Without the
-          portal, the drawer's own `z-50` only matters within
-          HeaderNavigation's z-10 group — siblings like LogicList's
-          sticky sub-tabs row (also at z-10 in document root) paint
-          ABOVE the drawer because they come later in DOM.
 
-          Drawer container — ALWAYS mounted (just hidden when closed)
-          so `<se-account>` stays connected to the DOM from page load.
-          Account's `onConnected` calls `Workspace.window.loadProject()`,
-          which sets `sync.status = "cached"`; if Account is only
-          mounted on first open, the title/caption stay in skeleton
-          state forever. The legacy `<s-drawer>` kept its slotted
-          children mounted too — only the visual layer toggled. */}
       {typeof document !== "undefined" &&
         createPortal(
           <div
@@ -88,10 +58,6 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
               if (e.target === e.currentTarget) setOpen(false);
             }}
             style={{
-              // z-index 400 to clear every editor layer that competes at the
-              // document root: the status bar (`.cm-panels-bottom`, z-2) and
-              // the search/goto panels (`.cm-panels-top`, z-30), both pinned
-              // in EDITOR_THEME.ts. Matches FileDropzone's overlay.
               zIndex: 400,
             }}
           >
@@ -103,9 +69,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
                 open ? "translate-x-0" : "-translate-x-full"
               }`}
             >
-              {/* Drawer header — matches legacy 56px-tall row with close
-              button on the left, "Spark Engine" wordmark, and the
-              four-color logo on the right. */}
+
               <div class="flex h-14 flex-none flex-row items-center">
                 <Button
                   variant="ghost"
@@ -123,17 +87,12 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
                   <SparkLogo />
                 </div>
               </div>
-              {/* 1px divider — matches legacy `<s-divider>`. */}
               <div class="h-px bg-foreground/[0.12]" />
-              {/* Preact-native Account panel. Stays mounted across open/closed
-              so its mount-effect (which calls Workspace.window.loadProject)
-              fires on page load — see memory:keep_drawer_children_mounted. */}
+
               <div class="flex flex-1 flex-col">
                 <Account />
               </div>
-              {/* Footer pointer to the VS Code extension. The web engine is a
-              zero-install OPFS sandbox; editing real on-disk project files is
-              the extension's job — tucked here, out of day-to-day flow. */}
+
               <div class="h-px bg-foreground/[0.12]" />
               <a
                 href="https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown"
@@ -160,7 +119,6 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
   );
 }
 
-/** The four-quadrant "Spark Engine" logo — verbatim from the legacy. */
 function SparkLogo() {
   return (
     <svg

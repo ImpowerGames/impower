@@ -11,17 +11,10 @@ import workspace from "../../workspace/WorkspaceStore";
 export type FileMenuItemsProps = {
   onRename: () => void;
   onDelete: () => void;
-  /** Assets only — lists scripts referencing it. */
   onFindUsages?: () => void;
-  /** Files only — saves it to the user's device. */
   onDownload?: () => void;
 };
 
-/**
- * The shared item list for a file row's actions — rendered both in the 3-dots
- * dropdown (FileOptionsButton) and the desktop right-click context menu
- * (FileItem). All items disable while the workspace is syncing/loading.
- */
 export default function FileMenuItems({
   onRename,
   onDelete,

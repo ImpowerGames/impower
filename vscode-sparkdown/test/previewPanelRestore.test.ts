@@ -1,19 +1,10 @@
-// How a Game Preview that VS Code restores when a workspace reopens starts its
-// player (#1886). VS Code hands the extension's serializer the panel and the
-// state the webview last saved, which may be none at all. The serializer
-// initialized the panel only from a saved document, which the webview no
-// longer saved, so a restored panel was given no content and stayed black.
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FakeDocument, FakeVscode } from "./fakeVscode";
 
 const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
-  /** The documents `openTextDocument` can open, by uri. */
   openable: new Map<string, unknown>(),
-  /** Opening these uris says so, then waits until it is released. */
   held: new Map<string, { opened: () => void; released: Promise<void> }>(),
-  /** The panel `createWebviewPanel` hands `Sparkdown: Preview Game`. */
   created: undefined as unknown,
 }));
 
@@ -72,8 +63,6 @@ const CONNECTED = {
   params: { type: "game" },
 };
 
-/** A panel VS Code restored, recording what it is sent and whether it was
- *  closed, whose player answers each request. */
 const restoredPanel = () => {
   const posted: any[] = [];
   let receive: ((message: unknown) => Promise<void>) | undefined;
@@ -107,8 +96,6 @@ const restoredPanel = () => {
     },
     onDidDispose: () => ({ dispose: () => {} }),
   };
-  /** The player in the restored webview loads and mounts, as on a cold
-   *  start; resolves once the panel has handled both. */
   const start = async () => {
     expect(receive, "the restored panel listens to its webview").toBeDefined();
     await Promise.all([receive!({}), receive!(CONNECTED)]);
@@ -118,7 +105,6 @@ const restoredPanel = () => {
   return { panel, posted, start, initializations };
 };
 
-/** A fresh manager, as after VS Code starts the extension. */
 const freshManager = async () => {
   const { SparkdownPreviewGamePanelManager } =
     await import("../src/managers/SparkdownPreviewGamePanelManager");
@@ -126,9 +112,6 @@ const freshManager = async () => {
   return SparkdownPreviewGamePanelManager.instance;
 };
 
-/** The extension's context as the panel reads it: where its files are, and
- *  the state it keeps for the author across windows (the route list's
- *  toggles), which starts empty. */
 const extensionContext = {
   extensionUri: "ext",
   globalState: {
@@ -137,7 +120,6 @@ const extensionContext = {
   },
 } as any;
 
-/** VS Code handing the extension's serializer a panel it restored. */
 const deserialize = async (panel: unknown, saved: unknown) => {
   const { SparkdownPreviewGamePanelSerializer } =
     await import("../src/managers/SparkdownPreviewGamePanelSerializer");
@@ -152,8 +134,6 @@ const restore = async (panel: unknown, saved: unknown) => {
   return manager;
 };
 
-/** Hold opening `uri`: resolves `opening` once it is asked for, and
- *  completes it when `release` is called. */
 const hold = (uri: string) => {
   let opened!: () => void;
   let release!: () => void;
@@ -163,7 +143,6 @@ const hold = (uri: string) => {
   return { opening, release };
 };
 
-/** Show `doc` in the active editor, with the cursor on its first line. */
 const showInEditor = async (doc: FakeDocument) => {
   const { editor, Position, Selection } = await import("./fakeVscode");
   const at = new Position(0, 0);
@@ -174,7 +153,6 @@ const showInEditor = async (doc: FakeDocument) => {
 };
 
 beforeEach(async () => {
-  // Loads the mock, which creates the fake.
   await import("vscode");
   state.openable = new Map();
   state.held = new Map();
@@ -241,8 +219,6 @@ describe("restoring the Game Preview when the workspace reopens", () => {
   });
 
   it("closes a second restored Game Preview rather than start both", async () => {
-    // A workspace saved while the bug left a black tab beside one opened
-    // with `Sparkdown: Preview Game` restores two.
     const { document } = await import("./fakeVscode");
     await showInEditor(document("file:///project/main.sd", "Hello."));
     const first = restoredPanel();
@@ -271,8 +247,6 @@ describe("restoring the Game Preview when the workspace reopens", () => {
     const first = restoredPanel();
     const second = restoredPanel();
 
-    // The first restore is still opening its saved script when the second,
-    // which saved none, is adopted.
     const manager = await freshManager();
     const restoring = deserialize(first.panel, {
       textDocument: { uri: "file:///project/saved.sd" },

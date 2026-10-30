@@ -4,35 +4,13 @@ import getUniqueFileName from "../../utils/getUniqueFileName";
 import workspace from "../../workspace/WorkspaceStore";
 
 export type FileAddButtonProps = {
-  /** Pattern for the new filename (e.g. `"asset00.url"` or `"script00.sd"`). */
   defaultFilename: string;
-  /** Label shown on the button face. */
   children: string;
-  /**
-   * Collapse to an icon-only circle docked to the right. Driven by the file
-   * list's scroll position (collapsed once the list is scrolled off the top),
-   * mirroring main's `<s-collapsible collapsed="scrolled">`.
-   */
   collapsed?: boolean;
-  /**
-   * Folder the new file is created INTO (`""`/undefined = project root). Set on
-   * mobile so a script created while scoped into a folder lands in that folder.
-   */
   targetDir?: string;
-  /**
-   * Defer the file's creation: instead of writing an empty placeholder to disk
-   * and renaming it, ask the FileList to show an in-memory draft row (blank name
-   * field) and only write the file once a name is committed. A discarded draft
-   * never touches disk. Used by Logic > Scripts.
-   */
   deferred?: boolean;
 };
 
-/**
- * "Add" button used by the URLs assets pane and Logic > Scripts. Creates
- * an empty file with a name derived from `defaultFilename` (suffixed to
- * avoid collisions). Disabled while the workspace is in any sync phase.
- */
 export default function FileAddButton({
   defaultFilename,
   children,
@@ -54,8 +32,6 @@ export default function FileAddButton({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     if (deferred) {
-      // Hand off to the FileList as an in-memory draft — no file is written
-      // until the user commits a name (a canceled draft never hits disk).
       const dot = defaultFilename.lastIndexOf(".");
       const ext = dot >= 0 ? defaultFilename.slice(dot + 1) : "";
       const { requestNewEntry } = await import("../../utils/newEntryDraft");
@@ -82,9 +58,7 @@ export default function FileAddButton({
 
   return (
     <div class="mx-4 my-6 flex flex-col">
-      {/* `ml-auto` docks the button right; when collapsed it shrinks to a 48px
-          circle (w-12, px-0) showing only the icon, while the label fades +
-          collapses its width to 0 so the icon stays centered. */}
+
       <Button
         variant="fab"
         disabled={disabledSig.value}

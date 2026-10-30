@@ -5,12 +5,6 @@ import { useEffect, useState } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { dismissSnackbar, snackbar, type Snackbar } from "../../utils/snackbar";
 
-/**
- * Bottom-center transient toast (e.g. "Deleted X · Undo"), driven by the global
- * `snackbar` signal. Portaled to <body>; a polite live region so the message is
- * announced. The last value is held through the exit transition so the slide-out
- * still renders after the signal clears.
- */
 export default function SnackbarHost() {
   const current = useComputed(() => snackbar.value).value;
   const [shown, setShown] = useState<Snackbar | null>(current);
@@ -27,9 +21,6 @@ export default function SnackbarHost() {
 
   return createPortal(
     <div
-      // Sits clear of the bottom nav + the Upload/Add FAB band (which the
-      // toast used to overlap). assertive (vs the header caption's polite) so
-      // this time-limited, actionable message is announced promptly.
       class="pointer-events-none fixed inset-x-0 bottom-32 z-[60] flex justify-center px-4"
       role="status"
       aria-live="assertive"

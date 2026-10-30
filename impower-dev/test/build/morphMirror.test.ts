@@ -1,10 +1,4 @@
 // @vitest-environment node
-// The dev server's asset mirror answers morph requests on mirrored SVGs when
-// no service worker controls the page. It must answer them the way the
-// worker's route does: the baked artifact under the reference's key, the rest
-// render as an SVG, a refusal for an unreadable request, and the same
-// content-derived identity, so both routes bake and reuse one artifact. The
-// test drives the plugin's real middleware with a request a browser makes.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,7 +11,6 @@ import type { MorphArtifact } from "../../../packages/sparkdown/src/morph/types"
 import { blink, portrait } from "../../../packages/sparkdown/src/tests/morph/fixtures";
 import { viteStaticallyRenderedPagesPlugin } from "../../vite.config";
 
-// The plugin watches its worker bundles; the mirror needs none of that.
 vi.mock("chokidar", () => {
   const watcher = { on: () => watcher };
   return { watch: () => watcher };
@@ -29,8 +22,6 @@ type Middleware = (req: unknown, res: unknown, next: () => void) => Promise<void
 let mirror: Middleware;
 
 beforeAll(() => {
-  // The plugin keeps the mirror under `<cwd>/out/.dev/asset-mirror`, and finds
-  // no worker build scripts beside a scratch directory, so it spawns none.
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "morph-mirror-"));
   const cwd = vi.spyOn(process, "cwd").mockReturnValue(dir);
   const middlewares: Middleware[] = [];
@@ -57,7 +48,6 @@ afterEach(() => {
 const query = (extra: Record<string, string> = {}) =>
   new URLSearchParams({ attributes: "{}", morph: serializeMorphRecipe(blink()), key: "ref-key", ...extra }).toString();
 
-// A GET through the mirror middleware, as the browser sends it.
 const get = (url: string) =>
   new Promise<{ status: number; headers: Record<string, string>; body: string }>((resolve, reject) => {
     const headers: Record<string, string> = {};
@@ -72,7 +62,6 @@ const get = (url: string) =>
     Promise.resolve(mirror(req, res, () => reject(new Error(`not served: ${url}`)))).catch(reject);
   });
 
-// Records the identity each bake request is made under, on every service.
 const recordBakes = () => {
   const identities: string[] = [];
   const request = MorphBakeService.prototype.request;
@@ -97,7 +86,6 @@ describe("dev server asset mirror morph route", () => {
     const response = await get(`/file:/local/bunny.svg?${query({ morph_output: "rest" })}`);
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toBe("image/svg+xml");
-    // The baked artifact's rest frame, not the plain filtered variant.
     const artifact = await get(`/file:/local/bunny.svg?${query()}`);
     expect(response.body).toBe((JSON.parse(artifact.body) as MorphArtifact).rest);
   });
@@ -114,9 +102,7 @@ describe("dev server asset mirror morph route", () => {
 
   test("it bakes under the worker route's identity, and a differently spelled URL reuses the entry", async () => {
     const identities = recordBakes();
-    // Bakes are counted on the mirror's own service, created with the plugin.
     const emit = vi.spyOn(MorphBakeService.prototype as unknown as { emit: (e: MorphCacheEvent) => void }, "emit");
-    // A recipe no earlier test baked, so the mirror's first request bakes.
     const recipe = serializeMorphRecipe(
       blink({
         keyframes: [
@@ -128,22 +114,17 @@ describe("dev server asset mirror morph route", () => {
     );
     await get(`/file:/local/bunny.svg?${query({ morph: recipe })}`);
     expect(identities).toHaveLength(1);
-    // The worker's route: the same content from OPFS under its own path, key
-    // prefix and modification time, on a service of its own.
     const request = parseMorphAssetRequest(new URLSearchParams(query({ morph: recipe })));
     if (!request || request === "invalid") throw new Error("unreadable request");
     const file = new File([portrait()], "bunny.svg", { type: "image/svg+xml", lastModified: 1 }) as FilteredSvgFile;
     await serveMorphAsset({ service: new MorphBakeService(), path: "/file:/other/bunny.svg", file, request, keyPrefix: "file:" });
     expect(identities).toHaveLength(2);
     expect(identities[1]).toBe(identities[0]);
-    // Same content, selection and recipe, spelled with another key, a
-    // cache-buster, reordered parameters and another path to the same file.
     const respelled = new URLSearchParams({ v: "99", key: "other-key", morph: recipe, attributes: "{}" }).toString();
     const again = await get(`/file:/local/./bunny.svg?${respelled}`);
     expect((JSON.parse(again.body) as MorphArtifact).key).toBe("other-key");
     expect(identities).toHaveLength(3);
     expect(identities[2]).toBe(identities[0]);
-    // One bake for the mirror and one for the worker's separate service.
     expect(emit.mock.calls.filter(([e]) => e.type === "baked")).toHaveLength(2);
   });
 
