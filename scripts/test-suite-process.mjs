@@ -71,6 +71,14 @@ export function atomic(file, value, { admissionRoot } = {}) {
 }
 export const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 
+function readAdmissionRecord(file) {
+  try { return read(file); }
+  catch (cause) {
+    if (!(cause instanceof SyntaxError)) throw cause;
+    throw Object.assign(new Error(`Reservation record unreadable at ${file}: ${cause.message}; admission remains blocked; retrying is safe after the record is repaired or its writer finishes`, { cause }), { reservationRecordUnreadable: true });
+  }
+}
+
 function unlinkOwned(file, identity) {
   const current = fs.lstatSync(file, { bigint: true });
   if (!sameFile(current, identity)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
@@ -450,7 +458,7 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     for (let index = 1; index <= slots; index++) {
       const file = slotFile(root, index);
       if (!fs.existsSync(file)) continue;
-      const previous = read(file);
+      const previous = readAdmissionRecord(file);
       const state = reservationState(previous, lookup, { uptime });
       if (state === "running") { holders.push({ index, file, record: previous }); continue; }
       if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), { holder: holderSummary(previous, index, observedAt) });
@@ -557,7 +565,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = 
     const admitWaitMs = waitMs > 0 ? Math.min(transactionMs, Math.max(0, deadline - Date.now())) : transactionMs;
     try { return acquire(run, { ...options, admitWaitMs, waiting }); }
     catch (error) {
-      const reason = error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
+      const reason = error.reservationRecordUnreadable ? "reservation record" : error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
       if (!reason || Date.now() >= deadline) {
         if (waiting?.published) withdraw(options.root ?? machineRoot, waiting.token, options.identify ?? processIdentity);
         throw reason ? expired(error, Date.now() - began) : error;

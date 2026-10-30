@@ -18,6 +18,48 @@ const owner = processIdentity(process.pid);
 assert.ok(owner, "this process has an identity");
 const live = { root: store, identify: pid => pid === owner.pid ? owner : null, census: () => [], memory: () => 8192 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+{
+  const root = path.join(scratch, "partial-record");
+  fs.mkdirSync(root);
+  const file = slotFile(root, 2);
+  const bytes = '{"progress":';
+  fs.writeFileSync(file, bytes);
+  const waits = [];
+  const reservation = await acquireWaiting("partial read", { ...live, root, waitMs: 10000, pollMs: 10, onWait: row => {
+    waits.push(row);
+    assert.equal(fs.readFileSync(file, "utf8"), bytes);
+    assert.equal(fs.existsSync(slotFile(root, 1)), false, "unreadable evidence cannot admit into an empty slot");
+    fs.unlinkSync(file);
+  } });
+  assert.equal(waits.length, 1, "a partial reservation is retried instead of refused");
+  assert.equal(waits[0].waiting, "reservation record");
+  assert.ok(waits[0].detail.includes(file), "the diagnostic names the unreadable file");
+  reservation.release();
+
+  for (const waitMs of [0, 80]) {
+    fs.writeFileSync(file, bytes);
+    const began = Date.now();
+    let attempts = 0;
+    await assert.rejects(acquireWaiting("permanent malformed record", { ...live, root, waitMs, pollMs: 10,
+      onWait: () => { attempts++; } }), error => {
+      assert.ok(error.message.includes(file));
+      assert.match(error.message, /retry.*safe/i);
+      assert.match(error.message, /Test Suite workflow/);
+      return true;
+    });
+    assert.ok(Date.now() - began >= waitMs, "permanent damage consumes the bounded wait");
+    assert.equal(attempts > 0, waitMs > 0);
+    assert.equal(fs.readFileSync(file, "utf8"), bytes, "malformed evidence stays intact");
+    assert.equal(fs.existsSync(slotFile(root, 1)), false);
+    assert.equal(fs.existsSync(path.join(root, "guard.json")), false);
+  }
+  fs.unlinkSync(file);
+  let attempts = 0;
+  await assert.rejects(acquireWaiting("unrelated parse failure", { ...live, root, waitMs: 80,
+    memory: () => { throw new SyntaxError("memory transport parse failure"); }, onWait: () => { attempts++; } }), /memory transport parse failure/);
+  assert.equal(attempts, 0, "unrelated parse errors are not admission retries");
+  console.log("PASS: partial reservation reads retry conservatively within the deadline and retain actionable refusal evidence");
+}
 const waitingRows = () => fs.readdirSync(store).filter(name => name.startsWith("waiting-"));
 const until = async (condition, what, ms = 15000) => {
   for (const deadline = Date.now() + ms; !condition();) {
