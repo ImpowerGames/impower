@@ -29,25 +29,12 @@ export type MainWindowProps = Partial<typeof propDefaults>;
 
 export default function MainWindow(_props: MainWindowProps) {
   const pane = workspace.signals.pane.value as PaneType;
-  // workspace.state's `pane` defaults to "logic", but the user's actual choice
-  // lives in localStorage and only lands after restoreProjectWorkspace() (async,
-  // inside WorkspaceWindow's constructor) completes. Highlighting Logic
-  // pre-restore and then snapping through the intermediate states to the real
-  // pane is jarring. Suppress active-tab highlighting until projectId is set
-  // — that's the signal that restoreProjectWorkspace has run to completion.
   const workspaceReady = !!workspace.signals.projectId.value;
-  // Which SplitPane side is active on mobile — derived straight from the
-  // reactive store rather than mirrored via DidExpand/CollapsePreviewPane
-  // window events.
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
   ).value;
 
   const onPaneChange = (next: string) => {
-    // Mark the workspace-store update (and the resulting Logic / Assets
-    // / SharePanel mount) as a low-priority transition, so the tab
-    // activation animation (color + scale) gets to paint before the
-    // potentially-heavy pane DOM is built.
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
         Workspace.window.openPane(next as PaneType);
@@ -55,12 +42,6 @@ export default function MainWindow(_props: MainWindowProps) {
     });
   };
 
-  // Skip the split pane (and the heavy, browser-dependent pane content —
-  // Logic / Assets / Share / Preview) during dev SSR. The header + bottom-nav
-  // (the visible chrome on first paint) still get statically rendered; the
-  // middle fills in once Preact hydrates. (SplitPane itself is now SSR-safe —
-  // custom flex/Preact-hooks, no react-resizable-panels — but its children
-  // reach for browser-only APIs, so the guard stays.)
   const isSSR = typeof window === "undefined";
 
   return (
@@ -84,14 +65,9 @@ export default function MainWindow(_props: MainWindowProps) {
               }
               end={
                 <div class="relative flex flex-col w-full h-full bg-black">
-                  {/* The game preview stays mounted (so inspecting an asset and
-                    closing doesn't reload/restart the game); the asset inspector
-                    overlays it — desktop select-to-inspect — while an asset is
-                    selected in the Assets browser. */}
+
                   <Preview />
                   {pane === "assets" && inspectedAsset.value && (
-                    // z-10 so it covers Preview's own `sticky z-[1]` header too
-                    // (an unlayered absolute overlay would render UNDER it).
                     <div class="absolute inset-0 z-10">
                       <AssetInspectorPane />
                     </div>
@@ -99,39 +75,17 @@ export default function MainWindow(_props: MainWindowProps) {
                 </div>
               }
             />
-            {/* File-drop target. Mounted HERE, inside the middle region,
-                rather than at the page root: that scopes the overlay to the
-                content area so the header above and the tab bar below stay
-                visible and readable while a file is over the window. The drag
-                listeners are on `window`, so where this sits in the tree
-                affects only what the overlay covers, not what it catches.
 
-                Inside the `!isSSR` guard with the SplitPane, NOT beside it.
-                SSR skips the SplitPane, so rendering this alone server-side
-                left the middle region holding a single child that the client
-                then wanted to be the SplitPane -- Preact reused the overlay
-                div as that container and nested every pane INSIDE it, which
-                put tab indicators and divider lines above the overlay's own
-                background. Same children on both sides, no mismatch. */}
             <FileDropzone />
           </>
         )}
       </div>
-      {/* Hidden while the script editor's mobile viewport manager marks the
-          root keyboard-open, so its keyboard toolbar sits directly on the
-          soft keyboard. The manager measures the keyboard from
-          innerHeight and visualViewport, which this does not change. */}
+
       <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
-        {/* 1px white/6% divider hugging the top edge — mirrors main's
-            <s-divider bg-color="fg-06"> above the bottom-nav tabs. The
-            !h-px overrides the parent's [&>*]:h-full selector which
-            otherwise stretches the divider to the full 60px nav height. */}
+
         <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
         <Tabs
-          // Keep Radix in controlled mode — passing null/undefined makes
-          // Radix uncontrolled, where it briefly activates ALL triggers
-          // until our first value lands. A non-matching sentinel pins it
-          // to "controlled, but no tab matches" so all tabs stay inactive.
+          // workaround(@radix-ui/react-tabs): a null or undefined value makes Tabs uncontrolled and briefly activates every trigger, so a non-matching sentinel is passed
           value={workspaceReady ? pane : "__none__"}
           onChange={onPaneChange}
           indicator="none"

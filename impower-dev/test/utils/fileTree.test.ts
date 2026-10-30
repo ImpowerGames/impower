@@ -17,7 +17,6 @@ import {
 describe("buildFileTree", () => {
   it("keeps flat files at the top level, grouped by extension then name", () => {
     const tree = buildFileTree(["main.sd", "zebra.png", "apple.sd"]);
-    // `.png` sorts before `.sd`; within `.sd`, apple before main.
     expect(tree.map((n) => n.name)).toEqual(["zebra.png", "apple.sd", "main.sd"]);
     expect(tree.every((n) => !n.isDirectory)).toBe(true);
   });
@@ -31,7 +30,6 @@ describe("buildFileTree", () => {
       "intro.sd",
       "beat.mp3",
     ]);
-    // ext order: mp3 < png < sd; alpha within each.
     expect(tree.map((n) => n.name)).toEqual([
       "beat.mp3",
       "song.mp3",
@@ -49,7 +47,6 @@ describe("buildFileTree", () => {
       "chapters/ending.sd",
       "backgrounds/forest.png",
     ]);
-    // Folders (backgrounds, chapters) sort before the file (main.sd).
     expect(tree.map((n) => `${n.isDirectory ? "d:" : "f:"}${n.name}`)).toEqual([
       "d:backgrounds",
       "d:chapters",
@@ -148,7 +145,6 @@ describe("filterPaths", () => {
     const filtered = filterPaths(paths, "chapters");
     expect(filtered).toEqual(["chapters/intro.sd", "chapters/ending.sd"]);
     const tree = buildFileTree(filtered);
-    // The ancestor folder survives because the tree is rebuilt from matches.
     expect(tree.map((n) => n.name)).toEqual(["chapters"]);
     expect(tree[0]!.children.map((n) => n.name)).toEqual(["ending.sd", "intro.sd"]);
   });
@@ -184,7 +180,6 @@ describe("computeFolderMoves", () => {
 
   it("returns [] when nothing lives under the folder", () => {
     expect(computeFolderMoves(paths, "nonexistent", "x")).toEqual([]);
-    // A prefix that matches a filename but not a folder boundary must NOT match.
     expect(computeFolderMoves(["chapters.sd"], "chapters", "x")).toEqual([]);
   });
 });
@@ -209,7 +204,6 @@ describe("childrenRows (dive mode)", () => {
 
   it("returns the top-level children at depth 0 for the root scope", () => {
     const rows = childrenRows(tree, "");
-    // folders (art, chapters) before the file (main.sd); all depth 0.
     expect(rows.map((r) => r.name)).toEqual(["art", "chapters", "main.sd"]);
     expect(rows.every((r) => r.depth === 0)).toBe(true);
     expect(rows.every((r) => r.expanded === false)).toBe(true);
@@ -225,7 +219,7 @@ describe("childrenRows (dive mode)", () => {
 
   it("returns [] for a scope that does not resolve to a folder", () => {
     expect(childrenRows(tree, "chapters/nope")).toEqual([]);
-    expect(childrenRows(tree, "main.sd")).toEqual([]); // a file, not a folder
+    expect(childrenRows(tree, "main.sd")).toEqual([]);
   });
 });
 
@@ -254,9 +248,7 @@ describe("resolveScopePath", () => {
   });
 
   it("falls back to the deepest surviving ancestor", () => {
-    // act1 deleted -> scope recovers to `chapters`.
     expect(resolveScopePath(tree, "chapters/gone/deeper")).toBe("chapters");
-    // whole branch gone -> root.
     expect(resolveScopePath(tree, "nope/at/all")).toBe("");
   });
 
@@ -269,10 +261,8 @@ describe("buildFileTree compareFiles (sort)", () => {
   it("sorts file siblings by the comparator; folders stay first by name", () => {
     const tree = buildFileTree(
       ["zebra.png", "apple.png", "beta/x.sd", "alpha/y.sd"],
-      // name DESCENDING comparator for files
       { compareFiles: (a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0) },
     );
-    // folders (alpha, beta) always first by name asc; then files name-desc.
     expect(tree.map((n) => n.name)).toEqual([
       "alpha",
       "beta",
@@ -286,7 +276,6 @@ describe("flattenVisibleRows expandAll", () => {
   it("emits every descendant when expandAll is set, ignoring `expanded`", () => {
     const tree = buildFileTree(["a/b/c.sd", "a/d.sd"]);
     const rows = flattenVisibleRows(tree, new Set(), true);
-    // folders first within each level: a, a/b (folder), a/b/c.sd, a/d.sd.
     expect(rows.map((r) => r.path)).toEqual(["a", "a/b", "a/b/c.sd", "a/d.sd"]);
   });
 
@@ -317,7 +306,6 @@ describe("descendantPaths (folder-select cascade)", () => {
 
 describe("computeStickyRows (sticky scroll)", () => {
   const H = 52;
-  // a(d0,i0), a/f1(d1,i1)..a/f5(d1,i5), b.sd(d0,i6)
   const rows = flattenVisibleRows(
     buildFileTree(["a/f1.sd", "a/f2.sd", "a/f3.sd", "a/f4.sd", "a/f5.sd", "b.sd"]),
     new Set(["a"]),
@@ -351,12 +339,10 @@ describe("computeStickyRows (sticky scroll)", () => {
   });
 
   it("pins an open folder as soon as its own row scrolls off the top", () => {
-    // a(d0,i0), a/sub(d1,i1), a/sub/f1(d2,i2), a/sub/f2(d2,i3)
     const r = flattenVisibleRows(
       buildFileTree(["a/sub/f1.sd", "a/sub/f2.sd"]),
       new Set(["a", "a/sub"]),
     );
-    // 1px past a/sub's OWN row → it pins under `a`, not only once a child is up.
     expect(computeStickyRows(r, 1 * H + 1, H).map((s) => s.path)).toEqual([
       "a",
       "a/sub",
@@ -389,7 +375,6 @@ describe("subtreeChildren", () => {
   });
 
   it("returns the CONTENTS of a subtree, not the wrapper folder", () => {
-    // Rooting at `scripts/` shows intro.sd + the chapters folder, full paths kept.
     const kids = subtreeChildren(tree, "scripts");
     expect(kids.map((n) => n.path).sort()).toEqual([
       "scripts/chapters",

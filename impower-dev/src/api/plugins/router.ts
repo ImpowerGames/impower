@@ -19,13 +19,11 @@ const router: FastifyPluginCallback = async (app, opts) => {
       try {
         const { url } = request;
 
-        // Handle assets with extensions (e.g., .js, .css, .png)
         if (url.includes(".")) {
           const target = url.startsWith("/") ? url.slice(1) : url;
           return reply.sendFile(target);
         }
 
-        // Handle Clean URLs / SSG Pages
         const route = url === "/" ? "index" : url;
         const htmlFilePath = join(publicFolder, `${route}.html`);
 
@@ -45,10 +43,6 @@ const router: FastifyPluginCallback = async (app, opts) => {
       return reply;
     });
   } else {
-    // --- DEVELOPMENT ONLY ---
-    // We register NO catch-all routes here.
-    // This allows requests to "fall through" the Fastify router
-    // and hit the Vite middleware (app.use(vite.middlewares)) defined in build.ts.
 
     app.log.info("Development mode: Static routes disabled to allow Vite HMR.");
   }

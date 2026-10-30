@@ -26,7 +26,6 @@ export const exportHtml = async (
     return;
   }
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("html");
-  // TODO: include all scripts relative to main.sd
   const script = editor.document.getText();
   const parser = new ScreenplayParser();
   const tokens = parser.parseAll([script]);

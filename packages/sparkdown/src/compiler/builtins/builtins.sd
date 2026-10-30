@@ -10,9 +10,9 @@
 // Prose between blocks is written with `//`, sparkdown's comment form outside
 // Luau. `--` opens a comment only inside a Luau scope — a struct body, a
 // function body, a code block — which is where the indented comments below use
-// it. At column 0 a `--` line is display text, and this file's root flow is
-// seeded into every compiled program, so such a line would travel with every
-// game and play back from the root. `preludeRootFlow.test.ts` fails on one.
+// it. At column 0 a `--` line is display text, which the top level of a
+// script cannot hold, and this file is seeded into every compiled program.
+// `preludeRootFlow.test.ts` fails on one.
 
 define metadata with
   title = ""

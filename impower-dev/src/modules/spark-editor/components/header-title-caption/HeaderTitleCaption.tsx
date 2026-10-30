@@ -4,16 +4,6 @@ import workspace from "../../workspace/WorkspaceStore";
 export const propDefaults = {};
 export type HeaderTitleCaptionProps = Partial<typeof propDefaults>;
 
-/**
- * Tiny sync-status caption under the project title in the top header.
- * Reads `workspace.project.name` and `workspace.sync.status` reactively;
- * shows a skeleton placeholder until both are non-empty (post first
- * load). Color encodes severity:
- *   - `text-primary` for unsynced (the user has local changes to push)
- *   - `text-danger-500` for load/import/export/sync errors
- *   - `text-warning-500` for sync_conflict / offline
- *   - `text-foreground/60` for everything else (steady-state).
- */
 export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
   const name = useComputed(
     () => workspace.state.value.project?.name || "",
@@ -21,9 +11,6 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
   const syncState = useComputed(
     () => workspace.state.value.sync?.status || "",
   ).value;
-  // An in-flight asset import takes precedence over the steady sync status:
-  // show a live "Importing N of M..." count (the bar in the header divider
-  // gives the matching visual).
   const importProgress = useComputed(() => workspace.importProgress.value).value;
 
   const info = importProgress
@@ -35,16 +22,11 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
 
   return (
     <div
-      // Live region so assistive tech announces status changes — notably the
-      // "Importing N of M..." import feedback (polite coalesces the rapid count
-      // updates to whatever's current at a graceful pause, so it doesn't flood).
       role="status"
       aria-live="polite"
       class={`-mt-0.5 mb-0.5 flex flex-row items-center text-sm font-medium select-none ${color}`}
     >
       {showSkeleton ? (
-        /* `<s-skeleton>` shape: pill (rounded-full) + `skeleton-sheen`
-           animated gradient; transparent text just sizes the pill. */
         <span class="skeleton-sheen rounded-full text-transparent">
           Saved in cache
         </span>

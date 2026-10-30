@@ -7,7 +7,7 @@ const setSessionCookieData = (
   data: SessionCookieData,
 ) => {
   const expires = new Date();
-  expires.setDate(expires.getDate() + 200); // Expire 200 days from now
+  expires.setDate(expires.getDate() + 200);
   request.session.options({
     expires,
   });

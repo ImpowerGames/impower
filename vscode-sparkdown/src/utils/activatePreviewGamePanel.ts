@@ -9,7 +9,6 @@ import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 export const activatePreviewGamePanel = async (
   context: vscode.ExtensionContext,
 ) => {
-  // Register game preview command
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.previewGame", () => {
       const uri = getActiveSparkdownDocument();
@@ -20,7 +19,6 @@ export const activatePreviewGamePanel = async (
       );
     }),
   );
-  // Notify game preview whenever game configuration is changed
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((change) => {
       if (change.affectsConfiguration("sparkdown")) {
@@ -31,7 +29,6 @@ export const activatePreviewGamePanel = async (
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.languageId === "sparkdown") {
-        // We have to delay this slightly so that visibleRanges has time to be correctly updated
         setTimeout(() => {
           SparkdownPreviewGamePanelManager.instance.notifyChangedActiveEditor(
             editor,
@@ -63,7 +60,6 @@ export const activatePreviewGamePanel = async (
       SparkdownRoutePinsManager.instance.moveThroughEdit(change);
     }),
   );
-  // Notify game preview whenever text editor selection (i.e. cursor position) changed
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {
       const editor = change.textEditor;
@@ -84,7 +80,6 @@ export const activatePreviewGamePanel = async (
       }
     }),
   );
-  // Notify game preview whenever text editor is scrolled
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorVisibleRanges((change) => {
       const document = change.textEditor.document;

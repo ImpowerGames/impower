@@ -1,7 +1,6 @@
 import type { ProgramTable } from "./ProgramTable";
 
 export const SymbolKind = {
-  Root: 0,
   Scene: 1,
   Branch: 2,
   Function: 3,
@@ -14,7 +13,7 @@ export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];
 
 export const UNDEFINED_KIND = -1;
 
-export const ROOT_FLOW_NAME = "";
+export type SequenceKind = SymbolKindValue | typeof UNDEFINED_KIND;
 
 export const START_FLOW_NAME = "start";
 

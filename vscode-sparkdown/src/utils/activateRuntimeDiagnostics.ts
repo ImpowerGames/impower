@@ -4,11 +4,6 @@ import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 
-/**
- * Pass the Game Preview player's runtime errors and warnings to the language
- * server, which shows them in the Problems panel beside the compile's. The
- * player reports its current run whole each time it changes.
- */
 export function activateRuntimeDiagnostics(context: vscode.ExtensionContext) {
   const connection = SparkdownPreviewGamePanelManager.instance.connection;
   const relay = async (message: Message) => {
