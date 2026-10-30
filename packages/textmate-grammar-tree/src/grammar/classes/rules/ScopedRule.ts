@@ -209,7 +209,7 @@ export class ScopedRule implements Rule {
     const captures = begun.groups.map((group) => group ?? "");
     const beginMatched = begun.matched.wrap(this.node, Wrapping.BEGIN);
     this.contentRule.resolve();
-    state.stack.push(this.node, captures);
+    state.pushScope(this.node, captures, from, from + beginMatched.length);
     return beginMatched;
   }
 
@@ -224,7 +224,7 @@ export class ScopedRule implements Rule {
       return null;
     }
     endMatched = endMatched.wrap(this.node, Wrapping.END);
-    state.stack.pop();
+    state.popScope(from);
     return endMatched;
   }
 

@@ -55,6 +55,8 @@ variables:
   LUAU_SHARED_TERNARY_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}})"
   # lookaround: LuauElseifBlock owns elseif; LuauTernaryExpression must not treat its suffix as a separate if.
   LUAU_SHARED_NOT_ELSEIF: "(?<!\\belseif)"
+  # lookaround: LuauTernaryKeyword reads a ternary's clause `elseif`, which no scope begins, so the condition after it finds it behind.
+  LUAU_SHARED_TERNARY_CONDITION_START: "(?:\\G|(?<=\\belseif\\b{{WS}}*))"
   LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS: "(?:end|until)"
   LUAU_SHARED_CONDITION_CLOSER_KEYWORDS: "(?:then|do)"
   LUAU_SHARED_TERNARY_CONTEXT: "(?:{{AFTER_LUAU_TERNARY_PRECEDING_TOKEN}}|{{LUAU_TERNARY_WITH_ELSE_AHEAD}})"
@@ -418,19 +420,7 @@ variables:
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
-  # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening
-  # `..` to `LuauSparkdownInlineGluedSequentialAlternatorBlock` and
-  # `LuauSparkdownInlineGluedConditionalAlternatorBlock`
-  # (`BUNNY: .. queue | Hi | Hello ..`). The mark is the begin's last capture
-  # because only the begin knows where the text starts: tried from the
-  # body instead (`LeadingGlue` after the alternators in each body), it
-  # was tried again after a `ParentheticalLine`, so `(aside) \ ..` then
-  # `..joined` lost its trailing glue, and an alternator outside `LineEnd`
-  # left the spaces after its closing `..` to `LineEnd`'s begin, which the
-  # formatter removes. The tree parser has no `\G` to anchor a body pattern
-  # to the text's start, and `LEADING_GLUE` cannot refuse the mark by
-  # itself, since `.. Wait.` is leading glue. The exclusion is kept here,
-  # once, for the five begins that use it.
+  # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
   # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})`, `(?=[|])` and
@@ -3744,19 +3734,9 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # lookaround: `(?<=define\b{{WS}}*)` keeps the name to the header, out of
-  # the define's body, where `LuauBlockBody` reads statements that begin with
-  # a name. `LuauDefine` tries its patterns again at every position of its
-  # body, and textmate-grammar-tree has no `\G` to match only where the
-  # begin ended. `LuauBlockBody` reads a name in the middle of a line, so it
-  # would take the define's name if it were tried first, and a name rule
-  # tried before it takes `x` and `if` from a body line that begins at
-  # column 0 (fixture luau-declaration/define-column-0-body). The lookbehind
-  # passes over block comments that close on the keyword's line
-  # when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost: one
-  # that spans lines hides the name.
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `define`, which LuauBlockBody would otherwise read as a statement.
   LuauDefineNameAndInheritance:
-    begin: (?<=define\b{{WS}}*|{{LUAU_HEADER_LINE_START}}define\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}define\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4000,23 +3980,9 @@ repository:
 
 
 
-  # lookaround: `(?<=style\b{{WS}}*)` keeps the name to the header. `LuauStyle`
-  # takes the keyword and the whitespace after it in its begin, but it tries
-  # its patterns again at every position of its body, and
-  # textmate-grammar-tree has no `\G` to match only where the begin ended.
-  # Without the lookbehind, tried first, the name rule takes a brace line at
-  # column 0 that `LuauStructBlockLine` reads (`label { … }` in fixture
-  # struct/column-0-brace-lines). Tried after the body-line rules, which
-  # begin only at a line start, it still meets the body wherever
-  # `LuauComment` has read the start of a line: `--[[ note ]] accidental` at
-  # column 0 declares `accidental` as a second style (declarationAnnotator
-  # test "a word after a comment in a block body declares nothing"). Nothing
-  # but the text before it tells the header's name from that word. The
-  # lookbehind passes over block comments that close on the keyword's line
-  # when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost: one
-  # that spans lines hides the name.
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `style`, which LuauStructBlockLine would otherwise read.
   LuauStyleNameAndInheritance:
-    begin: (?<=style\b{{WS}}*|{{LUAU_HEADER_LINE_START}}style\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}style\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4034,10 +4000,9 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # lookaround: as in `LuauStyleNameAndInheritance` (fixture
-  # struct/column-0-brace-lines has an `animation` brace line at column 0).
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading keyword, which LuauStructBlockLine would otherwise read.
   LuauAnimationThemeNameAndInheritance:
-    begin: (?<={{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}{{LUAU_PRESENTATION_DEFINITION_KEYWORDS}}{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6017,13 +5982,9 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
-  # lookaround: as in `LuauStyleNameAndInheritance`. A screen body holds no
-  # line a name could begin (its brace line, `LuauStructBlockLine`, begins
-  # with `{`), so here the evidence is the word after a comment, tried first
-  # or last: the declarationAnnotator test's `screen menu` declares `extra`
-  # without the lookbehind.
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `screen`, which LuauStructBlockLine would otherwise read.
   LuauScreenNameHeader:
-    begin: (?<=screen\b{{WS}}*|{{LUAU_HEADER_LINE_START}}screen\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}screen\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6075,11 +6036,9 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
-  # lookaround: as in `LuauStyleNameAndInheritance`. Here the rivals at
-  # column 0 are `LuauSparkleControlBlock` (`if`, `for`, `match`) and
-  # `LuauSparkleBlockLine` (fixture sparkle/column-0-body-lines).
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `layout`, which LuauSparkleBlockLine would otherwise read.
   LuauLayoutNameAndInheritance:
-    begin: (?<=layout\b{{WS}}*|{{LUAU_HEADER_LINE_START}}layout\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}layout\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6098,10 +6057,9 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # lookaround: as in `LuauLayoutNameAndInheritance` (fixture
-  # sparkle/column-0-body-lines has a component body at column 0).
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `component`, which LuauSparkleBlockLine would otherwise read.
   LuauComponentNameAndInheritance:
-    begin: (?<=component\b{{WS}}*|{{LUAU_HEADER_LINE_START}}component\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})
+    begin: (?:\G|(?<={{LUAU_HEADER_LINE_START}}component\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6642,19 +6600,8 @@ repository:
     end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauForCondition:
-    # lookaround: the lookbehind opens the condition once (see
-    # `LuauIfBlockCondition`). Without it, the empty begin opens again at the
-    # whitespace before `do` (fixture luau-function/with-for-in-loop), and in
-    # a layout it takes the loop's entries and body lines
-    # (`LuauSparkleBlockEntries`; fixture
-    # sparkle/layout-brace-control). A begin that also refuses the tokens the
-    # condition ends before still opens an empty condition at any character
-    # the condition cannot read, again and again (see `LuauWhileCondition`).
-    # `(?!do\b)` keeps an empty condition from opening right before `do`
-    # (`for do`), which `LuauDoBlock` or `LuauSparkleDoMark` reads instead.
-    # No beat needs excluding: a beat begins its line, and the lookbehind
-    # puts `for` before the begin on the same line.
-    begin: (?<=for\b{{WS}}*)(?!do\b)
+    # lookaround: `(?!do\b)` leaves a `do` right after `for` to LuauDoBlock or LuauSparkleDoMark.
+    begin: \G(?!do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -6705,15 +6652,8 @@ repository:
     end: (?={{BEAT}})|(?<=\bend)|{{LUAU_NOT_AFTER_LOOP_KEYWORD}}$|(?={{WS}}*{{LUAU_CLOSER}})
 
   LuauWhileCondition:
-    # lookaround: as in `LuauForCondition`. Without the lookbehind the empty
-    # begin opens again at the whitespace before `do`, ahead of the
-    # `LuauDoBlock` in `LuauBlockBody` (fixture
-    # flow/for-comment-before-condition). A begin that refuses `do` and `end`
-    # instead (`(?!{{BEAT}}|{{WS}}*(?:do|end)\b)`) keeps every fixture, but
-    # reopens an empty condition at each character the condition cannot
-    # read: `while x) do` repeats it at the `)` until the parser's limit on
-    # empty matches. `(?!do\b)` is as in `LuauForCondition`.
-    begin: (?<=while\b{{WS}}*)(?!do\b)
+    # lookaround: `(?!do\b)` leaves a `do` right after `while` to LuauDoBlock.
+    begin: \G(?!do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -6900,18 +6840,8 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*end\b)|$
 
   LuauSparkdownExplicitIfCondition:
-    # lookaround: the keyword lookbehind opens the condition once after if or
-    # elseif. Reordering cannot separate a condition from the same tokens in
-    # LuauSparkdownExplicitBlockBody; an unanchored empty begin would reopen
-    # over its assignments (StoryReturnText931 nested-if effects controls).
-    # No line break is accepted in this narrative island outside a bracket.
-    # It is also the condition of a story `if` or `elseif` (#1907), whose
-    # block goes on past the header's line, so it never opens at a line end:
-    # there it would end where it opened, and the block would open it again
-    # at the same place until the parser's empty-match limit stopped it. A
-    # header with no condition on its line has none, which the validator
-    # reports as Luau's missing expression.
-    begin: (?<=\b(?:else)?if\b{{WS}}*)(?!$)
+    # lookaround: `(?!$)` leaves a header with no condition on its line to LuauSparkdownBlockBody.
+    begin: \G(?!$)
     patterns:
       - { include: "#LuauParenthetical" }
       - { include: "#LuauSparkdownExplicitExpression" }
@@ -6939,15 +6869,8 @@ repository:
     end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauSparkdownExplicitLoopCondition:
-    # lookaround: anchor the header once after for/while so it cannot reopen
-    # over LuauSparkdownExplicitBlockBody assignments. The specific do rule
-    # precedes this header, so it owns do when the condition is missing.
-    # It is also the condition of a story `for` or `while` (#1907), whose
-    # loop reads its `do` block after the header, so it never opens at a
-    # line end or right before `do`: there it would end where it opened,
-    # and the loop would open it again at the same place until the parser's
-    # empty-match limit stopped it.
-    begin: (?<=\b{{LUAU_CONDITION_LOOP_KEYWORDS}}\b{{WS}}*)(?!$|do\b)
+    # lookaround: `(?!$|do\b)` leaves a header with no condition on its line, and its `do`, to LuauSparkdownExplicitDoBlock.
+    begin: \G(?!$|do\b)
     patterns:
       - { include: "#LuauInKeyword" }
       - { include: "#LuauParenthetical" }
@@ -7000,9 +6923,8 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|until\b))|$|(?=^)
 
   LuauSparkdownExplicitTernaryExpressionCondition:
-    # lookaround: LuauThenExpression owns then; this condition opens only after if or elseif and stops before the clause delimiter.
-    # See bounded-entry rationale above for the structural alternatives.
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!$|{{WS}}|then\b)
+    # lookaround: LuauSparkdownExplicitThenExpression owns `then`; the condition opens where the `if` ended or after a clause `elseif`, never at a line end or before `then`.
+    begin: "{{LUAU_SHARED_TERNARY_CONDITION_START}}({{WS}}*)(?!$|{{WS}}|then\\b)"
     beginCaptures:
       1:
         emit: true
@@ -8394,25 +8316,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauIfBlockCondition:
-    # lookaround: `(?<=\bif\b{{WS}}*)` opens the condition once, right after
-    # the `if` its parent's begin took. The parent tries this rule first
-    # again at every position of its body, so without the lookbehind the
-    # condition takes the statements of the branch (`LuauBlockBody`,
-    # `LuauSparkdownBlockBody`, `LuauSparkleBlockEntries`; fixture
-    # flow/if-with-bare-assignment). Beginning at the next token instead
-    # does not help: a condition can begin with any token a statement can,
-    # so no begin tells the two apart, and textmate-grammar-tree has no `\G`
-    # to match only where the parent's begin ended. Tried after the body
-    # rules, it would never be reached. `LuauElseifBlockCondition`,
-    # `LuauForCondition`, `LuauWhileCondition`, `LuauSparkleMatchCondition`,
-    # `LuauSparkleCaseValue`, `LuauTernaryExpressionCondition` and
-    # `LuauConditionalAlternatorCondition` keep theirs for the same reason.
-    # The begin needs no beat exclusion: a beat begins its line, and the
-    # lookbehind puts `if` before the begin on the same line. The end's
-    # `^(?!…)` is the line rule above: a positive alternative cannot name "any other
-    # line", so the line that begins the branch's first statement
-    # (`LuauBlockBody`) ends the condition through it.
-    begin: (?<=\bif\b{{WS}}*)
+    begin: \G
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -8423,6 +8327,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+    # lookaround: the end's `^(?!…)` leaves the line that begins the branch's first statement to LuauBlockBody.
     end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
@@ -8433,17 +8338,9 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
-  # lookaround: the lookbehind opens the condition only after the `if` or
-  # `elseif` (see `LuauIfBlockCondition`). `LuauTernaryExpression` tries this
-  # rule before `LuauExpression`, which reads its arms, so without it the
-  # condition would take each arm's value (fixture
-  # luau-function/if-expression-condition). The begin's `(?!…)` keeps the
-  # condition from opening at a line end, before more
-  # whitespace (the begin takes the whitespace itself) or right before
-  # `then`, where `LuauThenExpression` reads the arm (`if then 1`). The
-  # end's `^(?!…)` is the line rule above, as in `LuauIfBlockCondition`.
+  # lookaround: LuauThenExpression owns `then`; the condition opens where the `if` ended or after a clause `elseif`, never at a line end or before `then`.
   LuauTernaryExpressionCondition:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!$|{{WS}}|then\b)
+    begin: "{{LUAU_SHARED_TERNARY_CONDITION_START}}({{WS}}*)(?!$|{{WS}}|then\\b)"
     beginCaptures:
       1:
         emit: true
@@ -8507,11 +8404,7 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})|(?={{WS}}*{{LUAU_UNTIL}})
 
   LuauElseifBlockCondition:
-    # lookaround: as in `LuauIfBlockCondition`, the lookbehind keeps the
-    # condition out of the branch's statements (`LuauBlockBody`,
-    # `LuauSparkleBlockEntries`; fixture sparkle/layout-if). Its end's
-    # `^(?!…)` is as there.
-    begin: (?<=\belseif\b{{WS}}*)
+    begin: \G
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -8522,6 +8415,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+    # lookaround: the end's `^(?!…)` leaves the line that begins the branch's first statement to LuauBlockBody.
     end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|[)\]}]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
@@ -8532,18 +8426,9 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
-  # lookaround: the lookbehind keeps this rule to the line the `if` or
-  # `elseif` ends. Both conditions try it first at every position, so
-  # without it every line break inside a condition would be taken here,
-  # past the condition's line-start end (fixtures flow/if-condition-next-line
-  # and luau-access/leading-dot-continuation). See `LuauIfBlockCondition`.
-  # The begin's `(?=…)` is what the rule is for: it opens only where the
-  # line ends or a comment follows, and otherwise leaves the first token to
-  # the condition's `LuauExpression`. The end's `(?!{{LUAU_COMMENT_START}})`
-  # keeps a comment line in the break, where `LuauComment` reads it, rather
-  # than beginning the condition with it.
+  # lookaround: the begin's `(?=…)` leaves a condition that goes on along its header's line to the condition's LuauExpression, and the end's `(?!…)` leaves a comment line to LuauComment.
   LuauConditionLeadingBreak:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
+    begin: \G(?={{WS}}*{{LUAU_LINE_END_OR_COMMENT}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
@@ -9612,32 +9497,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # lookaround: the lookbehind keeps the name to the header of
-  # `LuauFunctionDefinition` and `LuauExternalDeclaration`, which take the
-  # keyword in their begins but try their patterns again after the header,
-  # and textmate-grammar-tree has no `\G` to match only where the begin
-  # ended. `LuauFunctionBody`, tried first, opens right after a definition's
-  # header, so its own patterns meet a name only in the header or where the
-  # header leaves a comment and then a word on its line: without the
-  # lookbehind, `external e(x) --[[ c ]] w` declares a second function `w`.
-  # `LuauAccessPart` also includes this rule, before `LuauVariable`, so a
-  # name after `function` or `external` inside an expression
-  # (`return external value`, written before the author finishes) is read
-  # as a declared name; there the lookbehind is the rule's context as well
-  # as its anchor, and without it every name of every access path would be
-  # a declared name (fixture luau-access/chained-property).
-  # `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name
-  # (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access path,
-  # where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its parts
-  # and `lowerLuauFunctionDefinition` reads it as a path. The §10.1 fixes do
-  # not replace it: tried first, the access path would also take a plain
-  # name, which must stay this rule's; `a` in `a.b` and a plain name are the
-  # same identifier, so no tightened variable separates them; and a name
-  # has no end that could stop before a `.` it has not reached. Only the
-  # character after the name tells the two apart. The lookbehind passes over
-  # block comments that close on the keyword's line when the keyword begins
-  # its line (`LUAU_HEADER_COMMENTS`); the cost: one that spans lines hides
-  # the name.
+  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor.
   LuauFunctionDeclarationName:
     match: (?<={{LUAU_DECLARATION_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
@@ -11027,19 +10887,9 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # lookaround: as in `LuauFunctionDeclarationName`, the lookbehind keeps the
-  # name to `LuauFunctionTypeDeclaration`'s header. `LuauFunctionBody` cannot
-  # open right after a header that has no parameter list yet, so without
-  # the lookbehind a comment and a word after the name on its line
-  # (`type function T --[[ c ]] q`, while the author is still typing) make
-  # `q` a second name, ahead of `LuauBlockBody`, which reads it otherwise
-  # (keywordLookbehinds.test.ts asserts the one name directly). Tried after
-  # `LuauBlockBody`, the rule would never meet its name.
-  # The lookbehind passes over block comments that close on the keyword's
-  # line when the keyword begins its line (`LUAU_HEADER_COMMENTS`); the cost:
-  # one that spans lines hides the name.
+  # lookaround: the lookbehind takes the name after block comments that follow a line-leading `function`, which LuauBlockBody would otherwise read.
   LuauTypeFunctionName:
-    match: (?<=\bfunction\b{{WS}}*|{{LUAU_HEADER_LINE_START}}function\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    match: (?:\G|(?<={{LUAU_HEADER_LINE_START}}function\b{{LUAU_HEADER_COMMENTS}}))({{LUAU_IDENTIFIER}})\b({{WS}}*)
     captures:
       1:
         tag: typeName
