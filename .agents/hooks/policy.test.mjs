@@ -458,6 +458,16 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(strip(`$x = 1\nfunction Merge-Folder {\n  param()\n  'merged'\n  ${help}\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder {\n  param()\n  'merged'\n  ${help}\n}\n$y = 2\n`, "Get-Help reads function help at the end of the function body");
     assert.equal(strip(`$x = 1\nfunction Merge-Folder (\n  [string]$Source\n) {\n  ${help}\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder (\n  [string]$Source\n) {\n  ${help}\n}\n$y = 2\n`, "a function head may spread its parameters over several lines");
     assert.equal(strip(`$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    'merged'\n    ${help}\n  }\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    'merged'\n  }\n}\n$y = 2\n`, "help closing an if block is not function help");
+    const fnEnd = (inner) => `$x = 1\nfunction Merge-Folder {\n${inner}\n  ${help}\n}\n$y = 2\n`;
+    for (const inner of ["  '{'", "  \"}\"", "  $s = @'\n}\n'@", "  $h = @{ a = '}' }", "  Write-Output `{", "  \"$('}')\""]) {
+      assert.equal(strip(fnEnd(inner), "scripts/merge.ps1"), fnEnd(inner), `a brace inside ${JSON.stringify(inner.trim())} does not move the function body that holds the help`);
+    }
+    const ifEnd = `$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n    ${help}\n  }\n}\n$y = 2\n`;
+    assert.equal(strip(ifEnd, "scripts/merge.ps1"), "$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n  }\n}\n$y = 2\n", "a quoted brace does not turn help closing an if block into function help");
+    for (const head of ["($n = (1 + 2))", "($n = ')')", "($n = '{')"]) {
+      const source = `$x = 1\nfunction Merge-Folder ${head} {\n  ${help}\n}\n$y = 2\n`;
+      assert.equal(strip(source, "scripts/merge.ps1"), source, `a function head ${head} still opens a function body`);
+    }
     assert.equal(strip("describe(\"x\", () => {\n  // note\n\n  test();\n});\n", "src/a.ts"), "describe(\"x\", () => {\n  test();\n});\n", "a removed run directly after an opening bracket takes the blank line below it");
     assert.equal(strip("if (a) {\n  b();\n\n  // note\n}\n", "src/a.ts"), "if (a) {\n  b();\n}\n", "a removed run directly before a closing bracket takes the blank line above it");
     assert.equal(strip("f({\n  // one\n\n  // two\n});\n", "src/a.ts"), "f({\n});\n", "removals that meet across a blank line keep neither the blank nor any code between them");

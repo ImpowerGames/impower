@@ -625,8 +625,12 @@ function scanYamlLexed(yaml, text) {
   return comments;
 }
 
-function scanPs1(text, indent = 0) {
+function scanPs1(text, indent = 0, literals = null) {
   const comments = [];
+  const literal = (start, end) => {
+    literals?.push({ start, end });
+    return end;
+  };
   const hereClose = (j, quote) => {
     if (text[j] !== "\n") return -1;
     let k = j + 1;
@@ -658,17 +662,17 @@ function scanPs1(text, indent = 0) {
         const end = lineEnd(text, i);
         comments.push({ start: i, end });
         i = end;
-      } else if (c === "`") i += 2;
+      } else if (c === "`") i = literal(i, i + 2);
       else if (c === "@" && text[i + 1] === "'" && /^\r?\n/.test(text.slice(i + 2, i + 4))) {
         let line = text.indexOf("\n", i + 2);
         while (line >= 0 && hereClose(line, "'") < 0) line = text.indexOf("\n", line + 1);
-        i = line < 0 ? text.length : hereClose(line, "'");
-      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = expandable(i + 2, true);
+        i = literal(i, line < 0 ? text.length : hereClose(line, "'"));
+      } else if (c === "@" && text[i + 1] === '"' && /^\r?\n/.test(text.slice(i + 2, i + 4))) i = literal(i, expandable(i + 2, true));
       else if (c === "'") {
         let j = i + 1;
         while (j < text.length && !(text[j] === "'" && text[j + 1] !== "'")) j += text[j] === "'" ? 2 : 1;
-        i = j + 1;
-      } else if (c === '"') i = expandable(i + 1, false);
+        i = literal(i, j + 1);
+      } else if (c === '"') i = literal(i, expandable(i + 1, false));
       else if (c === "(") {
         depth++;
         i++;
@@ -856,34 +860,46 @@ function powershellHelp(text) {
   return keywords > 0;
 }
 
-function codeOutside(text, comments, from, to) {
-  let code = "", at = from;
-  for (const c of comments) {
-    if (c.end <= from || c.start >= to) continue;
-    code += text.slice(at, Math.max(at, c.start));
-    at = Math.max(at, c.end);
+function powershellStructure(text) {
+  const literals = [];
+  const chars = text.split("");
+  for (const { start, end } of [...scanPs1(text, 0, literals), ...literals]) {
+    for (let i = start; i < end && i < chars.length; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = " ";
   }
-  return code + text.slice(at, to);
+  return chars.join("");
 }
 
-const POWERSHELL_FUNCTION_HEAD = /(?:^|[\s;])(?:function|filter|workflow)[ \t]+[^\s{(]+(?:\s*\([^)]*\))?\s*$/i;
-
-function openingBrace(code) {
+function openingBrace(code, from) {
   let depth = 0;
-  for (let i = code.length - 1; i >= 0; i--) {
+  for (let i = from - 1; i >= 0; i--) {
     if (code[i] === "}") depth++;
     else if (code[i] === "{" && depth-- === 0) return i;
   }
   return -1;
 }
 
-function powershellHelpPlaced(text, comment, comments) {
-  const before = codeOutside(text, comments, 0, comment.start);
-  const after = codeOutside(text, comments, comment.end, text.length);
+function opensFunction(code, brace) {
+  let i = brace - 1;
+  while (i >= 0 && /\s/.test(code[i])) i--;
+  if (code[i] === ")") {
+    for (let depth = 0; i >= 0; i--) {
+      if (code[i] === ")") depth++;
+      else if (code[i] === "(" && --depth === 0) break;
+    }
+    if (i < 0) return false;
+    i--;
+    while (i >= 0 && /\s/.test(code[i])) i--;
+  }
+  return /(?:^|[\s;])(?:function|filter|workflow)[ \t]+[^\s{}()]+$/i.test(code.slice(0, i + 1));
+}
+
+function powershellHelpPlaced(code, comment) {
+  const before = code.slice(0, comment.start);
+  const after = code.slice(comment.end);
   if (!before.trim() || !after.trim()) return true;
   if (/^[ \t]*(?:\r?\n[ \t]*){1,2}(?:function|filter|workflow)[ \t]/i.test(after)) return true;
-  const open = openingBrace(before);
-  if (open < 0 || !POWERSHELL_FUNCTION_HEAD.test(before.slice(0, open))) return false;
+  const open = openingBrace(code, comment.start);
+  if (open < 0 || !opensFunction(code, open)) return false;
   return !before.slice(open + 1).trim() || /^\s*\}/.test(after);
 }
 
@@ -962,10 +978,10 @@ export function judgeComments(text, file, options = {}) {
   const comments = scanComments(text, file, options);
   const single = (c) => !c.text.startsWith("/*") && !c.text.startsWith("<") && c.line === c.endLine && !text.slice(c.lineStart, c.start).trim();
   const extension = path.posix.extname(posix(file)).toLowerCase();
-  let previous = null, block = null;
+  let previous = null, block = null, structure = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
-    if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced(text, comment, comments)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
+    if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced((structure ??= powershellStructure(text)), comment)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
     if (comment.firstLines && comment.line > comment.firstLines) Object.assign(comment, { kind: "refused", reason: `a directive its tool reads only in a file's first ${comment.firstLines} lines` });
     if (block && single(comment) && comment.line === previous.endLine + 1) {
       if (comment.kind === "refused") Object.assign(comment, { kind: "directive", reason: `continues the directive on line ${block.line}, whose reader takes the rest of its comment block` });
