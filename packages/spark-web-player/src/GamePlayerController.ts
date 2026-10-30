@@ -592,6 +592,9 @@ export class GamePlayerController {
 
   protected refusePlay(refusal: string | undefined) {
     this._playRefusal = refusal;
+    if (refusal) {
+      this._resolveLoadingInitialProgram();
+    }
     const button = this.refs.playButton;
     if (!button) {
       return;
