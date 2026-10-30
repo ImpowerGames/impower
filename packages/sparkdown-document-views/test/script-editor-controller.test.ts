@@ -26,7 +26,13 @@ vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOrig
       const view = new EditorView({
         state: EditorState.create({
           doc: "hello world\n",
-          extensions: [customSearchPanel(), customGotoLinePanel()],
+          extensions: [
+            customSearchPanel(),
+            customGotoLinePanel(),
+            EditorView.updateListener.of((update) =>
+              config.onViewUpdate(update),
+            ),
+          ],
         }),
         parent,
       });
@@ -193,6 +199,32 @@ describe("ScriptEditorController panel focus", () => {
     openPanel(view, config, openCustomGotoLinePanel);
     const line = field(host, ".cm-gotoLine [contenteditable]");
     expect(unfocusedAfterMovingInto(methods, config, line)).toBe(false);
+  });
+
+  it("keeps the editor focused when go-to-line replaces an open find panel", async () => {
+    const { host, view, config, methods } = await loadedEditor();
+    openPanel(view, config, openSearchPanel);
+    field(host, ".cm-search [contenteditable][name='search']").dispatchEvent(
+      new FocusEvent("blur"),
+    );
+    openCustomGotoLinePanel(view);
+    expect(host.querySelector(".cm-search")).toBeNull();
+    const line = field(host, ".cm-gotoLine [contenteditable]");
+    line.dispatchEvent(new FocusEvent("blur"));
+    expect(unfocusedAfterMovingInto(methods, config, line)).toBe(false);
+  });
+
+  it("keeps the editor focused when find replaces an open go-to-line panel", async () => {
+    const { host, view, config, methods } = await loadedEditor();
+    openPanel(view, config, openCustomGotoLinePanel);
+    field(host, ".cm-gotoLine [contenteditable]").dispatchEvent(
+      new FocusEvent("blur"),
+    );
+    openSearchPanel(view);
+    expect(host.querySelector(".cm-gotoLine")).toBeNull();
+    const find = field(host, ".cm-search [contenteditable][name='search']");
+    find.dispatchEvent(new FocusEvent("blur"));
+    expect(unfocusedAfterMovingInto(methods, config, find)).toBe(false);
   });
 
   it("reports the editor unfocused once focus leaves the find field", async () => {
