@@ -73,4 +73,5 @@ export interface SparkProgram {
   filesEpoch?: number;
   summary?: true;
   runnable?: boolean;
+  playRefusal?: string;
 }

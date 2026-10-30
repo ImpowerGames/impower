@@ -569,7 +569,11 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const result = profiled("lsp: onCodeAction", uri, () =>
-      getCodeActions(document, params.context.diagnostics),
+      getCodeActions(
+        document,
+        params.context.diagnostics,
+        workspace.startSceneMissingIn(uri),
+      ),
     );
     return result;
   });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
 import type { File } from "../../compiler/types/File";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
 
 const MAIN = "file://proj/main.sd";
@@ -20,7 +21,7 @@ const FILES = Object.fromEntries(
 
 const DIAGNOSTICS = {
   [MAIN]: [
-    { severity: 1, message: "an error" },
+    { severity: 1, message: NO_START_SCENE_MESSAGE },
     { severity: 2, message: "a warning" },
     { severity: 2, message: "another warning" },
   ],
@@ -117,6 +118,7 @@ describe("the compiler/didCompile relay", () => {
     expect(params.program.scripts).toEqual({ [MAIN]: 0 });
     expect(params.program.version).toBeTypeOf("number");
     expect(params.program.diagnostics).toBeUndefined();
+    expect(params.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
     expect(params.diagnosticsSummary).toEqual({
       [MAIN]: { errors: 1, warnings: 2, infos: 0 },
     });

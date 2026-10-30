@@ -111,7 +111,7 @@ const getMorphFieldHover = (
     return null;
   }
   const doc =
-    (path[0] === "paints" ? own(MORPH_FIELD_DOCS, `paints.${name}`) : undefined) ??
+    (path[0] === "paints" || path[0] === "clips" ? own(MORPH_FIELD_DOCS, `${path[0]}.${name}`) : undefined) ??
     own(MORPH_FIELD_DOCS, name);
   if (!doc) {
     return null;
