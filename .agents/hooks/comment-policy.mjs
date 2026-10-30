@@ -891,8 +891,31 @@ export function refusedComments(text, file, options = {}) {
     .map(({ line, endLine, text: comment, reason, scanner }) => ({ line, endLine, text: comment, reason, scanner }));
 }
 
+function emptyJsxContainers(text, file, options) {
+  const extension = path.posix.extname(posix(file)).toLowerCase();
+  if (familyOf(file) !== "js" || extension === ".ts") return [];
+  const ts = options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
+  if (!ts) return [];
+  const { SyntaxKind } = ts;
+  const source = ts.createSourceFile(posix(file), text, ts.ScriptTarget.Latest, false, extension === ".tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.JS);
+  const blank = (node) => !node || node.kind !== SyntaxKind.JsxText || !text.slice(node.pos, node.end).trim();
+  const found = [];
+  const visit = (node) => {
+    if (node.kind === SyntaxKind.JsxElement || node.kind === SyntaxKind.JsxFragment) {
+      const children = node.children;
+      children.forEach((child, k) => {
+        if (child.kind === SyntaxKind.JsxExpression && !child.expression && !child.dotDotDotToken && blank(children[k - 1]) && blank(children[k + 1])) found.push({ start: child.getStart(source), end: child.end });
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
 export function stripComments(text, file, options = {}) {
-  const refused = judgeComments(text, file, options).filter((c) => c.kind === "refused");
+  const judged = judgeComments(text, file, options);
+  const refused = judged.filter((c) => c.kind === "refused");
   if (!refused.length) return text;
   const family = familyOf(file);
   if (family === "html") {
@@ -948,6 +971,13 @@ export function stripComments(text, file, options = {}) {
       const breaks = leading && (/[\n\r]/.test(c.text) || [0x2028, 0x2029].some((code) => c.text.includes(String.fromCharCode(code))));
       cuts.push({ from, to, replacement: breaks ? "\n" : joins ? " " : "" });
     }
+  }
+  for (const box of family === "js" ? emptyJsxContainers(text, file, options) : []) {
+    const inside = judged.filter((c) => c.start > box.start && c.end < box.end);
+    if (!inside.length || inside.some((c) => !removals.includes(c))) continue;
+    const first = lineOf(box.start), last = lineOf(box.end - 1);
+    if (text.slice(starts[first], box.start).trim() || text.slice(box.end, ends[last]).trim()) continue;
+    cuts.push({ from: starts[first], to: nextLine(box.end - 1), whole: true });
   }
   cuts.sort((a, b) => a.from - b.from);
   const strength = (replacement) => ["", " ", "\n"].indexOf(replacement ?? "");
