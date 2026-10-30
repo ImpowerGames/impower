@@ -6,6 +6,8 @@ import {
   closedLash,
   loop,
   lowerOpen,
+  roundEyeLowerOpen,
+  roundEyeUpperOpen,
   runtimeProgress,
   shift,
   splitClosedBottomOverlappingTop,
@@ -287,7 +289,7 @@ describe("buildApertures", () => {
     expect(r.diagnostics).toEqual([]);
     const ap = r.apertures[0]!;
     expect(ap.area(0)).toBeGreaterThan(1000);
-    expect(ap.area(0.9)).toBeLessThan(AREA_ZERO);
+    expect(ap.area(0.95)).toBeLessThan(AREA_ZERO);
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
     expect(ap.loop(1)).toHaveLength(48);
     const outermostTipX = 100;
@@ -303,6 +305,14 @@ describe("buildApertures", () => {
     ]);
     expect(r.diagnostics).toEqual([]);
     expect(r.apertures[0]!.area(1)).toBeGreaterThan(10);
+  });
+
+  test("a round open eye whose boundaries lie past each other's ends stays open at rest", () => {
+    const r = buildApertures([edge("upper", roundEyeUpperOpen, closedLash), edge("lower", roundEyeLowerOpen, closedLash)]);
+    expect(r.diagnostics).toEqual([]);
+    const ap = r.apertures[0]!;
+    expect(ap.area(0)).toBeGreaterThan(5000);
+    expect(ap.area(1)).toBeLessThan(AREA_ZERO);
   });
 
   test("tip ribs alone never open an aperture; one open interior rib does", () => {

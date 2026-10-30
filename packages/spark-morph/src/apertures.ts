@@ -431,7 +431,7 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
         pSide = sideOf(b, p);
       return closed ? 0 : Math.min(qSide === undefined ? 0 : facing * qSide, pSide === undefined ? 0 : -facing * pSide);
     });
-    const open = gaps.some((gap, i) => i > 0 && i < points - 1 && gap > 0);
+    const open = !closed && gaps.some((gap, i) => i > 0 && i < points - 1 && gap >= 0);
     return { a, b, gaps, open, facing, extent };
   };
   const openRestGaps = [0, 1].map((t) => {

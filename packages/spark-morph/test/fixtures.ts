@@ -17,6 +17,8 @@ export const splitClosedTopShortOfOuterTip = "M0,50 C30,43 70,43 92,45 C75,54 30
 export const splitClosedBottomOverlappingTop = "M0,50 C30,45 70,45 100,47 C70,54 30,54 0,50Z";
 export const splitOpeningTop = "M0,50 C30,44 70,44 96,47 C70,52 30,52 0,50Z";
 export const splitOpeningBottom = "M0,50 C30,46 70,46 100,49 C70,53 30,53 0,50Z";
+export const roundEyeUpperOpen = "M0,50 C0,-17 100,-17 100,50 C95,0 5,0 0,50Z";
+export const roundEyeLowerOpen = "M0,50 C0,117 100,117 100,50 C95,100 5,100 0,50Z";
 /** A lash tilted about 30 degrees, for the correspondence search. */
 export const tiltedOpen = "M0,80 C25,25 60,0 100,20 C65,15 35,40 0,80Z";
 export const tiltedClosed = "M0,80 C30,55 65,35 100,20 C65,38 30,58 0,80Z";
