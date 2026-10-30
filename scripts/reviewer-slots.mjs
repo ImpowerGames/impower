@@ -4,18 +4,12 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-// Machine-wide ceiling on participating local reviewer processes.
 const reviewerSlotCount = 8;
 
 export const machineSlotRoot = process.platform === "win32"
   ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "reviewer-slots")
   : "/var/tmp/impower-reviewer-slots";
 
-// PowerShell reads a getter that throws as $null, so a null StartTime means
-// either an exiting process or one this user cannot open. Only HasExited
-// separates them; a process still mid-exit is looked up again a few times,
-// and one that never resolves stays unknown rather than reading as absent.
-// The lookup is a PowerShell expression; tests substitute a stand-in object.
 export function windowsProcessIdentity(pid, lookup = `Get-Process -Id ${pid} -ErrorAction Stop`) {
   const script = `$ErrorActionPreference='Stop'; try{$r='unknown'; for($i=0;$i -lt 5;$i++){$p=${lookup}; $s=$p.StartTime; if($null -ne $s){$r=$s.ToUniversalTime().Ticks.ToString(); break}; if($p.HasExited -eq $true){$r='absent'; break}; Start-Sleep -Milliseconds 50}; $r}catch{if($_.FullyQualifiedErrorId -like 'NoProcessFoundForGivenId*'){'absent'}else{throw}}`;
   const value = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {encoding:"utf8",windowsHide:true}).trim();
@@ -24,7 +18,6 @@ export function windowsProcessIdentity(pid, lookup = `Get-Process -Id ${pid} -Er
   return {pid, start:value};
 }
 
-// null means confirmed absent; failures to inspect are unknown, never absence.
 export function processIdentity(pid) {
   if (!Number.isSafeInteger(pid) || pid < 1) throw new Error("Invalid process ID");
   if (process.platform === "linux") {
@@ -73,7 +66,6 @@ export function reserveReviewerSlot(root = machineSlotRoot) {
 }
 
 export function releaseReviewerSlot(slot) {
-  // Only the process holding the child exit event can call this path.
   const record=snapshot(slot.file);
   if(!record)throw new Error(`Owned slot record is missing at ${slot.file}; ownership cannot be verified`);
   if(record.initial.token!==slot.token || !same(record.initial.owner,processIdentity(process.pid)))throw new Error("Slot ownership changed; preserve the reservation");

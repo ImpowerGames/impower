@@ -1,47 +1,3 @@
-<#
-.SYNOPSIS
-Merges Claude desktop sessions from one account/org folder into another.
-
-.DESCRIPTION
-Claude desktop keeps its Code-tab session list in
-%APPDATA%\Claude\claude-code-sessions\<accountId>\<orgId>\ as one local_<uuid>.json
-per session, plus archived-sessions.idx, deleted_<id> markers and scheduled-tasks.json.
-Transcripts live in ~/.claude/projects and are shared by every account, so only the
-session list needs moving after switching accounts.
-
-The merge is additive and never deletes from the target:
-  - a source session the target lacks is copied;
-  - a target session is replaced only when the source's lastActivityAt is greater;
-  - identical or newer target sessions are left alone;
-  - archived-sessions.idx becomes the sorted union of both lists, keeping only ids that
-    have a local_<id>.json in the target;
-  - deleted_* markers and scheduled-tasks.json are not copied.
-The target folder is backed up to %TEMP% before anything changes.
-
-Fully quit Claude desktop first (tray icon included); a running app can overwrite the
-copied files. Reopen it afterwards. Run with -WhatIf first.
-
-When a parameter is omitted the script lists the account/org folders with session counts
-and last-modified times. The target defaults to the most recently modified org folder; the
-source defaults to the only other folder that holds sessions. It fails, naming the
-candidates, when that choice is ambiguous.
-
-.PARAMETER SourceAccount
-Account folder name to copy sessions from.
-.PARAMETER SourceOrg
-Org folder name to copy sessions from.
-.PARAMETER TargetAccount
-Account folder name to copy sessions into.
-.PARAMETER TargetOrg
-Org folder name to copy sessions into.
-.PARAMETER SessionsRoot
-Folder holding the account folders. Defaults to %APPDATA%\Claude\claude-code-sessions.
-
-.EXAMPLE
-./scripts/transplant-desktop-sessions.ps1 -WhatIf
-.EXAMPLE
-./scripts/transplant-desktop-sessions.ps1 -SourceAccount <id> -SourceOrg <id> -TargetAccount <id> -TargetOrg <id>
-#>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
   [string]$SourceAccount,
@@ -176,7 +132,6 @@ $ids = @(@(Read-ArchivedIds $sourceIdx) + @(Read-ArchivedIds $targetIdx) | Where
 $kept = @($ids | Where-Object {
     $present = [IO.File]::Exists((Join-Path $target.Path ($_ + '.json')))
     if (-not $present -and -not $doIt) {
-      # A dry run has not copied yet, so count ids whose file will exist after the copy.
       $present = [IO.File]::Exists((Join-Path $source.Path ($_ + '.json')))
     }
     $present

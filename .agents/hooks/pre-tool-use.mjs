@@ -44,7 +44,6 @@ export function normalize(payload, harness) {
   if (tool === "apply_patch") {
     if (typeof input?.command !== "string") throw new Error("Patch event is missing command text");
     const paths = [...input.command.matchAll(/^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)\r?$/gm)].map((m) => m[1].trimEnd());
-    // Only added lines are content; context and removed lines already exist.
     const contents = input.command.split(/\r?\n/).filter((line) => line.startsWith("+")).map((line) => line.slice(1));
     return { kind: "edit", paths, contents, files: patchFiles(input.command), cwd: eventCwd(payload) };
   }
@@ -56,8 +55,6 @@ export function normalize(payload, harness) {
   }
   if (tool === "bash" || tool === "powershell") {
     if (typeof input?.command !== "string") throw new Error("Shell event is missing command text");
-    // The unified exec Bash alias also covers PowerShell; it is not a shell
-    // identity. Evaluate both dialects instead of guessing from that alias.
     return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd: eventCwd(payload) };
   }
   return { kind: "other" };

@@ -393,8 +393,6 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
   }
   console.log("PASS: comment policy classifier, scanner, strip function and edit route");
 }
-// Control bytes are built from their code points so that no tool writing this
-// file can decode an escape into the byte itself.
 const nul = String.fromCharCode(0), esc = String.fromCharCode(0x1b), bs = String.fromCharCode(92);
 const writeHazards = [
   [event("Write", { file_path: "src/key.ts", content: `const SEP = "${nul}";\n` }), true],
@@ -408,7 +406,6 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText('C:${bs}w${bs}a.ts', $t); [IO.File]::ReadAllText("/tmp/a")` }), false],
   [event("Bash", { command: `$w = "C:/w"; [System.IO.File]::WriteAllText("$w/a.ts", $t); [IO.File]::ReadAllText((Join-Path $PWD 'a'))` }), false],
   [event("Bash", { command: `Get-ChildItem | % { [IO.File]::ReadAllText($_.FullName) }` }), false],
-  // Review round 1 (PR #754): expression arguments, text that only looks like a call, variable roots.
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path 'packages' 'a.ts'), $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText(('packages/a.ts'), $t)` }), true],
   [event("Bash", { command: "[IO.File]::WriteAllText( `\n  'packages/a.ts', $t)" }), true],
@@ -418,7 +415,6 @@ const writeHazards = [
   [event("Bash", { command: `$w = "$env:TEMP/x.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
   [event("Bash", { command: `$r = "C:/w"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
   [event("Bash", { command: `$r = "src"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), true],
-  // Review round 2 (PR #754): compact assignments, named Join-Path parameters, subexpressions.
   [event("Bash", { command: `$p='packages/a.ts'; [IO.File]::WriteAllText($p, $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -ChildPath 'a.ts' -Path 'packages'), $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Path:packages -ChildPath:a.ts), $t)` }), true],
@@ -426,7 +422,6 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Path $($PWD) -ChildPath 'a.ts'), $t)` }), false],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path (Get-Location) 'a.ts'), $t)` }), false],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -ChildPath 'a.ts' -Path $PWD), $t)` }), false],
-  // Review round 3 (PR #754): a $() subexpression in a double-quoted string runs; common switches take no value.
   [event("Bash", { command: `Write-Output "$([IO.File]::WriteAllText('packages/a.ts', 'x'))"` }), true],
   [event("Bash", { command: `Write-Output "$([IO.File]::WriteAllText('C:/w/a.ts', 'x'))"` }), false],
   [event("Bash", { command: `$r = "C:/w"; Write-Output "$([IO.File]::WriteAllText("$r/a.ts", 'x'))"` }), false],
@@ -452,7 +447,6 @@ const checks = [
   [event("apply_patch", { command: "*** Begin Patch\n*** Delete File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Add File: docs/example.txt\n+*** Update File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), false],
   ...writeHazards,
-  // Codex's shell tool may be bash, where the quotes survive and no other tool exists (PR #803 round 1).
   [event("Bash", { command: `gh pr checks 1 --jq '.[] | select(.name == "test-suite")'` }), false],
 ];
 const config = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
@@ -473,7 +467,6 @@ assert.throws(() => normalize(event("apply_patch", {}), "codex"), /missing/);
 assert.throws(() => normalize(event("Bash", {}), "codex"), /missing/);
 assert.throws(() => normalize({}, "unknown"), /adapter/);
 
-// The portable command is also checked explicitly with Git for Windows bash.
 const bash = process.platform === "win32" ? testShell() : "bash";
 const portable = spawnSync(bash, ["-c", hook.command], { cwd: path.join(root, "scripts"), input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
 assert.equal(portable.status, 0, portable.stderr);
@@ -489,8 +482,6 @@ if (process.platform === "win32") {
   assert.equal(result.status, 2, "a missing Windows runtime must block, not report a non-blocking hook failure");
   assert.match(result.stderr, /Repository hook|node|runtime/i);
 }
-// Claude-only tool shapes: MultiEdit content, the PowerShell dialect, and the
-// PowerShell hook that .claude/settings.json ships, run under bash.
 assert.ok(decide(normalize(event("MultiEdit", { file_path: "src/key.ts", edits: [{ old_string: "a", new_string: "b" }, { old_string: "c", new_string: `d${nul}` }] }), "claude")));
 assert.equal(decide(normalize(event("Bash", { command: `[IO.File]::ReadAllText('a.ts')` }), "claude")), null, "bash has no .NET calls");
 const dotnetHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[0].command;
@@ -501,7 +492,6 @@ for (const [command, blocked] of [[`$p = 'packages/a.ts'; [IO.File]::WriteAllTex
   assert.equal(run.status, 0, run.stderr);
   assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
 }
-// gh --jq filters holding a double quote reach jq damaged through Windows PowerShell 5.1 (#798).
 const jqHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[1].command;
 const listing = `gh api repos/o/r/issues/1/comments --paginate --jq '.[] | [.id, (.body | split("${bs}n")[0])] | @tsv'`;
 assert.equal(decide(normalize(event("Bash", { command: listing }), "claude")), null, "bash passes embedded double quotes intact");
@@ -509,7 +499,6 @@ for (const [command, blocked] of [
   [listing, true],
   [`gh run list -q '.[] | select(.name | test("ubuntu"))'`, true],
   ['gh pr view 1 --jq=".title + `"x`""', true],
-  // Review round 1 (PR #803): an attached -q value, and gh after an assignment or a wrapper.
   [`gh api rate_limit -q'.rate.limit | tostring == "5000"'`, true],
   [`$out = gh api x --jq '.a == "b"'`, true],
   [`env gh api x --jq '.a == "b"'`, true],

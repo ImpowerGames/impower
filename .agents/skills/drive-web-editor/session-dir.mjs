@@ -1,16 +1,8 @@
-// Where the web editor driver keeps each session's server record and browser
-// profile. The driver and clean-worktrees both import this, so a worktree's
-// records are found by the same rule that wrote them.
-
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { systemTemp } from "./worktree-temp.mjs";
 
-// Which agent session is running a command. Every command is its own
-// process, so the identity comes from the environment: IMPOWER_DRIVER_SESSION
-// when set, otherwise the session variable a known runner exports. Without
-// one, every such command shares the "shared" slot.
 export const SESSION_VARIABLES = ["IMPOWER_DRIVER_SESSION", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"];
 export function driverSession(env = process.env) {
   for (const name of SESSION_VARIABLES) if (env[name]) return env[name];
@@ -19,15 +11,10 @@ export function driverSession(env = process.env) {
 
 const shortHash = (text) => crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
 
-// The short root outside every checkout (IMPOWER_DRIVER_HOME overrides it).
 export const driverHome = (env = process.env) => env.IMPOWER_DRIVER_HOME || path.join(env.LOCALAPPDATA || systemTemp(env), "impower-driver");
 
-// Every session of one checkout lives under the checkout's own directory.
 export const checkoutDir = (root, env = process.env) => path.join(driverHome(env), shortHash(path.resolve(root)));
 
-// A hash cannot be read back into a path, so each checkout directory names the
-// checkout it hashed; clean-worktrees removes the directory once that
-// checkout is gone.
 export const CHECKOUT_OWNER_FILE = "checkout.json";
 export function recordCheckoutOwner(root, env = process.env) {
   const dir = checkoutDir(root, env);
@@ -36,22 +23,14 @@ export function recordCheckoutOwner(root, env = process.env) {
   catch (error) { if (error.code !== "EEXIST") throw error; }
 }
 
-// Every session directory holds `state.json` while its servers run and
-// `profile/`, whose claim file names the session that last opened it and when.
-// A claim younger than PROFILE_CLAIM_MS keeps other sessions (and
-// clean-worktrees) off the profile.
 export const PROFILE_CLAIM_MS = 30 * 60_000;
 export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
-// A claim's lock file older than this was left by a launch that died
-// mid-claim (the claim itself takes milliseconds).
 export const PROFILE_LOCK_STALE_MS = 30_000;
 
 export function sessionDir({ root, session = driverSession(), env = process.env } = {}) {
   return path.join(checkoutDir(root, env), session ? shortHash(session) : "shared");
 }
 
-// The state file of every session that has one for this checkout, whichever
-// session is asking; `io` is a parameter so tests can pin it without disk.
 export function checkoutStateFiles(root, env = process.env, io = fs) {
   const dir = checkoutDir(root, env);
   let names;

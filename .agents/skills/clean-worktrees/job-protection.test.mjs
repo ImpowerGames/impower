@@ -149,9 +149,6 @@ try {
   assert.ok(fullLogs.some((line) => line.includes('worktree ownership could not be inspected') && line.includes(brokenCheckout)));
   assert.ok(isRegistered(brokenCheckout));
   assert.equal(fs.readFileSync(path.join(brokenCheckout, 'ignored.txt'), 'utf8'), 'broken sentinel');
-  // A reviewer's probe clone inside a closed PR's job directory is scratch once
-  // it holds nothing origin/main lacks; a registered worktree beside one still
-  // keeps the directory, and so does a clone with a change or a local commit.
   const probeClone = (dir, name = 'probe-clone') => {
     const clone = path.join(dir, 'round-1', 'reviewer-a-1', name);
     fs.mkdirSync(path.dirname(clone), { recursive: true });
@@ -182,11 +179,6 @@ try {
   assert.equal(fs.readFileSync(path.join(heldCheckout, 'ignored.txt'), 'utf8'), 'held sentinel');
   assert.ok(fs.existsSync(path.join(heldClone, '.git')));
   assert.ok(isRegistered(heldCheckout));
-  // A local commit kept by a branch, by a tag alone, by a branch reflog alone
-  // (the branch reset back to origin/main) or by a custom ref's reflog alone
-  // keeps the clone, as do an untracked file, a linked worktree of the clone's
-  // own and a paused `git am`. The tag and custom-ref commits are made with
-  // commit-tree, so no HEAD or branch reflog reaches them.
   for (const state of ['untracked', 'committed', 'tagged', 'reflog', 'custom-reflog', 'linked', 'am', 'assume-unchanged']) {
     const fixture = job();
     const clone = probeClone(fixture.dir);
@@ -205,15 +197,12 @@ try {
     const external = path.join(scratch, `linked-${fixture.name}`);
     if (state === 'linked') inClone('worktree', 'add', '-q', '--detach', external, 'HEAD');
     if (state === 'am') {
-      // A mail patch whose context does not apply leaves `git am` paused, its
-      // patch kept under the Git directory and the status clean.
       const patch = ['From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001', 'From: Scratch <scratch@example.com>', 'Date: Mon, 12 Oct 2026 00:00:00 +0000', 'Subject: [PATCH] pending', '', '---', '', 'diff --git a/.gitignore b/.gitignore', '--- a/.gitignore', '+++ b/.gitignore', '@@ -1 +1 @@', '-not-the-content', '+pending-unique-work', '-- ', '2.40.1', ''].join('\n');
       const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'am'], { cwd: clone, input: patch, windowsHide: true, encoding: 'utf8' });
       assert.notEqual(r.status, 0, 'the fixture patch applied');
       assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply')), r.stderr);
     }
     if (state === 'assume-unchanged') {
-      // A change to a file marked assume-unchanged does not show in status.
       inClone('update-index', '--assume-unchanged', '.gitignore');
       fs.appendFileSync(path.join(clone, '.gitignore'), 'hidden-unique-work\n');
       assert.equal(inClone('status', '--porcelain', '--untracked-files=all'), '', 'the fixture change shows in status');
@@ -225,10 +214,6 @@ try {
     assert.ok(fs.existsSync(path.join(clone, '.git')), `apply removed the ${state} probe clone`);
     if (state === 'am') assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply', 'patch')), 'the paused patch survives apply');
   }
-  // The removal's repeated checks do not judge an approved clone again: once
-  // the walk unlinks a tracked symbolic link inside it, status reports a
-  // deletion the removal itself made. The status after classification is
-  // made to read as that deletion, as git reports it once the link is gone.
   {
     const fixture = job();
     const clone = probeClone(fixture.dir);
@@ -242,7 +227,6 @@ try {
     assert.equal(statusCalls, 1, 'the approved clone was judged once');
     assert.equal(fs.existsSync(fixture.dir), false);
   }
-  // A HEAD git cannot read keeps the clone, even when its branches are all merged.
   {
     const fixture = job();
     const clone = probeClone(fixture.dir);
@@ -298,7 +282,6 @@ try {
   assert.ok(isRegistered(aliasCheckout));
   console.log('PASS review-job ownership protection');
 } finally {
-  // Only this printed scratch root is disposable; never touch live jobs.
   for (const link of fixtureLinks) unlinkFixture(link);
   fs.rmSync(scratch, { recursive: true, force: true });
 }

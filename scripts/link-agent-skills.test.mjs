@@ -20,8 +20,6 @@ for (const { destination } of first) {
   assert.ok(fs.lstatSync(destination).isSymbolicLink());
   assert.equal(fs.readFileSync(path.join(destination, "sentinel"), "utf8"), "preserve");
 }
-// A newly added canonical skill must become available through every existing
-// discovery link, without adding per-runner copies or rerunning installation.
 const taskSkill = fs.readFileSync(new URL("../.agents/skills/file-task/SKILL.md", import.meta.url), "utf8");
 fs.mkdirSync(path.join(source, "file-task"));
 fs.writeFileSync(path.join(source, "file-task", "SKILL.md"), taskSkill);
@@ -31,7 +29,6 @@ for (const { destination } of first) {
   assert.equal(fs.realpathSync(discovered), fs.realpathSync(path.join(source, "file-task", "SKILL.md")));
 }
 console.log("PASS: canonical file-task is discoverable through all existing harness links");
-// Unlink only, without a trailing separator or recursive removal.
 for (const { destination } of first) fs.unlinkSync(destination);
 assert.equal(fs.readFileSync(path.join(source, "sentinel"), "utf8"), "preserve");
 const blocked = path.join(scratch, toolDirectories.at(-1), "skills");
@@ -55,7 +52,6 @@ const repaired = linkAgentSkills(scratch, { repairLinks: true });
 assert.equal(repaired[0].action, "repair");
 assert.ok(repaired[0].previousTarget.includes("impower-foreign-"));
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep", "repair unlinks entries, not their targets");
-// Exercise the actual postinstall entry point in a dependency-free fresh clone shape.
 fs.mkdirSync(path.join(scratch, "scripts"));
 fs.copyFileSync(fileURLToPath(new URL("./link-agent-skills.mjs", import.meta.url)), path.join(scratch, "scripts", "link-agent-skills.mjs"));
 const postinstall = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).scripts.postinstall;
@@ -95,11 +91,6 @@ assert.equal(recovery.length, 3);
 assert.ok(recovery.every((row) => row.action === "repair" && row.previousTarget.includes("impower-foreign-")));
 assert.equal(fs.readFileSync(path.join(foreign, "precious"), "utf8"), "keep");
 console.log("PASS: dangling-link repair, unexpected-resolution refusal and pre-mutation recovery records survive partial creation failure");
-// A real harness directory holding one link per skill, one of them dangling
-// after a skill was renamed, holds no data of its own: the default run refuses
-// and names the repair command, and that command leaves the three shared
-// links behind, through which every existing skill resolves and no renamed
-// one remains. A real file beside the links keeps the populated refusal.
 const movedSource = path.join(moved, ".agents", "skills");
 assert.ok(linkAgentSkills(moved, { repairLinks: true }).every((row) => fs.realpathSync(row.destination) === fs.realpathSync(movedSource)), "the three links are in place before the per-skill case");
 const perSkill = path.join(moved, ".claude", "skills");
@@ -131,4 +122,3 @@ assert.throws(() => linkAgentSkills(moved, { repairLinks: true }), /Refusing pop
 assert.equal(fs.readFileSync(path.join(perSkill, "notes.md"), "utf8"), "mine");
 assert.ok(fs.lstatSync(path.join(perSkill, "renamed-away")).isSymbolicLink());
 console.log("PASS: a directory of per-skill links, one dangling after a rename, is refused with the repair command named and replaced by the shared links under --repair-links");
-// Leave printed scratch evidence available; never recursively remove junction trees.

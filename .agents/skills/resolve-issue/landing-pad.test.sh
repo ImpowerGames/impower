@@ -1,27 +1,4 @@
 #!/usr/bin/env bash
-# Pins the glue the resolve-issue landing pad exists for. The pad is an ordered
-# checklist with one mandatory invocation line per step skill, a line that
-# begins `Invoke `/<step>` now` and carries `(skill name `<step>`)`, the name a
-# session hands the Skill tool; a session that meets no such line skips that
-# step, and nothing else would notice. So this asserts that the pad has exactly
-# one such line for write-regression-test, drive-web-editor and review-pr, in
-# that order, that the parenthetical on each names the same step, that each
-# step's SKILL.md exists and declares that name in its frontmatter (the harness
-# resolves a skill by that `name:`, not by its directory), that the completion
-# gate follows every invocation and says to read the feedback reporting
-# reference before it hands off, that the VS Code driver (drive-vscode-web,
-# invoked only for an extension ticket) is invoked with the same parenthetical
-# in exactly one sentence of §3 and one of §6 and exists under that name, and
-# that the file stays short enough to load into every session. A conditional
-# mention elsewhere in the pad (the repro bullets) does not begin a line with
-# the step phrase, so it is not counted, and neither is a line that forbids
-# an invocation or a line inside a fenced block, which is an example rather
-# than an instruction. Run:
-#   bash .agents/skills/resolve-issue/landing-pad.test.sh
-#
-# SKILL_MD overrides the file under test and SKILLS_DIR the directory the step
-# skills are resolved in, so the controls at the bottom can run this script
-# against deliberately broken copies and assert it fails for the reason named.
 set -u
 
 self="${BASH_SOURCE[0]:-$0}"
@@ -47,8 +24,6 @@ else
   echo "PASS  $lines lines"
 fi
 
-# Line numbers of the lines outside fenced blocks that begin with the mandatory
-# phrase for a step.
 invocations() {
   awk -v phrase="Invoke \`/$1\` now" '
     /^```/ { fenced = !fenced; next }
@@ -56,9 +31,6 @@ invocations() {
   ' "$skill"
 }
 
-# prev is the highest invocation line seen so far: each step must come after
-# it, and the gate must come after all of them, so a step out of order never
-# lowers it.
 prev=0
 for step in write-regression-test drive-web-editor review-pr; do
   found=$(invocations "$step")
@@ -93,16 +65,8 @@ for step in write-regression-test drive-web-editor review-pr; do
   echo "PASS  /$step invoked at line $at"
 done
 
-# The VS Code driver is invoked only for an `app: vscode-extension` ticket, so
-# its invocations are conditional sentences rather than lines of their own:
-# one in the reproduction bullets of §3 and one in §6, each carrying the
-# parenthetical the Skill tool needs. Each section holds exactly one such
-# sentence outside a fence that does not forbid it, and the skill exists under
-# that name, or a session on such a ticket is sent nowhere.
 vsc='invoke `/drive-vscode-web` (skill name `drive-vscode-web`)'
 
-# Line numbers of the lines outside fenced blocks, in the section whose
-# heading begins with $1, that invoke the VS Code driver and do not forbid it.
 vscode_invocations() {
   awk -v head="$1" -v phrase="$vsc" '
     /^```/ { fenced = !fenced; next }
@@ -142,18 +106,10 @@ else
   echo "PASS  completion gate at line $gate"
 fi
 
-# The gate section holds the pad's one reminder to report skill friction: a
-# sentence that says to read the feedback reporting reference, placed before
-# the paragraph that hands off. The routing list in the repository instructions
-# is read at session start, before a session can judge what cost it time, so a
-# pad without the sentence leaves the inbox without reports. A sentence that
-# forbids the reading, or one inside a fence, does not count.
 feedback_link='(../references/feedback-reporting.md)'
 feedback_phrase="read [feedback reporting]$feedback_link"
 handoff_link='(../notify-user/SKILL.md)'
 
-# Line numbers of the lines outside fenced blocks, in the completion gate, that
-# contain $1 and, when $2 is set, do not forbid it.
 gate_lines() {
   awk -v phrase="$1" -v guarded="${2:-}" '
     BEGIN { phrase = tolower(phrase) }
@@ -180,9 +136,6 @@ if (( fail )); then
   exit 1
 fi
 
-# Controls: each broken copy must make this script exit non-zero, its output
-# must name the reason the label names, and no step that fails may also be
-# reported as passing.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 

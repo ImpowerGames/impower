@@ -1,4 +1,3 @@
-// Run: node .github/scripts/check-linked-issue.test.mjs
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -8,7 +7,6 @@ import { join } from "node:path";
 import { checkLinkedIssue } from "./check-linked-issue.mjs";
 import { readRepos } from "../../.agents/repos.mjs";
 
-// Both positions of the cutover switch, whatever the committed file says.
 const OFF = { ...readRepos(), cutover: false };
 const ON = { ...readRepos(), cutover: true };
 
@@ -50,9 +48,6 @@ console.log(
   `ok: switch off, ${passes.length} passing bodies, ${fails.length} failing bodies`,
 );
 
-// With the switch on, tickets live in the internal repository: a bare #N
-// names a pull request in the code repository, so it passes only beside a
-// closing reference to the internal repository.
 const internalPasses = [
   `Closes ${ON.internal}#5`,
   `Closes #5\nCloses ${ON.internal}#5`,
@@ -86,23 +81,10 @@ console.log(
   `ok: switch on, ${internalPasses.length} passing bodies, ${internalFails.length} failing bodies`,
 );
 
-// The entry-point guard (`import.meta.url === pathToFileURL(process.argv[1]).href`)
-// only runs when the script is invoked as a subprocess, the way CI and the
-// documented local check both run it — importing checkLinkedIssue above never
-// exercises it. Run the real on-disk script for real, from a copy in a
-// directory whose name has a space in it: a plain path collapses a raw
-// `file://${argv[1]}` template and pathToFileURL(argv[1]).href to the same
-// string on POSIX, which would let a broken guard pass here on Linux even
-// though it is exactly what leaves the guard silently no-op on Windows; a
-// space forces the two to diverge (one percent-encodes it, the other does
-// not) on every platform, so this exercises the real bug wherever it runs,
-// not only on the platform this suite happens to execute on.
 const scriptSource = readFileSync(
   fileURLToPath(new URL("./check-linked-issue.mjs", import.meta.url)),
   "utf8",
 );
-// The script reads the switch from .agents/repos.json two levels up, so the
-// copy keeps that layout.
 const spaceDir = mkdtempSync(join(tmpdir(), "check linked issue "));
 mkdirSync(join(spaceDir, ".github", "scripts"), { recursive: true });
 mkdirSync(join(spaceDir, ".agents"));

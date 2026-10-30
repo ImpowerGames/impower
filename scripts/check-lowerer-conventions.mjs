@@ -1,27 +1,4 @@
 #!/usr/bin/env node
-// Checks the lowerers under packages/sparkdown/src/compiler/lower/ for code
-// that re-derives structure the grammar should name (GRAMMAR.md §5.1, §6.4).
-//
-//   - Error: any reference to an auto-generated `_begin_cN` / `_end_cN` node
-//     name. Those names change whenever the grammar is regenerated.
-//   - Ratchet: every regex literal, `new RegExp`, `.match(` / `.matchAll(` /
-//     `.exec(` / `.test(`, and `.startsWith(` / `.endsWith(` / `.indexOf(` / `.includes(` /
-//     `.split(` call is a scan finding unless the `//` comment block directly
-//     above its line carries a `// value-level:` marker saying which
-//     already-isolated value it interprets. Unmarked findings are counted per
-//     file against scripts/lowerer-conventions-baseline.json; a file whose
-//     count rises fails, a file whose count falls is asked to lower the
-//     baseline (a note, not a failure, so sibling fixes do not collide).
-//   - Warning: `parent.name` / `parent?.name` checks, counted against the
-//     same baseline but never failing.
-//
-// The scan is textual: comments are ignored, string contents are not. Whether
-// a marked scan really is value-level stays a review judgment.
-//
-// Usage:
-//   node scripts/check-lowerer-conventions.mjs                  check
-//   node scripts/check-lowerer-conventions.mjs --write-baseline rewrite the baseline from the tree
-//   node --test scripts/check-lowerer-conventions.test.mjs      test the scanner itself
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -33,17 +10,11 @@ export const LOWER_DIR = "packages/sparkdown/src/compiler/lower";
 export const BASELINE = "scripts/lowerer-conventions-baseline.json";
 export const MARKER = "// value-level:";
 
-// A literal capture number, one interpolated into a template literal, or a
-// string ending at `_c` that a concatenation completes.
 const GENERATED_NAME = /\b\w*_(?:begin|end)_c(?:\d+\b|\$\{[^}]*\}|(?=["'`]))/g;
 const SCAN_CALL =
   /\.(?:match|matchAll|exec|test|startsWith|endsWith|indexOf|includes|split)\s*\(|\bnew\s+RegExp\s*\(/g;
-// A regex literal: a `/` after a token that cannot end an expression (the
-// same set as REGEX_PRECEDER in scripts/node-names.mjs).
 const REGEX_LITERAL =
   /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\breturn|\bcase|\btypeof|\bvoid|\bin|\bof)\s*(\/(?![/*])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[dgimsuyv]*)/gm;
-// A check on a parent's name: compared, looked up in a set or list, or
-// switched on. Building a name from it (`${parent.name}_content`) is not one.
 const PARENT_NAME =
   /\bparent\??\.name\s*[!=]==?|[!=]==?\s*[\w.?]*\bparent\??\.name\b|\.(?:has|includes)\(\s*[\w.?]*\bparent\??\.name\s*\)|\bswitch\s*\(\s*[\w.?]*\bparent\??\.name\b/g;
 
@@ -53,8 +24,6 @@ function lineAt(src, index) {
   return line;
 }
 
-// Line numbers (1-based) whose contiguous `//` comment block directly above
-// holds the marker.
 export function markedLines(source) {
   const lines = source.split("\n");
   const marked = new Set();
@@ -69,9 +38,6 @@ export function markedLines(source) {
   return marked;
 }
 
-// Puts the `${...}` expressions of template literals back into a
-// string-blanked copy, since they are code, not string text. Backticks inside
-// an interpolation are not handled.
 export function withInterpolations(src, blanked) {
   const out = blanked.split("");
   for (let open = blanked.indexOf("`"); open >= 0; ) {
@@ -83,7 +49,6 @@ export function withInterpolations(src, blanked) {
       let j = i + 1;
       for (; j < end; j += 1) {
         if (src[j] === '"' || src[j] === "'") {
-          // Skip a quoted string, so a brace inside it does not count.
           const quote = src[j];
           for (j += 1; j < end && src[j] !== quote; j += 1) if (src[j] === "\\") j += 1;
         } else if (src[j] === "{") depth += 1;
@@ -98,8 +63,6 @@ export function withInterpolations(src, blanked) {
   return out.join("");
 }
 
-// Findings in one file's source: { generated, scans, parentNames }, each a
-// list of { line, text }. `scans` leaves out marked lines.
 export function scanSource(source) {
   const src = stripComments(source);
   const marked = markedLines(source);
@@ -108,9 +71,6 @@ export function scanSource(source) {
       line: lineAt(src, m.index + m[0].indexOf(m[group])),
       text: m[group].trim(),
     }));
-  // Calls and regex literals are found in a copy whose string bodies are
-  // blanked (same length), so `/word/` or `.includes(` inside a string is not
-  // taken for a scan; the text reported comes from the unblanked source.
   const blanked = withInterpolations(src, stripCommentsAndStrings(source));
   const executable = (re, group = 0) =>
     [...blanked.matchAll(re)].map((m) => {
@@ -135,7 +95,6 @@ export function lowererFiles(root = ROOT) {
     .map((f) => `${LOWER_DIR}/${f}`);
 }
 
-// Compares per-file counts with a baseline. Returns { errors, notes }.
 export function compare(counts, baseline, kind, failOnRise) {
   const errors = [];
   const notes = [];

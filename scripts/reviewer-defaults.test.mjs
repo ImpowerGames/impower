@@ -8,7 +8,6 @@ import { runHandoff as actualRunHandoff, checkCrossVendor, usageLimitWindowMs } 
 import { readReviewerDefaults, resolveReviewer, applyResolvedReviewer, validateReviewerDefaults } from "./reviewer-defaults.mjs";
 import { readRepos } from "../.agents/repos.mjs";
 
-// Launches run with the cutover switch off, read from a copy of the repos file.
 const reposDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-repos-off-"));
 fs.writeFileSync(path.join(reposDir, "repos.json"), JSON.stringify({ ...readRepos(), cutover: false }));
 const OFF = readRepos(path.join(reposDir, "repos.json"));
@@ -17,8 +16,6 @@ const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...op
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// The checked-in table validates against the checked-in reviewer registry and
-// resolves the agreed pairings.
 const { defaults } = readReviewerDefaults(root);
 assert.ok(!defaults.rows.some((row) => [...row.primary, ...row.fallback].some(({ route }) => route.includes("fable"))), "the limited-allowance model never reviews");
 const pick = (plan) => { const { reviewer, reviewerEffort } = resolveReviewer(plan, root); return `${reviewer}/${reviewerEffort}`; };
@@ -47,14 +44,11 @@ assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "high", reviewerFal
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-6.1-sol/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true }), "claude-sonnet-5-5/xhigh");
-// Codex writers and the Fable fallback are reviewed by Opus 5.5.
 assert.equal(pick({ writer: "gpt-6.1-sol", writerEffort: "low" }), "claude-opus-5-5/high", "the current Codex default model resolves a reviewer");
 assert.equal(pick({ writer: "gpt-6.1-sol", writerEffort: "ultra", reviewerFallback: true }), "gpt-6-astra/medium");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high" }), "claude-opus-5-5/xhigh");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "max", reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
-// Every row whose writer or reviewers are Opus routes, pinned exactly: each
-// reviewer at each index, so one row left on an older model fails here.
 const routes = (list) => list.map(({ route, effort }) => `${route}/${effort}`).join(" ");
 const opusRows = defaults.rows.filter((row) => ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6.1-sol", "gpt-6-astra"].includes(row.writer));
 const expectedOpusRows = [
@@ -79,7 +73,6 @@ const expectedOpusRows = [
   ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh", "gpt-6.1-sol/xhigh gpt-5.6-terra/high"]),
 ];
 assert.deepEqual(opusRows.map((row) => [row.writer, row.writerEffort, row.ticketEffort, routes(row.primary), routes(row.fallback)]), expectedOpusRows);
-// Every writer in the table resolves at every effort its runner accepts.
 for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
   for (const writerEffort of writer.startsWith("claude-") ? ["low", "medium", "high", "xhigh", "max"] : ["low", "medium", "high", "xhigh", "max", "ultra"]) {
     const tiers = defaults.rows.filter((row) => row.writer === writer && row.writerEffort === writerEffort).map((row) => row.ticketEffort);
@@ -90,12 +83,9 @@ for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max" }), "gpt-6-astra/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max" }), "gpt-6-astra/xhigh");
 for (const writerEffort of ["low", "medium", "high", "xhigh", "max"]) assert.ok(defaults.rows.some((row) => row.writer === "claude-opus-5-5" && row.writerEffort === writerEffort), `claude-opus-5-5 at ${writerEffort} has a row`);
-// A ticket tier with no row at the writer's effort falls back to that tier's
-// row at the nearest writer effort, and the selection says so.
 const tierMatch = resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "low", ticketEffort: "medium" }, root);
 assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-6.1-sol", "medium", "ticketEffort"]);
 assert.equal(resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
-// Two rows of the tier equally near the session effort: the higher one wins.
 const tieRoot = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-tie-"));
 fs.mkdirSync(path.join(tieRoot, ".claude"));
 fs.writeFileSync(path.join(tieRoot, ".claude", "reviewer-models.json"), JSON.stringify([{ name: "reviewer-t", model: "claude-t" }]));
@@ -116,7 +106,6 @@ for (const writer of ["claude-opus-5-5", "claude-opus-5-5[1m]"]) assert.throws((
 assert.throws(() => resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium", reviewer: null }, root), /Omit reviewer/);
 for (const selector of [{ reviewerEffort: "high" }, { reviewerFallback: true }, { reviewerIndex: 0 }, { ticketEffort: "medium" }]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium", reviewer: "gpt-5.6-sol", ...selector }, root), /apply only when the reviewer is resolved/, JSON.stringify(selector));
 
-// Schema refusals.
 const models = [{ name: "reviewer-a", model: "claude-a" }];
 const row = (extra) => ({ ticketEffort: "medium", writer: "claude-w", writerEffort: "medium", primary: [{ route: "gpt-1-x", effort: "high" }], fallback: [{ route: "claude-a", effort: "high" }], ...extra });
 const covered = (writer, efforts, extra) => efforts.map((writerEffort) => row({ writer, writerEffort, ...extra }));
@@ -134,7 +123,6 @@ assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [
 assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row(), row()] }, models), /Duplicate/);
 assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row({ primary: [{ route: "gpt-1-x", effort: "extreme" }] })] }, models), /Unsupported reviewer effort/);
 
-// A resolved Codex reviewer receives its model and effort as exec arguments.
 const codexStep = { role: "review", nativeResult: "codex-jsonl", args: ["exec", "--json", "-"] };
 assert.deepEqual(applyResolvedReviewer(codexStep, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), { ...codexStep, model: "gpt-5.6-sol", effort: "high", args: ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "--json", "-"] });
 for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["-c", ' model_reasoning_effort="low"'], ["-c", 'MODEL="gpt-6-astra"'], [" --model", "gpt-6-astra"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5-5"]]) {
@@ -146,7 +134,6 @@ const awaitedCodex = { role: "review", args: ["exec", "-C", "/w", "--json", "-o"
 assert.deepEqual(applyResolvedReviewer(awaitedCodex, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }).args, ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "-C", "/w", "--json", "-o", "/r/final.md", "-"], "the awaited Codex exec route also receives the resolved model and effort");
 assert.throws(() => applyResolvedReviewer(codexStep, { reviewer: "claude-sonnet-5-5", reviewerEffort: "high", agent: "reviewer-opus-5" }), /needs a Claude reviewer step/);
 
-// Launcher behavior in a scratch repository with its own registry and table.
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-defaults-"));
 console.log(`Scratch repository: ${scratch}`);
 const worktree = path.join(scratch, "repo");
@@ -183,7 +170,6 @@ const launch = async (config) => {
   return { error, launching: rows.find((row) => row.event === "launching") };
 };
 
-// Codex writer, primary column: the Claude reviewer definition is selected.
 let result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium" }));
 assert.match(result.error.message, /posted comment IDs/, "the resolved reviewer launches before the fixture's empty report is rejected");
 assert.equal(result.launching.model, "claude-fixture-reviewer");
@@ -191,8 +177,6 @@ assert.equal(result.launching.reviewerEffort, "high");
 assert.deepEqual(result.launching.reviewerResolved, { writerEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", ticketEffort: "medium", fallback: false, index: 0 });
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "high"]);
 
-// Claude writer, fallback column: the same-vendor reviewer is refused until a
-// journal shows the cross-vendor reviewer blocked by a usage limit.
 const blockedJournal = (name, reason, { model = "gpt-fixture-reviewer", time = new Date().toISOString() } = {}) => {
   const evidence = path.join(scratch, `${name}.jsonl`);
   fs.writeFileSync(evidence, [{ event: "launching", role: "review", model }, { event: "blocked", reason, time }].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
@@ -222,8 +206,6 @@ assert.equal(result.launching.sameVendor.usageLimitJournal, limited);
 assert.equal(result.launching.sameVendor.usageLimitRoute, "gpt-fixture-reviewer");
 assert.match(result.launching.sameVendor.usageLimitReason, /usage limit/);
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "xhigh"]);
-// An explicit reviewer of the writer's vendor meets the same requirement, and
-// a cross-vendor plan carries no evidence.
 const sameVendorStep = { model: "claude-fixture-reviewer", args: [child, "--model", "claude-fixture-reviewer"] };
 result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewer: "claude-fixture-reviewer" }, sameVendorStep));
 assert.match(result.error.message, /shares the writer's vendor/, "an explicit same-vendor reviewer is refused without evidence");
@@ -232,7 +214,6 @@ result = await launch(plan({ writer: "claude-fixture-writer[1m]", writerEffort: 
 assert.match(result.error.message, /posted comment IDs/, "an explicit same-vendor reviewer launches with usage-limit evidence");
 result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", usageLimitJournal: limited }));
 assert.match(result.error.message, /apply only to a reviewer of the writer's vendor/);
-// The user's explicit request, carried verbatim, stands in for the journal.
 const userRequest = "Use the same-vendor reviewer for this PR.";
 result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true, sameVendorAuthorization: userRequest }));
 assert.match(result.error.message, /posted comment IDs/, "a user-authorized same-vendor reviewer launches without a journal");
@@ -251,8 +232,6 @@ for (const reason of ["You've hit your weekly limit - resets Sep 28", "Role revi
   assert.ok(checkCrossVendor({ writer: "claude-w", reviewer: "claude-r", usageLimitJournal: blockedJournal("blocked-wording", reason) }, scratch), `a usage limit is recognised: ${reason}`);
 }
 assert.equal(checkCrossVendor({ writer: "writer-test", reviewer: "reviewer-test" }, scratch), undefined, "routes of neither known vendor are not judged");
-// The launcher's own journals: a probe blocked by a usage limit permits the
-// same-vendor reviewer, and a probe blocked by a rejected credential does not.
 const probeBlocked = async (mode) => {
   const config = plan({ writer: "gpt-fixture-writer", writerEffort: "medium" }, { args: [child, mode] });
   const blocked = await launch(config);
@@ -271,20 +250,17 @@ result = await codexSameVendor(credentialJournal);
 assert.match(result.error.message, /does not end blocked by a usage limit/, "the launcher's credential refusal does not permit the same-vendor reviewer");
 assert.equal(result.launching, undefined);
 
-// An explicit reviewer is used unchanged, even when the table has a default.
 result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", reviewer: "explicit-reviewer" }, { model: "explicit-reviewer", args: [child, "--model", "explicit-reviewer"] }));
 assert.match(result.error.message, /posted comment IDs/);
 assert.equal(result.launching.model, "explicit-reviewer");
 assert.deepEqual(result.launching.args, [child, "--model", "explicit-reviewer"]);
 assert.equal(result.launching.reviewerResolved, undefined);
 
-// The command-line form prints the same selection for the reviewer prompt.
 const printedPlan = path.join(scratch, "printed-plan.json");
 fs.writeFileSync(printedPlan, JSON.stringify(plan({ writer: "gpt-fixture-writer", writerEffort: "medium" })));
 const printed = execFileSync(process.execPath, [path.join(root, "scripts", "reviewer-defaults.mjs"), printedPlan], { encoding: "utf8", windowsHide: true });
 assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", fallback: false, index: 0 });
 
-// Refusals happen before any journal or process exists.
 for (const [fields, step, pattern] of [
   [{ writer: "gpt-fixture-writer" }, {}, /writerEffort/],
   [{ writer: "gpt-fixture-writer", reviewer: "explicit-reviewer" }, { model: "explicit-reviewer", args: [child, "--model", "explicit-reviewer"] }, /writerEffort/],
@@ -298,7 +274,6 @@ for (const [fields, step, pattern] of [
   assert.equal(result.launching, undefined, `refused before launch: ${pattern}`);
 }
 
-// A table whose default would review the writer's own work is refused before launch.
 table.rows.push({ ticketEffort: "low", writer: "claude-fixture-reviewer", writerEffort: "low", primary: [{ route: "claude-fixture-reviewer", effort: "high" }], fallback: [{ route: "claude-fixture-reviewer", effort: "high" }] });
 commitConfig();
 const selfReview = plan({ writer: "claude-fixture-reviewer[1m]", writerEffort: "low" });

@@ -21,13 +21,9 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   if (typeof context.invocation !== "string" || !context.invocation.trim() || /^(?:(?:INVOCATION|METHOD)$|(?:TBD|UNKNOWN)\b|<.*>)/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   if (/^(?:(?:method|invocation)\s*:\s*(?:TBD|UNKNOWN|<(?:method|invocation)>)|see\s+<(?:method|invocation)>)\s*[.!]?$/i.test(context.invocation.trim())) throw new Error("Missing or nonconcrete invocation method");
   for (const key of ["issue", "pr", "round"]) if (!(key === "issue" && context[key] === null) && (!Number.isSafeInteger(context[key]) || context[key] < 1)) throw new Error(`Invalid ${key}`);
-  // The reviewer posts on, and reads from, the pull request's review thread:
-  // the pull request until the cutover, the internal ticket in `ticket` after it.
   const thread = reviewThread({ pr: context.pr, ticket: context.ticket }, repos);
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
-  // The diff and the reviewer's directory reach a reviewer only through this
-  // prompt, so this is where they are held to the review job root.
   assertInsideJobRoot([["diff", context.diff], ["reviewDir", context.reviewDir]], reviewJobRoot(context.worktree), `in pr-${context.pr}${path.sep}round-${context.round}`);
   assertReviewerDirectory(context.reviewDir);
   let diffBytes;
@@ -53,8 +49,6 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
     prompt = prompt.replace("a fix for issue REPO#N", "a change with no linked issue");
   }
   const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, TASK: context.task, THREAD: `${thread.repo}#${thread.number}`, REPO: thread.repo, P: String(context.pr), N: String(context.issue), T: String(thread.number), LENS: context.lens };
-  // Match only the original template: inserted paths, quoted tokens and dollar
-  // sequences are literal data and must never be scanned for substitutions.
   prompt = prompt.replace(tokenPattern, (key) => values[tokenName(key)]);
   return `Invocation method: ${context.invocation}\n\n${prompt}\n`;
 }

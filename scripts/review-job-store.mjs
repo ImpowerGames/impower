@@ -36,9 +36,6 @@ export function appendEvent(dir,event,details={}) {
   const fd=fs.openSync(path.join(dir,'events.jsonl'),'a');try{fs.writeSync(fd,JSON.stringify(row)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
   return row;
 }
-// Never await inside this synchronous transaction. Callers retain any spawned
-// process or invoked request even if lock cleanup fails. Recovery never guesses that
-// an unreadable process/lock record means an absent owner.
 export function withJob(dir,run) {
   const lock=path.join(dir,'mutation.lock'),owner={token:randomUUID(),identity:currentIdentity()};
   writeExclusive(lock,owner);

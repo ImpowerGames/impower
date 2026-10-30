@@ -1,12 +1,3 @@
-// Exercises the local-test hook two ways: the decision table runs against
-// decide() directly, and a set of payloads run through the literal
-// PreToolUse "command" string that .claude/settings.json ships, under bash
-// and, when one is installed, under dash. Commands start in a temporary tree
-// shaped like this repository (a root typecheck script with no filter, a
-// package whose script filters to itself, and its test files), because the
-// hook-tests workflow checks out only the tooling directories. Run:
-//   node .claude/hooks/local-test-hook.test.mjs
-
 import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -17,8 +8,6 @@ import { decide } from "./local-test-hook.mjs";
 import { MAX_FILES } from "../../.agents/hooks/local-test-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-// The directory name avoids the settings prefilter's words, so a wired case
-// passes the prefilter only through its command.
 const tree = mkdtempSync(join(tmpdir(), "lth-"));
 process.on("exit", () => rmSync(tree, { recursive: true, force: true }));
 const put = (path, text) => {
@@ -30,15 +19,11 @@ put("scripts/typecheck.mjs", "");
 put("packages/sparkdown/package.json", JSON.stringify({ scripts: { test: "vitest", "test:run": "vitest run", typecheck: "node ../../scripts/typecheck.mjs packages/sparkdown/" } }));
 put("packages/sparkdown/src/tests/compiler/constDeclarationValidity.test.ts", "");
 put("packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts", "");
-// Enough existing files to spell out a run wider than the hook's bound.
 const MANY = Array.from({ length: MAX_FILES + 1 }, (_, i) => `src/tests/compiler/Many${i}.test.ts`);
 for (const file of MANY) put(`packages/sparkdown/${file}`, "");
 const AT_BOUND = MANY.slice(1).join(" ");
 const PAST_BOUND = MANY.join(" ");
 const SEVEN = MANY.slice(2).join(" ");
-// A package whose test script runs Node's own runner, as
-// scripts/agent-notification-alerts does, and one whose test script hands
-// off to another script.
 put("packages/alerts/package.json", JSON.stringify({ scripts: { test: "node --test" } }));
 put("packages/relay/package.json", JSON.stringify({ scripts: { test: "npm run test:unit", "test:unit": "node --test" } }));
 let failed = 0;
@@ -51,7 +36,6 @@ function check(ok, label, detail) {
   }
 }
 
-// FILE exists in the temporary tree under packages/sparkdown.
 const FILE = "src/tests/compiler/constDeclarationValidity.test.ts";
 const CAPS = "--pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1";
 
@@ -107,7 +91,6 @@ const denies = [
   ["the typecheck script directly", "node scripts/typecheck.mjs"],
   ["the typecheck script from a package", "cd packages/sparkdown && node ../../scripts/typecheck.mjs --jobs=2"],
   ["the root typecheck through pnpm", "pnpm typecheck"],
-  // Review round 1 (PR #767): option values, Windows shims, runner wrappers.
   ["npm run with --prefix before the test script", "npm run --prefix packages/sparkdown test"],
   ["npm run with --workspace before the test script", "npm run --workspace packages/sparkdown test"],
   ["npm run with -w before the test script", "npm run -w packages/sparkdown test"],
@@ -121,7 +104,6 @@ const denies = [
   ["cmd /c npm test", "cmd /c npm test"],
   ["an unquoted pwsh -Command npm test", "pwsh -Command npm test"],
   ["corepack pnpm test", "corepack pnpm test"],
-  // Review round 2 (PR #767): unlisted option values, npm test commands, wrappers.
   ["npm run with an unlisted --cache value before test:run", "cd packages/sparkdown && npm run --cache C:/tmp/npm-cache test:run"],
   ["npm with an unlisted --registry value before test", "npm --registry https://registry.npmjs.org test"],
   ["npm run with an unlisted --registry value before test", "npm run --registry https://registry.npmjs.org test"],
@@ -139,7 +121,6 @@ const denies = [
   ["cmd /c call npm run test:run", "cd packages/sparkdown && cmd /c call npm run test:run"],
   ["cmd /c with a quoted npm test", 'cmd /c "npm test"'],
   ["corepack with a quoted package manager", 'corepack "pnpm" test'],
-  // Review round 3 (PR #767): values that read as management words, cmd prefixes, separators, specs, preloads.
   ["an npm option value that reads as install before exec vitest", "cd packages/sparkdown && npm --cache install exec -- vitest run"],
   ["npm exec with an option value that reads as install", "cd packages/sparkdown && npm exec --cache install -- vitest run"],
   ["cmd /c @call npm run test:run", "cd packages/sparkdown && cmd /c @call npm run test:run"],
@@ -153,13 +134,11 @@ const denies = [
   ["the typecheck script as a glued --import preload", "node --import=./scripts/typecheck.mjs -e 0"],
   ["cmd cd /d to the root before the typecheck", 'cd packages/sparkdown && cmd /c "cd /d ../.. && npm run typecheck"'],
   ["a test script that hands off to another script", "cd packages/relay && npm test"],
-  // A package run spelled out as a list of existing files.
   ["vitest on more existing files than the bound", `cd packages/sparkdown && npx vitest run ${PAST_BOUND}`],
   ["the suite runner run on more files than the bound", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600`],
   ["the suite runner run past the bound with --wait first", `node scripts/test-suite.mjs run packages/sparkdown --wait 600 ${PAST_BOUND}`],
   ["the suite runner run past the bound through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}"`],
   ["the suite runner run past the bound inside bash -c", `bash -c 'node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}'`],
-  // A genuine extra file is still counted past a redirect or a pipe.
   ["the suite runner past the bound with a redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 > run.log 2>&1`],
   ["the suite runner past the bound with a PowerShell redirect", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600 *> run.log`],
   ["the suite runner past the bound with a redirect attached to the last file", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}> run.log 2>&1`, "bash"],
@@ -232,7 +211,6 @@ const allows = [
   ["the phrase in a comment", "git status # then npm test"],
   ["a grep for vitest", "grep -rn 'vitest run' .agents"],
   ["a process listing that names vitest", "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*vitest*' }"],
-  // Redirections after a bounded run are not test files.
   ["the suite runner at the bound with a redirect and merged stderr", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1`],
   ["the suite runner at the bound with a redirect, a chained echo and a grep", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > run.log 2>&1; echo exit $?; grep -E "Tests" run.log`],
   ["the suite runner at the bound with separate stdout and stderr redirects", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 1> out.log 2> err.log`],
@@ -242,7 +220,6 @@ const allows = [
   ["the suite runner at the bound with a quoted redirect target", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 > "my run.log" 2>&1`],
   ["the suite runner at the bound with a PowerShell all-streams redirect and chained filter", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 900 *> run.log; "exit $LASTEXITCODE"; Select-String -Path run.log -Pattern "Tests"`, "powershell"],
   ["the suite runner at the bound with a redirect before the files", `node scripts/test-suite.mjs run packages/sparkdown > run.log ${AT_BOUND} --wait 600`],
-  // A command that only mentions the vitest binary's path is not a Vitest call.
   ["a PowerShell wait on the installed vitest.cmd", "$p = 'C:/w/node_modules/.bin/vitest.cmd'; $i=0; while (-not (Test-Path $p) -and $i -lt 110) { Start-Sleep 5; $i++ }; Test-Path $p"],
   ["a PowerShell assignment of a double-quoted vitest path", '$p = "C:/w/node_modules/.bin/vitest.cmd"; Test-Path $p'],
   ["the suite runner at the bound with a glued quoted redirect destination", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600 >"my run.log" 2>&1`],
@@ -287,7 +264,6 @@ for (const [label, command, shell] of allows) {
   check(reason === null, `allowed: ${label}`, JSON.stringify(reason));
 }
 
-// The reasons name what to run instead and where the wider result comes from.
 {
   const test = decide("cd packages/sparkdown && npx vitest run", "bash", tree);
   check(/scripts\/test-suite\.mjs run packages\/\S+ src\/tests\/\S+\.test\.ts --wait \d+/.test(test), "the test reason names the single-file command", JSON.stringify(test));
@@ -302,14 +278,12 @@ for (const [label, command, shell] of allows) {
   check(/typecheck workflow/.test(tc), "the typecheck reason names the workflow", JSON.stringify(tc));
 }
 
-// A directory the command starts in is where file arguments resolve.
 {
   const pkg = resolve(tree, "packages", "sparkdown");
   check(decide(`npx vitest run ${FILE}`, "bash", pkg) === null, "a file resolves against the starting directory");
   check(typeof decide("npm run typecheck", "bash", resolve(tree, "scripts")) === "string", "a subdirectory without its own package.json uses the root script");
 }
 
-// The wired command string, under bash and under a plain POSIX shell.
 {
   const settings = JSON.parse(readFileSync(resolve(root, ".claude", "settings.json"), "utf8"));
   const entry = (settings.hooks?.PreToolUse ?? []).find(

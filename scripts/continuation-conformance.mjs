@@ -1,4 +1,3 @@
-// Scratch host conformance only. This is not a production continuation adapter.
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -8,7 +7,6 @@ import { pathToFileURL } from "node:url";
 
 const MAX_FRAME = 8 * 1024 * 1024;
 
-// Bind Git discovery to cwd while retaining discovery ceilings and user config.
 function gitEnvironment() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"].includes(process.platform === "win32" ? key.toUpperCase() : key)) delete env[key];
@@ -23,8 +21,6 @@ function canonicalDirectory(directory) {
   return canonical;
 }
 
-// Protocol observed in the installed codex-app-tools 0.1.4 bridge. No daemon
-// launch, replacement session, credentials, or permission overrides are used.
 export function pipeRequest(endpoint, method, params, timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     let buffer = Buffer.alloc(0), settled = false;
@@ -94,7 +90,6 @@ export function observedTurn(snapshot, plan) {
     item.output.text.includes(`<input>Conformance probe ${plan.continuationId} for issue #546:`)));
 }
 
-// Read-only reconciliation of a bounded scratch experiment; never resubmit.
 export async function reconcileProbe(plan, host) {
   const rows = fs.readFileSync(plan.journal, "utf8").trim().split("\n").map(JSON.parse);
   const started = rows[0];
@@ -130,8 +125,6 @@ export function checkDestination(snapshot, plan) {
   throw new Error("Destination state is not an explicitly completed idle turn");
 }
 
-// At most one submission: a lost acknowledgment is evidence, not permission to
-// retry. Re-running with the same journal refuses before inspecting or sending.
 export async function probeIdle(plan, host, { sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now } = {}) {
   const fd = fs.openSync(plan.journal, "wx");
   const event = (name, details = {}) => {
@@ -149,15 +142,11 @@ export async function probeIdle(plan, host, { sleep = ms => new Promise(resolve 
     const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: plan.worktree, env: gitEnvironment(), encoding: "utf8", windowsHide: true }).trim();
     if (head !== plan.head) throw new Error("Conformance worktree head changed");
     event("originating-turn-completed", { turnId: plan.turnId });
-    // Recheck after the local head probe. This is still a non-atomic host API:
-    // production adoption requires resolving the inspect/submit race.
     if (checkDestination(await host.inspect(), plan) !== "idle") throw new Error("Destination became active before submission");
     event("submission-intent");
     submissionStarted = true;
     const response = await host.submit(`Conformance probe ${plan.continuationId} for issue #546: this message was sent by the scratch harness after the originating turn ended. Inspect ${plan.journal} and record this task's current turn ID as acceptance evidence. Then continue only the work already authorized by the user. This probe selects no model and authorizes no new work or duplicate review.`);
     event("submission-response", { response });
-    // Response alone is deliberately not called accepted. Read the subsequent
-    // destination turn, matching our unique marker, to establish acceptance.
     const snapshot = await host.inspect();
     const accepted = observedTurn(snapshot, plan);
     if (accepted) event("continuation-observed", { threadId: plan.threadId, turnId: accepted.id });

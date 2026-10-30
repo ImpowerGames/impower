@@ -47,8 +47,6 @@ export function verifyHostCatalog(catalog) {
   }
 }
 
-// The inherited app-tools endpoint supplies authentication and exact originating
-// task attribution. Never persist it or add model/permission overrides.
 export function codexContinuationHost({env=process.env,platform=process.platform,request}={}) {
   const send=request??pipeRequest;
   const native=destination=>{

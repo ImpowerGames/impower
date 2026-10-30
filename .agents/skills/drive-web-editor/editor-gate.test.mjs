@@ -1,34 +1,4 @@
 #!/usr/bin/env node
-// Pins editorGate, the once-per-run check a ui step runs before it captures or
-// acts on the screen (#423). Run:
-//   node .agents/skills/drive-web-editor/editor-gate.test.mjs
-//
-// The gate is built from three injectable questions — is an editor expected
-// where the page is now, is it present, has it settled — so these cases drive
-// it with stubs and no browser. The stubs answer from scripted lists and throw
-// when a list runs dry, so a case that miscounts the gate's calls fails
-// loudly instead of getting a plausible default. The presence stub's failure
-// reason comes from editorAbsentReason, the same function the real check
-// uses, so the strings cannot drift apart and every advice branch is covered.
-//
-// The shapes pinned are the ones reviews found wrong: a step on a screen with
-// no editor must never be refused because an earlier step gave up; a give-up
-// must clear when a later look finds the editor up and settled; a give-up from
-// a view that never settles must fail later steps fast rather than re-pay the
-// full budgets; the budgets must be the ones the message names; a page with
-// no pane mounted counts as an editor still to come; navigational advice
-// ("put --screen main before this step") must survive into the gate's
-// message while the generic advice is said once; a screen switch that
-// settled the editor counts for the once-per-run rule; a settled but
-// unpainted editor fails only a screenshot; and a reload resets the gate.
-//
-// The last case drives switchScreen itself with a stub page whose evaluate
-// and waitForFunction answer by the source text of the function they are
-// handed, so the recovery pair's note branch — a `--screen logic` whose
-// editor never mounts is a note only when `--screen main` follows — is pinned
-// without a browser.
-//
-// Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -116,8 +86,6 @@ const script = (answers, absentAt = MAIN_TAB) => {
       calls.settle.push(budget);
       return take(answers.settle, "settle");
     },
-    // Painted is asked only for a screenshot; a case that scripts no answers
-    // gets a painted editor.
     painted: async (_p, budget) => {
       calls.painted.push(budget);
       return answers.painted ? take(answers.painted, "painted") : true;
@@ -147,7 +115,6 @@ await check("a screen where no editor is expected is never gated, even after an 
 await check("navigational advice from the presence check survives into the gate's message, and the generic advice is not added on top", async () => {
   const scripts = script({ expected: [null], present: [false], settle: [] }, SCRIPTS_TAB);
   const r1 = await scripts.gate(page, "panel", 1);
-  // The pane mounted during the wait, so the no-pane prefix is not said.
   assert.match(r1.reason, /within 20s \(the script editor is not on screen \(active screen: logic, tab: scripts\)\); put --screen main before this step$/);
   noRepeats(r1.reason);
   const assets = script({ expected: [null], present: [false], settle: [] }, ASSETS);
@@ -165,7 +132,6 @@ await check("after an absent give-up the next gated step fails fast and names th
   noRepeats(fast.reason);
   const recovered = await gate(page, "screenshot", 3);
   assert.deepEqual(recovered, { required: true, ok: true });
-  // 20 s first, a 2 s quick look on the fast-fail, then 2 s + the full budget once the quick look succeeds.
   assert.deepEqual(calls.present, [20_000, 2_000, 2_000, 20_000]);
 });
 
@@ -190,9 +156,6 @@ await check("a screen switch that settled the editor counts for the once-per-run
 });
 
 await check("a view that never settles fails the step with the settle budget named, and later steps fail fast on a short re-settle rather than re-paying the full budgets", async () => {
-  // The editor is present throughout; only the settle fails. The second step
-  // takes the 2 s look (present) and the 6 s re-settle (still failing) and
-  // stops there: no 20 s presence wait, no 15 s settle.
   const { gate, calls } = script({ expected: [true, true, true], present: [true, true, true, true], settle: [false, false, true, true] });
   const first = await gate(page, "panel", 1);
   assert.equal(first.ok, false);
@@ -201,7 +164,6 @@ await check("a view that never settles fails the step with the settle budget nam
   const fast = await gate(page, "field", 2);
   assert.equal(fast.ok, false);
   assert.match(fast.reason, /still waiting for settled diagnostics \(step 1 reported: the view did not return settled diagnostics for 15s\); this field was skipped/);
-  // A third step whose short re-settle succeeds clears the latch and proceeds on the full path.
   const third = await gate(page, "screenshot", 3);
   assert.deepEqual(third, { required: true, ok: true });
   assert.deepEqual(calls.present, [20_000, 2_000, 2_000, 20_000]);
@@ -214,7 +176,6 @@ await check("a settled but unpainted editor fails a screenshot and no other step
   assert.equal(shot.ok, false);
   assert.match(shot.reason, /has not painted its lines and gutter within 5s; this screenshot would have shown an unpainted editor pane/);
   noRepeats(shot.reason);
-  // A key press on the same page needs no paint and proceeds.
   assert.deepEqual(await gate(page, "key press", 2), { required: true, ok: true });
   assert.deepEqual(calls.painted, [5_000]);
 });
@@ -223,7 +184,6 @@ await check("a settle done elsewhere clears an absent give-up, and a reload rese
   const { gate, calls } = script({ expected: [true, true, true], present: [false, true, true], settle: [true, true] });
   await gate(page, "screenshot", 1);
   gate.noteSettled();
-  // No two-second look: the give-up is gone and the run is warm.
   assert.deepEqual(await gate(page, "screenshot", 2), { required: true, ok: true });
   assert.deepEqual(calls.present, [20_000, 8_000]);
   gate.reset();
@@ -247,19 +207,13 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
   const r1 = await never.gate(page, "screenshot", 1);
   assert.match(r1.reason, /\(no pane had mounted; the script editor is not on screen \(active screen: none\)\); Re-run; if it persists the machine is saturated$/);
   noRepeats(r1.reason);
-  // The presence check saw the assets pane arrive during its wait.
   const late = script({ expected: [null], present: [false], settle: [] }, ASSETS);
   const r2 = await late.gate(page, "screenshot", 1);
   assert.match(r2.reason, /within 20s \(the script editor is not on screen \(active screen: assets, tab: files\)\); put --screen logic before this step$/);
   assert.doesNotMatch(r2.reason, /no pane had mounted/);
 });
 
-// A page on the logic screen with the main tab selected and no script editor
-// mounted, answering by the source of the function it is handed. The
-// protocol readiness wait rejects; everything else answers at once.
 const editorlessLogicPage = () => ({
-  // The budgets the editor-presence wait was given, so a case can pin that
-  // the switch waited the number its message names.
   waited: [],
   locator: () => ({ first: () => ({ waitFor: async () => {}, click: async () => {} }) }),
   async waitForFunction(fn, _arg, opts) {
@@ -272,14 +226,11 @@ const editorlessLogicPage = () => ({
       this.waited.push(arg.timeout);
       throw new Error("Editor readiness deadline exceeded");
     }
-    if (src.includes("MutationObserver")) return true; // waitForDomQuiet
-    if (src.includes("Object.entries(screens)")) return ["logic"]; // mountedScreens
-    if (src.includes('["logic", "assets", "share"]')) return "main"; // the selected inner tab
-    // Any question that reads the editor's content element (including the
-    // fullscreen-scripts-view predicate, which also reads the main tab) is
-    // answered before the main-tab question, since no editor is mounted here.
+    if (src.includes("MutationObserver")) return true;
+    if (src.includes("Object.entries(screens)")) return ["logic"];
+    if (src.includes('["logic", "assets", "share"]')) return "main";
     if (src.includes('.cm-content") != null')) return false;
-    if (src.includes("-trigger-main")) return true; // main tab selected or absent
+    if (src.includes("-trigger-main")) return true;
     throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
   },
 });
@@ -291,7 +242,6 @@ await check("a --screen logic whose editor never mounts is a note only when --sc
   assert.equal(paired.editorHere, false);
   assert.equal(paired.reason, undefined);
   assert.match(paired.note, /the logic tab is up but no script editor mounted within 20s; the --screen main that follows waits for it$/);
-  // The switch waited the budget its note names.
   assert.equal(page.waited.length, 1);
   assert.ok(page.waited[0] > 19_000 && page.waited[0] <= 20_000);
   const alone = await switchScreen(editorlessLogicPage(), "logic", { followedByMain: false });

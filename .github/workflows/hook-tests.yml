@@ -1,16 +1,5 @@
 name: Hook Tests
 
-# The `hook-tests` job at the end is the required status check. It always
-# runs, so it always reports; the workflow has no trigger path filter, because
-# a filtered-out workflow reports nothing and leaves the pull request blocked.
-# Two `changes` jobs decide which tier of standalone checks needs to run: the
-# skills tier (skill prose, hooks and GitHub scripts, about a minute on Linux
-# and ten on Windows) on any agent-tooling change, and the drivers tier
-# (worktree, browser, bench and reviewer-process checks, run four at a time)
-# only when the code those checks drive changes; a change to a workflow file
-# or docs alone does not run it. The gate passes when every leg passed or was skipped
-# as irrelevant, and fails when any failed or when detection itself failed.
-
 on:
   pull_request:
   push:
@@ -48,19 +37,6 @@ jobs:
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
 
-  # The drivers tier reads these paths: the driver skills' own scripts and
-  # SKILL.md files, the scripts/ tree (the windows-hide scanner reads every
-  # tracked script under it, the notifier and dev-preview included, and the
-  # engine-bench check greps all of scripts/bench, TypeScript included) minus
-  # the two files no check reads: the lowerer baseline, which belongs to the
-  # typecheck workflow, and the sessions transplant script. It also reads the
-  # reviewer prompt template the prompt builder tests, the generated reviewer
-  # definitions, and the package manifests and ignore file the link and
-  # test-suite checks read. The filing preservation check also reads the hooks
-  # and their adapter wiring, and the review and handoff checks read the repos
-  # file and its loader. The Test Suite workflow is read only by the
-  # skills-tier checks under .github/scripts, so it is not listed here; the two
-  # workflow files that define this leg are, so a change to the leg runs it.
   driver-changes:
     uses: ./.github/workflows/changed-paths.yml
     with:
@@ -97,14 +73,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows took 12m on Git 2.55 and passed 15m on Git 2.56, whose git-heavy
-    # orchestrate-issues checks run 20-50% slower; allow that margin.
     timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 15 }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # Every file a tooling check reads must be listed here; the checks
-          # under .github/scripts read the Test Suite workflow.
           sparse-checkout: |
             /.agents/
             /.claude/
@@ -149,17 +121,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # The runner launches up to four checks at a time (the hosted runners'
-    # core count). Serially, Windows took 34m and Linux 5m on run
-    # 38904176418; the parallel durations are recorded on #1937, and the
-    # bounds below allow margin over them.
     timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 15 }}
     steps:
       - uses: actions/checkout@v4
         with:
-          # The same sparse checkout as the skills tier: the runner's
-          # discovery and expected count cover the whole inventory in
-          # either tier, so every check file must be present.
           sparse-checkout: |
             /.agents/
             /.claude/
@@ -211,8 +176,6 @@ jobs:
             if (fs.existsSync(file)) fs.unlinkSync(file);
           }
 
-  # Private pinned dependencies exercise the real API separately from the
-  # dependency-free sparse driver checks. Missing admission is a failure.
   vitest-api-integration:
     needs: driver-changes
     if: needs.driver-changes.outputs.relevant == 'true'
@@ -281,8 +244,6 @@ jobs:
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/progress.json
             ${{ env.IMPOWER_TEST_VITEST_DEPENDENCIES }}/case-*/.git/test-suites/*/*/output.log
 
-  # The required status check. `always()` keeps it reporting when the checks
-  # were skipped or when detection failed; the step then decides.
   hook-tests:
     needs: [changes, driver-changes, skills-checks, driver-checks, vitest-api-integration]
     if: always()

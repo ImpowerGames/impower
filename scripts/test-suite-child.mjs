@@ -34,8 +34,6 @@ const disposeUnconfirmed=child=>{
   return errors;
 };
 
-// Exit ownership and test success are separate. This validator proves only the
-// recorded supervisor lifecycle; callers still verify complete test evidence.
 export function assertAttemptBinding(expected,{id,directory}={}) {
   if(!expected||!uuid(id)||expected.attemptId!==id
     ||directory!==undefined&&expected.directory!==directory)
@@ -127,8 +125,6 @@ export function validatePreparedChild(prepared,{env=process.env,consumed=false}=
   return prepared;
 }
 
-// This completes before acquiring a machine test reservation. Uncertain
-// compilation/capability processes remain preparation evidence, not test owners.
 export async function prepareOwnedRuntime({directory,cwd=directory,env=process.env,
   invocationId=randomUUID(),platform=process.platform,startupMs=60000,cleanupMs=10000,
   identify=processIdentity,helperScript,onPreparation=()=>{},onLifecycle=()=>{}}) {
@@ -136,8 +132,6 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   if(!Number.isSafeInteger(startupMs)||startupMs<100||startupMs>60000
     ||!Number.isSafeInteger(cleanupMs)||cleanupMs<100||cleanupMs>10000)throw new Error('Invalid supervisor startup/cleanup bounds');
   if(!uuid(invocationId)||!path.isAbsolute(directory)||!path.isAbsolute(cwd))throw new Error('Invalid owned-runtime preparation');
-  // One monotonic budget covers compilation AND capability admission. Sync
-  // filesystem/identity work cannot be interrupted here, but cannot renew it.
   const deadline=performance.now()+startupMs;
   const remaining=()=>Math.max(0,Math.ceil(deadline-performance.now()));
   directory=fs.realpathSync.native(directory);
@@ -200,8 +194,6 @@ export async function prepareOwnedRuntime({directory,cwd=directory,env=process.e
   }
   const evidence={preparationProcess,preparationClose:closed===boundary?null:closed,
     preparationTimedOut,launchError,diagnostics,output};
-  // Disposition precedes publication. A write failure cannot leave live pipes
-  // referenced or turn an unobserved close into confirmed process/tree exit.
   if(closed===boundary)evidence.preparationDisposalErrors=disposeUnconfirmed(child);
   try {synchronous(onLifecycle,{kind:preparationKind,phase:closed===boundary?'unknown':'closed',
     process:preparationProcess,close:evidence.preparationClose,timedOut:preparationTimedOut});}
@@ -297,8 +289,6 @@ export function validatePreparedRuntime(runtime,{env=process.env}={}) {
   return runtime;
 }
 
-// One invocation prepares immutable bytes before acquiring. Reserved discovery
-// and later files each create fresh one-use state without compiling again.
 export async function prepareOwnedChild({directory,command,args=[],cwd,env=process.env,timeoutMs,
   attemptId=randomUUID(),runtime,...options}) {
   if(!Number.isSafeInteger(timeoutMs)||timeoutMs<100||timeoutMs>7200000)throw new Error('Invalid bounded file timeout');
@@ -339,12 +329,7 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   if(!remainingStartup())return {...expected,status:'not-run',exit:null,signal:null,exitConfirmed:true,
     launchAuthorized:false,helperLaunched:false,launchError:'Supervisor startup deadline expired before helper launch'};
   const launchArgs=platform==='win32'?[requestFile]:[helper,requestFile];
-  // libuv's ordinary Windows child Job kills the supervisor when Node dies,
-  // preventing its EOF cleanup/proof. The central detached launcher keeps
-  // a hidden Node wrapper alive until the managed helper exits. Its own Job
-  // owns tests; keep all pipes and both identities through actual close.
-  // Linux also needs its own session: an outer coordinator-group cancellation
-  // must leave the subreaper alive to own EOF cleanup and final proof.
+  // workaround(node): libuv puts Windows children in a kill-on-close Job, so the supervisor dies with Node before its EOF cleanup
   const child=beforeHelper(()=>spawnDetached(executable,launchArgs,{cwd,env,stdio:['pipe','pipe','pipe']}));
   let launchError,coordinationError,protocolError,buffer='',diagnostics='',authorized=false,authorizationAttempted=false,readyResolve;
   let startedMetadata=null;
@@ -388,7 +373,6 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   if(readyRow===boundary) {
     protocolError='Supervisor startup deadline expired before launch authorization';
     disconnect();
-    // Before authorization, the helper cannot start a test. Require actual close.
     try { child.kill(); } catch(error) { coordinationError??=error.message; }
   } else if(readyRow) {
     try {
@@ -401,15 +385,13 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
       validatePreparedChild(prepared,{env,consumed:true});
       validateBindings([requestBinding]);
       requireStartup();
-      authorizationAttempted=true; // a failed callback may already have persisted may-launch
-      synchronous(onAuthorize,expected); // persist may-launch before sending the nonce
-      requireStartup(); // synchronous persistence can exhaust the remaining time
+      authorizationAttempted=true;
+      synchronous(onAuthorize,expected);
+      requireStartup();
       authorized=true;
       child.stdin.write(expected.launchNonce+'\n');
     } catch(error) { coordinationError??=error.message;disconnect(); }
   }
-  // Polling is coordinator persistence batching, never an engine heartbeat.
-  // Callback failure disconnects the helper so it retains cleanup ownership.
   const poll=setInterval(()=>{
     try {synchronous(onPoll,expected);}
     catch(error) {coordinationError??=error.message;disconnect();}
@@ -420,8 +402,6 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   if(close===boundary) {
     protocolError??='Supervisor exit unavailable; preserve the owned-tree reservation';
     disconnect();
-    // Never terminate an authorized Linux subreaper as a cleanup substitute.
-    // Its eventual proof may enable safe recovery; absence alone may not.
     child.stdout.destroy();child.stderr.destroy();child.stdin.destroy();child.unref();
     return {...expected,status:'unknown',exit:null,signal:null,exitConfirmed:false,
       launchAuthorized:authorized,launchError,coordinationError,protocolError,diagnostics};

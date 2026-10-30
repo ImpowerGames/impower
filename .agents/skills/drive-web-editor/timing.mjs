@@ -1,20 +1,3 @@
-// `driver.mjs timing input` and `driver.mjs timing metronome`: whether a game
-// running in the player's worker keeps time (#683). See
-// references/performance.md for running them and reading them.
-//
-// `input` times a click on the page to the page handling the command the
-// game sent back for it. `metronome` plays beats of one click and one flash
-// and reads, for each, the beat's stamp, when the page scheduled the sound and
-// whether its message arrived late, the first audible sample of the click
-// from a sample-accurate tap on the mixer (`AudioProbe.startOnsetTap`), and
-// the flash animation's start time. Each runs idle and then with the page's
-// main thread loaded.
-//
-// The pure parts (arguments, statistics, pairing a click with what it caused,
-// pairing a beat with its onset and flash) are exported for timing.test.mjs;
-// `timing` drives the browser through helpers the driver passes in, so this
-// file never imports the driver and importing it never launches anything.
-
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -84,11 +67,8 @@ export function parseTimingArgs(args) {
 
 const round = (n) => Math.round(n * 1000) / 1000;
 
-/** Nearest-rank quantile of an ascending list. */
 const quantile = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1))];
 
-/** min, median, p95, p99 and max of `values`, and the spread between the
- *  least and the greatest; null for an empty list. */
 export function stats(values) {
   const sorted = values.filter((v) => typeof v === "number" && Number.isFinite(v)).sort((a, b) => a - b);
   if (sorted.length === 0) return null;
@@ -103,27 +83,6 @@ export function stats(values) {
   };
 }
 
-// ------------------------------------------------------------------ input ---
-
-/**
- * One click. `record` is what the page logged from the moment before the
- * click: the DOM events it saw (`clicks`, each with the page's
- * `performance.now()` when a capturing listener saw it and the event's own
- * `timeStamp`) and every message the game sent it (`messages`, stamped as the
- * page's router took each one). The command the click caused is the first
- * message after the click; it has to answer the choice, or something else
- * the game was sending would be timed as the answer.
- *
- * With the game in the worker the record also holds, on the shared clock,
- * when the page posted each input to the game (`posted`) and when the worker
- * posted each of the game's messages (`sent`, each { at, method }), which
- * divide the time into the page's input reaching the game and being
- * answered, and the answer reaching the page's router. The worker's answer is
- * its first post after the click's of the answer's method. `timeOrigin` is
- * the page's `performance.timeOrigin`. With `requireWorker`, a sample whose
- * answer the worker probe did not record fails, since its figures would lack
- * the split they are read for.
- */
 export function attributeInputSample(record, { requireWorker = false } = {}) {
   const click = record.clicks.find((c) => c.type === "click");
   if (!click) return { failure: "no click event reached the page" };
@@ -160,35 +119,6 @@ export function summarizeInput(samples) {
   };
 }
 
-// -------------------------------------------------------------- metronome ---
-
-/**
- * The page's clock readings for one beat turned into rows. `beat` holds what
- * the page logged for one click:
- *
- * - `stamp`: the beat's start on the shared clock (ms since the epoch);
- * - `arrivedAt`: when its `audio/update` reached the page's router, page
- *   `performance.now()`;
- * - `due` and `currentTime`: the context times, in seconds, the audio manager
- *   was due to start the sound at and read when it handled the update; the
- *   sound starts at the later of the two;
- * - `outputTimestamp` and `outputLatency`: the context's
- *   `getOutputTimestamp()` and `outputLatency` read at that moment, which map
- *   the context's clock onto the page's;
- * - `flash`: the flash animation's `startTime` on the document timeline and
- *   the `performance.now()` it was set at, or null;
- * - `sentAt`: with the game in the worker, when the worker posted the
- *   `audio/update`, on the shared clock.
- *
- * `onset` is the tap's report the beat was paired with ({ contextTime,
- * frame, peak }), or null (`pairMetronome`). `timeOrigin` is the page's
- * `performance.timeOrigin`. With `requireWorker`, the game runs in the worker
- * and a beat whose post the worker probe did not record fails, since its
- * figures would lack the split they are read for.
- *
- * Every time here is when it reaches the listener: a context time is mapped
- * through the output timestamp, which gives the time it leaves the speakers.
- */
 export function metronomeRow(beat, onset, timeOrigin, { requireWorker = false } = {}) {
   const ts = beat.outputTimestamp;
   const heard = (contextTime) => timeOrigin + ts.performanceTime + (contextTime - ts.contextTime) * 1000;
@@ -227,31 +157,6 @@ export function metronomeRow(beat, onset, timeOrigin, { requireWorker = false } 
   return row;
 }
 
-/**
- * One row for every key the page pressed, so a key that started no beat is a
- * failed row rather than a missing one. What the page logged:
- *
- * - `keys`: the page `performance.now()` of each key, in order. A key owns
- *   what arrives from it to the next key.
- * - `beats`: each played sound, as `metronomeRow` reads it, without `flash`
- *   or `sentAt`. A key's beat is the first to arrive in its window; a second
- *   one fails the row, since the attribution would be a guess.
- * - `writes`: each stamped `ui/write-image` ({ t, time }). A beat's write is
- *   the one carrying its stamp.
- * - `anims`: each animation start time the page set ({ setAt, startTime,
- *   fresh }), where `fresh` says its target was never animated before. The
- *   flash is the first fresh one set from the beat's write to the end of the
- *   key's window, which is the enter animation of the layer the write made:
- *   the exit of the layer before it, and the target wrapper, animate elements
- *   that existed already. A write arrives after its key, so no two beats
- *   search the same stretch.
- * - `onsets`: the tap's reports. A beat's onset is the first one from 50 ms
- *   before the sound was due to 250 ms after, or to 50 ms before the next beat
- *   was due when that is sooner, so no two beats search the same stretch and
- *   a missing click is never credited with its neighbour's.
- * - `sends`: the worker's posts ({ at, method, time, channel }); a beat's is
- *   the `audio/update` carrying its stamp.
- */
 export function pairMetronome({ keys, beats, writes, anims, onsets, sends = [], timeOrigin, requireWorker = false }) {
   const paired = keys.map((key, i) => {
     const end = keys[i + 1] ?? Infinity;
@@ -279,13 +184,6 @@ export function pairMetronome({ keys, beats, writes, anims, onsets, sends = [], 
   });
 }
 
-/**
- * The phase's samples from its rows, one per key pressed, when `requested`
- * keys were asked for and the first `warmup` are discarded. A run that
- * pressed fewer keys ends with a measured failed sample saying so, whatever
- * its position, so a shortfall can never hide among the warm-up samples. It
- * carries how many keys are missing, and is not a click.
- */
 export function metronomeSamples(rows, requested, warmup) {
   const samples = rows.map((row, i) => ({ index: i + 1, warmup: i < warmup, ...row }));
   if (rows.length !== requested) samples.push({ index: samples.length + 1, warmup: false, missingKeys: requested - rows.length, failure: `the page pressed ${rows.length} of ${requested} keys` });
@@ -319,21 +217,10 @@ export function summarizeMetronome(samples) {
   };
 }
 
-/** Whether a finished report is a failed run: an error, or any measured
- *  sample that failed. */
 export function timingFailed(report) {
   return Boolean(report.error || report.phases?.some((phase) => phase.summary.failures > 0));
 }
 
-// ---------------------------------------------------------------- browser ---
-
-// Installed in the player frame before PLAY. It records the DOM input the
-// page sees, the keys it presses, the start time every animation is given
-// with whether its target was ever animated before, and, once `attach` is
-// handed PLAY's application, every message the game sends it and every sound
-// its audio manager starts. The router is stamped on entry, before anything
-// handles the message, and each message is kept by reference and summarized
-// only when a sample is read, so recording adds nothing to the path timed.
 function installProbe() {
   const w = window;
   if (w.__timing) return true;
@@ -417,7 +304,6 @@ function installProbe() {
     }
   };
   const visible = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden" && Number(getComputedStyle(el).opacity) > 0;
-  // The leaf that shows a choice's label, marked so the driver can click it.
   T.markChoice = (label) => {
     for (const el of document.querySelectorAll("[data-timing-target]")) el.removeAttribute("data-timing-target");
     const game = document.querySelector("#game") ?? document.body;
@@ -441,8 +327,6 @@ function installProbe() {
     const previous = T.messages[mark.messages - 1];
     return { clicks, messages, posted, previousMessageAt: previous ? previous.t : null, timeOrigin: T.timeOrigin };
   };
-  // Enter every `interval` ms on a fixed grid, as the page's own timer
-  // allows; the game advances a beat on each.
   T.pressOnGrid = (count, interval) =>
     new Promise((resolve) => {
       const start = performance.now() + 50;
@@ -459,11 +343,6 @@ function installProbe() {
   return true;
 }
 
-// Installed in each of the page's workers made from a blob, the player's
-// among them: every message the game posts carries a stream epoch, and this
-// stamps each one on the shared clock as the worker posts it, on a port or on
-// the broadcast channel PLAY's game sends its stream on. Nothing else a
-// worker posts carries an epoch, so the other workers record nothing.
 function installWorkerProbe() {
   if (self.__timingSent) return true;
   const sent = (self.__timingSent = []);
@@ -479,19 +358,12 @@ function installWorkerProbe() {
   return true;
 }
 
-// What the probed workers posted from `from` on the shared clock, oldest
-// first. A worker that can no longer be read stops the run: its posts would
-// be missing from every figure that follows.
 async function workerSends(workers, from) {
   const sends = [];
   for (const worker of workers) sends.push(...(await worker.evaluate((from) => self.__timingSent.filter((s) => s.at >= from), from)));
   return sends.sort((a, b) => a.at - b.at);
 }
 
-// Proves the tap against a known signal in the real browser: a buffer that
-// is silent but for a click starting at `frame`, rendered through an
-// OfflineAudioContext, must be reported at exactly that frame. The tap class
-// is taken from the live tap, since a page script cannot import it.
 async function checkTap({ frame, sampleRate }) {
   const T = window.__timing;
   const Tap = T.tap.constructor;
@@ -511,9 +383,6 @@ async function checkTap({ frame, sampleRate }) {
   return { frame, reported, exact: reported.length === 1 && reported[0] === frame };
 }
 
-// Puts the preview on `line` (from one), which is where PLAY starts, presses
-// PLAY, hands the probe the application PLAY built, and lets the first beat
-// settle.
 async function startPlay(page, frame, line, settle, deps) {
   const scrub = await deps.clickLine(page, line);
   if (!scrub.clicked || scrub.position?.line !== line - 1) throw new Error(`the preview did not move to line ${line} to start PLAY there: ${JSON.stringify(scrub)}`);
@@ -538,14 +407,12 @@ async function runInput(page, frame, workers, options, fixture) {
       samples.push({ index: i + 1, warmup: i < options.warmup, failure: `the ${label} choice was not on the page and quiet within ${options.timeout} ms` });
       continue;
     }
-    // A random phase against the page's and the worker's frames.
     await page.waitForTimeout(Math.random() * 17);
     const mark = await frame.evaluate(() => window.__timing.mark());
     await frame.locator("[data-timing-target]").click({ timeout: options.timeout });
     await frame
       .waitForFunction((mark) => window.__timing.messages.length > mark.messages && window.__timing.clicks.length > mark.clicks, mark, { timeout: options.timeout, polling: 10 })
       .catch(() => {});
-    // Whatever else the answer brings arrives before the next sample.
     await page.waitForTimeout(30);
     const record = await frame.evaluate((mark) => window.__timing.readInput(mark), mark);
     record.sent = await workerSends(workers, mark.at);
@@ -554,15 +421,11 @@ async function runInput(page, frame, workers, options, fixture) {
   return samples;
 }
 
-// One metronome phase. Exported so timing.test.mjs can drive it with a page
-// and a frame of its own, which is how the check reaches the command's own
-// accounting rather than the helpers it calls.
 export async function runMetronome(page, frame, workers, options) {
   const total = options.warmup + options.samples;
   const interval = 60_000 / options.bpm;
   const from = await frame.evaluate(() => ({ keys: window.__timing.keys.length, beats: window.__timing.beats.length, anims: window.__timing.anims.length, at: window.__timing.timeOrigin + performance.now() }));
   await frame.evaluate(({ total, interval }) => window.__timing.pressOnGrid(total, interval), { total, interval });
-  // The last beat's sound and flash, which start after its key.
   await page.waitForTimeout(1000);
   const read = await frame.evaluate((from) => {
     const T = window.__timing;
@@ -607,8 +470,6 @@ async function runOnce(options, deps, scratch) {
         if (!frame) throw new Error("no same-origin player frame; the timing commands need `up` without --cross-origin");
         await frame.evaluate(installProbe);
         await startPlay(page, frame, fixture.startLine, 2000, deps);
-        // The game runs in the worker, so every sample needs the worker's
-        // posts, and a run with no worker the probe could reach stops here.
         const workers = [];
         for (const worker of page.workers().filter((w) => w.url().startsWith("blob:"))) {
           if (await worker.evaluate(installWorkerProbe).catch(() => false)) workers.push(worker);
@@ -617,8 +478,6 @@ async function runOnce(options, deps, scratch) {
         if (workers.length === 0) throw new Error("no worker of the page could be probed, so no sample could split the worker's time from the delivery");
         result.browser = await page.evaluate(() => navigator.userAgent);
         if (options.kind === "metronome") {
-          // The first sound creates the mixers the tap goes on. A key that
-          // lands while "Ready." is still being revealed only finishes it.
           for (let i = 0; i < 5 && !(await frame.evaluate(() => window.__timing.beats.length > 0)); i++) {
             await frame.evaluate(() => window.__timing.pressOnGrid(1, 0));
             await page.waitForTimeout(600);

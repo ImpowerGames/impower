@@ -1,45 +1,4 @@
 #!/usr/bin/env node
-// Reads a V8 CPU profile written by engine-bench.mjs or preview-bench.mjs with
-// --cpu-prof and divides the time spent under one function into shares.
-//
-//   node scripts/bench/profile-shares.mjs <file.cpuprofile> --under resolve --inclusive ResolveWith,CheckForNamingCollisions
-//   node scripts/bench/profile-shares.mjs <mode.cpuprofile> --under "(root)" --gaps --groups scripts/bench/profile-groups.mjs:GAPS
-//
-// Several profiles of the same candidate may be named; the group and inclusive
-// shares are then printed as min, median and max over them, and the function
-// listing is the first profile's.
-//
-// Options:
-//   --under <fn,..>     only time with one of these functions on the stack
-//                        counts, and shares are of that time
-//   --groups <file:NAME> a module exporting NAME, an ordered list of
-//                        [group, RegExp]; a function belongs to the first group
-//                        whose expression matches its `<source file>:<name>`.
-//                        Prints each group's share of self time with every
-//                        function assigned to it.
-//   --inclusive <fn,..>  prints the share of time with each of these functions
-//                        on the stack, its callees included
-//   --min <percent>      leave functions below this share out of the listing
-//                        (default 0.2); they still count towards their group
-//   --gaps               only samples taken in the worker time no profiler
-//                        phase covers count: the stretches preview-bench.mjs
-//                        writes as <mode>.gaps.json beside <mode>.cpuprofile.
-//                        With --under "(root)" this charges the benchmark's
-//                        unattributed row to functions, the collector included
-//   --json <file>        also write the result
-//   --by-path            name a function by its source file's path from the
-//                        repository root (`packages/.../Weave.ts:<name>`, or
-//                        `node_modules/...`) instead of the file's name, so
-//                        that groups can match a directory (#1712)
-//   --windows            only samples taken during the benchmark's measured
-//                        samples count (<mode>.windows.json beside the
-//                        profile), leaving out its warm-up and first compile;
-//                        prints the profiled time under --under per sample
-//
-// A sampling profiler charges call-heavy code more than it costs unprofiled,
-// so these are shares to set beside an unprofiled time, never times themselves.
-// Functions are named by the source file they came from when the bundle's
-// source map (`<bundle>.map`) sits beside the profile, as the benchmarks put it.
 
 import fs from "node:fs";
 import { SourceMap } from "node:module";
@@ -72,9 +31,6 @@ export function parseShareArgs(args) {
   return out;
 }
 
-// Self time per profile node, in microseconds: a sample's time is the delta
-// that follows it, so the last sample is charged nothing. `keep(timestamp)`
-// leaves the samples it refuses out; `kept` counts the ones it accepts.
 function selfTimes(profile, keep) {
   const self = new Map();
   const { samples, timeDeltas } = profile;
@@ -90,12 +46,6 @@ function selfTimes(profile, keep) {
   return { self, kept };
 }
 
-/**
- * Shares of the time under `under`. `nameOf(callFrame)` names a function;
- * `groups` is an ordered list of [group, RegExp] or undefined; `keep`, when
- * given, is asked about each sample's timestamp and only the samples it
- * accepts count, towards the shares and towards the whole profile alike.
- */
 export function profileShares(profile, { under, inclusive = [], groups, keep, nameOf = (frame) => frame.functionName || "(anonymous)" }) {
   const nodes = new Map(profile.nodes.map((n) => [n.id, n]));
   const { self, kept } = selfTimes(profile, keep);
@@ -105,7 +55,6 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   const visit = (node, inside, open) => {
     const fn = node.callFrame.functionName;
     inside ||= under.includes(fn);
-    // The outermost occurrence owns the inclusive time, so recursion counts once.
     const opened = inside && inclusiveTime.has(fn) && !open.has(fn) ? fn : undefined;
     if (opened) open.add(opened);
     const t = self.get(node.id) ?? 0;
@@ -126,14 +75,10 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   for (const f of functions) if (f.group) groupShares.set(f.group, (groupShares.get(f.group) ?? 0) + f.share);
   const profiled = [...self.values()].reduce((a, b) => a + b, 0);
   const collector = profile.nodes.filter((n) => n.callFrame.functionName === "(garbage collector)").reduce((a, n) => a + (self.get(n.id) ?? 0), 0);
-  // `keep` can refuse every sample, as when each gap is shorter than the
-  // sampling interval; a share of nothing is then zero.
   const ratio = (t, of) => (of ? t / of : 0);
   return {
     under,
     underMs: total / 1000,
-    // Every sample `keep` accepted, under `under` or not: their count, and
-    // the time they were charged.
     keptSamples: kept,
     keptMs: profiled / 1000,
     shareOfProfile: ratio(total, profiled),
@@ -144,11 +89,6 @@ export function profileShares(profile, { under, inclusive = [], groups, keep, na
   };
 }
 
-/**
- * Min, median and max of every group and inclusive share over several results
- * of `profileShares`, and of the collector's share of the whole profile. A
- * group one profile never sampled counts as a share of zero there.
- */
 export function summarizeShares(results) {
   const row = (label, shares) => {
     const sorted = [...shares].sort((a, b) => a - b);
@@ -175,11 +115,6 @@ export function summarizeShares(results) {
   ];
 }
 
-// Names a call frame `<source file>:<function>` through the bundle's source
-// map, or `<bundle file>:<function>` without one.
-// A source map's path for a source, from the first `packages/`,
-// `node_modules/` or `scripts/` directory on (the map's paths are relative to
-// the bundle, which lived in a temporary directory).
 export function repositoryPath(source) {
   const s = source.replace(/\\/g, "/");
   const at = s.search(/(^|\/)(packages|node_modules|scripts)\//);

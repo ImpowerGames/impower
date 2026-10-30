@@ -1,29 +1,3 @@
-// Decides whether a workflow's real jobs need to run for the files a pull
-// request or push changed. Workflows call it from a first job and gate the
-// rest on its `relevant` output instead of using a `paths:` trigger filter.
-//
-// A required status check has to report on every pull request, and a filtered
-// workflow reports nothing when its filter excludes the change, which leaves
-// the pull request blocked. A job skipped through `if:` still reports, as
-// skipped, and GitHub accepts a skipped job for a required check.
-//
-// Usage: node .github/scripts/changed-paths.mjs <base-ref> <head-ref> [--limit <n>] <pattern>...
-//        node .github/scripts/changed-paths.mjs --files <list-file> [--count <records>] [--limit <n>] <pattern>...
-// The first form diffs two refs in the current repository (three-dot, so only
-// the head side's changes count). The second reads one changed path per line,
-// which a workflow fills from the API so it needs no deep checkout. `--limit`
-// names the listing endpoint's cap and `--count` the number of file records
-// it returned (renames contribute two paths but one record): a listing at the
-// cap may be incomplete, and an incomplete list can only run jobs, never skip
-// them. Prints the matches and a
-// `relevant=true|false` line, and appends that line to GITHUB_OUTPUT when the
-// variable is set.
-//
-// Patterns follow the workflow `paths:` filter syntax: `*` matches anything
-// except `/`, `**` matches anything including `/`, `?` and `+` mean zero-or-one
-// and one-or-more of the preceding character, `[abc]` is a character class, a
-// leading `!` negates, and patterns apply in order so the last one that matches
-// a path decides. A pattern with no slash matches only at the root.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,8 +24,6 @@ export function patternToRegExp(pattern) {
   return new RegExp("^" + source + "$");
 }
 
-// Ordered evaluation with negation: a path is relevant when the last pattern
-// that matches it is positive. A path no pattern matches is not relevant.
 export function relevantFiles(files, patterns) {
   const rules = patterns.map((pattern) => {
     const negative = pattern.startsWith("!");
@@ -71,9 +43,6 @@ export function changedFiles(base, head, cwd = process.cwd()) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [first, second, ...rest] = process.argv.slice(2);
-  // `--count N` is the number of file records the endpoint returned, which
-  // can be smaller than the number of paths when renames list both names;
-  // it is what the cap applies to. Without it the path count is used.
   let limit = Infinity, count;
   while (rest[0] === "--limit" || rest[0] === "--count") {
     if (rest[0] === "--limit") limit = Number(rest[1]); else count = Number(rest[1]);
