@@ -572,7 +572,7 @@ export const startingValueListing = (
 
 export interface StartPlan {
   from: string;
-  seed: number | null;
+  seed: number;
   stores: [path: string[], value: Literal][];
   counts: [countId: number, visits: number][];
   args?: Literal[];
@@ -591,9 +591,8 @@ export const startPlanOf = (
   from: string,
   source: StartingValueSource,
   set: StartingValueSet | undefined,
-  unsetSeed: number | null,
 ): StartPlan => {
-  const plan: StartPlan = { from, seed: unsetSeed, stores: [], counts: [] };
+  const plan: StartPlan = { from, seed: 0, stores: [], counts: [] };
   const args: Literal[] = [];
   let lastArg = -1;
   let params: string[] | undefined;
@@ -644,9 +643,9 @@ export const planSetsParameters = (plan: StartPlan | undefined): boolean =>
 
 export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
   story.resetSeed = plan.seed;
-  const reseed = plan.seed !== null && story.state.storySeed !== plan.seed;
+  const reseed = story.state.storySeed !== plan.seed;
   if (story.stateIsPristine && reseed && story.state.previousRandom === 0) {
-    story.state.storySeed = plan.seed!;
+    story.state.storySeed = plan.seed;
   } else if (!story.stateIsPristine || reseed) {
     story.CancelAsyncContinue();
     story.ResetState();

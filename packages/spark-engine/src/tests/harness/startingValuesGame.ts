@@ -61,7 +61,7 @@ export const decisionsOf = (game: any, compiler: SparkdownCompiler) =>
 export const example = [
   "store trust = 0",
   'store suspect = "Ana"',
-  '-> interrogation("nine")',
+  "",
   "",
   "scene interrogation(hour)",
   "  if count.visits(-> interrogation) > 1 then",
@@ -80,6 +80,10 @@ export const example = [
   "    INSPECTOR:",
   "      I believe you.",
   "  end",
+  "end",
+  "",
+  "scene start",
+  '  -> interrogation("nine")',
   "end",
 ];
 

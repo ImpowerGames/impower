@@ -20,7 +20,6 @@ export interface StartableGame {
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
   readonly routeErrors: SimulationError[];
-  readonly drawsOwnSeed?: boolean;
   load(checkpoint: string): boolean;
   simulate(): unknown;
 }
@@ -42,7 +41,6 @@ export function putAtStartPoint(
   let raised: SimulationError[] = [];
   const startAddress = game.startAddress;
   const answersThisRun =
-    !game.drawsOwnSeed &&
     startAddress != null &&
     simulatedAddress === startAddress &&
     programId != null &&

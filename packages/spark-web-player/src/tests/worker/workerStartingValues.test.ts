@@ -5,7 +5,7 @@ import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarn
 
 const EXAMPLE = `store trust = 0
 store suspect = "Ana"
--> interrogation("nine")
+
 
 scene interrogation(hour)
   INSPECTOR:
@@ -20,6 +20,10 @@ scene interrogation(hour)
     INSPECTOR:
       I believe you.
   end
+end
+
+scene start
+  -> interrogation("nine")
 end
 `;
 

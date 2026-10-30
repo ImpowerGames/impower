@@ -1187,37 +1187,18 @@ export class Game<T extends M = {}> {
       this._startPlans.clear();
       this._startPlansRoot = root;
     }
-    const unsetSeed =
-      from === START_FLOW_NAME && this.playsFromTopLevel() ? null : 0;
-    const key = `${unsetSeed}:${from}`;
-    let kept = this._startPlans.get(key);
+    let kept = this._startPlans.get(from);
     if (!kept) {
       const plan = startPlanOf(
         this._story,
         from,
         this.startingValueSource(),
         ownEntry(this._startingValues, from),
-        unsetSeed,
       );
       kept = { plan, json: startPlanKey(plan) };
-      this._startPlans.set(key, kept);
+      this._startPlans.set(from, kept);
     }
     return kept;
-  }
-
-  protected playsFromTopLevel(): boolean {
-    return (
-      this._play &&
-      this._startAddress != null &&
-      this.routeStartOf(this._startAddress) === START_FLOW_NAME
-    );
-  }
-
-  get drawsOwnSeed(): boolean {
-    return (
-      this.playsFromTopLevel() &&
-      this.keptStartPlan(START_FLOW_NAME).plan.seed === null
-    );
   }
 
   readonly startPlans = (from: string): StartPlan => this.startPlan(from);

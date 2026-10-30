@@ -27,6 +27,7 @@ import {
 } from "../harness/startingValuesGame";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 
 describe("a route starts with the scene's starting values", () => {
   test("a parameter's value is the argument the scene is entered with", () => {
@@ -41,7 +42,7 @@ describe("a route starts with the scene's starting values", () => {
   test("with no parameter set, the story-start route for a scene with parameters stands", () => {
     const { game } = routeTo(example, 11);
     expect(game.simulation).toBe("success");
-    expect(game.plannedRoute.from).toBe("0");
+    expect(game.plannedRoute.from).toBe(START_FLOW_NAME);
     expect(shown(game)).toContain("Where were you at nine?");
   });
 
@@ -186,6 +187,7 @@ describe("the listing of the example's scene", () => {
       ["visits", "interrogation", "0"],
       ["visits", "Tell the truth.", "0"],
       ["visits", "Lie.", "0"],
+      ["visits", "start", "0"],
       ["randomization", "seed", "0"],
     ]);
     const trust = listing.items.find((i: any) => i.name === "trust");
@@ -391,56 +393,57 @@ describe("first values of tables", () => {
   });
 });
 
-describe("PLAY from the top-level content", () => {
-  const drawing = ["store draw = math.random(1, 100000)", "Drew {draw}."];
+describe("PLAY from the start scene", () => {
+  const drawing = [
+    "store draw = math.random(1, 100000)",
+    "scene start",
+    "  Drew {draw}.",
+    "end",
+  ];
 
-  test("draws its seed from the clock before the declarations run, as an ordinary game does", () => {
+  test("with the start scene's seed unset, draws from the seed 0, as the preview does", () => {
     const clock = vi.spyOn(Date.prototype, "getTime").mockReturnValue(1234567);
     try {
       const { program } = compileSrc(drawing.join("\n"));
-      const ordinary: any = newGame(program);
-      const expected = ordinary.story.variablesState["draw"];
-      expect(ordinary.story.state.storySeed).not.toBe(0);
+      const preview: any = newGame(program);
+      preview.setStartFrom({ file: URI, line: 2 });
+      preview.simulate();
+      expect(preview.story.state.storySeed).toBe(0);
 
       const play: any = new Game({
         program: program as any,
         play: true,
-        startFrom: { file: URI, line: 1 },
+        startFrom: { file: URI, line: 2 },
         now: () => 0,
         setTimeout: ((fn: Function) => {
           fn();
           return 0;
         }) as any,
       } as any);
-      expect(play.drawsOwnSeed).toBe(true);
       play.simulate();
       expect(play.simulation).toBe("success");
-      expect(play.story.variablesState["draw"]).toBe(expected);
-
-      const preview: any = newGame(program);
-      preview.setStartFrom({ file: URI, line: 1 });
-      preview.simulate();
-      expect(preview.story.state.storySeed).toBe(0);
-      expect(preview.drawsOwnSeed).toBe(false);
+      expect(play.story.state.storySeed).toBe(0);
+      expect(play.story.variablesState["draw"]).toBe(
+        preview.story.variablesState["draw"],
+      );
     } finally {
       clock.mockRestore();
     }
   });
 
-  test("with the top-level content's seed set, draws from that seed", () => {
+  test("with the start scene's seed set, draws from that seed", () => {
     const { program } = compileSrc(drawing.join("\n"));
     const play: any = new Game({
       program: program as any,
       play: true,
-      startFrom: { file: URI, line: 1 },
-      startingValues: { "0": { [SEED_KEY]: "9" } },
+      startFrom: { file: URI, line: 2 },
+      startingValues: { [START_FLOW_NAME]: { [SEED_KEY]: "9" } },
       now: () => 0,
       setTimeout: ((fn: Function) => {
         fn();
         return 0;
       }) as any,
     } as any);
-    expect(play.drawsOwnSeed).toBe(false);
     play.simulate();
     expect(play.simulation).toBe("success");
     expect(play.story.state.storySeed).toBe(9);

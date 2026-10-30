@@ -75,14 +75,14 @@ A pin has these limits:
 
 ## Starting values
 
-A scene the story reaches late is seldom in its first state when a player gets there: an earlier scene raised a store, the scene has been visited before, or the divert that entered it passed its parameters. The Starting values tab tells the preview what the scene starts with. Each scene has its own starting values, and the content before any scene has one more set. They are kept for you in this project, and are never written into the project's files.
+A scene the story reaches late is seldom in its first state when a player gets there: an earlier scene raised a store, the scene has been visited before, or the divert that entered it passed its parameters. The Starting values tab tells the preview what the scene starts with. Each scene has its own starting values, the start scene's included. They are kept for you in this project, and are never written into the project's files.
 
 The tab lists what the scene of the line you are previewing can take, in four groups:
 
 - Parameters: each parameter of the scene. An unset parameter reads nil, which the tab marks with a warning.
 - Stores: every `store`, and each `store` field of a `define` by its dotted name (`define guide with store mood = 1` gives `guide.mood`). A table store lists its fields under it, and a field set on its own applies over the store's first value. A `const` cannot be set.
 - Visits, the counts before the scene starts: each scene, branch and label; each once-only option, by its text and line, with how many times it was taken; and each alternator, by its first alternative and line. Entering the scene adds one to its own count, as it does in a run, and a place given a count above zero reads as visited on the turn before the scene starts.
-- Randomization: the seed. When it is unset, the preview and Play from a line use the seed 0, so a line shows the same random results every time. A Play from the content before any scene starts the story itself and draws its seed as the game does, unless that content's own seed is set. Setting the seed also resets the last draw, as `math.randomseed` does.
+- Randomization: the seed. When it is unset, the preview and Play from a line use the seed 0, so a line shows the same random results every time. Setting the seed also resets the last draw, as `math.randomseed` does.
 
 Each row shows the value its name starts with in grey. Type a value and press Enter, or leave the field, to set it; × clears it, and Reset all clears every value of the scene. A set row has a bar in its margin, the tab counts the values set, and the line at its foot says how many of the scene's values are set. The search field narrows the list.
 
