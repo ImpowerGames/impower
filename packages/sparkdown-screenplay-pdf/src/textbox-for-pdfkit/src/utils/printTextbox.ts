@@ -7,15 +7,6 @@ import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
 import { drawEmojiChunk, getEmojiProvider } from "../../../emoji/emojiText";
 
-// This is the main package of textbox-for-pdfkit. It is the main function
-// which prepares the data by calling all the subfunctions.
-// Also it handles the drawing of the text on the pdf, after it was prepared.
-
-// This is the only function which is needed in the end. It calls
-// every needed function step by step. Details what all functions
-// are doing can be found in the respective packages (where the functions
-// are defined)
-
 export const printTextbox = (
   doc: PDFKit.PDFDocument,
   text: FormattedText[],
@@ -29,9 +20,6 @@ export const printTextbox = (
   const lines = wrapTextbox(doc, text, width, textboxStyle);
   printLines(lines, width, posX, posY, textboxStyle, doc, height);
 };
-
-// This function takes the prepared Data and draws everything on the right
-// position of the PDF
 
 const printLines = (
   lines: FormattedLine[],
@@ -53,7 +41,6 @@ const printLines = (
     if (line.lineHeight != null) {
       currentHeight += line.lineHeight;
     }
-    // we'll not go over the provided height, if any
     if (maxHeight && currentHeight > maxHeight) {
       return;
     }
@@ -105,8 +92,6 @@ const printLines = (
   });
 };
 
-// This function handles the setting of the line start X-position
-// depending on its "align" attribute
 function getLineStartXPosition(
   line: FormattedLine,
   width: number,

@@ -19,7 +19,6 @@
   content: "";
   position: absolute;
   inset: 0;
-  /* Block input during exit animation */
   pointer-events: auto;
 }
 :host[status="exiting"] {

@@ -15,9 +15,6 @@ const DEFAULT_TRANSFORMERS = {
   "show-delay": getCssDuration,
 };
 
-/**
- * Hidden is used to hide or unhide elements when a certain events are fired.
- */
 export default class Hidden extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

@@ -1,6 +1,3 @@
-// Overloaded so a caller that supplies a default gets `number` back rather
-// than `number | undefined`: with a default there is no path that returns
-// undefined.
 export function getUnitlessValue(
   value: string | null,
   defaultValue: number,

@@ -20,9 +20,6 @@ const DEFAULT_TRANSFORMERS = {
   "hover-color": getCssColor,
 };
 
-/**
- * Tabs are used to represent and activate panels.
- */
 export default class Tab extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
   structuralAttributes = ["icon", "active-icon", "disable-ripple"];
 

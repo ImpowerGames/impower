@@ -1,9 +1,6 @@
 import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_transition";
 
-/**
- * Transitions are used to smoothly swap between two elements
- */
 export default class Transition extends SparkleComponent(spec) {
   override onConnected() {
     window.addEventListener("exit", this.handleExit);

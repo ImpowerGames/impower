@@ -1,23 +1,7 @@
-// Tiny char-class-aware scanner over a regex source string. Used by
-// rules that need to reason about top-level (non-character-class)
-// content of a pattern — flagging `\s`, splitting top-level
-// alternation branches, etc.
-//
-// Important properties: skips `\X` escapes wholesale, tracks `[...]`
-// character classes (so `[\s]` doesn't count as "top-level \s"), and
-// tracks `(...)` paren nesting so top-level `|` can be distinguished
-// from group-internal `|`. Doesn't fully parse regex semantics — just
-// enough to make conservative judgments.
-
 export interface RegexToken {
-  // Position in the source.
   index: number;
-  // The token text (one char, an escape like `\s`, or a multi-char
-  // construct like `(?=`).
   text: string;
-  // True when the token sits inside a `[...]` character class.
   inCharClass: boolean;
-  // Top-level group-nesting depth (0 = outside any group).
   groupDepth: number;
 }
 
@@ -28,7 +12,6 @@ export function* scanRegex(source: string): Generator<RegexToken> {
   while (i < source.length) {
     const ch = source[i]!;
     if (ch === "\\") {
-      // Escape — yield as a 2-char token if there's a follow char.
       const next = source[i + 1];
       const text = next === undefined ? "\\" : "\\" + next;
       yield { index: i, text, inCharClass, groupDepth };
@@ -53,8 +36,6 @@ export function* scanRegex(source: string): Generator<RegexToken> {
       continue;
     }
     if (ch === "(") {
-      // Detect non-capturing / lookaround prefixes so we can yield a
-      // multi-char token rather than just `(`.
       const head = source.slice(i, i + 4);
       let text = ch;
       if (head.startsWith("(?:")) text = "(?:";
@@ -62,7 +43,7 @@ export function* scanRegex(source: string): Generator<RegexToken> {
       else if (head.startsWith("(?!")) text = "(?!";
       else if (head.startsWith("(?<=")) text = "(?<=";
       else if (head.startsWith("(?<!")) text = "(?<!";
-      else if (head.startsWith("(?<")) text = "(?<"; // (?<name>
+      else if (head.startsWith("(?<")) text = "(?<";
       yield { index: i, text, inCharClass, groupDepth };
       groupDepth++;
       i += text.length;
@@ -79,10 +60,6 @@ export function* scanRegex(source: string): Generator<RegexToken> {
   }
 }
 
-// Split a regex source string at top-level `|`. "Top-level" means
-// outside any `(...)` group AND outside any `[...]` character class.
-// Each returned slice is `{ text, index }` — the substring and its
-// starting offset in the original source.
 export function splitTopLevelAlternation(
   source: string,
 ): { text: string; index: number }[] {
@@ -113,16 +90,11 @@ export type GroupKind =
 
 export interface RegexGroup {
   kind: GroupKind;
-  // Offsets of the opening `(` and the closing `)` in the source.
   start: number;
   end: number;
-  // The whole group, `(` through `)`.
   text: string;
-  // The group's body, between its opener (`(`, `(?:`, `(?=`, ...) and `)`.
   body: string;
-  // How many lookaround groups enclose this one.
   lookaroundDepth: number;
-  // The innermost enclosing group, or null at top level.
   parent: RegexGroup | null;
 }
 
@@ -145,14 +117,9 @@ export function isLookaround(kind: GroupKind): boolean {
   );
 }
 
-// Every closed group in a regex source, in order of their closing `)`.
-// Escapes and character classes are skipped as `scanRegex` does; an
-// unbalanced `)` is ignored and an unclosed `(` is dropped.
 export function regexGroups(source: string): RegexGroup[] {
   const groups: RegexGroup[] = [];
   const open: { kind: GroupKind; start: number; bodyStart: number }[] = [];
-  // Groups are only known once closed, so parents are linked afterwards
-  // through the open stack's start offsets.
   const byStart = new Map<number, RegexGroup>();
   const parentStart = new Map<number, number | null>();
   for (const tok of scanRegex(source)) {

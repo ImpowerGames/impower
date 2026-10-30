@@ -6,9 +6,6 @@ const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
 };
 
-/**
- * Dividers are used to visually separate or group elements.
- */
 export default class Divider extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

@@ -92,9 +92,6 @@ export function SparkleComponent<
       return DEFAULT_SPARKLE_ALIAS_ATTRIBUTES;
     }
 
-    /**
-     * Whether or not the element should display content right-to-left instead of the usual left-to-right.
-     */
     get rtl(): boolean {
       return this.getBooleanAttribute(CustomSparkleComponent.attrs.rtl);
     }
@@ -102,9 +99,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.rtl, value);
     }
 
-    /**
-     * Whether or not the element is disabled.
-     */
     get disabled(): boolean {
       return this.getBooleanAttribute(CustomSparkleComponent.attrs.disabled);
     }
@@ -112,9 +106,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.disabled, value);
     }
 
-    /**
-     * Sets the element's `visibility`.
-     */
     get visible(): boolean | string {
       return this.getConditionalAttribute(CustomSparkleComponent.attrs.visible);
     }
@@ -122,9 +113,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.visible, value);
     }
 
-    /**
-     * Allows this element to capture `pointer-events`.
-     */
     get interactable(): boolean | string {
       return this.getConditionalAttribute(
         CustomSparkleComponent.attrs.interactable,
@@ -134,9 +122,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.interactable, value);
     }
 
-    /**
-     * Enables `user-select` so the user can select any text inside this element.
-     */
     get selectable(): boolean | string {
       return this.getConditionalAttribute(
         CustomSparkleComponent.attrs.selectable,
@@ -146,9 +131,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.selectable, value);
     }
 
-    /**
-     * Determines how the element will be displayed.
-     */
     get display():
       | ""
       | "block"
@@ -180,9 +162,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.display, value);
     }
 
-    /**
-     * Sets this element's `position` in a document.
-     */
     get position():
       | ""
       | "default"
@@ -198,9 +177,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.position, value);
     }
 
-    /**
-     * Sets a preferred `aspect-ratio` for the element.
-     */
     get aspect(): "" | RatioName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.aspect);
     }
@@ -208,11 +184,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.aspect, value);
     }
 
-    /**
-     * Sets the desired `overflow` behavior for content that does not fit within this element's width or height.
-     *
-     * If not provided a value, defaults to `visible`.
-     */
     get overflow(): "" | "visible" | "scroll" | "clip" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.overflow);
     }
@@ -220,11 +191,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.overflow, value);
     }
 
-    /**
-     * Sets the desired `overflow` behavior for content that does not fit within this element's width.
-     *
-     * If not provided a value, defaults to `visible`.
-     */
     get overflowX(): "" | "visible" | "scroll" | "clip" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.overflowX);
     }
@@ -232,11 +198,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.overflowX, value);
     }
 
-    /**
-     * Sets the desired `overflow` behavior for content that does not fit within this element's height.
-     *
-     * If not provided a value, defaults to `visible`.
-     */
     get overflowY(): "" | "visible" | "scroll" | "clip" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.overflowY);
     }
@@ -244,10 +205,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.overflowY, value);
     }
 
-    /**
-     * Sets the `z-index` of a positioned element and its descendants.
-     * Elements with a larger z value appear on top of those with a smaller one.
-     */
     get z(): "" | "0" | "1" | LayerName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.z);
     }
@@ -255,9 +212,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.z, value);
     }
 
-    /**
-     * Sets this element's `width`.
-     */
     get width(): "" | "100%" | "min-content" | "max-content" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.width);
     }
@@ -265,10 +219,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.width, value);
     }
 
-    /**
-     * Sets the `min-width` of this element.
-     * Prevents the element's width from becoming smaller than the value specified.
-     */
     get widthMin():
       | ""
       | "100%"
@@ -282,10 +232,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.widthMin, value);
     }
 
-    /**
-     * Sets the `max-width` of this element.
-     * Prevents the element's width from becoming larger than the value specified.
-     */
     get widthMax():
       | ""
       | "100%"
@@ -299,9 +245,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.widthMax, value);
     }
 
-    /**
-     * Sets this element's `height`.
-     */
     get height(): "" | "100%" | "min-content" | "max-content" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.height);
     }
@@ -309,10 +252,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.height, value);
     }
 
-    /**
-     * Sets the `min-height` of this element.
-     * Prevents the element's height from becoming smaller than the value specified.
-     */
     get heightMin():
       | ""
       | "100%"
@@ -326,10 +265,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.heightMin, value);
     }
 
-    /**
-     * Sets the `max-height` of this element.
-     * Prevents the element's height from becoming larger than the value specified.
-     */
     get heightMax():
       | ""
       | "100%"
@@ -343,11 +278,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.heightMax, value);
     }
 
-    /**
-     * Rounds the corners of this element by specifying a `border-radius`.
-     *
-     * @summary c
-     */
     get corner(): "" | SizeName | "full" | "circle" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.corner);
     }
@@ -355,11 +285,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.corner, value);
     }
 
-    /**
-     * Rounds the top-left corner of this element by specifying a `border-top-left-radius`.
-     *
-     * @summary c-tl
-     */
     get cornerTopLeft(): "" | SizeName | "full" | "circle" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.cornerTopLeft,
@@ -372,11 +297,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Rounds the top-right corner of this element by specifying a `border-top-right-radius`.
-     *
-     * @summary c-tr
-     */
     get cornerTopRight(): "" | SizeName | "full" | "circle" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.cornerTopRight,
@@ -389,11 +309,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Rounds the bottom-right corner of this element by specifying a `border-bottom-right-radius`.
-     *
-     * @summary c-br
-     */
     get cornerBottomRight(): "" | SizeName | "full" | "circle" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.cornerBottomRight,
@@ -406,11 +321,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Rounds the bottom-left corner of this element by specifying a `border-bottom-left-radius`.
-     *
-     * @summary c-bl
-     */
     get cornerBottomLeft(): "" | SizeName | "full" | "circle" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.cornerBottomLeft,
@@ -423,12 +333,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets how far the `top` `right` `bottom` and `left` edges of this element are from the corresponding edges of its closest positioned parent.
-     * It has no effect on non-positioned elements.
-     *
-     * @summary i
-     */
     get anchor(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.anchor);
     }
@@ -436,12 +340,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.anchor, value);
     }
 
-    /**
-     * Sets how far the `top` edge of this element is from the top edge of its closest positioned parent.
-     * It has no effect on non-positioned elements.
-     *
-     * @summary i-t
-     */
     get anchorTop(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.anchorTop);
     }
@@ -449,12 +347,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.anchorTop, value);
     }
 
-    /**
-     * Sets how far the `right` edge of this element is from the right edge of its closest positioned parent.
-     * It has no effect on non-positioned elements.
-     *
-     * @summary i-r
-     */
     get anchorRight(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.anchorRight);
     }
@@ -462,12 +354,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.anchorRight, value);
     }
 
-    /**
-     * Sets how far the `bottom` edge of this element is from the bottom edge of its closest positioned parent.
-     * It has no effect on non-positioned elements.
-     *
-     * @summary i-b
-     */
     get anchorBottom(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.anchorBottom);
     }
@@ -475,12 +361,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.anchorBottom, value);
     }
 
-    /**
-     * Sets how far the `left` edge of this element is from the left edge of its closest positioned parent.
-     * It has no effect on non-positioned elements.
-     *
-     * @summary i-l
-     */
     get anchorLeft(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.anchorLeft);
     }
@@ -488,11 +368,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.anchorLeft, value);
     }
 
-    /**
-     * Sets the `outline-width` of this element.
-     *
-     * @summary o-width
-     */
     get outlineWidth(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.outlineWidth);
     }
@@ -500,9 +375,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.outlineWidth, value);
     }
 
-    /**
-     * Sets the `outline-color` of this element.
-     */
     get outlineColor(): "" | ColorName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.outlineColor);
     }
@@ -510,11 +382,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.outlineColor, value);
     }
 
-    /**
-     * Sets the `outline-style` of this element.
-     *
-     * @summary o-style
-     */
     get outlineStyle(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.outlineStyle);
     }
@@ -522,11 +389,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.outlineStyle, value);
     }
 
-    /**
-     * Sets the `border-width` of this element.
-     *
-     * @summary b-width
-     */
     get borderWidth(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.borderWidth);
     }
@@ -534,11 +396,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.borderWidth, value);
     }
 
-    /**
-     * Sets the `border-top-width` of this element.
-     *
-     * @summary b-width-t
-     */
     get borderWidthTop(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderWidthTop,
@@ -551,11 +408,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-right-width` of this element.
-     *
-     * @summary b-width-r
-     */
     get borderWidthRight(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderWidthRight,
@@ -568,11 +420,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-bottom-width` of this element.
-     *
-     * @summary b-width-b
-     */
     get borderWidthBottom(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderWidthBottom,
@@ -585,11 +432,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-left-width` of this element.
-     *
-     * @summary b-width-l
-     */
     get borderWidthLeft(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderWidthLeft,
@@ -602,9 +444,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-color` of this element.
-     */
     get borderColor(): "" | ColorName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.borderColor);
     }
@@ -612,11 +451,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.borderColor, value);
     }
 
-    /**
-     * Sets the `border-top-color` of this element.
-     *
-     * @summary b-color-t
-     */
     get borderColorTop(): "" | ColorName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderColorTop,
@@ -629,11 +463,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-right-color` of this element.
-     *
-     * @summary b-color-r
-     */
     get borderColorRight(): "" | ColorName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderColorRight,
@@ -646,11 +475,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-bottom-color` of this element.
-     *
-     * @summary b-color-b
-     */
     get borderColorBottom(): "" | ColorName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderColorBottom,
@@ -663,11 +487,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-left-color` of this element.
-     *
-     * @summary b-color-l
-     */
     get borderColorLeft(): "" | ColorName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderColorLeft,
@@ -680,11 +499,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-style` of this element.
-     *
-     * @summary b-style
-     */
     get borderStyle(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.borderStyle);
     }
@@ -692,11 +506,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.borderStyle, value);
     }
 
-    /**
-     * Sets the `border-top-style` of this element.
-     *
-     * @summary b-style-t
-     */
     get borderStyleTop(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderStyleTop,
@@ -709,11 +518,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-right-style` of this element.
-     *
-     * @summary b-style-r
-     */
     get borderStyleRight(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderStyleRight,
@@ -726,11 +530,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-bottom-style` of this element.
-     *
-     * @summary b-style-b
-     */
     get borderStyleBottom(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderStyleBottom,
@@ -743,11 +542,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `border-left-style` of this element.
-     *
-     * @summary b-style-l
-     */
     get borderStyleLeft(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.borderStyleLeft,
@@ -760,13 +554,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `margin` area around this element.
-     *
-     * A positive value places it farther from its neighbors, while a negative value places it closer.
-     *
-     * @summary m
-     */
     get margin(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.margin);
     }
@@ -774,13 +561,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.margin, value);
     }
 
-    /**
-     * Sets the `margin-top` area of this element.
-     *
-     * A positive value places it farther from its neighbors, while a negative value places it closer.
-     *
-     * @summary m-t
-     */
     get marginTop(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.marginTop);
     }
@@ -788,13 +568,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.marginTop, value);
     }
 
-    /**
-     * Sets the `margin-right` area of this element.
-     *
-     * A positive value places it farther from its neighbors, while a negative value places it closer.
-     *
-     * @summary m-r
-     */
     get marginRight(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.marginRight);
     }
@@ -802,13 +575,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.marginRight, value);
     }
 
-    /**
-     * Sets the `margin-bottom` area of this element.
-     *
-     * A positive value places it farther from its neighbors, while a negative value places it closer.
-     *
-     * @summary m-b
-     */
     get marginBottom(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.marginBottom);
     }
@@ -816,13 +582,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.marginBottom, value);
     }
 
-    /**
-     * Sets the `margin-left` area of this element.
-     *
-     * A positive value places it farther from its neighbors, while a negative value places it closer.
-     *
-     * @summary m-l
-     */
     get marginLeft(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.marginLeft);
     }
@@ -830,11 +589,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.marginLeft, value);
     }
 
-    /**
-     * Sets the `padding` area around this element.
-     *
-     * @summary p
-     */
     get padding(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.padding);
     }
@@ -842,11 +596,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.padding, value);
     }
 
-    /**
-     * Sets the `padding-top` area of this element.
-     *
-     * @summary p-t
-     */
     get paddingTop(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.paddingTop);
     }
@@ -854,11 +603,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.paddingTop, value);
     }
 
-    /**
-     * Sets the `padding-right` area of this element.
-     *
-     * @summary p-r
-     */
     get paddingRight(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.paddingRight);
     }
@@ -866,11 +610,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.paddingRight, value);
     }
 
-    /**
-     * Sets the `padding-bottom` area of this element.
-     *
-     * @summary p-b
-     */
     get paddingBottom(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.paddingBottom,
@@ -883,11 +622,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `padding-left` area of this element.
-     *
-     * @summary p-l
-     */
     get paddingLeft(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.paddingLeft);
     }
@@ -895,9 +629,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.paddingLeft, value);
     }
 
-    /**
-     * Sets the `flex-direction` of this element so that its children are arranged in either a row or column.
-     */
     get childLayout():
       | "row"
       | "column"
@@ -910,9 +641,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.childLayout, value);
     }
 
-    /**
-     * Sets the `gap` between children.
-     */
     get childGap(): "" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.childGap);
     }
@@ -920,14 +648,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.childGap, value);
     }
 
-    /**
-     * Uses `align-items` to align children along the cross axis.
-     *
-     * When layout is `column`, this controls all children's horizontal alignment.
-     * When layout is `row`, this controls all children's vertical alignment.
-     *
-     * If not provided a value, defaults to `center`.
-     */
     get childAlign():
       | ""
       | "center"
@@ -942,14 +662,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.childAlign, value);
     }
 
-    /**
-     * Uses `justify-content` to align children along the main axis.
-     *
-     * When layout is `column`, this controls all children's vertical alignment.
-     * When layout is `row`, this controls all children's horizontal alignment.
-     *
-     * If not provided a value, defaults to `center`.
-     */
     get childJustify():
       | ""
       | "center"
@@ -967,11 +679,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.childJustify, value);
     }
 
-    /**
-     * Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.
-     *
-     * If not provided a value, defaults to `wrap`.
-     */
     get childOverflow():
       | ""
       | "visible"
@@ -990,14 +697,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Uses `align-self` to override the alignment for this element along the cross axis.
-     *
-     * When layout is `column`, this controls the horizontal alignment.
-     * When layout is `row`, this controls the vertical alignment.
-     *
-     * If not provided a value, defaults to `center`.
-     */
     get selfAlign():
       | ""
       | "center"
@@ -1012,11 +711,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.selfAlign, value);
     }
 
-    /**
-     * Uses `flex` to control how much the element will flex.
-     *
-     * If not provided a value, defaults to `1`.
-     */
     get flex(): "" | "0" | "1" | "2" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.flex);
     }
@@ -1024,15 +718,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.flex, value);
     }
 
-    /**
-     * Uses `flex-grow` to control how much the element will grow to fill the space available in its parent container.
-     *
-     * If 0, the element will not grow.
-     * If 1, the element will grow to fill all available space.
-     * If 2, the element will grow twice as much as all elements with 1 flex.
-     *
-     * If not provided a value, defaults to `1`.
-     */
     get grow(): "" | "0" | "1" | "2" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.grow);
     }
@@ -1040,14 +725,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.grow, value);
     }
 
-    /**
-     * Uses `flex-shrink` to control how much the element will shrink when there is not enough space available in its parent container.
-     *
-     * If 0, the element will not shrink.
-     * If 1, the element will shrink as much as possible.
-     *
-     * If not provided a value, defaults to `0`.
-     */
     get shrink(): "" | "0" | "1" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.shrink);
     }
@@ -1055,9 +732,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.shrink, value);
     }
 
-    /**
-     * Sets the `color` of content rendered inside this element.
-     */
     get color(): "" | ColorName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.color);
     }
@@ -1065,9 +739,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.color, value);
     }
 
-    /**
-     * Specifies which `font-family` this element will use to render text.
-     */
     get textFont(): "" | "sans" | "serif" | "mono" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textFont);
     }
@@ -1075,9 +746,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textFont, value);
     }
 
-    /**
-     * Sets the `font-size` of all text inside this element.
-     */
     get textSize():
       | ""
       | "2xs"
@@ -1098,11 +766,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textSize, value);
     }
 
-    /**
-     * Sets the `line-height` of all text inside this element.
-     *
-     * This is commonly used to increase or decrease the distance between lines of text.
-     */
     get textLeading(): "" | "none" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textLeading);
     }
@@ -1110,12 +773,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textLeading, value);
     }
 
-    /**
-     * Sets the `letter-spacing` of all text inside this element.
-     *
-     * This value is added to the font's natural letter spacing.
-     * Positive values cause letters to spread farther apart, while negative values bring letters closer together.
-     */
     get textTracking(): "" | "none" | SizeName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textTracking);
     }
@@ -1123,9 +780,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textTracking, value);
     }
 
-    /**
-     * Sets the `font-weight` of all text inside this element.
-     */
     get textWeight():
       | ""
       | "thin"
@@ -1145,9 +799,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textWeight, value);
     }
 
-    /**
-     * Sets the `font-style` of all text inside this element so that the text is italic.
-     */
     get textStyle(): "" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textStyle);
     }
@@ -1155,9 +806,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textStyle, value);
     }
 
-    /**
-     * Sets the `text-decoration-line` of all text inside this element so that a line renders underneath the text.
-     */
     get textDecorationLine(): "" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.textDecorationLine,
@@ -1170,9 +818,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `text-decoration-color` of all text inside this element so that a line renders through the middle of the text.
-     */
     get textDecorationColor(): "" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.textDecorationColor,
@@ -1185,9 +830,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `text-decoration-thickness` of all underline or strikethrough lines.
-     */
     get textDecorationThickness(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.textDecorationThickness,
@@ -1200,9 +842,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `text-underline-offset` of all underlined text inside this element.
-     */
     get textUnderlineOffset(): "" | SizeName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.textUnderlineOffset,
@@ -1215,9 +854,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `text-transform` of all text inside this element to force the text to be uppercase, lowercase, or capitalized.
-     */
     get textCase():
       | ""
       | "uppercase"
@@ -1231,13 +867,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textCase, value);
     }
 
-    /**
-     * Sets the desired `text-align` behavior of all text inside this element.
-     *
-     * Aligns text to the center, start, or end, or justifies it to fill the width of this element.
-     *
-     * If not provided a value, defaults to `center`.
-     */
     get textAlign():
       | ""
       | "center"
@@ -1252,11 +881,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textAlign, value);
     }
 
-    /**
-     * Sets the desired `text-overflow` and `white-space` behavior if text cannot fit on a single line.
-     *
-     * If not provided a value, defaults to `visible`.
-     */
     get textOverflow():
       | ""
       | "visible"
@@ -1271,11 +895,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textOverflow, value);
     }
 
-    /**
-     * Sets the desired `white-space` behavior.
-     *
-     * If not provided a value, defaults to `normal`.
-     */
     get textWhitespace():
       | ""
       | "normal"
@@ -1297,9 +916,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `color` of text rendered inside this element.
-     */
     get textColor(): "" | "wrap" | "nowrap" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textColor);
     }
@@ -1307,9 +923,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textColor, value);
     }
 
-    /**
-     * Uses `text-shadow` to create a colored stroke around the text.
-     */
     get textStroke(): "" | ColorName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.textStroke);
     }
@@ -1317,11 +930,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.textStroke, value);
     }
 
-    /**
-     * Sets the `background-color` of this element.
-     *
-     * @summary bg-color
-     */
     get backgroundColor(): "" | ColorName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.backgroundColor,
@@ -1334,11 +942,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Uses `background-image` to display an image inside this element.
-     *
-     * @summary bg-image
-     */
     get backgroundImage(): "" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.backgroundImage,
@@ -1351,13 +954,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets `background-repeat` to determine if images are repeated in a tiling pattern.
-     *
-     * If not provided a value, defaults to `repeat`.
-     *
-     * @summary bg-repeat
-     */
     get backgroundRepeat(): "" | "repeat" | "x" | "y" | "none" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.backgroundRepeat,
@@ -1370,13 +966,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets `background-position` to align images to the center, top, bottom, left, or right edge of this element.
-     *
-     * If not provided a value, defaults to `center`.
-     *
-     * @summary bg-align
-     */
     get backgroundAlign():
       | ""
       | "center"
@@ -1397,15 +986,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Adjusts the `background-size` of images so that they fit inside this element.
-     *
-     * The image can be stretched, or constrained to fit the available space.
-     *
-     * If not provided a value, defaults to `contain`.
-     *
-     * @summary bg-fit
-     */
     get backgroundFit(): "" | "contain" | "cover" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.backgroundFit,
@@ -1418,12 +998,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Sets the `mask-image` of this element to change the visual shape of this element.
-     * Parts that are inside the mask region are visible, while those outside are clipped.
-     *
-     * If not provided a value, defaults to `circle`.
-     */
     get mask(): "" | MaskName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.mask);
     }
@@ -1431,9 +1005,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.mask, value);
     }
 
-    /**
-     * Adds a `drop-shadow` `filter` to this element.
-     */
     get shadow(): "" | "0" | "1" | "2" | "3" | "4" | "5" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.shadow);
     }
@@ -1441,9 +1012,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.shadow, value);
     }
 
-    /**
-     * Adds an inner `box-shadow` to this element.
-     */
     get shadowInset(): "" | "0" | "1" | "2" | "3" | "4" | "5" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.shadowInset);
     }
@@ -1451,9 +1019,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.shadowInset, value);
     }
 
-    /**
-     * Applies a `backdrop-filter` to this element.
-     */
     get filter(): "" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.filter);
     }
@@ -1461,9 +1026,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.filter, value);
     }
 
-    /**
-     * Sets the desired `mix-blend-mode` of this element to control how the colors of this element blend with the colors of everything behind it.
-     */
     get blend():
       | ""
       | "normal"
@@ -1490,10 +1052,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.blend, value);
     }
 
-    /**
-     * Sets the `opacity` of an element to control how transparent it is,
-     * with 0 being fully transparent and 1 being fully opaque.
-     */
     get opacity(): "" | "0" | "0.5" | "1" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.opacity);
     }
@@ -1501,9 +1059,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.opacity, value);
     }
 
-    /**
-     * Sets an element's `rotate` angle.
-     */
     get rotate(): "" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.rotate);
     }
@@ -1511,9 +1066,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.rotate, value);
     }
 
-    /**
-     * Sets an element's `transform` to scale it.
-     */
     get scale(): "" | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.scale);
     }
@@ -1521,9 +1073,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.scale, value);
     }
 
-    /**
-     * Sets the `transform-origin` for any transformations applied to this element.
-     */
     get pivot():
       | ""
       | "center"
@@ -1539,9 +1088,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.pivot, value);
     }
 
-    /**
-     * Specifies the `transition-delay` between property changes and their resulting transition animation.
-     */
     get transitionDelay():
       | ""
       | "0"
@@ -1571,9 +1117,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Specifies the `transition-duration` of property changes.
-     */
     get transitionDuration():
       | ""
       | "0"
@@ -1603,9 +1146,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Specifies the `transition-timing-function` used for property changes.
-     */
     get transitionEasing(): "" | EasingName | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.transitionEasing,
@@ -1618,9 +1158,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Applies an `animation` to this element.
-     */
     get animation(): "" | AnimationName | string | null {
       return this.getStringAttribute(CustomSparkleComponent.attrs.animation);
     }
@@ -1628,9 +1165,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.animation, value);
     }
 
-    /**
-     * Specifies an exit `animation` for this element.
-     */
     get exit(): "" | AnimationName | string | null {
       return (
         this.getStringAttribute(CustomSparkleComponent.attrs.exit) || "exit"
@@ -1640,9 +1174,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.exit, value);
     }
 
-    /**
-     * Specifies an enter `animation` for this element.
-     */
     get enter(): "" | AnimationName | string | null {
       return (
         this.getStringAttribute(CustomSparkleComponent.attrs.enter) || "enter"
@@ -1652,9 +1183,6 @@ export function SparkleComponent<
       this.setStringAttribute(CustomSparkleComponent.attrs.enter, value);
     }
 
-    /**
-     * Specifies `content-visibility` for this element.
-     */
     get contentVisibility(): "" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.contentVisibility,
@@ -1667,9 +1195,6 @@ export function SparkleComponent<
       );
     }
 
-    /**
-     * Specifies `contain-intrinsic-size` for this element.
-     */
     get containIntrinsicSize(): "" | string | null {
       return this.getStringAttribute(
         CustomSparkleComponent.attrs.containIntrinsicSize,
@@ -1742,7 +1267,6 @@ export function SparkleComponent<
         attrName.startsWith("aria-")
       ) {
         if (this.root !== this) {
-          // Forward all aria attributes to root element
           this.root.setAttribute(attrName, value);
         }
       } else {

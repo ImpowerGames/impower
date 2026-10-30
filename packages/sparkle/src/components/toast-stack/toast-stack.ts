@@ -3,9 +3,6 @@ import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
 import spec from "./_toast-stack";
 
-/**
- * Toast Stacks are used to display alert notifications in a stack.
- */
 export default class ToastStack extends SparkleComponent(spec) {
   protected _templates: HTMLTemplateElement[] = [];
 

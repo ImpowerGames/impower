@@ -9,9 +9,6 @@ const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 
-/**
- * Toasts are used to display important messages inline or as alert notifications.
- */
 export default class Toast extends SparkleComponent(spec) {
   private _setup = false;
 
@@ -149,7 +146,6 @@ export default class Toast extends SparkleComponent(spec) {
     if (!this._setup) {
       this._setup = true;
       if (!open) {
-        // Don't show close animation if starts closed.
         this.root.hidden = true;
         this.root.style.display = "none";
         return;
@@ -203,9 +199,6 @@ export default class Toast extends SparkleComponent(spec) {
     this.emit(CLOSED_EVENT);
   }
 
-  /**
-   * Shows the toast.
-   */
   async show(): Promise<void> {
     if (this.open) {
       return undefined;
@@ -214,9 +207,6 @@ export default class Toast extends SparkleComponent(spec) {
     return waitForEvent(this, "opened");
   }
 
-  /**
-   * Hides the toast
-   */
   async close(): Promise<void> {
     if (!this.open) {
       return undefined;
@@ -225,12 +215,6 @@ export default class Toast extends SparkleComponent(spec) {
     return waitForEvent(this, "closed");
   }
 
-  /**
-   * Displays the toast as an alert notification.
-   * When dismissed, the toast will be removed from the DOM completely.
-   * By storing a reference to the toast, you can reuse it by calling this method again.
-   * The returned promise will resolve after the toast is hidden.
-   */
   async alert(container: HTMLElement): Promise<void> {
     return new Promise<void>((resolve) => {
       this.show();

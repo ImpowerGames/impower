@@ -1,12 +1,3 @@
-// Rule: GRAMMAR.md §7.2, "if the regex has more than two `(?:...)`
-// groups or any nested lookahead, name something". A pattern (a rule's
-// `match`/`begin`/`end` or a string variable's value, as written) with
-// more than two non-capturing groups, or with a lookaround nested inside
-// another lookaround, should give its parts names as variables, even
-// names used only once.
-//
-// One finding per pattern. Existing findings are baselined per owner.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex } from "../utils/grammar-index.ts";
 import { isLookaround, regexGroups } from "../utils/regex-scan.ts";

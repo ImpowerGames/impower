@@ -16,17 +16,14 @@ export const utf8ToString = (array: Uint8Array) => {
       case 5:
       case 6:
       case 7:
-        // 0xxxxxxx
         out += String.fromCharCode(c);
         break;
       case 12:
       case 13:
-        // 110x xxxx   10xx xxxx
         char2 = array[i++] || 0;
         out += String.fromCharCode(((c & 0x1f) << 6) | (char2 & 0x3f));
         break;
       case 14:
-        // 1110 xxxx  10xx xxxx  10xx xxxx
         char2 = array[i++] || 0;
         char3 = array[i++] || 0;
         out += String.fromCharCode(

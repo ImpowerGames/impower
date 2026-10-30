@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { grammar, lintRule } from "../utils/lint-fixture.ts";
 import { exemption } from "./luau-foreign-closer.ts";
 
-// The grammar's directives for other rules are unused when only this one runs.
 const findings = (source: string) =>
   lintRule(source, "luau-foreign-closer").filter((m) => !m.message.includes("eslint-disable")).map((m) => `${m.line}: ${m.message.split(", a closer")[0]!.replace(/ \(.*\), so its `end:` must end with nothing before/, " before")}`);
 
