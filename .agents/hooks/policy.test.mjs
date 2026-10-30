@@ -706,15 +706,23 @@ for (const [command, blocked] of [
     const location = shell === "bash" ? `cd '${spelling}' && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` : `Set-Location '${spelling}'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1';`;
     for (const selector of ["install", "ci"]) {
       const install = `${location} npm ${selector} --no-audit --no-fund ${shell === "powershell" ? "*>" : ">"} '${index === 0 ? msys(log) : slash(log)}' ${shell === "bash" ? "2>&1" : ""}`;
-      run(install, shell);
-      assert.equal(fs.readFileSync(path.join(tree, "installed.txt"), "utf8").toLowerCase(), tree.toLowerCase());
-      assert.ok(fs.statSync(log).isFile());
+      if (selector === "ci") assert.equal(judge(install, shell), null, install);
+      else {
+        run(install, shell);
+        assert.equal(fs.readFileSync(path.join(tree, "installed.txt"), "utf8").toLowerCase(), tree.toLowerCase());
+        assert.ok(fs.statSync(log).isFile());
+      }
     }
     const sink = shell === "bash" ? "/dev/null 2>&1" : "$null";
-    run(`${location} npm ci --no-audit --no-fund ${shell === "powershell" ? "*>" : ">"} ${sink}`, shell);
+    const nullOutput = `${location} npm ci --no-audit --no-fund ${shell === "powershell" ? "*>" : ">"} ${sink}`;
+    if (index < 2) {
+      fs.unlinkSync(path.join(tree, "installed.txt"));
+      run(nullOutput, shell);
+      assert.equal(fs.readFileSync(path.join(tree, "installed.txt"), "utf8").toLowerCase(), tree.toLowerCase());
+    } else assert.equal(judge(nullOutput, shell), null, nullOutput);
     if (shell === "bash") {
-      run(`${location} npm ci --no-audit --no-fund >'${slash(log)}' 2>&1`, shell);
-      run(`${location} npm ci --no-audit --no-fund 2>&1 | tail -5`, shell);
+      assert.equal(judge(`${location} npm ci --no-audit --no-fund >'${slash(log)}' 2>&1`, shell), null);
+      assert.equal(judge(`${location} npm ci --no-audit --no-fund 2>&1 | tail -5`, shell), null);
     }
     for (const command of [
       `${location} npm ci > '$computed'`,
