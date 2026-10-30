@@ -2350,6 +2350,9 @@ export class Game<T extends M = {}> {
     if (watchedCells && watchedCells.length > 0) {
       saveData.watchedCells = watchedCells;
     }
+    if (this._story.ending) {
+      saveData.ending = this._story.ending;
+    }
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
@@ -2428,10 +2431,19 @@ export class Game<T extends M = {}> {
     }
     this._runtimeState = runtime;
     this._awaiting = this.lastExecutedScriptLocation();
+    this._story.ending = Game.savedEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this._simulateFlow = saveData.simulatedFrom;
     }
+  }
+
+  protected static savedEnding(saveData: SaveData): StoryEnding | null {
+    return saveData.ending === "fin" ||
+      saveData.ending === "out" ||
+      saveData.ending === "error"
+      ? saveData.ending
+      : null;
   }
 
   protected loadProgramSave(program: ProgramStory, saveJSON: string): boolean {
@@ -2519,6 +2531,7 @@ export class Game<T extends M = {}> {
       this._modules[k]?.load(saveData.modules[k]);
     }
     this._runtimeState = RuntimeState.of(entry.runtime);
+    story.ending = Game.savedEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this._simulateFlow = saveData.simulatedFrom;

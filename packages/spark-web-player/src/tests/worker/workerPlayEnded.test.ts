@@ -104,6 +104,24 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }, 120_000);
   }
 
+  for (const line of [0, 1]) {
+    it(`ends by fin when PLAY starts on line ${line} of a story whose first statement is fin`, async () => {
+      const { h } = await start("scene start\n  fin\nend\n", line);
+      try {
+        await settle(20);
+        expect(sent(h, "game/ended")).toEqual([
+          expect.objectContaining({ kind: "fin" }),
+        ]);
+        expect(launchStates(h).at(-1)).toBe("ended");
+        expect(h.refs.endingStatus.textContent).toBe("End of story");
+        expect(sent(h, "game/exited")).toEqual([]);
+      } finally {
+        await h.controller.destroyGameAndApp();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+
   it("replays from the line PLAY started on after the selection has moved", async () => {
     const { h, plays } = await start(RAN_OUT, HELLO);
     try {

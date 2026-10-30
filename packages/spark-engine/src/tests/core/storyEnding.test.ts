@@ -144,6 +144,32 @@ describe("a story that ends", () => {
     ).not.toContain("ending");
   });
 
+  for (const [kind, source] of [
+    ["fin", "scene start\n  fin\nend\n"],
+    ["out", "scene start\n  done\nend\n"],
+  ] as const) {
+    it(`keeps a ${kind} ending through a checkpoint the story had already ended in`, async () => {
+      const route = await play(source);
+      expect(route.game.ending?.kind).toBe(kind);
+      const checkpoint = route.game.checkpointJson(route.game.newestCheckpoint());
+      expect(checkpoint).not.toBeNull();
+      expect(JSON.parse(checkpoint!).ending).toBe(kind);
+      const h = createHarness(source, 0, {
+        autoOpenAll: false,
+        beforeConnect: (game) => {
+          game.context.system.previewing = undefined;
+        },
+      });
+      await h.ready;
+      h.game.start(checkpoint!);
+      await flushMicrotasks(20);
+      expect(h.game.ending?.kind).toBe(kind);
+      expect(finished(h.messages)).toEqual([expect.objectContaining({ kind })]);
+      expect(mounted(h.game).has("ending")).toBe(kind === "fin");
+      expect(endingActive(h.game)).toBe(kind === "fin");
+    });
+  }
+
   it("enters no ended state at a done that ends a thread", async () => {
     const h = await play(
       [
