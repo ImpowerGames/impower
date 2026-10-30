@@ -31,10 +31,26 @@ describe("every alias resolves through the table that owns its value", () => {
 
 describe("one resolver owns each name and its value", () => {
   test.each([
-    ["spinner-color", "sky_60", [["--spinner-color", "var(--theme-color-sky_60)"]]],
-    ["spinner_color", "sky_60", [["--spinner-color", "var(--theme-color-sky_60)"]]],
-    ["spinnerColor", "sky_60/50", [["--spinner-color", "rgb(from var(--theme-color-sky_60) r g b / 50)"]]],
-    ["background_color", "sky_60", [["background-color", "var(--theme-color-sky_60)"]]],
+    [
+      "spinner-color",
+      "sky_60",
+      [["--spinner-color", "var(--theme-color-sky_60)"]],
+    ],
+    [
+      "spinner_color",
+      "sky_60",
+      [["--spinner-color", "var(--theme-color-sky_60)"]],
+    ],
+    [
+      "spinnerColor",
+      "sky_60/50",
+      [["--spinner-color", "rgb(from var(--theme-color-sky_60) r g b / 50)"]],
+    ],
+    [
+      "background_color",
+      "sky_60",
+      [["background-color", "var(--theme-color-sky_60)"]],
+    ],
     ["duration", 2, [["animation-duration", "2s"]]],
     ["duration", "250ms", [["animation-duration", "250ms"]]],
     ["animation_duration", 2, [["animation-duration", "2s"]]],

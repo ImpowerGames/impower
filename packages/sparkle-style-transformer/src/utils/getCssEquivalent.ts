@@ -26,7 +26,10 @@ const getUnrecognizedCssValue = (name: string, value: unknown): string => {
     if (Array.isArray(value)) {
       return value.map((x) => (isNumber(x) ? `${x}px` : x)).join(" ");
     }
-    if (typeof value === "number" || (typeof value === "string" && value && isNumber(value))) {
+    if (
+      typeof value === "number" ||
+      (typeof value === "string" && value && isNumber(value))
+    ) {
       return `${value}px`;
     }
   }
