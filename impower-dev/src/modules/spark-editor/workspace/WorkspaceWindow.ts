@@ -60,6 +60,7 @@ import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/
 import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
+import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -508,7 +509,7 @@ export default class WorkspaceWindow {
 
   getPaneType(filenameOrUri: string) {
     const ext = this.extOfBasename(filenameOrUri);
-    if (ext === "sd") {
+    if (isScriptExtension(ext)) {
       return "logic";
     }
     return null;
@@ -522,7 +523,7 @@ export default class WorkspaceWindow {
     if (name === "main" && ext === "sd") {
       return "main";
     }
-    if (ext === "sd") {
+    if (isScriptExtension(ext)) {
       return "scripts";
     }
     return null;

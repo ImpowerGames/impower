@@ -7,6 +7,7 @@ import {
 } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import { useState } from "preact/hooks";
+import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
@@ -73,7 +74,7 @@ export default function LogicList(_props: LogicListProps) {
             <div key="scripts" class="flex flex-1 flex-col min-h-0">
               <FileList
                 rootDir="scripts"
-                include="*.{sd}"
+                include={SCRIPT_FILES_GLOB}
                 exclude="main.sd"
                 onScrolledChange={setFabCollapsed}
                 onScopeChange={setScriptsScope}

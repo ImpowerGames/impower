@@ -1,6 +1,7 @@
 import { FOLDER_SENTINEL } from "./fileTree";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
+import { isScriptPath } from "./scriptFiles";
 import { resolveUploadConflicts, withUploadLock } from "./uploadConflicts";
 
 export interface DroppedItem {
@@ -44,7 +45,7 @@ export async function importDroppedFiles(
           );
           const { Workspace } = await import("../workspace/Workspace");
           await Workspace.fs.createFiles({ files });
-          if (newUris.some((u) => u.endsWith(".sd"))) {
+          if (newUris.some(isScriptPath)) {
             await Workspace.window.recordScriptChange();
           }
           await Workspace.window.recordAssetChange();
