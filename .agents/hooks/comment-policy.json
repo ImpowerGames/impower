@@ -16,7 +16,8 @@
     { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^Luau: [A-Za-z_][\\w.*]*(?: \\(adapted\\))?(?: / [A-Za-z_][\\w.*]*(?: \\(adapted\\))?)*(?: /)?$", "extensions": [".ts"] },
     { "form": "^Sparkdown-specific$", "extensions": [".ts"] },
-    { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
+    { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] },
+    { "form": "^windows-hide: caller$", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [
     { "form": "\\bSPDX-(?:License-Identifier|FileCopyrightText):\\s*\\S" },

@@ -26,7 +26,7 @@ if(mode==='console-grandchild') {
   if(process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true')throw new Error('Visible console control is restricted to hosted Windows CI');
   const [executable,windows]=process.argv.slice(4);
   const options={stdio:'ignore',windowsHide:false};
-  const child= spawn(executable,['record',windows],options);
+  const child=/* windows-hide: caller */ spawn(executable,['record',windows],options);
   child.unref();
   await new Promise(resolve=>setTimeout(resolve,15000));
 }
