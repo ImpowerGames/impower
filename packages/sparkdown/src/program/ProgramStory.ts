@@ -1,4 +1,5 @@
 import { debugFileName } from "../compiler/utils/debugFileName";
+import { hasLuauExtension } from "../compiler/utils/projectMembership";
 import { ControlCommand } from "../runtime/ControlCommand";
 import { DebugMetadata } from "../runtime/DebugMetadata";
 import { ErrorType, type RaisedError } from "../runtime/Error";
@@ -538,7 +539,6 @@ export class ProgramStory implements StoryEngine {
    *  how many globals its own frame has declared, which is the index of the
    *  global whose value it is running. */
   protected _declarationRunning: number | null = null;
-  protected _declarationReturned = false;
   protected _declarationDepth = 0;
   protected _declarationGlobals = 0;
 
@@ -3298,12 +3298,6 @@ export class ProgramStory implements StoryEngine {
       state.didSafeExit = true;
       return;
     }
-    if (this._declarationRunning !== null && !callStack.canPop) {
-      this._declarationReturned = true;
-      state.position = null;
-      state.evaluationStack.length = 0;
-      return;
-    }
     if (element.type != PushPopType.Function || !callStack.canPop) {
       let expected =
         element.type == PushPopType.Function
@@ -3914,8 +3908,6 @@ export class ProgramStory implements StoryEngine {
     this.beatLog = null;
     const depth = state.callStack.elements.length;
     this._declarationDepth = depth;
-    const returned = new Set<string>();
-    this._declarationReturned = false;
     for (const chunk of this.root.initialization) {
       this._declarationRunning = chunkId(chunk);
       this._declarationGlobals = 0;
@@ -3931,7 +3923,7 @@ export class ProgramStory implements StoryEngine {
         );
         break;
       }
-      if (returned.has(at.sequence.uri)) {
+      if (hasLuauExtension(at.sequence.uri)) {
         continue;
       }
       state.position = { sequence: at.sequence, entry: at.entry, offset: 0 };
@@ -3944,7 +3936,6 @@ export class ProgramStory implements StoryEngine {
         return (
           p === null ||
           (state.callStack.elements.length <= depth &&
-            state.blockStack.length === 0 &&
             (p.sequence !== at.sequence ||
               p.entry !== at.entry ||
               p.offset >= codeWords(chunk)))
@@ -3953,10 +3944,6 @@ export class ProgramStory implements StoryEngine {
       try {
         while (!finished()) {
           this.Step();
-        }
-        if (this._declarationReturned) {
-          this._declarationReturned = false;
-          returned.add(at.sequence.uri);
         }
         this.declarationsRun += 1;
       } catch (e) {

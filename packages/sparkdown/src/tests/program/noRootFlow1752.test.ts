@@ -3,20 +3,18 @@ import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
 import { SymbolKind } from "../../program/ProgramSymbols";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-function compile(uri: string, text: string) {
+function compile(uri: string, text: string, others: Record<string, string> = {}) {
   const compiler = testCompiler();
   compiler.configure({
-    files: [
-      {
-        uri,
-        type: "script",
-        name: "main",
-        ext: uri.endsWith(".luau") ? "luau" : "sd",
-        text,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
+    files: Object.entries({ [uri]: text, ...others }).map(([fileUri, fileText]) => ({
+      uri: fileUri,
+      type: "script",
+      name: fileUri.slice(fileUri.lastIndexOf("/") + 1).replace(/\.[^.]+$/, ""),
+      ext: fileUri.endsWith(".luau") ? "luau" : "sd",
+      text: fileText,
+      version: 1,
+      languageId: "sparkdown",
+    })),
   } as never);
   const result = compiler.compile({ textDocument: { uri } } as never) as any;
   const errors = Object.values(result.program.diagnostics ?? {})
@@ -58,44 +56,47 @@ describe("a program has no root flow (I-1752)", () => {
     story.ChooseStart();
     expect(story.canContinue).toBe(false);
   });
+});
 
-  it("runs a .luau entry's top level once as the story starts", () => {
-    const { program, errors } = compile(
-      "inmemory:///main.luau",
-      "count = (count or 0) + 1\ntotal = 40 + 2\n",
-    );
-    expect(errors).toEqual([]);
-    const story = testStory(program.chunks);
-    expect(story.variablesState.$("count")).toBe(1);
-    expect(story.variablesState.$("total")).toBe(42);
-    expect(story.canContinue).toBe(false);
-    story.ResetState();
-    expect(story.variablesState.$("count")).toBe(1);
-  });
-
+describe("a program compiled from a .luau file runs nothing (I-1752)", () => {
   it.each([
-    ["an if block", "count = 1\nif true then\n  count = 3\nend\n", 3],
-    ["a do block", "count = 1\ndo\n  count = 4\nend\n", 4],
-    ["a for loop", "count = 1\nfor i = 1, 3 do\n  count = count + 1\nend\n", 4],
-    ["a while loop", "count = 1\nwhile count < 5 do\n  count = count + 1\nend\n", 5],
-    ["a local read by a later statement", "local a = 5\ncount = a + 1\n", 6],
-    ["a return inside a block", "count = 1\nif true then\n  return 42\nend\ncount = 2\n", 1],
-    ["a return its condition skips", "count = 1\nif false then\n  return 42\nend\ncount = 2\n", 2],
-  ])("runs a .luau entry's top level with %s", (_, text, count) => {
+    ["statements", "count = (count or 0) + 1\ntotal = 40 + 2\n"],
+    ["an if block", "count = 1\nif true then\n  count = 3\nend\n"],
+    ["a loop that never ends", "count = 1\nwhile true do\n  count = count + 1\nend\n"],
+    ["a call of a missing function", "count = 1\nmissing()\n"],
+    ["a return inside a block", "count = 1\nif true then\n  return 42\nend\ncount = 2\n"],
+    ["a return at its end", "count = 1\nreturn count\n"],
+  ])("with %s", (_, text) => {
     const { program, errors } = compile("inmemory:///main.luau", text);
     expect(errors).toEqual([]);
+    expect(program.chunks).toBeDefined();
     const story = testStory(program.chunks);
-    expect(story.variablesState.$("count")).toBe(count);
+    expect(story.variablesState.$("count") == null).toBe(true);
+    expect(story.canContinue).toBe(false);
   });
 
-  it("ends a .luau entry's top level at its return", () => {
+  it("reports an unfinished block by its syntax error alone", () => {
+    const { errors } = compile("inmemory:///main.luau", "while true do\n  x()\n");
+    expect(errors.some((e: string) => e.includes("Expected 'end'"))).toBe(true);
+    expect(errors.filter((e: string) => e.includes("compile stopped"))).toEqual([]);
+  });
+
+  it("leaves no local for another script's start scene to read", () => {
+    const { program } = compile("inmemory:///main.luau", "local n = 99\ncount = n\n", {
+      "inmemory:///other.sd": "scene start\n  Value {n}.\n  done\nend\n",
+    });
+    const story = testStory(program.chunks);
+    expect(story.Continue()?.trim()).toBe("Value nil.");
+  });
+
+  it("still runs a .luau file a run line loads", () => {
     const { program, errors } = compile(
-      "inmemory:///main.luau",
-      "total = 40 + 2\nreturn total\n",
+      "inmemory:///main.sd",
+      'run "helper"\n\nscene start\n  Value {count}.\n  done\nend\n',
+      { "inmemory:///helper.luau": "count = 7\nif true then\n  count = count + 1\nend\n" },
     );
     expect(errors).toEqual([]);
     const story = testStory(program.chunks);
-    expect(story.variablesState.$("total")).toBe(42);
-    expect(story.canContinue).toBe(false);
+    expect(story.Continue()?.trim()).toBe("Value 8.");
   });
 });
