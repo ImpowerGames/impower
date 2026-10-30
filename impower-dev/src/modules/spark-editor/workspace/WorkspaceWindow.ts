@@ -406,6 +406,11 @@ export default class WorkspaceWindow {
           },
         ),
       );
+    const projectId = this.store.project.id;
+    const game = this.store.preview.modes.game;
+    const story =
+      !!projectId &&
+      program.uri === Workspace.fs.getFileUri(projectId, "main.sd");
     this.update({
       ...this.store,
       debug: {
@@ -417,8 +422,8 @@ export default class WorkspaceWindow {
         modes: {
           ...this.store.preview.modes,
           game: {
-            ...this.store.preview.modes.game,
-            playRefusal: playRefusalOf(program),
+            ...game,
+            playRefusal: story ? playRefusalOf(program) : game.playRefusal,
           },
         },
       },
