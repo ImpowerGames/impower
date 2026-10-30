@@ -94,7 +94,18 @@ export const MORPH_CONTAINER_FIELDS = [
   ...MORPH_LAYER_PROPERTIES,
 ] as const;
 
-export const MORPH_CLIP_FIELDS = ["between", "targets"] as const;
+export const MORPH_CLIP_LIST_FIELDS = ["between", "targets"] as const;
+
+export const MORPH_CLIP_FIELDS = [...MORPH_CLIP_LIST_FIELDS, "spread"] as const;
+
+export const MORPH_CLIP_SPREAD_DEFAULT = 1;
+
+export function parseMorphSpread(value: unknown): number | undefined {
+  if (value === 0) return 0;
+  if (typeof value !== "string") return undefined;
+  const match = /^([-+]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[-+]?\d+)?)px$/i.exec(value.trim());
+  return match ? Number(match[1]) || 0 : undefined;
+}
 
 export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "opacity", "span"] as const;
 
@@ -102,7 +113,7 @@ export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
 export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke", "partner"]);
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set([
-  ...MORPH_CLIP_FIELDS,
+  ...MORPH_CLIP_LIST_FIELDS,
   ...MORPH_LAYER_FIELDS,
 ]);
 
@@ -150,6 +161,8 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   opacity: "The layer's opacity, from 0 to 1.",
   between: "The layer labels this aperture accepts as edges, such as `eyelash-right`, `eyelash-top-right` and `eyelash-bottom-right`. An image may draw any of them; the ones it draws must form the aperture.",
   targets: "The layers the aperture clips.",
+  "clips.spread":
+    "How far this clip's opening reaches past its outline, in screen pixels, in the still image and between poses, never past the edges drawn above its targets. Default `1px`; `0` gives no reach; a negative value shrinks the opening inside its edges, which leaves a ring of whatever lies under the targets.",
   paints:
     "Colours and opacities that layers take at one pose, as `{ … }` entries with `targets`, `state`, an optional `when`, at least one of `fill`, `stroke` and `opacity`, and an optional `span`: `{ targets { eyelash-left }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }`. Where two entries recolour one drawing, the later wins.",
   "paints.targets": "The layer labels whose drawings this entry paints, such as `eyelash-left`.",
