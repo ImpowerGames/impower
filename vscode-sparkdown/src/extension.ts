@@ -24,7 +24,6 @@ import { activateScreenPreview } from "./utils/activateScreenPreview";
 import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
 import { activatePortraitNormalization } from "./utils/activatePortraitNormalization";
 
-// Called when extension is activated
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
   activateDocumentManager(context);
@@ -51,7 +50,6 @@ export function activate(context: vscode.ExtensionContext) {
   activatePortraitNormalization(context);
 }
 
-// Called when extension is deactivated
 export function deactivate() {
   console.log("Sparkdown Deactivated");
   Object.values(fileSystemWatcherState).forEach((v) => {

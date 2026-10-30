@@ -1,7 +1,3 @@
-// The game webview keeps its panel hidden until the player has something to
-// show. It waited for the game to display a beat, so a preview whose point
-// displays no beat left the panel black for good (#1874).
-
 import { describe, expect, it } from "vitest";
 import { revealsPreview } from "../webviews/game-webview/revealsPreview";
 

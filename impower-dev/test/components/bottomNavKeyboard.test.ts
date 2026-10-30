@@ -3,19 +3,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-// The bottom navigation hides through a Tailwind variant keyed on the
-// `keyboard-open` class the script editor's mobile viewport manager puts on
-// the root element. jsdom applies no stylesheet of its own, so this compiles
-// the navigation container's real class list with Tailwind, flattens the
-// nested output to plain selectors, and reads the computed display with and
-// without the root class.
-//
-// jsdom's selector engine never matches a class containing an escaped `&`
-// (an arbitrary variant such as `[.keyboard-open_&]:hidden`), so each such
-// class is renamed to a plain alias in both the stylesheet and the element.
-// The rule itself is still the one Tailwind generated.
-
-// Vitest runs each package from its own directory.
 const mainWindowPath = resolve(
   "src/modules/spark-editor/components/main-window/MainWindow.tsx",
 );

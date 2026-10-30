@@ -17,41 +17,16 @@ import type { PreviewKind } from "../file-preview/FilePreviewOverlay";
 import type { UsageLocation } from "../file-list/FileUsagesPanel";
 
 export type AssetInspectorPanelProps = {
-  /** Project-relative path (identity — refetch metadata/usages when it changes). */
   path: string;
   name: string;
   kind: PreviewKind;
-  /** URL to probe for intrinsic dimensions / duration. */
   src?: string;
-  /**
-   * For a remote `.url` asset: its target URL. When set alongside `onEditUrl`,
-   * the Details panel shows an editable "Source URL" field; a host that only
-   * reads (or a non-`.url` asset) omits it and the field doesn't render.
-   */
   url?: string;
-  /**
-   * Commit a new target URL for a `.url` asset. Present ⇒ the Source URL field
-   * is editable (pencil → input → save). The host writes the `.url` file and
-   * re-resolves the asset (see `writeUrlAsset`).
-   */
   onEditUrl?: (newUrl: string) => void;
-  /** Bytes on disk (absent for a remote `.url` asset). */
   size?: number;
-  /** Last-modified epoch ms. */
   modified?: number;
-  /**
-   * Whether the details body starts collapsed. The header (name + chevron) always
-   * shows; the chevron toggles the metadata/usages body — mirrors the collapsible
-   * details on the mobile fullscreen preview so the same panel serves both hosts.
-   */
   defaultCollapsed?: boolean;
-  /** Fill the height and scroll the body (desktop right pane). */
   fill?: boolean;
-  /**
-   * Called after a jump-to-usage navigates to a script. The mobile host (the
-   * fullscreen preview) passes its close so jumping reveals the editor; the
-   * desktop host omits it (the inspector stays beside the editor).
-   */
   onNavigateAway?: () => void;
 };
 
@@ -75,9 +50,6 @@ const formatDuration = (seconds: number): string => {
   return `${m}:${String(rem).padStart(2, "0")}`;
 };
 
-/** Whether a URL is safe to render as a clickable `<a href>` — only http(s)
- * (and protocol-relative). Guards against `javascript:` / `data:` targets that
- * would execute on click; such URLs still show as plain (non-link) text. */
 const isSafeHttpUrl = (u: string): boolean =>
   /^(https?:)?\/\//i.test(u.trim());
 
@@ -92,8 +64,6 @@ const formatModified = (ms: number): string => {
   }
 };
 
-/** Probe a media URL for its intrinsic dimensions (image/video) or duration
- * (audio/video) client-side. Resolves `null` if the media can't be read. */
 function probeMedia(
   src: string,
   kind: PreviewKind,
@@ -143,12 +113,6 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * The asset "Details": a collapsible metadata + where-used + download panel.
- * Shared by the desktop right-pane inspector (bottom half) and the mobile
- * fullscreen preview (docked section). Fetches its own metadata/usages from the
- * `path`, so a host just supplies the identity + what it already knows.
- */
 export default function AssetInspectorPanel({
   path,
   name,
@@ -168,10 +132,6 @@ export default function AssetInspectorPanel({
   const [diagnosticsError, setDiagnosticsError] = useState(false);
   const [usages, setUsages] = useState<UsageLocation[] | null>(null);
 
-  // Source-URL editor (`.url` assets): `null` = not editing; a string = the
-  // in-progress URL. Reset whenever the asset (`path`) or its resolved `url`
-  // changes so a reload — including our own commit landing — shows the fresh
-  // value rather than a stale edit buffer.
   const [editingUrl, setEditingUrl] = useState<string | null>(null);
   const urlInputRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
@@ -194,8 +154,6 @@ export default function AssetInspectorPanel({
     setEditingUrl(null);
   };
 
-  // Probe intrinsic dimensions / duration for the current asset. Guarded so a
-  // late resolve for a previous asset can't overwrite the current one.
   useEffect(() => {
     setDims(null);
     if (!src) return;
@@ -208,8 +166,6 @@ export default function AssetInspectorPanel({
     };
   }, [src, kind]);
 
-  // Fetch only this asset's messages, then refresh from the existing compile
-  // event bus. Sequence guards prevent a slow old request resurrecting warnings.
   useEffect(() => {
     let alive = true;
     let request = 0;
@@ -237,8 +193,6 @@ export default function AssetInspectorPanel({
     return () => { alive = false; dispose(); };
   }, [path]);
 
-  // Where-used: ask the language server which script locations reference this
-  // asset by name (same plumbing as the 3-dots "Find usages"). `null` = loading.
   useEffect(() => {
     let alive = true;
     setUsages(null);
@@ -292,9 +246,6 @@ export default function AssetInspectorPanel({
     })();
   };
 
-  // Replace: swap this asset's bytes for a picked file, keeping the path (so its
-  // id and references still resolve). A `.url` asset has no local bytes to swap
-  // (its URL is edited in the preview), so Replace is hidden for it.
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const [replacing, setReplacing] = useState(false);
   const isUrlAsset = path.endsWith(".url");
@@ -310,7 +261,7 @@ export default function AssetInspectorPanel({
   const onPickReplacement = (e: Event) => {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    input.value = ""; // allow re-picking the same file next time
+    input.value = "";
     if (!file) return;
     setReplacing(true);
     void (async () => {
@@ -333,7 +284,6 @@ export default function AssetInspectorPanel({
     <div
       class={`flex flex-col ${fill ? "min-h-0 flex-1" : ""} border-t border-foreground/10`}
     >
-      {/* Collapse header. */}
       <Button
         variant="ghost"
         onClick={() => setCollapsed((c) => !c)}
@@ -376,7 +326,6 @@ export default function AssetInspectorPanel({
               </ul>
             )}
           </section>
-          {/* Metadata. */}
           <div class="pb-2">
             <MetaRow label="Type" value={kind} />
             {dims && (
@@ -391,10 +340,7 @@ export default function AssetInspectorPanel({
             )}
           </div>
 
-          {/* Source URL (`.url` assets only). Read: truncated link (opens the
-              remote target). Edit (when `onEditUrl` is set): pencil → input →
-              save/cancel — the same interaction as the mobile preview header,
-              styled for the panel. Enter saves, Escape cancels. */}
+
           {url != null && (
             <div class="pb-2 pt-1">
               <div class="flex flex-row items-center gap-2 pb-1 text-xs uppercase tracking-wide text-foreground/40">
@@ -468,7 +414,6 @@ export default function AssetInspectorPanel({
             </div>
           )}
 
-          {/* Where-used. */}
           <div class="pt-2">
             <div class="flex flex-row items-center gap-2 pb-1 text-xs uppercase tracking-wide text-foreground/40">
               <Search class="size-3.5 flex-none" />
@@ -502,7 +447,6 @@ export default function AssetInspectorPanel({
             )}
           </div>
 
-          {/* Actions. */}
           <div class="flex flex-row gap-2 pt-4">
             <Button
               variant="outline"

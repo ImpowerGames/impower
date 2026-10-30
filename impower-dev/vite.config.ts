@@ -1,14 +1,3 @@
-// ----------------------------------------------------------------------------
-// Vite configuration & plugins for impower-dev.
-//
-// This module owns the Vite-native surface: path constants, dependency
-// resolution (alias/dedupe), build-time env defines, and the custom plugins
-// (asset loaders, the SSG page renderer, and dev worker hot-reload). build.ts
-// imports these and orchestrates the multi-target build (API / pages /
-// components / workers) and the fastify-mounted dev server — work that doesn't
-// fit Vite's single-config / static-index.html model.
-// ----------------------------------------------------------------------------
-
 import { execSync, spawn } from "child_process";
 import * as chokidar from "chokidar";
 import * as dotenv from "dotenv";
@@ -50,32 +39,17 @@ const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 const pagesInDir = `${indir}/pages`;
 
-// Packages that publish subpath exports via the package.json `exports` map
-// (e.g. `preact/jsx-dev-runtime`, `preact/hooks`). Vite's object-form alias
-// does prefix replacement and skips the exports map, so subpaths fail to
-// resolve. Instead of aliasing these, list them in `dedupe` — Node-style
-// resolution still finds them in the local node_modules while ensuring a
-// single instance is used across the workspace.
 const DEDUPE_ONLY = new Set(["preact", "preact-custom-element"]);
 
-// Resolve a dependency via Node's module resolver rather than a hardcoded
-// `cwd/node_modules/...` path, so it works whether the dep lives in this
-// package's node_modules OR is hoisted to a workspace-root node_modules.
 const require = createRequire(import.meta.url);
 const resolvePkgDir = (name: string): string => {
   const segs = name.split("/");
-  // 1) Preferred: resolve the package's own package.json. Works for packages
-  // that expose `./package.json` (or have no `exports` map at all).
   try {
     return path.dirname(
       require.resolve(`${name}/package.json`, { paths: [process.cwd()] }),
     );
   } catch {
-    // fall through
   }
-  // 2) Resolve the package entry — which honors the `exports` map — then slice
-  // the path back to the `node_modules/<name>` root (e.g. @codemirror/*, which
-  // omit `./package.json` from `exports` but DO export a main entry).
   try {
     const entry = require.resolve(name, { paths: [process.cwd()] });
     const marker = path.join("node_modules", ...segs);
@@ -84,14 +58,7 @@ const resolvePkgDir = (name: string): string => {
       return entry.slice(0, idx + marker.length);
     }
   } catch {
-    // fall through
   }
-  // 3) Exports-independent: walk up the node_modules chain from cwd looking for
-  // the package directory. Needed for packages whose `exports` map exposes
-  // neither `./package.json` NOR a main entry (e.g. @impower/impower-ui, which
-  // only publishes subpath exports). This is the only branch that's robust to
-  // workspace hoisting AND restrictive exports maps — a hardcoded
-  // `cwd/node_modules/<name>` breaks the moment the dep is hoisted to root.
   let cur = process.cwd();
   for (;;) {
     const dir = path.join(cur, "node_modules", ...segs);
@@ -117,51 +84,22 @@ for (const depName of Object.keys(pkg.peerDependencies || {})) {
   }
 }
 
-// react → preact/compat. @preact/preset-vite injects this for the browser
-// pipeline but not for ssrLoadModule, which means Radix UI / react-resizable
-// -panels resolve to the real React installed transitively under
-// packages/impower-ui — and preact-render-to-string can't drive React's
-// hook dispatcher. Force the alias here so SSR uses Preact's compat layer
-// the same way the browser does.
 const preactCompat = require.resolve("preact/compat", {
   paths: [process.cwd()],
 });
 alias["react"] = preactCompat;
 alias["react-dom"] = preactCompat;
 
-// The dev server's ssr.noExternal. Vite externalizes node_modules during
-// ssrLoadModule and loads them with Node, which bypasses the react →
-// preact/compat alias above: an externalized package that imports "react"
-// hits Node's resolver (no react — the app is Preact) and the dev SSG render
-// throws "Cannot find module/package 'react'". Bundling these routes their
-// react import through the alias. (Prod bundles everything, so this only
-// matters for the dev server's ssrLoadModule path.)
-//
-// Every Radix primitive needs the whole list: Dialog pulls in the CommonJS
-// react-remove-scroll, and DropdownMenu, Select and Tooltip pull in
-// @floating-ui/react-dom; with only @radix-ui/* listed, loading any of them
-// fails (#1585). test/build/radixSsr.test.ts loads one component per Radix
-// primitive impower-ui uses through this list.
 const ssrNoExternal: (string | RegExp)[] = [
-  // Any react-named package, in any scope: react, react-dom, react-*,
-  // @tanstack/react-virtual, etc.
   /(?:^|\/)react(?:-|\/|$)/,
   /^@radix-ui\//,
   /^@floating-ui\//,
-  // Radix helpers that import react but aren't react-named.
   /^use-/,
   "aria-hidden",
   "@impower/impower-ui",
-  // The sparkdown-document-views script editor + screenplay preview are
-  // rendered as direct Preact components, so the SSG walker imports their
-  // .tsx — Vite must transform them through the preact/compat pipeline rather
-  // than load them as raw TS via Node's resolver.
   "@impower/sparkdown-document-views",
 ];
 
-// impower-ui's Tailwind entry stylesheet — the SSG runs it through Vite's
-// `?direct` pipeline to inline the editor's utilities. Resolved hoist-robustly
-// (the file is reached via the package dir, not its `exports` map).
 const impowerUiStyleCss = path.join(
   resolvePkgDir("@impower/impower-ui"),
   "src/style.css",
@@ -171,7 +109,6 @@ const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 const MINIFY = process.argv.includes("--minify");
 
-// Env Setup
 const envPrefix = PRODUCTION ? ".env.production" : ".env.development";
 const envFiles = fs
   .readdirSync(process.cwd())
@@ -181,10 +118,6 @@ for (const file of envFiles) {
   dotenv.config({ path: path.join(process.cwd(), file), override: false });
 }
 
-// Dev-only browser flags that must never be baked into a production bundle —
-// even if they happen to be present in the build environment. VITE_SAME_ORIGIN_PREVIEW
-// only makes sense against the dev proxy (see build.ts / docs/architecture.md);
-// leaking it into prod would point the preview iframe at a non-existent /__player/.
 const DEV_ONLY_ENV_KEYS = new Set(["VITE_SAME_ORIGIN_PREVIEW"]);
 
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
@@ -197,10 +130,6 @@ Object.entries(process.env).forEach(([key, value]) => {
   }
 });
 
-// Build-time replacement of the browser env the app reads (`import.meta.env.
-// VITE_*` / `BROWSER_*`). Vite's standard `define` — applied to the page build
-// and the dev server — supersedes the old per-module `var process = {...}`
-// banner. (Bundled libraries get `process.env.NODE_ENV` from Vite natively.)
 const browserEnvDefine: Record<string, string> = Object.fromEntries(
   Object.entries(BROWSER_VARIABLES_ENV).map(([key, value]) => [
     `import.meta.env.${key}`,
@@ -218,12 +147,6 @@ const __dirname = path.dirname(__filename);
 process.env.NODE_ENV = process.env.NODE_ENV || '${PRODUCTION ? "production" : "development"}';
 `.trim();
 
-// Build-time `define` for the service-worker bundle: replaces the SW_*_INJECTED
-// tokens in sw.ts with string literals (esbuild/Vite define), which SURVIVE
-// minification. Replaces the old prepended-`var process` banner, which was dead
-// code: `process.env.SW_VERSION` folded to `{}.SW_VERSION` ("v1") before the
-// banner applied, so the SW looked byte-identical every deploy and PWA
-// auto-update never fired. Using non-`process` tokens avoids that ambient fold.
 const getServiceWorkerDefine = (options?: {
   swVersion?: string | number;
   swResources?: string[];
@@ -234,8 +157,6 @@ const getServiceWorkerDefine = (options?: {
     define["SW_VERSION_INJECTED"] = JSON.stringify(String(options.swVersion));
   }
   if (options?.swResources != null) {
-    // Double-encode: sw.ts does JSON.parse(SW_RESOURCES_INJECTED), so the token
-    // must replace to a JSON-string *literal* (e.g. `"[\"/\"]"`).
     define["SW_RESOURCES_INJECTED"] = JSON.stringify(
       JSON.stringify(options.swResources),
     );
@@ -246,10 +167,6 @@ const getServiceWorkerDefine = (options?: {
   return define;
 };
 
-// ----------------------------------------------------------------------------
-// Shared Utilities
-// ----------------------------------------------------------------------------
-
 const staticallyStylePage = (html: string, ssg: string) => {
   return html.replace(
     "</head>",
@@ -257,8 +174,6 @@ const staticallyStylePage = (html: string, ssg: string) => {
   );
 };
 
-// Editor-global stylesheets inlined verbatim into the SSG `<style id="ssg-css">`
-// block, ahead of impower-ui's compiled Tailwind. Plain CSS — read raw.
 const EDITOR_GLOBAL_CSS_FILES = [
   `${indir}/modules/spark-editor/styles/normalize/normalize.css`,
   `${indir}/modules/spark-editor/styles/theme/theme.css`,
@@ -268,24 +183,12 @@ const readEditorGlobalCss = (): string =>
     fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
   ).join("\n");
 
-// ----------------------------------------------------------------------------
-// Vite Plugins
-// ----------------------------------------------------------------------------
-
 const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
   name: "vite-statically-rendered-pages",
   configureServer(server) {
     const outDevDir = path.resolve(process.cwd(), outdir, ".dev");
     fs.mkdirSync(outDevDir, { recursive: true });
 
-    // --- Worker hot-reload ---------------------------------------------------
-    // External workers (`new Worker("/x.js")`) live in sibling packages and are
-    // bundled by their own esbuild.js, so they sit OUTSIDE Vite's module graph —
-    // editing them (or their transitively-bundled engine/compiler deps) used to
-    // require a full dev-server restart. Instead, run each worker's esbuild in
-    // --watch mode: it rebuilds incrementally into outDevDir on any input
-    // change, and a watcher on those outputs triggers a full page reload, which
-    // re-instantiates the Worker with the fresh bundle.
     const workerProcs: ReturnType<typeof spawn>[] = [];
     for (const wp of externalWorkerPaths) {
       const pkgRoot = wp.substring(0, wp.indexOf("/src/"));
@@ -304,16 +207,12 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         try {
           p.kill();
         } catch {
-          /* already gone */
         }
       }
     };
     server.httpServer?.once("close", killWorkerProcs);
     process.once("exit", killWorkerProcs);
 
-    // Reload the page when a rebuilt worker bundle (or the SW source) changes.
-    // Suppress the burst of events from the watch processes' initial builds so
-    // the freshly-loaded page isn't immediately reloaded on startup.
     let acceptReloads = false;
     setTimeout(() => {
       acceptReloads = true;
@@ -321,9 +220,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
     let reloadTimer: ReturnType<typeof setTimeout> | undefined;
     const scheduleReload = () => {
       if (!acceptReloads) return;
-      // Coalesce the burst of fs events a single esbuild rebuild emits (it
-      // rewrites the bundle + sourcemap, sometimes in multiple passes) into one
-      // page reload.
       clearTimeout(reloadTimer);
       reloadTimer = setTimeout(() => server.ws.send({ type: "full-reload" }), 400);
     };
@@ -338,39 +234,17 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
       )
       .on("change", scheduleReload);
 
-    // --- Dev asset mirror (service-worker-less fallback) ---------------------
-    // Project assets normally resolve through the service worker, which serves
-    // `/file:/local/...` straight out of the page's OPFS. Some embedded
-    // browsers refuse service-worker registration outright ("An unknown error
-    // occurred when fetching the script"), which leaves every asset URL a 404
-    // and the game preview imageless. In dev, the page detects that state and
-    // uploads its OPFS files here (see pages/devAssetMirror.ts); this
-    // middleware then answers the very same `/file:/...` URLs from the mirror,
-    // so nothing downstream changes. Version tags mirror the `?v=` scheme
-    // (`<mtime>-<size>`), letting the page skip re-uploading unchanged files.
-    // The `?thumb=` / `?attributes=` transforms run here too, so mirrored art
-    // matches what the worker would have served.
-    //
-    // Storage is bucketed PER CLIENT (`<mirror>/<clientId>/<opfs path>`): one
-    // dev server commonly serves several browsers — the app's embedded pane, a
-    // headless test browser, a normal window — each with different project
-    // files in its own origin storage. A single path-keyed bucket let the last
-    // writer clobber the others (observed: a test browser's 171-byte scratch
-    // `main.sd` replaced a real 200 kB project), which the restore path would
-    // then hand back as if it were the user's work.
     const assetMirrorRoot = path.join(outDevDir, "asset-mirror");
     const assetMirrorManifestPath = path.join(
       assetMirrorRoot,
       ".manifests.json",
     );
-    // clientId -> { path -> versionTag }
     let assetMirrorManifests: Record<string, Record<string, string>> = {};
     try {
       assetMirrorManifests = JSON.parse(
         fs.readFileSync(assetMirrorManifestPath, "utf-8"),
       );
     } catch {
-      // First run — empty mirror.
     }
     const saveAssetMirrorManifest = () => {
       fs.mkdirSync(assetMirrorRoot, { recursive: true });
@@ -379,15 +253,8 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         JSON.stringify(assetMirrorManifests),
       );
     };
-    // A client id must be a single, safe path segment.
     const validClientId = (id: string | null | undefined): string | undefined =>
       id && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? id : undefined;
-    // A client's manifest, rebuilt from its bucket on disk when we have none
-    // in memory. Keeps the mirror self-healing: the bucket is the truth, so a
-    // bucket populated out-of-band (a restore seeded from a backup, a server
-    // restart after the manifest file was lost) is still served and still
-    // restorable. Version tags then come from the files themselves, so the
-    // client re-uploads once to re-establish ITS tags — cheap and rare.
     const manifestForClient = (client: string): Record<string, string> => {
       const cached = assetMirrorManifests[client];
       if (cached) {
@@ -439,19 +306,8 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
       json: "application/json",
       sd: "text/plain",
     };
-    // Filtered-SVG variants generated by the mirror, keyed by
-    // (path × canonical filter × file signature). Session-lifetime is fine:
-    // a changed file changes its signature, so stale entries are simply
-    // never hit again (and a dev-server restart empties the map).
     const filteredSvgMirrorCache = new Map<string, string>();
-    // Morph artifacts for mirrored art: the service keeps them in memory,
-    // bounded, for the dev server's lifetime.
     const morphMirrorService = new MorphBakeService();
-    // Downscaled `?thumb=` webp variants, same key discipline (path × clamped
-    // width × file signature). `sharp` is a dev-only optionalish dependency:
-    // loaded lazily, and if it's missing the mirror serves original bytes —
-    // the same graceful fallback the service worker uses when it can't
-    // rasterize.
     const thumbnailMirrorCache = new Map<string, Buffer>();
     let sharpModule: Promise<any> | undefined;
     const loadSharp = () =>
@@ -459,7 +315,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         (m) => m.default ?? m,
         () => undefined,
       ));
-    // Resolve a path inside ONE client's bucket (rejects traversal escapes).
     const resolveMirrorPath = (
       client: string,
       rel: string,
@@ -471,9 +326,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
       }
       return abs;
     };
-    // Which client bucket answers a plain `/file:/` request? The browser can't
-    // put its id on those URLs (they're built deep in the engine), so it is
-    // carried by a cookie the mirror sets on the client's first upload.
     const clientFromCookie = (req: {
       headers: Record<string, any>;
     }): string | undefined => {
@@ -494,9 +346,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
           if (client) {
-            // Bind the browser to its bucket here, at its FIRST mirror call,
-            // so plain `/file:/` asset requests resolve even before (or
-            // instead of) any upload — e.g. right after a restore.
             res.setHeader(
               "Set-Cookie",
               `devAssetMirrorClient=${client}; Path=/; SameSite=Lax`,
@@ -506,11 +355,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           return;
         }
 
-        // Raw read of a mirrored file, bypassing the `/file:/` protocol. A
-        // controlling service worker intercepts every `/file:/` request and
-        // answers it from ITS origin's OPFS, so that path can't be used to
-        // seed or inspect the mirror from a page that has a working worker
-        // (tooling, and any future "copy the project into this browser" flow).
         if (url.startsWith("/__dev-asset-mirror/") && req.method === "GET") {
           const [client, ...restSegs] = url
             .replace("/__dev-asset-mirror/", "")
@@ -557,8 +401,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             assetMirrorManifests[validClient] ??= {};
             assetMirrorManifests[validClient]![rel] = tag;
             saveAssetMirrorManifest();
-            // Bind this browser to its bucket so its plain `/file:/` asset
-            // requests (which carry no client id) resolve here.
             res.setHeader(
               "Set-Cookie",
               `devAssetMirrorClient=${validClient}; Path=/; SameSite=Lax`,
@@ -580,13 +422,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           if (abs && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
             const ext = path.extname(abs).slice(1).toLowerCase();
             const mime = MIRROR_MIME[ext] ?? "application/octet-stream";
-            // `?thumb=<maxWidthPx>` — the asset browser's downscaled preview,
-            // normally produced by the service worker (decode + resize + tiny
-            // webp, sw.ts). Same contract here via `sharp`: raster images
-            // only, fitted inside a square box of the shared clamped [16, 512]
-            // width, webp at the same 0.75 quality, and ANY failure (sharp
-            // missing, undecodable bytes) falls through to the original — the
-            // SW's fallback too.
             const params = new URLSearchParams(query ?? "");
             const thumbParam = params.get("thumb");
             const isRaster =
@@ -601,10 +436,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                   let thumb = thumbnailMirrorCache.get(cacheKey);
                   if (!thumb) {
                     thumb = (await sharp(fs.readFileSync(abs))
-                      // Fit inside a square box rather than by width alone, so
-                      // a tall source cannot produce an enormous thumbnail —
-                      // the same bound `composeThumbnailBlob` applies, so dev
-                      // and production agree about what an asset looks like.
                       .resize({ width, height: width, fit: "inside" })
                       .webp({ quality: 75 })
                       .toBuffer()) as Buffer;
@@ -619,21 +450,9 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                   res.end(thumb);
                   return;
                 } catch {
-                  // Undecodable bytes — serve the original below.
                 }
               }
             }
-            // `filtered_image` variants arrive as `?attributes=<param>` on the
-            // root SVG's url — a service-worker feature (sw.ts runs
-            // `filterSVG` lazily per fetch). Run the SAME shared filter here
-            // so mirrored art keeps its variants: garbage or no-op params
-            // fall through to the unfiltered original, exactly like the SW.
-            // Cached per (file signature × canonical param) — showing an
-            // image fetches the same variant url twice (background-image +
-            // hidden <img>, #344), so a fresh filter per request would double
-            // the parse cost of every portrait beat.
-            // Morph artifacts too: the same shared endpoint the service
-            // worker answers them with.
             const morphRequest =
               ext === "svg" ? parseMorphAssetRequest(params) : undefined;
             if (morphRequest) {
@@ -686,8 +505,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             res.end(fs.readFileSync(abs));
             return;
           }
-          // Not mirrored — fall through (a controlling service worker never
-          // lets these requests reach the server anyway).
         }
       } catch (err) {
         console.error("dev-asset-mirror middleware error", err);
@@ -695,7 +512,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
       return next();
     });
 
-    // Inject custom middleware into Vite's dev server
     server.middlewares.use(async (req, res, next) => {
       try {
         if (req.method !== "GET" || !req.url) return next();
@@ -733,9 +549,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
               outDevDir,
               isMap ? `${name}.js.map` : `${name}.js`,
             );
-            // The --watch esbuild process (started in configureServer) keeps
-            // this file fresh. On a cold first request it may not exist yet,
-            // so fall back to a one-shot build.
             if (!fs.existsSync(filePath) && !isMap) {
               execSync(`node esbuild.js --outdir=${outDevDir}`, {
                 cwd: path.dirname(workerEsbuildScriptPath),
@@ -748,22 +561,13 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                 "Content-Type",
                 isMap ? "application/json" : "application/javascript",
               );
-              // Never cache the worker bundle in dev, so a full-reload after a
-              // rebuild always re-fetches the latest code.
               res.setHeader("Cache-Control", "no-store");
               res.end(fs.readFileSync(filePath, "utf-8"));
               return;
             }
           } else if (!isMap) {
-            // Stable per dev-server (NOT Date.now()-per-request): the dev SW
-            // must not look "new" on every fetch, or the controllerchange→reload
-            // (src/pages/index.ts) would churn. Dev code updates ride Vite HMR /
-            // the worker chokidar reload; in dev the SW only serves OPFS.
             const SW_VERSION = "dev";
             const swResourceSet = new Set(["/"]);
-            // outDevDir is only created in the isExternal branch above. For
-            // non-external service-worker requests it may not exist yet —
-            // ensure it does so the glob doesn't ENOENT on scandir.
             if (!fs.existsSync(outDevDir)) {
               fs.mkdirSync(outDevDir, { recursive: true });
             }
@@ -813,7 +617,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           }
         }
 
-        // Skip file requests (assets, js, css, etc.)
         if (url.includes(".")) return next();
 
         const route =
@@ -825,24 +628,13 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           `${route}.html`,
         );
 
-        // html file doesn't exist for this route
         if (!fs.existsSync(possibleHtmlPath)) return next();
 
-        // Load the impower-dev page-root component on the server so we can
-        // pre-render <div id="root"> into static HTML before JS runs.
-        // ssrLoadModule means edits to it HMR like everything else.
         const preactRegistryModule = await server.ssrLoadModule(
           `/src/modules/spark-editor/preact-registry.ts`,
         );
         const rootComponent = preactRegistryModule.rootComponent;
 
-        // Pull impower-ui's Tailwind output as raw CSS via Vite's CSS
-        // pipeline (with `?direct` we get the compiled stylesheet, not the
-        // JS module wrapper that injects a <style> at runtime). Inlining
-        // this into the SSG <style> block means utility classes work before
-        // any JS runs — without it, Preact-rendered tags would ship with
-        // their Tailwind classes but no CSS to resolve them, leaving the
-        // page unstyled until module imports completed.
         let impowerUiTailwindCss = "";
         try {
           const tw = await server.transformRequest(
@@ -905,10 +697,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
   },
 });
 
-// ----------------------------------------------------------------------------
-// Exports consumed by build.ts (the build orchestrator).
-// ----------------------------------------------------------------------------
-
 export {
   indir,
   outdir,
@@ -934,9 +722,6 @@ export {
   viteStaticallyRenderedPagesPlugin,
 };
 
-// A conventional default export: the resolve config shared by every build
-// target. build.ts spreads target-specific options (ssr, inputs, outputs) on
-// top of this per stage.
 export default defineConfig({
   resolve: { alias, dedupe },
 });

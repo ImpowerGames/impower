@@ -3,17 +3,11 @@ import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { BRIDGE_SUBSCRIPTIONS_METHOD, SUBSCRIBE_METHOD } from "../modules/spark-editor/workspace/devProtocolMethods";
 
-/** One dev-server port names one editor session. No editor means no mutation. */
 export function attachDevProtocolSocket(server: Server) {
-  // A supported 256 MiB asset occupies about 342 MiB after base64 framing.
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 384 * 1024 * 1024 });
   let editor: WebSocket | undefined;
-  // Each client's subscribed notification methods ("*" for all). The editor
-  // learns their union so it never serializes a notification nobody wants.
   const clients = new Map<WebSocket, Set<string>>();
   const wanted = (subscriptions: Set<string>, method: string) => subscriptions.has("*") || subscriptions.has(method);
-  // A new editor connection starts with nothing wanted, so it needs a message
-  // only when some client has subscribed; later changes always publish.
   const publishSubscriptions = (onConnect = false) => {
     if (!editor) return;
     const methods = new Set<string>();
@@ -48,7 +42,6 @@ export function attachDevProtocolSocket(server: Server) {
       return;
     }
     sockets.handleUpgrade(request, socket, head, (ws) => {
-      // Keep ownership through CLOSING until the close handler settles its work.
       if (role === "editor" && editor) {
         ws.close(1013, "Another editor owns this session");
         return;
@@ -84,8 +77,6 @@ export function attachDevProtocolSocket(server: Server) {
           publishSubscriptions();
           return;
         }
-        // Only the server speaks for the clients' union; a forged update
-        // would make the editor serialize notifications nobody receives.
         if (message.method === BRIDGE_SUBSCRIPTIONS_METHOD) { ws.close(1007, "Reserved method"); return; }
         if (!editor || editor.readyState !== WebSocket.OPEN) {
           if ("id" in message) send(ws, { jsonrpc: "2.0", id: message.id, error: { code: -32000, message: "No editor connected" } });

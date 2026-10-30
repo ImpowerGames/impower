@@ -14,56 +14,28 @@ import AudioPreview from "./AudioPreview";
 import ImagePreview from "./ImagePreview";
 import TextPreview from "./TextPreview";
 
-/** A previewable asset. `kind` is the resolved media category. */
 export type PreviewKind = "image" | "audio" | "video" | "text";
 
 export type PreviewItem = {
-  /** Project-relative path (identity). */
   path: string;
-  /** Display name. */
   name: string;
-  /** The URL to load (service-worker URL for local files, remote for `.url`). */
   src?: string;
   kind: PreviewKind;
-  /** For a `.url` asset: the remote URL, shown under the title. */
   url?: string;
-  /** Bytes on disk (absent for remote `.url` assets) — for the Details panel. */
   size?: number;
-  /** Last-modified epoch ms — for the Details panel. */
   modified?: number;
 };
 
 export type FilePreviewOverlayProps = {
-  /** Whether the preview is open (animates in/out). */
   open: boolean;
-  /** The navigable list (previewable files in display order). */
   items: PreviewItem[];
-  /** Index of the item currently shown. */
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
-  /**
-   * Edit a remote (`.url`) asset's target. When provided, a `.url` item's URL
-   * line becomes editable (pencil → input → commit). The parent writes the new
-   * URL back to the `.url` file and re-resolves the asset.
-   */
   onEditUrl?: (item: PreviewItem, newUrl: string) => void;
-  /**
-   * Show the docked "Details" panel (the shared asset inspector). Default true —
-   * this is the mobile host, where the overlay IS the inspector. The desktop
-   * right-pane inspector opens this overlay only to enlarge the media (it already
-   * shows Details beside it), so it passes `false` to avoid a redundant panel.
-   */
   showDetails?: boolean;
 };
 
-/**
- * Fullscreen asset preview (a faithful preact port of the old engine's
- * slide-up preview dialog). Renders the current item by media type — a
- * zoom/pan/pinch image, a native video/audio player, or an embedded text view —
- * with a bottom `‹ N / M ›` navigator that cycles the previewable list. Escape
- * closes; ← / → step. Portaled to <body> so nothing clips the fixed overlay.
- */
 export default function FilePreviewOverlay({
   open,
   items,
@@ -74,8 +46,6 @@ export default function FilePreviewOverlay({
   showDetails = true,
 }: FilePreviewOverlayProps) {
   const { mounted, visible } = useMountTransition(open, 200);
-  // Keep showing the last item while animating out (the parent clears its index
-  // on close, but we want the closing frame to still render what was open).
   const lastIndex = useRef(index);
   if (open) {
     lastIndex.current = index;
@@ -83,14 +53,11 @@ export default function FilePreviewOverlay({
   const item = items[open ? index : lastIndex.current];
   const total = items.length;
 
-  // URL editor: `null` = not editing; a string = the in-progress edited URL.
   const [editingUrl, setEditingUrl] = useState<string | null>(null);
   const urlInputRef = useRef<HTMLInputElement | null>(null);
-  // Reset the editor whenever the shown item changes or the overlay closes.
   useEffect(() => {
     setEditingUrl(null);
   }, [index, open]);
-  // Focus + select the URL field when the editor opens.
   useEffect(() => {
     if (editingUrl == null) {
       return;
@@ -110,7 +77,6 @@ export default function FilePreviewOverlay({
     setEditingUrl(null);
   };
 
-  // Keyboard: Escape closes, arrows step (the old engine was click-only).
   useEffect(() => {
     if (!open) {
       return;
@@ -143,7 +109,6 @@ export default function FilePreviewOverlay({
           visible ? "translate-y-0" : "translate-y-3"
         }`}
       >
-      {/* Header: name (+ remote URL for url assets) and close. */}
       <div class="flex flex-none flex-row items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm font-semibold">{item.name}</div>
@@ -210,12 +175,10 @@ export default function FilePreviewOverlay({
         </Button>
       </div>
 
-      {/* Preview area. */}
       <div class="relative flex min-h-0 flex-1 px-4 pb-2">
         <PreviewBody item={item} />
       </div>
 
-      {/* `‹ N / M ›` navigator — only when there's more than one item. */}
       {total > 1 && (
         <div class="flex flex-none flex-row items-center justify-center gap-5 py-3">
           <Button
@@ -242,11 +205,7 @@ export default function FilePreviewOverlay({
         </div>
       )}
 
-      {/* Details — the shared collapsible inspector panel, docked at the bottom
-          (this is the mobile host; the desktop host is the right-pane inspector).
-          Starts collapsed so the media stays prominent; pull up for metadata /
-          where-used / download. A jump-to-usage closes the overlay so the editor
-          it navigates to is revealed. */}
+
       {showDetails && (
       <div class="flex-none text-white">
         <AssetInspectorPanel
@@ -276,11 +235,8 @@ function PreviewBody({ item }: { item: PreviewItem }) {
   }
   switch (kind) {
     case "image":
-      // `key` re-mounts (and resets zoom) when the file changes.
       return <ImagePreview key={item.path} src={src} alt={name} />;
     case "video":
-      // Fill the preview area like images do (object-contain letterboxes to
-      // preserve the aspect ratio rather than centering at natural size).
       return (
         <video
           key={item.path}

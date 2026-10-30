@@ -6,12 +6,6 @@ export type ImagePreviewProps = {
   alt?: string;
 };
 
-/**
- * Zoomable/pannable image preview. Scroll-wheel zooms toward the cursor,
- * two-finger pinch zooms toward the finger midpoint, drag pans when zoomed, and
- * double-click toggles between fit and {@link DOUBLE_TAP_SCALE}×. The image
- * fits the container (object-contain) at scale 1.
- */
 export default function ImagePreview({ src, alt }: ImagePreviewProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [loaded, setLoaded] = useState(false);

@@ -9,17 +9,10 @@ import {
   type ConflictRequest,
 } from "../../utils/uploadConflicts";
 
-/**
- * Global host for the upload "file already exists" prompt. Reads the
- * `conflictRequest` signal (set by resolveUploadConflicts mid-upload), shows a
- * Replace / Keep both / Skip choice with an optional "apply to all", and
- * resolves the awaiting promise. Portaled to <body>; mounted once in SparkEditor.
- */
 export default function ConflictDialogHost() {
   const req = useComputed(() => conflictRequest.value).value;
   const [shown, setShown] = useState<ConflictRequest | null>(req);
   const [applyAll, setApplyAll] = useState(false);
-  // Synchronous latch so a double-click can't resolve the same prompt twice.
   const busyRef = useRef(false);
 
   useEffect(() => {
@@ -42,7 +35,6 @@ export default function ConflictDialogHost() {
   useEffect(() => {
     if (!req) return;
     const onKey = (e: KeyboardEvent) => {
-      // Escape = Skip (the safe, non-destructive default).
       if (e.key === "Escape") choose("skip");
     };
     document.addEventListener("keydown", onKey);

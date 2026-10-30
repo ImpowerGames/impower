@@ -5,9 +5,7 @@ import { useMountTransition } from "../../hooks/useMountTransition";
 
 export type UsageLocation = {
   uri: string;
-  /** Display path of the referencing script (e.g. `scripts/intro.sd`). */
   label: string;
-  /** 1-based line number. */
   line: number;
   range: {
     start: { line: number; character: number };
@@ -17,10 +15,8 @@ export type UsageLocation = {
 
 export type FileUsagesPanelProps = {
   open: boolean;
-  /** The asset whose usages are listed. */
   assetName: string;
   locations: UsageLocation[];
-  /** Open the script at the usage and select the range. */
   onJump: (
     uri: string,
     range: UsageLocation["range"],
@@ -28,11 +24,6 @@ export type FileUsagesPanelProps = {
   onClose: () => void;
 };
 
-/**
- * "Used in (N)" — lists every script location that references an asset, each a
- * tappable row that jumps to the editor at that spot. Portaled modal so the
- * virtualized list beneath can't clip it.
- */
 export default function FileUsagesPanel({
   open,
   assetName,

@@ -1,50 +1,25 @@
 import { useRef, useState } from "preact/hooks";
 
-// Custom pointer-events drag for the file tree, replacing native HTML5 DnD.
-// Native DnD gives us a browser-generated "ghost" we can't fully control and
-// doesn't fire on touch at all; this engine renders our own floating proxy and
-// works for mouse, pen, and touch with a single code path.
-//
-// Activation:
-//   - mouse/pen: arm once the pointer moves MOUSE_ARM_PX from the press point
-//     (so a plain click still selects/opens).
-//   - touch: arm on a TOUCH_LONGPRESS_MS long-press; if the finger moves more
-//     than TOUCH_CANCEL_PX before that, it's a scroll — bail and let the list
-//     scroll normally.
 const MOUSE_ARM_PX = 6;
 const TOUCH_LONGPRESS_MS = 350;
 const TOUCH_CANCEL_PX = 12;
-// Auto-scroll when the pointer is within this many px of the scroller's top or
-// bottom edge while dragging; speed ramps toward EDGE_MAX_SPEED at the very edge.
 const EDGE_ZONE_PX = 64;
 const EDGE_MAX_SPEED = 16;
 
 export type TreeDragRow = {
-  /** Project-relative path of the row (its drag identity). */
   path: string;
-  /**
-   * The full set of paths being dragged. Omitted for a single-row drag (treated
-   * as `[path]`); set when dragging a multi-selection so the whole group moves.
-   */
   paths?: string[];
-  /** Folders are valid drop targets; files are not. */
   isDirectory: boolean;
-  /** Display label shown inside the floating drag proxy. */
   label: string;
 };
 
-/** The set of paths a drag carries (a single-row drag is just `[path]`). */
 const dragPathsOf = (row: TreeDragRow): string[] =>
   row.paths && row.paths.length > 0 ? row.paths : [row.path];
 
 export type TreeDrag = {
-  /** Path of the row currently being dragged (render it at reduced opacity). */
   draggingPath: string | null;
-  /** Folder path currently hovered as a drop target (ring it), or null. */
   dropTarget: string | null;
-  /** Floating proxy position + label, or null when not dragging. */
   proxy: { x: number; y: number; label: string } | null;
-  /** Attach to each row's wrapper `onPointerDown`. */
   onRowPointerDown: (e: PointerEvent, row: TreeDragRow) => void;
 };
 
@@ -62,14 +37,10 @@ type DragInternal = {
 
 type TreeDragOpts = {
   scrollRef: { current: HTMLElement | null };
-  /** Move every `srcPath` into `folderPath`. */
   onDropInto: (folderPath: string, srcPaths: string[]) => void;
-  /** Move every `srcPath` to the project root. */
   onDropToRoot: (srcPaths: string[]) => void;
 };
 
-// A folder is a legal target unless it equals, or sits under, ANY dragged item
-// (can't move a folder into itself or one of its own descendants).
 const canDropInto = (folderPath: string, srcPaths: string[]) =>
   srcPaths.every(
     (src) => folderPath !== src && !folderPath.startsWith(`${src}/`),
@@ -81,17 +52,9 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
   const [proxy, setProxy] = useState<TreeDrag["proxy"]>(null);
   const stateRef = useRef<DragInternal | null>(null);
   const edgeScrollRef = useRef<{ raf: number; dir: number } | null>(null);
-  // Latest opts (scrollRef + drop callbacks) read by the stable handlers.
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
-  // The pointer handlers are built ONCE and kept referentially stable. This is
-  // essential: they're attached to `window` on pointerdown and detached on
-  // cleanup, and the component re-renders repeatedly DURING a drag (setProxy /
-  // setDropTarget). If the handlers were rebuilt each render, removeEventListener
-  // would pass a different function than was added — the listeners (and the
-  // edge-auto-scroll loop) would leak and a missed pointerup could wedge
-  // scrolling. Stable handlers + the safety nets below keep that from happening.
   const apiRef = useRef<{
     onRowPointerDown: (e: PointerEvent, row: TreeDragRow) => void;
   } | null>(null);
@@ -175,11 +138,7 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
     function onMove(e: PointerEvent) {
       const st = stateRef.current;
       if (!st || e.pointerId !== st.pointerId) return;
-      // Safety net: a mouse/pen pointerup can be missed (released off-window,
-      // focus lost, a swallowed event). If no button is held during a move, the
-      // press is over — bail so we never leave the drag (and its edge-scroll
-      // loop) wedged, which would fight the wheel. Touch reports buttons=1 only
-      // while in contact, so it's covered by pointerup/cancel instead.
+      // workaround(chromium): a mouse or pen pointerup can be missed when released off-window or on focus loss, so a buttonless move ends the drag
       if (st.pointerType !== "touch" && e.buttons === 0) {
         cleanup();
         return;
@@ -192,7 +151,6 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
 
       if (!st.armed) {
         if (st.pointerType === "touch") {
-          // Movement before the long-press fires = a scroll gesture: bail.
           if (dist > TOUCH_CANCEL_PX) cleanup();
         } else if (dist > MOUSE_ARM_PX) {
           arm();
@@ -200,15 +158,12 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
         return;
       }
 
-      // Armed: drive the proxy + drop target, and suppress scrolling/selection.
       e.preventDefault();
       setProxy({ x: e.clientX, y: e.clientY, label: st.row.label });
       setDropTarget(hitDropTarget(e.clientX, e.clientY, dragPathsOf(st.row)));
       updateEdgeScroll(e.clientY);
     }
 
-    // After an armed drag, the browser may still fire a `click` on the source
-    // row — swallow exactly one so dragging a file doesn't also open it.
     const suppressNextClick = () => {
       const onClickCapture = (ev: Event) => {
         ev.stopPropagation();
@@ -232,7 +187,6 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
         if (target != null) {
           optsRef.current.onDropInto(target, srcPaths);
         } else {
-          // Dropped on the background or a file row → move to project root.
           optsRef.current.onDropToRoot(srcPaths);
         }
         suppressNextClick();
@@ -240,13 +194,11 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
       cleanup();
     }
 
-    // pointercancel + window blur (alt-tab / focus loss) both abort the drag.
     function onCancel() {
       cleanup();
     }
 
     const onRowPointerDown = (e: PointerEvent, row: TreeDragRow) => {
-      // Left button only for mouse; ignore if a drag is already in flight.
       if (e.button != null && e.button > 0) return;
       if (stateRef.current) cleanup();
       stateRef.current = {

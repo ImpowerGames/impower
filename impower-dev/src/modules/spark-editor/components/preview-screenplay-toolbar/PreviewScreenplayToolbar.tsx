@@ -5,14 +5,6 @@ import { downloadFile } from "../../utils/downloadFile";
 export const propDefaults = {};
 export type PreviewScreenplayToolbarProps = Partial<typeof propDefaults>;
 
-/**
- * Top toolbar inside the screenplay preview pane:
- *   - "PDF" download button on the left — exports the active project's
- *     screenplay scripts to PDF, with an inline horizontal progress bar
- *     at the bottom edge that scales as the export advances.
- *   - "Screenplay Preview" centered title.
- *   - Gamepad-icon mode toggle on the right — switches preview to game.
- */
 export default function PreviewScreenplayToolbar(
   _props: PreviewScreenplayToolbarProps,
 ) {
@@ -77,9 +69,7 @@ export default function PreviewScreenplayToolbar(
       >
         <Gamepad class="size-5" />
       </Button>
-      {/* Progress bar — compositor-friendly transform: scaleX so the
-          animation runs smoothly even while the export's main-thread
-          work is busy. */}
+
       <div
         aria-hidden="true"
         class="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] origin-left bg-primary/70 transition-opacity"

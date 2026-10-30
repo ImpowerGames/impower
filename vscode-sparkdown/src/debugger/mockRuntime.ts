@@ -96,23 +96,7 @@ export function timeout(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * A Mock runtime with minimal debugger functionality.
- * MockRuntime is a hypothetical (aka "Mock") "execution engine with debugging support":
- * it takes a Markdown (*.md) file and "executes" it by "running" through the text lines
- * and searching for "command" patterns that trigger some debugger related functionality (e.g. exceptions).
- * When it finds a command it typically emits an event.
- * The runtime can not only run through the whole file but also executes one line at a time
- * and stops on lines for which a breakpoint has been registered. This functionality is the
- * core of the "debugging support".
- * Since the MockRuntime is completely independent from VS Code or the Debug Adapter Protocol,
- * it can be viewed as a simplified representation of a real "execution engine" (e.g. node.js)
- * or debugger (e.g. gdb).
- * When implementing your own debugger extension for VS Code, you probably don't need this
- * class because you can rely on some existing debugger or runtime.
- */
 export class MockRuntime extends EventEmitter {
-  // the initial (and one and only) file we are 'debugging'
   private _sourceFile: string = "";
   public get sourceFile() {
     return this._sourceFile;
@@ -120,13 +104,11 @@ export class MockRuntime extends EventEmitter {
 
   private variables = new Map<string, RuntimeVariable>();
 
-  // the contents (= lines) of the one and only file
   private sourceLines: string[] = [];
   private instructions: Word[] = [];
   private starts: number[] = [];
   private ends: number[] = [];
 
-  // This is the next line that will be 'executed'
   private _currentLine = 0;
   private get currentLine() {
     return this._currentLine;
@@ -137,17 +119,12 @@ export class MockRuntime extends EventEmitter {
   }
   private currentColumn: number | undefined;
 
-  // This is the next instruction that will be 'executed'
   public instruction = 0;
 
-  // maps from sourceFile to array of IRuntimeBreakpoint
   private breakPoints = new Map<string, IRuntimeBreakpoint[]>();
 
-  // all instruction breakpoint addresses
   private instructionBreakpoints = new Set<number>();
 
-  // since we want to send breakpoint events, we will assign an id to every event
-  // so that the frontend can match events with breakpoints.
   private breakpointId = 1;
 
   private breakAddresses = new Map<string, string>();
@@ -159,9 +136,6 @@ export class MockRuntime extends EventEmitter {
     super();
   }
 
-  /**
-   * Start executing the given program.
-   */
   public async start(
     program: string,
     stopOnEntry: boolean,
@@ -175,7 +149,6 @@ export class MockRuntime extends EventEmitter {
       if (stopOnEntry) {
         this.findNextStatement(false, "stopOnEntry");
       } else {
-        // we just start to run until we hit a breakpoint, an exception, or the end of the program
         this.continue(false);
       }
     } else {
@@ -183,9 +156,6 @@ export class MockRuntime extends EventEmitter {
     }
   }
 
-  /**
-   * Continue execution to the end/beginning.
-   */
   public continue(reverse: boolean) {
     while (!this.executeLine(this.currentLine, reverse)) {
       if (this.updateCurrentLine(reverse)) {
@@ -197,9 +167,6 @@ export class MockRuntime extends EventEmitter {
     }
   }
 
-  /**
-   * Step to the next/previous non empty line.
-   */
   public step(instruction: boolean, reverse: boolean) {
     if (instruction) {
       if (reverse) {
@@ -222,7 +189,6 @@ export class MockRuntime extends EventEmitter {
       if (this.currentLine > 0) {
         this.currentLine--;
       } else {
-        // no more lines: stop at first line
         this.currentLine = 0;
         this.currentColumn = undefined;
         this.sendEvent("stopOnEntry");
@@ -232,7 +198,6 @@ export class MockRuntime extends EventEmitter {
       if (this.currentLine < this.sourceLines.length - 1) {
         this.currentLine++;
       } else {
-        // no more lines: run to end
         this.currentColumn = undefined;
         this.sendEvent("end");
         return true;
@@ -241,9 +206,6 @@ export class MockRuntime extends EventEmitter {
     return false;
   }
 
-  /**
-   * "Step into" for Mock debug means: go to next character
-   */
   public stepIn(targetId: number | undefined) {
     if (typeof targetId === "number") {
       this.currentColumn = targetId;
@@ -260,9 +222,6 @@ export class MockRuntime extends EventEmitter {
     }
   }
 
-  /**
-   * "Step out" for Mock debug means: go to previous character
-   */
   public stepOut() {
     if (typeof this.currentColumn === "number") {
       this.currentColumn -= 1;
@@ -277,14 +236,12 @@ export class MockRuntime extends EventEmitter {
     const line = this.getLine();
     const words = this.getWords(this.currentLine, line);
 
-    // return nothing if frameId is out of range
     if (frameId < 0 || frameId >= words.length) {
       return [];
     }
 
     const { name, index } = words[frameId]!;
 
-    // make every character of the frame a potential "step in" target
     return name.split("").map((c, ix) => {
       return {
         id: index + ix,
@@ -293,15 +250,11 @@ export class MockRuntime extends EventEmitter {
     });
   }
 
-  /**
-   * Returns a fake 'stacktrace' where every 'stackframe' is a word from the current line.
-   */
   public stack(startFrame: number, endFrame: number): IRuntimeStack {
     const line = this.getLine();
     const words = this.getWords(this.currentLine, line);
-    words.push({ name: "BOTTOM", line: -1, index: -1 }); // add a sentinel so that the stack is never empty...
+    words.push({ name: "BOTTOM", line: -1, index: -1 });
 
-    // if the line contains the word 'disassembly' we support to "disassemble" the line by adding an 'instruction' property to the stackframe
     const instruction =
       line.indexOf("disassembly") >= 0 ? this.instruction : undefined;
 
@@ -309,14 +262,13 @@ export class MockRuntime extends EventEmitter {
       typeof this.currentColumn === "number" ? this.currentColumn : undefined;
 
     const frames: IRuntimeStackFrame[] = [];
-    // every word of the current line becomes a stack frame.
     for (let i = startFrame; i < Math.min(endFrame, words.length); i++) {
       const stackFrame: IRuntimeStackFrame = {
         index: i,
-        name: `${words[i]!.name}(${i})`, // use a word of the line as the stackframe name
+        name: `${words[i]!.name}(${i})`,
         file: this._sourceFile,
         line: this.currentLine,
-        column: column, // words[i].index
+        column: column,
         instruction: instruction ? instruction + i : 0,
       };
 
@@ -329,19 +281,12 @@ export class MockRuntime extends EventEmitter {
     };
   }
 
-  /*
-   * Determine possible column breakpoint positions for the given line.
-   * Here we return the start location of words with more than 8 characters.
-   */
   public getBreakpoints(line: number): number[] {
     return this.getWords(line, this.getLine(line))
       .filter((w) => w.name.length > 8)
       .map((w) => w.index);
   }
 
-  /*
-   * Set breakpoint in file with given line.
-   */
   public async setBreakPoint(
     path: string,
     line: number,
@@ -365,9 +310,6 @@ export class MockRuntime extends EventEmitter {
     return bp;
   }
 
-  /*
-   * Clear breakpoint in file with given line.
-   */
   public clearBreakPoint(
     path: string,
     line: number,
@@ -450,9 +392,6 @@ export class MockRuntime extends EventEmitter {
     return this.variables.get(name);
   }
 
-  /**
-   * Return words of the given address range as "instructions"
-   */
   public disassemble(
     address: number,
     instructionCount: number,
@@ -477,8 +416,6 @@ export class MockRuntime extends EventEmitter {
     return instructions;
   }
 
-  // private methods
-
   private getLine(line?: number): string {
     return this.sourceLines[
       line === undefined ? this.currentLine : line
@@ -486,7 +423,6 @@ export class MockRuntime extends EventEmitter {
   }
 
   private getWords(l: number, line: string): Word[] {
-    // break line into words
     const WORD_REGEXP = /[a-z]+/gi;
     const words: Word[] = [];
     let match: RegExpExecArray | null;
@@ -522,25 +458,18 @@ export class MockRuntime extends EventEmitter {
     }
   }
 
-  /**
-   * return true on stop
-   */
   private findNextStatement(reverse: boolean, stepEvent?: string): boolean {
     for (
       let ln = this.currentLine;
       reverse ? ln >= 0 : ln < this.sourceLines.length;
       reverse ? ln-- : ln++
     ) {
-      // is there a source breakpoint?
       const breakpoints = this.breakPoints.get(this._sourceFile);
       if (breakpoints) {
         const bps = breakpoints.filter((bp) => bp.line === ln);
         if (bps.length > 0) {
-          // send 'stopped' event
           this.sendEvent("stopOnBreakpoint");
 
-          // the following shows the use of 'breakpoint' events to update properties of a breakpoint in the UI
-          // if breakpoint is not yet verified, verify it now and send a 'breakpoint' update event
           if (!bps[0]!.verified) {
             bps[0]!.verified = true;
             this.sendEvent("breakpointValidated", bps[0]);
@@ -564,12 +493,7 @@ export class MockRuntime extends EventEmitter {
     return false;
   }
 
-  /**
-   * "execute a line" of the readme sparkdown.
-   * Returns true if execution sent out a stopped event and needs to stop.
-   */
   private executeLine(ln: number, reverse: boolean): boolean {
-    // first "execute" the instructions associated with this line and potentially hit instruction breakpoints
     while (
       reverse
         ? this.instruction >= this.starts[ln]!
@@ -584,7 +508,6 @@ export class MockRuntime extends EventEmitter {
 
     const line = this.getLine(ln);
 
-    // find variable accesses
     let reg0 =
       /\$([a-z][a-z0-9]*)(=(false|true|[0-9]+(\.[0-9]+)?|\".*\"|\{.*\}))?/gi;
     let matches0: RegExpExecArray | null;
@@ -616,13 +539,11 @@ export class MockRuntime extends EventEmitter {
           }
 
           if (this.variables.has(name)) {
-            // the first write access to a variable is the "declaration" and not a "write access"
             access = "write";
           }
           this.variables.set(name, v);
         } else {
           if (this.variables.has(name)) {
-            // variable must exist in order to trigger a read access
             access = "read";
           }
         }
@@ -635,7 +556,6 @@ export class MockRuntime extends EventEmitter {
       }
     }
 
-    // if 'log(...)' found in source -> send argument to debug console
     const reg1 = /(log|prio|out|err)\(([^\)]*)\)/g;
     let matches1: RegExpExecArray | null;
     while ((matches1 = reg1.exec(line))) {
@@ -651,7 +571,6 @@ export class MockRuntime extends EventEmitter {
       }
     }
 
-    // if pattern 'exception(...)' found in source -> throw named exception
     const matches2 = /exception\((.*)\)/.exec(line);
     if (matches2 && matches2.length === 2) {
       const exception = matches2[1]!.trim();
@@ -665,7 +584,6 @@ export class MockRuntime extends EventEmitter {
         }
       }
     } else {
-      // if word 'exception' found in source -> throw exception
       if (line.indexOf("exception") >= 0) {
         if (this.otherExceptions) {
           this.sendEvent("stopOnException", undefined);
@@ -674,7 +592,6 @@ export class MockRuntime extends EventEmitter {
       }
     }
 
-    // nothing interesting found -> continue
     return false;
   }
 
@@ -686,16 +603,12 @@ export class MockRuntime extends EventEmitter {
         if (!bp.verified && bp.line < this.sourceLines.length) {
           const srcLine = this.getLine(bp.line);
 
-          // if a line is empty or starts with '+' we don't allow to set a breakpoint but move the breakpoint down
           if (srcLine.length === 0 || srcLine.indexOf("+") === 0) {
             bp.line++;
           }
-          // if a line starts with '-' we don't allow to set a breakpoint but move the breakpoint up
           if (srcLine.indexOf("-") === 0) {
             bp.line--;
           }
-          // don't set 'verified' to true if the line contains the word 'lazy'
-          // in this case the breakpoint will be verified 'lazy' after hitting it once.
           if (srcLine.indexOf("lazy") < 0) {
             bp.verified = true;
             this.sendEvent("breakpointValidated", bp);

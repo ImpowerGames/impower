@@ -8,10 +8,8 @@ import {
 const PROJECT = "proj";
 const ROOT = `file://${PROJECT}/`;
 
-// Project-relative path from a file uri (mirrors WorkspaceFileSystem.getRelativePath).
 const rel = (uri: string) => (uri.startsWith(ROOT) ? uri.slice(ROOT.length) : uri);
 
-// Build a minimal script FileData from a project-relative path + body.
 const mk = (relativePath: string, text: string): FileData => {
   const base = relativePath.split("/").slice(-1)[0]!;
   const dot = base.lastIndexOf(".");
@@ -55,7 +53,6 @@ describe("scriptBundle", () => {
     expect(bundle).toContain("//// chapters/intro.sd ////");
     expect(bundle).toContain("//// extras/intro.sd ////");
     const out = splitScriptBundle(bundle, "main.sd");
-    // Two files sharing the basename `intro.sd` survive as DISTINCT keys.
     expect(out["chapters/intro.sd"]).toBe("CH INTRO");
     expect(out["extras/intro.sd"]).toBe("EX INTRO");
     expect(out["main.sd"]).toBe("MAIN");
