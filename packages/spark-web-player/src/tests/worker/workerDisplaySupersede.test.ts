@@ -1,9 +1,3 @@
-// A preview the worker's game displays waits for the pictures its beat shows
-// before it writes the beat (#680). When a newer selection takes the screen
-// over while it waits, the older beat never paints, even once its picture
-// arrives: the worker's game lets the older preview go, and the page drops
-// whatever the older stream still sends. A compile that gives the game a new
-// program while the beat waits takes the screen over the same way.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { describe, expect, it } from "vitest";
@@ -49,7 +43,6 @@ describe("a preview displayed from the worker's game", () => {
       await h.compile();
       expect(h.overlay.textContent).toContain("The beat that takes over.");
 
-      // Everything the page ever shows from here on.
       const painted: string[] = [];
       const Observer = (h.overlay.ownerDocument.defaultView as any).MutationObserver;
       const observer = new Observer(() => painted.push(h.overlay.textContent ?? ""));
@@ -57,7 +50,6 @@ describe("a preview displayed from the worker's game", () => {
 
       const waiting = await h.selectWithoutWaiting(WAITING);
       await settle(40);
-      // The older preview is waiting on a.png.
       expect(h.overlay.textContent).not.toContain("The beat that waits for its picture.");
 
       await h.select(TAKING_OVER);
@@ -89,7 +81,6 @@ describe("a preview displayed from the worker's game", () => {
       const observer = new Observer(() => painted.push(h.overlay.textContent ?? ""));
       observer.observe(h.overlay, { subtree: true, childList: true, characterData: true });
 
-      // The page asks for the waiting beat, which holds on a.png.
       const display = h.link.request(DisplayPreviewMessage.type, {
         program: programIdentity(h.controller._program)!,
         file: MAIN_URI,
@@ -99,8 +90,6 @@ describe("a preview displayed from the worker's game", () => {
       await settle(40);
       expect(h.overlay.textContent).not.toContain("The beat that waits for its picture.");
 
-      // An edit compiles while it waits, and gives the worker's game the new
-      // program, which cancels the preview under way.
       const edited = SOURCE.replace("The beat that takes over.", "The beat, edited.");
       const lines = SOURCE.split("\n");
       await h.edit([
@@ -137,8 +126,6 @@ describe("a preview displayed from the worker's game", () => {
     });
     try {
       await h.compile();
-      // A suggestion compiles, so the next selection recompiles the real
-      // documents first, which serves the same program again.
       const lines = SOURCE.split("\n");
       await h.suggest(
         [
@@ -152,7 +139,6 @@ describe("a preview displayed from the worker's game", () => {
         ],
         TAKING_OVER,
       );
-      // Closing the list shows the real document again: the waiting beat.
       const display = h.link.request(DisplayPreviewMessage.type, {
         program: programIdentity(h.controller._program)!,
         file: MAIN_URI,
@@ -195,8 +181,6 @@ describe("a preview displayed from the worker's game", () => {
         speculative: false,
       });
       await settle(40);
-      // The documents have not changed; the compile serves the same program
-      // and replays its route to the waiting beat on the game.
       await h.page.sendRequest(CompileProgramMessage.type, {
         textDocument: { uri: MAIN_URI },
         startFrom: { file: MAIN_URI, line: WAITING },
@@ -225,10 +209,8 @@ describe("a preview displayed from the worker's game", () => {
       };
       await h.compile();
       expect(listening()).toBeGreaterThan(0);
-      // PLAY and STOP detach the preview first.
       await h.controller.detachWorkerPreview();
       expect(listening()).toBe(0);
-      // The next preview hears the game again.
       await h.select(WAITING);
       expect(listening()).toBeGreaterThan(0);
       h.controller.dispose();
@@ -252,7 +234,6 @@ describe("a preview displayed from the worker's game", () => {
           await buildHeld;
           return buildWorkerApp(link);
         };
-        // The first preview waits for the application to be built.
         const compiled = h.compile();
         await settle(40);
         if (ending === "detach") {
@@ -320,7 +301,6 @@ describe("a preview displayed from the worker's game", () => {
       const compiled = h.compile();
       await settle(40);
       await h.controller.detachWorkerPreview();
-      // A new preview at once, while the first build is still under way.
       const next = await h.selectWithoutWaiting(WAITING);
       await settle(20);
       releaseFirst();
@@ -397,9 +377,6 @@ describe("a preview displayed from the worker's game", () => {
     try {
       await h.compile();
 
-      // Every connect the worker's game makes: a display that reuses what the
-      // application already holds skips it, and one for a new application
-      // must not.
       const game = h.workerState.gameState.game!;
       const connect = game.connect.bind(game);
       let connects = 0;
@@ -408,7 +385,6 @@ describe("a preview displayed from the worker's game", () => {
         return connect(send);
       };
 
-      // A display whose answer has not reached the page yet.
       let deliver!: () => void;
       const held = new Promise<void>((resolve) => (deliver = resolve));
       const request = h.link.request.bind(h.link);
@@ -424,8 +400,6 @@ describe("a preview displayed from the worker's game", () => {
       const waiting = await h.selectWithoutWaiting(WAITING);
       await settle(40);
 
-      // The preview goes, and another takes its place at the same point, so
-      // the display it sends is the same one the held answer was for.
       await h.controller.detachWorkerPreview();
       const replaced = await h.selectWithoutWaiting(WAITING);
       const before = connects;
@@ -433,9 +407,6 @@ describe("a preview displayed from the worker's game", () => {
       await Promise.all([waiting.previewed, replaced.previewed]);
       await settle(60);
 
-      // The new application holds nothing the game sent, so its display
-      // connected in full rather than repeating the point; without that its
-      // adopted nodes keep listeners the old application's teardown removed.
       expect(connects).toBeGreaterThan(before);
       expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
     } finally {
@@ -482,9 +453,6 @@ describe("a preview the same point repeats while it waits for its picture (#1820
 
       const first = await h.selectWithoutWaiting(WAITING);
       await settle(40);
-      // Another line of the same beat: the worker repeats the preview that
-      // is still waiting for a.png, and that one, taken over, never sweeps.
-      // Until a sweep sends its composed beat, the page shows the old one.
       const repeat = await h.selectWithoutWaiting(lineOf("[[SPRITE_A]]"));
       await settle(40);
       expect(h.overlay.textContent).toContain("The beat that takes over.");
@@ -494,8 +462,6 @@ describe("a preview the same point repeats while it waits for its picture (#1820
       await repeat.previewed;
       await settle(40);
 
-      // The repeat swept for it: the display the first one composed went up,
-      // and nothing waits on the page.
       expect((h.overlay as any).__sdBeat).toBeUndefined();
       expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
       expect(h.overlay.textContent).not.toContain("The beat that takes over.");

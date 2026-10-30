@@ -1,8 +1,3 @@
-// The page's cursor hint (#434): what it asks the cache for when the cursor
-// lands, what it does not ask twice, and that its guess covers the cursor's
-// own beat and stays inside the window it is issued with. The engine's gate
-// is exact (it runs the beat); the hint is issued before anything can run.
-
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import { beatIndexIn } from "@impower/spark-engine/src/game/modules/assets/utils/previewWindow";
@@ -30,9 +25,6 @@ const asset = (name: string): File => ({
   src: `/file:/proj/${name}.png?v=1`,
 });
 
-// Line numbers matter: `bunny` on line 3 and `hat` on line 5 each display
-// alone, because line 4 displays between them; `cat` (line 10) and `dog`
-// (line 12) likewise.
 const STORY = `scene A
   [[show backdrop room]]
   Line one.
@@ -57,8 +49,6 @@ scene B
 end
 `;
 
-// An SVG served through the service worker, its source not inlined: a
-// filtered use of it resolves to a `?attributes=` variant of this url.
 const svg = (name: string): File => ({
   uri: `file://proj/${name}.svg`,
   type: "image",
@@ -93,7 +83,6 @@ function compile(source: string, version = 1, extra: File[] = []): SparkProgram 
 const srcs = (items: AssetItem[] | null) =>
   items?.map((i) => ("src" in i ? i.src : "")) ?? null;
 
-/** The items the hint would make of these names, resolved as it resolves them. */
 const items = (program: SparkProgram, names: string[]): AssetItem[] =>
   resolveImageSrcs(program.context, names).map((src) => ({
     kind: "image" as const,
@@ -110,9 +99,7 @@ describe("planPreviewHint", () => {
   it("asks for the cursor's beats first, the window next, and the rest of the scene once on entering it", () => {
     const first = plan(3)!;
     expect(first).not.toBeNull();
-    // The guess: the cursor's beat and the one after it.
     expect(srcs(first.cursor)).toEqual([src("bunny"), src("hat")]);
-    // The default window is 32 beats either side: the whole of this scene.
     expect(srcs(first.near)).toEqual([
       src("room"),
       src("bunny"),
@@ -131,10 +118,6 @@ describe("planPreviewHint", () => {
   });
 
   it("covers the cursor's own beat from any line of it, and never reaches past the window it is issued with", () => {
-    // With a window of one beat either side of the cursor, a guess reaches
-    // past the window as soon as it is wider than the cursor's beat and the
-    // next: this holds the guess to two beats from above, and covering the
-    // cursor's own beat holds it from below.
     const narrow = compile(
       `define assets as config with\n  predict_distance = 1\nend\n\n${STORY}`,
     );
@@ -167,9 +150,6 @@ describe("planPreviewHint", () => {
   });
 
   it.each([":", "~"])("asks for the filtered variant the engine resolves with %s, query string and all", (separator) => {
-    // The url a filtered SVG renders through carries the filter in its query
-    // string, and nothing else ever fetches it; the hint is useless unless
-    // it names that exact url.
     const story = `define dim as filtered_image with
   image = hall
   attributes = { "glow" }
@@ -195,8 +175,6 @@ end
   it("asks for nothing again on the same line, or on another line of the same beat", () => {
     const first = plan(3)!;
     expect(plan(3, first.state)).toBeNull();
-    // Line 4 is the line below the bunny beat: not a beat, and the window
-    // already covers it.
     const same = plan(4, first.state)!;
     expect(same.cursor).toEqual([]);
     expect(same.near).toEqual([]);
@@ -206,14 +184,11 @@ end
 
   it("guesses from the beat at or before the cursor, wherever in the beat the cursor is", () => {
     const first = plan(3)!;
-    // Line 6 is `Line three.`: the beat before it is hat's.
     const between = plan(6, first.state)!;
     expect(srcs(between.cursor)).toEqual([src("hat"), src("cat")]);
     expect(between.state.beat).toBe(2);
     const onBeat = plan(10, between.state)!;
     expect(srcs(onBeat.cursor)).toEqual([src("cat"), src("dog")]);
-    // Arriving at a beat's line from the line below it asks for nothing
-    // new: that line's hint already covered the beat.
     const below = plan(4)!;
     expect(srcs(below.cursor)).toEqual([src("bunny"), src("hat")]);
     const up = plan(3, below.state)!;
@@ -222,8 +197,6 @@ end
   });
 
   it("re-sends the window only when the cursor leaves half of it, not the whole of it", () => {
-    // Five beats and a reach of six: the whole scene is the window, and
-    // half the reach is three beats.
     const wide = compile(
       `define assets as config with\n  predict_distance = 6\nend\n\n${STORY}`,
     );
@@ -231,18 +204,15 @@ end
       planPreviewHint(wide, URI, line + 4, last);
     const first = at(1)!;
     expect(srcs(first.near)).toHaveLength(5);
-    // Three beats on: within half the reach, nothing.
     const three = at(10, first.state)!;
     expect(three.near).toEqual([]);
     expect(three.state.nearBeat).toBe(0);
-    // Four beats on: past half the reach, though well within the whole.
     const four = at(12, three.state)!;
     expect(srcs(four.near)).toHaveLength(5);
     expect(four.state.nearBeat).toBe(4);
   });
 
   it("re-sends the window only when the cursor leaves half of it", () => {
-    // The config block adds four lines above the story.
     const narrow = compile(
       `define assets as config with\n  predict_distance = 2\nend\n\n${STORY}`,
     );
@@ -250,11 +220,9 @@ end
       planPreviewHint(narrow, URI, line + 4, last);
     const first = at(1)!;
     expect(srcs(first.near)).toEqual([src("room"), src("bunny"), src("hat")]);
-    // One beat further: within half the reach, the last window stands.
     const one = at(3, first.state)!;
     expect(one.near).toEqual([]);
     expect(one.state.nearBeat).toBe(0);
-    // Two beats further: a new window, centred there.
     const two = at(5, one.state)!;
     expect(srcs(two.near)).toEqual([
       src("room"),

@@ -1,9 +1,3 @@
-// I-1620: after a compile, the route search may resume from a checkpoint on
-// the route it planned before. When that route forced a condition to reach a
-// line inside a branch the story skips, its checkpoints stand where the
-// story's own run never does, and a search resumed there for a line the run
-// reaches would keep the forced beat on screen. That line is searched from
-// the top instead.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";
@@ -52,8 +46,6 @@ describe("a route search after a compile, for a line the story's own run reaches
 
     game.updateProgram(compile());
     game.setStartFrom({ file: URI, line: 6 });
-    // The premise: the compile offers a point inside the forced branch to
-    // resume from.
     expect(game.routeResumption("start", game.startAddress!).resumeFrom).toBeDefined();
 
     searchRouteFor(game, game.startAddress!, new RouteSearchLog(), {});

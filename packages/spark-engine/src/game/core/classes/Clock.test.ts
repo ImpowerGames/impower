@@ -1,22 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Clock } from "./Clock";
 
-/**
- * `Clock` takes both its time source and its frame scheduler by injection, so
- * these tests drive it deterministically -- no timers, no real time, no
- * flakiness. Every "frame" happens because a test asked for one.
- *
- * Note the unit contract: `ClockSource.currentTime` is documented in seconds,
- * and the frame budget is computed as `1 / maxFPS`, also in seconds. The tests
- * below are written in seconds throughout; a source reporting some other unit
- * silently breaks frame limiting rather than failing loudly.
- *
- * That last point is not hypothetical: the player was handing this
- * `performance.now()` (milliseconds) until that was corrected. These tests pin
- * the seconds contract deliberately -- they describe what `Clock` is supposed
- * to be handed, not what any particular caller happens to hand it.
- */
-
 const createHarness = (startSeconds = 0) => {
   let now = startSeconds;
   const pending: (() => void)[] = [];
@@ -38,14 +22,11 @@ const createHarness = (startSeconds = 0) => {
   return {
     clock,
     ticks,
-    /** How many frames the clock has queued but not yet run. */
     queued: () => pending.length,
-    /** Move the time source forward, then run one queued frame. */
     tick(seconds: number) {
       now += seconds;
       pending.shift()?.();
     },
-    /** Run one queued frame without moving time. */
     frame() {
       pending.shift()?.();
     },
@@ -56,15 +37,9 @@ const createHarness = (startSeconds = 0) => {
   };
 };
 
-/** A frame budget at the default 60fps is 1/60s; these sit either side of it. */
 const OVER_BUDGET = 0.02;
 const UNDER_BUDGET = 0.01;
 
-/**
- * Assert exactly one tick of roughly `seconds`. Tolerance matters wherever a
- * test offsets the clock by a large value -- `1000 + 0.02 - 1000` doesn't come
- * back as exactly `0.02` in floating point.
- */
 const expectOneTick = (ticks: number[], seconds: number) => {
   expect(ticks).toHaveLength(1);
   expect(ticks[0]).toBeCloseTo(seconds, 10);
@@ -108,7 +83,6 @@ describe("Clock", () => {
 
       h.tick(OVER_BUDGET);
       expect(h.ticks).toHaveLength(1);
-      // The stopped loop returns before requesting another frame
       expect(h.queued()).toBe(0);
     });
   });
@@ -139,15 +113,15 @@ describe("Clock", () => {
     it("accumulates skipped time into the next tick", () => {
       const h = createHarness();
       h.clock.start();
-      h.tick(UNDER_BUDGET); // skipped, prevTime not advanced
-      h.tick(UNDER_BUDGET); // now 0.02 since prevTime, over budget
+      h.tick(UNDER_BUDGET);
+      h.tick(UNDER_BUDGET);
       expect(h.ticks).toHaveLength(1);
       expect(h.ticks[0]).toBeCloseTo(UNDER_BUDGET * 2, 10);
     });
 
     it("honours a raised maxFPS", () => {
       const h = createHarness();
-      h.clock.maxFPS = 1000; // budget 0.001s
+      h.clock.maxFPS = 1000;
       h.clock.start();
       h.tick(0.002);
       expect(h.ticks).toHaveLength(1);
@@ -155,22 +129,19 @@ describe("Clock", () => {
 
     it("honours a lowered maxFPS", () => {
       const h = createHarness();
-      h.clock.maxFPS = 10; // budget 0.1s
+      h.clock.maxFPS = 10;
       h.clock.start();
-      h.tick(OVER_BUDGET); // 0.02 -- fine at 60fps, too soon at 10fps
+      h.tick(OVER_BUDGET);
       expect(h.ticks).toEqual([]);
-      h.tick(0.09); // 0.11 total
+      h.tick(0.09);
       expect(h.ticks).toHaveLength(1);
     });
 
-    // "No limit" has to mean every frame ticks. Computing the budget as a
-    // bare `1 / maxFPS` would make it Infinity here, and nothing is greater
-    // than Infinity -- the clock would freeze instead of running unthrottled.
     it("removes the limit at maxFPS 0", () => {
       const h = createHarness();
       h.clock.maxFPS = 0;
       h.clock.start();
-      h.tick(0.0001); // far below any 60fps budget
+      h.tick(0.0001);
       expectOneTick(h.ticks, 0.0001);
     });
 
@@ -178,7 +149,7 @@ describe("Clock", () => {
       const h = createHarness();
       h.clock.maxFPS = 0;
       h.clock.start();
-      h.frame(); // a frame with zero elapsed time
+      h.frame();
       expect(h.ticks).toEqual([]);
     });
 
@@ -218,8 +189,6 @@ describe("Clock", () => {
       expect(h.clock.deltaTime).toBeCloseTo(OVER_BUDGET * 2, 10);
     });
 
-    // Speed 0 is how the game pauses: callbacks keep arriving (so managers can
-    // still render) but no game time passes.
     it("freezes time at speed 0 while still ticking", () => {
       const h = createHarness();
       h.clock.speed = 0;
@@ -257,7 +226,7 @@ describe("Clock", () => {
     it("reports the delta in frames", () => {
       const h = createHarness();
       h.clock.start();
-      h.tick(1); // a full second
+      h.tick(1);
       expect(h.clock.deltaFrames).toBe(60);
     });
 
@@ -275,7 +244,6 @@ describe("Clock", () => {
       h.clock.start();
       h.tick(OVER_BUDGET);
       h.tick(OVER_BUDGET);
-      // 2 frames across 0.04s -> 50fps
       expect(h.clock.currentFPS).toBeCloseTo(50, 10);
     });
   });
@@ -336,8 +304,6 @@ describe("Clock", () => {
   });
 
   describe("adjustTime", () => {
-    // Skipping the clock forward must not look like a giant frame: the offset
-    // moves the anchors too, so the next delta is unchanged.
     it("does not inflate the next delta", () => {
       const h = createHarness();
       h.clock.start();
@@ -364,9 +330,6 @@ describe("Clock", () => {
   });
 
   describe("syncToClock", () => {
-    // The player swaps to the AudioContext's clock once audio is available.
-    // Switching sources must not produce a jump, however far apart the two
-    // sources' origins are.
     it("does not produce a jump when switching sources", () => {
       const h = createHarness(1000);
       h.clock.start();

@@ -2,9 +2,6 @@ export const hexifyNumber = (number: number): string => {
   return number.toString(16).toUpperCase().padStart(2, "0");
 };
 
-/**
- * This function turns a part of a given ArrayBuffer into a hexadecimal String.
- */
 export const hexify = (
   dataView: DataView,
   offset = 0,

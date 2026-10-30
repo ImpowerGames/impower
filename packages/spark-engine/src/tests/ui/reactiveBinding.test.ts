@@ -1,13 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
-// Phase 3 I0: program.sparkle (the reactive AST) reaches the engine, and the
-// hoisted `__binding$<id>() return <expr> end` evaluators the compiler
-// emitted are callable via story.EvaluateFunction — proving the binding-eval
-// path end-to-end (the compiler-side tests compile bindings but never run them).
-
-/** First `{expr}` Binding found in a screen's AST (DFS over content + control
- *  nodes), or undefined. */
 function findFirstBinding(sparkle: any): any {
   const walk = (nodes: any[] | undefined): any => {
     for (const n of nodes ?? []) {
@@ -45,13 +38,7 @@ end
 `);
     await h.ready;
     const binding = findFirstBinding((h.game.program as any).sparkle);
-    // `__binding$<document tag>__<kind>_<name>_<offset in chunk>`. Every
-    // hoisted evaluator shares one flow namespace, so the document tag and the
-    // layout keep bindings at the same offset of two files, or of two layouts,
-    // from sharing one evaluator.
     expect(binding?.exprId).toMatch(/^__binding\$\w+__layout_hud_\d+$/);
-    // The screen need not be shown — the evaluator is a top-level story knot,
-    // and the global `hp` is initialized at story load.
     const value = (h.game.module.ui as any).evalBinding(binding);
     expect(value).toBe(100);
   });

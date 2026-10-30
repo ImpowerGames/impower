@@ -1,35 +1,9 @@
-/** A program identified by the fields that survive the trip from the compiler
- *  worker to the player unchanged. */
 export interface IdentifiableProgram {
   uri?: string;
   scripts?: Record<string, number>;
   filesEpoch?: number;
 }
 
-/** A stable identity for a compiled program, for deciding whether two sides of
- *  the worker boundary are holding the same one.
- *
- *  Built from `uri`, `scripts` and `filesEpoch`. The scripts are the per-script
- *  document versions the compiler stamps (`SparkdownCompiler`: `scripts: { [uri]:
- *  document.version }` for the compiled script, plus one entry per import as each
- *  is resolved). The epoch is the compiler's file registry, which moves when a
- *  file is added, replaced or removed: an asset the author replaces recompiles
- *  the same scripts into a program whose files and context differ, and without
- *  the epoch the two would be one identity, so PLAY could be served a program
- *  the page never showed. Nothing on the main thread rewrites any of them, so
- *  both sides see the same numbers.
- *
- *  `program.version` is deliberately EXCLUDED, and must stay excluded. It is the
- *  one field that means different things on the two sides: the compiler stamps
- *  it with the compiled script's document version, and then
- *  `SparkdownWorkspace.compile` overwrites it on the main thread's copy with the
- *  workspace's own per-project counter, which only advances when a compile
- *  produces a genuinely different program. Comparing those two numbers would
- *  disagree constantly on identical programs and agree occasionally on different
- *  ones — worse than not comparing at all.
- *
- *  Sorted so the identity does not depend on key order.
- */
 export const programIdentity = (
   program: IdentifiableProgram | undefined | null,
 ): string | undefined => {

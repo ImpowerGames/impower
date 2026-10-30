@@ -1,22 +1,3 @@
-// #1656 — the toolbar shows the route the preview took: a route button,
-// `interrogation (4 → 21)`, with one status icon, which opens the route list
-// below the toolbar: toggles for each kind with their counts, the row naming
-// where the run starts, an entry for each decision, Target line, line links
-// sent to the host as `window/showDocument`, and "N hidden by the toggles".
-// A route that failed shows the label in the error colour and the reason in
-// the list. The toggles go to the host to keep, and come back from it.
-//
-// What must hold:
-//   - the button's label names the scene, its first line and the target
-//     line, and its icon is the detour for a forced branch, the scissors for
-//     a clipped loop, and none for a route that runs as the game does;
-//   - the list's entries read what happened, in route order;
-//   - a toggle hides its kind and the foot counts what it hid, and the host
-//     hears the toggles; toggles the host sends are shown;
-//   - a press on an entry's line asks the host to show that line;
-//   - a second press, or Escape, closes the list;
-//   - a failed route shows the reason in place of the entries.
-
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
@@ -34,7 +15,6 @@ const at = (line: number, uri = URI) => ({
   },
 });
 
-/** The route of #1655's example previewed at line 21. */
 const exampleRoute = (): PreviewRoute => ({
   start: { scene: "interrogation", location: at(4) },
   target: at(21),

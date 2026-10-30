@@ -1,8 +1,3 @@
-/**
- * Convert from BeatSaver Beatmap Schema to Spark Beatmap Schema
- * https://bsmg.wiki/mapping/map-format.html#base-object-2
- */
-
 import type { Beat } from "../types/Beat";
 import type { BSNote } from "../types/BSNote";
 

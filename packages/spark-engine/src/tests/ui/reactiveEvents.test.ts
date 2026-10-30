@@ -1,10 +1,3 @@
-// Phase 3 I5: reactive @event handlers.
-//
-// `@click=fn` (ref) and `@click=fn(args)` (call) on a screen element observe the
-// DOM event; when it fires (round-tripped as an EventMessage into the engine),
-// the handler runs its Luau for side effects and the reactive screens flush, so
-// bound content reflects the new state. Inline closures are a follow-up.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -78,7 +71,6 @@ end
       { reactive: true },
     );
     await h.ready;
-    // `ui/observe` is coalesced into a `ui/batch`; snapshotFiltered flattens it.
     const observe = h
       .snapshotFiltered("ui/observe")
       .find((m: any) => m.params?.event === "click") as any;

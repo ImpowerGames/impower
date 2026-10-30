@@ -1,9 +1,3 @@
-// The page's asset cache: what it loads, in what order, what it keeps, and
-// what it lets go of (docs/engine/asset-preloading-spec.md). The concurrency
-// and retry rules come from #344: warming is only useful if it keys on the
-// url the renderer will request and does not queue every asset behind every
-// other one.
-
 import {
   type ImageAssetItem,
 } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
@@ -52,7 +46,6 @@ class FakeImage implements ImageTarget {
   }
 }
 
-/** Let the load promises inside the cache settle. */
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 const makeCache = (options?: ConstructorParameters<typeof AssetCache>[1]) => {
@@ -107,11 +100,8 @@ describe("AssetCache", () => {
   it("starts every gate load at once while background loads fill their slots", async () => {
     const { cache, inFlight } = makeCache();
     cache.prefetch(images(8), 2);
-    // Background loads never take the express slots.
     expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS);
     void cache.request(images(3, "gate"), 0, "beat:1");
-    // A gate never waits for a slot, so all three run alongside the four
-    // background loads already in flight.
     expect(inFlight().length).toBe(DEFAULT_MAX_CONCURRENT - DEFAULT_EXPRESS_SLOTS + 3);
     const gates = inFlight().filter((i) => i.src.includes("gate"));
     expect(gates.length).toBe(3);
@@ -120,16 +110,12 @@ describe("AssetCache", () => {
   it("starts a queued gate load before queued background work when a gate slot frees", async () => {
     const { cache, inFlight, finish } = makeCache();
     cache.prefetch(images(10), 3);
-    // Seven gate loads: six run at once, the seventh waits for a gate slot,
-    // never for a background one.
     void cache.request(images(7, "gate"), 0, "beat:1");
     expect(inFlight().filter((i) => i.src.includes("gate")).length).toBe(
       DEFAULT_MAX_CONCURRENT,
     );
     expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(false);
     await finish("/file:/gate0.png?v=1");
-    // The freed gate slot went to the waiting gate load; and a freed
-    // background slot goes nowhere while the gate is pending.
     expect(inFlight().some((i) => i.src === "/file:/gate6.png?v=1")).toBe(true);
     await finish("/file:/i0.png?v=1");
     expect(inFlight().some((i) => i.src === "/file:/i4.png?v=1")).toBe(false);
@@ -172,7 +158,6 @@ describe("AssetCache", () => {
     }
     expect((await first).failed).toEqual(["/file:/b.png?v=1"]);
     expect(created.length).toBe(MAX_LOAD_ATTEMPTS);
-    // Still blacklisted: answered at once, nothing new requested.
     const again = await cache.request([image("/file:/b.png?v=1")], 0, "beat:2");
     expect(again.failed).toEqual(["/file:/b.png?v=1"]);
     expect(created.length).toBe(MAX_LOAD_ATTEMPTS);
@@ -199,11 +184,9 @@ describe("AssetCache", () => {
       await settle();
     }
     expect((await first).failed).toEqual([src]);
-    // Too soon: still failed, nothing requested.
     clock += FAILED_RETRY_COOLDOWN_MS - 1;
     expect((await cache.request([image(src)], 0, "beat:2")).failed).toEqual([src]);
     expect(created.length).toBe(MAX_LOAD_ATTEMPTS);
-    // After the cool-down the next gate tries again, and this time it loads.
     clock += 1;
     const again = cache.request([image(src)], 0, "beat:3");
     expect(created.length).toBe(MAX_LOAD_ATTEMPTS + 1);
@@ -224,15 +207,11 @@ describe("AssetCache", () => {
     cache.prefetch([image("/file:/a.svg?v=1&attributes=y")], 3);
     expect(cache.has("/file:/a.svg?v=1")).toBe(true);
     expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(true);
-    // The prefetch waits behind the gate still in flight, so it is queued,
-    // not loading, when the file changes.
     expect(created.some((i) => i.src === "/file:/a.svg?v=1&attributes=y")).toBe(false);
     cache.evictFile("/file:/a.svg?v=2");
     expect(cache.has("/file:/a.svg?v=1")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
     expect(cache.has("/file:/a.svg?v=1&attributes=y")).toBe(false);
-    // The variant that was mid-load finishes now; nobody is home. The queued
-    // one left the queue and never starts.
     created.find((i) => i.src === "/file:/a.svg?v=1&attributes=x" && !i.done)!.finishLoad();
     await settle();
     expect(cache.has("/file:/a.svg?v=1&attributes=x")).toBe(false);
@@ -290,7 +269,6 @@ describe("AssetCache", () => {
     expect(inFlight().map((i) => i.src)).toEqual(["/file:/a.png?v=1"]);
     cache.release(["beat:1"], true);
     expect(cache.has("/file:/b.png?v=1")).toBe(false);
-    // The in-flight one is dropped too: whatever arrives belongs to nobody.
     expect(cache.has("/file:/a.png?v=1")).toBe(false);
     inFlight()[0]!.finishLoad();
     await settle();
@@ -308,18 +286,14 @@ describe("AssetCache", () => {
     await finish("/file:/b.png?v=1");
     cache.prefetch([image("/file:/c.png?v=1")], 2);
     await finish("/file:/c.png?v=1");
-    // Three do not fit: the oldest went.
     expect(cache.has("/file:/a.png?v=1")).toBe(false);
     expect(cache.has("/file:/b.png?v=1")).toBe(true);
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
-    // A pinned newcomer is outside the pool: nothing has to go to make room.
     void cache.request([image("/file:/d.png?v=1")], 0, "beat:1");
     await finish("/file:/d.png?v=1");
     expect(cache.has("/file:/b.png?v=1")).toBe(true);
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
     expect(cache.has("/file:/d.png?v=1")).toBe(true);
-    // What the page displays is outside the pool too, even when it is the
-    // oldest: the next overflow takes c, not b.
     cache.setDerivedPins(() => ["/file:/b.png?v=1"]);
     cache.prefetch([image("/file:/e.png?v=1")], 2);
     await finish("/file:/e.png?v=1");
@@ -341,8 +315,6 @@ describe("AssetCache", () => {
       await finish(item.src);
     }
     await pending;
-    // Three pinned images exceed the pool on their own; prediction still
-    // keeps two of its own.
     const predicted = images(2, "p");
     for (const item of predicted) {
       cache.prefetch([item], 2);
@@ -363,7 +335,6 @@ describe("AssetCache", () => {
       await finish(item.src);
     }
     expect((await pendingA).pinned).toEqual(a.map((i) => i.src));
-    // The cap is spent: a second scene keeps nothing pinned, resident still.
     const b = images(2, "b");
     const pendingB = cache.request(b, 1, "load:B");
     for (const item of b) {
@@ -371,12 +342,10 @@ describe("AssetCache", () => {
     }
     expect((await pendingB).pinned).toEqual([]);
     expect(cache.isResident(b[1]!.src)).toBe(true);
-    // A gate pins what it needs regardless.
     const gate = images(1, "g");
     const pendingGate = cache.request(gate, 0, "beat:1");
     await finish(gate[0]!.src);
     expect((await pendingGate).pinned).toEqual([gate[0]!.src]);
-    // Releasing A hands the cap to the next load.
     cache.release(["load:A"], false);
     const c = images(1, "c");
     const pendingC = cache.request(c, 1, "load:C");
@@ -385,10 +354,6 @@ describe("AssetCache", () => {
   });
 
   it("asks what the page displays only when the pool is over budget", async () => {
-    // #648: answering that question resolves every displayed image through the
-    // filtered-image resolution, which costs more than the eviction it guards.
-    // Excluding the displayed entries can only shrink the pool, so a pool that
-    // already fits without excluding them cannot need evicting.
     let asked = 0;
     const { cache, finish } = makeCache({ predictBytes: IMAGE_BYTES * 2 + 1 });
     cache.setDerivedPins(() => {
@@ -400,16 +365,12 @@ describe("AssetCache", () => {
     cache.prefetch([image("/file:/b.png?v=1")], 2);
     await finish("/file:/b.png?v=1");
     expect(asked).toBe(0);
-    // Three no longer fit, so the question gets asked — and the answer spares
-    // everything: `a` is on screen, so the pool is `b` and `c`, which fit.
     cache.prefetch([image("/file:/c.png?v=1")], 2);
     await finish("/file:/c.png?v=1");
     expect(asked).toBeGreaterThan(0);
     expect(cache.has("/file:/a.png?v=1")).toBe(true);
     expect(cache.has("/file:/b.png?v=1")).toBe(true);
     expect(cache.has("/file:/c.png?v=1")).toBe(true);
-    // A fourth puts the pool itself over: the oldest of it goes, and the
-    // displayed `a` is still spared even though it is older still.
     cache.prefetch([image("/file:/d.png?v=1")], 2);
     await finish("/file:/d.png?v=1");
     expect(cache.has("/file:/a.png?v=1")).toBe(true);
@@ -466,7 +427,6 @@ describe("AssetCache", () => {
     expect(result.loaded).toEqual(["audio.theme"]);
     expect(cache.getAudio("audio.theme")).toBeDefined();
     expect(cache.bytes).toBe(1000 * 2 * 4);
-    // Changing the file drops the audio that plays it, too.
     cache.evictFile("/file:/theme.mp3?v=2");
     expect(cache.has("audio.theme")).toBe(false);
   });
@@ -554,7 +514,6 @@ describe("AssetCache", () => {
       { decodeTimeoutMs: 5 },
     );
     const pending = cache.request([image("/file:/a.png?v=1")], 0, "beat:1");
-    // The load fires; the decode is stuck for ever.
     created[0]!.finishLoad();
     await new Promise((resolve) => setTimeout(resolve, 20));
     const result = await pending;

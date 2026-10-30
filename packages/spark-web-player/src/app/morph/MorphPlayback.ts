@@ -1,17 +1,3 @@
-// Live portrait morphs on the page. An image write names the morphs that play
-// on its layers (`WriteImageInstruction.content.morph`); this resolves each
-// one's artifact, draws the layer as inline SVG once it is ready and poses it
-// on a clock, following the playback rules of `@impower/sparkdown`'s
-// `morph/render.ts`. Until an artifact is ready, or for good when it fails,
-// the layer keeps the static image the write put up.
-//
-// One playback belongs to each overlay and outlives the UI managers a
-// re-render swaps in, as the overlay's DOM does. What a morph's phase belongs
-// to is its logical occurrence (the target, the image layer, the character
-// and the morph definition), not the span or SVG drawing it: a compatible
-// write or a reconciling re-render draws the same occurrence again at the
-// same phase.
-
 import { createMorphHost, MorphArtifactSlot, type MorphHost } from "../../../../sparkdown/src/morph/hosts";
 import {
   APERTURE_REACH_CLIP_STYLE,
@@ -34,44 +20,35 @@ import { backgroundRect, cssList, layerValue, svgIntrinsicSize } from "./backgro
 
 export type { MorphImageContent, MorphLayerPlay };
 
-/** One logical occurrence's schedule, shared by the drawings of it. */
 export interface Occurrence {
   key: string;
   timing: MorphTiming;
   timeline: MorphTimeline;
-  /** Playback time its cycle began at, moved on by preemptions. */
   start: number;
-  /** Cycles begun, so each fresh cycle draws a fresh, reproducible schedule. */
   cycles: number;
   users: number;
-  /** Open preemptions, and when the first began. */
   preempted: number;
   preemptedAt: number;
 }
 
-/** A play drawn live: its SVG, and the markup each posed element started from. */
 interface LiveView {
   box: HTMLElement;
   artifact: MorphArtifact;
   prefix: string;
-  /** Each part's own svg, nested in the box's svg root. */
   parts: Element[];
   leaves: { element: Element; node: string; style: string | null; d: string | null; opacity: string | null }[];
   clips: {
     id: string;
     element: Element;
     paths: { element: Element; d: string | null; style: string | null }[];
-    /** The path of the clip path bounding the aperture's reach, once a frame has needed it. */
     reach?: Element;
   }[];
-  /** The gradient copies moving leaves paint with, by id before occurrence namespacing. */
   gradients: {
     id: string;
     element: Element;
     attributes: Record<string, string>;
     stops: { element: Element; attributes: Record<string, string> }[];
   }[];
-  /** The pose last written, so an unchanged frame writes nothing. */
   last?: string;
 }
 
@@ -80,7 +57,6 @@ interface PlayState {
   slot: MorphArtifactSlot;
   occurrence?: Occurrence;
   view?: LiveView;
-  /** Its artifact's parts would not parse: it stays with CSS. */
   broken?: boolean;
 }
 
@@ -92,14 +68,12 @@ let occurrencePrefixes = 0;
 
 export interface MorphPlaybackOptions {
   host?: MorphHost;
-  /** Prefixes every occurrence's random stream. */
   seed?: string;
   requestFrame?: (callback: (now: number) => void) => number;
   cancelFrame?: (handle: number) => void;
 }
 
 export class MorphPlayback {
-  /** The playback of `overlay`, made on first use. */
   static for(overlay: HTMLElement): MorphPlayback {
     const holder = overlay as HTMLElement & { __sdMorphs?: MorphPlayback };
     holder.__sdMorphs ??= new MorphPlayback(overlay);
@@ -112,12 +86,10 @@ export class MorphPlayback {
   protected requestFrame: (callback: (now: number) => void) => number;
   protected cancelFrame: (handle: number) => void;
 
-  /** Seconds of playback: advanced by the clock that drives it, never backwards. */
   protected time = 0;
   protected enabled = true;
   protected paused = false;
   protected session = "";
-  /** The game clock driving playback; without one, playback runs on its own frames. */
   protected clockOwner?: object;
   protected frame?: number;
   protected frameTime?: number;
@@ -133,8 +105,6 @@ export class MorphPlayback {
     const view = overlay.ownerDocument.defaultView;
     this.host = options.host ?? defaultHost(this.delivered);
     this.seed = options.seed ?? "";
-    // A window without animation frames (a DOM without rendering) gets a
-    // timer at the same rate.
     const host = (view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
@@ -150,7 +120,6 @@ export class MorphPlayback {
     }
   }
 
-  /** Replaces how artifacts are resolved, how schedules are seeded or how frames are requested. */
   configure(options: MorphPlaybackOptions) {
     if (options.host) this.host = options.host;
     if (options.seed !== undefined) this.seed = options.seed;
@@ -162,23 +131,16 @@ export class MorphPlayback {
     return this.host;
   }
 
-  /** An artifact the game baked for a reference with no asset service behind it. */
   deliver(params: { key: string; artifact?: MorphArtifact; error?: string }) {
     this.delivered.deliver(params.key, params);
   }
 
-  /** How to ask the game for an artifact again, through the page's current connection to it. */
   set askGame(ask: ((key: string) => void) | undefined) {
     this.delivered.ask = ask;
   }
 
   protected relayoutQueued = false;
 
-  /**
-   * Places every live drawing again, once the current task's page updates
-   * are done: a style or class change can move or resize the image CSS
-   * draws without resizing the span the resize observer watches.
-   */
   requestRelayout() {
     if (this.relayoutQueued || ![...this.layers].some((layer) => layer.drawable)) return;
     this.relayoutQueued = true;
@@ -196,26 +158,17 @@ export class MorphPlayback {
     return this.enabled;
   }
 
-  // Clock.
-
-  /** A game clock drives playback from now on (PLAY, once its application starts). */
   attachClock(owner: object) {
     this.clockOwner = owner;
     this.stopFrames();
   }
 
-  /** The clock `owner` attached no longer drives playback; its own frames take over. */
   detachClock(owner: object) {
     if (this.clockOwner !== owner) return;
     this.clockOwner = undefined;
     this.schedule();
   }
 
-  /**
-   * Moves playback on by `seconds`. Time that runs backwards (a clock stepped
-   * back) starts every occurrence again at rest, since no earlier frame is
-   * kept to return to.
-   */
   advance(seconds: number) {
     if (!Number.isFinite(seconds) || seconds === 0) return;
     if (seconds < 0) {
@@ -228,11 +181,6 @@ export class MorphPlayback {
     this.render();
   }
 
-  /**
-   * Moves playback on by `seconds` whether or not the story is paused: the
-   * game clock stepped (`Application.skip`), which moves a paused story's
-   * frame too.
-   */
   step(seconds: number) {
     const paused = this.paused;
     this.paused = false;
@@ -243,7 +191,6 @@ export class MorphPlayback {
     }
   }
 
-  /** Story pause: every live morph freezes at the exact frame it shows. */
   setPaused(paused: boolean) {
     if (this.paused === paused) return;
     this.paused = paused;
@@ -252,10 +199,6 @@ export class MorphPlayback {
     else this.schedule();
   }
 
-  /**
-   * The `Animate portraits` preference. Off returns every morph to rest and
-   * keeps it there, pause or no pause; on starts each one on a fresh cycle.
-   */
   setEnabled(enabled: boolean) {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
@@ -264,12 +207,6 @@ export class MorphPlayback {
     this.schedule();
   }
 
-  /**
-   * What the page is showing: a play session, or the preview of one place.
-   * A different session (PLAY starting, the preview moving to another line)
-   * starts every occurrence again at rest; the same one again changes
-   * nothing, so a re-render of the same place keeps its phase.
-   */
   setSession(session: string) {
     if (this.session === session) return;
     this.session = session;
@@ -291,8 +228,6 @@ export class MorphPlayback {
   protected schedule() {
     if (this.frame !== undefined) return;
     if (this.clockOwner || this.paused || !this.enabled || ![...this.layers].some((layer) => layer.live)) {
-      // An idle loop keeps no baseline: the frame that wakes it next counts
-      // from itself, not from the last frame before it went idle.
       this.frameTime = undefined;
       return;
     }
@@ -311,8 +246,6 @@ export class MorphPlayback {
     this.frame = undefined;
     this.frameTime = undefined;
   }
-
-  // Occurrences.
 
   protected acquire(key: string, timing: MorphTiming): Occurrence {
     let occurrence = this.occurrences.get(key);
@@ -335,23 +268,17 @@ export class MorphPlayback {
 
   protected releaseOccurrence(occurrence: Occurrence) {
     occurrence.users -= 1;
-    // A re-render empties a target before it writes it again: during a
-    // reconcile pass an occurrence nothing draws waits for the pass's sweep,
-    // so the write that follows draws it at the same phase.
     if (occurrence.users <= 0 && !this.reconciling && this.occurrences.get(occurrence.key) === occurrence) {
       this.occurrences.delete(occurrence.key);
     }
   }
 
-  /** Whether a reconcile pass is open (`beginPass` to `endPass`). */
   protected reconciling = false;
 
-  /** A re-render's reconcile pass opens: what it empties may be written again. */
   beginPass() {
     this.reconciling = true;
   }
 
-  /** The pass is swept: an occurrence nothing draws again is gone. */
   endPass() {
     this.reconciling = false;
     for (const [key, occurrence] of this.occurrences) {
@@ -359,12 +286,6 @@ export class MorphPlayback {
     }
   }
 
-  /**
-   * Holds an occurrence at rest, its schedule stopped, until the returned
-   * function is called: the seam a transient behavior (a later explicit
-   * trigger) takes a portrait's groups over by. Preemptions nest; the
-   * schedule resumes where it stopped once the last one ends.
-   */
   preempt(key: string): () => void {
     const occurrence = this.occurrences.get(key);
     if (!occurrence) return () => {};
@@ -379,26 +300,15 @@ export class MorphPlayback {
     };
   }
 
-  /** The keys of the occurrences playing now, for tests and verification. */
   get occurrenceKeys(): string[] {
     return [...this.occurrences.keys()];
   }
 
-  /** Where `key` is on its schedule now: its playhead, or rest when it does not play. */
   playhead(occurrence: Occurrence) {
     if (!this.enabled || occurrence.preempted) return { phase: "off" as const };
     return occurrence.timeline.at(this.time - occurrence.start);
   }
 
-  // Layers.
-
-  /**
-   * Draws the morphs `content` names on `span`, a freshly written image
-   * layer whose CSS images are `background`: live when `kind` is the
-   * background, the static rest render when it is a mask. `base` names the
-   * target and content element the write filled, the first part of each
-   * play's occurrence.
-   */
   mount(
     span: HTMLElement,
     content: MorphImageContent,
@@ -413,12 +323,10 @@ export class MorphPlayback {
     return layer;
   }
 
-  /** Freezes every morph drawn in `root`: an outgoing layer holds its frame through its fade. */
   freezeWithin(root: Element) {
     for (const layer of this.layersWithin(root)) layer.freeze();
   }
 
-  /** Lets go of every morph drawn in `root`, which is leaving the page. */
   releaseWithin(root: Element) {
     for (const layer of this.layersWithin(root)) layer.dispose();
   }
@@ -427,33 +335,26 @@ export class MorphPlayback {
     return [...this.layers].filter((layer) => root === layer.span || root.contains(layer.span));
   }
 
-  /** @internal */
   track(layer: MorphLayer) {
     this.resizeObserver?.observe(layer.span);
     this.schedule();
   }
 
-  /** @internal */
   forget(layer: MorphLayer) {
     this.layers.delete(layer);
     this.resizeObserver?.unobserve(layer.span);
   }
 
-  /** @internal */
   occurrenceFor(key: string, timing: MorphTiming) {
     return this.acquire(key, timing);
   }
 
-  /** @internal */
   letGo(occurrence: Occurrence) {
     this.releaseOccurrence(occurrence);
   }
 
-  /** Draws every live morph at the current time. */
   render() {
     for (const layer of [...this.layers]) {
-      // A layer whose span left the page by a route that did not release it
-      // goes now.
       if (!layer.span.isConnected) {
         layer.dispose();
         continue;
@@ -462,7 +363,6 @@ export class MorphPlayback {
     }
   }
 
-  /** How many layers are drawn and how many of them are live, for tests and verification. */
   get stats() {
     const layers = [...this.layers];
     return {
@@ -473,21 +373,11 @@ export class MorphPlayback {
   }
 }
 
-/**
- * Artifacts the game sent for references the page cannot resolve itself
- * (`MorphArtifactMessage`): kept by key until a layer asks, a bounded few.
- */
 class DeliveredArtifacts {
   static readonly LIMIT = 32;
   protected settled = new Map<string, { artifact?: MorphArtifact; error?: string }>();
   protected waiting = new Map<string, Set<() => void>>();
 
-  /**
-   * Asks the game for `key` (`MorphNeedMessage`); set by the UI manager that
-   * hears the game. Asked on every miss: the game, which sends each key once
-   * per connection on its own, sends it again unless that first send is
-   * still under way.
-   */
   ask?: (key: string) => void;
 
   deliver(key: string, outcome: { artifact?: MorphArtifact; error?: string }) {
@@ -500,7 +390,6 @@ class DeliveredArtifacts {
     this.waiting.delete(key);
   }
 
-  /** The artifact for `key` once the game has sent it. */
   wait(key: string, signal: AbortSignal): Promise<MorphArtifact> {
     if (!this.settled.has(key)) this.ask?.(key);
     return new Promise((resolve, reject) => {
@@ -526,12 +415,6 @@ class DeliveredArtifacts {
   }
 }
 
-/**
- * Resolves a reference through the asset service that serves its art (the
- * web editor's service worker), or, for one with no asset service behind
- * it (inline art: VS Code, local compiles), with the artifact the game
- * bakes from the program and sends.
- */
 function defaultHost(delivered: DeliveredArtifacts): MorphHost {
   const service = new MorphBakeService({
     ...(typeof URL.createObjectURL === "function"
@@ -551,16 +434,13 @@ function defaultHost(delivered: DeliveredArtifacts): MorphHost {
   };
 }
 
-/** The morphs of one written image layer (an `instance` span). */
 export class MorphLayer {
   protected plays: PlayState[] = [];
   protected frozen = false;
   protected disposed = false;
   protected shadowHost?: HTMLElement;
-  /** The drawing's images CSS paints, by their place among the layers. */
   protected statics: { div: HTMLElement; layer: number }[] = [];
 
-  /** Each image's CSS value, bottom first. */
   protected layers: string[];
 
   constructor(
@@ -578,7 +458,6 @@ export class MorphLayer {
     return !this.frozen && !this.disposed && this.plays.some((p) => p.view);
   }
 
-  /** Whether it holds a ready live artifact, drawn live now or kept static by its styles. */
   get drawable(): boolean {
     return (
       !this.frozen &&
@@ -602,15 +481,12 @@ export class MorphLayer {
     for (const state of this.plays) state.slot.set(state.play.ref);
   }
 
-  /** The keys of this layer's occurrences. */
   get occurrenceKeys(): string[] {
     return this.plays.flatMap((p) => (p.occurrence ? [p.occurrence.key] : []));
   }
 
   protected changed() {
     if (this.disposed || this.frozen) return;
-    // A layer whose span left the page by a route that did not release it,
-    // and that no frame has rendered since, goes when its artifact settles.
     if (!this.span.isConnected) {
       this.dispose();
       return;
@@ -623,7 +499,6 @@ export class MorphLayer {
     this.playback.track(this);
   }
 
-  /** Masks show each ready artifact's rest render in place of the layer's static image. */
   protected applyMask() {
     const layers = [...this.layers];
     let changed = false;
@@ -633,13 +508,11 @@ export class MorphLayer {
         layers[state.play.layer] = `url("${state.slot.handle.url("rest")}")`;
         changed = true;
       } catch {
-        // No object URLs on this host: the static image stays.
       }
     }
     if (changed) this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
   }
 
-  /** (Re)builds the drawing: every layer in paint order, those with a ready live artifact as inline SVG. */
   protected build() {
     for (const state of this.plays) state.view = undefined;
     const ready = this.plays.filter((s) => s.slot.state === "ready" && s.slot.artifact?.status === "live");
@@ -675,13 +548,10 @@ export class MorphLayer {
         root.appendChild(view.box);
         continue;
       }
-      // The layer CSS paints, with its own size, position and repeat
-      // (`layout` copies them from the span).
       const div = doc.createElement("div");
       this.statics.push({ div, layer: i });
       root.appendChild(div);
     }
-    // The span's own background is drawn layer by layer inside the host now.
     this.span.style.setProperty("background-image", "none");
     this.layout();
     this.render();
@@ -768,12 +638,6 @@ export class MorphLayer {
     return { box, artifact, prefix, parts, leaves, clips, gradients };
   }
 
-  /**
-   * Where CSS draws layer `cssIndex` (counted as the background lists count,
-   * top first) in an area, or undefined for a layer a single inline drawing
-   * cannot stand in for: one that repeats, or whose size or position this
-   * cannot read. Such a layer keeps its static image.
-   */
   protected placement(
     artifact: MorphArtifact,
     computed: CSSStyleDeclaration | undefined,
@@ -786,13 +650,10 @@ export class MorphLayer {
     return backgroundRect(area, svgIntrinsicSize(artifact), value("background-size") || "auto", value("background-position") || "0% 0%");
   }
 
-  /** Places each live drawing where CSS would draw its static image. */
   layout() {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
-    // A style change can make a layer drawable live (`no-repeat`) or keep it
-    // to CSS (`repeat`, a value this cannot read): draw it again either way.
     for (const state of this.plays) {
       const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
       if (!artifact || artifact.status !== "live" || state.broken) continue;
@@ -807,16 +668,12 @@ export class MorphLayer {
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
     const area = positioningArea(this.span, computed);
-    // A span with no size yet (its target hidden) is placed once it has one.
     if (!(area.width > 0 && area.height > 0)) return;
     for (const state of this.plays) {
       const view = state.view;
       if (!view) continue;
       const rect = this.placement(view.artifact, computed, count - 1 - state.play.layer, area);
       if (!rect) continue;
-      // The svg root covers the span's box, as the static layer does, so the
-      // browser snaps both to the same device pixels; each part then takes
-      // the static image's exact fractional rectangle inside it.
       for (const part of view.parts) {
         part.setAttribute("x", String(rect.x));
         part.setAttribute("y", String(rect.y));
@@ -826,7 +683,6 @@ export class MorphLayer {
     }
   }
 
-  /** Poses each live drawing for the current time. */
   render() {
     if (this.frozen || this.disposed) return;
     for (const state of this.plays) {
@@ -854,7 +710,6 @@ export class MorphLayer {
     }
   }
 
-  /** Holds the frame shown now and lets go of the schedule: this layer is fading out. */
   freeze() {
     if (this.frozen || this.disposed) return;
     this.frozen = true;
@@ -877,13 +732,6 @@ export class MorphLayer {
   }
 }
 
-/**
- * The span's background positioning area (its padding box) in fractional
- * pixels. `clientWidth` and `clientHeight` round to whole pixels, which puts
- * a drawing up to half a pixel off the image CSS draws; the computed size is
- * exact and, unlike a bounding rectangle, ignores the transforms an enter
- * animation plays on the span.
- */
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {
   const px = (name: string) => Number.parseFloat(computed?.getPropertyValue(name) ?? "");
   const width = px("width");
@@ -906,12 +754,6 @@ function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | unde
 
 const EXECUTABLE = new Set(["script", "iframe", "object", "embed"]);
 
-/**
- * Makes a part's markup as inert as the image it replaces. Art drawn as a
- * CSS background image runs nothing; drawn inline in the page it could, so
- * scripts and embedded documents go, as do event handler attributes and
- * `javascript:` links.
- */
 function inert(root: Element) {
   for (const element of [root, ...Array.from(root.querySelectorAll("*"))]) {
     if (EXECUTABLE.has(element.localName.toLowerCase())) {
@@ -921,9 +763,6 @@ function inert(root: Element) {
     for (const attribute of Array.from(element.attributes)) {
       const name = attribute.name.toLowerCase();
       const link = name === "href" || name.endsWith(":href") || name === "src";
-      // A browser drops whitespace and control characters from a URL's
-      // scheme (`java&#x09;script:` is `javascript:`), so they go before the
-      // scheme is read.
       const scheme = [...attribute.value].filter((c) => c.charCodeAt(0) > 32 && c.charCodeAt(0) !== 127).join("");
       if (name.startsWith("on") || (link && /^javascript:/i.test(scheme))) {
         element.removeAttribute(attribute.name);
@@ -932,7 +771,6 @@ function inert(root: Element) {
   }
 }
 
-/** Writes a frame into a live drawing, starting every element from its markup. */
 function applyFrame(view: LiveView, frame: MorphFrameState) {
   for (const leaf of view.leaves) {
     const element = {
@@ -945,13 +783,11 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
       children: [],
     };
     poseLeaf(element, leaf.node, frame);
-    // A gradient copy the leaf paints with is named in the artifact's ids.
     const style = element.attributes["style"];
     write(leaf.element, "style", style === undefined ? null : namespaceMorphMarkup(style, view.artifact.idPrefix, view.prefix));
     write(leaf.element, "d", element.attributes["d"] ?? null);
   }
   for (const gradient of view.gradients) {
-    // Each copy starts from its markup every frame.
     const element = {
       tagName: gradient.element.localName,
       attributes: { ...gradient.attributes },
@@ -965,7 +801,6 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     });
   }
   for (const clip of view.clips) {
-    // Each aperture's paths start from their markup every frame.
     const paths = clip.paths.map((path) => ({
       tagName: "path",
       attributes: {
@@ -982,8 +817,6 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
       write(path.element, "d", paths[index]!.attributes["d"] ?? null);
     });
     if (!bound) continue;
-    // The clip path bounding the reach is made the first time a frame needs
-    // it, and stays, unreferenced, while the aperture rests.
     if (!clip.reach) {
       const doc = clip.element.ownerDocument;
       const element = doc.createElementNS(SVG_NS, "clipPath");

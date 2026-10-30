@@ -1,9 +1,3 @@
-// An element with an event handler takes the pointer through the
-// `data-ui-handler` marker, which a builtin rule opts in at the lowest
-// specificity, never through an inline style: an inline `pointer-events: auto`
-// would outrank the element's own `interactable = false`, whether a prop or a
-// class (at any breakpoint or state) sets it.
-
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
@@ -57,7 +51,6 @@ end
       expect(pointerStyles(h, el.element)).toEqual([]);
       expect(marked(h, el.element)).toBe(true);
     }
-    // The prop lock reaches the page as the element's own inline style.
     expect(elements[0].style?.interactable).toBe("false");
     expect(elements[3].style?.interactable).toBe("false");
     expect(h.observedElementIds()).toHaveLength(6);
@@ -126,7 +119,6 @@ end
       String(p.name).includes("target"),
     );
     expect(target.style?.interactable).toBe("false");
-    // The path a story's choices take (`Coordinator` observes `choice N`).
     const found = (h.game.module.ui as any).observe("click", "target", () => {});
     expect(found).toBe(true);
     (h.game.module.ui as any).flushUIBatch();

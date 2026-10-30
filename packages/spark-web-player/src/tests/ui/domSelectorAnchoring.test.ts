@@ -1,13 +1,3 @@
-// A style block key may list SEVERAL state selectors, because that is how the
-// states actually behave — Pico gives a button the same treatment on
-// `:hover, :active, :focus`, and writing them separately triples the block.
-//
-// Every listed compound has to be anchored to the element with `&`. Anchoring
-// only the first emits `&:hover, :active { … }`, and under CSS nesting the
-// un-anchored ones resolve as DESCENDANT selectors: `.button :active` styles
-// any active descendant instead of the button. That is silently wrong, not
-// invalid, so nothing would report it — hence this test.
-
 import { describe, expect, test } from "vitest";
 import { anchorSelfTargeted } from "@impower/spark-dom/src/utils/getStyleContent";
 
@@ -23,7 +13,6 @@ describe("self-targeted selector anchoring", () => {
   });
 
   test("leaves descendant/child compounds alone", () => {
-    // These deliberately are NOT self-targeted.
     expect(anchorSelfTargeted(".list .item")).toBe(".list .item");
     expect(anchorSelfTargeted(":hover, .item")).toBe("&:hover, .item");
   });

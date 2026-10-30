@@ -1,19 +1,8 @@
 import type { EventMap } from "../../../../spark-engine/src/game/core/types/EventMap";
 
-// The engine keys its `_events` handler registry by the STRUCTURAL element id.
-// The renderer stamps that id as the `__sdId` JS property (UIManager), while
-// the DOM `id` attribute belongs to the author — an authored `#id="save_btn"`
-// legitimately overwrites it. Reading the DOM id here would therefore send an
-// id the engine never registered, and the element's `@event` handlers would
-// silently never fire.
 const structuralId = (el: EventTarget | null): string =>
   ((el as any)?.__sdId as string) ?? (el as HTMLElement)?.id;
 
-/**
- * What the engine is told about a DOM event, with the moment it happened on
- * the shared clock (`sharedNow`). A DOM `timeStamp` counts from this page's
- * own time origin, which means nothing to a game running on another thread.
- */
 export const getEventData = <T extends keyof EventMap>(
   event: Event,
   timeOrigin: number = performance.timeOrigin,
@@ -212,12 +201,7 @@ const describeEvent = <T extends keyof EventMap>(event: Event) => {
     } as EventMap[T];
   }
   if (event.type === "input" || event.type === "change") {
-    // Two-way binding: surface the control's current value/checked so an
-    // @input/@change handler can write it back into Luau state.
     const inputTarget = event.target as HTMLInputElement | null;
-    // A range/number control's DOM `.value` is a string ("42"); send it as a
-    // NUMBER (valueAsNumber) so the write-back keeps a numeric store numeric.
-    // (A blank numeric field is NaN — fall back to the raw string then.)
     const isNumericInput =
       inputTarget?.type === "range" || inputTarget?.type === "number";
     const numeric = inputTarget?.valueAsNumber;
@@ -234,14 +218,6 @@ const describeEvent = <T extends keyof EventMap>(event: Event) => {
       currentTargetId: structuralId(event.currentTarget),
     } as EventMap[T];
   }
-  // The terminal fallback still carries `type` and `timeStamp`, like every
-  // branch above. `UIModule` dispatches on `this._events[params.type]`, so a
-  // payload without one attaches a real listener and then silently drops the
-  // event — which is what `@scroll` and `@scrollend` did: the only names in
-  // `VALID_SPARKLE_EVENTS` with no dedicated branch, so they compiled clean,
-  // warned nothing, and never fired. `IEvent<T>` declares `readonly type: T`,
-  // so the `as EventMap[T]` cast had been hiding the omission from tsc.
-  // Keeping it here also covers any EventMap name added later without a branch.
   return {
     type: event.type,
     timeStamp: event.timeStamp,

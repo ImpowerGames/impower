@@ -4,9 +4,6 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 export type GameStartedThreadMethod = typeof GameStartedThreadMessage.method;
 
 export interface GameStartedThreadParams {
-  /**
-   * The identifier of the thread.
-   */
   threadId: number;
 }
 

@@ -21,7 +21,6 @@ export default class WorldManager extends Manager {
   }
 
   async loadWorld(src: string) {
-    // TODO: show loading screen
     const response = await fetch(src);
     const code = await response.text();
     const prefix = Object.keys(globals)
@@ -41,11 +40,9 @@ export default class WorldManager extends Manager {
     world.onConnected();
     this._worlds.set(src, world);
     world.onStart();
-    // TODO: hide loading screen
   }
 
   async exitWorld(src: string) {
-    // TODO: show loading screen
     const world = this._worlds.get(src);
     if (world) {
       this.app.stage.removeChild(world.stage);

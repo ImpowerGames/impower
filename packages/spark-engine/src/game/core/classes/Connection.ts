@@ -7,17 +7,12 @@ import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseEr
 import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { Socket } from "./Socket";
 
-/** JSON-RPC 2.0 "Method not found": the page has no handler for the request. */
 export const METHOD_NOT_FOUND = -32601;
 
-/** The page went away before it answered the request. */
 export const DISCONNECTED = -32001;
 
-/** The request belongs to a stream the page has already seen superseded, so
- *  the page did not act on it. */
 export const SUPERSEDED = -32002;
 
-/** A message the game sent, stamped with the stream it belongs to. */
 export type StreamMessage = Message & { epoch?: number };
 
 export interface ConnectionConfig {
@@ -59,9 +54,6 @@ export class Connection {
   protected _outgoingListeners: Record<string, MessageCallback[]> = {};
 
   protected _epoch = 0;
-  /** The stream every message sent now belongs to. The page drops a message
-   *  from a stream older than the newest it has seen, so what a superseded
-   *  stream still had in flight cannot land on the one that replaced it. */
   get epoch() {
     return this._epoch;
   }
@@ -71,8 +63,6 @@ export class Connection {
     this._receive = config.onReceive;
   }
 
-  /** Start a new stream: everything sent from here on supersedes what was
-   *  sent before. */
   beginEpoch(): number {
     this._epoch += 1;
     return this._epoch;
@@ -144,9 +134,6 @@ export class Connection {
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<R> {
-    // JSON-RPC allows either a string or a number id, and `RequestMessage.id`
-    // is typed to match -- so both have to be awaited. An empty-string id is
-    // still treated as a notification, since it identifies nothing to reply to.
     if (
       "id" in msg &&
       (typeof msg.id === "number" ||
@@ -171,8 +158,6 @@ export class Connection {
     msg: RequestMessage<M, P>,
     transfer?: ArrayBuffer[],
   ): Promise<ResponseMessage<M, R>> {
-    // Registered before the send: a page that answers at once (it dropped
-    // the request, or has disconnected) answers inside the send.
     const response = new Promise<ResponseMessage<M, R>>((resolve, reject) => {
       this._outgoingRequestResolveCallbacks[msg.id] = resolve;
       this._outgoingRequestRejectCallbacks[msg.id] = reject;
@@ -181,9 +166,6 @@ export class Connection {
     return response;
   }
 
-  /** Wait for the page's answer to a request it receives inside another
-   *  message, not on its own: an animation a composed beat carries (#1820),
-   *  which the page answers once the animation has played. */
   expect<R>(msg: RequestMessage): Promise<R> {
     return new Promise<R>((resolve, reject) => {
       this._outgoingRequestResolveCallbacks[msg.id] = resolve;
@@ -191,8 +173,6 @@ export class Connection {
     });
   }
 
-  /** Stop waiting for an answer `expect` waits for, with `error`: the
-   *  message that carried the request will never reach the page. */
   cancel(id: string | number, error: ResponseError): void {
     const reject = this._outgoingRequestRejectCallbacks[id];
     delete this._outgoingRequestResolveCallbacks[id];
@@ -221,14 +201,12 @@ export class Connection {
     if (message.method) {
       const generalListeners = listenerMap["*"];
       if (generalListeners) {
-        // broadcast message to all registered general listeners
         generalListeners.forEach((callback) => {
           callback?.(message as IMessage);
         });
       }
       const methodListeners = listenerMap[message.method];
       if (methodListeners) {
-        // broadcast message to all registered method listeners
         methodListeners.forEach((callback) => {
           callback?.(message as IMessage);
         });

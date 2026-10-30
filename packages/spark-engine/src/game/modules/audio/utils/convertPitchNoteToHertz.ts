@@ -4,7 +4,7 @@ import type { Accidental,NaturalPitch,Note } from "../types/Note";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 import { parseNote } from "./parseNote";
 
-const A4 = 440.0; // An A-note in the fourth octave
+const A4 = 440.0;
 
 const calculateStepsFromNote = (
   natural: NaturalPitch,

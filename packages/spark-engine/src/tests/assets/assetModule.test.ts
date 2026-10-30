@@ -11,9 +11,6 @@ import {
   MAIN_URI,
 } from "../ui/harness/uiTestHarness";
 
-// The asset module through the real engine: what it asks the page for, when it
-// waits, and what it lets go of (docs/engine/asset-preloading-spec.md).
-
 const asset = (type: string, name: string, ext: string): File => ({
   uri: `inmemory:///${name}.${ext}`,
   type,
@@ -66,13 +63,10 @@ const itemKeys = (msg: any): string[] =>
     item.kind === "audio" ? item.params.key : item.src,
   );
 
-/** A game that is about to play rather than preview. */
 const playing = (game: Game) => {
   game.context.system.previewing = undefined;
 };
 
-/** The live `game.loading` table as a plain object (the engine writes it in
- *  place; a binding reads it). */
 const loadingTable = (game: any): Record<string, unknown> => {
   const table = game.story.variablesState.GetVariableWithName("game");
   const loading = table?.value?.get("loading");
@@ -110,10 +104,7 @@ describe("AssetModule", () => {
     const h = createHarness(STORY, 1, { assets: ASSETS });
     await h.ready;
     h.reset();
-    // Scene A's first line, by the program's locator, for its path `A.0`.
     h.game.observeScene(h.game.locator.addressAt(MAIN_URI, 1));
-    // The window around the cursor first, then the rest of the scene and
-    // the scene it diverts to, all visuals and nothing timed.
     const prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches.length).toBeGreaterThan(0);
     expect(prefetches[0].params.priority).toBe(2);
@@ -135,7 +126,6 @@ describe("AssetModule", () => {
     h.reset();
     const beats = h.game.program.sceneAssets!["A"]!.beats;
     expect(beats.length).toBe(4);
-    // From the first beat, inclusive: room, theme, bunny fit the window.
     h.game.observeScene(beats[0]!.address);
     let prefetches = byMethod(h.messages, "assets/prefetch");
     expect(prefetches).toHaveLength(1);
@@ -144,9 +134,6 @@ describe("AssetModule", () => {
       "/file:/proj/bunny.png?v=1",
       "audio.theme",
     ]);
-    // Past the last beat of A the window runs into B (the successor) at the
-    // spill priority. What was asked for before is asked for again: the page
-    // touches a resident key for nothing and re-fetches one it evicted.
     h.reset();
     (h.game.module.assets as any).predictFrom("A", beats[2]!.address, true);
     prefetches = byMethod(h.messages, "assets/prefetch");
@@ -178,7 +165,6 @@ describe("AssetModule", () => {
     expect(load[0].params.priority).toBe(0);
     expect(load[0].params.pin).toMatch(/^beat:\d+$/);
     expect(itemKeys(load[0])).toEqual(["/file:/proj/bunny.png?v=1"]);
-    // Nothing is written while the page is still loading.
     coordinator.onUpdate(tick());
     expect(byMethod(h.messages, "ui/write-image")).toHaveLength(0);
     expect(byMethod(h.messages, "ui/write-text")).toHaveLength(0);
@@ -214,7 +200,6 @@ describe("AssetModule", () => {
     expect(load[0].params.items).toEqual([
       { kind: "video", src: "/file:/proj/intro.webm?v=1" },
     ]);
-    // The page does not open the overlay while the file is still loading.
     coordinator.onUpdate(tick());
     expect(byMethod(h.messages, "ui/play-cutscene")).toHaveLength(0);
     h.releaseAssets();
@@ -286,8 +271,6 @@ describe("AssetModule", () => {
     expect(ui._mountedLayouts.has("loading")).toBe(true);
     coordinator.onUpdate(tick());
     expect(coordinator.shouldContinue()).toBe(0);
-    // Progress reaches the live `game.loading` table, and the built-in
-    // bar's bound scale follows it.
     expect(loadingTable(h.game)).toMatchObject({ active: true, name: "B" });
     h.game.connection.receive({
       jsonrpc: "2.0",
@@ -305,8 +288,6 @@ describe("AssetModule", () => {
       .snapshotFiltered("ui/update")
       .filter((m: any) => m.params?.style?.["transform"] === "scaleX(0.5)");
     expect(scaleWrites.length).toBe(1);
-    // The page answers; the layout stays for its minimum display time, then
-    // closes and the beat advances by itself.
     h.releaseAssets();
     await flushMicrotasks(20);
     coordinator.onUpdate(tick());
@@ -315,7 +296,6 @@ describe("AssetModule", () => {
     h.flushTimers();
     await flushMicrotasks(20);
     expect(ui._mountedLayouts.has("loading")).toBe(false);
-    // Ready now; it shows a lead after its stamp and advances from there.
     coordinator.onUpdate(tick());
     expect(coordinator.shouldContinue()).toBe(0);
     coordinator.onUpdate(tick(BEAT_LEAD_MS));
@@ -336,10 +316,8 @@ describe("AssetModule", () => {
     await flushMicrotasks(20);
     expect(byMethod(h.messages, "assets/load")[0]?.params.pin).toBe("load:A");
     h.reset();
-    // A tunnel or thread into B keeps A on the callstack: nothing is dropped.
     assets.onEnterScene("B", "A", ["A"]);
     expect(byMethod(h.messages, "assets/release")).toHaveLength(0);
-    // Returning to A, then diverting to C, drops A's set.
     assets.onEnterScene("A", "B", []);
     expect(byMethod(h.messages, "assets/release")).toHaveLength(0);
     assets.onEnterScene("C", "A", []);
@@ -431,8 +409,6 @@ end
     expect(load).toHaveLength(1);
     expect(load[0].params.pin).toBe("restore");
     expect(itemKeys(load[0])).toEqual(["/file:/proj/room.png?v=1"]);
-    // Connect clears the transient layers (empty image writes); the backdrop
-    // itself must not be written until the page has it.
     const roomWrites = () =>
       byMethod(h.messages, "ui/write-image").filter((m) =>
         JSON.stringify(m.params).includes("room.png"),
@@ -468,7 +444,6 @@ end
   it("emits nothing while a route is being simulated", async () => {
     const h = createHarness(STORY, 0, { assets: ASSETS, connect: false });
     h.game.context.system.simulating = "A";
-    // Scene A's first line, by the program's locator, for its path `A.0`.
     h.game.observeScene(h.game.locator.addressAt(MAIN_URI, 1));
     expect(h.game.module.assets.prepareBeat({ image: { portrait: [{ control: "show", assets: ["bunny"] }] }, end: 0 })).toBeNull();
     const id = h.game.module.assets.runLoad([{ name: "B" }]);

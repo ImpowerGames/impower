@@ -7,8 +7,6 @@ export type GamePreviewedMethod = typeof GamePreviewedMessage.method;
 
 export interface GamePreviewedParams {
   location: DocumentLocation;
-  /** The address of the beat previewed, which is opaque
-   *  (`ProgramLocator.addressAt`). */
   address: ProgramAddress;
 }
 

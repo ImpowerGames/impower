@@ -10,78 +10,22 @@ import { type AssetCache } from "./assets/AssetCache";
 import { type Camera, type CameraOrbitControl } from "./plugins/projection";
 
 export interface IApplication {
-  /**
-   * The asset cache this application loads through, shared across the
-   * applications a page builds.
-   */
   assetCache?: AssetCache;
-  /**
-   * The rendering screen info.
-   */
   screen: { width: number; height: number; resolution: number };
-  /**
-   * The application clock used for timing.
-   */
   clock: Clock;
-  /**
-   * The element that contains the canvas.
-   */
   view: HTMLElement;
-  /**
-   * The canvas element used for rendering.
-   */
   canvas: HTMLCanvasElement;
-  /**
-   * The PixiJS renderer.
-   */
   renderer: Renderer;
-  /**
-   * The application's main stage.
-   */
   stage: Container;
-  /**
-   * The element that contains ui.
-   */
   overlay: HTMLElement | null;
-  /**
-   * Whether the game is paused (`pause` until `unpause`).
-   */
   paused?: boolean;
-  /**
-   * The audio context.
-   */
   audioContext?: AudioContext;
-  /**
-   * Maps the shared clock onto the audio context and document timeline.
-   */
   audioClock: AudioClock;
-  /**
-   * The orbit control used for manipulating the camera (e.g. drag-to-rotate).
-   */
   dolly: CameraOrbitControl;
-  /**
-   * The main projection camera.
-   */
   camera: Camera;
-  /**
-   * Manages the ui.
-   */
   ui: UIManager;
-  /**
-   * Manages the audio.
-   */
   audio: AudioManager;
-  /**
-   * Manages what is resident ahead of need.
-   */
   assets?: AssetManager;
-  /**
-   * Emit a message to communicate with the game.
-   */
   emit: (message: Message, transfer?: ArrayBuffer[]) => void;
-  /**
-   * Answer a request a manager met inside another message once `work`
-   * settles, as every request the page receives is answered.
-   */
   answer: (message: RequestMessage, work: Promise<unknown>) => void;
 }

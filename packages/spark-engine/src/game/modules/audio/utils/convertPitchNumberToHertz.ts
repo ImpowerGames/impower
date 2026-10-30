@@ -1,4 +1,4 @@
-const A4 = 440; // A4 = 440Hz
+const A4 = 440;
 
 export const convertPitchNumberToHertz = (
   note: number | undefined,

@@ -1,17 +1,3 @@
-// A choice under a caption waits for the caption to type out: the interpreter
-// delays its label's letters until then. The button waits with its label. The
-// page keeps a played text target with nothing on it hidden until its first
-// letter's reveal begins, so no empty button shows while the caption types, or
-// before the beat starts (#827). The preview, a save the page loads and
-// displays, and an instant write repeating a played one show the buttons with
-// their labels at once, and the box of a lone `>` break, with no letter to
-// wait for, shows as its beat is written.
-//
-// Beats play through the engine's own Coordinator into the page's own
-// UIManager. jsdom has no Web Animations, so the animations the page starts
-// are recorded here, and what an element shows at a moment is read from them
-// the way a browser composites them.
-
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { TextInstruction } from "@impower/spark-engine/src/game/core/types/Instruction";
@@ -67,13 +53,11 @@ interface Played {
   };
   startTime: number | null;
   cancelled: boolean;
-  /** Finished early, so it reads as it does at its end. */
   done: boolean;
 }
 
 let played: Played[] = [];
 
-/** Record every Web Animation the page makes from here on. */
 const recordAnimations = () => {
   played = [];
   const g = globalThis as any;
@@ -109,10 +93,6 @@ const recordAnimations = () => {
   };
 };
 
-/** What `property` reads on `el` at document time `t`: its inline value,
- *  under each running animation that sets it, in the order the page made
- *  them. A lone keyframe is the end of its animation, which starts from the
- *  value underneath. */
 const styleAt = (el: HTMLElement, property: string, t: number): string => {
   let value = el.style.getPropertyValue(property);
   for (const animation of played) {
@@ -149,13 +129,11 @@ const styleAt = (el: HTMLElement, property: string, t: number): string => {
   return value;
 };
 
-/** Whether `el` is on screen at `t`, as far as its own style says. */
 const shownAt = (el: HTMLElement, t: number) =>
   styleAt(el, "display", t) !== "none" &&
   styleAt(el, "visibility", t) !== "hidden" &&
   Number(styleAt(el, "opacity", t) || 1) > 0;
 
-/** The letters of `el`'s label that can be seen at `t`. */
 const labelAt = (el: HTMLElement, t: number) =>
   Array.from(el.querySelectorAll<HTMLElement>(".text_letter"))
     .filter((letter) => Number(styleAt(letter, "opacity", t)) > 0)
@@ -170,13 +148,9 @@ const choiceButton = (h: DOMHarness, index: number) => {
   return button!;
 };
 
-/** Milliseconds from the beat's start until `target`'s first letter. */
 const firstLetterDelay = (beat: Instructions, target: string) =>
   Math.min(...beat.text![target]!.map((e) => (e.after ?? 0) * 1000));
 
-/** Play a beat as PLAY does: through the Coordinator, which stamps it with
- *  the time it starts. A beat with sound (a typed line's typewriter) starts
- *  on the first tick after its sound has loaded. */
 const play = async (h: DOMHarness, beat: Instructions) => {
   (h.game.context.system as any).previewing = undefined;
   const coordinator = new Coordinator(h.game, beat);
@@ -189,8 +163,6 @@ const play = async (h: DOMHarness, beat: Instructions) => {
   await flushMicrotasks(20);
 };
 
-/** When the played beat starts on the document timeline: the start time the
- *  page gave its letters' reveals. */
 const beatStart = () => {
   const starts = new Set(
     played
@@ -221,13 +193,11 @@ describe("a choice button", () => {
       [1, "Down"],
     ] as const) {
       const button = choiceButton(h, index);
-      // While the caption types.
       expect(shownAt(button, start + labelDelay / 2)).toBe(false);
       expect(shownAt(button, start)).toBe(false);
       expect(shownAt(button, start - 1)).toBe(false);
       expect(shownAt(button, start + labelDelay - 1)).toBe(false);
       expect(labelAt(button, start + labelDelay - 1)).toBe("");
-      // As the label starts to appear.
       expect(shownAt(button, start + labelDelay + 1)).toBe(true);
       expect(labelAt(button, start + labelDelay + 1)).not.toBe("");
       expect(shownAt(button, start + 10_000)).toBe(true);
@@ -274,7 +244,6 @@ describe("a choice button", () => {
   });
 
   test("shows with its label at once from a save the page loads and displays", async () => {
-    // A save taken at the caption, as the worker's route game takes it.
     const route = new Game({
       program: compile(SOURCE) as any,
       now: () => 0,
@@ -305,8 +274,6 @@ describe("a choice button", () => {
 
 describe("an instant write", () => {
   test("repeating a played write shows the target with its text at once", async () => {
-    // Nothing clears the target between the two writes, as for a target with
-    // text of its own, which the game does not clear between beats.
     const h = createDOMHarness(SOURCE);
     recordAnimations();
     await h.ready;

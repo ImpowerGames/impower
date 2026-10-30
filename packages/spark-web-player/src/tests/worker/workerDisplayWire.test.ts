@@ -1,5 +1,3 @@
-// Nothing the worker sends the page carries a program or a checkpoint, for an
-// edit or for a suggestion: the page only ever reads a program's summary.
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
@@ -23,7 +21,6 @@ const SOURCE = [
 
 const LINE = SOURCE.split("\n").indexOf("  Line one of dialogue in scene 2.");
 
-/** Where a program's body or a checkpoint appears in `value`. */
 function programShaped(value: unknown): string[] {
   const found: string[] = [];
   const walk = (v: any, path: string) => {
@@ -58,7 +55,6 @@ async function run() {
   try {
     await h.compile();
     await h.select(LINE);
-    // An edit, then a suggestion browsed and closed.
     const lineText = "  Line one of dialogue in scene 2.";
     await h.edit([
       {
@@ -92,7 +88,6 @@ describe("what the worker sends the page", () => {
     const on = await run();
     expect(on.messages).toBeGreaterThan(0);
     expect(on.shaped).toEqual([]);
-    // It displayed the preview all the same.
     expect(on.overlay).toContain("Line uno of dialogue in scene 2.");
   }, 120_000);
 

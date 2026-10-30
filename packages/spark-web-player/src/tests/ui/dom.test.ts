@@ -1,9 +1,3 @@
-// Layer 1 — DOM-render golden master.
-//
-// Pipes the real engine's message stream into the real `UIManager` under jsdom
-// and snapshots the resulting overlay DOM. This is the strongest regression
-// net: it stays invariant across the engine→consumer relocation refactors.
-
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -76,15 +70,6 @@ describe("dom render", () => {
   });
 });
 
-// Step-1 (D15) image oracle: covers the relocated hide / crossfade / layered /
-// animate paths the single `image show` test above did not. Driven against the
-// PRE-D15 engine (which builds the image DOM engine-side) to capture the
-// baseline DOM the renderer-side D15 realization must reproduce.
-//
-// A second `portrait` layer (with two `image` content slots, one per asset) and
-// extra image defs (BG2 / SPRITE / SHADOW) give the multi-asset + crossfade
-// scenarios real targets. `[[show ...]]` / `[[hide ...]]` / `[[animate ...]]`
-// directives mirror the Layer-2 `image.test.ts` fixtures.
 const IMAGE_SCREEN = `define BG as image with
   src = "https://example.com/bg.png"
 end
@@ -157,12 +142,6 @@ describe("dom render · image lifecycle", () => {
     expect(harness.snapshotDOM()).toMatchSnapshot();
   });
 
-  // Regression guard for the D15 code-review finding: a hide carrying an asset
-  // builds a transient `instance` span, fades it, then must DESTROY it (the
-  // pre-D15 engine destroyed every faded exit element; it left the previously
-  // shown layer alone). So hide-with-asset must NOT increase the layer count vs
-  // the show alone — a leaked transient span would. The assetless `[[hide
-  // backdrop]]` path never builds a span, so it could not catch the leak.
   test("asset-bearing hide destroys its transient layer (no leak)", async () => {
     const shown = await runImageBeats(`  [[show backdrop BG]]`);
     const shownCount =
@@ -217,10 +196,6 @@ describe("dom render · choices + real click", () => {
     expect(harness.snapshotDOM()).toMatchSnapshot();
   });
 
-  // A real DOM click fires the UIManager's click listener → app.emit(Event)
-  // → engine → chosePathToContinue, whose handler clears + hides the choices.
-  // (The next beat's text is clock-gated in the real Coordinator and not
-  // rendered in this module-level harness; the click→clear is the invariant.)
   test("a real DOM click on a choice clears the choices", async () => {
     const harness = createDOMHarness(CHOICE_STORY);
     await harness.ready;
@@ -229,9 +204,6 @@ describe("dom render · choices + real click", () => {
     await harness.display(beat!, true);
     await flushMicrotasks();
 
-    // Find a rendered choice element and dispatch a real jsdom click event.
-    // `observe` set pointer-events:auto + a click listener that emits an
-    // EventMessage; the stub app routes it back into the engine.
     const choiceEl = harness.overlay.querySelector(
       "[image], .choice, [class*='choice']",
     ) as HTMLElement | null;
@@ -246,7 +218,6 @@ describe("dom render · choices + real click", () => {
       new win.MouseEvent("click", { bubbles: true, button: 0 }),
     );
     await flushMicrotasks();
-    // The choices were cleared + hidden by the round-trip handler.
     expect(harness.snapshotDOM()).toMatchSnapshot();
   });
 });
