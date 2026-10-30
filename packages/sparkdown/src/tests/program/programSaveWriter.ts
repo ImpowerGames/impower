@@ -1,13 +1,3 @@
-// Writes saves in a process of its own, for the save tests to load in
-// another (run with vite-node from the package directory).
-//
-// With no argument: a compiler that compiled another program first,
-// reseeded its table and compiled `LOOP_TUNNEL_SCRIPT`, plays it to the beat
-// inside the tunnel, and prints the save after `SAVE_MARKER`
-// (`programSave.test.ts`).
-//
-// With `--scenarios`: plays each program of `SAVE_SCENARIOS` for its beats
-// and prints its save after `SCENARIO_MARKER`, its name and a tab (#1429).
 import { ProgramStory } from "../../program/ProgramStory";
 import { programSession } from "./programHarness";
 import { LOOP_TUNNEL_SCRIPT, SAVE_MARKER } from "./programSaveScripts";

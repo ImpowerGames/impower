@@ -1,8 +1,3 @@
-// Every producer of visible text lowers to `display(<table>)` calls: no step
-// carries visible words outside a table. The expected text and tags of each
-// step were captured at commit ffd59219a from the flat-text lowering these
-// producers replaced, so the tables read as the flat text did.
-
 import { describe, expect, test } from "vitest";
 import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -12,7 +7,6 @@ import { ObjectValue, StringValue } from "../../runtime/Value";
 interface Step {
   text: string;
   tags: string[];
-  // Visible words that reached the stream outside any table or tag.
   flatText: string;
   tables: Record<string, unknown>[];
 }
@@ -41,8 +35,6 @@ function compile(source: string) {
   return testStory(result.program.chunks);
 }
 
-// Runs the story to its end, picking the first choice whenever it stops on
-// choices.
 function steps(source: string): Step[] {
   const story = compile(source);
   const errors: string[] = [];
@@ -93,9 +85,6 @@ function steps(source: string): Step[] {
   return out;
 }
 
-// The steps of `source`: every step's visible words ride tables, and each
-// step's text and tags are the `expected` pairs, captured from the flat-text
-// lowering.
 function displayCallSteps(
   source: string,
   expected: [text: string, tags: string[]][],
@@ -134,7 +123,6 @@ describe("display statements", () => {
     ]);
   });
 
-  // The body's interpolation runs before the tag's, as written.
   test("a tag is evaluated after the line's text", () => {
     const [step] = displayCallSteps(
       `store x = 0\nscene start\n  Say {bump()} # {x}\n  done\nend\n\nfunction bump()\nx += 1\nreturn "Hello"\nend\n`,
@@ -236,8 +224,6 @@ describe("producers outside display statements", () => {
     expect(step!.tables).toEqual([{ text: "A", tags: ["t"] }]);
   });
 
-  // A line that starts with an interpolation is an action line like any other
-  // (#1746), so its table names the action target, as `Here.` above does.
   test("a bare {expr} line", () => {
     const [step] = displayCallSteps(`scene start\n  {1 + 2}\n  done\nend\n`, [["3\n", []]]);
     expect(step!.tables).toEqual([{ target: "action", text: "3" }]);
@@ -327,7 +313,6 @@ describe("producers outside display statements", () => {
     expect(run[1]!.tables[0]!["tags"]).toEqual(["picked"]);
   });
 
-  // A tag before the brackets runs before the chosen-only text, as written.
   test("a tag in a choice's start content is evaluated before its chosen-only text", () => {
     const run = displayCallSteps(
       `store x = 0\nscene start\n  choose\n    * Take # {{bump}}[ label] {x}\n      Taken.\n  end\n  done\nend\n\nfunction bump()\nx += 1\nreturn x\nend\n`,

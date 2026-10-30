@@ -54,7 +54,6 @@ end
     expect(errors).toEqual([]);
     expect(recorded.length).toBe(2);
     expect(recorded[0]).toBe(3);
-    // The fractional part may have rounding noise from JS doubles.
     expect(typeof recorded[1]).toBe("number");
     expect(recorded[1] as number).toBeCloseTo(0.7, 10);
   });
@@ -78,7 +77,6 @@ end
   });
 
   test("single-target assignment auto-unwraps to first value", () => {
-    // `local x = math.modf(3.7)` discards the fractional part.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -95,9 +93,6 @@ end
   });
 
   test("multi-return as a function arg uses only the first value", () => {
-    // `host_record(math.modf(3.7))` — non-last arg position in Lua
-    // truncates to a single value; sparkdown applies the same rule
-    // unconditionally for now (spread-into-call-args is V2).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -295,7 +290,7 @@ host_record(string.byte("hello", -1))
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([111]); // 'o'
+    expect(recorded).toEqual([111]);
   });
 });
 
@@ -316,9 +311,6 @@ end
   });
 
   test("utf8.codepoint over a multi-byte char", () => {
-    // "é" (U+00E9 = decimal 233) spelled as its UTF-8 bytes \xC3\xA9
-    // — under the byte-string convention a bare "é" char IS the raw
-    // byte E9, which is not valid UTF-8.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start
   & run()
@@ -540,7 +532,6 @@ host_record(c)
 end
 `);
     expect(errors).toEqual([]);
-    // multi() truncates to 10 (not last), b = 99, c = nil (no third return).
     expect(recorded).toEqual([10, 99, null]);
   });
 });
@@ -647,7 +638,6 @@ host_record(select("#", "a", multi()))
 end
 `);
     expect(errors).toEqual([]);
-    // select("#", ...) counts 4: "a", 100, 200, 300.
     expect(recorded).toEqual([4]);
   });
 
@@ -669,7 +659,6 @@ host_record(select("#", "a", multi(), "tail"))
 end
 `);
     expect(errors).toEqual([]);
-    // count: "a" + truncated-multi(100) + "tail" = 3 trailing args.
     expect(recorded).toEqual([3]);
   });
 });

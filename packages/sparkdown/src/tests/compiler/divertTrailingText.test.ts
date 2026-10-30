@@ -1,9 +1,3 @@
-// Text written after a divert on the same line (`A -> later > After`) belongs
-// to the divert line, which the player ends at the divert. Both grammar engines
-// must scope every character of that text the same way, and the tree must keep
-// the `Divert` open to the end of the line instead of closing it incomplete at
-// the first character its body cannot match (GRAMMAR.md §17).
-
 import { describe, expect, test } from "vitest";
 import { parseSource } from "./grammarSnapshot";
 import {
@@ -61,8 +55,6 @@ describe("text after a divert on the same line", () => {
     ]);
   });
 
-  // A `//` comment after the targets is a comment, as it is after any other
-  // display text, not stray text.
   test.each([
     "A -> later // note",
     "-> later // note",

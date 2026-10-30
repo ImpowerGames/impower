@@ -1,21 +1,3 @@
-// Shift oracle: a cold compile of a script and a cold compile of the same
-// script with blank lines above it must produce the same program apart from
-// source positions.
-//
-// The compiled program carries no source lines, so a leading blank line
-// changes nothing in it but a name minted from a source offset. That finds an
-// offset-derived name family with no incremental compile involved: the
-// incremental oracles see one only when an edit leaves the chunk holding the
-// name outside the reparse window, while a shift moves every chunk of the file
-// at once.
-//
-// Compared: `context`, the engine UI channels and `sparkle` equal, with the
-// `span` of each Sparkle binding in the shifted file moved down; the
-// diagnostics equal with the shifted file's ranges, and the lines their
-// messages name, moved down; and every
-// location table equal with the shifted file's rows moved down. A leading
-// blank line moves no column, so columns are compared as they are. The
-// statement chunks' shift oracle is `programShift.test.ts`.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -66,14 +48,11 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
-// A copy of `location` with its lines moved down by `lines` when it lies in
-// the script `script`.
 function shiftLocation(location: ScriptLocation, script: number, lines: number): ScriptLocation {
   const [index, startLine, startColumn, endLine, endColumn] = location;
   return index === script ? [index, startLine + lines, startColumn, endLine + lines, endColumn] : location;
 }
 
-// A copy of a name-to-location table with the rows of `script` moved down.
 function shiftTable(
   table: Record<string, ScriptLocation> | undefined,
   script: number,
@@ -83,7 +62,6 @@ function shiftTable(
   return Object.fromEntries(Object.entries(table).map(([name, at]) => [name, shiftLocation(at, script, lines)]));
 }
 
-// A copy of `value` with every `{ start, end }` position range moved down.
 function shiftRanges(value: unknown, lines: number): unknown {
   if (Array.isArray(value)) return value.map((v) => shiftRanges(v, lines));
   if (value && typeof value === "object") {
@@ -96,9 +74,6 @@ function shiftRanges(value: unknown, lines: number): unknown {
   return value;
 }
 
-// A copy of a diagnostic with the lines its message names in its own
-// document (`to close 'function' at line 3`) moved down, as its range is; a
-// line of another script, named with it (`at line 3 in 'other'`), stays.
 function shiftMessageLines(diagnostic: unknown, lines: number): unknown {
   const d = diagnostic as { message?: string | { value: string } };
   const shift = (text: string) =>
@@ -108,9 +83,6 @@ function shiftMessageLines(diagnostic: unknown, lines: number): unknown {
   return diagnostic;
 }
 
-// A copy of the Sparkle trees with the binding spans of `uri` moved down. A
-// span holds a line and two offsets, and each blank line above it adds one
-// character before it.
 function shiftSparkle(sparkle: unknown, uri: string, lines: number): unknown {
   return JSON.parse(
     JSON.stringify(sparkle ?? null, function (this: any, key, value) {
@@ -122,11 +94,7 @@ function shiftSparkle(sparkle: unknown, uri: string, lines: number): unknown {
   );
 }
 
-// The fields of a program the oracle compares, with the positions in `uri`
-// moved down by `lines`.
 function surface(program: SparkProgram, uri: string, lines: number) {
-  // `scripts` maps each script to its version; a location's script index is
-  // the script's position among its keys.
   const s = Object.keys(program.scripts).indexOf(uri);
   expect(s, `${uri} is a script of the program`).toBeGreaterThanOrEqual(0);
   const diagnostics = Object.fromEntries(
@@ -153,8 +121,6 @@ function surface(program: SparkProgram, uri: string, lines: number) {
   };
 }
 
-// Compiles `project` cold, and cold again with `lines` blank lines above the
-// file `name`, and requires the same program apart from that file's positions.
 function expectShiftInvariant(project: Project, name: string, lines: number) {
   const plain = coldCompile(project);
   const shifted = coldCompile({ ...project, [name]: "\n".repeat(lines) + project[name]! });

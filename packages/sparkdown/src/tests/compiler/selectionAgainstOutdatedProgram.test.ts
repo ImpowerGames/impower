@@ -1,16 +1,3 @@
-// Clicking a line in the editor is answered by looking that line up in the
-// compiled program's path locations. Those describe the script as it was when
-// the program was compiled, so a click that lands after an edit and before the
-// recompile — the compile is debounced, so that window is every click made in
-// the first fraction of a second after typing — would be answered about
-// whatever used to stand at that line number. In #489 the author typed two
-// lines into a dialogue block, clicked the new line, and the preview showed
-// the line that had been pushed two lines further down.
-//
-// The compiler is the one place that holds both the compiled program and the
-// live documents, so it is what says whether a selection can be resolved at
-// all. These tests pin that verdict, and pin that it is stamped on the params
-// the selection listeners see.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -59,8 +46,6 @@ function compilerWithSource(text: string) {
   return compiler;
 }
 
-/** The author types a new dialogue line into the middle of the block, as the
- *  editor reports it: a whole-document replacement at the next version. */
 function typeNewLine(compiler: SparkdownCompiler, version: number) {
   const edited = [
     "$:",
@@ -106,9 +91,6 @@ describe("a selection made against a program the document has outrun (#489)", ()
     typeNewLine(compiler, 2);
 
     expect(compiler.isProgramOutdated()).toBe(true);
-    // Line 6 (zero-based) is the line the author just typed. Against the
-    // program compiled before the edit it is `Or is it?`, which is the wrong
-    // answer and the whole of the bug.
     expect(select(compiler, 6).programOutdated).toBe(true);
   });
 
@@ -127,9 +109,6 @@ describe("a selection made against a program the document has outrun (#489)", ()
     quiet(() => compiler.compile({ textDocument: { uri: URI } } as never));
     typeNewLine(compiler, 2);
 
-    // The player's workspace worker plans a story route from this listener,
-    // against the game holding the compiled program. It has to see the verdict
-    // when it runs, not after.
     const seen: (boolean | undefined)[] = [];
     compiler.addEventListener(SelectedCompilerDocumentMessage.method, (p) => {
       seen.push(p.programOutdated);
@@ -140,8 +119,6 @@ describe("a selection made against a program the document has outrun (#489)", ()
   });
 
   it("says nothing is outdated when no compile has happened yet", () => {
-    // Nothing to compare against. A consumer with no fresher answer coming is
-    // better served by whatever program it holds than by no answer at all.
     const compiler = compilerWithSource(SOURCE);
 
     expect(compiler.isProgramOutdated()).toBe(false);

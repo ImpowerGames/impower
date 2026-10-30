@@ -26,7 +26,6 @@ const elements = (svg: string): Element[] => {
 const shown = (svg: string, name: string) =>
   elements(svg).filter((e) => e.attributes["data-name"] === name && e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
 
-/** One inline style declaration of the single drawing of `name` shown at `offset`, as written. */
 const declared = (artifact: MorphArtifact, offset: number, name: string, property: string): string | undefined => {
   const drawn = shown(renderMorphAt(artifact, offset), name);
   expect(drawn, `${name} at ${offset}`).toHaveLength(1);
@@ -44,7 +43,6 @@ const bake = (recipe = paintBlink()) =>
 const morphs = (artifact: MorphArtifact) =>
   artifact.segments.flatMap((s) => s.transitions).filter((t): t is Extract<MorphTransition, { kind: "morph" }> => t.kind === "morph");
 
-/** The paint recorded on the closing segment's track of the drawing `name` leaves from. */
 const recorded = (artifact: MorphArtifact, name: string) => {
   const from = shown(renderMorphAt(artifact, 0), name)[0]!.attributes["data-morph"];
   return artifact.segments[0]!.transitions.find((t) => t.kind === "morph" && t.from === from) as Extract<MorphTransition, { kind: "morph" }>;
@@ -60,17 +58,14 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
   });
 
   test("different fills draw their sRGB blend partway and the authored drawings at both ends", () => {
-    // Halfway through the closing segment, black to white.
     expect(declared(artifact, 0.25, "lash", "fill")).toBe("rgba(128,128,128,1)");
     expect(declared(artifact, 0.125, "lash", "fill")).toBe("rgba(64,64,64,1)");
-    // At each keyframe the drawing shows as authored, with no paint written.
     for (const [offset, fill] of [[0, "#000"], [0.5, "#fff"], [1, "#000"]] as const) {
       const drawn = shown(renderMorphAt(artifact, offset), "lash");
       expect(drawn).toHaveLength(1);
       expect(drawn[0]!.attributes["fill"]).toBe(fill);
       expect(drawn[0]!.attributes["style"] ?? "").not.toMatch(/fill/);
     }
-    // The reopening segment blends back.
     expect(declared(artifact, 0.75, "lash", "fill")).toBe("rgba(128,128,128,1)");
   });
 
@@ -91,9 +86,6 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
   });
 
   test("paint decided by a declaration outside the grammar stays unblended and draws as authored", () => {
-    // `color: none` under `currentColor` (`freckle`, `spot`, `dot`), an
-    // ancestor's `fill:unset` (`mark`) and a fill spaced by no-break spaces
-    // (`blot`): each pair keeps its own paint between the poses.
     for (const name of ["freckle", "spot", "dot", "mark", "blot"]) {
       expect(recorded(artifact, name).paint, name).toBeUndefined();
       expect(declared(artifact, 0.25, name, "fill"), name).toBeUndefined();
@@ -101,21 +93,16 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
   });
 
   describe("out-of-grammar inputs leave the pair unblended", () => {
-    // One drawing open, a white one closed; the open drawing's paint is
-    // declared as each case says, under a green root `color`.
     const source = (open: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20" width="40" height="20" color="#0f0">
 <g data-name="eyes.open:default"><path data-name="lash" d="M0,0H30V10H0Z" ${open}/></g>
 <g data-name="eyes.closed"><path data-name="lash" d="M0,5H30V15H0Z" fill="#fff"/></g>
 </svg>`;
     const pair = (open: string) => bakeMorphArtifact({ source: source(open), selection: {}, recipe: paintBlink(), key: "pair" });
-    // An inline style the bake cannot read safely keeps the artwork static;
-    // the paint reader reads the paint it decides as unknown all the same.
     const refused: [string, string][] = [
       ["all", 'fill="#f00" style="all:initial"'],
       ["var()", 'style="fill:var(--x)"'],
       ["a comment", 'style="fill:/*x*/#000"'],
       ["an escape", 'style="fill:r\\65 d"'],
-      // A browser decodes the reference and reads `fill:#f00` over the attribute.
       ["a character reference in a style", 'fill="#000" style="fil&#108;:#f00"'],
     ];
     test.each(refused)("%s", (_, open) => {
@@ -138,7 +125,6 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
       const artifact = pair(open);
       expect(artifact.status).toBe("live");
       expect(recorded(artifact, "lash").paint).toBeUndefined();
-      // The moving drawing keeps its markup's own declaration, if any.
       expect(declared(artifact, 0.25, "lash", "fill") ?? "").not.toMatch(/^rgba\(/);
     });
     test("in-grammar controls blend", () => {
@@ -152,7 +138,6 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
   test("an important inline fill is the one blended, and the blend is written important over it", () => {
     expect(recorded(artifact, "lid").paint).toEqual({ fill: [[0, 0, 0, 1], [255, 255, 255, 1]] });
     expect(declared(artifact, 0.25, "lid", "fill")).toBe("rgba(128,128,128,1) !important");
-    // At rest the authored declaration stands.
     expect(declared(artifact, 0, "lid", "fill")).toBe("#000 !important");
   });
 
@@ -177,16 +162,12 @@ describe("a morphing shape's paint follows it between its two drawings", () => {
     const named = bake(paintBlink({ layers: { shadow: { depth: "eyes.closed" }, glint: { depth: "eyes.closed" } } }, states));
     expect(named.status).toBe("live");
     expect(named.diagnostics).toEqual([]);
-    // Open to half-closed draws on a copy of the red closed shadow; the shape
-    // blends black to blue there.
     const track = named.segments[0]!.transitions.find((t) => t.kind === "morph" && t.paint?.fill?.[1]?.[2] === 255) as Extract<MorphTransition, { kind: "morph" }>;
     expect(track).toBeDefined();
     expect(track.draw).not.toBe(track.from);
     expect(track.draw).not.toBe(track.to);
     expect(declared(named, 0.125, "shadow", "fill")).toBe("rgba(0,0,128,1)");
-    // Half-closed to closed draws on the closed drawing itself.
     expect(declared(named, 0.375, "shadow", "fill")).toBe("rgba(128,0,128,1)");
-    // Ends that agree still override a carrier copied from a drawing that does not.
     const glint = named.segments[0]!.transitions.find((t) => t.kind === "morph" && t.paint?.fill?.[0]?.join() === "0,0,0,1" && t.paint.fill[1]!.join() === "0,0,0,1") as Extract<MorphTransition, { kind: "morph" }>;
     expect(glint).toBeDefined();
     expect(glint.draw).not.toBe(glint.from);

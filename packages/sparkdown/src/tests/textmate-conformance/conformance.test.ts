@@ -7,10 +7,6 @@ import {
   suiteDirFor,
 } from "./harness";
 
-// Runs the vendored vscode-textmate conformance corpus through our engine and
-// snapshots a baseline report. As we close divergence axes (capture model,
-// line+stack, while rules, regex), the report improves and guards regressions.
-
 const SUITES: { suite: string; files: string[] }[] = [
   { suite: "first-mate", files: ["tests.json"] },
   { suite: "suite1", files: ["tests.json", "whileTests.json"] },
@@ -25,7 +21,6 @@ function runAll(): CaseResult[] {
       const cases = loadSuite(dir, file);
       cases.forEach((c, i) => {
         if (trace) {
-          // crash-surviving progress log to find a runaway grammar
           // eslint-disable-next-line @typescript-eslint/no-var-requires
           require("node:fs").appendFileSync(
             trace,

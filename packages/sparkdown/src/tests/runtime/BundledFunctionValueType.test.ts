@@ -1,14 +1,3 @@
-// A function value keeps its type when the runtime is bundled (I-1128).
-//
-// The running game executes a worker that esbuild bundles. esbuild writes a
-// class that names itself in its own body (`SymbolValue.Copy` builds a new
-// `SymbolValue`) as `var SymbolValue = class _SymbolValue`, so in the game the
-// class's `constructor.name` is `_SymbolValue`, while vitest, which transforms
-// file by file, keeps `SymbolValue`. The stdlib told function values apart by
-// that name, so in the game `type(f)` of a named function was "table" and
-// `table.sort(t, f)` refused it as a table. This file runs the runtime harness
-// from an esbuild bundle of itself, the form the game runs.
-
 import { build, type Plugin } from "esbuild";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +9,6 @@ type Harness = typeof import("./runtimeTestHarness");
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// Vite's `?raw` import, as the worker build honours it.
 const rawPlugin: Plugin = {
   name: "raw",
   setup(b) {

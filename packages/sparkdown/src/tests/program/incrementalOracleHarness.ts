@@ -1,17 +1,3 @@
-// What the incremental oracle tests of the binary program share (#701): the
-// surface an incremental compile and a cold compile of the same text must
-// agree on (whether it falls back and for what, its chunks by content
-// (`describeRoot`), the qualified names its root defines with their kinds,
-// and its diagnostics), the drawer of randomized edits, half of which land
-// inside the bodies of block statements, the warm-up and the edits of
-// `incrementalEquivalence`, the cumulative run of
-// `incrementalCumulativeEquivalence`, and a preview compile. The tests are
-// one file per oracle, so that the Test Suite workflow's shards can spread
-// them (#1932): programIncrementalEquivalence, programIncrementalMovedClosure,
-// programIncrementalCumulative, programIncrementalLongBodies,
-// programIncrementalLoopsAndChoose, programIncrementalSyntheticAppend,
-// programIncrementalAutoGlobals, programIncrementalPreviewInterleaved and
-// programPreviewRootSharing.
 import { expect } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
@@ -19,7 +5,6 @@ import type { ProgramRoot } from "../../program/ProgramRoot";
 import { isAnonymousSymbol, UNDEFINED_KIND } from "../../program/ProgramSymbols";
 import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
-// As programChunkIdentity's `session` compiles.
 export const CONFIG = { seedBuiltinsIntoStory: true };
 
 export function quiet<T>(fn: () => T): T {
@@ -64,8 +49,6 @@ export function posAt(text: string, offset: number) {
 export const clip = (s: string | undefined, n = 240) =>
   s === undefined ? "(none)" : s.length > n ? `${s.slice(0, n)}...` : s;
 
-/** The qualified names a root defines, each with its kind, sorted. An
- *  anonymous symbol has no stable name and is left out. */
 export const definedSymbols = (root: ProgramRoot): string[] => {
   const out: string[] = [];
   root.table.symbols.forEach((name, id) => {
@@ -76,11 +59,7 @@ export const definedSymbols = (root: ProgramRoot): string[] => {
   return out.sort();
 };
 
-/** What an incremental compile and a cold compile of the same text must
- *  agree on. */
 export interface Surface {
-  /** Whether the compile reported an error, which a compile that builds no
-   *  chunks does for the statement it could not compile. */
   reportsError: boolean;
   chunks: string[] | null;
   symbols: string[] | null;
@@ -112,15 +91,8 @@ export const firstDifference = (a: readonly string[], b: readonly string[]) => {
   return -1;
 };
 
-/** How `incremental` differs from `cold`, field by field, or nothing. */
 export function divergence(incremental: Surface, cold: Surface): string | undefined {
   const fields: string[] = [];
-  // A compile that built no root and reported no error threw on its way (a
-  // failed `ChunkStore.verifyBuilds`, which the compiler logs and the tests
-  // silence): that is a failure on either side, even when both sides fail
-  // alike, and a root on one side alone is a divergence. The diagnostics,
-  // compared below, hold the error of a statement the compile could not
-  // compile.
   if (!incremental.chunks && !incremental.reportsError) {
     fields.push("incremental compile built no root and reported no error");
   }
@@ -163,7 +135,6 @@ export function divergence(incremental: Surface, cold: Surface): string | undefi
   return fields.length ? fields.join(" | ") : undefined;
 }
 
-/** A deterministic LCG (no Math.random), as the compiler oracles draw. */
 export const lcg = (seed: number) => {
   let state = seed;
   return () => {
@@ -172,25 +143,17 @@ export const lcg = (seed: number) => {
   };
 };
 
-// ---- Edits inside the bodies of block statements ---------------------------
-
-// The head of a block statement whose body is the lines indented below it.
 export const BLOCK_HEAD =
   /^(?:if\b.*\bthen$|elseif\b.*\bthen$|else$|while\b.*\bdo$|for\b.*\bdo$|do$|repeat$|(?:local\s+)?function\b|choose$|then\b|[*+]\s)/;
 
 export interface BodyLine {
-  /** The line's index, where it starts, its length and its indentation. */
   line: number;
   from: number;
   length: number;
   indent: string;
-  /** How many block statements enclose it. */
   depth: number;
 }
 
-/** The lines of `text` inside the bodies of block statements: each line whose
- *  nearest less indented line above it is the head of a block statement, or
- *  is itself inside one. */
 export function bodyLines(text: string): BodyLine[] {
   const lines = text.split("\n");
   const indentOf = (l: string) => l.length - l.trimStart().length;
@@ -220,17 +183,9 @@ export interface RandomEdit {
   offset: number;
   end: number;
   insert: string;
-  /** Where the edit was drawn: over the whole text, or inside a body, and
-   *  how. */
   kind: string;
 }
 
-/** Draws edits of a text: half at offsets drawn over the whole text, as the
- *  compiler oracles draw them, and half inside the bodies of block
- *  statements, two in five of those in a body two or more blocks deep when
- *  the text has one. An edit inside a body inserts a whole line above a body
- *  line at its indentation, deletes a body line, or types one of `inserts`
- *  inside a body line, deleting a few characters a third of the time. */
 export function editDrawer(
   rand: () => number,
   inserts: readonly string[],
@@ -274,7 +229,6 @@ export function editDrawer(
   };
 }
 
-/** Applies a minimal-range edit to the main script of `compiler`. */
 export function update(
   compiler: SparkdownCompiler,
   text: string,
@@ -290,7 +244,6 @@ export function update(
   return text.slice(0, offset) + insert + text.slice(end);
 }
 
-/** A record of one edit's divergence, with the line it was made in. */
 export const record = (n: number, text: string, edit: RandomEdit, detail: string) => {
   const lineStart = text.lastIndexOf("\n", edit.offset - 1) + 1;
   const lineEnd = text.indexOf("\n", edit.offset);
@@ -298,10 +251,6 @@ export const record = (n: number, text: string, edit: RandomEdit, detail: string
   return `#${n} [${edit.kind}] insert=${JSON.stringify(edit.insert)} del=${edit.end - edit.offset} @${edit.offset} (line ${posAt(text, edit.offset).line}: ${JSON.stringify(clip(line, 80))}) -> ${detail}`;
 };
 
-// Whole lines the edits inside bodies insert into the coupled screenplays: a
-// line of dialogue, a line of action, a local, a call, a divert, an `end`, a
-// `then`, a new block, a closure, a loop's head and its `break`, and a
-// `choose` block's head (#1683).
 export const COUPLED_LINES = [
   "hero: A new line of dialogue.",
   "A new line of action.",
@@ -317,7 +266,6 @@ export const COUPLED_LINES = [
   "choose",
 ];
 
-// Whole lines the edits inside bodies insert into the choose screenplay.
 export const CHOOSE_LINES = [
   "HERO: A new line of dialogue.",
   "Another line of the body.",
@@ -332,12 +280,6 @@ export const CHOOSE_LINES = [
   "choose",
 ];
 
-// ---- incrementalEquivalence ------------------------------------------------
-
-// The warm-up of incrementalEquivalence's `warmed` (not exported, so copied):
-// two one-character edits of lines of dialogue, compiled after each, so that
-// the edit under test reaches a compiler whose store was left by incremental
-// compiles. They keep the text's length.
 export const WARM_EDITS: [string, string][] = [
   ["Line one of dialogue in scene 3.", "Line one of dialogue in scene 3!"],
   ["Line one of dialogue in scene 4.", "Line one of dialogue in scene 4!"],
@@ -346,7 +288,6 @@ export const warmText = (text: string) =>
   WARM_EDITS.reduce((t, [find, replace]) => t.replace(find, replace), text);
 export const AFTER_WARM = WARM_EDITS.length + 2;
 
-/** A compiler over `text` with chunks on, compiled and then warmed up. */
 export function warmed(text: string) {
   const c = programCompiler({ [MAIN_URI]: text }, CONFIG);
   c.compile();
@@ -368,10 +309,6 @@ export interface Edit {
   replace: string;
 }
 
-// incrementalEquivalence's diverse edits and the find and replace of its
-// carried edits, then edits inside the bodies of the fixture's block
-// statements: an `if` body in a scene, a choice body and the `then` clause of
-// the `choose` block, and the loops inside the function `reckon`.
 export const EDITS: Edit[] = [
   { name: "same-line char insert in dialogue", find: "Line one of dialogue in scene 5.", replace: "Line one of dialogue in scene 5x." },
   { name: "newline insert (shifts lines below)", find: "Action describing room 6 in some detail here.", replace: "Action describing room 6 in some detail here.\n  An extra action line." },
@@ -398,15 +335,11 @@ export const EDITS: Edit[] = [
   { name: "insert a line into a choice body", find: "    You press on.\n", replace: "    You press on.\n    hero: Quickly now.\n" },
   { name: "insert an if into the then clause", find: "    The way opens.\n", replace: "    The way opens.\n    if trust > 1 then\n      hero: Inside the clause.\n    end\n" },
   { name: "insert a divert into the then clause", find: "    The way opens.\n", replace: "    -> scene_2\n    The way opens.\n" },
-  // A loop and a `choose` block in the clause, which the edits after this one
-  // serve from their memos when they lower the clause again (#1683).
   {
     name: "insert a loop and a choose block into the then clause",
     find: "    The way opens.\n",
     replace: "    The way opens.\n    while trust < 1 do\n      & trust = trust + 1\n    end\n    choose\n      * (inner_pick) [Inner]\n        Inner.\n    then (inner_after)\n      After the inner block.\n    end\n",
   },
-  // The finds below are left intact by the edits above them, so that the
-  // sequential run makes every edit.
   { name: "delete a line of the then clause", find: "    & t.a += 1\n", replace: "" },
   { name: "insert a line into a loop inside a function", find: "    t.b = t.b + 1\n", replace: "    local y = 1\n    t.b = t.b + y\n" },
   { name: "insert an end into a loop inside a function", find: "  for i = 1, 2 do\n", replace: "  for i = 1, 2 do\n    end\n" },
@@ -414,8 +347,6 @@ export const EDITS: Edit[] = [
   { name: "insert a call into a function body", find: "  local x\n", replace: "  local x\n  bonus(1)\n" },
 ];
 
-// incrementalCumulativeEquivalence's shaped edits (not exported, so copied),
-// each a pair of texts the edit toggles between.
 export const SHAPED_EDITS: [string, string][] = [
   ["store trust = 0", "function later()\n  return 7\nend\n\nstore trust = 0"],
   [
@@ -426,7 +357,6 @@ export const SHAPED_EDITS: [string, string][] = [
   ["function bonus(", "function bonus_b("],
 ];
 
-/** The edit that puts back what `edit` changed in `text`. */
 export const inverseOf = (text: string, edit: RandomEdit): RandomEdit => ({
   offset: edit.offset,
   end: edit.offset + edit.insert.length,
@@ -434,12 +364,6 @@ export const inverseOf = (text: string, edit: RandomEdit): RandomEdit => ({
   kind: "undo",
 });
 
-/** Runs `count` random edits of `text` through one compiler, comparing each
- *  compile with a cold one, and returns the divergences and how many
- *  compiles built chunks and how many edits landed inside bodies. With
- *  `undoFallback`, an edit after which the program fell back is undone by
- *  the next one, as `cumulativeEdits` does, so that the run spends most of
- *  its edits on a program that has its chunks. */
 export function cumulativeRun(
   text: string,
   seed: number,
@@ -456,7 +380,6 @@ export function cumulativeRun(
   const failures: string[] = [];
   let chunked = 0;
   let nested = 0;
-  // Statements of bodies the compiles served from their memos (#656).
   let served = 0;
   let version = 1;
   let undo: RandomEdit | undefined;
@@ -467,8 +390,6 @@ export function cumulativeRun(
       undo = undefined;
     }
     if (edit.insert === "\ndefine header with\n") {
-      // A name declared twice stops the cold compile resolving the rest of
-      // the script (#979), so each header takes a name of its own.
       edit = { ...edit, insert: `\ndefine header_${n} with\n` };
     }
     if (edit.kind !== "undo" && shaped.length && rand() < 0.1) {

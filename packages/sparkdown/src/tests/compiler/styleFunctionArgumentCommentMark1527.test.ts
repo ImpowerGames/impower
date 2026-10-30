@@ -1,9 +1,3 @@
-// A style function argument that starts with `--` (#1527, `var(--gap)`) is
-// the argument, as the compiler reads it, not a comment, and the function's
-// `)` still closes it. A `--` after whitespace stays a comment, inside the
-// parentheses and after them. The fixture is `__snapshots__/grammar/struct/`
-// in the corpus, so scopeEquality also holds the two engines to the same
-// scopes.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +12,6 @@ const FIXTURE = join(
 
 const source = readFileSync(FIXTURE, "utf8").replace(/\r\n?/g, "\n");
 
-/** The offset of the first `text` on the line that starts with `linePrefix`. */
 function offsetOf(linePrefix: string, text: string): number {
   const lineStart = source.indexOf(`\n${linePrefix}`) + 1;
   expect(lineStart, `line ${JSON.stringify(linePrefix)}`).toBeGreaterThan(0);

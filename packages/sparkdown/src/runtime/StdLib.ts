@@ -26,170 +26,38 @@ import {
   type PatternMatchResult,
 } from "./LuaPatterns";
 
-// Sparkdown's Luau-standard-library bridge. Three tables drive everything:
-//
-//   - `STDLIB` — the unified registry of every Luau stdlib function,
-//     keyed by dotted full name (`"math.abs"`, `"plural.category"`,
-//     `"assert"`, ...). Each entry carries `{arity, pure?, fn}`. Pure
-//     entries (`pure: true`) are auto-registered with
-//     `NativeFunctionCall` at engine init and benefit from the
-//     type-coercion fast path; state-aware entries route through the
-//     program engine's `CallStd` instruction. Adding a new function — pure or state-aware — is one
-//     entry here.
-//
-//   - `INK_BUILTIN_ALIASES` — legacy per-function ControlCommand
-//     bindings that still need compile-time setup the generic
-//     dispatcher can't do (currently `count.turns(-> t)` →
-//     `TURNS_SINCE` and `count.visits(-> t)` → `READ_COUNT`, which
-//     mark the target container for visit-counting in
-//     `FunctionCall.ResolveReferences`). Migration goal: shrink this
-//     table to empty.
-//
-//   - `METHOD_DISPATCH` (in `MethodDispatch.ts`) — builtin method-call
-//     receivers for `obj:method(args)`. The lowerer prefixes method
-//     names with `__method_` and emits a normal `FunctionCall`;
-//     `NativeFunctionCall.Call` recognizes the prefix and routes through
-//     `callBuiltinMethod`. These are *variadic* (`numberOfParameters` is
-//     `VARIADIC_ARITY` = -1) and bypass the operator-style type coercion
-//     in favor of receiver-type branching inside each impl.
-//
-// `STDLIB` + `INK_BUILTIN_ALIASES` feed `lookupStdLibBuiltin` — the
-// compiler's call-site mapper checks both. `METHOD_DISPATCH` feeds the
-// lowerer's separate method-name check.
-
 export type NumericUnary = (v: number) => number;
 export type NumericBinary = (a: number, b: number) => number;
 export type StdLibFn = NumericUnary | NumericBinary;
 
-// State-aware stdlib function. Takes the running `story` (typed as
-// `any` here to avoid a circular import with `Story.ts`) and an
-// array of popped eval-stack values, and may push a return value
-// back onto the stack. Used for global Luau builtins that need
-// access to runtime state — `assert` calls `story.AddError`,
-// `plural.category` reads `lang.current` from `state.variablesState`,
-// etc. — and therefore need `pure: false` (the default) so the
-// generic dispatcher passes them the `story` reference.
 export type StateAwareStdLibFn = (story: any, args: any[]) => any | undefined;
 
-/**
- * Operand types that a `pure` stdlib entry can be registered for in
- * `NativeFunctionCall`. Names match Lua's `type()` return values
- * (`"number"`, `"string"`, ...) — `"number"` covers both Int and
- * Float `ValueType`s under the hood, hiding the JS-side numeric split
- * the way Lua does.
- */
 export type PureStdLibType = "number" | "string";
 
 export interface StdLibEntry {
-  /** Number of stack values to pop before calling `fn`. */
   arity: number;
-  /**
-   * Pure entries ignore the `story` arg, take + return raw JS values,
-   * and get auto-registered with `NativeFunctionCall` at engine init
-   * — preserving the type-coercion fast path. Non-pure entries
-   * (`pure` omitted / false) route through the generic
-   * `CallStd` instruction of the program engine.
-   *
-   * - `pure: true` is shorthand for `pure: ["number"]` (the classic
-   *   numeric fast path used by `math.*`).
-   * - `pure: ["string"]` registers a String-typed op (used by
-   *   substring predicates like `string.contains`).
-   * - `pure: ["number", "string"]` registers both.
-   *
-   * The call's emission makes the dispatch decision
-   * (`FunctionCall.EmitExpression`): a pure entry is registered as a
-   * `NativeFunctionCall` and emits `Native`, which the engine runs through
-   * `callNativeFunction`; any other entry matches `isStateAwareStdLib` and
-   * emits `CallStd`, which the engine runs with itself as the story
-   * (`ProgramStory.callStd`).
-   */
   pure?: boolean | PureStdLibType[];
-  /**
-   * Marks the entry as deprecated in upstream Luau. The runtime
-   * still dispatches the call (we keep deprecated entries for source
-   * compatibility with imported Luau code), but the lowerer emits an
-   * Information-severity LSP diagnostic tagged
-   * `DiagnosticTag.Deprecated` (= 2) at the call site, which editors
-   * render struck-through. The string is the diagnostic message —
-   * include the suggested replacement so the author can see the fix
-   * inline.
-   */
   deprecated?: string;
-  /**
-   * The entry's `fn` performs its own argument validation with
-   * Luau-exact messages (e.g. `requireTableArg`'s `missing argument
-   * #1 to 'clear' (table expected)`). First-class dispatch
-   * (`tryInvokeStdLibMarkerValue` in Story.ts) skips its generic
-   * under-application pre-raise for these entries so the richer
-   * message wins; entries WITHOUT this flag get the generic
-   * `missing argument #N to 'name'` raise (Lua's `luaL_checkany`
-   * contract — `pcall(rawequal, "a")` must trap, not compare
-   * against nil).
-   */
   validatesArgs?: boolean;
-  /**
-   * Fewest arguments a VARIADIC entry accepts. A direct call with
-   * fewer raises `missing argument #N to 'name'` for the first absent
-   * one (`math.max()` is `missing argument #1 to 'max'`, as in Luau).
-   * Omitted means any count, including none (`bit32.band()`).
-   */
   minArgs?: number;
-  /**
-   * Implementation. Receives popped args in source order (arg 0 first,
-   * arg 1 second, …) — the runtime handler reverses the pop order so
-   * implementations don't have to think about stack direction. For
-   * pure entries, `story` is `null`. May return a value to push back
-   * onto the eval stack, or `undefined` for void/no-return semantics.
-   */
   fn: StateAwareStdLibFn;
 }
 
-// Backwards-compat alias — every consumer was migrated already; this
-// is just an export rename guard for future refactors.
 export type StateAwareStdLibEntry = StdLibEntry;
 
-// Sentinel for native functions whose arity can't be statically checked
-// (currently: the `__method_*` builtin-method family, which validates
-// arity inside each implementation). The call's compile-time arity check
-// (`FunctionCall.CheckNativeArity`) and `NativeFunctionCall.Call` both skip
-// arity assertions when they see this value.
 export const VARIADIC_ARITY = -1;
 
-// ============================================================================
-// Type coercion helpers for stdlib fns
-// ============================================================================
-//
-// State-aware stdlib `fn`s receive popped eval-stack values, which are
-// `InkObject` instances (`IntValue`, `FloatValue`, `StringValue`, etc.)
-// wrapping JS primitives. Importing the concrete Value classes here
-// would force a circular dependency (Value.ts imports… eventually
-// circles back). So we duck-type on the `.value` field, which every
-// Value subclass exposes.
-//
-// All helpers return `null` when the value can't be coerced — callers
-// decide whether to raise an error or substitute a default.
-
-/** Pull a JS number out of an `IntValue` / `FloatValue`, or accept raw. */
 export function coerceNumber(v: any): number | null {
   if (typeof v === "number") return v;
   if (typeof v === "string") return parseLuauNumber(v);
   if (v != null && typeof v === "object" && "value" in v) {
     const raw = (v as any).value;
     if (typeof raw === "number") return raw;
-    // Lua's tonumber coercion: numeric STRINGS convert wherever a
-    // number is expected (`math.frexp("1.5")` — math.luau line 489).
     if (typeof raw === "string") return parseLuauNumber(raw);
   }
   return null;
 }
 
-/**
- * Format a JS number the way Lua's `tostring` does for the special
- * values: `nan` (not "NaN"), `inf` / `-inf` (not "Infinity"), and
- * `-0` (JS `String(-0)` drops the sign). Ordinary numbers use JS
- * String() formatting, which matches Lua's %.14g closely enough for
- * the conformance surface.
- */
 export function luauNumberToString(n: number): string {
   if (Number.isNaN(n)) return "nan";
   if (n === Infinity) return "inf";
@@ -198,16 +66,6 @@ export function luauNumberToString(n: number): string {
   return String(n);
 }
 
-/**
- * Parse a string as a Lua number, returning null when the text isn't
- * a valid Lua numeral. Accepts decimal / scientific / hex (`0xff`)
- * forms plus Luau's `nan` / `inf` / `-inf` spellings, with
- * surrounding whitespace tolerated. Shared by `tonumber` and the
- * arithmetic string-coercion path (`1 + "2"`, `2 * "0xa"`).
- */
-// Lua 5.2 bit-field range validation for `bit32.extract` /
-// `bit32.replace` — raises trappable StoryExceptions with Lua's
-// message shapes (bitwise.luau lines 166-169 pcall these).
 function checkBitField(field: number, width: number, name: string): void {
   if (field < 0) {
     throw new StoryException(
@@ -224,8 +82,6 @@ function checkBitField(field: number, width: number, name: string): void {
   }
 }
 
-// Lua 5.2 bit32 shifts: negative counts shift the other direction,
-// counts >= 32 produce 0. (JS `<<`/`>>>` wrap the count mod 32.)
 function luaLshift(v: number, n: number): number {
   const c = Math.trunc(n);
   if (c < 0) return luaRshift(v, -c);
@@ -246,23 +102,15 @@ export function parseLuauNumber(s: string): number | null {
   if (t === "nan" || t === "-nan") return NaN;
   if (t === "inf") return Infinity;
   if (t === "-inf") return -Infinity;
-  // JS Number() already parses 0x hex, decimal, and scientific
-  // notation; it returns NaN for anything else (and we've handled
-  // the literal "nan" spelling above, so NaN here means invalid).
   const n = Number(t);
   return Number.isNaN(n) ? null : n;
 }
 
-// 64-bit unsigned reinterpretation for `%o %u %x %X` — Luau casts the
-// double through (long long) when negative, so `%x` of -1 is
-// ffffffffffffffff, not 32-bit ffffffff.
 function toUint64(n: number): bigint {
   if (!Number.isFinite(n)) return 0n;
   return BigInt.asUintN(64, BigInt(Math.trunc(n)));
 }
 
-// Stable per-object identity tokens for Lua's opaque `table: 0x...` /
-// `function: 0x...` tostring forms. WeakMap so tables stay collectable.
 const pointerIdRegistry = new WeakMap<object, number>();
 let nextPointerId = 1;
 function luauPointerId(o: object): string {
@@ -275,12 +123,6 @@ function luauPointerId(o: object): string {
   return "0x" + id.toString(16).padStart(8, "0");
 }
 
-/**
- * Pull a JS string out of a `StringValue`, or accept raw. Numbers
- * coerce to their Lua string form — `luaL_checklstring` semantics,
- * so `string.len(123) == 3` and `string.rep(12, 2) == "1212"`.
- * Booleans / tables / nil do NOT coerce.
- */
 export function coerceString(v: any): string | null {
   if (typeof v === "string") return v;
   if (typeof v === "number") return luauNumberToString(v);
@@ -292,14 +134,6 @@ export function coerceString(v: any): string | null {
   return null;
 }
 
-/**
- * Lua C-function argument contract: raise "missing argument #N to
- * 'name'" (via `story.Error` — throws, so pcall traps it) when the
- * argument slot is genuinely ABSENT: `undefined` (call site supplied
- * fewer args), a `Void` sentinel (callee returned no values), or an
- * empty multi-return. An explicit `nil` is NOT missing — entries that
- * reject nil do so with their own "invalid argument" checks.
- */
 function requireStdLibArg(
   story: any,
   v: any,
@@ -315,15 +149,6 @@ function requireStdLibArg(
   }
 }
 
-/**
- * Luau `luaL_checktable`-style validation. Raises Luau's exact
- * messages: `missing argument #N to 'name' (table expected)` when
- * the slot is absent, `invalid argument #N to 'name' (table
- * expected, got X)` when present but not a table. `name` is the
- * SHORT name (`'clear'`, not `'table.clear'`) — Luau errors use the
- * C function's own name without the library prefix. Returns the
- * unwrapped ObjectValue on success.
- */
 function requireTableArg(
   story: any,
   v: any,
@@ -346,20 +171,7 @@ function requireTableArg(
   return raw as ObjectValue;
 }
 
-/**
- * A table's length without its `__len`, as `#t` and `rawlen(t)` read it:
- * Luau's border, walked from the boundary the last length left (down
- * while that slot is empty, then up while the next is filled). This
- * reproduces the fixture-observable behaviors: deleting t[10] of a
- * filled create(10) gives 9 (walk down), reverse-filling 5..2 gives 0
- * until t[1] lands (walk up from 0), and create(5,42) keeps #t == 5
- * after t[1] is cleared (cache).
- */
 export function luauTableBorder(x: Map<string, any>): number {
-  // Capacity fast path: when the last array-part slot is occupied,
-  // Luau's getn returns sizearray (and beyond, via unbound search)
-  // regardless of interior holes — `t = table.create(5); t[5] = 5;
-  // #t == 5`.
   const cap: number = (x as any).__luauCapacity ?? 0;
   if (cap > 0 && x.has(String(cap))) {
     let n = cap;
@@ -373,22 +185,9 @@ export function luauTableBorder(x: Map<string, any>): number {
   return b;
 }
 
-/**
- * Lua/Luau `type(v)` semantics: returns one of `"nil"`, `"number"`,
- * `"string"`, `"boolean"`, `"table"`, `"function"`, `"userdata"`.
- * Approximated for sparkdown's runtime by inspecting the wrapped
- * `.value` field. Used by both `type` and `typeof` registry entries.
- */
 export function luauTypeOf(v: any): string {
   if (v == null) return "nil";
   if (typeof v === "object" && "value" in v) {
-    // Callable values get reported as "function" before the generic
-    // object-as-table fallback below. Closure-shaped ObjectValues
-    // (anonymous fn with upvalues) carry a `__closure_fn` key in
-    // their .value Map; SymbolValue (a named function or one with no
-    // upvalues) and VariablePointerValue (function held by a local)
-    // are detected by class. Never by `constructor.name`: the player's
-    // bundled worker names a self-referencing class `_SymbolValue`.
     if (v instanceof SymbolValue || v instanceof VariablePointerValue) {
       return "function";
     }
@@ -399,15 +198,7 @@ export function luauTypeOf(v: any): string {
     if (typeof raw === "boolean") return "boolean";
     if (raw instanceof Map) {
       if (raw.has("__closure_fn")) return "function";
-      // Stdlib-fn sentinel: when a bare stdlib name (`type`, `assert`,
-      // `print`, ...) is referenced as a value (not called), the
-      // runtime falls back to an ObjectValue carrying this marker so
-      // `type(type)` / `type(assert)` correctly report "function"
-      // (rather than "table" or "nil").
       if (raw.has("__stdlib_fn")) return "function";
-      // `newproxy` sentinel — userdata-like values report "userdata".
-      // Intentionally NOT spoofable via a `__type` metatable field
-      // (matching Luau's anti-spoofing rule).
       if (raw.has("__userdata")) return "userdata";
       return "table";
     }
@@ -419,19 +210,6 @@ export function luauTypeOf(v: any): string {
   return "userdata";
 }
 
-/**
- * LUA truthiness check over JS-level or wrapped values. Returns
- * `false` only for: `nil`/`null`/`undefined`, `false`, `Void`
- * instances (function returned nothing → nil), and any wrapped Value
- * whose `.value` is null or `false`. Everything else — including `0`
- * and `""` — is truthy, matching Luau. Used by `assert`,
- * `string.find`'s plain flag, `table.sort` comparator results,
- * `newproxy`, etc. — all sites where Lua semantics apply.
- *
- * (Formerly treated 0 / "" as falsy — an ink-style divergence that
- * broke basic.luau's truthiness section. The engine-value equivalent
- * for runtime control flow is `isLuauTruthy` in LuauTruthiness.ts.)
- */
 export function isTruthy(v: any): boolean {
   if (v == null) return false;
   if (v === false) return false;
@@ -439,19 +217,12 @@ export function isTruthy(v: any): boolean {
     const raw = (v as any).value;
     if (raw == null || raw === false) return false;
   }
-  // Void from the runtime engine is treated as falsy (function returned
-  // nothing).
   if (v instanceof Void) {
     return false;
   }
   return true;
 }
 
-/** What `pcall` and `xpcall` return when the call succeeds: `true`, then
- *  the call's returns. The protected callee that did `return 1, 2, 3` left
- *  a single MultiValue on the eval stack (via `Pack` at the return), so
- *  `values` is `[MV([1, 2, 3])]`; its values are spliced in, so the caller
- *  gets `(true, 1, 2, 3)` rather than `(true, MultiValue)`. */
 function protectedSuccess(values: readonly AbstractValue[]): MultiValue {
   const flat: AbstractValue[] = [new BoolValue(true)];
   for (const v of values) {
@@ -461,13 +232,6 @@ function protectedSuccess(values: readonly AbstractValue[]): MultiValue {
   return new MultiValue(flat);
 }
 
-/**
- * Translate Lua's 1-indexed `init` arg (used by `string.find` /
- * `string.match` / `string.gmatch`) to a 1-based start position.
- * Negative values count from the end of the string; out-of-range
- * values are clamped to [1, length+1]. Returns 1 when `init` is
- * absent or null.
- */
 export function resolveInit(arg: any, strLen: number): number {
   const n = coerceNumber(arg);
   if (n == null) return 1;
@@ -478,44 +242,10 @@ export function resolveInit(arg: any, strLen: number): number {
   return i;
 }
 
-// ============================================================
-// `string.pack` / `string.unpack` / `string.packsize` — binary
-// packing, ported from Luau's lstrlib.cpp (itself Lua 5.3's
-// implementation with Luau-specific type sizes):
-//
-//   < > =        endianness (`=`/default = native = little)
-//   ![N]         set max alignment to N, 1..16 (bare `!` = 8);
-//                items pad to min(item size, maxalign) boundaries
-//   b B          1-byte signed / unsigned int
-//   h H          2-byte signed / unsigned int
-//   l L          8-byte signed / unsigned int (long long)
-//   j J T        4-byte int (Luau's lua_Integer / size_t are 32-bit)
-//   i[N] I[N]    N-byte (1..16) signed / unsigned int (default 4)
-//   f            float (4 bytes)
-//   d n          double / lua_Number (8 bytes)
-//   s[N]         string with N-byte length prefix (default 4)
-//   z            null-terminated string
-//   cN           fixed-size N-byte string (never aligned)
-//   x            exactly one zero padding byte
-//   Xop          align-only: pad to `op`'s alignment, pack nothing;
-//                `op` is consumed and contributes no data
-//   (space)      ignored
-//
-// Integer sizes run up to MAXINTSIZE (16). Values are carried as
-// 64-bit two's complement (BigInt) with sign/zero fill beyond 8
-// bytes, matching packint/unpackint — including unpack's
-// "%d-byte integer does not fit into Lua Integer" check that the
-// extra bytes are pure sign extension.
-//
-// Strings are encoded as JS strings where each character is a byte
-// value in [0, 255]. This matches the convention used by
-// `string.byte` / `string.char` already in the runtime — `string.pack`
-// output round-trips through those for byte-level inspection.
-
-const PACK_MAXINTSIZE = 16; // max bytes in a packed integer
-const PACK_SZINT = 8; // sizeof(long long) — the 64-bit value window
-const PACK_MAXALIGN = 8; // bare `!` alignment
-const PACK_MAXSSIZE = 1 << 30; // Luau's 1GB string-size ceiling
+const PACK_MAXINTSIZE = 16;
+const PACK_SZINT = 8;
+const PACK_MAXALIGN = 8;
+const PACK_MAXSSIZE = 1 << 30;
 const PACK_INT_MAX = 2147483647;
 
 type PackItem =
@@ -527,14 +257,12 @@ type PackItem =
       align: number;
     }
   | { kind: "float"; size: 4 | 8; littleEndian: boolean; align: number }
-  | { kind: "char"; size: number } // `cN` — never aligned
+  | { kind: "char"; size: number }
   | { kind: "string"; lenSize: number; littleEndian: boolean; align: number }
-  | { kind: "zstr" } // `z`
-  | { kind: "padding" } // `x` — exactly one zero byte
-  | { kind: "alignpad"; align: number }; // `Xop` — alignment only, no data
+  | { kind: "zstr" }
+  | { kind: "padding" }
+  | { kind: "alignpad"; align: number };
 
-// The option's data footprint in bytes (string = its length prefix;
-// variable-size `z` and the no-data options are 0).
 function packDataSize(item: PackItem): number {
   switch (item.kind) {
     case "int":
@@ -554,8 +282,6 @@ function packItemAlign(item: PackItem): number {
   return "align" in item ? item.align : 0;
 }
 
-// Pad bytes needed to bring `pos` up to an `align` boundary
-// (align is 0 or a power of 2 — validated at parse time).
 function packPadCount(align: number, pos: number): number {
   if (align <= 1) return 0;
   return (align - (pos & (align - 1))) & (align - 1);
@@ -564,7 +290,7 @@ function packPadCount(align: number, pos: number): number {
 function parsePackFormat(fmt: string, story: any): PackItem[] | null {
   const items: PackItem[] = [];
   let i = 0;
-  let littleEndian = true; // native endianness = little
+  let littleEndian = true;
   let maxAlign = 1;
 
   const isDigit = () => {
@@ -572,7 +298,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
     return c >= 48 && c <= 57;
   };
 
-  // lstrlib.cpp getnum: read a decimal numeral or return `df`.
   const getNum = (df: number): number => {
     if (i >= fmt.length || !isDigit()) return df;
     let a = 0;
@@ -585,7 +310,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
     return a;
   };
 
-  // getnumlimit: numeral bounded to [1, MAXINTSIZE].
   const getNumLimit = (df: number): number => {
     const sz = getNum(df);
     if (sz > PACK_MAXINTSIZE || sz <= 0) {
@@ -621,8 +345,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
     }
   };
 
-  // lstrlib.cpp getoption: read and classify one option, updating
-  // endianness/alignment state as a side effect.
   const getOption = (): PackOpt | null => {
     const c = fmt.charAt(i++);
     switch (c) {
@@ -638,7 +360,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
         return { k: "int", size: 8, signed: true };
       case "L":
         return { k: "int", size: 8, signed: false };
-      // Luau's lua_Integer and size_t are 32-bit.
       case "j":
         return { k: "int", size: 4, signed: true };
       case "J":
@@ -694,8 +415,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
     if (opt == null) return null;
     let align = optSize(opt);
     if (opt.k === "alignpad") {
-      // `X` takes its alignment from the immediately following
-      // option, which is consumed and contributes no data.
       if (i >= fmt.length) {
         story.Error("string.pack: invalid next option for option 'X'");
         return null;
@@ -710,7 +429,7 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
     }
     let resolvedAlign = 0;
     if (align > 1 && opt.k !== "char") {
-      if (align > maxAlign) align = maxAlign; // enforce maximum alignment
+      if (align > maxAlign) align = maxAlign;
       if ((align & (align - 1)) !== 0) {
         story.Error("string.pack: format asks for alignment not power of 2");
         return null;
@@ -762,9 +481,6 @@ function parsePackFormat(fmt: string, story: any): PackItem[] | null {
   return items;
 }
 
-// packint (lstrlib.cpp): append `size` two's-complement bytes of `n`.
-// The value occupies the low 8 bytes; anything beyond is sign-fill
-// (0xFF when packing a negative signed value, else 0x00).
 function writePackedInt(
   bytes: number[],
   n: bigint,
@@ -786,9 +502,6 @@ function writePackedInt(
   for (const b of buff) bytes.push(b);
 }
 
-// unpackint (lstrlib.cpp): read a `size`-byte integer. The value
-// lives in the low 8 bytes; for size > 8 every extra byte must be
-// pure sign/zero extension or the value doesn't fit in 64 bits.
 function readPackedInt(
   data: string,
   offset: number,
@@ -807,7 +520,7 @@ function readPackedInt(
   if (size < PACK_SZINT) {
     if (signed) {
       const mask = 1n << BigInt(8 * size - 1);
-      res = (res ^ mask) - mask; // sign extension
+      res = (res ^ mask) - mask;
     }
   } else if (size > PACK_SZINT) {
     const fill = !signed || BigInt.asIntN(64, res) >= 0n ? 0 : 0xff;
@@ -860,7 +573,6 @@ function packString(fmt: string, args: any[], story: any): string | null {
     return s;
   };
   for (const item of items) {
-    // `bytes.length` is the running totalsize — alignment pads first.
     const pad = packPadCount(packItemAlign(item), bytes.length);
     for (let k = 0; k < pad; k++) bytes.push(0);
     if (item.kind === "alignpad") continue;
@@ -872,9 +584,6 @@ function packString(fmt: string, args: any[], story: any): string | null {
       const raw = nextNumber();
       if (raw == null) return null;
       if (!Number.isFinite(raw)) {
-        // BigInt can't carry inf/nan; C's double→long long cast here
-        // is UB anyway, so reject like Lua's integer-representation
-        // check does.
         story.Error("string.pack: number has no integer representation");
         return null;
       }
@@ -956,12 +665,10 @@ function unpackString(
   story: any,
 ): { values: AbstractValue[]; nextPos: number } | null {
   const ld = data.length;
-  // posrelat + clamp (str_unpack): negative counts back from the
-  // end; 0 and out-of-range-negative clamp to the string start.
   let rel = Math.trunc(posArg);
   if (rel < 0) rel += ld + 1;
   if (rel < 0) rel = 0;
-  let pos = rel - 1; // 1-indexed → 0-indexed
+  let pos = rel - 1;
   if (pos < 0) pos = 0;
   if (pos > ld) {
     story.Error("string.unpack: initial position out of string");
@@ -977,7 +684,7 @@ function unpackString(
       story.Error("string.unpack: data string too short");
       return null;
     }
-    pos += pad; // skip alignment
+    pos += pad;
     if (item.kind === "int") {
       values.push(
         new IntValue(
@@ -1019,7 +726,7 @@ function unpackString(
         return null;
       }
       values.push(new StringValue(data.slice(pos + size, pos + size + len)));
-      pos += len; // skip string body (prefix added below as `size`)
+      pos += len;
     } else if (item.kind === "zstr") {
       let end = pos;
       while (end < ld && data.charCodeAt(end) !== 0) end++;
@@ -1028,11 +735,11 @@ function unpackString(
         return null;
       }
       values.push(new StringValue(data.slice(pos, end)));
-      pos = end + 1; // skip string plus final '\0'
+      pos = end + 1;
     }
     pos += size;
   }
-  return { values, nextPos: pos + 1 }; // 0-indexed → 1-indexed
+  return { values, nextPos: pos + 1 };
 }
 
 function packSize(fmt: string, story: any): number | null {
@@ -1054,22 +761,18 @@ function packSize(fmt: string, story: any): number | null {
   return total;
 }
 
-// ============================================================
-// `os.date` strftime support.
-// ============================================================
-
 interface DateFields {
   year: number;
-  month: number; // 1-12
-  day: number; // 1-31
-  hour: number; // 0-23
-  min: number; // 0-59
-  sec: number; // 0-59
-  wday: number; // 1-7, 1 = Sunday (matches Lua)
-  yday: number; // 1-366
+  month: number;
+  day: number;
+  hour: number;
+  min: number;
+  sec: number;
+  wday: number;
+  yday: number;
   isdst: boolean;
-  weekdayName: string; // "Monday", "Tuesday", ...
-  monthName: string; // "January", "February", ...
+  weekdayName: string;
+  monthName: string;
 }
 
 const WEEKDAY_NAMES = [
@@ -1097,7 +800,6 @@ const MONTH_NAMES = [
 ];
 
 function dayOfYear(year: number, month: number, day: number): number {
-  // `month` is 1-12. Days per month (non-leap):
   const daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   const isLeap =
     (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
@@ -1113,10 +815,6 @@ function getDateFieldsLocal(d: Date): DateFields {
   const year = d.getFullYear();
   const month = d.getMonth() + 1;
   const day = d.getDate();
-  // JS's `getTimezoneOffset` doesn't tell us DST directly. Compare
-  // to January's offset (a known-non-DST month in the northern
-  // hemisphere, and never-DST in the southern). Different sign →
-  // DST is in effect at `d`.
   const jan = new Date(year, 0, 1).getTimezoneOffset();
   const isdst = d.getTimezoneOffset() < jan;
   return {
@@ -1193,7 +891,6 @@ function formatDateString(
         out += f.monthName;
         break;
       case "c":
-        // `%a %b %e %H:%M:%S %Y` — typical Lua default.
         out += `${f.weekdayName.slice(0, 3)} ${f.monthName.slice(0, 3)} ${pad2(f.day)} ${pad2(f.hour)}:${pad2(f.min)}:${pad2(f.sec)} ${f.year}`;
         break;
       case "d":
@@ -1223,7 +920,6 @@ function formatDateString(
         out += pad2(f.sec);
         break;
       case "w":
-        // Lua: 0 = Sunday … 6 = Saturday.
         out += String(f.wday - 1);
         break;
       case "x":
@@ -1239,8 +935,6 @@ function formatDateString(
         out += String(f.year);
         break;
       case "Z":
-        // Timezone abbreviation. JS doesn't expose this portably;
-        // emit a stable placeholder rather than guessing.
         out += "UTC";
         break;
       case "%":
@@ -1250,7 +944,6 @@ function formatDateString(
         story.Error("os.date: invalid conversion specifier '%'");
         return "";
       default:
-        // loslib's message — checkerr greps for the exact phrase.
         story.Error(`os.date: invalid conversion specifier '%${next}'`);
         return "";
     }
@@ -1258,18 +951,6 @@ function formatDateString(
   }
   return out;
 }
-
-// ============================================================
-// Perlin noise (used by `math.noise`).
-// ============================================================
-//
-// Standard Ken Perlin "improved noise" — fade(t) = 6t^5 - 15t^4 + 10t^3
-// for smoother (C2-continuous) interpolation. Permutation table is a
-// deterministic shuffle; values match Perlin's reference impl. The
-// `PERLIN_P[i + 256] = PERLIN_P[i]` doubling avoids per-lookup
-// modulo. Output is roughly in `[-1, 1]` (Perlin's gradients are
-// chosen so the typical range is `[-sqrt(3)/2, sqrt(3)/2] ≈ [-0.87, 0.87]`,
-// but corner cases can exceed slightly).
 
 const PERLIN_PERMUTATION = [
   151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
@@ -1295,16 +976,9 @@ for (let i = 0; i < 256; i++) {
   PERLIN_P[i + 256] = PERLIN_PERMUTATION[i]!;
 }
 
-// Luau computes `math.noise` entirely in FLOAT32 (lmathlib's perlin
-// is `float`-typed) — math.luau asserts BIT-EXACT doubles produced by
-// that float pipeline (`math.noise(455.72..., ...) ==
-// 0.5010709762573242`), so every intermediate here goes through
-// Math.fround.
 const fr = Math.fround;
 
 function perlinFade(t: number): number {
-  // C left-association with per-op float rounding:
-  // ((t*t)*t) * ((t*(t*6-15))+10)
   const t6m15 = fr(fr(t * 6) - 15);
   const inner = fr(fr(t * t6m15) + 10);
   const ttt = fr(fr(t * t) * t);
@@ -1375,18 +1049,6 @@ function perlinNoise(xIn: number, yIn: number, zIn: number): number {
   );
 }
 
-/**
- * Classify the `repl` arg to `string.gsub`. Returns:
- *   - "string"   — repl is a string/number template (expand via
- *                  `expandGsubStringRepl`).
- *   - "table"    — repl is an ObjectValue map (lookup by capture).
- *   - "error"    — repl is a function (Phase 5, deferred) or an
- *                  unsupported type; emits `story.Error` first.
- *
- * Caller checks `"error"` and bails. The function-form check looks
- * for the closure marker `__closure_fn` on the ObjectValue — see
- * `Story.ts > extractClosurePath`.
- */
 function classifyGsubRepl(
   repl: any,
   story: any,
@@ -1404,17 +1066,10 @@ function classifyGsubRepl(
       map instanceof Map &&
       (map.has("__closure_fn") || map.has("__stdlib_fn"))
     ) {
-      // Closure-wrapped user fn, or a stdlib builtin referenced
-      // first-class (`gsub(s, p, string.upper)`) — both dispatch
-      // through `story.CallLuauFunction`.
       return "function";
     }
     return "table";
   }
-  // Anonymous functions without upvalues / bare knot names lower to
-  // a SymbolValue (not closure-wrapped); var-pointers to
-  // function-typed locals arrive as VariablePointerValue. Both route
-  // through `story.CallLuauFunction`.
   if (repl instanceof SymbolValue || repl instanceof VariablePointerValue) {
     return "function";
   }
@@ -1424,13 +1079,6 @@ function classifyGsubRepl(
   return "error";
 }
 
-/**
- * `t[key]` following Lua's `__index` chain, for the gsub table-form
- * replacement (pm.luau line 225: a lookup table whose values come
- * from a metatable `__index` function). Lives here rather than
- * reusing Story.ts's `indexThroughMetatable` because importing from
- * Story.ts would close a module cycle (Story already imports StdLib).
- */
 function gsubTableLookup(
   story: any,
   tbl: ObjectValue,
@@ -1448,30 +1096,15 @@ function gsubTableLookup(
       idx instanceof ObjectValue &&
       !(idx.value as Map<string, AbstractValue>)?.has("__closure_fn")
     ) {
-      base = idx; // table form — continue the chain
+      base = idx;
       continue;
     }
-    // Function form (closure ObjectValue / divert target / marker), whose
-    // first value is the index's.
     const results = story.CallLuauFunction(idx, [base, new StringValue(key)]);
     return oneValue((results?.[0] as AbstractValue) ?? null);
   }
   return null;
 }
 
-/**
- * Expand `%0`-`%9` capture references and `%%` literal-percent in a
- * gsub replacement template against a match result. Returns the
- * expanded string, or `null` if the template is malformed (caller
- * has already raised the diagnostic via `story.Error`).
- *
- * Lua semantics for capture refs:
- *   - `%0` is the whole match.
- *   - `%N` (1..9) is the Nth capture. Referring to a non-existent
- *     capture is an error.
- *   - `%%` emits a single literal `%`.
- *   - `%` followed by anything else is an error.
- */
 function expandGsubStringRepl(
   template: string,
   matched: PatternMatchResult,
@@ -1498,8 +1131,6 @@ function expandGsubStringRepl(
       if (n === 0) {
         out += wholeMatch;
       } else if (n === 1 && matched.captures.length === 0) {
-        // Lua quirk: with a capture-less pattern, `%1` refers to the
-        // whole match (push_onecapture's level-0 special case).
         out += wholeMatch;
       } else if (n <= matched.captures.length) {
         const cap = matched.captures[n - 1];
@@ -1521,11 +1152,6 @@ function expandGsubStringRepl(
   return out;
 }
 
-/**
- * Convert a `PatternMatchResult.captures` array (raw JS values) to
- * stdlib `AbstractValue`s. String captures → `StringValue`, position
- * captures → `IntValue`, unmatched groups → `NullValue`.
- */
 export function patternCapturesToValues(
   result: PatternMatchResult,
 ): AbstractValue[] {
@@ -1536,27 +1162,6 @@ export function patternCapturesToValues(
   });
 }
 
-/**
- * Lua's printf-style `string.format(fmt, ...)`. Supports the
- * conversion types `d i u o x X e E f g G c s q %`, the flags
- * `- + space 0 #`, optional width, and optional precision `.N`.
- *
- * Lua's semantics for the conversion types:
- *   `%d %i %u` — integer; precision = minimum digits (zero-padded).
- *   `%o` — octal; `#` flag prepends `0`.
- *   `%x %X` — hex (lower/upper); `#` flag prepends `0x` / `0X`.
- *   `%e %E` — scientific; precision = digits after decimal.
- *   `%f` — fixed-point; precision = digits after decimal (default 6).
- *   `%g %G` — shortest of f/e.
- *   `%c` — character from integer codepoint.
- *   `%s` — string (precision = max chars).
- *   `%q` — Lua-style quoted string (escape `"` `\\` and control chars).
- *   `%%` — literal `%`.
- *
- * Errors (non-numeric arg for numeric conversion, etc.) route
- * through `story.Error`; the function returns the partial result
- * accumulated so far so the caller still gets a string back.
- */
 function formatLuaString(story: any, fmt: string, args: any[]): string {
   let out = "";
   let i = 0;
@@ -1576,8 +1181,6 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
       continue;
     }
     if (fmt.charAt(i) === "*") {
-      // Luau `%*` — formats ANY value the way tostring does
-      // (including `__tostring` metamethods). Takes no form.
       i++;
       if (argIdx >= args.length) {
         story.Error(`string.format: missing argument #${argIdx + 2}`);
@@ -1586,14 +1189,10 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
       out += luauAnyToDisplayString(story, args[argIdx++]);
       continue;
     }
-    // Format item — missing-arg raises before the form is scanned
-    // (str_format checks `++arg > top` first).
     if (argIdx >= args.length) {
       story.Error(`string.format: missing argument #${argIdx + 2}`);
       return out;
     }
-    // scanformat (lstrlib.cpp): flags capped at sizeof(FLAGS)-1=5,
-    // width and precision at 2 digits each.
     const flagsStart = i;
     while (i < fmt.length && "-+ #0".indexOf(fmt.charAt(i)) >= 0) i++;
     if (i - flagsStart > 5) {
@@ -1633,9 +1232,6 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
       story.Error(`string.format: invalid option '%${type}' to 'format'`);
       return out;
     }
-    // `%s` stringifies through `tostring` (luaL_tolstring), so a
-    // `__tostring` metamethod and its error apply; this runs outside the
-    // try below so that error is tostring's, not wrapped as format's.
     const arg =
       type === "s"
         ? luauAnyToDisplayString(story, args[argIdx++])
@@ -1660,7 +1256,6 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
       if (flags.has("-")) {
         formatted = formatted.padEnd(width, " ");
       } else if (flags.has("0") && /[diouxXeEfgG]/.test(type)) {
-        // Zero-pad goes INSIDE the sign for numeric specifiers.
         const signMatch = /^[-+ ]/.exec(formatted);
         if (signMatch) {
           formatted =
@@ -1680,9 +1275,6 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
   return out;
 }
 
-// `%*` / `luaL_addvalueany` — convert any value to its display string
-// exactly like `tostring` (shares the STDLIB entry so `__tostring`
-// metamethods and the opaque table/function forms stay consistent).
 function luauAnyToDisplayString(story: any, v: any): string {
   const r = STDLIB["tostring"]!.fn(story, [v]);
   if (typeof r === "string") return r;
@@ -1740,7 +1332,6 @@ function formatOneSpec(
       const n = numericArg();
       const p = precision ?? 6;
       let body = Math.abs(n).toExponential(p);
-      // JS uses `e+5` / `e-5`; Lua uses `e+05` / `e-05` (2-digit exponent).
       body = body.replace(/e([+-])(\d)$/, "e$10$2");
       if (type === "E") body = body.toUpperCase();
       return (n < 0 ? "-" : signPrefix(n)) + body;
@@ -1753,10 +1344,6 @@ function formatOneSpec(
       if (!Number.isFinite(abs)) {
         body = Number.isNaN(abs) ? "nan" : "inf";
       } else if (abs >= 1e21) {
-        // JS toFixed falls back to exponential notation at 1e21;
-        // C's %f prints every digit. Doubles this large are
-        // integral, so BigInt expands them exactly
-        // (`%99.99f` of -1e308 must be 100+ chars).
         body = BigInt(abs).toString() + (p > 0 ? "." + "0".repeat(p) : "");
       } else {
         body = abs.toFixed(p);
@@ -1774,12 +1361,6 @@ function formatOneSpec(
       } else if (abs === 0) {
         body = "0";
       } else {
-        // C `%g` rule: exponential when the (rounded) decimal exponent
-        // X satisfies X < -4 or X >= precision, else fixed with
-        // `p - 1 - X` fraction digits; trailing zeros (and a bare
-        // trailing point) are stripped in both styles. Note this
-        // differs from JS `toPrecision`, which switches to scientific
-        // at X < -7 — `%g` of 1e-5 must be "1e-05", not "0.00001".
         const exp = parseInt(abs.toExponential(p - 1).split("e")[1]!, 10);
         if (exp < -4 || exp >= p) {
           body = abs
@@ -1805,9 +1386,6 @@ function formatOneSpec(
       return precision !== null ? s.slice(0, precision) : s;
     }
     case "q": {
-      // addquoted (lstrlib.cpp): `"` `\` and newline get a backslash
-      // (newline stays a LITERAL newline after it), `\r` → "\r",
-      // NUL → "\000", everything else verbatim.
       const s = coerceString(arg) ?? "";
       return (
         '"' +
@@ -1825,13 +1403,6 @@ function formatOneSpec(
   }
 }
 
-/**
- * Shared implementation for `table.unpack` and global `unpack`.
- * Returns the array slice `t[i..j]` as a JS array (which the
- * stdlib dispatcher wraps as a `MultiValue`). Missing slots in the
- * requested range become `null` so multi-target callers see them as
- * nil rather than truncating the result.
- */
 function unpackImpl(story: any, args: any[], fnName: string): any[] {
   if (!(args[0] instanceof ObjectValue)) {
     story.Error(`${fnName}: first argument must be a table`);
@@ -1843,8 +1414,6 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
   while (map.has(String(len + 1))) len++;
   const i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
   const j = args.length > 2 ? (coerceNumber(args[2]) ?? len) : len;
-  // Luau caps unpack at LUAI_MAXCSTACK-ish result counts — unpacking
-  // 8000 elements must trap while 7999 succeeds (tables.luau).
   if (j - i + 1 > 7999) {
     throw new StoryException("too many results to unpack");
   }
@@ -1854,20 +1423,6 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
   }
   return out;
 }
-
-// ============================================================
-// utf8 byte model (lutf8lib.cpp port).
-//
-// Sparkdown strings follow the byte-string convention the rest of
-// the string library uses (string.pack / byte / char / sub): every
-// JS char with code <= 0xFF IS one byte — so `"\xE3"` is the raw
-// (invalid) byte E3, exactly as in Lua source. Chars above 0xFF
-// (real text like "汉") expand to their UTF-8 encoding so
-// `utf8.len("汉字") == 2` still holds for narrative text. Latin-1
-// chars typed directly as text (`"é"`, U+00E9) are therefore RAW
-// BYTES from utf8's point of view — byte-true code should build
-// such strings via utf8.char or `\xNN` escapes.
-// ============================================================
 
 export function luauStringToBytes(s: string): number[] {
   const out: number[] = [];
@@ -1892,10 +1447,6 @@ export function luauStringToBytes(s: string): number[] {
   return out;
 }
 
-// utf8_decode (lutf8lib.cpp): decode one sequence starting at byte
-// index `i`. Returns the codepoint + index just past the sequence,
-// or null for any invalid sequence (bad continuation, overlong,
-// > U+10FFFF, surrogates).
 const UTF8_DECODE_LIMITS = [0xff, 0x7f, 0x7ff, 0xffff];
 function utf8DecodeBytes(
   bytes: number[],
@@ -1912,20 +1463,19 @@ function utf8DecodeBytes(
     const cc = bytes[i + count];
     if (cc === undefined || (cc & 0xc0) !== 0x80) return null;
     res = (res << 6) | (cc & 0x3f);
-    cshift = (cshift << 1) & 0xff_ff; // keep it a small int; bits used below
+    cshift = (cshift << 1) & 0xff_ff;
   }
   res |= (cshift & 0x7f) << (count * 5);
   if (count > 3 || res > 0x10ffff || res <= UTF8_DECODE_LIMITS[count]!) {
     return null;
   }
-  if (res >= 0xd800 && res < 0xe000) return null; // surrogate
+  if (res >= 0xd800 && res < 0xe000) return null;
   return { code: res, next: i + count + 1 };
 }
 
 const utf8IsCont = (bytes: number[], i: number) =>
   ((bytes[i] ?? 0) & 0xc0) === 0x80;
 
-// u_posrelat (lutf8lib.cpp): negative positions count from the end.
 function utf8PosRelat(pos: number, len: number): number {
   if (pos >= 0) return pos;
   if (-pos > len) return 0;
@@ -1933,9 +1483,6 @@ function utf8PosRelat(pos: number, len: number): number {
 }
 
 
-// Re-export the method-dispatch surface so external callers
-// (compiler, runtime engine) see one entry point. The actual table
-// and helpers live in `MethodDispatch.ts` to keep this file small.
 import { checkNumberArg } from "./MethodDispatch";
 export {
   callBuiltinMethod,
@@ -1944,91 +1491,23 @@ export {
   METHOD_PREFIX,
 } from "./MethodDispatch";
 
-// An alias entry resolves a Luau-style source name to an ink-runtime
-// builtin name. Most entries are a single fixed string. Some methods
-// dispatch on arg count (e.g. `story.turns()` → `TURNS`,
-// `story.turns(-> t)` → `TURNS_SINCE`) — for those, the entry is a
-// function that takes the call's arg count and returns the resolved
-// name (or `null` if the arity isn't supported).
 export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 
-// Unified Luau standard library. Each entry is a one-line
-// registration; the `pure?` flag controls the dispatch path:
-//
-// - `pure: true` — `fn` is a pure JS function `(_, [a, b]) => number`
-//   (ignores `story`). Auto-registered with `NativeFunctionCall` at
-//   engine init so it benefits from the type-coercion fast path
-//   (int/float operand dispatch, list-membership flag, etc.). Used
-//   for `math.*` numeric helpers.
-//
-// - `pure` omitted — `fn` is state-aware `(story, args) => result`
-//   and routes through the program engine's `CallStd` instruction.
-//   Used for `assert`, `plural.category`, `math.random`,
-//   `count.*`, and (future) `error`, `tostring`, etc.
-//
-// Adding a new entry — pure or state-aware — is one line:
-//   "math.atan2": { arity: 2, pure: true, fn: (_, [y, x]) => Math.atan2(y, x) },
-//   tostring:     { arity: 1, fn: (_, [v]) => String(coerceNumber(v) ?? v) },
-//
-// At lowering, `makeGlobalFunctionCall` (lowerExpression.ts) and
-// `lookupStdLibBuiltin` (below) consult this table by dotted full
-// name. The `FunctionCall` constructed carries that name verbatim; its
-// emission (`FunctionCall.EmitExpression`) branches on `pure`: `Native` for a
-// pure entry, `CallStd` for any other.
-
-// ----------------------------------------------------------------
-// Built-in iterators (for `pairs` / `ipairs`)
-// ----------------------------------------------------------------
-
-// Sentinel key on a closure-shaped `ObjectValue` marking it as a
-// stdlib iterator. The runtime's value call (`callValueAsFunction` in
-// evaluation.ts) checks for this BEFORE the closure-path check and
-// dispatches to the registered iterator below instead of trying to
-// divert to a user-defined target.
 export const BUILTIN_ITER_TAG = "__builtin_iter";
 
-// Sentinel key marking an `ObjectValue` as the `_G` globals-table
-// proxy. A bare `_G` reference resolves to a fresh marker-tagged
-// ObjectValue (identity doesn't matter — only the tag is checked);
-// the runtime's `Index` / `StoreIndex` instructions route reads and
-// writes through `VariablesState` global storage when they see it,
-// so `_G.foo = 1` / `_G['foo']` behave as Luau's global-environment
-// access without a real backing table.
 export const GLOBALS_PROXY_TAG = "__globals_proxy";
-// Auxiliary state — table to iterate, plus a cursor. Stored on the
-// same ObjectValue so each call can advance the cursor in place.
 const BUILTIN_ITER_STATE = "__builtin_iter_state";
 const BUILTIN_ITER_CURSOR = "__builtin_iter_cursor";
 
-// Per-iterator step function. Receives the captured iterator state
-// (table for `pairs`/`ipairs`, or a small wrapper ObjectValue for
-// `gmatch`) and the previous cursor; returns the next yielded values
-// + the cursor to record for the next step, or `null` when iteration
-// ends. The runtime packages `values` as a `MultiValue` so generic-
-// for's multi-assignment binds the user's loop variables — pairs /
-// ipairs return [key, value] (length 2), `gmatch` returns N captures.
 type IterStep = (
   state: AbstractValue,
   cursor: AbstractValue | null,
-  // The iterator's own marker map — per-iteration scratch space
-  // (e.g. pairs' key snapshot). Null when the step is driven with
-  // explicit state (`next`-style calls) instead of a live iterator.
   scratch?: Map<string, AbstractValue> | null,
 ) => { values: AbstractValue[]; nextCursor: AbstractValue } | null;
 
-// Scratch key holding pairs' key snapshot (a raw string[] smuggled
-// through the AbstractValue-typed marker map).
 const ITER_KEY_SNAPSHOT = "__iter_key_snapshot";
 
 const BUILTIN_ITERATORS: Record<string, IterStep> = {
-  // `pairs(t)` — visit every key in insertion order. Cursor is the
-  // previous key (string in the underlying Map). `nil` cursor →
-  // start at the first entry. Keys are SNAPSHOTTED at iteration
-  // start (when scratch is available): Lua allows clearing the
-  // CURRENT field during traversal, and a live scan can't find the
-  // successor of a deleted cursor. Keys deleted since the snapshot
-  // are skipped at step time; keys added mid-iteration aren't
-  // visited (Lua leaves that unspecified).
   pairs: (state, cursor, scratch) => {
     if (!(state instanceof ObjectValue)) return null;
     const map = state.value as Map<string, AbstractValue> | null;
@@ -2059,7 +1538,6 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       const i = keys.indexOf(cstr);
       idx = i < 0 ? keys.length : i + 1;
     }
-    // Skip entries deleted since the snapshot.
     while (idx < keys.length && !map.has(keys[idx]!)) idx++;
     if (idx >= keys.length) return null;
     const key = keys[idx]!;
@@ -2069,14 +1547,9 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       : new StringValue(key);
     return {
       values: [keyValue, value],
-      // Cursor is stored as a string for stable round-tripping (Maps
-      // key on string in sparkdown).
       nextCursor: new StringValue(key),
     };
   },
-  // `ipairs(t)` — visit integer keys 1..N stopping at the first gap.
-  // Cursor is the previous integer index; `nil` → start at 0,
-  // returning 1 next.
   ipairs: (state, cursor) => {
     if (!(state instanceof ObjectValue)) return null;
     const map = state.value as Map<string, AbstractValue> | null;
@@ -2090,18 +1563,9 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     const i = prev + 1;
     if (!map.has(String(i))) return null;
     const v = map.get(String(i))! as AbstractValue;
-    // Lua: ipairs stops at the FIRST nil value, not just a missing
-    // key — `ipairs({5, 6, 7, nil, 8})` iterates k=1..3 even though
-    // slot 5 holds 8 (basic.luau lines 224-226).
     if (v instanceof NullValue) return null;
     return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
   },
-  // `instances(T)` — visit only T's registered define MEMBERS (the
-  // `define X as T` entries), yielding (name, instance) and skipping
-  // T's own props / methods / bookkeeping keys. A member is any value
-  // tagged `__define` on its metatable. The member-name list is
-  // snapshotted at start (same delete-during-iteration safety as
-  // `pairs`).
   instances: (state, cursor, scratch) => {
     if (!(state instanceof ObjectValue)) return null;
     const map = state.value as Map<string, AbstractValue> | null;
@@ -2139,9 +1603,6 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       nextCursor: new StringValue(key),
     };
   },
-  // `iinstances(T)` — array-style member visit, yielding
-  // (1-based ordinal, instance) over the registered members in
-  // registration order. Cursor is the previous ordinal.
   iinstances: (state, cursor, scratch) => {
     if (!(state instanceof ObjectValue)) return null;
     const map = state.value as Map<string, AbstractValue> | null;
@@ -2164,7 +1625,7 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       keys = memberKeys();
     }
     const prev = atStart ? 0 : Number((cursor as any).value);
-    let idx = prev; // 0-based index of the next member to yield
+    let idx = prev;
     while (idx < keys.length && !isDefineTable(map.get(keys[idx]!))) idx++;
     if (idx >= keys.length) return null;
     return {
@@ -2172,13 +1633,6 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       nextCursor: new IntValue(idx + 1),
     };
   },
-  // `utf8codes(s)` — iter_aux (lutf8lib.cpp). Each step yields the
-  // 1-indexed byte position + codepoint of the next character. The
-  // control value is the byte position of the PREVIOUS character (0
-  // on the first call), so the iterator also works when called
-  // directly with explicit (s, n) args — `local f = utf8.codes("");
-  // f("", 2)` (utf8.luau lines 122-125). Malformed sequences raise
-  // "invalid UTF-8 code" (trappable).
   utf8codes: (state, cursor) => {
     let input: string | null = null;
     if (state instanceof StringValue) {
@@ -2199,10 +1653,10 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
         : Math.trunc(Number((cursor as any).value));
     let n = prev - 1;
     if (n < 0) {
-      n = 0; // first iteration
+      n = 0;
     } else if (n < len) {
-      n++; // skip current byte
-      while (utf8IsCont(bytes, n)) n++; // and its continuations
+      n++;
+      while (utf8IsCont(bytes, n)) n++;
     }
     if (n >= len) return null;
     const d = utf8DecodeBytes(bytes, n);
@@ -2214,12 +1668,6 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       nextCursor: new IntValue(n + 1),
     };
   },
-  // `gmatch(s, pattern)` — iterate every non-overlapping match. The
-  // state is a wrapper ObjectValue carrying `{input, pattern}`; the
-  // cursor is an IntValue holding the next 0-indexed search offset.
-  // Each step yields the captures (or whole match if pattern has no
-  // captures) as a variable-arity MultiValue. Returns null on no
-  // further match — terminates the generic-for loop.
   gmatch: (state, cursor) => {
     if (!(state instanceof ObjectValue)) return null;
     const stateMap = state.value as Map<string, AbstractValue> | null;
@@ -2241,8 +1689,6 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     try {
       compiled = luaPatternToJs(pattern);
     } catch {
-      // Compile errors surface at call site (gmatch entry below)
-      // before we ever get here, but be defensive.
       return null;
     }
     if (offset > input.length) return null;
@@ -2253,27 +1699,15 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       compiled.captureCount === 0
         ? [new StringValue(input.slice(matched.index, matchEnd))]
         : patternCapturesToValues(matched);
-    // Empty match → step forward 1 byte so we don't loop forever on
-    // patterns like `%a*`.
     const nextOffset = matched.length === 0 ? matchEnd + 1 : matchEnd;
     return { values, nextCursor: new IntValue(nextOffset) };
   },
 };
 
-// Wrapper-ObjectValue field names for `gmatch` iterator state. The
-// state ObjectValue is keyed under `BUILTIN_ITER_STATE` on the
-// iterator itself; these two extra keys live INSIDE that wrapper.
 const GMATCH_INPUT = "__gmatch_input";
 const GMATCH_PATTERN = "__gmatch_pattern";
-// Wrapper field for `utf8codes` iterator state.
 const UTF8CODES_INPUT = "__utf8codes_input";
 
-/**
- * Build a closure-shaped `ObjectValue` marked as a stdlib iterator.
- * `callValueAsFunction` (evaluation.ts) detects the `__builtin_iter` key
- * and dispatches to the matching `BUILTIN_ITERATORS` entry, mutating
- * the cursor on this ObjectValue between invocations.
- */
 function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
   const map = new Map<string, AbstractValue>();
   map.set(BUILTIN_ITER_TAG, new StringValue(name));
@@ -2282,27 +1716,6 @@ function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
   return new ObjectValue(map);
 }
 
-/**
- * Runtime entry point: advance the iterator one step. Returns the
- * yielded values as a `MultiValue` (or the single value directly when
- * there's only one), or a `NullValue` when iteration ends. Called
- * from `callValueAsFunction` (evaluation.ts) and the
- * variable-divert dispatch path.
- *
- * STATELESS mode (Lua's iterator protocol): when the call site passes
- * an explicit non-nil `state` arg — `ipairs(t)` returns the triple
- * `(iterator, t, 0)` so generic-for threads the real table and
- * previous control value, and manual calls like `inext(t, 2)` pass
- * them directly (basic.luau line 230) — the step uses the PASSED
- * (state, control) and the marker's internal cursor is neither read
- * nor written.
- *
- * STATEFUL fallback: iterators whose state can't be expressed in the
- * (state, control) protocol (`gmatch`, `utf8codes` — also Lua's own
- * stateful-iterator pattern) return just the marker, so generic-for
- * passes state=nil and the internal STATE/CURSOR fields drive the
- * iteration as before.
- */
 export function stepBuiltinIterator(
   iter: ObjectValue,
   stateArg?: AbstractValue | null,
@@ -2319,9 +1732,6 @@ export function stepBuiltinIterator(
   const explicitState =
     stateArg != null && !(stateArg instanceof NullValue) ? stateArg : null;
   if (explicitState !== null) {
-    // The marker map still serves as per-iteration scratch (pairs'
-    // key snapshot) — a fresh marker is minted per `pairs(t)` call,
-    // and a nil ctrl (loop start) refreshes the snapshot.
     const result = step(explicitState, ctrlArg ?? null, map);
     if (!result) return new NullValue();
     if (result.values.length === 0) return new NullValue();
@@ -2334,7 +1744,6 @@ export function stepBuiltinIterator(
   const cursor = (map.get(BUILTIN_ITER_CURSOR) ?? null) as AbstractValue | null;
   const result = step(state, cursor, map);
   if (!result) {
-    // End-of-iteration — leave the cursor untouched, return nil.
     return new NullValue();
   }
   map.set(BUILTIN_ITER_CURSOR, result.nextCursor);
@@ -2343,15 +1752,6 @@ export function stepBuiltinIterator(
   return new MultiValue(result.values);
 }
 
-// ============================================================
-// `define` OOP type/instance support (shared by __def / __new /
-// instances). A define is a runtime table tagged on its metatable:
-//   __define       — the define's own name (marks it as a member for
-//                    instances() iteration and identifies class tables)
-//   __defineParent — the parent type's name ("" for a root define)
-//   __index        — the parent type TABLE (prop/method inheritance,
-//                    table-form so dispatch stays a plain map walk)
-// ============================================================
 const DEFINE_MARKER = "__define";
 const DEFINE_PARENT_MARKER = "__defineParent";
 
@@ -2369,26 +1769,7 @@ function isDefineTable(v: AbstractValue | null | undefined): v is ObjectValue {
   return metatableMap(v as AbstractValue)?.get(DEFINE_MARKER) != null;
 }
 
-// Resolve the TABLE that `as X` means: the TYPE named X.
-//
-// The flat global for X holds whichever declaration registered first — an
-// accident of source order when X is multiply-defined. The prelude does this
-// deliberately: `typewriter` is a ROOT TYPE (pacing props) and ALSO a synth /
-// mixer / channel INSTANCE (its keystroke sound and routing). With the synth
-// instance declared first, the flat `typewriter` held the SOUND, and every
-// `define … as typewriter` chained through it — inheriting the tuned synth
-// props (accidentally load-bearing: that union is a typewriter def's voice
-// payload) while missing the root's pacing props entirely (#371).
-//
-// FlowBase gives a displaced colliding declaration the qualified key
-// `$<type>_<name>`, and a root define's type is its own name — so the
-// displaced root lives at `$X_X`. When the flat global is an INSTANCE named
-// X and that root exists, resolve to the root — and link the root's chain
-// through the instance (once), so the union survives BY CONSTRUCTION with
-// the root's props taking precedence: member → root (pacing) → instance
-// (tuned sound) → the instance's own ancestors.
 function resolveParentType(
-  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
   story: any,
   parentName: string,
   flat: ObjectValue,
@@ -2396,13 +1777,13 @@ function resolveParentType(
   const flatMeta = metatableMap(flat);
   const flatParent = flatMeta?.get(DEFINE_PARENT_MARKER);
   if (flatParent == null || coerceString(flatParent) === "") {
-    return flat; // the flat global IS the root type
+    return flat;
   }
   const displaced = story.state.variablesState.GetVariableWithName(
     `$${parentName}_${parentName}`,
   ) as AbstractValue | null;
   if (!(displaced instanceof ObjectValue)) {
-    return flat; // no displaced root — X really is an instance used as a parent
+    return flat;
   }
   const rootMeta = metatableMap(displaced);
   if (
@@ -2418,11 +1799,6 @@ function resolveParentType(
   return displaced;
 }
 
-// A table a builtin changes in place, or whose metatable, frozen flag or
-// length hints it changes, marked before the change through the write
-// barrier of the story it runs on (`VariablesState.WriteBarrier`,
-// docs/engine/binary-program.md, section 7). Only a pure builtin runs
-// without a story, and none changes a table.
 type Written = (table: ObjectValue | null | undefined) => void;
 const writtenIn =
   (story: any): Written =>
@@ -2430,7 +1806,6 @@ const writtenIn =
     if (table) story.state.variablesState.WriteBarrier(table);
   };
 
-// Walk a type/instance's `__index` chain (self first, then ancestors).
 function defineChain(start: ObjectValue): ObjectValue[] {
   const chain: ObjectValue[] = [];
   let cur: ObjectValue | null = start;
@@ -2444,12 +1819,6 @@ function defineChain(start: ObjectValue): ObjectValue[] {
   return chain;
 }
 
-// Copy `store`-marked property defaults from `chain` (nearest level first)
-// into `target`. A key marked `store` at any level takes its value from the
-// nearest level that holds one, so a child's redeclared default wins over its
-// ancestors', and `target`'s own keys are never overwritten. Store props
-// become instance-owned (enumerable + serialized); non-store props stay on
-// the type and inherit lazily through `__index`.
 function copyStoreDefaults(
   chain: ObjectValue[],
   target: ObjectValue,
@@ -2481,26 +1850,15 @@ function copyStoreDefaults(
   }
 }
 
-// Structural blocks (`animation`/`theme`/`morph`) waiting for an `as` parent
-// that has not registered in their type table yet, keyed by type table and
-// then by parent name. Global initialization runs in declaration order, so a
-// child can run before its parent; the parent links its waiting children when
-// it registers.
 const pendingStructuralParents = new WeakMap<
   ObjectValue,
   Map<string, ObjectValue[]>
 >();
 
-// The structural blocks linked to each parent table, so a parent that gains
-// its own parent later can refresh the `store` copies of its descendants.
 const structuralChildren = new WeakMap<ObjectValue, ObjectValue[]>();
 
-// The `store` keys each structural block received from its chain rather than
-// from its own body, so a later link can replace them with the new chain's.
 const structuralStoreCopies = new WeakMap<ObjectValue, string[]>();
 
-// Whether `target` is on the `__index` chain starting at `start`. Walks until
-// the chain ends or repeats, with no step limit, so a long cycle is found.
 function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
   const seen = new Set<ObjectValue>();
   let cur: ObjectValue | null = start;
@@ -2514,9 +1872,6 @@ function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
   return false;
 }
 
-// Point a structural block's `__index` at its parent. A link that would make
-// the chain reach the child again (`a as b`, `b as a`) is refused, leaving
-// the child inheriting from its type. Returns whether the link was made.
 function linkStructuralParent(
   child: ObjectValue,
   parent: ObjectValue,
@@ -2531,10 +1886,6 @@ function linkStructuralParent(
   return true;
 }
 
-// Copy the `store` defaults of a structural block's current chain into it, as
-// `__def` does for a define, replacing the copies an earlier chain gave it,
-// then do the same for the blocks linked to it. A block's own `store` values
-// are never replaced. Links are acyclic, so the descent ends.
 function copyStructuralStoreDefaults(
   block: ObjectValue,
   written: Written = () => {},
@@ -2554,8 +1905,6 @@ function copyStructuralStoreDefaults(
   }
 }
 
-// Link every structural block waiting in `typeTable` for a parent named
-// `name`, now that `parent` has registered there under that name.
 function linkWaitingStructuralChildren(
   typeTable: ObjectValue,
   name: string,
@@ -2573,9 +1922,6 @@ function linkWaitingStructuralChildren(
   }
 }
 
-// Whether `v` is a root table of the type `name`: an explicit root define
-// (`define color with … end`) or the table a child minted for it (`as color`
-// before any root), neither of which has a parent.
 function isRootTypeTable(v: AbstractValue | null, name: string): boolean {
   const meta = metatableMap(v);
   return (
@@ -2585,11 +1931,7 @@ function isRootTypeTable(v: AbstractValue | null, name: string): boolean {
   );
 }
 
-// The table that already holds the type `name` when a root define of it
-// runs, if one does: the flat global, or the displaced root `$name_name` of
-// a dual name (see `resolveParentType`).
 function rootTableFor(
-  // `any` for the same circular-import reason as `StateAwareStdLibFn`.
   story: any,
   name: string,
   table: ObjectValue,
@@ -2609,20 +1951,10 @@ function rootTableFor(
   return null;
 }
 
-// Whether `v` is a table in Luau's sense, not a function wrapper
-// (`__stdlib_fn`, `__closure_fn`) that is also an `ObjectValue`.
 function isPlainTable(v: AbstractValue | null | undefined): v is ObjectValue {
   return v instanceof ObjectValue && luauTypeOf(v) === "table";
 }
 
-// Whether `v` is a record a root's merge descends into: a table that is not a
-// define and is not a list. A list is a non-empty table whose keys are
-// exactly `"1"`..`"n"`, as the context converters classify one
-// (`expressionToContextValue`, `buildDefinesContext`), and replaces what it
-// meets whole, as `inheritDefaults` replaces arrays in the compile-time
-// context. A table mixing positions with names is a record, and so is an
-// empty table, which those converters read as an empty object: it fills a
-// record with nothing and replaces a list.
 function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
   if (!isPlainTable(v)) return false;
   const map = v.value;
@@ -2634,13 +1966,6 @@ function isRecordTable(v: AbstractValue | null | undefined): v is ObjectValue {
   return false;
 }
 
-// Writes `from`'s entries into `into`. A record written where `into` holds a
-// record or a define (a registered member) fills that table key by key
-// instead of replacing it, so `loading = { percent = 5 }` keeps the
-// builtin's other `loading` fields and `ui = { … }` in a `config` root keeps
-// the registered `config.ui`. `active` holds the tables being filled on the
-// way down, so a cycle ends while a table reached twice by different keys is
-// filled each time.
 function mergeEntries(
   into: ObjectValue,
   from: ObjectValue,
@@ -2667,15 +1992,6 @@ function mergeEntries(
   }
 }
 
-// Fills `into` with the entries of `from` it lacks, the reverse of
-// `mergeEntries`: a typed define overriding a member already registered under
-// its name (`define ui as config` over the builtin `config.ui`, #1951) keeps
-// every key it authors, computed ones included, and takes the member's
-// others. A record it restates where the member holds a record is filled the
-// same way, key by key, so `breakpoints = { xs = 1 }` keeps the builtin's
-// other breakpoints, as `inheritDefaults` merges them in the compile-time
-// context; a list or any other value it authors stays as written. The
-// member's hidden modifier lists (`__storeProps`, …) are its own.
 function fillMissingEntries(
   into: ObjectValue,
   from: ObjectValue,
@@ -2702,20 +2018,6 @@ function fillMissingEntries(
   }
 }
 
-// A root define of a type whose table already exists merges into that table
-// rather than replacing it, and returns it: a project's `define color with
-// … end` overriding the builtin root (#454) runs after the prelude's root and
-// every member that registered into its table (`define red as color`, the
-// structural blocks, the parent links still waiting there), and a project's
-// root written after its own members finds the table the first of them
-// minted. The authored values replace the table's own, records key by key
-// (`mergeEntries`); each member keeps
-// inheriting from the same table, so it reads them, and takes the `store`
-// defaults the merge brings, as a member defined after it would. A root table
-// that already holds such defaults (neither the prelude's nor a minted one
-// does) keeps the copies its members took.
-// The declarations run on a fresh state, so the table found is always one
-// this run made.
 function mergeIntoRootTable(
   story: any,
   name: string,
@@ -2746,10 +2048,6 @@ function mergeIntoRootTable(
   return target;
 }
 
-// A `display({ parts })` table carries words whose tags sit between pieces of
-// text, each part a string or a `{ tag }` table, in the order written. Join
-// them into the `text` and `tags` every other display table carries. True
-// when it wrote them.
 function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   const parts = table.get("parts");
   if (!(parts instanceof ObjectValue) || !parts.value) return false;
@@ -2775,20 +2073,13 @@ function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   return true;
 }
 
-// What a line that begins with `..` and joins nothing raises.
 const NOT_JOINED =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 export const STDLIB: Record<string, StdLibEntry> = {
-  // ============================================================
-  // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
-  // ============================================================
   "math.abs": { arity: 1, pure: true, fn: (_, [v]) => Math.abs(v) },
   "math.acos": { arity: 1, pure: true, fn: (_, [v]) => Math.acos(v) },
   "math.asin": { arity: 1, pure: true, fn: (_, [v]) => Math.asin(v) },
-  // `math.atan(x)` / `math.atan(y, x)` — the 2-arg form was added
-  // in Lua 5.3 (replacing `math.atan2`) and is also in Luau. Routes
-  // through `Math.atan2` when both args are present.
   "math.atan": {
     arity: -1,
     minArgs: 1,
@@ -2809,23 +2100,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.deg": { arity: 1, pure: true, fn: (_, [v]) => (v * 180) / Math.PI },
   "math.exp": { arity: 1, pure: true, fn: (_, [v]) => Math.exp(v) },
   "math.floor": { arity: 1, pure: true, fn: (_, [v]) => Math.floor(v) },
-  // `math.fmod(a, b)` matches Lua's truncate-toward-zero remainder,
-  // which is the same behavior as JavaScript's `%` operator (sign
-  // follows dividend).
   "math.fmod": { arity: 2, pure: true, fn: (_, [a, b]) => a % b },
   "math.ldexp": {
     arity: 2,
     pure: true,
     fn: (_, [m, e]) => m * Math.pow(2, e),
   },
-  // `math.modf(x)` — Lua/Luau multi-return: integer part and
-  // fractional part. The integer part has the same sign as `x` and
-  // its absolute value is `floor(|x|)`. Returning a JS array signals
-  // multi-return to the dispatcher, which wraps the elements as a
-  // `MultiValue` and pushes one stack slot. Consumers:
-  //   - `local i, f = math.modf(x)` — `Unpack` distributes
-  //   - `local x = math.modf(3.7)` — auto-unwrap → first value (3)
-  //   - `print(math.modf(x))` — first value only (single-arg context)
   "math.modf": {
     arity: 1,
     fn: (_, [x]) => {
@@ -2834,9 +2114,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return [intPart, n - intPart];
     },
   },
-  // `math.frexp(x)` — multi-return: mantissa `m` and exponent `e`
-  // such that `x = m * 2^e`, with `0.5 <= |m| < 1` (or `m = 0`
-  // when `x = 0`). The inverse of `math.ldexp`.
   "math.frexp": {
     arity: 1,
     fn: (_, [x]) => {
@@ -2846,7 +2123,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const absX = Math.abs(n);
       let e = Math.floor(Math.log2(absX)) + 1;
       let m = absX / Math.pow(2, e);
-      // Boundary correction for log2 precision quirks.
+      // workaround(node): Math.log2 is implementation-approximated, so floor(log2(x))+1 can be off by one near powers of two; frexp corrects the exponent
       if (m >= 1) {
         m /= 2;
         e += 1;
@@ -2857,9 +2134,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return [sign * m, e];
     },
   },
-  // `math.log(x [, base])` — Lua 5.2+ / Luau accept an optional
-  // base. With one arg, returns natural log. With two args, returns
-  // `log(x) / log(base)`.
   "math.log": {
     arity: -1,
     minArgs: 1,
@@ -2868,14 +2142,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       args.length >= 2 ? Math.log(args[0]!) / Math.log(args[1]!) : Math.log(args[0]!),
   },
   "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
-  // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.
-  // Pure: NativeFunctionCall registers them with VARIADIC_ARITY; the
-  // call site captures the actual arg count.
-  // Pairwise fold seeded from the FIRST argument (Luau semantics):
-  // a leading NaN propagates (`math.min(nan, 2)` is nan — every
-  // comparison against nan is false, so the accumulator never
-  // replaces) while a non-leading NaN loses (`math.min(1, nan)` is
-  // 1) — math.luau lines 302-305.
   "math.max": {
     arity: -1,
     minArgs: 1,
@@ -2908,11 +2174,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [a, b]) => Math.pow(a, b),
   },
   "math.rad": { arity: 1, pure: true, fn: (_, [v]) => (v * Math.PI) / 180 },
-  // C round(): half away from ZERO (JS Math.round goes toward +inf,
-  // so Math.round(-0.5) is -0 not -1) and WITHOUT the `v + 0.5`
-  // double-rounding bug (`math.round(0.49999999999999994)` must be
-  // 0; adding 0.5 rounds the sum up to exactly 1) — math.luau
-  // round section.
   "math.round": {
     arity: 1,
     pure: true,
@@ -2923,8 +2184,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return v < 0 ? -r : r;
     },
   },
-  // NaN signs as 0 in Luau (JS Math.sign(NaN) is NaN) — math.luau
-  // line 326.
   "math.sign": {
     arity: 1,
     pure: true,
@@ -2936,17 +2195,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.tan": { arity: 1, pure: true, fn: (_, [v]) => Math.tan(v) },
   "math.tanh": { arity: 1, pure: true, fn: (_, [v]) => Math.tanh(v) },
 
-  // ============================================================
-  // State-aware entries (route through the `CallStd` instruction)
-  // ============================================================
-
-  // `plural.category(n)` — CLDR plural category for `n` in the
-  // active language (`lang.current` store; defaults to `"en"`).
-  // Used directly (`{plural.category(n)}`) and as the desugar
-  // target for `plural(n)|one=...|other=...` alternators. Returns
-  // a string (`"zero"` / `"one"` / `"two"` / `"few"` / `"many"` /
-  // `"other"`) which the generic dispatcher auto-wraps as a
-  // StringValue.
   "plural.category": {
     arity: 1,
     fn: (story, [nVal]) => {
@@ -2955,11 +2203,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("plural.category expected a number, but got " + nVal);
         return "other";
       }
-      // Read `lang.current`. Try the dotted name first (flat-namespace
-      // store case), fall back to `lang` as an ObjectValue with a
-      // `current` key. Default to English when neither is set —
-      // missing language data shouldn't be a hard error in a
-      // creative-writing runtime.
       let language = "en";
       const langDirect = coerceString(
         story.state.variablesState.GetVariableWithName("lang.current"),
@@ -2979,19 +2222,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `math.random([m [, n]])` — Lua/Luau's polymorphic RNG.
-  //   0 args:   float in `[0, 1)`
-  //   1 arg:    integer in `[1, m]`
-  //   2 args:   integer in `[m, n]`
-  // All three forms share the same PRNG, seeded from
-  // `state.storySeed + previousRandom` so successive calls are
-  // deterministic given the seed. `previousRandom` is updated on
-  // every call regardless of form.
   "math.random": {
     arity: -1,
     fn: (story, args) => {
-      // Lua accepts at most (m, n) — a third argument raises
-      // (math.luau line 258 pattern-matches the message).
       if (args.length > 2) {
         story.Error("math.random: wrong number of arguments");
         return 0;
@@ -2999,12 +2232,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const next = drawStoryRandom(story.state);
 
       if (args.length === 0) {
-        // `next` is a 32-bit unsigned int — divide by 2^32 to get
-        // a float in `[0, 1)`. Matches Luau's no-arg form.
         return next / 0x100000000;
       }
 
-      // Integer forms. Resolve min/max based on arity.
       let min: number;
       let max: number;
       if (args.length === 1) {
@@ -3034,8 +2264,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         max = n;
       }
 
-      // JS has no true integers, so guard against overflow when
-      // (max - min + 1) exceeds safe-integer range.
       let range = max - min + 1;
       if (!isFinite(range) || range > Number.MAX_SAFE_INTEGER) {
         range = Number.MAX_SAFE_INTEGER;
@@ -3052,10 +2280,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `math.randomseed(seed)` — set the PRNG seed and reset
-  // `previousRandom` to 0. The seed is required, as Luau's
-  // `luaL_checkinteger(L, 1)` requires it. Used to make RNG-dependent
-  // scripts deterministic across runs.
   "math.randomseed": {
     arity: -1,
     minArgs: 1,
@@ -3070,34 +2294,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `count.choices()` — number of currently-presented choices.
-  // Exposes ink's narrative-flow `state.generatedChoices.length`
-  // under a Luau-style name.
   "count.choices": {
     arity: 0,
     fn: (story) => story.state.generatedChoices.length,
   },
 
-  // `count.turns()` (0-arg form) — total turns elapsed since
-  // story start. Maps to `state.currentTurnIndex + 1`.
-  // The 1-arg form `count.turns(-> target)` (TURNS_SINCE) still
-  // routes through the legacy per-function ControlCommand path
-  // because it needs compile-time DivertTarget container-counting
-  // setup that doesn't fit the generic dispatcher.
   "count.turns": {
     arity: 0,
     fn: (story) => story.state.currentTurnIndex + 1,
   },
 
-  // `math.clamp(x, min, max)` — Luau-only.
   "math.clamp": {
     arity: 3,
     pure: true,
     fn: (_, [v, min, max]) => Math.min(Math.max(v, min), max),
   },
 
-  // `math.map(x, inMin, inMax, outMin, outMax)` — Luau-only.
-  // Linearly remap `x` from input range to output range.
   "math.map": {
     arity: 5,
     pure: true,
@@ -3107,15 +2319,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         : oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin),
   },
 
-  // `math.noise(x [, y [, z]])` — Luau / Roblox Perlin noise.
-  // Returns a deterministic pseudo-random value in roughly `[-1, 1]`
-  // (typical range; corners can exceed slightly). The 1- and 2-arg
-  // forms call the 3D implementation with the missing axes pinned to
-  // 0. Uses Ken Perlin's improved noise algorithm (smoothstep `fade`
-  // + 12-direction gradients) with a fixed permutation table — the
-  // table differs from Roblox's, so absolute output values won't
-  // match Roblox exactly; statistical properties (smoothness,
-  // value distribution) do.
   "math.noise": {
     arity: -1,
     minArgs: 1,
@@ -3124,13 +2327,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       perlinNoise(args[0] ?? 0, args[1] ?? 0, args[2] ?? 0),
   },
 
-  // `math.lerp(a, b, t)` — Luau 0.6+. Linear interpolation between
-  // `a` and `b` parameterised by `t` (not clamped — `t` outside [0,1]
-  // extrapolates).
-  // Luau 0.6+ float classification predicates (math.luau's
-  // isnan/isinf/isfinite section). Booleans, not numbers — and they
-  // take ANY number (no string coercion needed beyond the pure
-  // pipeline's).
   "math.isnan": {
     arity: 1,
     pure: true,
@@ -3147,44 +2343,23 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [v]) => Number.isFinite(v),
   },
 
-  // Luau's lerp is EXACT at t == 1 (the naive a + t*(b-a) drifts:
-  // math.luau line 417's "(fails for a + t*(b-a))" comment) — the
-  // implementation special-cases the endpoint per the lerp RFC.
   "math.lerp": {
     arity: 3,
     pure: true,
     fn: (_, [a, b, t]) => (t === 1 ? b : a + t * (b - a)),
   },
 
-  // `math.ult(a, b)` — Lua 5.3+ / Luau. Unsigned integer less-than:
-  // both args are coerced to uint32 before comparison. Returns a
-  // boolean.
   "math.ult": {
     arity: 2,
     pure: true,
     fn: (_, [a, b]) => (a >>> 0) < (b >>> 0),
   },
 
-  // `tostring(v)` — coerce to display string. Mirrors Luau:
-  // numbers → JS String(), booleans → "true"/"false", nil → "nil",
-  // strings unchanged. ObjectValues / other userdata fall back to
-  // their JS string form, UNLESS their metatable has `__tostring` —
-  // in which case the metamethod is invoked and its (string) return
-  // becomes the result. Matches Lua's `tostring(t)` behavior.
   tostring: {
     arity: 1,
     fn: (story, [v]) => {
-      // Lua's C-function contract: an ABSENT argument raises
-      // (`pcall(tostring) == false`, `tostring(nothing())` likewise);
-      // an explicit nil still stringifies to "nil".
       requireStdLibArg(story, v, 1, "tostring");
       if (v == null) return "nil";
-      // `__tostring` metamethod — fires first for ObjectValue with a
-      // metatable carrying the field. The metamethod is invoked via
-      // `story.CallLuauFunction` (same path used by `__add` /
-      // `__index` function-form callbacks). A string return is the
-      // result and a number return its text, as Luau's
-      // `luaL_tolstring` takes both; anything else is Luau's error.
       if (v instanceof ObjectValue && v.metatable instanceof ObjectValue) {
         const handler = (v.metatable.value as Map<string, AbstractValue>)?.get(
           "__tostring",
@@ -3204,22 +2379,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return;
         }
       }
-      // Function values (a `SymbolValue`, a closure or a builtin) print
-      // Luau's `function: <id>` form, as a line prints them, not their
-      // table key text.
       const fnText = functionText(v, (ref) => story.FunctionLabel(ref));
       if (fnText !== null) return fnText;
       if (typeof v === "object" && "value" in v) {
         const map = (v as any).value;
-        // Plain tables stringify Lua-style as an opaque identity
-        // token — `string.find(tostring{}, 'table:')` must match.
         if (map instanceof Map) {
           return `table: ${luauPointerId(map)}`;
         }
         const raw = (v as any).value;
         if (raw == null) return "nil";
         if (typeof raw === "boolean") return raw ? "true" : "false";
-        // Lua-format special numbers: nan / inf / -inf / -0.
         if (typeof raw === "number") return luauNumberToString(raw);
         return String(raw);
       }
@@ -3229,9 +2398,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `tonumber(e [, base])` — parse a string or pass-through a number.
-  // Returns `null` (nil) on failure, matching Luau semantics. Base
-  // arg supported for integer parsing (`tonumber("ff", 16) == 255`).
   tonumber: {
     arity: 1,
     fn: (_, args) => {
@@ -3245,31 +2411,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
         const parsed = parseInt(s, baseVal);
         return Number.isFinite(parsed) ? parsed : null;
       }
-      // Luau accepts "nan" / "inf" spellings (`tonumber("nan")` is
-      // nan, not nil) — parseLuauNumber handles those plus hex.
       return parseLuauNumber(s);
     },
   },
 
-  // `type(v)` — Lua-style type-of string: `"nil"` / `"number"` /
-  // `"string"` / `"boolean"` / `"table"` / `"function"` / `"userdata"`.
-  // Approximated via the runtime Value subclass's `.value` shape.
   type: {
     arity: 1,
     fn: (story, [v]) => {
-      // Lua's C-function contract: `type()` REQUIRES an argument —
-      // a missing one (no arg at all, a Void from a function that
-      // returned nothing, or an empty multi-return) raises rather
-      // than reporting "nil" (`pcall(type) == false`,
-      // `pcall(function() return type(nothing()) end) == false`).
       requireStdLibArg(story, v, 1, "type");
       return luauTypeOf(v instanceof MultiValue ? v.values[0] : v);
     },
   },
 
-  // `typeof(v)` — Luau extension: `type(v)` for primitives, otherwise
-  // the userdata typeName. Sparkdown doesn't have userdata yet, so
-  // it behaves identically to `type` for now.
   typeof: {
     arity: 1,
     fn: (story, [v]) => {
@@ -3278,22 +2431,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `error(message [, level])` — raise a runtime error. The `level`
-  // arg controls the source location attribution in real Lua/Luau;
-  // sparkdown ignores it (we don't track call-frame depth in error
-  // messages). Force-ends the story like `assert`'s failure path.
   error: {
     arity: 1,
-    // No argument is a nil error value, not a missing argument:
-    // `pcall(error)` returns `false, nil` (tmerror.luau line 65).
     validatesArgs: true,
     fn: (story, [msg]) => {
       const raw = coerceString(msg);
       if (raw === null) {
-        // Any value but a string or a number message (a table, nil, a
-        // boolean, a function) is raised as it is, with no position, and
-        // `pcall` returns it unchanged. An uncaught one reports its type,
-        // as Lua's standalone interpreter does.
         const value =
           msg == null ? new NullValue() : oneValue(msg as AbstractValue);
         const e = new StoryException(
@@ -3302,29 +2445,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
         e.errorValue = value;
         throw e;
       }
-      // Hook for hosts that want to inject `<source>:<line>: `
-      // prefix into the message (Luau-spec format used by the
-      // conformance test suite). Production hosts (LSP) leave the
-      // formatter unset — source/line is surfaced through the
-      // diagnostic UI separately, so a prefix in the message body
-      // would be redundant. Luau places the message at the function
-      // that called `error`, so `pcall(error, msg)`, called by a
-      // builtin, gets no prefix (`errorCalledByBuiltin`).
       const message =
         story.errorMessageFormatter && !story.errorCalledByBuiltin
           ? story.errorMessageFormatter(story, raw)
           : raw;
-      // `story.Error` THROWS (raises a `StoryException`), so it's
-      // trappable by `pcall`. `story.AddError` would call
-      // `ForceEnd`, wiping the call stack and defeating pcall's
-      // protection — see project_pcall_protected_dispatch.md.
       story.Error(message);
     },
   },
 
-  // `rawequal(a, b)` — strict equality bypassing metamethods.
-  // Sparkdown has no metamethods today, so this is just `===`
-  // on the underlying primitive values.
   rawequal: {
     arity: 2,
     fn: (_, [a, b]) => {
@@ -3340,15 +2468,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `rawlen(v)` — a table's or a string's length without `__len`.
   rawlen: {
     arity: 1,
     validatesArgs: true,
     fn: (story, [v]) => {
-      // A table, not a function or `newproxy` value that is an
-      // `ObjectValue` too. The border it finds is left on the table as a
-      // hint, which is part of what the table is: written as `#t` writes
-      // it (`callNativeFunction`), so a restored state does not keep it.
       if (isPlainTable(v)) {
         const map = v.value as Map<string, any>;
         const hint = (map as any).__luauBoundary;
@@ -3366,23 +2489,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `print(...)` — Luau's variadic console output. Sparkdown's
-  // narrative-fiction runtime has no implicit stdout, so this is a
-  // no-op by default. Variadic: pops `arity` args set at compile
-  // time (the call-site arg count). Users who want output should
-  // emit display text via sparkdown's regular `:` / `..` syntax.
   print: {
-    arity: -1, // variadic — actual count comes from compile-site capture
+    arity: -1,
     fn: (story, args) => {
-      // `print(...)` is the way to emit DISPLAY (action) text from a
-      // function body, where the usual bare display-text syntax isn't
-      // available (function bodies are pure logic). Args stringify
-      // like `tostring` and join with a space. The line is a
-      // `display({ text })` table on the default target followed by the
-      // newline that ends it, as `display` pushes. Inside string
-      // evaluation (a function called from an interpolation) the text is
-      // part of the string being built, so it is pushed as a plain
-      // string with no line break.
       const text = args
         .map((a) => luauAnyToDisplayString(story, a))
         .join(" ");
@@ -3397,23 +2506,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       story.state.PushToOutputStream(new StringValue("\n"));
     },
   },
-  // `display(<instructions table>)`: every piece of visible text reaches the
-  // output stream through this call. The compiler lowers a display statement
-  // to `display({…})` carrying its routing (`target`, `character`) and its
-  // body (`text`) as a table literal, whose `{interp}` holes are already
-  // evaluated to LIVE values by the time this runs (table literals lower to a
-  // live ObjectValue via `MakeTable`). The live ObjectValue rides the output
-  // stream directly — `currentText` reads its `text` field in stream order,
-  // which is the body the interpreter parses, and the
-  // `currentDisplayInstructions` getter collects it. A trailing `\n` closes
-  // the Continue beat exactly like `print` does, so the engine's per-beat /
-  // checkpoint loop fires on it.
   display: {
-    arity: -1, // variadic — actual count comes from compile-site capture
+    arity: -1,
     fn: (story, args) => {
       const payload = args[0];
       if (payload instanceof ObjectValue && payload.value) {
-        // Whether the parts join is known only once they have.
         story.state.variablesState.PrepareTableWrite?.(payload);
         if (joinDisplayParts(payload.value)) {
           writtenIn(story)(payload);
@@ -3424,13 +2521,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           payload instanceof ObjectValue ? payload.value?.get(key) : null;
         return value instanceof BoolValue && value.value === true;
       };
-      // A line that begins with `..` joins the line shown before it when that
-      // line ends with `..`. After a trailing `..` the step is still running
-      // and its newline waits, so the join drops the newline and this line's
-      // text joins the same beat. After `.. >` the click has ended the step,
-      // and the interpreter carries this beat on in that beat's box. A line a
-      // divert holds open is already joined. Otherwise the line shows as a new
-      // one, without `continues`, so the interpreter starts a new box.
       if (flag("continues")) {
         const state = story.state;
         if (state.lineJoinable) {
@@ -3440,15 +2530,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
           !state.outputStreamEndsInNewline &&
           !state.lineEndPending
         ) {
-          // A divert held the line open.
         } else {
           story.Warning(NOT_JOINED);
           writtenIn(story)(payload as ObjectValue);
           (payload as ObjectValue).value?.delete("continues");
         }
       }
-      // The line's author tags go to the stream first, as a tag written on
-      // the line would, so they land in the same step's `currentTags`.
       const tags =
         payload instanceof ObjectValue ? payload.value?.get("tags") : null;
       if (tags instanceof ObjectValue && tags.value) {
@@ -3464,48 +2551,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       if (payload) {
-        // The live instruction table rides the output stream as a
-        // non-string object (currentTags skips it).
         story.state.PushToOutputStream(payload);
       }
-      // Close the beat so Continue completes here (mirrors print's `\n`). A
-      // table marked `open` joins the next display call onto its line, so
-      // the step runs on until a call closes it.
       if (flag("open")) return;
-      // A line that ends with `..` leaves its newline waiting, as a caption
-      // does, and offers to join: a line that begins with `..` takes the
-      // offer, and anything else that shows writes the newline first.
       if (flag("glue")) {
         story.state.lineEndPending = true;
         story.state.lineJoinable = true;
         return;
       }
-      // A `choose` block's caption leaves its newline pending: the step runs
-      // on and completes with the choices, unless something shows first,
-      // which writes the newline and starts the next step.
       if (flag("caption")) {
         story.state.lineEndPending = true;
         return;
       }
       story.state.PushToOutputStream(new StringValue("\n"));
-      // `.. >` ends the step at the click and offers the step after it the
-      // box.
       if (flag("extend")) story.state.lineJoinable = true;
     },
   },
-  // `__unjoined()`: a line of a block body that begins with `..` under a body
-  // line that does not end with one. Both lines are one captured string, so
-  // the compiler keeps the line break and places this call at the mark,
-  // stamped with it, so the warning names that line when the story shows it.
   __unjoined: {
     arity: 0,
     fn: (story) => {
       story.Warning(NOT_JOINED);
     },
   },
-  // `log(...)` — DEVELOPER console logging, NOT story display (that's
-  // `print`). Routes to the host console so it flows through ink's
-  // debug-log handling rather than the player-visible output stream.
   log: {
     arity: -1,
     fn: (story, args) => {
@@ -3517,21 +2584,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // Stubs for reserved Luau globals we haven't implemented yet.
-  // Without these, calls like `setmetatable({})` lower to a divert
-  // (`-> setmetatable`) and fail at compile time with "target not
-  // found". With these stubs, the call lowers to a state-aware
-  // stdlib invocation that throws a runtime error — which is
-  // (a) Lua-compatible (matches `attempt to call a nil value`),
-  // (b) trappable by `pcall` so authors can defensively call
-  // optional features, and (c) discoverable: the error message
-  // points at exactly which feature is missing.
-  // ============================================================
-  // `setmetatable(t, mt)` — attach `mt` (or nil to clear) to `t`'s
-  // metatable slot. Returns `t`. Errors if `t` isn't a table, if `mt`
-  // is neither nil nor a table, or if `t`'s existing metatable has a
-  // `__metatable` field (Luau metatable protection).
   setmetatable: {
     arity: 2,
     fn: (story, [t, mt]) => {
@@ -3543,9 +2595,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("setmetatable: attempt to modify a readonly table");
         return;
       }
-      // Luau metatable protection: if the current metatable carries a
-      // `__metatable` field, refuse to replace it. Same field protects
-      // `getmetatable` too — see below.
       const existing = t.metatable;
       if (existing instanceof ObjectValue) {
         const protect = (existing.value as Map<string, AbstractValue>)?.get(
@@ -3569,12 +2618,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return t;
     },
   },
-  // `getmetatable(t)` — returns `t`'s metatable, OR the `__metatable`
-  // field if the metatable carries one (Luau metatable protection
-  // pattern — lets a class hide its real metatable behind a sentinel
-  // so user code can't tamper with it via `setmetatable`).
-  // Non-table args return nil (matches Lua's tolerant behavior); no
-  // argument at all is Luau's error, as `pcall(getmetatable)` raises it.
   getmetatable: {
     arity: 1,
     fn: (story, args) => {
@@ -3595,13 +2638,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return mt;
     },
   },
-  // `newproxy([metatable])` — Luau-only. Returns a fresh userdata-like
-  // value that can carry a metatable. With a `true` arg, the proxy
-  // gets its own empty metatable (suitable for later setmetatable).
-  // With a table arg, the proxy's metatable is set to that table.
-  // The `__userdata` marker key makes `type()` / `typeof()` report
-  // "userdata" (NOT "table" — and intentionally NOT spoofable via a
-  // `__type` metatable field, matching Luau).
   newproxy: {
     arity: -1,
     fn: (_, args) => {
@@ -3616,26 +2652,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         out.metatable = arg;
         return out;
       }
-      // `newproxy(true)` — give the proxy its own empty metatable
-      // (so user code can later mutate it via getmetatable). Any
-      // other truthy value follows the same convention; falsy /
-      // missing args leave the proxy without a metatable.
       if (isTruthy(arg)) {
         out.metatable = new ObjectValue();
       }
       return out;
     },
   },
-  // `loadstring(chunk)` — Lua's contract is to return the compiled
-  // chunk as a function, or `(nil, errormessage)` when the chunk
-  // fails to load. Sparkdown stories are precompiled (the runtime
-  // has no compiler), so EVERY chunk "fails to load": return
-  // `(nil, message)` in Lua's chunk-id format rather than raising.
-  // This keeps the common defensive pattern
-  // `local f, err = loadstring(s) if not f then ... end` working
-  // (basic.luau's "load error" assertion checks exactly that shape;
-  // the expected message text is patched to ours in
-  // upstreamPatches.ts — a documented divergence).
   loadstring: {
     arity: -1,
     minArgs: 1,
@@ -3666,31 +2688,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ),
   },
   collectgarbage: {
-    // No-op stub: sparkdown runs on JavaScript's GC, so user code
-    // can't force collection or query memory. We accept the call
-    // shapes (`collectgarbage()`, `collectgarbage("collect")`,
-    // `collectgarbage("count")`, etc.) and return 0 so Luau test
-    // suites that sprinkle GC calls between assertions run cleanly —
-    // those tests use the calls to provoke specific upvalue-capture
-    // and weak-reference timing, not to require the collector to do
-    // anything concrete. Returning 0 for `"count"` is a safe
-    // approximation (memory tracking isn't available in the harness).
     arity: -1,
     fn: () => 0,
   },
   gcinfo: {
-    // No-op stub: pre-Luau alias for `collectgarbage("count")`.
-    // See `collectgarbage` rationale above.
     arity: -1,
     fn: () => 0,
   },
-  // `getfenv([f])` — Luau keeps this Lua 5.1 builtin (deprecated, and
-  // it deoptimizes fastcalls upstream). Sparkdown returns the same
-  // globals-proxy table `_G` resolves to, so reads route through
-  // global variable storage and `getfenv().math = {...}` writes a
-  // global named `math` — which the native-dispatch override hook in
-  // Story.ts then prefers over the static stdlib op (basic.luau's
-  // testgetfenv reassignment test).
   getfenv: {
     arity: -1,
     fn: () => {
@@ -3707,11 +2711,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         "setfenv: removed in Lua 5.2 and not in Luau",
       ),
   },
-  // `coroutine.*` — Luau cooperative-thread API. Sparkdown's runtime
-  // is single-threaded narrative-flow on inkjs and would need either
-  // real fibers or a CPS transform to support coroutines. Stubbed
-  // here so authors get clear errors instead of `target not found`
-  // when code references them.
   "coroutine.create": {
     arity: -1,
     minArgs: 1,
@@ -3759,8 +2758,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story) =>
       story.Error("coroutine.yield: not yet implemented in sparkdown"),
   },
-  // `task.*` — Roblox task-scheduler API. Depends on coroutine infra
-  // and a host frame loop. Stubbed for the same reason as above.
   "task.spawn": {
     arity: -1,
     fn: (story) =>
@@ -3782,9 +2779,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (story) => story.Error("task.cancel: not yet implemented in sparkdown"),
   },
-  // `buffer.*` — Luau mutable byte-array primitive. Would wrap a
-  // Uint8Array; needs a new ValueType.Buffer runtime value. Stubbed
-  // for the same reason as above.
   "buffer.create": {
     arity: -1,
     minArgs: 1,
@@ -3806,8 +2800,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     minArgs: 1,
     fn: (story) => story.Error("buffer.len: not yet implemented in sparkdown"),
   },
-  // `vector.*` — Luau 3D-vector type. Would need a new ValueType.Vector
-  // runtime value (three floats). Stubbed for the same reason as above.
   "vector.create": {
     arity: -1,
     minArgs: 3,
@@ -3815,12 +2807,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       story.Error("vector.create: not yet implemented in sparkdown (needs Vector ValueType)"),
   },
 
-  // `pcall(f, arg1, ...)` — protected call. Runs `f(arg1, ...)` with
-  // errors trapped. Returns `(true, ...returns)` on success or
-  // `(false, errorMessage)` on error, or `(false, v)` for a value `v`
-  // that `error(v)` raised in place of a message. The trapped error is removed
-  // from the story's error list — it doesn't escape the protected
-  // block. See `Story.CallLuauFunctionProtected` for the trap impl.
   pcall: {
     arity: -1,
     minArgs: 1,
@@ -3846,14 +2832,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `xpcall(f, msgh, arg1, ...)` — protected call with a message
-  // handler. On error, `msgh(errMsg)` is called and its return is
-  // used as the final error message. Returns `(true, ...returns)` on
-  // success or `(false, msgh(err))` on failure.
-  //
-  // If `msgh` itself raises an error, the original error is
-  // returned unchanged (matches Lua's "don't recurse on handler
-  // failure" rule).
   xpcall: {
     arity: -1,
     minArgs: 2,
@@ -3872,9 +2850,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (result.ok) {
         return protectedSuccess(result.values);
       }
-      // Run the message handler, whose first value is the error xpcall
-      // returns, nil when it returns none. It receives the value `error`
-      // raised, or the message. If it fails, fall back to the raw error.
       const err =
         result.errorValue ??
         new StringValue(result.errorMessage ?? "xpcall: unknown error");
@@ -3886,10 +2861,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `select(n, ...)` — Lua's variadic-arg helper. Two forms:
-  //   - `select("#", ...)` → count of variadic args (single int return)
-  //   - `select(n, ...)`   → multi-return: the args starting at index n
-  // Negative `n` counts from the end (-1 is the last arg).
   select: {
     arity: -1,
     minArgs: 1,
@@ -3902,8 +2873,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (first === "#") {
         return args.length - 1;
       }
-      // Lua coerces a numeric-string index (`select('3', ...)` —
-      // vararg.luau line 151).
       const n =
         coerceNumber(args[0]) ??
         (first !== null ? parseLuauNumber(first) : null);
@@ -3924,11 +2893,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `rawget(t, k)` — index `t` by `k` bypassing the `__index`
-  // metamethod. Sparkdown's `ObjectValue` doesn't have metamethods
-  // today, so this is equivalent to `t[k]` — but registering it
-  // means user code that calls `rawget` as a function works
-  // verbatim.
   rawget: {
     arity: 2,
     fn: (story, [t, k]) => {
@@ -3941,14 +2905,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("rawget: first argument must be a table");
         return null;
       }
-      // Normalize the key to a string — sparkdown's ObjectValue is
-      // string-keyed even for numeric indices.
       const key =
         coerceString(k) ??
         (coerceNumber(k) !== null ? String(coerceNumber(k)) : null);
       if (key === null) return null;
-      // `_G` globals-table proxy — route the read to global variable
-      // storage (the proxy's own map only holds the marker tag).
       if (map.has(GLOBALS_PROXY_TAG)) {
         return story.state.variablesState.GetGlobalVariableValue(key) ?? null;
       }
@@ -3956,11 +2916,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `rawset(t, k, v)` — set `t[k] = v` bypassing the `__newindex`
-  // metamethod. Returns `t`. As with `rawget`, sparkdown has no
-  // metamethods so this is equivalent to plain assignment, but
-  // having the function form lets user code use it verbatim.
-  // Refuses to mutate a `table.freeze(t)`-frozen table.
   rawset: {
     arity: 3,
     fn: (story, [t, k, v]) => {
@@ -3979,8 +2934,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("rawset: key must be a string or number");
         return null;
       }
-      // `_G` globals-table proxy — write the global directly through
-      // SetGlobal, as the StoreIndex path does.
       if (t.value.has(GLOBALS_PROXY_TAG)) {
         story.state.variablesState.SetGlobal(key, v as AbstractValue);
         return t;
@@ -3991,14 +2944,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // `string.*` — state-aware string helpers
-  // ============================================================
-  // `string.char(...)` — variadic. Each arg is a byte value (0-255);
-  // Lua's interpretation is byte-oriented, not Unicode-codepoint.
-  // `String.fromCharCode` matches that for the byte range (it
-  // interprets each value as a UTF-16 code unit, which coincides
-  // with bytes for U+0000–U+00FF).
   "string.char": {
     arity: -1,
     pure: true,
@@ -4007,8 +2952,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       for (let i = 0; i < args.length; i++) {
         const n = Math.trunc(args[i]!);
         if (!(n >= 0 && n <= 255)) {
-          // Trappable — `pcall(function() return string.char(256) end)`
-          // must return false (strings.luau line 83).
           throw new StoryException(
             `invalid argument #${i + 1} to 'char' (value out of range)`,
           );
@@ -4018,12 +2961,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return out;
     },
   },
-  // `string.byte(s [, i [, j]])` — multi-return: the byte codes for
-  // each character in `s` from index `i` (default 1) to index `j`
-  // (default i). Lua-style 1-indexed; negative indices count from
-  // the end. Sparkdown strings are UTF-16 in JS; we use
-  // `charCodeAt()` which gives the code-unit value — matches Lua
-  // for ASCII, gives the surrogate code unit for higher planes.
   "string.byte": {
     arity: -1,
     minArgs: 1,
@@ -4063,9 +3000,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         .reverse()
         .join(""),
   },
-  // `string.rep(s, n [, sep])` — repeat `s` `n` times. Lua 5.3+ accepts
-  // an optional `sep` argument inserted between copies (e.g.
-  // `string.rep("ab", 3, "-") == "ab-ab-ab"`).
   "string.rep": {
     arity: -1,
     minArgs: 2,
@@ -4074,9 +3008,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const n = Math.max(0, Math.floor(coerceNumber(args[1]) ?? 0));
       if (n === 0) return "";
       const sep = args.length >= 3 ? (coerceString(args[2]) ?? "") : "";
-      // Luau caps strings at 1GB (MAXSSIZE) — `pcall(string.rep, 'x',
-      // 2e9)` must trap "resulting string too large", not crash JS's
-      // String.repeat with a RangeError.
       const total = (s.length + sep.length) * n;
       if (s.length > 0 && total > PACK_MAXSSIZE) {
         throw new StoryException("resulting string too large");
@@ -4085,11 +3016,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new Array(n).fill(s).join(sep);
     },
   },
-  // `string.sub(s, i [, j])` — Lua 1-based inclusive substring with
-  // support for negative indices counting from the end. `j` defaults
-  // to -1 (end of string). Variadic at the call site (2 or 3 args);
-  // the registry uses `-1` so the dispatcher passes through whatever
-  // the caller provided.
   "string.sub": {
     arity: -1,
     minArgs: 1,
@@ -4105,20 +3031,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return str.slice(i - 1, j);
     },
   },
-  // `string.find(s, pattern [, init [, plain]])` — Lua-style search.
-  //
-  // Returns multi-value:
-  //   - on match: `(start_index, end_index, capture1, capture2, ...)`,
-  //     all 1-indexed and inclusive on the end.
-  //   - on no match: `nil` (a single NullValue).
-  //
-  // `init` defaults to 1; negative values count from the end. `plain`
-  // (boolean) bypasses pattern compilation and does literal substring
-  // search.
-  //
-  // Patterns are compiled via `luaPatternToJs` — most Lua syntax
-  // translates directly to JS regex. Unsupported features (`%b{}`,
-  // `%f[]`, position captures) emit a runtime error via story.Error.
   "string.find": {
     arity: -1,
     minArgs: 2,
@@ -4130,7 +3042,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (plain) {
         const idx = s.indexOf(patternStr, init - 1);
         if (idx < 0) return new NullValue();
-        // `string.find` returns 1-indexed `(start, end)` inclusive.
         return new MultiValue([
           new IntValue(idx + 1),
           new IntValue(idx + patternStr.length),
@@ -4156,12 +3067,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new MultiValue(results);
     },
   },
-  // `string.match(s, pattern [, init])` — Lua-style capture extract.
-  //
-  // Returns multi-value:
-  //   - if the pattern has captures: each capture (string).
-  //   - if the pattern has no captures: the entire match (single string).
-  //   - on no match: `nil`.
   "string.match": {
     arity: -1,
     minArgs: 2,
@@ -4192,18 +3097,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         : new MultiValue(captures);
     },
   },
-  // `string.gsub(s, pattern, repl [, n])` — substitute matches. Lua
-  // semantics: returns `(result_string, count_of_substitutions)`. The
-  // optional `n` caps the number of replacements (default: all).
-  //
-  // `repl` may be:
-  //   - a STRING template — `%0` (whole match), `%1`-`%9` (capture
-  //     refs), `%%` (literal `%`). Any other `%X` errors.
-  //   - a TABLE — looked up by `t[first_capture]` (or `t[whole_match]`
-  //     if no captures). Nil / false → keep the original match.
-  //     String / number → use as replacement. Other types error.
-  //   - a FUNCTION — Phase 5, blocked on runtime→Luau callback
-  //     dispatch. Currently errors with a friendly message.
   "string.gsub": {
     arity: -1,
     minArgs: 3,
@@ -4222,9 +3115,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         throw e;
       }
-      // Classify the replacement form. String / number → template;
-      // ObjectValue without closure marker → table; ObjectValue WITH
-      // closure marker → function (deferred).
       const replKind = classifyGsubRepl(replArg, story);
       if (replKind === "error")
         return new MultiValue([new StringValue(input), new IntValue(0)]);
@@ -4239,9 +3129,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         const matchStart = matched.index;
         const matchEnd = matchStart + matched.length;
         const wholeMatch = input.slice(matchStart, matchEnd);
-        // Append unmatched prefix.
         if (matchStart > cursor) out.push(input.slice(cursor, matchStart));
-        // Compute replacement.
         let replacement: string | null;
         if (replKind === "string") {
           replacement = expandGsubStringRepl(
@@ -4253,13 +3141,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (replacement == null)
             return new MultiValue([new StringValue(input), new IntValue(0)]);
         } else if (replKind === "function") {
-          // Function form. Call the user fn with each capture as an
-          // arg (or the whole match if the pattern has no captures).
-          // Use the fn's first return value as the replacement.
-          // Lua semantics:
-          //   - return nil/false → keep the original match
-          //   - return string or number → use as replacement
-          //   - return anything else → error
           const callArgs: AbstractValue[] =
             compiled.captureCount === 0
               ? [new StringValue(wholeMatch)]
@@ -4280,13 +3161,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
             return new MultiValue([new StringValue(input), new IntValue(0)]);
           }
           let top = results[0];
-          // A callback returning a multi-value expression (e.g. a
-          // nested `gsub` call) contributes only its FIRST value.
           if (top instanceof MultiValue) top = top.values[0];
           if (
             top == null ||
             top instanceof NullValue ||
-            top instanceof Void || // callback with no `return` at all
+            top instanceof Void ||
             (top as any).value === false
           ) {
             replacement = wholeMatch;
@@ -4305,8 +3184,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
             }
           }
         } else {
-          // Table form. Lookup key is the first capture (string-as-
-          // number for position captures) or the whole match.
           let lookupKey: string;
           if (compiled.captureCount === 0) {
             lookupKey = wholeMatch;
@@ -4342,8 +3219,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         out.push(replacement);
         count++;
-        // Empty match → step forward 1 byte (and append the skipped
-        // char) so we don't loop forever on patterns like `%a*`.
         if (matched.length === 0) {
           if (matchStart < input.length) out.push(input.charAt(matchStart));
           cursor = matchStart + 1;
@@ -4351,7 +3226,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           cursor = matchEnd;
         }
       }
-      // Append the unmatched tail.
       if (cursor < input.length) out.push(input.slice(cursor));
       return new MultiValue([
         new StringValue(out.join("")),
@@ -4359,25 +3233,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ]);
     },
   },
-  // `string.gmatch(s, pattern)` — iterator over every non-overlapping
-  // match of `pattern` in `s`. The returned value is a stdlib
-  // builtin-iterator (marker-keyed ObjectValue routed through
-  // `stepBuiltinIterator`) so generic-for `for cap1, cap2 in
-  // string.gmatch(s, p) do … end` yields each capture as a separate
-  // loop variable. If the pattern has no captures, each iteration
-  // yields the whole match as a single value.
-  //
-  // The pattern is validated up-front so authors get errors at the
-  // `gmatch` call site (line / column point at the bad pattern)
-  // rather than deep inside the for-loop dispatch.
   "string.gmatch": {
     arity: 2,
     fn: (story, [sArg, patArg]) => {
       const input = coerceString(sArg) ?? "";
       const pattern = coerceString(patArg) ?? "";
       try {
-        // Validate-only — the iterator recompiles per step (cheap;
-        // JS engines cache regex compilation).
         luaPatternToJs(pattern);
       } catch (e) {
         if (e instanceof LuaPatternError) {
@@ -4396,13 +3257,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new ObjectValue(iterMap);
     },
   },
-  // `string.format(fmt, ...)` — Lua-style printf. Supports the
-  // standard conversion types `d i u o x X e E f g G c s q %` plus
-  // the modifier syntax `[flags][width][.precision]`. Flags:
-  //   `-` left-align, `+` always sign, ` ` space-prefix positive,
-  //   `0` zero-pad, `#` alt form (hex with `0x`, octal with `0`).
-  // The variadic args after `fmt` are walked positionally. Unknown
-  // specifiers and conversion errors throw via `story.Error`.
   "string.format": {
     arity: -1,
     minArgs: 1,
@@ -4412,11 +3266,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return formatLuaString(story, fmt, rest);
     },
   },
-  // `string.split(s, sep)` — Luau extension (not in Lua). Returns a
-  // 1-indexed array table of the parts of `s` split on `sep`. When
-  // `sep` is the empty string, splits into individual characters.
-  // When `sep` doesn't occur in `s`, returns a single-entry array
-  // holding `s`.
   "string.split": {
     arity: -1,
     minArgs: 1,
@@ -4431,10 +3280,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new ObjectValue(map);
     },
   },
-  // `string.contains(s, sub)` / `string.startswith(s, prefix)` /
-  // `string.endswith(s, suffix)` — Luau extensions. Pure substring
-  // checks (no Lua patterns). All return a boolean. Lower-case
-  // single-word names per Lua convention.
   "string.contains": {
     arity: 2,
     pure: ["string"],
@@ -4453,9 +3298,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [s, suffix]) =>
       (coerceString(s) ?? "").endsWith(coerceString(suffix) ?? ""),
   },
-  // `string.trim(s)` / `string.trimstart(s)` / `string.trimend(s)` —
-  // Luau-style extensions (Lua/Luau have none). Strips ASCII + Unicode
-  // whitespace using JS `trim`/`trimStart`/`trimEnd` semantics.
   "string.trim": {
     arity: 1,
     pure: ["string"],
@@ -4471,9 +3313,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     pure: ["string"],
     fn: (_, [s]) => (coerceString(s) ?? "").trimEnd(),
   },
-  // `string.pack(fmt, ...)` — pack args into a byte string per the
-  // format spec. Output is a JS string where each char ∈ [0, 255]
-  // (Lua byte-string convention).
   "string.pack": {
     arity: -1,
     minArgs: 1,
@@ -4483,10 +3322,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return result == null ? "" : result;
     },
   },
-  // `string.unpack(fmt, s [, pos])` — read values out of a byte
-  // string per the format spec. Returns each unpacked value as a
-  // separate return + the next 1-indexed byte position after the
-  // last consumed byte (so a follow-up unpack can resume).
   "string.unpack": {
     arity: -1,
     minArgs: 2,
@@ -4502,8 +3337,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ]);
     },
   },
-  // `string.packsize(fmt)` — byte size of a fixed-width format.
-  // Errors on formats containing variable-width specs (`s`, `z`).
   "string.packsize": {
     arity: 1,
     fn: (story, [fmtArg]) => {
@@ -4513,16 +3346,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // `bit32.*` — 32-bit integer ops. JS bitwise operators already
-  // operate on signed 32-bit ints; `>>> 0` coerces back to unsigned
-  // for Lua-style unsigned semantics.
-  // ============================================================
   "bit32.bnot": { arity: 1, pure: true, fn: (_, [v]) => (~v) >>> 0 },
-  // Lua 5.2 bit32 shift semantics (JS shifts wrap counts mod 32 and
-  // have no negative-count handling): a NEGATIVE count shifts the
-  // OTHER direction, counts >= 32 saturate to 0 (or to all-ones for
-  // arshift of a negative-signed value) — bitwise.luau lines 59-76.
   "bit32.lshift": {
     arity: 2,
     pure: true,
@@ -4544,7 +3368,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return ((x | 0) >> c) >>> 0;
     },
   },
-  // Luau-only bit32 extensions
   "bit32.byteswap": {
     arity: 1,
     pure: true,
@@ -4573,7 +3396,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [v]) => {
       const x = v >>> 0;
       if (x === 0) return 32;
-      // count trailing zeros: 31 - clz(x & -x)
       return 31 - Math.clz32(x & -x);
     },
   },
@@ -4595,9 +3417,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return ((x >>> r) | (x << (32 - r))) >>> 0;
     },
   },
-  // Variadic bit32 ops. Pure: NativeFunctionCall handles variadic
-  // via `VARIADIC_ARITY`; the per-call arity is captured at the
-  // FunctionCall site.
   "bit32.band": {
     arity: -1,
     pure: true,
@@ -4629,14 +3448,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) => {
-      // True iff the AND of all args is non-zero.
       let r = 0xffffffff;
       for (const n of args) r &= n >>> 0;
       return r !== 0;
     },
   },
-  // `bit32.extract(n, field [, width])` — extract `width` bits
-  // starting at `field` (LSB = 0). Default width is 1.
   "bit32.extract": {
     arity: -1,
     minArgs: 2,
@@ -4650,8 +3466,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return ((n >>> field) & mask) >>> 0;
     },
   },
-  // `bit32.replace(n, v, field [, width])` — replace `width` bits
-  // at `field` with the low bits of `v`.
   "bit32.replace": {
     arity: -1,
     minArgs: 3,
@@ -4670,16 +3484,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // `table.*` — read-only table helpers. Mutating fns (`insert`,
-  // `remove`, `sort`, `clear`) and constructors (`pack`, `clone`,
-  // `create`, `move`) are blocked on an ObjectValue mutation/
-  // construction API.
-  // ============================================================
-  // `table.getn(t)` — Lua 5.1 / Luau. Length of the array portion
-  // of `t`, equivalent to `#t`. Walks consecutive integer keys
-  // ("1", "2", ...) until the first gap. Linear in the array length;
-  // good enough for sparkdown's typical narrative-fiction tables.
   "table.getn": {
     arity: 1,
     deprecated:
@@ -4698,11 +3502,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return n;
     },
   },
-  // `table.maxn(t)` — Lua 5.1 / Luau. Returns the largest positive
-  // numeric key in `t`, or 0 if none. Unlike `table.getn` / `#t`,
-  // this scans every key (not just contiguous integers) — useful for
-  // sparse arrays. Keys are stored as strings in the underlying Map,
-  // so we test each for an exact integer string match before parsing.
   "table.maxn": {
     arity: 1,
     deprecated:
@@ -4718,19 +3517,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       let max = 0;
       for (const k of map.keys()) {
-        // Largest positive NUMERIC key — Lua's maxn counts floats
-        // too (`maxn{[24.5] = 3} == 24.5`). Identity-key markers
-        // (`__tableid:N`) and plain string keys parse as NaN.
         const n = Number(k);
         if (Number.isFinite(n) && n > max) max = n;
       }
       return max;
     },
   },
-  // `table.concat(t [, sep [, i [, j]]])` — join the array portion
-  // of `t` (1-based indices i..j) into a single string, with `sep`
-  // between elements. Numeric elements are stringified; non-string,
-  // non-number elements raise an error (matches Lua).
   "table.concat": {
     arity: -1,
     minArgs: 1,
@@ -4748,8 +3540,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (args.length > 1 && args[1] != null && !(args[1] instanceof NullValue)) {
         const s = coerceString(args[1]);
         if (s === null) {
-          // `pcall(table.concat, t, false)` must trap — an explicit
-          // non-string/non-number separator is an argument error.
           story.Error(
             "table.concat: invalid argument #2 to 'concat' (string expected)",
           );
@@ -4782,11 +3572,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return parts.join(sep);
     },
   },
-  // `table.find(t, value [, init])` — Luau-only. Linear search of
-  // `t`'s array portion for the first index `k >= init` whose value
-  // equals `value` (using rawequal-style strict equality on
-  // unwrapped primitives). Returns the index, or `null` (nil) if
-  // not found. `init` defaults to 1.
   "table.find": {
     arity: -1,
     minArgs: 2,
@@ -4807,15 +3592,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
           : target;
       const init = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
       if (init < 1) {
-        // ltablib tfind: `luaL_argcheck(init > 0, "index out of range")`
-        // — pcall(table.find, {}, 42, 0) must trap.
         story.Error("table.find: index out of range");
         return null;
       }
-      // Lua's `__eq` rule, as in equality ops: both operands tables (or
-      // both userdata), both metatables carry __eq, and the handlers are
-      // the same value — then the handler decides (tables.luau lines
-      // 418-455).
       const eqViaMetamethod = (a: any, b: any): boolean => {
         if (!(a instanceof ObjectValue) || !(b instanceof ObjectValue)) {
           return false;
@@ -4855,13 +3634,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return null;
     },
   },
-  // `table.foreach(t, fn)` — Lua 5.1, deprecated in Luau but kept
-  // in the surface. Iterates every key/value pair in insertion
-  // order, calling `fn(k, v)` for each. If `fn` returns a non-nil
-  // value, iteration stops and that value is returned.
-  //
-  // Modern Luau code should use `for k, v in pairs(t) do …` instead
-  // — the diagnostic at the call site flags this with a strikethrough.
   "table.foreach": {
     arity: 2,
     deprecated:
@@ -4873,18 +3645,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       const map = t.value as Map<string, AbstractValue>;
       for (const [k, v] of map) {
-        // Lua key form: numeric strings become integers (matches the
-        // `pairs` iterator's key-coercion rule).
         const keyValue: AbstractValue = /^-?\d+$/.test(k)
           ? new IntValue(parseInt(k, 10))
           : new StringValue(k);
         const results = story.CallLuauFunction(fn, [keyValue, v]);
-        // Lua semantics: only an EXPLICIT non-nil return breaks the
-        // loop. A function with no `return` statement ends in a Void
-        // value (sparkdown's "no return value" sentinel) — treat it
-        // as nil. NullValue and false-valued returns... actually
-        // false DOES break in Lua (it's non-nil). But Void doesn't.
-        // The callback's first value decides.
         const top = oneValue(results[0] ?? null);
         if (
           top != null &&
@@ -4897,10 +3661,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new NullValue();
     },
   },
-  // `table.foreachi(t, fn)` — Lua 5.1, deprecated in Luau. Like
-  // `table.foreach` but only over the array portion (consecutive
-  // integer keys 1..N) and calls `fn(i, v)`. Same early-exit rule:
-  // non-nil return ends iteration.
   "table.foreachi": {
     arity: 2,
     deprecated:
@@ -4915,12 +3675,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       while (map.has(String(i))) {
         const v = map.get(String(i))! as AbstractValue;
         const results = story.CallLuauFunction(fn, [new IntValue(i), v]);
-        // Lua semantics: only an EXPLICIT non-nil return breaks the
-        // loop. A function with no `return` statement ends in a Void
-        // value (sparkdown's "no return value" sentinel) — treat it
-        // as nil. NullValue and false-valued returns... actually
-        // false DOES break in Lua (it's non-nil). But Void doesn't.
-        // The callback's first value decides.
         const top = oneValue(results[0] ?? null);
         if (
           top != null &&
@@ -4934,9 +3688,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new NullValue();
     },
   },
-  // `table.insert(t [, pos], value)` — append (2-arg) or insert at
-  // `pos` shifting later elements right (3-arg). Refuses if `t` is
-  // frozen. Returns nothing.
   "table.insert": {
     arity: -1,
     minArgs: 1,
@@ -4966,10 +3717,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         pos = Math.trunc(p);
         value = args[2];
-        // ltablib's tinsert shifts up only for in-range positions
-        // (1 <= pos <= len); anything else — 0, past-the-end,
-        // negative, NaN — just sets t[pos] = v directly
-        // (tables.luau's "out of range insertion" block).
         if (pos >= 1 && pos <= len) {
           writtenIn(story)(t);
           for (let k = len; k >= pos; k--) {
@@ -4991,9 +3738,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return undefined;
     },
   },
-  // `table.remove(t [, pos])` — remove element at `pos` (default
-  // last) and shift later elements left. Returns the removed value
-  // or nil. Refuses on a frozen table.
   "table.remove": {
     arity: -1,
     minArgs: 1,
@@ -5037,24 +3781,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return removed;
     },
   },
-  // `table.sort(t [, comp])` — in-place sort of the array portion.
-  // Default comparator is `<`. A user-supplied `comp` is a sparkdown
-  // function value (closure ObjectValue or SymbolValue) that
-  // receives two elements and returns truthy iff the first should
-  // sort before the second — same semantics as Lua's `comp(a, b)`.
-  //
-  // The comparator is invoked via `story.CallLuauFunction`, which
-  // synchronously re-enters the eval loop, runs the user fn, and
-  // returns its push results. Output is suppressed during each call
-  // so the comparator can't leak narrative text into the story.
   "table.sort": {
     arity: -1,
     validatesArgs: true,
     fn: (story, args) => {
       const t = requireTableArg(story, args[0], 1, "sort");
-      // Luau validates the comparator's TYPE up front — even for
-      // tables too short to sort, `table.sort({}, 42)` raises
-      // (sort.luau line 43).
       const cmpArg = args[1];
       if (
         cmpArg !== undefined &&
@@ -5074,7 +3805,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return undefined;
       }
       const map = t.value!;
-      // Extract the array portion (consecutive integer keys 1..n).
       let len = 0;
       while (map.has(String(len + 1))) len++;
       if (len < 2) return undefined;
@@ -5082,10 +3812,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       for (let k = 1; k <= len; k++) {
         arr.push(map.get(String(k)) as AbstractValue);
       }
-      // Optional comparator. When omitted, fall back to the default
-      // `<` comparator on the unwrapped values.
-      // Treat explicit nil same as missing — Luau semantics:
-      // `table.sort(t, nil)` falls back to the default `<` comparator.
       const compArg = args.length > 1 ? args[1] : null;
       const comp =
         compArg == null || compArg instanceof NullValue ? null : compArg;
@@ -5094,9 +3820,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         const bv = (b as any)?.value;
         if (typeof av === "number" && typeof bv === "number") return av < bv;
         if (typeof av === "string" && typeof bv === "string") return av < bv;
-        // Lua's `<`: tables compare through their `__lt` metamethod
-        // (sort.luau line 112 sorts metatabled records with the
-        // DEFAULT comparator). Values of two different types never do.
         const mt =
           luauTypeOf(a) === luauTypeOf(b)
             ? (a as { metatable?: any })?.metatable
@@ -5120,7 +3843,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (comp == null) return defaultLess(a, b);
         try {
           const results = story.CallLuauFunction(comp, [a, b]);
-          // The comparator's first value decides.
           const top = oneValue(results[0] ?? null);
           if (top == null) return false;
           return isTruthy(top);
@@ -5134,10 +3856,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           return false;
         }
       };
-      // In-place sort via the host's `Array.prototype.sort`. JS's
-      // sort is stable as of ES2019 — same guarantee as Lua's
-      // semantics (well, Lua doesn't guarantee stability, but
-      // stable is a strict superset).
       arr.sort((a, b) => {
         if (aborted) return 0;
         if (less(a, b)) return -1;
@@ -5145,7 +3863,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return 0;
       });
       if (aborted) return undefined;
-      // Write sorted values back into the map.
       writtenIn(story)(t);
       for (let k = 1; k <= len; k++) {
         map.set(String(k), arr[k - 1]!);
@@ -5153,8 +3870,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return undefined;
     },
   },
-  // `table.clear(t)` — Luau-only. Empty all entries (array + hash
-  // portion). Refuses on a frozen table.
   "table.clear": {
     arity: 1,
     validatesArgs: true,
@@ -5165,9 +3880,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return undefined;
       }
       const map = t.value!;
-      // Luau's table.clear RETAINS the allocated array part — a
-      // cleared 16-element table behaves like table.create(16) for
-      // `#` border searches (clear.luau's length-mismatch loop).
       let len = 0;
       while (map.has(String(len + 1))) len++;
       const prevCap = (map as any).__luauCapacity ?? 0;
@@ -5178,9 +3890,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return undefined;
     },
   },
-  // `table.clone(t)` — Luau-only. Shallow copy. Returns a NEW
-  // table with the same entries; the new table is **not** frozen
-  // even if the source was (matches Luau).
   "table.clone": {
     arity: 1,
     fn: (story, [t]) => {
@@ -5188,7 +3897,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.clone: argument must be a table");
         return null;
       }
-      // Luau's tclone refuses tables with a protected metatable.
       if (t.metatable instanceof ObjectValue) {
         const protect = (
           t.metatable.value as Map<string, AbstractValue>
@@ -5201,18 +3909,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const next = new Map<string, AbstractValue>();
       for (const [k, v] of t.value!) next.set(k, v);
       const clone = new ObjectValue(next);
-      // The clone shares the source's metatable (same object), but
-      // NOT its frozen state (`table.clone(table.freeze(t))` yields
-      // a mutable copy).
       clone.metatable = t.metatable ?? null;
       return clone;
     },
   },
-  // `table.create(count [, value])` — Luau-only. New table with
-  // `count` entries at keys "1".."count", each holding `value`
-  // (defaults to nil — entries are omitted in that case since Lua
-  // nil ≡ absent key). Shares one reference across all slots
-  // (Lua semantics; mutations to a shared table propagate).
   "table.create": {
     arity: -1,
     minArgs: 1,
@@ -5224,8 +3924,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         );
         return null;
       }
-      // Luau caps the preallocated array size — `pcall(table.create,
-      // 1e9)` must trap (tables.luau line 768).
       if (count > 2 ** 26) {
         story.Error("table.create: size out of range");
         return null;
@@ -5245,17 +3943,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         (map as any).__luauBoundary = count;
       }
-      // Array-part capacity hint — `#` consults this so
-      // `local t = table.create(5); t[5] = 5; #t == 5` ("magic")
-      // matches Luau's array-sized border search.
       (map as any).__luauCapacity = count;
       return new ObjectValue(map);
     },
   },
-  // `table.pack(...)` — variadic. Returns a new table holding each
-  // arg at "1".."N" plus an integer `n = N` field — the standard
-  // way Lua callers can recover the original arg count when nil
-  // values are present.
   "table.pack": {
     arity: -1,
     fn: (_, args) => {
@@ -5267,17 +3958,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new ObjectValue(map);
     },
   },
-  // `table.move(a1, f, e, t [, a2])` — Lua 5.3+. Copy elements
-  // `a1[f..e]` to `a2[t..t+e-f]`. `a2` defaults to `a1` (in-place
-  // move). Returns `a2`. Handles overlapping ranges by picking the
-  // safe iteration direction. Refuses if `a2` is frozen.
-  // `table.move(a1, f, e, t [, a2])` — mirrors Luau's `tmove`:
-  // integer args validate FIRST (so `table.move(1, 2, 3, 4)` reports
-  // arg #1's type error only after 2-4 check out), ranges guard
-  // against 32-bit overflow with Luau's exact messages, and nil
-  // source slots CLEAR the destination slot (moving a range
-  // containing nils deletes the corresponding keys — Lua 5.4
-  // semantics the fixture checks with `eqT(a, {1, 10, nil, nil, 5})`).
   "table.move": {
     arity: -1,
     fn: (story, args) => {
@@ -5303,7 +3983,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const e = checkInt(args[2], 3);
       const t = checkInt(args[3], 4);
       const a1 = requireTableArg(story, args[0], 1, "move");
-      // Explicit nil (or absent) 5th arg means "same table as a1".
       const a5 = args.length > 4 ? args[4] : undefined;
       const a5Absent =
         a5 === undefined ||
@@ -5311,7 +3990,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         a5 instanceof Void;
       const a2 = a5Absent ? a1 : requireTableArg(story, a5, 5, "move");
       if (e >= f) {
-        // Luau: luaL_argcheck(f > 0 || e < INT_MAX + f, 3, ...)
         if (!(f > 0 || e < INT_MAX + f)) {
           story.Error(
             "invalid argument #3 to 'move' (too many elements to move)",
@@ -5332,8 +4010,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (v !== undefined) dst.set(dk, v);
           else dst.delete(dk);
         };
-        // Forward unless the ranges overlap within the same table in
-        // a way that would clobber unread source slots.
         writtenIn(story)(a2);
         if (t > e || t <= f || dst !== src) {
           for (let i = 0; i < n; i++) copy(i);
@@ -5344,10 +4020,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return a2;
     },
   },
-  // `table.freeze(t)` — Luau-only. Marks `t` read-only. Subsequent
-  // calls to `rawset`/`table.insert`/`table.remove`/`table.clear`/
-  // `table.move` (when targeting this table) will error. Returns
-  // the same `t` so call sites can chain (`local t = table.freeze({...})`).
   "table.freeze": {
     arity: 1,
     fn: (story, [t]) => {
@@ -5359,8 +4031,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.freeze: table is already frozen");
         return t;
       }
-      // Luau's tfreeze refuses tables with a PROTECTED metatable
-      // (`__metatable` set) — tables.luau lines 512-516.
       if (t.metatable instanceof ObjectValue) {
         const protect = (
           t.metatable.value as Map<string, AbstractValue>
@@ -5375,26 +4045,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return t;
     },
   },
-  // `table.isfrozen(t)` — Luau-only. True if `t` has been
-  // `table.freeze`d. Non-table arguments return false rather than
-  // raising (mirrors Luau's tolerant behavior).
   "table.isfrozen": {
     arity: 1,
     fn: (_, [t]) => t instanceof ObjectValue && t.isFrozen,
   },
-  // `table.unpack(t [, i [, j]])` — multi-return: `t[i], t[i+1], …, t[j]`.
-  // Default `i = 1`, default `j = #t`. Missing slots in the range are
-  // emitted as nil so callers can detect holes via positional binding.
-  // Lua 5.1 had this as the global `unpack`; Luau exposes both names
-  // (see the `unpack` entry below).
   "table.unpack": {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => unpackImpl(story, args, "table.unpack"),
   },
-  // `unpack(t [, i [, j]])` — Lua 5.1 / Luau global. Identical to
-  // `table.unpack` (moved into `table` in Lua 5.2 but kept as a
-  // global in Luau for backwards compat).
   unpack: {
     arity: -1,
     minArgs: 1,
@@ -5403,23 +4062,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, args) => unpackImpl(story, args, "unpack"),
   },
 
-  // ============================================================
-  // Iteration: `next` + `pairs` + `ipairs`.
-  //
-  // `next(t, k)` is the primitive: pop the entry AFTER `k` in `t`'s
-  // insertion order, return (k', v') as a multi-value. With `k == nil`
-  // (or absent), return the FIRST entry. With `k` equal to the last
-  // entry, return nil — the generic-for loop's nil-check terminates.
-  //
-  // `pairs(t)` and `ipairs(t)` return a `__builtin_iter`-shaped
-  // ObjectValue that the runtime's value call recognizes (see
-  // `callValueAsFunction` in evaluation.ts). Each invocation calls the matching
-  // iterator implementation with the captured state and advances the
-  // internal cursor stored on the ObjectValue itself.
-  //
-  // `pairs` walks ALL keys in insertion order; `ipairs` walks integer
-  // keys 1..N stopping at the first gap (matches Luau).
-  // ============================================================
   next: {
     arity: -1,
     minArgs: 1,
@@ -5453,41 +4095,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (idx >= keys.length) return new NullValue();
       const nextKey = keys[idx]!;
       const nextValue = map.get(nextKey)!;
-      // Keys are stored as strings in sparkdown's ObjectValue Map.
-      // Numeric-looking keys (`"1"`, `"2"`, …) should round-trip back
-      // to IntValue so iterating an array-style table yields the
-      // original numeric indices.
       const keyValue: AbstractValue = /^-?\d+$/.test(nextKey)
         ? new IntValue(parseInt(nextKey, 10))
         : new StringValue(nextKey);
       return new MultiValue([keyValue, nextValue as AbstractValue]);
     },
   },
-  // `pairs(t)` / `ipairs(t)` return Lua's full iterator-protocol
-  // triple `(iterator, state, control)` so:
-  //   - generic-for threads the REAL table + previous control value
-  //     into each step (`__iter(__state, __ctrl)`), and
-  //   - manually-invoked iterators work: `local inext = ipairs(t)`
-  //     takes the first value (the iterator marker) and
-  //     `inext({5,6,7}, 2)` returns `(3, 7)` (basic.luau line 230).
-  // The marker still carries internal state as a fallback for call
-  // sites that pass nil state (see stepBuiltinIterator).
-  // Hidden instance constructor for `define`-declared classes
-  // (emitted by the `new ClassName(args)` expression lowering —
-  // never user-callable, the `__` prefix is reserved). Builds a
-  // fresh table whose metatable `__index`es the class so property
-  // and method reads fall through the inheritance chain (table-form
-  // dispatch — plain map walks, no function-form metamethod
-  // re-entry). Then:
-  //   1. Copies `store`-marked property defaults INTO the instance
-  //      (each key takes the nearest chain level's value, so a
-  //      subclass's redeclared default wins).
-  //      Store props are instance-owned from birth, so they always
-  //      travel with the instance in save files; non-store
-  //      properties stay on the class until written and reset to
-  //      class defaults on load.
-  //   2. Calls the class's `init` method (own or inherited) with
-  //      the instance + the constructor's arguments, when defined.
   "__new": {
     arity: -1,
     fn: (story, args) => {
@@ -5504,13 +4117,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
       inst.metatable = new ObjectValue(mtMap);
 
       const chain = defineChain(cls);
-      // Store-marked defaults become instance-owned (enumerable +
-      // serialized); table-valued defaults copy by REFERENCE (Lua
-      // semantics — shared until `init` replaces them).
       copyStoreDefaults(chain, inst);
 
-      // Constructor: nearest `init` up the chain, called with the
-      // instance threaded as `self` plus the `new` call's args.
       for (const level of chain) {
         const init = (level.value as Map<string, AbstractValue>)?.get("init");
         if (init != null && !(init instanceof NullValue)) {
@@ -5524,25 +4132,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return inst;
     },
   },
-  // Hidden NAMED-define constructor (emitted by lowerLuauDefine as the
-  // init expression for every `define D as T with …`). Unlike `__new`,
-  // which mints an anonymous instance, `__def` turns the define's raw
-  // table (its own props + method closures + hidden modifier lists)
-  // into a registered singleton:
-  //   1. Tags it (`__define` = D, `__defineParent` = T) and chains its
-  //      metatable `__index` to the parent type table — created
-  //      IMPLICITLY if T was never explicitly defined (so `as character`
-  //      works even though `character` is a builtin engine type with no
-  //      `define`). Self-healing on order: whoever names T first mints
-  //      it.
-  //   2. Copies the parent chain's `store` defaults into D (instance-
-  //      owned), exactly like `__new`.
-  //   3. Registers D into T and EVERY ancestor (`T.D`, `Grandparent.D`),
-  //      so members are reachable through any type up the chain and
-  //      `instances(T)` enumerates them.
-  //   4. A ROOT define (no T) whose type's table already exists merges
-  //      into that table and returns it (`mergeIntoRootTable`).
-  // Returns D (the global VariableAssignment binds it to the name).
   "__def": {
     arity: 3,
     fn: (story, [tableArg, nameArg, parentArg]) => {
@@ -5561,12 +4150,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
           parentName,
         ) as AbstractValue | null;
         if (existing instanceof ObjectValue) {
-          // `as X` means the TYPE named X — not whichever same-named
-          // declaration happened to win the flat global slot. See
-          // `resolveParentType`.
           parent = resolveParentType(story, parentName, existing);
         } else {
-          // Implicit parent type — e.g. `as character`.
           parent = new ObjectValue(new Map<string, AbstractValue>());
           const pmt = new Map<string, AbstractValue>();
           pmt.set(DEFINE_MARKER, new StringValue(parentName));
@@ -5580,9 +4165,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       table.metatable = new ObjectValue(mt);
 
       if (parent) {
-        // An override of a member already registered under this name (a
-        // builtin instance the seeded prelude declared first) keeps that
-        // member's values for the keys it does not author.
         const replaced = parent.value!.get(name);
         if (
           replaced instanceof ObjectValue &&
@@ -5594,14 +4176,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         const chain = defineChain(parent);
         copyStoreDefaults(chain, table, written);
-        // Register into the parent and every ancestor.
         for (const level of chain) {
           written(level);
           level.value!.set(name, table);
         }
-        // A structural block declared earlier may be waiting for this define
-        // as its `as` parent (`morph child as base` before `define base as
-        // morph`); link it now, as a later structural parent would.
         for (const level of chain) {
           linkWaitingStructuralChildren(level, name, table, written);
         }
@@ -5612,16 +4190,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return table;
     },
   },
-  // Hidden structural-block define (emitted by lowerLuauStructDefine; never
-  // user-callable). `__defs(props, name, type, parent)` registers the block
-  // as `type.name`, tagged with `type` as its parent marker so the engine
-  // reads it as an instance of that type, and inherits from the member of
-  // the SAME type table named `parent` (`animation.fadein`, builtin or
-  // authored), else from the type itself. The parent is looked up in the
-  // type table rather than as a bare global because a structural block's
-  // global is always the scoped `$<type>_<name>`: blocks of different types
-  // may share a name, and a builtin parent resolves although its bare name is
-  // free for user variables.
   "__defs": {
     arity: 4,
     fn: (story, [tableArg, nameArg, typeArg, parentArg]) => {
@@ -5670,36 +4238,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       copyStructuralStoreDefaults(table, written);
 
-      // Register into the type and every ancestor type.
       for (const level of defineChain(typeTable)) {
         written(level);
         level.value!.set(name, table);
       }
-      // Link the children that were waiting for this block as their parent.
       linkWaitingStructuralChildren(typeTable, name, table, written);
       return table;
     },
   },
-  // Hidden generic-for ENTRY adjustment (emitted by
-  // lowerLuauGenericForLoop right after the (f, s, ctrl) init —
-  // never user-callable, the `__` prefix is reserved). Implements
-  // Luau's iterand protocol for `for vars in EXPR do`:
-  //   - EXPR's metatable has `__iter` → call it with the iterand;
-  //     its returns become the (f, s, ctrl) triple.
-  //   - EXPR is a plain table (not a closure value, not a stdlib /
-  //     builtin-iterator marker, no `__call`) → implicit `pairs`
-  //     iteration (Luau's `for k, v in t do`).
-  //   - anything else (functions, markers, callable tables) passes
-  //     through unchanged — the step call dispatches them normally.
   "__adjust_iter": {
     arity: 3,
     fn: (story, [fRaw, s, c]) => {
       let f = fRaw;
-      // Single-value adjustment of the iterand slot: a multi-return
-      // takes its first value; a no-value (`__iter` that returned
-      // nothing, or an empty multi-return) is nil — the step's call
-      // then raises Lua's "attempt to call a nil value" (iter.luau
-      // line 174).
       if (f instanceof MultiValue) f = f.values[0] ?? new NullValue();
       if (f instanceof Void) {
         f = new NullValue();
@@ -5717,10 +4267,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (iterFn != null && !(iterFn instanceof NullValue)) {
             let results = (story.CallLuauFunction(iterFn, [f]) ??
               []) as unknown[];
-            // A multi-return arrives as ONE MultiValue element —
-            // spread it across the (f, s, ctrl) triple. A no-value
-            // return (Void) adjusts to nil so the step raises
-            // "attempt to call a nil value".
             if (results.length === 1 && results[0] instanceof MultiValue) {
               results = (results[0] as MultiValue).values;
             }
@@ -5742,8 +4288,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
           !map.has(BUILTIN_ITER_TAG) &&
           !(mtMap instanceof Map && mtMap.has("__call"))
         ) {
-          // Plain table — Luau iterates it directly (generalized
-          // pairs, consistent with __iter's absence).
           return [
             makeBuiltinIterator("pairs", f as ObjectValue),
             f as ObjectValue,
@@ -5752,12 +4296,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         return [f, s, c];
       }
-      // Function values pass through; everything else can't be
-      // iterated — `for x in 42 do` raises Luau's trappable
-      // "attempt to iterate over a number value" (iter.luau line
-      // 164). nil iterands fall through to the step's call-a-nil
-      // error instead (an `__iter` that returned nothing must
-      // report "attempt to call a nil value", line 174).
       const t = luauTypeOf(f);
       if (t !== "function" && t !== "nil") {
         story.Error(`attempt to iterate over a ${t} value`);
@@ -5802,11 +4340,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ];
     },
   },
-  // `instances(T)` / `iinstances(T)` — iterate the `define`-members of
-  // a type table (the `define X as T` entries registered under T),
-  // NOT T's own props/methods. `instances` yields (name, instance);
-  // `iinstances` yields (ordinal, instance). See the BUILTIN_ITERATORS
-  // steps for the member-filtering detail.
   instances: {
     arity: 1,
     fn: (story, [t]) => {
@@ -5843,13 +4376,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ];
     },
   },
-  // `props(x)` — iterate `x`'s DATA properties, own AND inherited.
-  // Unlike `pairs` (own keys only, like Lua), this walks the table's
-  // `__index` chain, with a child's key shadowing a parent's. Methods
-  // (function values) and internal `__`-prefixed bookkeeping (define
-  // markers, store lists) are hidden — only data fields are yielded.
-  // Useful for serializing / inspecting an instance's full property
-  // set including type defaults it never overwrote.
   props: {
     arity: 1,
     fn: (story, [x]) => {
@@ -5863,11 +4389,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
       let guard = 0;
       while (cur instanceof ObjectValue && guard++ < 64) {
         for (const [k, v] of cur.value as Map<string, AbstractValue>) {
-          if (k.startsWith("__")) continue; // hide bookkeeping keys
-          if (flat.has(k) || shadowed.has(k)) continue; // child wins
-          // A method (function value) at this level shadows a
-          // same-named parent data prop, but is itself omitted —
-          // `props` yields data only.
+          if (k.startsWith("__")) continue;
+          if (flat.has(k) || shadowed.has(k)) continue;
           if (luauTypeOf(v) === "function") {
             shadowed.add(k);
             continue;
@@ -5878,7 +4401,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       metatableMap(cur)?.get("__index") ?? null;
         cur = idx instanceof ObjectValue ? idx : null;
       }
-      // Iterate the flattened snapshot with the ordinary pairs step.
       const flatTable = new ObjectValue(flat);
       return [
         makeBuiltinIterator("pairs", flatTable),
@@ -5888,13 +4410,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // `os.*` — wall-clock helpers. Sparkdown's runtime has no
-  // dedicated clock subsystem; these delegate to the host's
-  // `Date.now()` / `performance.now()`. Results are NOT
-  // deterministic across saves/restores — use only for content
-  // that doesn't need to round-trip.
-  // ============================================================
   "os.clock": {
     arity: 0,
     fn: () => {
@@ -5904,15 +4419,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         : Date.now() / 1000;
     },
   },
-  // `os.time([t])` — Unix timestamp. With no arg, current time. With
-  // a table arg `{year, month, day [, hour, min, sec]}`, Luau (unlike
-  // Lua 5.x's mktime) interprets the fields as **UTC** — that's how
-  // `os.time({year=1970, month=1, day=1, hour=0, min=0, sec=0}) == 0`
-  // holds exactly regardless of host timezone (datetime.luau line
-  // 22). Out-of-range fields normalize arithmetically (JS Date.UTC
-  // matches mktime's field normalization); times before the epoch
-  // are unrepresentable and return nil. Defaults: `hour=12`,
-  // `min=0`, `sec=0` — matching loslib's getfield defaults.
   "os.time": {
     arity: -1,
     fn: (story, args) => {
@@ -5953,23 +4459,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const min = field("min") ?? 0;
       const sec = field("sec") ?? 0;
       const ms = Date.UTC(year, month - 1, day, hour, min, sec);
-      if (!Number.isFinite(ms) || ms < 0) return null; // pre-epoch → nil
+      if (!Number.isFinite(ms) || ms < 0) return null;
       return Math.floor(ms / 1000);
     },
   },
   "os.difftime": { arity: 2, pure: true, fn: (_, [t2, t1]) => t2 - t1 },
 
-  // `os.date([format [, time]])` — Lua/Luau strftime-style date
-  // formatting. Three modes:
-  //   - Format string starts with `*t` (UTC: `!*t`) — return a table
-  //     with `year/month/day/hour/min/sec/wday/yday/isdst` fields.
-  //   - Format starts with `!` — render the rest using UTC fields.
-  //   - Otherwise — render using local fields.
-  // Default format is "%c" (locale-equivalent date+time). Default
-  // time is the current epoch second.
-  //
-  // We hardcode English month/weekday names — JS's `Intl` is locale-
-  // dependent and not appropriate for a deterministic runtime.
   "os.date": {
     arity: -1,
     fn: (story, args) => {
@@ -5981,8 +4476,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         args.length > 1 && args[1] != null && !(args[1] instanceof NullValue)
           ? coerceNumber(args[1])
           : null;
-      // Negative times are unrepresentable (gmtime fails) —
-      // `os.date("", -1) == nil` (datetime.luau line 19).
       if (timeArg != null && timeArg < 0) return null;
       if (timeArg == null) {
         ambientReads.count += 1;
@@ -5995,7 +4488,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       const d = new Date(epochMs);
       const fields = utc ? getDateFieldsUTC(d) : getDateFieldsLocal(d);
-      // Table form.
       if (fmt === "*t") {
         const map = new Map<string, AbstractValue>();
         map.set("year", new IntValue(fields.year));
@@ -6006,7 +4498,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
         map.set("sec", new IntValue(fields.sec));
         map.set("wday", new IntValue(fields.wday));
         map.set("yday", new IntValue(fields.yday));
-        // Real boolean — `type(D.isdst) == 'boolean'` (datetime.luau).
         map.set("isdst", new BoolValue(fields.isdst));
         return new ObjectValue(map);
       }
@@ -6014,17 +4505,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // ============================================================
-  // `utf8.*` — Unicode helpers. `char`/`len`/`codepoint` are the
-  // most commonly-used. Pattern-iterator functions (`codes`,
-  // `offset`) need first-class function values (deferred).
-  // ============================================================
   "utf8.char": {
     arity: -1,
     fn: (story, args) => {
-      // utfchar (lutf8lib.cpp): encode each codepoint to its UTF-8
-      // BYTES (byte-string convention — each result char <= 0xFF).
-      // Codepoints outside [0, 0x10FFFF] raise "value out of range".
       let out = "";
       for (const v of args) {
         const n = coerceNumber(v);
@@ -6058,22 +4541,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return out;
     },
   },
-  // `utf8.len(s [, i [, j]])` — number of UTF-8 code points in `s`
-  // from byte position `i` (default 1) to byte position `j` (default
-  // -1, end of string). Negative indices count from the end.
-  // Sparkdown's JS strings are always valid Unicode (UTF-16), so the
-  // "first invalid byte" error path Lua specifies never triggers.
-  // `utf8.codepoint(s [, i [, j]])` — multi-return: codepoint
-  // integers for each UTF-8 character whose starting byte lies in
-  // `[i, j]` (1-indexed bytes, default `j = i`, default `i = 1`).
-  // Sparkdown's JS strings are always valid Unicode, so the
-  // "invalid UTF-8" error path Lua specifies never triggers.
   "utf8.codepoint": {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      // codepoint (lutf8lib.cpp): codepoints for all characters
-      // STARTING in byte range [i, j]; decode failures raise.
       const s = coerceString(args[0]) ?? "";
       const bytes = luauStringToBytes(s);
       const len = bytes.length;
@@ -6114,9 +4585,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      // utflen (lutf8lib.cpp): characters STARTING in byte range
-      // [i, j]; on a malformed sequence returns (nil, position)
-      // instead of raising.
       const s = coerceString(args[0]) ?? "";
       const bytes = luauStringToBytes(s);
       const len = bytes.length;
@@ -6152,20 +4620,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return n;
     },
   },
-  // `utf8.offset(s, n [, i])` — byte position where the n-th UTF-8
-  // character (counting from byte position `i`) starts. `n` may be
-  // negative (count backward) or zero (return the start of the
-  // character containing byte `i`). Default `i` is 1 when n >= 0,
-  // otherwise `#s + 1`. Returns `null` (nil) when out of range.
   "utf8.offset": {
     arity: -1,
     minArgs: 2,
     fn: (story, args) => {
-      // byteoffset (lutf8lib.cpp): byte index where the n-th
-      // character counting from position i starts; n == 0 finds the
-      // start of the sequence CONTAINING byte i. nil when there's no
-      // such character; raises for out-of-range i or a continuation-
-      // byte start.
       const s = coerceString(args[0]) ?? "";
       const nArg = coerceNumber(args[1]);
       if (nArg === null) {
@@ -6214,15 +4672,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return null;
     },
   },
-  // `utf8.codes(s)` — Lua 5.3+ / Luau. Returns a generic-for
-  // iterator: each step yields `(byte_position, codepoint)` for the
-  // next character in `s`. `byte_position` is 1-indexed and matches
-  // the convention used by `utf8.codepoint` / `utf8.offset`.
-  //
-  // Internally builds a marker-keyed ObjectValue routed through
-  // `stepBuiltinIterator` (same dispatch as `pairs` / `ipairs` /
-  // `gmatch`). The cursor is the 0-indexed codepoint number;
-  // advance is by codepoint, not byte.
   "utf8.codes": {
     arity: 1,
     fn: (_, [sArg]) => {
@@ -6236,9 +4685,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new ObjectValue(iterMap);
     },
   },
-  // `utf8.nfcnormalize(s)` / `utf8.nfdnormalize(s)` — Luau-only.
-  // Unicode Normalization Form C / D. JS strings expose this directly
-  // via `String.prototype.normalize`.
   "utf8.nfcnormalize": {
     arity: 1,
     fn: (_, [s]) => (coerceString(s) ?? "").normalize("NFC"),
@@ -6248,20 +4694,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [s]) => (coerceString(s) ?? "").normalize("NFD"),
   },
 
-  // ============================================================
-  // `debug.*` — call-stack introspection.
-  // ============================================================
-  //
-  // Sparkdown doesn't track per-frame source lines (the runtime
-  // works in path-space, not source-space), so `l`/`r` line info is
-  // always -1. The `s`/`n` info is best-effort from the frame's
-  // current pointer's container path.
-
-  // `debug.traceback([message [, level]])` — Lua/Luau. Returns a
-  // string dump of the running call stack, optionally prefixed by
-  // `message`. The `level` arg is accepted for compatibility but
-  // ignored (the inkjs CallStack already produces a complete
-  // top-down dump).
   "debug.traceback": {
     arity: -1,
     fn: (story, args) => {
@@ -6271,27 +4703,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return header + trace;
     },
   },
-  // `debug.info(level, options)` — Luau form. `level` is 1-indexed
-  // (1 = the function that called `debug.info`). `options` is a
-  // string of one-letter codes — for each, we push the requested
-  // datum as a separate return value (multi-return):
-  //   `s` → source path of the frame's container (or "?")
-  //   `l` → -1 (line info not tracked)
-  //   `n` → frame name (container path leaf), or ""
-  //   `a` → 0 (arity not tracked)
-  //   `f` → nil (no first-class function value for the frame)
-  //   `r` → -1 (line-range not tracked)
-  // Returns nil if `level` exceeds the call-stack depth.
   "debug.info": {
     arity: 2,
     fn: (story, [levelArg, optsArg]) => {
       const level = Math.floor(coerceNumber(levelArg) ?? 1);
       const opts = coerceString(optsArg) ?? "";
       const frames = story.CallFrameCount();
-      // Lua convention: level 1 is the caller of `debug.info`. The
-      // current call sits at the top of the JS stack but we map
-      // `level - 1` directly into the inkjs callstack (which is
-      // ordered bottom-up). So level 1 = top of stack.
       const idx = frames - level;
       if (idx < 0 || idx >= frames) return new NullValue();
       const pathStr = story.CallFramePath(idx) ?? "?";
@@ -6315,8 +4732,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
             results.push(new NullValue());
             break;
           case "r":
-            // Luau returns line-range as two values (first, last);
-            // we don't have line tracking, so emit -1, -1.
             results.push(new IntValue(-1));
             results.push(new IntValue(-1));
             break;
@@ -6333,31 +4748,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `assert(v, [message], ...)` — Luau-style assertion. Raises a
-  // runtime error when `v` is falsy; on success returns ALL its
-  // arguments (`assert(1) == 1`, `select('#', assert(1,2,3)) == 3`).
-  // Lua truthiness: only `nil` and `false` are falsy — `assert(0)`
-  // and `assert("")` pass. Zero args raises "missing argument #1"
-  // (Luau's exact message — no `to 'assert'` suffix).
-  // No `minArgs`: a call with no argument raises Luau's `luaL_checkany`
-  // message below, which names no function.
   assert: {
     arity: -1,
     fn: (story, args) => {
-      // Luau's assert raises through `luaL_error`, which prepends
-      // the `chunkname:line: ` position prefix — unlike PUC Lua,
-      // where a provided message object propagates verbatim. The
-      // conformance suite strips that prefix with
-      // `err:sub(err:find(": ") + 2)`, so it must be present.
       const raise = (raw: string) => {
         const message = story.errorMessageFormatter
           ? story.errorMessageFormatter(story, raw)
           : raw;
-        // Throw via story.Error (matches Lua semantics — `assert`
-        // raises a runtime error, which `pcall` can trap). Using
-        // story.AddError instead would call ForceEnd which wipes
-        // the call stack — fine for unhandled errors, but defeats
-        // pcall's protection.
         story.Error(message);
       };
       if (args.length === 0) {
@@ -6373,78 +4770,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
 };
 
-// Luau-style names that resolve to ink-runtime builtin names. These
-// builtins have instructions of their own (`CountOf` for read counts and
-// turns since, emitted by `FunctionCall.EmitExpression`) rather than
-// `NativeFunctionCall` dispatch — the lowerer just needs to translate the
-// source name to the ink name and FunctionCall does the rest.
-//
-// `count.*` exposes ink's narrative-flow builtins (read counts, turns
-// elapsed, choice count) under a luau-style namespace that makes it
-// clear the methods return *counts* rather than the things themselves.
-// `count` is registered as a stdlib namespace in the grammar, so it's
-// reserved as an identifier — syntax highlighting flags it as stdlib
-// at the source level. `math.random` / `math.randomseed` are
-// technically math operations but they mutate the runtime's random-
-// state and can't be modelled as pure functions, so they live here too
-// rather than as pure entries.
-//
-// `count.turns` is overloaded by arity:
-//   - `count.turns()` (no args)       → `TURNS`        (total turns elapsed)
-//   - `count.turns(-> target)` (1 arg) → `TURNS_SINCE`  (turns since target)
-// Same conceptual operation, "turn counter against a reference point",
-// disambiguated by whether a reference point was provided.
 export const INK_BUILTIN_ALIASES: Record<
   string,
   Record<string, InkBuiltinAlias>
 > = {
   count: {
-    // `count.turns(-> target)` 1-arg form maps to `TURNS_SINCE`
-    // (legacy per-function ControlCommand). The 0-arg form lives
-    // in `STDLIB` as `"count.turns"`; the alias function returns
-    // `null` for `argCount === 0` so `lookupStdLibBuiltin` falls
-    // through to the STDLIB lookup. `count.visits(-> t)`
-    // → `READ_COUNT` likewise stays legacy because of compile-time
-    // container-counting setup in `FunctionCall.ResolveReferences`
-    // that doesn't fit the generic dispatcher.
     turns: (argCount) => (argCount === 1 ? "TURNS_SINCE" : null),
     visits: "READ_COUNT",
-    // `count.visited(-> t)` — boolean shorthand for
-    // `count.visits(-> t) > 0`. Same READ_COUNT machinery (the alias
-    // triggers the compile-time container-counting setup); the
-    // lowerer wraps the call in `> 0` so it yields a genuine boolean
-    // that behaves identically under Lua truthiness and in ink-style
-    // narrative conditions. The idiomatic "has the reader been
-    // here?" check now that bare read counts are no longer falsy-at-0
-    // in Luau code.
     visited: "READ_COUNT",
   },
 };
 
-// Returns the runtime builtin name for a `<receiver>.<method>(args)`
-// call if one is registered, or `null` otherwise. Used by the lowerer to
-// decide whether to translate a method-call into a direct builtin call.
-//
-// For STDLIB entries, the returned name is the dotted full name
-// (`"math.floor"`) which `NativeFunctionCall` dispatches on. For
-// INK_BUILTIN_ALIASES entries, it's the ink name (`"TURNS"`) which
-// `FunctionCall.EmitExpression` emits an instruction of its own for.
-//
-// `argCount` lets a single Luau-style method name resolve to different
-// ink builtins based on arity (see `count.turns` in
-// `INK_BUILTIN_ALIASES`). Unified STDLIB entries don't consult
-// `argCount` — pure entries enforce their arity via NativeFunctionCall,
-// state-aware entries via the registered `arity` field.
 export function lookupStdLibBuiltin(
   receiverName: string,
   methodName: string,
   argCount: number,
 ): string | null {
-  // Check INK_BUILTIN_ALIASES first — arity-overloaded entries like
-  // `count.turns` can return null for some arg counts, letting the
-  // unified STDLIB pick those up below. (`count.turns(0)` falls
-  // through to STDLIB["count.turns"]; `count.turns(1, t)` resolves
-  // to "TURNS_SINCE" here.)
   const aliases = Object.hasOwn(INK_BUILTIN_ALIASES, receiverName)
     ? INK_BUILTIN_ALIASES[receiverName]
     : undefined;
@@ -6455,11 +4796,6 @@ export function lookupStdLibBuiltin(
     const resolved = typeof alias === "string" ? alias : alias(argCount);
     if (resolved !== null) return resolved;
   }
-  // Unified registry: pure-numeric and state-aware entries alike
-  // are keyed by dotted full name. The compiler returns the same
-  // name as the FunctionCall's; pure entries dispatch through
-  // NativeFunctionCall (auto-registered at engine init), state-aware
-  // entries through the `CallStd` instruction.
   const fullName = `${receiverName}.${methodName}`;
   if (lookupAnyStdLib(fullName) != null) {
     return fullName;
@@ -6467,11 +4803,6 @@ export function lookupStdLibBuiltin(
   return null;
 }
 
-// Resolves a bare (unnamespaced) source-level call to its stdlib
-// builtin name, or `null` if the name isn't registered. Today the
-// resolved name equals the source name — `assert` stays `assert`
-// end-to-end. Used by the lowerer to ask "is this a registered
-// global stdlib?" without importing the full registry object.
 export function lookupGlobalStdLibBuiltin(
   name: string,
   _argCount: number,
@@ -6479,34 +4810,17 @@ export function lookupGlobalStdLibBuiltin(
   return lookupAnyStdLib(name) != null ? name : null;
 }
 
-// Stdlib constants — identifiers that evaluate to a fixed value at
-// compile time. The lowerer (`lowerSimpleAccessPath`) checks the
-// dotted name of an access path against this table and emits the
-// value directly (as a `NumberExpression` / `StringExpression`)
-// instead of a `VariableReference`. No runtime dispatch needed —
-// the value is baked into the compiled IR. Keys are dotted full
-// names (`"math.pi"`, `"math.huge"`, `"_VERSION"`).
 export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
-  // Standard Luau math constants.
   "math.pi": Math.PI,
   "math.huge": Infinity,
-  // Luau 0.6+ named constants (math.luau "math constants" section).
   "math.tau": Math.PI * 2,
   "math.sqrt2": Math.SQRT2,
   "math.e": Math.E,
   "math.phi": (1 + Math.sqrt(5)) / 2,
   "math.nan": NaN,
 
-  // UTF-8 helper constant — Luau's UTF8PATT (lutf8lib.cpp): a
-  // Lua-pattern matching one UTF-8 byte sequence. Used with
-  // string.gmatch over byte strings (`for c in s:gmatch(
-  // utf8.charpattern)`); the lead-byte class tops out at \xF4
-  // (sequences above U+10FFFF are invalid).
   "utf8.charpattern": "[\0-\x7F\xC2-\xF4][\x80-\xBF]*",
 
-  // Globals (non-namespaced) — single-identifier access.
-  // `_VERSION` is the language version string; sparkdown reports
-  // "Luau" since it aspires to Luau-superset semantics.
   _VERSION: "Luau",
 };
 
@@ -6516,33 +4830,16 @@ export function lookupStdLibConstant(
   return Object.hasOwn(STDLIB_CONSTANTS, name) ? STDLIB_CONSTANTS[name] : undefined;
 }
 
-// Direct registry lookup for state-aware builtins. Returns the
-// registered entry (`{arity, fn}`) or `null` if the name isn't a
-// state-aware entry. Pure entries are intentionally excluded — they
-// dispatch through `NativeFunctionCall` and the program engine's
-// `CallStd` instruction should never receive them.
-// Used by `FunctionCall.isStateAwareStdLib` (compile-time) and the
-// generic dispatcher in Story.ts (runtime) to route only the non-pure
-// entries through the generic path.
 export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
   const entry = lookupAnyStdLib(name);
   if (entry == null || entry.pure) return null;
   return entry;
 }
 
-// True when `name` is a known stdlib function (state-aware or pure).
-// Used by the runtime variable-lookup fallback to push a callable
-// sentinel for `type(type) == 'function'`-style references.
 export function isStdLibFunctionName(name: string): boolean {
   return lookupAnyStdLib(name) != null;
 }
 
-// True when `name` is a stdlib NAMESPACE root (`math`, `string`,
-// `table`, ...) — i.e. at least one registered entry lives under
-// `name + "."`. Used by the runtime dotted-read error path to
-// distinguish `math.idontexist` (a valid read of a missing member of
-// an existing table → nil) from `idontexist.a` (indexing nil →
-// "attempt to index nil with 'a'").
 const STDLIB_NAMESPACES: Set<string> = (() => {
   const out = new Set<string>();
   for (const key of Object.keys(STDLIB)) {
@@ -6555,23 +4852,10 @@ export function isStdLibNamespaceName(name: string): boolean {
   return STDLIB_NAMESPACES.has(name);
 }
 
-// True when `name` is a registered PURE stdlib op over numbers
-// (`math.abs`, `math.floor`, ...). Used by NativeFunctionCall.Call to
-// apply Lua's argument semantics: numeric strings coerce, and
-// missing / wrong-typed arguments raise Lua-formatted, pcall-trappable
-// errors ("missing argument #1 to 'abs'" / "invalid argument #1 to
-// 'abs'").
-// Fewest arguments a call of `entry` must pass: its arity when fixed,
-// otherwise its `minArgs` (none when omitted). Every call form (direct,
-// first-class, `pcall`) raises the same missing argument below it.
 export function stdLibRequiredArgs(entry: StdLibEntry): number {
   return entry.arity >= 0 ? entry.arity : (entry.minArgs ?? 0);
 }
 
-// The 1-based position of the first required argument of `entry` that `args`
-// leaves absent (`undefined`, the `Void` a short call site pads with, or an
-// empty multi-return), or 0 when every required one is there. An explicit nil
-// is present; the entry checks its type itself.
 export function firstMissingStdLibArg(
   entry: StdLibEntry,
   args: readonly unknown[],
@@ -6598,35 +4882,16 @@ export function isPureNumberStdLibOp(name: string): boolean {
   return !!types && types.length === 1 && types[0] === "number";
 }
 
-// Lookup any stdlib entry by name regardless of pure / state-aware
-// classification. Used by runtime call-on-marker dispatch (variable-
-// divert path in Story.ts) to invoke a `__stdlib_fn`-tagged ObjectValue
-// — the call site doesn't know whether the wrapped name is pure or
-// state-aware, just that it's a Luau stdlib callable. Returns null if
-// `name` isn't registered.
 export function lookupAnyStdLib(name: string): StdLibEntry | null {
   return Object.hasOwn(STDLIB, name) ? STDLIB[name] ?? null : null;
 }
 
-// Normalize an entry's `pure` field to a concrete list of operand
-// types. `pure: true` is shorthand for the classic numeric type.
-// Returns `null` for state-aware entries (so callers can use a single
-// nullish check).
 export function pureStdLibTypes(entry: StdLibEntry): PureStdLibType[] | null {
   if (entry.pure === true) return ["number"];
   if (Array.isArray(entry.pure) && entry.pure.length > 0) return entry.pure;
   return null;
 }
 
-// PURE entries' `fn`s receive RAW JS values (numbers/strings) — when
-// dispatched as NativeFunctionCalls the engine's type coercion has
-// already unwrapped them. The first-class marker paths in Story.ts
-// (`pcall(math.abs, -5)`, `call(math.max, t)` via a stored
-// `__stdlib_fn` value) pop AbstractValues off the eval stack instead,
-// so they must unwrap before invoking a pure `fn` — `Math.abs(IntValue)`
-// is NaN and `IntValue > -Infinity` compares an object. Numeric
-// strings coerce per Lua (`math.abs('-5')`). State-aware entries take
-// the wrapped values and are returned unchanged.
 export function unwrapArgsForPureStdLibFn(
   entry: StdLibEntry,
   args: any[],
@@ -6649,11 +4914,6 @@ export function unwrapArgsForPureStdLibFn(
           const n = parseLuauNumber(raw);
           if (n !== null) return n;
         }
-        // Pure NUMBER entries reject non-coercible args with Lua's
-        // trappable message — `pcall(bit32.band, {})` must be false
-        // (bitwise.luau lines 128-132). Only when the caller passes
-        // `story` (the first-class marker dispatch paths); the
-        // static NativeFunctionCall path has its own validation.
         if (story && shortName) {
           story.Error(
             `invalid argument #${i + 1} to '${shortName}' (number expected, got ${luauTypeOf(v)})`,
@@ -6666,21 +4926,11 @@ export function unwrapArgsForPureStdLibFn(
   });
 }
 
-// If `name` resolves to a stdlib entry that's marked `deprecated`,
-// returns the deprecation message; otherwise `null`. Used by the
-// lowerer to emit Information-severity LSP diagnostics with
-// `DiagnosticTag.Deprecated` at deprecated-stdlib call sites. The
-// runtime still dispatches the call — the diagnostic is purely an
-// editor-side hint.
 export function lookupStdLibDeprecation(name: string): string | null {
   const entry = lookupAnyStdLib(name);
   return entry?.deprecated ?? null;
 }
 
-// Returns the pure entries paired with the operand-type list each
-// should be registered for. Used by
-// `NativeFunctionCall.GenerateNativeFunctionsIfNecessary` at engine
-// init to register each pure entry under every type it accepts.
 export function getPureStdLibEntries(): Array<
   [string, StdLibEntry, PureStdLibType[]]
 > {

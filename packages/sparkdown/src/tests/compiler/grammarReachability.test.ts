@@ -1,14 +1,3 @@
-// Every repository rule in the grammar should be reachable from the top-level
-// `patterns` through `include: "#Name"` references, and every variable should be
-// expanded somewhere (`{{NAME}}`) or read from TypeScript. A rule nothing
-// includes still reads as live to the next author, and it inflates the counts
-// the grammar lints report (#1268, #1277).
-//
-// The remaining unreachable rules and unused variables are listed below, so
-// this test fails both when a new dead one appears and when a listed one is
-// removed or used again without updating the list. Remove each name here as its follow-up
-// lands.
-
 import { describe, expect, test } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -37,8 +26,6 @@ const SOURCE = YAML.parse(
   variables: Record<string, unknown>;
 };
 
-// Rules left unreachable once #1277 removed their only includers. Tracked by
-// the follow-up Task filed from PR #1331.
 const KNOWN_UNREACHABLE_RULES = [
   "InvalidSelectorPropertyName",
   "LuauStyleAssignmentMark",
@@ -55,12 +42,8 @@ const KNOWN_UNREACHABLE_RULES = [
   "OperatorPrefixedPropertyName",
 ];
 
-// Variables read directly from `GRAMMAR_DEFINITION.variables` in TypeScript
-// rather than expanded in a pattern.
 const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOCAL_DECLARATION_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
 
-// Variables nothing expands, outside #1277's list. Tracked by the same
-// follow-up Task.
 const KNOWN_UNUSED_VARIABLES = ["SPARKLE_HEAD", "_LUAU_SEMICOLON_AHEAD_"];
 
 function visit(node: unknown, onString: (s: string) => void): void {
@@ -94,8 +77,6 @@ function includesOf(node: unknown): string[] {
 
 function reachableRules(): Set<string> {
   const reached = new Set<string>();
-  // The grammar's two roots: a `.sd` script's top-level patterns, and the
-  // rule a `.luau` document is read from.
   const queue = [...includesOf(SOURCE.patterns), SOURCE.luauFile.rule];
   while (queue.length) {
     const name = queue.pop()!;

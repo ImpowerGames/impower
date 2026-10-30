@@ -1,11 +1,3 @@
-// The shift oracle (#938) on the binary program's chunks (#695): a cold
-// compile of a project and a cold compile of it with blank lines above one of
-// its scripts emit chunks equal by content, with that script's statements
-// moved down by the blank lines. A chunk's line rows count from its
-// statement's first line, so a shift changes no chunk but one that holds a
-// name minted from a source offset, which every generated name the writer
-// emits is kept from being. A project that falls back names the same
-// construct, with its line moved the same way.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
@@ -38,9 +30,6 @@ function coldCompile(project: Project): SparkProgram {
   }
 }
 
-/** A root by content without its positions: `describeRoot` with the line
- *  starts, first lines and spans left out. Every instruction reads each id
- *  as what it names, so a generated name that differs shows. */
 const content = (root: ProgramRoot): string[] =>
   describeRoot(root).map((line) =>
     line
@@ -49,11 +38,6 @@ const content = (root: ProgramRoot): string[] =>
       .replace(/^(\s*)-?\d+ (?=-?\d+,)/, "$1"),
   );
 
-/** Where each statement of a root stands: its script and first line, every
- *  flow's statements with each block statement before its bodies, and the
- *  first line of each body and of each flow but a script's top level's,
- *  which is the script's first line whatever is written there (the starting
- *  script's, and an included script's, #1681). */
 const positions = (root: ProgramRoot): [string, number][] => {
   const out: [string, number][] = [];
   const visit = (sequence: SequenceRow) => {
@@ -73,8 +57,6 @@ const positions = (root: ProgramRoot): [string, number][] => {
     if (flow.kind !== SymbolKind.Root) {
       out.push([flow.uri, root.firstLineOf(flow)]);
     } else {
-      // A top level starts at its script's first line, and moves with no
-      // shift; its statements move as any flow's do.
       expect(root.firstLineOf(flow)).toBe(0);
     }
     visit(flow);
@@ -92,16 +74,12 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
   const plain = coldCompile(project);
   const shifted = coldCompile({ ...project, [name]: "\n".repeat(shift) + project[name]! });
   const moved = (at: string, line: number) => (at === uri ? line + shift : line);
-  // Every script of the project is part of both programs, so the shift is
-  // compared across all of them.
   for (const program of [plain, shifted]) {
     expect(Object.keys(program.scripts).sort(), "the program's scripts").toEqual(
       Object.keys(project).map(uriOf).sort(),
     );
   }
   if (!plain.chunks) {
-    // A program the compile cannot build reports its errors on the lines the
-    // shift moved them to.
     expect(shifted.chunks).toBeUndefined();
     const errors = (program: SparkProgram) =>
       Object.entries(program.diagnostics ?? {}).flatMap(([at, list]) =>
@@ -120,10 +98,6 @@ function expectShiftInvariant(project: Project, name: string, shift: number) {
   );
 }
 
-// Scripts whose statements the writer emits with names the compiler
-// generates: a loop's hidden temporaries, a compound property assignment's
-// and a multiple assignment's stashed values (the #912 family, here outside
-// a function), each at the same offset of two scenes.
 const PROGRAM_CASES: ShiftCase[] = [
   { name: "the logic screenplay", project: { main: logicScreenplay(2) } },
   {
@@ -183,8 +157,6 @@ describe("program shift equivalence", () => {
     }
   }
 
-  // The cases the writer emits chunks for, so that the oracle compares
-  // chunks and not only the construct a program falls back for.
   it("compares the chunks of the programs that have them", () => {
     const chunked = [...SHIFT_CASES, ...PROGRAM_CASES]
       .filter((c) => coldCompile(c.project).chunks)

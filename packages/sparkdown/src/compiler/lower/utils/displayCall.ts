@@ -13,56 +13,12 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// The name a display call's `group` carries. Lowering names the continuation
-// by its file and the offset its statement starts at, which is unique in the
-// story, and the compiler's synthetic-name pass renumbers every such name to
-// `__group$<flow>$<n>` by document order within its flow before the program is generated. The
-// incremental compiler keeps the lowered calls of a line that did not change,
-// even when an edit above it moved the line, so only a name that does not
-// depend on the offset is the same in an incremental and a cold compile.
 export class ContinuationGroup extends Text {
   override get isCompilerNamed(): boolean {
     return true;
   }
 }
 
-// `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
-// `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
-// needed). `display` is a
-// state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
-// live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
-// `text` is a StringExpression over the body's own ParsedObjects, so ink
-// evaluates interpolation to live values and concatenates the run at call time.
-// A table with no `target` renders on the interpreter's default target.
-//
-// `tags` holds the line's author `# tag`s, each as the content of one tag. They
-// ride the table as `tags`, evaluated after `text` as the author wrote them, and
-// `display` puts them on the stream ahead of the table, so they land in the
-// same step's `currentTags`. A tag cannot sit inside the captured `text`: a tag
-// ending during string evaluation is taken for a choice label's tag.
-//
-// `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `glue` marks a beat whose text ends with `..`: its newline
-// waits, and a line that begins with `..` joins the beat. `extend` marks a beat
-// whose text ends with `..` before a `>` break: its step ends at the click like
-// any beat's, and a line that begins with `..` carries on in the same box.
-// `continues` marks a beat whose text begins with `..`: `display` checks that
-// the line shown before it ends with `..`, and warns and shows the beat as a
-// line of its own when it does not. `open` marks a call that joins the next
-// display call onto its line: `display` writes no newline after it, so the step
-// runs on until a call closes the line. A divert the line holds open carries
-// it. `caption` marks a `choose` block's last caption line, whose newline
-// waits: the step completes with the choices unless the run shows something
-// first. `group` names the glued continuation a call belongs to (see
-// `ContinuationGroup`), and
-// `inherit` marks its beats after one of its breaks: they take the routing of
-// the beat the run joined the continuation to, which the interpreter knows
-// only while the beat `group` names is the one it queued last, and otherwise
-// route by the table's own routing, which is the line the source reads before
-// the continuation.
-//
-// When `range` is given, the call is stamped with it so its beat surfaces a
-// pathLocation (the screenplay preview's click-to-line routing depends on it).
 export function buildDisplayCall(
   target: string | undefined,
   character: string | undefined,
@@ -119,11 +75,6 @@ export function buildDisplayCall(
   return finishCall(entries, tags, range, ctx);
 }
 
-// `display({ parts })` for words whose `# tag`s sit between pieces of text (a
-// picked choice's start content, then its chosen-only text). Each part is a
-// run of text or a `{ tag }` table, in the order written, so text and tags are
-// evaluated in that order. `display` joins the parts into `text` and `tags`
-// before anything reads the table.
 export function buildOrderedDisplayCall(
   words: ParsedObject[],
   ctx: LowerContext,
@@ -165,9 +116,6 @@ export function buildOrderedDisplayCall(
   return finishCall(entries, [], null, ctx);
 }
 
-// `__unjoined()` at a `..` that begins a block body line under a line that
-// does not end with one, stamped with the mark so its runtime warning names
-// that line.
 export function buildUnjoinedWarning(
   range: { from: number; to: number },
   ctx: LowerContext,
@@ -178,7 +126,6 @@ export function buildUnjoinedWarning(
   return call;
 }
 
-// Whether `call` is a `display` call whose table can take an `open` entry.
 export function isDisplayCall(call: ParsedObject): call is FunctionCall {
   return (
     call instanceof FunctionCall &&
@@ -187,10 +134,6 @@ export function isDisplayCall(call: ParsedObject): call is FunctionCall {
   );
 }
 
-// Mark a `display` call as a `choose` block's `caption`, whose newline waits
-// for what the run does next. A call already `open` joins the next line
-// instead, and one marked `glue` already leaves its newline waiting, so either
-// is left as it is.
 export function captionDisplayCall(call: FunctionCall): void {
   const table = call.args[0] as ObjectExpression;
   if (
@@ -205,8 +148,6 @@ function flagEntry(flag: string): ObjectExpressionEntry {
   return new ObjectExpressionEntry(flag, new NumberExpression(true, "bool"));
 }
 
-// Split parsed objects into their `# tag`s (the content between each
-// `Tag(true)` and `Tag(false)`) and everything else, both in order.
 export function separateTags(objects: ParsedObject[]): {
   tags: ParsedObject[][];
   rest: ParsedObject[];
@@ -231,10 +172,6 @@ export function separateTags(objects: ParsedObject[]): {
   return { tags, rest };
 }
 
-// `display({ load })`: the interpreter queues the names as a load beat of its
-// own. The names are a captured string, so they may interpolate. `tags` are as
-// for {@link buildDisplayCall}, and so is `open`, which a `load` line with a
-// plain divert after it carries so the divert's first line joins the step.
 export function buildLoadCall(
   args: ParsedObject[],
   range: { from: number; to: number } | null,

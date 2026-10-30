@@ -1,9 +1,5 @@
 // Subtyping, ported from Luau's `Subtyping.h`/`Subtyping.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// `isSubtype` answers whether one type is a subtype of another and, when it
-// is not, records where inside the two types the test failed as a pair of
-// type paths, which the checker turns into error messages.
 
 import { type ConstraintV, type PackSubtypeConstraint, type SubtypeConstraint } from "./Constraint";
 import { LuauTypeError } from "./Error";
@@ -72,13 +68,10 @@ export class SubtypingReasoning {
   }
 }
 
-// Luau's `LuauSubtypingReasoningLimit`, `LuauSubtypingRecursionLimit` and
-// `LuauSubtypingIterationLimit`.
 const SUBTYPING_REASONING_LIMIT = 100;
 const SUBTYPING_RECURSION_LIMIT = 100;
 const SUBTYPING_ITERATION_LIMIT = 20000;
 
-/** A set of reasonings, iterated in insertion order. */
 export class SubtypingReasonings implements Iterable<SubtypingReasoning> {
   private items: SubtypingReasoning[] = [];
 
@@ -104,7 +97,6 @@ export class SubtypingReasonings implements Iterable<SubtypingReasoning> {
     this.items = [];
   }
 
-  /** Rebuilds the set after its members were changed in place. */
   normalize(): void {
     const items = this.items;
     this.items = [];
@@ -177,7 +169,6 @@ export class SubtypingResult {
   }
 
   andAlso(other: SubtypingResult): this {
-    // A failure's reasonings join this result's; a first failure takes them over.
     if (!other.isSubtype) {
       if (this.isSubtype) this.reasoning = other.reasoning;
       else this.reasoning = mergeReasonings(this.reasoning, other.reasoning);
@@ -193,7 +184,6 @@ export class SubtypingResult {
   }
 
   orElse(other: SubtypingResult): this {
-    // A success clears the reasonings; two failures join them.
     if (!this.isSubtype) {
       if (other.isSubtype) {
         this.reasoning.clear();
@@ -291,10 +281,6 @@ function packSubtypeConstraint(subPack: TypePackId, superPack: TypePackId): Pack
   return { kind: "PackSubtypeConstraint", subPack, superPack, returns: false };
 }
 
-// ---------------------------------------------------------------------------
-// Generic packs
-// ---------------------------------------------------------------------------
-
 interface MappedGenericFrame {
   mappings: Map<TypePackId, TypePackId | undefined>;
   parentScopeIndex: number | undefined;
@@ -303,10 +289,6 @@ interface MappedGenericFrame {
 
 type LookupResult = { kind: "Mapped"; tp: TypePackId } | { kind: "Unmapped"; scopeIndex: number } | { kind: "NotBindable" };
 
-/**
- * The generic packs bound while subtyping, as a tree of frames: generic packs
- * are not strictly lexical, and a nested pack can shadow an outer one.
- */
 class MappedGenericEnvironment {
   frames: MappedGenericFrame[] = [];
   currentScopeIndex: number | undefined;
@@ -322,7 +304,6 @@ class MappedGenericEnvironment {
       }
       currentFrameIndex = frame.parentScopeIndex;
     }
-    // A scope nested in this one may mention the pack.
     if (this.currentScopeIndex !== undefined) {
       const toCheck = [...this.frames[this.currentScopeIndex]!.children];
       while (toCheck.length) {
@@ -376,10 +357,8 @@ function freshBounds(): GenericBounds {
 
 export class SubtypingEnvironment {
   parent: SubtypingEnvironment | undefined;
-  /** For each generic, a stack of bounds: a generic may be shadowed by a nested function type. */
   readonly mappedGenerics = new Map<TypeId, GenericBounds[]>();
   readonly mappedGenericPacks = new MappedGenericEnvironment();
-  /** An entry mapped to undefined counts as absent. */
   readonly substitutions = new Map<TypeId, TypeId | undefined>();
   readonly seenSetCache = new Map<string, SubtypingResult>();
   iterationCount = 0;
@@ -445,7 +424,6 @@ class ApplyMappedGenerics extends Substitution {
   clean(ty: TypeId): TypeId {
     const { lowerBound, upperBound } = this.env.getMappedTypeBounds(ty);
     if (upperBound.empty() && lowerBound.empty()) {
-      // With no bounds, unknown is as good as never, and closest to the original behavior.
       return this.builtinTypes.unknownType;
     } else if (!upperBound.empty()) {
       const ib = new IntersectionBuilder(this.arena, this.builtinTypes);
@@ -470,7 +448,6 @@ class ApplyMappedGenerics extends Substitution {
       for (let g of f.generics) {
         g = follow(g);
         const bounds = this.env.mappedGenerics.get(g);
-        // The generics of a function being subtyped are not substituted.
         if (bounds && bounds.length) return true;
       }
     }
@@ -482,15 +459,10 @@ class ApplyMappedGenerics extends Substitution {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Subtyping
-// ---------------------------------------------------------------------------
-
 function pairKey(a: { serial: number }, b: { serial: number }): string {
   return `${a.serial}:${b.serial}`;
 }
 
-/** A result returned without entering the result cache, as Luau's early returns are. */
 class Uncached {
   constructor(readonly result: SubtypingResult) {}
 }
@@ -499,7 +471,6 @@ export class Subtyping {
   private readonly resultCache = new Map<string, SubtypingResult>();
   private readonly seenTypes = new Set<string>();
   private readonly seenPacks = new Set<string>();
-  /** Types known to be unique, whose tables may be tested covariantly. */
   uniqueTypes: Set<TypeId> | undefined;
 
   constructor(
@@ -561,7 +532,6 @@ export class Subtyping {
       superTy = follow(superTy);
       const subIt = env.tryFindSubstitution(subTy);
       if (subIt) subTy = subIt;
-      // As in Luau, a substitution for the supertype replaces the subtype.
       const superIt = env.tryFindSubstitution(superTy);
       if (superIt) subTy = superIt;
 
@@ -571,7 +541,6 @@ export class Subtyping {
       if (subTy === superTy) return new SubtypingResult(true);
 
       if (this.seenTypes.has(key)) {
-        // A cycle is assumed to succeed, and nothing touching it is cached.
         const res = new SubtypingResult(true, false, false);
         env.seenSetCache.set(key, res.clone());
         return res;
@@ -593,15 +562,12 @@ export class Subtyping {
     const subFree = get(subTy, "FreeType");
     const superFree = get(superTy, "FreeType");
     if (subFree && superFree) {
-      // Two free types may both narrow to never.
       result = new SubtypingResult(true);
       result.assumedConstraints.push(subtypeConstraint(subTy, superTy));
     } else if (superFree) {
-      // SubTy <: (LB <: SuperTy <: UB) is possible when SubTy <: UB.
       result = this.isCovariantWith(env, subTy, superFree.upperBound, scope);
       if (result.isSubtype) result.assumedConstraints.push(subtypeConstraint(subTy, superTy));
     } else if (subFree) {
-      // (LB <: SubTy <: UB) <: SuperTy is impossible when LB </: SuperTy.
       if (this.isCovariantWith(env, subFree.lowerBound, superTy, scope).isSubtype) {
         result = new SubtypingResult(true);
         result.assumedConstraints.push(subtypeConstraint(subTy, superTy));
@@ -616,7 +582,6 @@ export class Subtyping {
     } else if (get(superTy, "AnyType")) {
       result = new SubtypingResult(true);
     } else if (get(subTy, "AnyType") && get(superTy, "UnknownType")) {
-      // any is unknown | *error-type*, and the error type has no inhabitants.
       result = new SubtypingResult(true);
     } else if (get(subTy, "AnyType")) {
       result = this.isCovariantWith(env, b.unknownType, superTy, scope).andAlso(this.isCovariantWith(env, b.errorType, superTy, scope));
@@ -673,7 +638,6 @@ export class Subtyping {
       result = this.isCovariantWithSubIntersection(env, get(subTy, "IntersectionType")!, superTy, scope);
       if (!result.isSubtype && !result.normalizationTooComplex) result = this.trySemanticSubtyping(env, subTy, superTy, scope, result);
     } else if (get(subTy, "NegationType") && get(superTy, "NegationType")) {
-      // Contravariance keeps the type paths coherent.
       result = this.isContravariantWith(env, get(subTy, "NegationType")!.ty, get(superTy, "NegationType")!.ty, scope).withBothComponent(
         Components.field(TypeField.Negated),
       );
@@ -698,7 +662,6 @@ export class Subtyping {
       const superTable = get(superTy, "TableType")!;
       result = this.isCovariantWithTables(env, subTable, superTable, false, scope);
       if (result.isSubtype && !subTable.indexer && superTable.indexer && subTable.state !== TableState.Sealed) {
-        // An unsealed table receives an indexer by unification.
         result.assumedConstraints.push(subtypeConstraint(subTy, superTy));
       }
     } else if (get(subTy, "MetatableType") && get(superTy, "MetatableType")) {
@@ -725,10 +688,6 @@ export class Subtyping {
     return result;
   }
 
-  /**
-   * Subtyping of packs: the heads pairwise, then the longer head against the
-   * other side's tail, then the tails.
-   */
   isCovariantWithPacks(env: SubtypingEnvironment, subTp: TypePackId, superTp: TypePackId, scope: Scope): SubtypingResult {
     return this.recurse(() => {
       subTp = followPack(subTp);
@@ -785,7 +744,6 @@ export class Subtyping {
       else if (getPack(subTail, "FreeTypePack") || getPack(superTail, "FreeTypePack")) {
         result.andAlso(new SubtypingResult(true).withBothComponent(tailComponent).withAssumedConstraint(packSubtypeConstraint(subTail, superTail)));
       } else if (getPack(subTail, "ErrorTypePack") || getPack(superTail, "ErrorTypePack")) {
-        // An error type pack is fine on either side.
         result.andAlso(new SubtypingResult(true).withBothComponent(tailComponent));
       } else {
         return new SubtypingResult(false)
@@ -797,7 +755,6 @@ export class Subtyping {
       if (getPack(subTail, "VariadicTypePack")) return new SubtypingResult(false).withSubComponent(tailComponent);
       if (getPack(subTail, "GenericTypePack")) return this.isTailGenericNothing(env, scope, subTail);
       if (getPack(subTail, "FreeTypePack")) {
-        // With equal heads and no super tail, the missing tail is the empty pack.
         return new SubtypingResult(true)
           .withBothComponent(tailComponent)
           .withAssumedConstraint(packSubtypeConstraint(subTail, this.builtinTypes.emptyTypePack));
@@ -807,7 +764,6 @@ export class Subtyping {
         .withError(new LuauTypeError(scope.location, { kind: "UnexpectedTypePackInSubtyping", tp: subTail }));
     } else if (superTail) {
       if (getPack(superTail, "VariadicTypePack")) {
-        // Every variadic pack is a supertype of the empty pack.
       } else if (getPack(superTail, "GenericTypePack")) {
         result.andAlso(this.isTailNothingGeneric(env, scope, superTail));
       } else if (getPack(superTail, "FreeTypePack")) {
@@ -825,7 +781,6 @@ export class Subtyping {
     return result;
   }
 
-  /** The sub tail against the rest of a longer super head; `earlyExit` means the result is the whole answer. */
   private isSubTailCovariantWith(
     env: SubtypingEnvironment,
     outputResult: SubtypingResult,
@@ -859,7 +814,6 @@ export class Subtyping {
         const superTailPack = sliceTypePack(superHeadStartIndex, superTp, superHead, superTail, this.builtinTypes, this.arena);
         if (lookupResult.kind === "Mapped") {
           let subTpToCompare = lookupResult.tp;
-          // A hidden variadic tail is clipped, for better arity mismatch reporting.
           const tp = getPack(lookupResult.tp, "TypePack");
           const vtp = tp && tp.tail ? getPack(followPack(tp.tail), "VariadicTypePack") : undefined;
           if (tp && vtp && vtp.hidden) subTpToCompare = this.arena.addTypePack(tp.head);
@@ -990,7 +944,6 @@ export class Subtyping {
       const ok = env.mappedGenericPacks.bindGeneric(superTp, subTp);
       return new SubtypingResult(ok, false, false).withBothComponent(tail);
     }
-    // Generic packs of the function being checked are not bindable, but subtype themselves.
     return new SubtypingResult(subTp === superTp, false, false).withBothComponent(tail);
   }
 
@@ -1016,7 +969,6 @@ export class Subtyping {
     sup: VariadicTypePack,
   ): SubtypingResult {
     const t = follow(sup.ty);
-    // T... <: ...any and T... <: ...unknown.
     if (get(t, "AnyType") || get(t, "UnknownType")) return new SubtypingResult(true);
     const lookup = env.lookupGenericPack(subTp);
     const tail = Components.pack(PackField.Tail);
@@ -1063,8 +1015,6 @@ export class Subtyping {
     if (result.reasoning.empty()) {
       result.reasoning.insert(new SubtypingReasoning(EMPTY_PATH, EMPTY_PATH, SubtypingVariance.Contravariant));
     } else {
-      // Swap the paths, or components of the supertype end up on the subtype,
-      // and swap covariance with contravariance.
       for (const r of result.reasoning) {
         const sub = r.subPath;
         r.subPath = r.superPath;
@@ -1097,11 +1047,9 @@ export class Subtyping {
     return result;
   }
 
-  /** T <: A | B when T <: A or T <: B. */
   private isCovariantWithSuperUnion(env: SubtypingEnvironment, subTy: TypeId, superUnion: UnionType, scope: Scope): SubtypingResult {
     const result = new SubtypingResult(false);
     const options = flatOptions(superUnion);
-    // A union that already includes the subtype binds no generics.
     for (const ty of options) if (follow(ty) === subTy) return new SubtypingResult(true);
     let index = 0;
     for (const ty of options) {
@@ -1115,7 +1063,6 @@ export class Subtyping {
     return result;
   }
 
-  /** A | B | C <: D | E | F, skipping the options on the left that the right has. */
   private isCovariantWithUnions(env: SubtypingEnvironment, subUnion: UnionType, superUnion: UnionType, scope: Scope): SubtypingResult {
     const result = new SubtypingResult(true);
     const superOptions = new TypeIds(flatOptions(superUnion));
@@ -1130,7 +1077,6 @@ export class Subtyping {
     return result;
   }
 
-  /** A | B <: T when A <: T and B <: T. */
   private isCovariantWithSubUnion(env: SubtypingEnvironment, subUnion: UnionType, superTy: TypeId, scope: Scope): SubtypingResult {
     const result = new SubtypingResult(true);
     let i = 0;
@@ -1141,7 +1087,6 @@ export class Subtyping {
     return result;
   }
 
-  /** T <: A & B when T <: A and T <: B. */
   private isCovariantWithSuperIntersection(
     env: SubtypingEnvironment,
     subTy: TypeId,
@@ -1157,7 +1102,6 @@ export class Subtyping {
     return result;
   }
 
-  /** A & B <: T when A <: T or B <: T. */
   private isCovariantWithSubIntersection(
     env: SubtypingEnvironment,
     subIntersection: IntersectionType,
@@ -1182,7 +1126,6 @@ export class Subtyping {
     if (get(negatedTy, "AnyType")) return this.isCovariantWith(env, negatedTy, superTy, scope).withSubComponent(negated);
     const u = get(negatedTy, "UnionType");
     if (u) {
-      // ~(A | B) is ~A & ~B.
       const result = new SubtypingResult(true);
       for (const ty of flatOptions(u)) {
         const negatedPart = get(follow(ty), "NegationType");
@@ -1193,7 +1136,6 @@ export class Subtyping {
     }
     const i = get(negatedTy, "IntersectionType");
     if (i) {
-      // ~(A & B) is ~A | ~B.
       const result = new SubtypingResult(false);
       for (const ty of flatOptions(i)) {
         const negatedPart = get(follow(ty), "NegationType");
@@ -1205,7 +1147,6 @@ export class Subtyping {
     if (get(negatedTy, "ErrorType") || get(negatedTy, "FunctionType") || get(negatedTy, "TableType") || get(negatedTy, "MetatableType")) {
       throw new Error("attempting to negate a non-testable type");
     }
-    // The negation of anything else is too wide to be a subtype of other things.
     return new SubtypingResult(false).withSubComponent(negated);
   }
 
@@ -1242,7 +1183,6 @@ export class Subtyping {
     const negPrim = get(negatedTy, "PrimitiveType");
     const negSingleton = get(negatedTy, "SingletonType");
     if (subPrim && negPrim) {
-      // number <: ~boolean, number </: ~number
       isSubtype = subPrim.type !== negPrim.type;
     } else if (subSingleton && negPrim) {
       if (subSingleton.variant.kind === "StringSingleton" && negPrim.type === PrimitiveKind.String) isSubtype = false;
@@ -1253,7 +1193,6 @@ export class Subtyping {
       else if (subPrim.type === PrimitiveKind.Boolean && negSingleton.variant.kind === "BooleanSingleton") isSubtype = false;
       else isSubtype = true;
     } else if (get(subTy, "ExternType") && negPrim) {
-      // The top extern type is not a primitive, so negating a primitive includes it.
       isSubtype = true;
     } else if (negPrim && (get(subTy, "TableType") || get(subTy, "MetatableType"))) {
       isSubtype = negPrim.type !== PrimitiveKind.Table;
@@ -1289,10 +1228,8 @@ export class Subtyping {
   ): SubtypingResult {
     const result = new SubtypingResult(true);
     if (subTable.props.size === 0 && !subTable.indexer && subTable.state === TableState.Sealed && superTable.indexer) {
-      // {} </: {T}, though an unsealed {| |} may yet gain the indexer.
       return new SubtypingResult(false);
     }
-    // An `any` suppresses errors only when every failure is one it suppresses.
     let hasErrorSuppression = false;
     let shouldSuppress = true;
     const record = (subResult: SubtypingResult) => {
@@ -1305,7 +1242,6 @@ export class Subtyping {
       if (subProp) {
         record(this.isCovariantWithProperties(env, subProp, superProp, name, forceCovariantTest, scope));
       } else if (subTable.indexer && this.isCovariantWith(env, this.builtinTypes.stringType, subTable.indexer.indexType, scope).isSubtype) {
-        // A string indexer stands in for the property.
         const indexResult = Components.field(TypeField.IndexResult);
         if (superProp.isShared()) {
           if (subTable.indexer.isReadOnly) {
@@ -1338,8 +1274,6 @@ export class Subtyping {
           }
         }
       } else {
-        // A missing property reads as nil; the failure points here rather
-        // than into a property the subtype does not have.
         const nilProp = forceCovariantTest ? Property.rw(this.builtinTypes.nilType) : Property.readonly(this.builtinTypes.nilType);
         const missing = this.isCovariantWithProperties(env, nilProp, superProp, name, forceCovariantTest, scope);
         missing.reasoning.clear();
@@ -1365,7 +1299,6 @@ export class Subtyping {
     if (!indexProp || !indexProp.readTy) return doDefault();
     const indexTableProp = get(follow(indexProp.readTy), "TableType");
     if (!indexTableProp) return doDefault();
-    // The `__index` table's fields count, read-only.
     const faux = tableType({ props: subTable.props.clone(), indexer: subTable.indexer, state: subTable.state, level: subTable.level, scope: subTable.scope });
     for (const [name, prop] of indexTableProp.props) {
       if (prop.readTy && !faux.props.has(name)) faux.props.set(name, Property.readonly(prop.readTy));
@@ -1422,7 +1355,6 @@ export class Subtyping {
       g = follow(g);
       if (get(g, "GenericType")) {
         const bounds = env.mappedGenerics.get(g);
-        // A generic may shadow an outer one, so it gets fresh bounds.
         if (bounds) bounds.push(freshBounds());
         else env.mappedGenerics.set(g, [freshBounds()]);
       }
@@ -1433,7 +1365,6 @@ export class Subtyping {
     }
 
     result.orElse(this.isContravariantWithPacks(env, subFunction.argTypes, superFunction.argTypes, scope).withBothComponent(Components.pack(PackField.Arguments)));
-    // A hidden variadic tail on the supertype's arguments may be what failed.
     if (!result.isSubtype) {
       const { head: args, tail } = flatten(superFunction.argTypes);
       const variadic = tail ? getPack(tail, "VariadicTypePack") : undefined;
@@ -1448,7 +1379,6 @@ export class Subtyping {
     result.andAlso(this.isCovariantWithPacks(env, subFunction.retTypes, superFunction.retTypes, scope).withBothComponent(Components.pack(PackField.Returns)));
 
     if (areEqualPacks(subFunction.argTypes, superFunction.argTypes) && areEqualPacks(subFunction.retTypes, superFunction.retTypes)) {
-      // A generic function is a subtype of its instantiations.
       if (superFunction.generics.length !== subFunction.generics.length && superFunction.generics.length) {
         result.andAlso(new SubtypingResult(false));
         result.withError(
@@ -1482,7 +1412,6 @@ export class Subtyping {
     }
     if (subFunction.genericPacks.length) {
       env.mappedGenericPacks.popFrame();
-      // The generic pack mapping may need repopulating later.
       result.isCacheable = false;
     }
     return result;
@@ -1532,7 +1461,6 @@ export class Subtyping {
       return result;
     }
     result = this.isInvariantWith(env, subIndexer.indexType, superIndexer.indexType, scope).withBothComponent(Components.field(TypeField.IndexLookup));
-    // A read-only super indexer is covariant in its values; a read-write one is invariant.
     if (superIndexer.isReadOnly) {
       result.andAlso(
         this.isCovariantWith(env, subIndexer.indexResultType, superIndexer.indexResultType, scope).withBothComponent(
@@ -1660,7 +1588,6 @@ export class Subtyping {
       }
       return result;
     }
-    // A finite set of strings is a subtype of some table when every one of them is.
     for (const superTable of superTables) {
       const result = new SubtypingResult(true);
       for (const [, s] of subString.sortedSingletons()) {
@@ -1726,7 +1653,6 @@ export class Subtyping {
 
   private isCovariantWithReducedSub(env: SubtypingEnvironment, instance: TypeFunctionInstanceType, superTy: TypeId, scope: Scope): SubtypingResult {
     const { ty, errors } = this.handleTypeFunctionReductionResult(instance, scope);
-    // An irreducible instance reduces to never.
     return this.isCovariantWith(env, ty, superTy, scope).withErrors(errors).withSubComponent(Components.reduction(ty));
   }
 
@@ -1791,11 +1717,9 @@ export class Subtyping {
     upperBound = env.applyMappedGenerics(this.builtinTypes, this.arena, upperBound) ?? upperBound;
 
     const nt = this.normalizer.normalize(upperBound);
-    // A type too complex to normalize is likely inhabited.
     const res = nt ? this.normalizer.isInhabitedNormal(nt) : NormalizationResult.True;
     if (!nt || res === NormalizationResult.HitLimits) result.normalizationTooComplex = true;
     else if (res === NormalizationResult.False) {
-      // An uninhabited upper bound, as for T in <T>() -> (T, T) <: () -> (string, number), fails.
       result.isSubtype = false;
     }
     const boundsEnv = new SubtypingEnvironment();

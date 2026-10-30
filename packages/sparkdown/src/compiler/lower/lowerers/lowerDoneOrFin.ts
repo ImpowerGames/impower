@@ -8,17 +8,7 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// `done` / `fin` — bare-keyword aliases for the terminator diverts.
-// `done` lowers to `Divert([DONE])` (= scene/branch return; auto-DONE
-// is the runtime's idle-flow handler). `fin` lowers to `Divert([END])`
-// (= story termination). After either keyword the flow can't continue
-// in this scope, so any sibling statement that follows (before the
-// scope's closing `end`) is unreachable. We emit a single Hint-severity
-// diagnostic with the LSP `Unnecessary` tag covering the unreachable
-// range — VS Code renders that as greyed-out text so the author can
-// see the dead code at a glance.
-
-const UNNECESSARY_TAG = 1; // LSP DiagnosticTag.Unnecessary
+const UNNECESSARY_TAG = 1;
 
 const IGNORABLE_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
@@ -31,11 +21,6 @@ const IGNORABLE_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
-// Walks forward from the `done` / `fin` node looking for the first
-// non-whitespace sibling. Returns it (the start of the unreachable
-// range) along with the last non-whitespace sibling before the
-// scope's closing `end` (the end of the unreachable range), or
-// `null` if there's nothing unreachable.
 function findUnreachableRange(
   decl: SyntaxNode,
 ): { from: SyntaxNode; to: SyntaxNode } | null {
@@ -43,13 +28,7 @@ function findUnreachableRange(
   let first: SyntaxNode | null = null;
   let last: SyntaxNode | null = null;
   while (cur) {
-    // Stop at the enclosing scene/branch's closing `end`. The `end`
-    // keyword itself is a structural marker, not "unreachable code"
-    // — so anything past it isn't ours to flag.
     if (cur.name === "LuauEndKeyword") break;
-    // A new `Scene` / `Branch` declaration also implicitly ends the
-    // current scope (the previous scene's missing-end is its own
-    // diagnostic from `validateScene`; we just stop here).
     if (cur.name === "Scene" || cur.name === "Branch") break;
     if (!IGNORABLE_SIBLINGS.has(cur.name)) {
       if (!first) first = cur;
@@ -61,9 +40,6 @@ function findUnreachableRange(
   return { from: first, to: last };
 }
 
-// The `unreachable` read (`LoweringRead`) of a `done` or `fin` and the range
-// it found: the range's lines counted from the keyword's own line, and its
-// columns, or nothing. That fixes the hint of a statement carried unchanged.
 function readOf(
   decl: SyntaxNode,
   range: { from: SyntaxNode; to: SyntaxNode } | null,
@@ -75,8 +51,6 @@ function readOf(
   return `${at(range.from.from)}-${at(range.to.to)}`;
 }
 
-/** The `unreachable` read of the `done` or `fin` lowered from `node`, as the
- *  document now answers it. */
 export function unreachableRead(
   node: SyntaxNode,
   ctx: Pick<LowerContext, "lineNumber" | "characterNumber">,
@@ -93,8 +67,6 @@ function lower(
   const block = wrapInWeave([divert]);
 
   const unreachable = findUnreachableRange(nodeRef.node);
-  // What follows the keyword is outside its statement, so an edit below it
-  // can move the hint while the statement is carried unchanged.
   ctx.recordRead?.({
     kind: "unreachable",
     value: readOf(nodeRef.node, unreachable, ctx),

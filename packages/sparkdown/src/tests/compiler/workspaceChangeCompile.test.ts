@@ -1,13 +1,3 @@
-// The keystroke compile scheduler (#1797). An edit schedules a compile a short
-// debounce after the last keystroke, and at most four debounces after the
-// first, so diagnostics and the preview follow sustained typing. Once the
-// debounce is shorter than a compile, a timer can fire while the compile it
-// scheduled last time is still running: the worker then runs one keystroke
-// compile at a time, and the next one starts as soon as the last returns,
-// with the text as it is by then.
-//
-// The workspace is driven with a stand-in compiler connection that answers
-// everything at once except compiles, which the test answers when it means to.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
 import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
@@ -17,18 +7,14 @@ import type { File } from "../../compiler/types/File";
 import { SparkdownWorkspace } from "../../workspace/classes/SparkdownWorkspace";
 
 const MAIN = "file://proj/main.sd";
-// A script in no main script's tree, which compiles on its own.
 const LOOSE = "file://loose/scene.sd";
 
 const DELAY = 10;
 
 interface CompileRequest {
   uri: string;
-  /** The document's version the compile was sent for. */
   version: number;
-  /** The last version of the document the compiler had been sent. */
   sentVersion: number | undefined;
-  /** Where the compile was asked to route the preview to. */
   startFrom: { file: string; line: number } | undefined;
   answer: () => void;
   fail: (e: Error) => void;
@@ -36,27 +22,18 @@ interface CompileRequest {
 }
 
 class TestWorkspace extends SparkdownWorkspace {
-  // Set by `startCompilerWorker`, which the constructor calls before this
-  // class's own fields are initialized, so neither has an initializer.
   declare compiles: CompileRequest[];
   declare sentVersions: Map<string, number>;
-  /** Answer every compile as it arrives. */
   declare answerCompiles: boolean;
-  /** Every request sent to the compiler, by method, in the order sent. */
   declare requests: string[];
-  /** Leave document updates unanswered until `answerUpdates`. */
   declare holdUpdates: boolean;
   declare heldUpdates: (() => void)[];
-  /** Leave selections unanswered until `answerSelects`. */
   declare holdSelects: boolean;
   declare heldSelects: (() => void)[];
-  /** Every notification sent to the page. */
   declare notifications: { method: string; params: any }[];
 
-  // Opening a document compiles; that compile is not under test.
   override debouncedCompile = (async () => undefined) as any;
 
-  // As the player's workspace does; the tests that read `changedAt` need it.
   override debouncesFromEdit = true;
 
   constructor(delay = DELAY) {
@@ -82,7 +59,6 @@ class TestWorkspace extends SparkdownWorkspace {
     this.requests ??= [];
     this.heldUpdates ??= [];
     this.heldSelects ??= [];
-    // This worker's compiles, which a restart abandons.
     const mine: CompileRequest[] = [];
     const connection = {
       sendRequest: (type: { method: string }, params: any) => {
@@ -99,7 +75,6 @@ class TestWorkspace extends SparkdownWorkspace {
           }
         }
         if (type.method === SelectCompilerDocumentMessage.method) {
-          // The compiler answers a selection with the selection itself.
           if (this.holdSelects) {
             return new Promise((resolve) => {
               this.heldSelects.push(() => resolve({ ...params }));
@@ -112,7 +87,6 @@ class TestWorkspace extends SparkdownWorkspace {
         }
         const uri = params.textDocument.uri;
         const version = this._documentVersions.get(uri) ?? 0;
-        // A main script's compile covers every document of its tree.
         const scripts: Record<string, number> = { [uri]: version };
         for (const [other, v] of this._documentVersions) {
           if (other !== uri && this.getMainScriptUri(other) === uri) {
@@ -203,8 +177,6 @@ const open = async (workspace: TestWorkspace, uri = MAIN) => {
   await vi.advanceTimersByTimeAsync(0);
 };
 
-/** One keystroke: a character typed at the start of the document, with the
- *  time the editor made it when `changedAt` is given. */
 const type = (workspace: TestWorkspace, uri = MAIN, changedAt?: number) => {
   const version = versions.get(uri)! + 1;
   versions.set(uri, version);
@@ -242,7 +214,6 @@ describe("keystroke compiles", () => {
     expect(workspace.compiles).toHaveLength(1);
     expect(workspace.compiles[0]!.version).toBe(2);
 
-    // The compile outlives several debounces of typing.
     let latest = 0;
     for (let i = 0; i < 6; i++) {
       latest = type(workspace);
@@ -251,14 +222,12 @@ describe("keystroke compiles", () => {
     await vi.advanceTimersByTimeAsync(DELAY * 8);
     expect(workspace.compiles).toHaveLength(1);
 
-    // As soon as it returns, the next one starts, with the newest text.
     workspace.compiles[0]!.answer();
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(2);
     expect(workspace.compiles[1]!.version).toBe(latest);
     expect(workspace.compiles[1]!.sentVersion).toBe(latest);
 
-    // Nothing is left over once it returns.
     workspace.compiles[1]!.answer();
     await vi.advanceTimersByTimeAsync(DELAY * 8);
     expect(workspace.compiles).toHaveLength(2);
@@ -286,7 +255,6 @@ describe("keystroke compiles", () => {
     const workspace = new TestWorkspace();
     workspace.answerCompiles = true;
     await open(workspace);
-    // A keystroke every half debounce never lets the debounce run out.
     const started: number[] = [];
     let time = 0;
     for (let i = 0; i < 40; i++) {
@@ -298,8 +266,6 @@ describe("keystroke compiles", () => {
         started.push(time);
       }
     }
-    // A compile starts within four debounces of the first keystroke, and
-    // within four debounces of the last compile after it.
     expect(started.length).toBeGreaterThanOrEqual(4);
     let previous = 0;
     for (const at of started) {
@@ -314,15 +280,12 @@ describe("keystroke compiles", () => {
     type(workspace);
     await vi.advanceTimersByTimeAsync(DELAY);
     expect(workspace.compiles).toHaveLength(1);
-    // Typing goes on the whole time the compile runs, past the max-wait.
     for (let i = 0; i < 20; i++) {
       type(workspace);
       await vi.advanceTimersByTimeAsync(DELAY / 2);
     }
     expect(workspace.compiles).toHaveLength(1);
     workspace.compiles[0]!.answer();
-    // Typing goes on; the max-wait is spent, so the next compile does not
-    // wait for a pause.
     type(workspace);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(2);
@@ -357,7 +320,6 @@ describe("keystroke compiles", () => {
     type(workspace, LOOSE);
     await vi.advanceTimersByTimeAsync(DELAY);
     expect(workspace.compiles.map((c) => c.uri)).toEqual([MAIN]);
-    // An edit to the first while the batch runs.
     const latest = type(workspace, MAIN);
     await vi.advanceTimersByTimeAsync(DELAY * 2);
     expect(workspace.running).toHaveLength(1);
@@ -379,7 +341,6 @@ describe("keystroke compiles", () => {
     await open(workspace);
     type(workspace);
     await vi.advanceTimersByTimeAsync(0);
-    // A save, say, compiles the document while the debounce runs.
     const forced = workspace.compile(MAIN, true);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(1);
@@ -401,7 +362,6 @@ describe("keystroke compiles", () => {
     await open(workspace);
     type(workspace);
     await vi.advanceTimersByTimeAsync(DELAY);
-    // The worker never answers this compile.
     expect(workspace.compiles).toHaveLength(1);
     const latest = type(workspace);
     await vi.advanceTimersByTimeAsync(DELAY * 8);
@@ -409,8 +369,6 @@ describe("keystroke compiles", () => {
 
     const restarting = workspace.restartCompiler();
     await vi.advanceTimersByTimeAsync(0);
-    // The stuck compile settled, and the waiting keystroke compile ran on
-    // the new worker with the latest text; the restart compiles too.
     expect(workspace.compiles[0]!.answered).toBe(true);
     const after = workspace.compiles.slice(1);
     expect(after.length).toBeGreaterThanOrEqual(1);
@@ -442,7 +400,6 @@ describe("keystroke compiles", () => {
     await vi.advanceTimersByTimeAsync(DELAY);
     type(workspace);
     await vi.advanceTimersByTimeAsync(0);
-    // A diagnostics pull while the keystroke compile is pending.
     const waiting = workspace.compile(MAIN, false);
     await vi.advanceTimersByTimeAsync(DELAY * 2);
     expect(workspace.compiles).toHaveLength(1);
@@ -454,9 +411,6 @@ describe("keystroke compiles", () => {
   });
 });
 
-// An accepted edit's compile used to start a debounce after the compiler
-// answered the edit's update, and queue behind the selection the editor sent
-// after the edit, which the compiler handled first (#1881).
 describe("an edit's compile", () => {
   const selectAfterEdit = (workspace: TestWorkspace, line: number) =>
     workspace.selectTextDocument({
@@ -476,7 +430,6 @@ describe("an edit's compile", () => {
     const latest = type(workspace);
     await vi.advanceTimersByTimeAsync(DELAY);
     expect(workspace.compiles).toHaveLength(1);
-    // Sent after the update, which the compiler applies first.
     expect(workspace.compiles[0]!.version).toBe(latest);
     expect(workspace.compiles[0]!.sentVersion).toBe(latest);
     expect(workspace.requests.slice(-2)).toEqual([
@@ -488,14 +441,11 @@ describe("an edit's compile", () => {
   it("counts the debounce from when the editor made the edit", async () => {
     const workspace = new TestWorkspace();
     await open(workspace);
-    // The edit reached the workspace a debounce after the editor made it.
     type(workspace, MAIN, Date.now() - DELAY);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(1);
 
     workspace.compiles[0]!.answer();
-    // An edit stamped in the future, by a clock that is not this one, waits
-    // the whole debounce and no longer.
     type(workspace, MAIN, Date.now() + DELAY * 100);
     await vi.advanceTimersByTimeAsync(DELAY - 1);
     expect(workspace.compiles).toHaveLength(1);
@@ -522,8 +472,6 @@ describe("an edit's compile", () => {
     expect(workspace.requests).not.toContain(
       SelectCompilerDocumentMessage.method,
     );
-    // The page hears of the selection at once, as of a program the edit left
-    // behind, which the compile answers.
     expect(workspace.notifications).toEqual([
       {
         method: SelectedCompilerDocumentMessage.method,
@@ -546,8 +494,6 @@ describe("an edit's compile", () => {
     const workspace = new TestWorkspace();
     await open(workspace);
     await selectAfterEdit(workspace, 3);
-    // The edit reached the workspace a debounce late, and its compile was
-    // sent before the selection that followed it was handled.
     type(workspace, MAIN, Date.now() - DELAY);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(1);
@@ -567,7 +513,6 @@ describe("an edit's compile", () => {
     type(workspace, MAIN, Date.now() - DELAY);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.compiles).toHaveLength(1);
-    // The edit moved the caret to the next line.
     void selectAfterEdit(workspace, 4);
     await vi.advanceTimersByTimeAsync(0);
     expect(workspace.requests).toContain(SelectCompilerDocumentMessage.method);
@@ -576,8 +521,6 @@ describe("an edit's compile", () => {
   it("keeps the page on the later selection when the compiler answers an earlier one after it", async () => {
     const workspace = new TestWorkspace();
     await open(workspace);
-    // A selection the compiler is slow to answer, then an edit and the
-    // selection it left, which the workspace answers at once.
     workspace.holdSelects = true;
     const first = workspace.selectTextDocument({
       textDocument: { uri: MAIN },
@@ -605,8 +548,6 @@ describe("an edit's compile", () => {
     workspace.answerCompiles = true;
     await open(workspace);
     type(workspace);
-    // A save, say, compiles the edit before its debounce runs out, so the
-    // debounce's compile finds nothing changed and publishes nothing.
     await workspace.compile(MAIN, true);
     expect(workspace.compiles).toHaveLength(1);
     await selectAfterEdit(workspace, 3);

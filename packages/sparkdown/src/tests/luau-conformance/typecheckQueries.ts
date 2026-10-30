@@ -99,8 +99,6 @@ export function queryType(
     selected = expr ? module.astExpectedTypes.get(expr) : undefined;
   } else if ("diagnosticType" in selector) {
     const [index, field] = selector.diagnosticType;
-    // Qualified indices refer to this module's fresh parse/check sequence,
-    // matching unqualified entry queries when there are no dependencies.
     const error = (diagnostics ?? [...source.parseErrors, ...module.errors])[
       index
     ];

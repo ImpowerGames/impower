@@ -1,8 +1,3 @@
-// Dynamic option lists (if/for/match inside a dropdown) are supported: the
-// reactive runtime is wrapperless, so for/if-generated <option>s become DIRECT
-// children of the <select> (verified end-to-end in spark-web-player's
-// domControlFlow DOM test). The compiler must NOT warn about them.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

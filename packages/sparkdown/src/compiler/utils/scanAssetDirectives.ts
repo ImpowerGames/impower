@@ -5,14 +5,6 @@ import {
   type SceneBeat,
 } from "../types/SceneAssets";
 
-// The token rules mirror the runtime parser (`InterpreterModule.createAssetChunk`):
-// a directive body is split on spaces; when the first token is a control verb,
-// the second token is the target (a layer, a channel, a layout, a scene, or a
-// cutscene's video) and the rest are names; a clause keyword ends the names;
-// names split on `+`.
-// Keyword lists come from the grammar so the two parsers cannot drift apart.
-// The grammar JSON also carries string-valued variables (regex fragments),
-// so the lookup type goes through `unknown`.
 const VARIABLES = GRAMMAR_DEFINITION.variables as unknown as Record<
   string,
   string[] | undefined
@@ -39,7 +31,6 @@ const LOAD_CONTROL_KEYWORDS: string[] = VARIABLES["LOAD_CONTROL_KEYWORDS"] ?? [
 const MOVIE_CONTROL_KEYWORDS: string[] = VARIABLES["MOVIE_CONTROL_KEYWORDS"] ?? [
   "play",
 ];
-// `write` is a runtime-only control verb (`[[write layer …]]`); it names no asset.
 const OTHER_CONTROL_KEYWORDS: string[] = ["write"];
 
 const CONTROL_KEYWORDS = new Set<string>([
@@ -58,10 +49,8 @@ const LAYOUT_CONTROLS = new Set<string>(LAYOUT_CONTROL_KEYWORDS);
 const LOAD_CONTROLS = new Set<string>(LOAD_CONTROL_KEYWORDS);
 const MOVIE_CONTROLS = new Set<string>(MOVIE_CONTROL_KEYWORDS);
 
-/** Whether `verb` opens a `[[play NAME]]` cutscene: a movie verb inside `[[ ]]`. */
 const isCutsceneVerb = (verb: string | undefined, kind: "image" | "audio") =>
   kind === "image" && verb !== undefined && MOVIE_CONTROLS.has(verb);
-// Verbs that take an asset name but never need it loaded.
 const NON_LOADING_CONTROLS = new Set<string>([
   "hide",
   "stop",
@@ -84,7 +73,6 @@ const tokenize = (body: string): string[] =>
     .split(" ")
     .filter((t) => t !== "");
 
-/** Names before the first clause keyword, split on `+`, without `none`. */
 const readNames = (tokens: string[], into: string[]) => {
   for (const token of tokens) {
     if (CLAUSE_KEYWORDS.has(token)) {
@@ -109,15 +97,10 @@ const scanBody = (
     return;
   }
   if (!CONTROL_KEYWORDS.has(verb)) {
-    // No verb: every token up to the first clause is a name shown on the
-    // default layer or played on the default channel.
     readNames(tokens, kind === "image" ? names.image : names.audio);
     return;
   }
   if (isCutsceneVerb(verb, kind)) {
-    // `[[play intro loop]]`: the cutscene's video is the token after the verb,
-    // in the target slot, as the runtime reads it; there is no layer token.
-    // Inside `(( ))` the same verb plays audio and is read below.
     const video = tokens[1];
     if (video && !CLAUSE_KEYWORDS.has(video)) {
       names.image.push(video);
@@ -125,9 +108,6 @@ const scanBody = (
     return;
   }
   if (LOAD_CONTROLS.has(verb)) {
-    // `[[load A B with fade]]`: every token up to the first clause is a flow
-    // (or world) name. The verb exists only inside `[[ ]]`; the runtime
-    // routes it from that branch alone, so `((load …))` names nothing here.
     if (kind === "image") {
       readNames(tokens.slice(1), names.loads);
     }
@@ -135,7 +115,6 @@ const scanBody = (
   }
   if (LAYOUT_CONTROLS.has(verb)) {
     if (verb === "navigate") {
-      // `navigate <screen> to <layout>`: the destination follows `to`.
       const toIndex = tokens.indexOf("to");
       const destination = toIndex >= 0 ? tokens[toIndex + 1] : undefined;
       if (destination && !CLAUSE_KEYWORDS.has(destination)) {
@@ -152,19 +131,9 @@ const scanBody = (
   if (NON_LOADING_CONTROLS.has(verb)) {
     return;
   }
-  // `<verb> <target> <names…>`: the token after the verb is the layer or
-  // channel, not an asset.
   readNames(tokens.slice(2), kind === "image" ? names.image : names.audio);
 };
 
-/**
- * The static prefix of a name cut off by an interpolation.
- *
- * `[[show portrait bunny~{mood}]]` reaches the scanner as the text run
- * `[[show portrait bunny~` (the expression splits the literal), so the last
- * token before the cut, up to its first `~`, is the base every variant shares.
- * A run that ends in a space has no base: the whole name is dynamic.
- */
 const dynamicBaseOf = (
   fragment: string,
   hasVerb: boolean,
@@ -174,8 +143,6 @@ const dynamicBaseOf = (
     return null;
   }
   const tokens = tokenize(fragment);
-  // With a verb, the first two tokens are the verb and the target, except in
-  // a cutscene, whose target is its video.
   const minimum = cutscene ? 1 : hasVerb ? 2 : 0;
   if (tokens.length <= minimum) {
     return null;
@@ -188,15 +155,6 @@ const dynamicBaseOf = (
   return base && base !== "none" ? base : null;
 };
 
-/**
- * Scan one text leaf for `[[…]]` and `((…))` directives and record what they
- * reference into `capture` under `address`, where the beat stands.
- *
- * Mirrors the runtime interpreter's scan: a backslash escapes the next
- * character and a backtick toggles a raw run in which brackets are literal. An
- * opener with no closer in the same run means an interpolation split the
- * directive, which marks the flow dynamic.
- */
 export function scanAssetDirectives(
   text: string,
   address: ProgramAddress,
@@ -241,7 +199,6 @@ export function scanAssetDirectives(
     const bodyStart = i + 2;
     const closeIndex = text.indexOf(closer, bodyStart);
     if (closeIndex < 0) {
-      // Cut off by an interpolation: the name (or its tail) is runtime-only.
       capture.dynamic = true;
       const fragment = text.slice(bodyStart);
       const verb = tokenize(fragment)[0];

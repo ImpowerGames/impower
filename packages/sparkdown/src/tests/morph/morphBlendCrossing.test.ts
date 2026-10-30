@@ -3,26 +3,19 @@ import { bakeMorphArtifact } from "../../morph/bake";
 import { aperturePathData } from "../../morph/render";
 import { blink, portrait } from "./fixtures";
 
-// An ordinary eye: two open lashes meeting at both corners close onto one
-// lash.
 const UPPER = "M20,50 C50,5 90,5 120,50 C90,25 50,25 20,50Z";
 const LOWER = "M20,50 C50,75 90,75 120,50 C90,85 50,85 20,50Z";
 const CLOSED = "M20,50 C50,44 90,44 120,50 C90,50 50,50 20,50Z";
 const PUPIL = "M62,45 C62,33 82,33 82,45 C82,57 62,57 62,45Z";
 
-// Lashes shaped like drawn ones, whose inner edges dip and swell.
 const UPPER_SHAPED = "M20,50 C40,15 95,0 120,45 C110,40 100,24 85,26 C70,28 60,36 45,34 C35,33 28,44 20,50Z";
 const LOWER_SHAPED = "M20,50 C30,52 45,60 60,58 C80,56 100,62 120,45 C95,72 50,75 20,50Z";
 const CLOSED_SHAPED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
 const WHITE_SHAPED = "M20,50 C40,15 95,0 120,45 C95,72 50,75 20,50Z";
 
-// A lower lash whose inner tip stops short of the upper lash's, so the
-// aperture has a corner cap.
 const LOWER_SHORT = "M40,64 C50,64 55,61 65,60 C85,58 100,62 120,45 C100,72 60,78 40,64Z";
 const WHITE_SHORT = "M20,50 C40,15 95,0 120,45 C100,72 60,78 40,64 C28,66 18,60 20,50Z";
 
-// A tilted eye whose resampled near-closed sample folds across itself, so
-// a blend from it starts crossed.
 const UPPER_TILTED = "M21.939,46.577 C51.902,7.478 100.433,8.137 119.625,56.075 C93.345,38.003 47.202,35.453 21.939,46.577Z";
 const LOWER_TILTED = "M21.939,46.577 C53.935,82.483 95.031,82.652 119.625,56.075 C80.81,71.461 48.642,70.937 21.939,46.577Z";
 const CLOSED_TILTED = "M21.939,46.577 C49.922,49.421 94.197,56.743 119.625,56.075 C93.61,57.865 50.04,53.646 21.939,46.577Z";
@@ -41,14 +34,11 @@ const eye = (white: string, lower: string, upper = UPPER, closed = CLOSED) => `<
 </g>
 </svg>`;
 
-// A transform under which a baked ordinary eye's blend, at path-data
-// precision, runs one of its points through one of its own segments.
 const TRANSFORM = "translate(3.2778109004721045 0.549788058269769) rotate(29.955340940505266) skewX(-1.6249626385979354) scale(0.5764017971232533)";
 const transformed = (svg: string, transform: string) => svg.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/, `$1<g transform="${transform}">$2</g>$3`);
 
 type P = [number, number];
 
-/** The loops of an aperture's path data, as `aperturePathData` writes it. */
 const loopsOf = (d: string): P[][] =>
   d
     .split("Z")
@@ -64,21 +54,11 @@ const pointsOf = (flat: number[]): P[] => {
 const EPS = 1e-9;
 const cross = (o: P, a: P, b: P) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
 const same = (a: P, b: P) => a[0] === b[0] && a[1] === b[1];
-/** Which side of the line `a`–`b` the point `q` is on, 0 within rounding of it. */
 const sideOf = (a: P, b: P, q: P) => {
   const c = cross(a, b, q);
   return Math.abs(c) <= EPS * Math.hypot(b[0] - a[0], b[1] - a[1]) * Math.hypot(q[0] - a[0], q[1] - a[1]) ? 0 : Math.sign(c);
 };
 
-/**
- * Whether a closed polyline crosses itself. Two segments cross when each
- * passes strictly between the other's ends. A point lying inside another
- * segment crosses it when the points before and after it (skipping any at
- * the same place) lie strictly on opposite sides; two points at one place
- * cross when the directions to one's neighbours fall strictly on different
- * sides of the other's path through it. Touching, and running along the
- * same line (a closed slit traced out and back), are not crossings.
- */
 const crosses = (pts: P[]): boolean => {
   const n = pts.length;
   const around = (k: number): [P, P] | undefined => {
@@ -107,7 +87,6 @@ const crosses = (pts: P[]): boolean => {
           s4 = sideOf(c, d, b);
         if (s1 * s2 < 0 && s3 * s4 < 0) return true;
       }
-      // Point j inside segment i.
       const len2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
       if (len2 > 0 && sideOf(a, b, c) === 0) {
         const along = ((c[0] - a[0]) * (b[0] - a[0]) + (c[1] - a[1]) * (b[1] - a[1])) / len2;
@@ -116,7 +95,6 @@ const crosses = (pts: P[]): boolean => {
       }
     }
   }
-  // Two points at one place.
   for (let k = 0; k < n; k++)
     for (let m = k + 2; m < n; m++) {
       if ((k === 0 && m === n - 1) || !same(pts[k]!, pts[m]!)) continue;
@@ -124,8 +102,6 @@ const crosses = (pts: P[]): boolean => {
         q = around(m);
       if (!p || !q) continue;
       const v = pts[k]!;
-      // The path p0 → v → p1 bends one way; a direction lies on its left
-      // when it is left of both legs at a left bend, or of either at a right.
       const bend = sideOf(p[0], v, p[1]);
       const left = (r: P) => {
         const l1 = sideOf(p[0], v, r),
@@ -141,12 +117,6 @@ const crosses = (pts: P[]): boolean => {
 
 const STEPS = 1000;
 
-/**
- * Bakes the art and draws every aperture at `STEPS + 1` progress values in
- * both directions, counting the drawings between two samples that cross
- * themselves. A progress that falls on a sample draws it as stored, which
- * the last test pins.
- */
 const measure = (svg: string, right = false) => {
   const art = bakeMorphArtifact({ source: svg, selection: {}, recipe: blink({}, right), key: "k", variant: "v" });
   expect(art.status, JSON.stringify(art.diagnostics)).toBe("live");
@@ -176,9 +146,6 @@ describe("a blended aperture", () => {
   });
 
   test("does not cross itself where a blend passes through one of its own points", () => {
-    // Two simple samples whose blend at 1/14 runs a point through the
-    // closing segment: (10,10) lies inside (11,10.5)-(8,9) with its
-    // neighbours on opposite sides.
     const a = [0, 4, 3, 0, 13, 14, 17, 19, 3, 9];
     const b = [16, 14, 1, 8, 7, 6, 8, 7, 19, 12];
     const table = [[a], ...Array.from({ length: 7 }, () => [b])];
@@ -191,8 +158,6 @@ describe("a blended aperture", () => {
   });
 
   test("draws a closed slit as the blend of its samples", () => {
-    // A closed aperture is its midline traced out and back; the two runs
-    // lie on one another and do not cross.
     const a = [0, 0, 10, 1, 20, 0, 20, 0, 10, 1, 0, 0];
     const b = [0, 2, 10, 3, 20, 2, 20, 2, 10, 3, 0, 2];
     const table = [[a], [b], [b], [b], [b], [b], [b], [b]];
@@ -211,9 +176,6 @@ describe("a blended aperture", () => {
     };
     const art = bakeMorphArtifact({ source: eye(WHITE_TILTED, LOWER_TILTED, UPPER_TILTED, CLOSED_TILTED), selection: {}, recipe: blink(), key: "k", variant: "v" });
     ends(art.apertures[0]!);
-    // A stored sample that crosses itself, as some do on main, is drawn as
-    // stored at either end: an end may be the rest outline, whose reach
-    // holds only while the frame matches it.
     const square = [0, 0, 10, 0, 10, 10, 0, 10];
     const bow = [0, 0, 10, 10, 0, 10, 10, 0];
     expect(crosses(pointsOf(bow))).toBe(true);

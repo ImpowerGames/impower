@@ -93,8 +93,6 @@ import {
   type StatementShape,
 } from "./utils/statementShape";
 
-// Nodes whose lowerer returns a weave holding one control-flow statement (an
-// `if`, or an alternator such as `match`) with its arms nested inside it.
 const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownIfBlock",
   "LuauIfBlock",
@@ -109,12 +107,6 @@ export function lower(
   ctx: LowerContext,
 ): CompiledBlock | undefined {
   const block = lowerInner(nodeRef, ctx);
-  // Stamp top-level returned objects with the originating node's position.
-  // Nested children without their own metadata inherit via the
-  // ParsedObject.parent chain, so we only need to stamp once at the top.
-  // Individual lowerers can still set more-specific debug metadata on
-  // sub-objects (e.g. on an Identifier within the assignment) — the helper
-  // skips objects that already have metadata attached.
   if (block?.content) {
     stampStatement(
       block.content,
@@ -127,31 +119,6 @@ export function lower(
   return block;
 }
 
-/**
- * Stamps a statement's objects with the range `[from, to)` it was lowered
- * from, which the line rows of the statement's chunk and the runtime's error
- * positions read.
- *
- * Trailing whitespace and newlines are clamped off the range, so a beat's
- * `endLineNumber` is its last VISIBLE content line, not a blank or the start
- * of the following construct. Several grammar nodes (notably
- * `BlockDialogue`) consume a trailing blank line and end at the start of the
- * next line, which over-extends the stamped range one line PAST the content.
- * That made a dialogue beat's pathLocation claim the action line right after
- * it (e.g. `RAFFLES:` beat ending on the `Danby picks…` action line), so
- * clicking that action previewed the dialogue. Leading spaces and tabs are
- * clamped off too: a statement's node starts with its line's indentation,
- * and its range starts at its first character.
- *
- * A block statement's weave (`isBlockStatement`) is unwrapped wherever it is
- * placed, as an explicit statement's is (see `lowerExplicitStatement`), so
- * the weave's range would not reach the statement it holds. Give the
- * statement the range of its header line, so a diagnostic raised in its
- * condition, such as an unknown name, is reported on that line rather than
- * on the enclosing scene or branch. Only the header: the lines of its arms
- * own their own addresses, and a range covering them would make those
- * lines address the statement instead.
- */
 export function stampStatement(
   content: ParsedObject[],
   isBlockStatement: boolean,
@@ -175,16 +142,9 @@ function lowerInner(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock | undefined {
-  // Luau's statements are read by the converter, which decides where each
-  // ends and what it holds.
   if (LUAU_STATEMENT_NODES.has(nodeRef.name)) {
     return lowerLuauStatementNode(nodeRef.node, ctx);
   }
-  // A top-level Sparkle declaration written inside a function is an error
-  // (I-1405). It is lowered as written, so the errors in its body are
-  // reported too, and only those are kept: neither what it registers in the
-  // program's context nor the statement that registers an `animation` or a
-  // `theme` when the story runs (`lowerLuauStructDefine`).
   const misplaced = validateTopLevelDeclaration(nodeRef.node, ctx);
   if (misplaced) {
     ctx.diagnostics?.push(misplaced);
@@ -209,11 +169,6 @@ function lowerNode(
       return lowerBranch(nodeRef, ctx);
     case "Divert":
     case "ArmDivert":
-      // `ArmDivert` is the alternator-arm-context-bounded variant of
-      // `Divert` (see grammar). Same captures, same `buildDivert`
-      // handling — different end pattern so the divert stops at `|` /
-      // `end` boundaries inside an alternator instead of running to
-      // end-of-line.
       return lowerDivert(nodeRef, ctx);
     case "DoneStatement":
       return lowerDoneStatement(nodeRef, ctx);
@@ -233,12 +188,6 @@ function lowerNode(
     case "LuauSparkdownExplicitInterpolatedStringExpression":
     case "LuauFunctionCallShorthand":
     case "LuauSparkdownExplicitFunctionCallShorthand":
-      // A bare `{ expr }` / `{{fn}}` node reaching the statement dispatcher.
-      // A line that starts with one is an ImplicitAction (#1746) and lowers
-      // through `lowerImplicitAction`, so the top-level grammar no longer
-      // produces this node here. Handled via `lowerExpressionFromContainer`
-      // (which applies the `{{...}}` call-shorthand coercion when the node
-      // is the shorthand).
       return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
     case "InlineAction":
       return lowerInlineAction(nodeRef, ctx);
@@ -298,54 +247,21 @@ function lowerNode(
       return lowerLuauExternalDeclaration(nodeRef, ctx);
     case "LuauUntilCondition":
     case "LuauSparkdownExplicitUntilCondition":
-      // A `repeat` loop reads the condition after its `until` as its own
-      // (`lowerLuauStatementNode`), so the line lowers to nothing here.
       return {};
     case "LuauStrayUntilStatement":
-      // An `until` no story `repeat` took is a syntax error, which Luau's
-      // reading of the line reports; there is nothing to run.
       return {};
     case "LuauEndKeyword":
-      // Stand-alone `end` keyword (the scene/branch/function terminator).
-      // It's purely a structural marker — no runtime content.
       return {};
     case "Tags":
     case "SparkdownExplicitTags":
-      // Top-level `# tag` (or `# a # b`) line. The grammar produces a
-      // single `Tags` wrapper containing one or more `Tag` children.
-      // Display-line trailing tags are handled inline by `lowerDisplay`;
-      // this case covers the standalone form that contributes to
-      // `globalTags` / `TagsForContentAtPath`.
       return lowerTags(nodeRef, ctx);
     default:
       return undefined;
   }
 }
 
-// The statement nodes the converter reads (for the type checker) that
-// lower from their node: Sparkdown's own blocks.
 const TREE_LOWERED_STATEMENTS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 
-/**
- * Lowers the statements of a block: the children of `parent`, except those
- * named in `skipNames` (a block's own header parts, such as an `if`'s
- * condition), merged into one flat list. A statement's weave is unwrapped:
- * the caller wraps the list in a Weave (or a ContentList, etc.).
- *
- * The block's Luau is read by the converter, which records each statement
- * with the children it was read from: the child it begins in, and the
- * children after it that it continues into (a line that begins with `.` or
- * an operator, the values after a line-ending comma, a `repeat`'s `until`).
- * Each child that statements begin in is lowered as those statements, the
- * children they continue into are skipped, and every other child is a
- * Sparkdown statement (a display line, a choice, a divert), lowered as its
- * node. A line that continues the value before it but that no statement
- * takes is reported, as is a union or intersection member line that
- * continues no type.
- *
- * Each statement of a block's body is recorded with the objects it lowered
- * to (see `StatementShape`), when the context keeps shapes.
- */
 export function lowerStatements(
   parent: SyntaxNode | null,
   ctx: LowerContext,
@@ -353,12 +269,6 @@ export function lowerStatements(
   body?: BodyShape,
 ): ParsedObject[] {
   if (!parent) return [];
-  // Blocks nested past Luau's block recursion limit are not lowered: the
-  // checker reports `CodeTooComplex` at the block its limit is reached in
-  // (`ConstraintGenerator.visitBlockWithoutChildScope`, which counts every
-  // block and expression this counts and more), and the program is not
-  // run. The bound keeps the lowering's recursion, several frames per
-  // level, within the engine's stack whatever its size (#1688).
   const depth = ctx.blockDepth ?? 0;
   if (depth >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) return [];
   ctx.blockDepth = depth + 1;
@@ -377,17 +287,9 @@ function lowerBlockStatements(
 ): ParsedObject[] {
   const result: ParsedObject[] = [];
   const recording = body && ctx.statementStack ? body : undefined;
-  // A block of a `choose` block's preamble (an `if` branch, a `do` block, a
-  // loop's body) is the preamble only up to its first choice: the statements
-  // after a choice are that choice's body (`inlineChoiceBranches`), so a
-  // `choose` block written there is a block of its own, not one that offers
-  // its choices with the preamble's (#1622). The preamble resumes when the
-  // block ends.
   const preamble = ctx as { inChoosePreamble?: boolean };
   const inPreamble = preamble.inChoosePreamble === true;
   let first = parent.firstChild;
-  // A function body's first lines may qualify the name its return type ends
-  // with (`function f(): types` then `.Button`); they are part of the type.
   const qualifier = leadingReturnTypeQualifier(parent);
   if (qualifier) {
     reportExtraTypeQualifiers(
@@ -397,17 +299,11 @@ function lowerBlockStatements(
     );
     first = qualifier.lines[qualifier.lines.length - 1]?.nextSibling ?? null;
   }
-  // Or continue it as union or intersection members (`function f(): A` then
-  // `& B`), which are part of the type too: the body is read from its start
-  // as the rest of a type, so a statement after a member on its line
-  // (`& {}a = 9`) is read where it begins.
   const afterType = startsWithReturnTypeMembers(parent, first);
   const nodes: SyntaxNode[] = [];
   for (let child = first; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
   }
-  // The block's statements, read from its children from `from` on, and the
-  // statements that begin in each child, by the child's index.
   const indexOf = new Map<string, number>();
   nodes.forEach((node, i) => indexOf.set(`${node.name}@${node.from}`, i));
   const nodeIndex = (ref: { name: string; from: number }) =>
@@ -423,16 +319,7 @@ function lowerBlockStatements(
     return read;
   };
   let reading = readFrom(0);
-  // A child where a statement before it stopped short (`cutAt`), which is
-  // read again from there.
   let rereadAt: number | undefined;
-  // The first child after `i` that the statement continues into only by
-  // Luau's error recovery: the converter's reading fails at the child's
-  // first token (`x = if true then 1` before `x = 6` at column 0, whose `x`
-  // Luau reads as the missing `else`), and the child is a statement of its
-  // own to the grammar. The statement stops short of it, and the child is
-  // read again as the start of the block's remaining statements. A line
-  // that continues the value before it is left to the continuation reports.
   const cutAt = (
     statement: LuauStatementSource,
     i: number,
@@ -454,10 +341,7 @@ function lowerBlockStatements(
     }
     return cut;
   };
-  // The children a statement before them continues into (`takesLines`).
   const taken = new Set<number>();
-  // The last statement lowered, which a line that continues no value
-  // continues in vain.
   let previous: AstStat | undefined;
   for (let i = 0; i < nodes.length; i++) {
     const child = nodes[i]!;
@@ -465,12 +349,7 @@ function lowerBlockStatements(
       rereadAt = undefined;
       reading = readFrom(i);
     }
-    // The last child the statements that begin here were read from. A
-    // statement cut short still lowers as the reader read it (`add(2)` then
-    // a line `()` is `add(2)()`), so what it lowered from, which its syntax
-    // and its memo run over, reaches the children past the cut too.
     let readTo = i;
-    // A `choose` block is Sparkdown's own, lowered from its node.
     const statements =
       reading && !TREE_LOWERED_STATEMENTS.has(child.name)
         ? readStatements(child, beginning[i]!, reading.source, ctx).map(
@@ -496,23 +375,12 @@ function lowerBlockStatements(
       child.name === "LuauTypeOperatorLineContinuation" &&
       !(ownedTypeLine && statements.length > 0)
     ) {
-      // A union member line after a comment line, or an intersection member
-      // line: types do not reach the runtime, and the declaration before it
-      // took it. One that continues no type is Luau's error. Luau reads an
-      // `&` that begins a statement as an expression and reports it in its
-      // own words (a function body has no `&` marker, so `& print(1)` is
-      // that error), and the lowerer adds nothing to it.
       if (!ownedTypeLine && !continuesIntersection(child)) {
         reportUnownedTypeOperatorLine(child, ctx);
       }
       continue;
     }
-    // A member line that a statement begins in after its type, with nothing
-    // between them that the grammar ends the line at (`& {}a = 9`, which Luau
-    // reads as the type `{}` and the statement `a = 9`), is lowered as the
-    // statements the converter read from it, as any other child is.
     if (isLineContinuation(child)) {
-      // A continuation line that no statement before it took.
       if (!taken.has(i)) reportUntakenContinuation(child, previous, ctx);
       continue;
     }
@@ -525,8 +393,6 @@ function lowerBlockStatements(
         const source = reading.source;
         const lowerRead = (c: LowerContext) =>
           lowerLuauStatementsAt(child, statements, { node: child, source }, c);
-        // Through the statement memo, as a statement lowered from its node
-        // is (`lowerBodyStatement`): its syntax runs over every node it reads.
         const memo = shape ? ctx.statementMemo : undefined;
         const block =
           (memo
@@ -588,14 +454,6 @@ function lowerBlockStatements(
   return result;
 }
 
-/**
- * Lowers a statement of a block's body that lowers from its own node, whose
- * shape `shape` is open on the statement stack when shapes are recorded:
- * through the statement memo of the node being lowered when the context
- * has one, which serves the statement from its memo when the parse did not
- * rebuild it and every read its last lowering made reads the same
- * (`statementMemo.ts`, #656), and otherwise records what it reads.
- */
 export function lowerBodyStatement(
   child: GrammarSyntaxNode<SparkdownNodeName>,
   ctx: LowerContext,
@@ -610,9 +468,6 @@ export function lowerBodyStatement(
   );
 }
 
-// Unwraps a nested statement's block into `result`. The block's own
-// diagnostics move to `ctx.diagnostics`, where the chunk-level annotator
-// collects them, since the nested block itself is discarded.
 function appendBlockContent(
   result: ParsedObject[],
   block: CompiledBlock,

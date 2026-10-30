@@ -1,6 +1,3 @@
-// A colon method call keeps its receiver in a compiler-generated temp and
-// reads the method from that temp. The author never wrote the temp, so the
-// call compiles with no diagnostic naming it, wherever the call sits.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -50,8 +47,6 @@ function diagnostics(program: any): string[] {
   );
 }
 
-// Keep the fixture's layout quiet so every diagnostic assertion still tests
-// the compiler-generated receiver, without filtering any warnings.
 const counter = "store a = { n = 1, add = function(self, k) self.n = self.n + k; return self end }";
 
 describe("colon call receiver temp", () => {

@@ -8,21 +8,6 @@ import type { LowerContext } from "../context";
 import { statementBounds } from "../utils/debugMetadata";
 import { statementSource } from "../utils/statementSource";
 
-// `run helpers` or `run "lib/helpers"` — read the `.luau` file, wrap its
-// body in a function, and call it where the line stands (dofile-style). The
-// lowerer here just extracts the operand and the line's range; the compiler
-// resolves the file, synthesizes the function wrapper, and emits the call
-// (see SparkdownCompiler's `run` handling in `parseIncrementally`).
-//
-// The quotes decide the operand's form (#1389): a quoted operand is a path
-// relative to the script, and an unquoted one is a name, the one `.luau`
-// file of that name in the project, so an unquoted operand holding a slash
-// is a path the author meant to quote, and one that starts with a quote is a
-// quoted path whose closing quote is missing (the grammar reads a quote it
-// cannot close as part of an unquoted operand). The `.luau` extension is
-// implicit in both, so `run "basic"` and `run "basic.luau"` resolve to the
-// same file; the lowerer strips it so the compiler only has to deal with one
-// form.
 export function lowerRun(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -38,8 +23,6 @@ export function lowerRun(
   const raw = value ? ctx.read(value.from, value.to) : "";
   // value-level: the operand's own text, measuring its trailing whitespace
   const written = quoted ? raw.slice(1, -1) : raw.trim();
-  // The operand's range: a quoted one with its quotes, an unquoted one
-  // without the whitespace around it.
   const from = value
     ? quoted
       ? value.from
@@ -59,7 +42,6 @@ export function lowerRun(
     ? written.slice(0, -".luau".length)
     : written;
   if (!path.trim()) {
-    // `run` with no path, or an empty one, runs nothing (#316).
     return {
       diagnostics: [
         {
@@ -74,7 +56,6 @@ export function lowerRun(
     diagnostics: [{ message, severity: ErrorType.Error, source }],
   });
   // value-level: the isolated unquoted operand, whose first character opens
-  // a quote the line never closes
   if (!quoted && /^["']/.test(written)) {
     return error(closeQuoteMessage(written));
   }
@@ -82,8 +63,6 @@ export function lowerRun(
   if (!quoted && written.includes("/")) {
     return error(quotePathMessage(written));
   }
-  // The statement without its indentation and trailing whitespace, which
-  // the call is stamped with, as a lowered statement's objects are.
   const bounds = statementBounds(nodeRef.from, nodeRef.to, ctx);
   const line: SourceMetadata = {
     fileName: null,

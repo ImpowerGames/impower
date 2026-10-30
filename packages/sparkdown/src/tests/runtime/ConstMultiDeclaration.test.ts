@@ -1,9 +1,3 @@
-// A top-level `const` takes one name and one value. The lowerer used to drop
-// a `const` with more names or values without a diagnostic, so the constant
-// was never declared and every read of it was nil, with only a warning at each
-// read. A `const` inside a function is Luau's (#1319): its names take their
-// values as a `local`'s do, and only what Luau reports is reported.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 

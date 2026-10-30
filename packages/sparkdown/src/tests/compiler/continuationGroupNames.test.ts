@@ -1,6 +1,3 @@
-// A continuation's display calls carry a `group` the compiler names by
-// document order. Across the scripts of a project every continuation keeps a
-// name of its own, and an incremental compile still matches a cold one.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -52,15 +49,12 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
   });
 }
 
-/** The root of the statement chunks a compile of `main.sd` built. */
 function compiled(compiler: SparkdownCompiler): ProgramRoot {
   const root = compiler.compile({ textDocument: { uri: MAIN_URI } }).program.chunks;
   expect(root, "the compile built statement chunks").toBeDefined();
   return root!;
 }
 
-/** The group each display call of the program names, in the order of its
- *  instructions: the string pushed after the table key `group`. */
 function groups(root: ProgramRoot): string[] {
   const listing = programListing(root);
   return listing.flatMap((line, i) => {
@@ -69,8 +63,6 @@ function groups(root: ProgramRoot): string[] {
   });
 }
 
-// `main.sd`, `chapter.sd` and `shared.sd` are the scripts of one project;
-// `main.sd` and `shared.sd` each hold a continuation.
 const project: Project = {
   main: [
     "scene main_one",
@@ -94,7 +86,6 @@ describe("continuation group names", () => {
     const names = groups(root);
     expect(names.length).toBeGreaterThan(0);
     expect(names.filter((name) => name === "")).toEqual([]);
-    // One name for the shared continuation and one for main's.
     expect(new Set(names).size).toBe(2);
   });
 
@@ -122,8 +113,6 @@ describe("continuation group names", () => {
       return [incremental, compiled(fresh)];
     });
     expect(groups(incremental).filter((name) => name === "")).toEqual([]);
-    // Both scripts' continuations are in both programs: main's and the
-    // shared script's.
     expect(new Set(groups(incremental)).size).toBe(2);
     expect(new Set(groups(cold)).size).toBe(2);
     expect(describeRoot(incremental)).toEqual(describeRoot(cold));

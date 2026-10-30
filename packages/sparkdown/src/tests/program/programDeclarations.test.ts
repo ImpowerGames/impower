@@ -1,9 +1,3 @@
-// A script's top-level declarations compile to its declaration sequence
-// (#695, docs/engine/binary-program.md, section 1): one chunk per declaration
-// statement, run in the order the story initializes the globals. A
-// compile that re-emitted a declaration chunk, or changed a function, runs
-// every declaration again; one that re-emitted only statements of flows runs
-// none.
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
@@ -24,8 +18,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** A compiler over one script with statement chunks on, and an editor that
- *  compiles after each edit. */
 function session(initial: string) {
   const c = programCompiler({ [MAIN_URI]: initial });
   let text = initial;
@@ -44,7 +36,6 @@ function session(initial: string) {
     get build() {
       return c.compiler.lastProgramBuild!;
     },
-    /** Replaces the first `find` with `replace` as one minimal edit. */
     edit(find: string, replace: string) {
       const offset = text.indexOf(find);
       expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
@@ -79,23 +70,17 @@ const declarationCode = (root: ProgramRoot): string[][] => {
   );
 };
 
-/** The globals a story holds after its state is reset. */
 const globalsOf = (
   story: { variablesState: { $: (name: string) => unknown } },
   names: readonly string[],
 ) => Object.fromEntries(names.map((name) => [name, story.variablesState.$(name)]));
 
-/** The globals a cold compile of `text` gives. */
 const coldGlobals = (text: string, names: readonly string[]) => {
   const { program } = compileScript(text);
   return globalsOf(new ProgramStory(program.chunks!), names);
 };
 
-/** Every global a story holds, by the name it is stored under, each read as
- *  plain data (a table as its entries). */
 const everyGlobal = (story: { variablesState: object }): Record<string, unknown> => {
-  // A table met again on its own path reads as a cycle rather than
-  // recursing without end.
   const plain = (value: unknown, path: readonly unknown[] = []): unknown => {
     const inner = (value as { valueObject?: unknown } | undefined)?.valueObject;
     if (!(inner instanceof Map)) {
@@ -145,8 +130,6 @@ describe("the declaration sequence", () => {
       "SetVar $character_hero flags 3",
     ]);
     expect(root.flowNamed("start")!.arrays.chunks).toHaveLength(2);
-    // The sequence is in line order, and the declarations run constants
-    // first, then the rest in line order.
     const declared = (chunk: Int32Array) =>
       declarationCode(root)[root.declarations(MAIN_URI)!.arrays.chunks.indexOf(chunk)]!
         .at(-1)!
@@ -163,10 +146,6 @@ describe("the declaration sequence", () => {
     expect(globalsOf(story, ["a", "b", "C"])).toEqual({ a: 1, b: 2, C: 3 });
   });
 
-  // The builtins define `typewriter` as a synth, a typewriter, a mixer and a
-  // channel. The story keeps each under its own name (`typewriter`,
-  // `$typewriter_typewriter`, `$mixer_typewriter`, `$channel_typewriter`),
-  // while every one of those declarations is named `typewriter` itself.
   it("declares the builtins' globals, with their values, before the script's own", () => {
     const text = "store count = 1\nscene start\n  Hello {count}.\nend\n";
     const config = { seedBuiltinsIntoStory: true };
@@ -175,8 +154,6 @@ describe("the declaration sequence", () => {
     const actual = everyGlobal(new ProgramStory(program.chunks!));
     expect(Object.keys(actual).length).toBeGreaterThan(300);
     expect(actual).toHaveProperty("$typewriter_typewriter");
-    // The prelude declares its stores first, then its definitions; the
-    // script's store comes last.
     expect(Object.keys(actual).slice(0, 4)).toEqual(["metadata", "world", "config", "$config_ui"]);
     expect(Object.keys(actual).at(-1)).toBe("count");
     expect(actual).toMatchObject({
@@ -187,9 +164,6 @@ describe("the declaration sequence", () => {
     });
   });
 
-  // An author's `define` of a builtin's name and type shadows it: the
-  // builtin's declaration is then kept as `$prelude_action`, its own text
-  // unchanged.
   it("emits a builtin's declaration again when an author's declaration shadows it or stops shadowing it", () => {
     const LINE = "scene start\n  Line.\nend\n";
     const c = programCompiler(
@@ -259,8 +233,6 @@ describe("the declaration sequence", () => {
     const runs = s.store.initializerRuns;
     const [aChunk, bChunk, cChunk] = s.root.declarations(MAIN_URI)!.arrays.chunks;
     s.edit("store a = 1", "store a = 5");
-    // Only `a`'s chunk is new; `b` reads `a` and keeps its chunk, but the
-    // whole sequence ran again.
     const [aAfter, bAfter, cAfter] = s.root.declarations(MAIN_URI)!.arrays.chunks;
     expect(aAfter).not.toBe(aChunk);
     expect(bAfter).toBe(bChunk);
@@ -272,8 +244,6 @@ describe("the declaration sequence", () => {
     expect(globalsOf(new ProgramStory(s.root), names)).toEqual(coldGlobals(s.text, names));
   });
 
-  // An initializer can call a function, so a function's edit runs every
-  // declaration again, which keeps such an initializer's global fresh.
   it("runs every declaration again when a function changes", () => {
     const s = session(
       ["store g = f()", "scene start", "  Line {g}.", "end", "", "function f()", "  return 1", "end", ""].join("\n"),
@@ -325,9 +295,6 @@ describe("a bad initializer", () => {
       }));
   };
 
-  // A root places every declaration chunk it lists, so no compile makes one
-  // it cannot; a root that answers nothing for one stands in for a store
-  // that broke that.
   it("stops the declarations at a chunk the root cannot place, and names it", () => {
     const { program } = compileScript("store a = 1\nstore b = 2\nscene start\n  Hello {a} {b}.\nend\n", {
     });
@@ -349,8 +316,6 @@ describe("a bad initializer", () => {
     ]);
   });
 
-  // The declarations the store runs raise the error, which stops the
-  // compile: it logs the error and emits no program.
   it("raises an initializer's error from the compile, which emits no program", () => {
     const text = 'const A = 2\nconst C = A * 3 + "x"\nscene start\n  Hello.\nend\n';
     const compiled = () => {

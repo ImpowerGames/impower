@@ -1,5 +1,4 @@
 import { createWasmAnalysisBackend, type AnalysisTransport } from "./wasm-adapter";
-/** Assets must be served together preserving the worker's relative URLs. */
 export function createBrowserAnalysisBackend(workerUrl = new URL("./browser-worker.mjs", import.meta.url)) {
   return createWasmAnalysisBackend((): AnalysisTransport => {
     const worker = new Worker(workerUrl, { type: "module" });

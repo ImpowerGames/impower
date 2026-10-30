@@ -1,14 +1,3 @@
-// A reserved word read as a method's name in the forms I-1344 left (I-1467):
-// after a declaration's type annotation (`local x: T:end`, I-1447), after a
-// value that follows a comma in a `for` header (`for k in a, b:end do`,
-// I-1448), after a type operator with no right operand (`t :: T | :end`,
-// I-1450) and after a block comment of level 9 or more
-// (`(t): --[=========[c]=========] end`, I-1459). Each form stands in a function in a `.sd` document with a story
-// line after it. The word opens no block and closes none, so the function
-// ends at its own `end`, the tree holds no `ERROR_INCOMPLETE`, the story line
-// is the story's, Sparkdown's syntax errors are the official parser's,
-// message and range, both TextMate engines read the form alike, and an
-// incremental compile reports what a cold one does.
 import { describe, expect, test } from "vitest";
 import type { SyntaxNode } from "@lezer/common";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -31,7 +20,6 @@ function newCompiler(text: string): SparkdownCompiler {
   return compiler;
 }
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function errorsOf(compiler: SparkdownCompiler): string[] {
   const program = compiler.compile({ textDocument: { uri: URI } } as never).program;
   return inPositionOrder(
@@ -41,17 +29,13 @@ function errorsOf(compiler: SparkdownCompiler): string[] {
   );
 }
 
-/** The position of `offset` in `text`, as an LSP position. */
 function positionAt(text: string, offset: number) {
   const lines = text.slice(0, offset).split("\n");
   return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
 }
 
-// A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from the form, on a line before it, and changes no line count.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   for (const [offset, removed, insert] of [
@@ -69,7 +53,6 @@ function expectIncrementalEqualsCold(text: string): void {
   }
 }
 
-/** The top-level node a document offset lies in. */
 function topLevelAt(text: string, offset: number): SyntaxNode | null {
   let node = parseSource(text).topNode.firstChild;
   while (node && node.to <= offset) node = node.nextSibling;
@@ -78,13 +61,6 @@ function topLevelAt(text: string, offset: number): SyntaxNode | null {
 
 const METHOD_NAME = (word: string) => `Expected identifier when parsing method name, got '${word}'`;
 
-/**
- * Each form, with the reserved word Luau reads as the method's name (`null`
- * where Luau reads none: well-formed code, which the official parser reports
- * nothing for, or a `:` that is a type's). `closesAt` is the form's text up
- * to the `end` that Luau closes the function on, where that is not the
- * function's own.
- */
 const CASES: Record<string, [form: string, word: string | null, closesAt?: string][]> = {
   "after a declaration's type annotation (I-1447)": [
     ["local x: T:end", "end"],
@@ -97,29 +73,23 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local x: T | U:end", "end"],
     ["local x, y: T:end", "end"],
     ["local x: T: --[=========[c]=========] end", "end"],
-    // Types whose brackets hold a `:` or a `,` (round 1, `ax` finding 1).
     ["local x: {a: number}:end", "end"],
     ["local x: {a: number, b: string}:end", "end"],
     ["local x: {a: {b: T}}:end", "end"],
     ["local x: (a: number) -> T:end", "end"],
     ["local x: Array<A, B>:end", "end"],
     ["local x, y: {a: number}:end", "end"],
-    // Any complete type, which the type reads the `:` after (round 1,
-    // `undirected` finding 1).
     ["local x: {a: {b: {c: T}}}:end", "end"],
     ["local x: T --[[c]] :end", "end"],
     ["local x: T | --[[c]] U:end", "end"],
     ["local x: typeof({a = {b = 1}}):end", "end"],
     ["local x: {a: {b: {c: T}}}:function", "function"],
     ["local x: T:nil", "nil"],
-    // Round 2, `gb` finding 3: a type the annotation's lexical test reads
-    // (three levels of brackets, comments) before `:do` or a long comment.
     ["local x: {a: {b: {c: number}}}: --[=========[c]=========] end", "end"],
     ["local x: {a: {b: {c: number}}}:do", "do"],
     ["local x: T --[[c]] :do", "do"],
     ["local x: T --[[c]] : --[=========[c]=========] end", "end"],
     ["local x: T | --[[c]] U:do", "do"],
-    // A function's return type, which the ticket asked to check.
     ["local function f(): T:end end", "end"],
     ["local function f(): T:end\n  end", "end"],
     ["local function f(): T | :end end", "end"],
@@ -138,11 +108,6 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T & :end", "end"],
     ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
     ["local t = {}\n  local b = t :: T | :function", "function"],
-    // A type alias's complete type hands the `:` to the alias, which reads
-    // it as a method's (round 4 preparation). After a type operator with no
-    // operand, a `:` before `do`, `then` or a comment of level nine or more
-    // keeps base's reading (round 4 `undirected` finding 2: a header's
-    // bracket may hold it), and a header keeps its keyword.
     ["type A = T:do", "do"],
     ["type A = T: --[=========[c]=========] end", "end"],
     ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],
@@ -157,9 +122,6 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = (t): --[==[a]==] --[==========[b]==========] end", "end"],
     ["local t = {}\n  local b = (t): --[========[c]========] end", "end"],
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] end", "end"],
-    // A header's `do` or `then` stays the header's past such a comment, as
-    // Luau's reading of the block's extent has it; anywhere else it is the
-    // method's name (round 1, `undirected` finding 2).
     ["local t = {}\n  while t: --[=========[c]=========] do end", "do"],
     ["local t = {}\n  while (t): --[=========[c]=========] do end", "do"],
     ["local t = {}\n  for k in t: --[=========[c]=========] do end", "do"],
@@ -170,42 +132,31 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] do", "do"],
     ["local t = {}\n  local b = (t): --[=========[c]=========] then", "then"],
     ["local x: T: --[=========[c]=========] do", "do"],
-    // A header word in a comment or a string is no header (round 3,
-    // `undirected` finding 2).
     ["local x: T: --[=========[while]=========] do", "do"],
     ["local x: T: --[=========[if]=========] then", "then"],
     ['local s = "while"\n  local x: T: --[=========[c]=========] do', "do"],
-    // Round 2, `gb` finding 1: the access inside an operand of a header's
-    // condition.
     ["local t = {}\n  while not t: --[=========[c]=========] do end", "do"],
     ["local t = {}\n  while t + t: --[=========[c]=========] do end", "do"],
     ["local t = {}\n  if not t: --[=========[c]=========] then end", "then"],
     ["local t = {}\n  local b = not t: --[=========[c]=========] do", "do"],
-    // A `]` in the comment's text (round 3, `undirected` finding 1).
     ["local t = {}\n  local b = (t): --[=========[a]b]=========] end", "end"],
     ["local t = {}\n  local b = t: --[=========[a]b]=========] end", "end"],
     ["local x: T: --[=========[a]b]=========] end", "end"],
     ["local t = {}\n  local b = (t): --[=========[a]==========]b]=========] end", "end"],
-    // A number or a boolean before the `:` (round 1, `undirected` finding 3).
     ["local b = 1: --[=========[c]=========] end", "end"],
     ["local b = true: --[=========[c]=========] end", "end"],
     ["local b = nil: --[=========[c]=========] end", "end"],
-    // A name past the comment is the method's too, whose call follows.
     ["local t = {}\n  local b = t :: T: --[=========[c]=========] foo()", null],
   ],
   "well-formed code the same rules read": [
     ["for a, b in pairs({}) do end", null],
     ["for k: number, v: string in pairs({}) do end", null],
     ["for k: {a: number}, v: number in pairs({}) do end", null],
-    // A later binding after comments or a deeply nested type (round 4, `bc`
-    // finding 1), and a one-letter first binding.
     ["for k --[[c]], v: nil in pairs({}) do end", null],
     ["for k: number --[[c]], v: nil in pairs({}) do end", null],
     ["for k: --[[c]] number, v: nil in pairs({}) do end", null],
     ["for k: {a: {b: {c: {d: number}}}}, v: nil in pairs({}) do end", null],
     ["for i, v: nil in pairs({}) do end", null],
-    // `in` or `=` inside a comment or a string of the binding list (round 4,
-    // `undirected` finding 1).
     ["for k --[=[c]=], v: nil in pairs({}) do end", null],
     ["for k --[[in]], v: nil in pairs({}) do end", null],
     ["for k --[[=]], v: nil in pairs({}) do end", null],
@@ -226,21 +177,13 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["for k: --[=========[c]=========] number in pairs({}) do end", null],
     ["local function f(a: --[=========[c]=========] number) end", null],
   ],
-  // A comment of level nine or more that closes on a later line: a reserved
-  // word after it is past the `:`'s line, so no method's name, and it closes
-  // the block it closes in Luau (round 2, `gb` finding 2).
   "a long comment that closes on a later line": [
     ["local t = {}\n  if t: --[=========[c\n  ]=========] end", null],
     ["local t = {}\n  local b = (t): --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = (t): --[=========[c\n  ]=========] end"],
     ["local t = {}\n  local b = t: --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = t: --[=========[c\n  ]=========] end"],
-    // A `:` and a close of another level in the comment's text are no line
-    // of the `:` (round 2, `undirected` finding 1).
     ["local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end"],
     ["local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end"],
   ],
-  // A header's `do` or `then` after a stray `:` in a bracket or an if
-  // expression's arm reads as on base (round 4, `undirected` findings 2 and
-  // 3): the header or the arm keeps the keyword.
   "a stray colon before a header's keyword": [
     ["local t = {}\n  while t :: {a: T | :do end", null],
     ["local t = {}\n  while t :: {a: T | : --[=========[c]=========] do end", null],
@@ -250,14 +193,9 @@ const CASES: Record<string, [form: string, word: string | null, closesAt?: strin
     ["local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end", null, "local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end"],
     ["local t = {}\n  if\n    {t :: T |: --[=========[c]=========] do end", null],
     ["local t = {}\n  if\n    {t :: T |:do end", null],
-    // After a value operator with no operand the `:` is still a method's, as
-    // on base: only a type operator leaves `do` to the rule around.
     ["local t = {}\n  local b = t + :do", "do"],
     ["local t = {}\n  while t + :do end", null],
   ],
-  // A `:` that is a type's is no method's: a declaration's or a `for`
-  // variable's annotation, which misses its type, as Luau reads it, so the
-  // word is no method's name and `end` closes the function there.
   "a type's colon": [
     ["local x: end", null, "local x: end"],
     ["local x:end", null, "local x:end"],
@@ -296,7 +234,6 @@ describe("a reserved word read as a method's name (I-1467)", () => {
           if (word === null) {
             if (name.startsWith("well-formed")) {
               expect(official).toEqual([]);
-              // No word of well-formed code is read as an invalid method name.
               expect(stripAnsi(dumpTree(text))).not.toContain("LuauKeywordMethodName");
             }
           } else {

@@ -1,9 +1,3 @@
-// The string the runtime holds for a string literal's text as written
-// (`"a\n"`, `'%d'`, `[[a]]`): a quoted string's text with its escapes read,
-// a long string's as written, with its line endings normalized to "\n" and
-// a line break directly after the opening bracket dropped (`[[\nfoo]]` is
-// "foo"). The compiler (`lowerString`) and the FormatString lint both read
-// literals through this, so the lint checks the format that actually runs.
 export function stringLiteralValue(text: string, raw: boolean): string {
   const body = stripQuotes(text.trim());
   if (!raw) return processLuauEscapes(body);
@@ -11,12 +5,6 @@ export function stringLiteralValue(text: string, raw: boolean): string {
   return value.startsWith("\n") ? value.slice(1) : value;
 }
 
-// Convert Luau string-literal escape sequences to their character
-// values. Mirrors Luau's lexer: standard one-letter escapes
-// (`\a \b \f \n \r \t \v`), quote escapes (`\' \"`), backslash
-// (`\\`), brace (`\{`), and `\z` (skip following whitespace),
-// plus numeric (`\ddd`), hex (`\xHH`), and Unicode (`\u{HHHH}`)
-// forms. Unknown escapes pass the following character through.
 export function processLuauEscapes(s: string): string {
   let out = "";
   let i = 0;
@@ -70,7 +58,6 @@ export function processLuauEscapes(s: string): string {
         break;
       case "z": {
         i += 2;
-        // Luau's whitespace: a space or `\t` through `\r`, not a Unicode space.
         while (i < s.length && /[ \t-\r]/.test(s[i]!)) i++;
         break;
       }
@@ -88,9 +75,6 @@ export function processLuauEscapes(s: string): string {
       case "u": {
         const m = s.slice(i + 2).match(/^\{([0-9a-fA-F]+)\}/);
         if (m) {
-          // Luau encodes up to `\u{7FFFFFFF}` as extended UTF-8; a JS string
-          // cannot hold anything above U+10FFFF, so those become U+FFFD.
-          // The validator already reports anything above Luau's own limit.
           const code = parseInt(m[1]!, 16);
           out += code > 0x10ffff ? "�" : String.fromCodePoint(code);
           i += 2 + m[0]!.length;
@@ -106,7 +90,6 @@ export function processLuauEscapes(s: string): string {
         break;
       default: {
         if (/\d/.test(next)) {
-          // Decimal escape: 1–3 digits.
           const m = s.slice(i + 1).match(/^\d{1,3}/);
           if (m) {
             const code = parseInt(m[0]!, 10);
@@ -125,7 +108,6 @@ export function processLuauEscapes(s: string): string {
   return out;
 }
 
-// A quoted literal's text between its delimiters.
 export function stripQuotes(text: string): string {
   if (text.length < 2) return text;
   const first = text[0];

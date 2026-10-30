@@ -42,8 +42,6 @@ const beatsOf = (texts: Record<string, string>) => {
   return { beats: run.beats.map((beat) => beat.text), errors: run.errors };
 };
 
-/** Every diagnostic of `program` with `message`, as the uri and line it is
- *  reported at. */
 const reported = (
   program: ReturnType<typeof compileProject>,
   message: string,
@@ -63,10 +61,8 @@ describe("a project folder", () => {
     [MAIN]: lines("scene start", "  -> act1", "end"),
     [ACT1]: lines("scene act1", "  The forest is {visited_forest}.", "  done", "end"),
     [DEFS]: lines("store visited_forest = false"),
-    // A sub-project: its main script and everything under it are its own.
     [`${ROOT}minigame/main.sd`]: lines("scene start", "  Minigame.", "end", "scene act1", "  Other.", "end"),
     [`${ROOT}minigame/levels/one.sd`]: lines("Level one."),
-    // Skipped names.
     [`${ROOT}.hidden/draft.sd`]: lines("Draft.", "scene act1", "  Draft.", "end"),
     [`${ROOT}node_modules/pkg/lib.sd`]: lines("Library.", "scene act1", "  Library.", "end"),
   };
@@ -91,8 +87,6 @@ describe("a project folder", () => {
   });
 
   it("reads a script whose file name holds # or %, as the web editor names an imported file", () => {
-    // The web editor's URI is its path as written (`getUriFromPath`), so a
-    // `#` is part of the name and `%2e` is three characters, not a dot.
     const HASH = `${ROOT}scripts/act#1.sd`;
     const PERCENT = `${ROOT}scripts/%2eact2.sd`;
     const project = {
@@ -224,8 +218,6 @@ describe("a script other than main", () => {
   });
 
   it("reports a declaration that runs a call Luau reads after a block comment on its line", () => {
-    // Luau reads `bump()` as the next statement, which the declaration's own
-    // node holds.
     const program = compileProject({
       [MAIN]: lines("store gold = 0", "scene start", "  Gold {gold}.", "end"),
       [LIB]: lines("function bump() gold = 9 end", "store silver = 4 --[[x]] bump()", "& store copper = 4 --[[x]]bump()"),
@@ -293,8 +285,6 @@ describe("a script other than main", () => {
   });
 
   it("declares an external without a report of its own", () => {
-    // The program engine does not run an external wherever it is declared,
-    // which its own error says; it is a declaration all the same.
     const external = (uri: string) =>
       errorsOf(compileProject({ [MAIN]: lines("scene start", "  Main.", "end"), [uri]: lines("external host_record(v)") }));
     expect(external(LIB).map(([, message]) => message)).not.toContain(OUTSIDE_SCENE);
@@ -349,8 +339,6 @@ describe("declaration order", () => {
       expect(message).toContain("main.sd");
       expect(message).toContain("scripts/ui.sd");
     }
-    // The first declaration stands in the reactive tree and the static
-    // definition alike.
     expect(JSON.stringify(program.sparkle?.layouts?.["hud"])).toContain("Main");
     expect(JSON.stringify(program.sparkle?.layouts?.["hud"])).not.toContain("UI");
     expect(JSON.stringify(program.context?.["layout"]?.["hud"])).toContain("Main");
@@ -402,10 +390,6 @@ describe("declaration order", () => {
     expect(shown.beats.map((beat) => beat.text)).toEqual(["Main 1 2 3.\n", "Pick\n", "Picked 2.\n"]);
   });
 
-  // How each host spells the URI of the same file: VS Code percent-encodes a
-  // URI's path, and the web editor writes the path as it is
-  // (`uriPathsAsWritten`). Each file is ordered by its name, as the file
-  // system names it, either way.
   const hosts = {
     "VS Code": {},
     "the web editor": { uriPathsAsWritten: true },
@@ -420,8 +404,6 @@ describe("declaration order", () => {
   ];
 
   it.each(spellings)("orders $file, as $host spells it, by its name beside scripts/a.sd", ({ host, spelled, before }) => {
-    // `scripts/a.sd` and the other file each declare a store that reads the
-    // store of whichever comes first.
     const other = `${ROOT}scripts/${spelled}`;
     const A = `${ROOT}scripts/a.sd`;
     const program = compileProject(

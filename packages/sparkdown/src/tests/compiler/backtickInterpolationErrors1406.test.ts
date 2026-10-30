@@ -1,7 +1,3 @@
-// A backtick string whose interpolation holds a second token after its
-// expression (`` `a {1 2} b` ``) reports every error Luau's parser reports
-// for the line, once each, in Luau's words at Luau's range, in a story
-// `store` and in a scene-level `local` (I-1406, after I-1370).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -11,7 +7,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -23,7 +18,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for `local <rest>`, moved to line `line` and right by `shift` characters. */
 function official(rest: string, line: number, shift: number): string[] {
   return officialErrorList(`local ${rest}\n`)
     .map((error) =>
@@ -40,10 +34,8 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     "s = `a {1 2 3} b`",
     "s = `a {f() g} b`",
     "s = `a {1 + 2 3} b`",
-    // The sections and interpolations after the one Luau gives up on.
     "s = `a {1 2} b {c} d`",
     "s = `{c} a {1 2} b {d 3} e`",
-    // A later string is Luau's lexemes, and a later `{}` no interpolation (round 1).
     "s = `a {1 2} b {`c {3 4} d`} e`",
     "s = `a {1 2} b {} c`",
     "s = `a {1 2} b {`c {} d`} e`",
@@ -66,8 +58,6 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     });
   }
 
-  // The string's rest is read where the string stood, inside an expression.
-  // Unindented, since an error naming a bracket gives its column.
   for (const rest of ["s = f(`a {1 2} b`)", "s = {`a {1 2} b`, 3}", "s = `a {1 2} b` .. `c`", "s = `a {`b {1 2} c`} d`"]) {
     test(`a function's local ${rest}`, () => {
       const expected = official(rest, 1, 0);
@@ -76,9 +66,6 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     });
   }
 
-  // A string Luau gives up on inside an interpolation of a string it reads
-  // whole leaves that string's own `{}` an interpolation (round 2), in
-  // Luau's words at Luau's range (I-1420).
   const nested = "s = `a {(function() local x = `b {1 2} c` return x end)()} d {} e`";
   for (const [form, text, line, shift] of [
     ["store", `store ${nested}\n${SCENE}`, 0, 0],
@@ -92,7 +79,6 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     });
   }
 
-  // Each edit's compile reports what a cold compile of the edited text does.
   test("an incremental compile reports what a cold one does", () => {
     let text = `store s = \`a {1} b\`\n\nscene start\n  local t = \`a {1} b\`\n  Hello.\nend\n`;
     const compiler = new SparkdownCompiler();
@@ -104,7 +90,6 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
       const lines = text.slice(0, offset).split("\n");
       return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
     };
-    // Where each edit goes in the text as the edits before it left it.
     const steps: [() => number, string][] = [
       [() => text.indexOf("{1}") + 2, " 2"],
       [() => text.lastIndexOf("{1}") + 2, " 2"],
@@ -130,7 +115,6 @@ describe("a backtick string's malformed interpolation reports Luau's errors (I-1
     expect(text).toContain("`a {1} b`");
   });
 
-  // A double-quoted string's interpolation is Sparkdown's own syntax.
   test("a double-quoted string's interpolation is unchanged", () => {
     expect(sparkdownErrors(`store s = "a {1 2} b"\n${SCENE}`)).toEqual([]);
   });

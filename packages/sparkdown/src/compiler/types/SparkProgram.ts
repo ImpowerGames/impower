@@ -22,67 +22,25 @@ export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
-  /**
-   * The root of the statement chunks the compile built: absent when the
-   * compile threw, or met a construct it cannot build, which it reports as
-   * an error at its statement. It is read by reference by a game in the
-   * compiler's worker, and never crosses a worker boundary: the transport
-   * and the summary leave it out.
-   */
   chunks?: ProgramRoot;
   workspace?: string;
   startFrom?: { file: string; line: number };
-  /** Where this compile can differ from the one before it, and whether that is
-   *  the whole difference. Read by a client holding work planned against the
-   *  previous program; see {@link ProgramChangeSummary}. */
   changes?: ProgramChangeSummary;
   context?: {
     [type: string]: { [name: string]: any };
   };
-  /**
-   * Identifies the assembled `context` (#654). Two programs carrying the same
-   * revision carry the same context, so a consumer that derived something from
-   * it — the engine channels below, the Game's runtime define tables — can keep
-   * what it derived instead of deriving it again. It moves whenever a
-   * definition, a declaration, a file or the compiler configuration changes,
-   * and whenever this compile's own implicit definitions differ.
-   */
   contextRevision?: string;
-  // Dedicated engine-facing channel for the static UI structs the UIModule
-  // consumes: `layouts` (element trees keyed by name), `screens` (navigation
-  // group defs), `components`. Derived from `context` after full assembly
-  // (prelude builtins + authored + `$extends`/`$default` merges) so the Game
-  // runtime can read them WITHOUT depending on the LSP-only `program.context`.
   layouts?: { [name: string]: any };
   screens?: { [name: string]: any };
   components?: { [name: string]: any };
   styles?: { [name: string]: any };
-  // Reactive Sparkle UI AST channel (docs/sparkle/reactive-sparkle-spec.md §6).
-  // The typed element-tree the reactive runtime consumes, produced by the
-  // lowerer alongside the static `layouts`/`screens`/`components` channels above.
-  // Carries compiled-Luau `Binding` handles for every dynamic value.
   sparkle?: {
     layouts?: { [name: string]: LayoutNode };
     screens?: { [name: string]: ScreenNode };
     components?: { [name: string]: ComponentNode };
   };
-  // Dedicated engine-facing channel for file-derived assets (image / audio /
-  // font) and compiler-inferred implicit defs (filtered_image), keyed by type
-  // then name. Lets the Game runtime read assets without the LSP-only
-  // program.context. Derived from `context` after asset population.
   assets?: { [type: string]: { [name: string]: any } };
-  // Morph bake inputs (src/morph/README.md): each morph's recipe, and the
-  // compact artifact references of the image variants it plays on, keyed by
-  // the variant's context name. A host resolves a reference to its baked
-  // frames; the frames never travel in the program. Absent when the scripts
-  // declare no morph.
   morphs?: MorphProgramChannel;
-  // NOTE: there is intentionally no `defines` channel. Define-typed entries
-  // (animation/character/ease/config/…) are sourced by the Game from the live
-  // runtime `__def` tables (buildDefinesContext), which resolve authored→builtin
-  // inheritance via the VM __index chain — richer and byte-identical to the
-  // retired compile-time snapshot. Requires the program to be compiled with
-  // `seedBuiltinsIntoStory`.
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
@@ -101,30 +59,15 @@ export interface SparkProgram {
   knotLocations?: {
     [name: string]: ScriptLocation;
   };
-  /** Per script, for the `end` that closes each scene and branch, in the
-   *  order of those ends: the line of the flow's header and the line of its
-   *  `end`, counting from 0. */
   flowEnds?: {
     [uri: string]: [headerLine: number, endLine: number][];
   };
   labelLocations?: {
     [name: string]: ScriptLocation;
   };
-  // Per top-level flow (a scene, a function, or `0` for root content): the
-  // asset names its beats reference in document order, plus the flows it can
-  // reach. Read by the engine's asset module for prediction and explicit
-  // loads (docs/engine/asset-preloading-spec.md). Absent when the compile
-  // threw.
   sceneAssets?: { [flowName: string]: SceneAssets };
   version?: number;
-  /** The compiler's file-registry epoch this program was compiled at. It
-   *  moves when a file is added, replaced or removed, which is a change no
-   *  script version describes: an asset the author replaces recompiles the
-   *  same scripts into a different program. Part of a program's identity
-   *  across the worker boundary (`programIdentity`). */
   filesEpoch?: number;
   summary?: true;
-  /** On a summary, whether the compile produced a story that runs, which
-   *  `compiled` answers on a whole program (`isRunnableProgram`). */
   runnable?: boolean;
 }

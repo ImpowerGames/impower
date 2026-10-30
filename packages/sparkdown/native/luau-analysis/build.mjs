@@ -39,13 +39,11 @@ const args = ["-std=c++17", "-O2", "-fexceptions", "-DNDEBUG", ...targets.map(t 
   "-sALLOW_MEMORY_GROWTH=1", "-sMAXIMUM_MEMORY=268435456", "-sINITIAL_MEMORY=16777216", "-sSTACK_SIZE=2097152",
   "-sDISABLE_EXCEPTION_CATCHING=0", "-sABORTING_MALLOC=0", "-sERROR_ON_UNDEFINED_SYMBOLS=1",
   '-sEXPORTED_RUNTIME_METHODS=["ccall","writeArrayToMemory"]', "-o", join(output, "backend.js")];
-// Response files avoid Windows argv length limits. Contents are compiler arguments, never shell commands.
 const response = join(mkdtempSync(join(tmpdir(), "luau-analysis-build-")), "compile.rsp");
 writeFileSync(response, args.map(a => JSON.stringify(a.replaceAll("\\", "/"))).join("\n"));
 const start = performance.now();
 run(python, [compiler, `@${response}`], { env });
 copyFileSync(join(source, "LICENSE.txt"), join(output, "LICENSE.txt"));
-// Emscripten writes platform line endings; canonical text keeps cross-host hashes reproducible.
 for (const file of ["backend.js", "LICENSE.txt"])
   writeFileSync(join(output, file), readFileSync(join(output, file), "utf8").replaceAll("\r\n", "\n"));
 const hash = p => createHash("sha256").update(readFileSync(p)).digest("hex");

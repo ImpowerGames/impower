@@ -1,12 +1,7 @@
-// Luau's type-checker tests from `tests/TypeInfer.unknownnever.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
   {
-    // TypeInfer.unknownnever.test.cpp:13 TEST_CASE_FIXTURE(Fixture, "string_subtype_and_unknown_supertype")
     name: "string_subtype_and_unknown_supertype",
     fixture: "Fixture",
     source: `
@@ -17,7 +12,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:24 TEST_CASE_FIXTURE(Fixture, "unknown_subtype_and_string_supertype")
     name: "unknown_subtype_and_string_supertype",
     fixture: "Fixture",
     source: `
@@ -28,7 +22,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:35 TEST_CASE_FIXTURE(Fixture, "unknown_is_reflexive")
     name: "unknown_is_reflexive",
     fixture: "Fixture",
     source: `
@@ -39,7 +32,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:46 TEST_CASE_FIXTURE(Fixture, "string_subtype_and_never_supertype")
     name: "string_subtype_and_never_supertype",
     fixture: "Fixture",
     source: `
@@ -50,7 +42,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:57 TEST_CASE_FIXTURE(Fixture, "never_subtype_and_string_supertype")
     name: "never_subtype_and_string_supertype",
     fixture: "Fixture",
     source: `
@@ -61,7 +52,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:68 TEST_CASE_FIXTURE(Fixture, "never_is_reflexive")
     name: "never_is_reflexive",
     fixture: "Fixture",
     source: `
@@ -72,8 +62,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:79 TEST_CASE_FIXTURE(Fixture, "unknown_is_optional_because_it_too_encompasses_nil")
-    // Upstream asserts nothing about the result.
     name: "unknown_is_optional_because_it_too_encompasses_nil",
     fixture: "Fixture",
     source: `
@@ -82,7 +70,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:86 TEST_CASE_FIXTURE(Fixture, "table_with_prop_of_type_never_is_uninhabitable")
     name: "table_with_prop_of_type_never_is_uninhabitable",
     fixture: "Fixture",
     source: `
@@ -91,7 +78,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:95 TEST_CASE_FIXTURE(Fixture, "table_with_prop_of_type_never_is_also_reflexive")
     name: "table_with_prop_of_type_never_is_also_reflexive",
     fixture: "Fixture",
     source: `
@@ -100,7 +86,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:104 TEST_CASE_FIXTURE(Fixture, "array_like_table_of_never_is_inhabitable")
     name: "array_like_table_of_never_is_inhabitable",
     fixture: "Fixture",
     source: `
@@ -109,7 +94,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:113 TEST_CASE_FIXTURE(Fixture, "type_packs_containing_never_is_itself_uninhabitable")
     name: "type_packs_containing_never_is_itself_uninhabitable",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -127,7 +111,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     ],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:142 TEST_CASE_FIXTURE(Fixture, "type_packs_containing_never_is_itself_uninhabitable2")
     name: "type_packs_containing_never_is_itself_uninhabitable2",
     fixture: "Fixture",
     source: `
@@ -146,7 +129,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     ],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:170 TEST_CASE_FIXTURE(Fixture, "index_on_never")
     name: "index_on_never",
     fixture: "Fixture",
     source: `
@@ -156,7 +138,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }, { type: "z", equals: "never" }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:182 TEST_CASE_FIXTURE(Fixture, "call_never")
     name: "call_never",
     fixture: "Fixture",
     source: `
@@ -171,8 +152,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     ],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:196 TEST_CASE_FIXTURE(Fixture, "assign_to_local_which_is_never")
-    // CLI-117119 upstream: what assigning to `never` should do is undecided.
     name: "assign_to_local_which_is_never",
     fixture: "Fixture",
     source: `
@@ -182,7 +161,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:214 TEST_CASE_FIXTURE(Fixture, "assign_to_global_which_is_never")
     name: "assign_to_global_which_is_never",
     fixture: "Fixture",
     source: `
@@ -193,7 +171,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:225 TEST_CASE_FIXTURE(Fixture, "assign_to_prop_which_is_never")
     name: "assign_to_prop_which_is_never",
     fixture: "Fixture",
     source: `
@@ -204,7 +181,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:236 TEST_CASE_FIXTURE(Fixture, "assign_to_subscript_which_is_never")
     name: "assign_to_subscript_which_is_never",
     fixture: "Fixture",
     source: `
@@ -215,7 +191,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:247 TEST_CASE_FIXTURE(Fixture, "for_loop_over_never")
     name: "for_loop_over_never",
     fixture: "Fixture",
     source: `
@@ -225,7 +200,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:257 TEST_CASE_FIXTURE(Fixture, "pick_never_from_variadic_type_pack")
     name: "pick_never_from_variadic_type_pack",
     fixture: "Fixture",
     source: `
@@ -236,7 +210,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:268 TEST_CASE_FIXTURE(Fixture, "index_on_union_of_tables_for_properties_that_is_never")
     name: "index_on_union_of_tables_for_properties_that_is_never",
     fixture: "Fixture",
     skip: { newSolver: "upstream returns before checking on the new solver, which warns wrongly here (CLI-117116)" },
@@ -252,7 +225,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:288 TEST_CASE_FIXTURE(Fixture, "index_on_union_of_tables_for_properties_that_is_sorta_never")
     name: "index_on_union_of_tables_for_properties_that_is_sorta_never",
     fixture: "Fixture",
     skip: { newSolver: "upstream returns before checking on the new solver, which warns wrongly here (CLI-117116)" },
@@ -268,7 +240,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:308 TEST_CASE_FIXTURE(Fixture, "unary_minus_of_never")
     name: "unary_minus_of_never",
     fixture: "Fixture",
     source: `
@@ -277,7 +248,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }, { type: "x", equals: "never" }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:319 TEST_CASE_FIXTURE(Fixture, "length_of_never")
     name: "length_of_never",
     fixture: "Fixture",
     source: `
@@ -286,7 +256,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }, { type: "x", equals: "number" }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:330 TEST_CASE_FIXTURE(Fixture, "dont_unify_operands_if_one_of_the_operand_is_never_in_any_ordering_operators")
     name: "dont_unify_operands_if_one_of_the_operand_is_never_in_any_ordering_operators",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -298,7 +267,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }, { type: "ord", equals: "(nil, nil & ~nil) -> boolean" }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:347 TEST_CASE_FIXTURE(Fixture, "math_operators_and_never")
     name: "math_operators_and_never",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -314,7 +282,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     ],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:373 TEST_CASE_FIXTURE(Fixture, "compare_never")
     name: "compare_never",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -326,7 +293,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }, { type: "cmp", equals: "(nil, number) -> boolean" }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:387 TEST_CASE_FIXTURE(Fixture, "lti_error_at_declaration_for_never_normalizations")
     name: "lti_error_at_declaration_for_never_normalizations",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -351,7 +317,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     ],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:413 TEST_CASE_FIXTURE(Fixture, "lti_permit_explicit_never_annotation")
     name: "lti_permit_explicit_never_annotation",
     fixture: "Fixture",
     source: `
@@ -370,7 +335,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.unknownnever.test.cpp:434 TEST_CASE_FIXTURE(Fixture, "cast_from_never_does_not_error")
     name: "cast_from_never_does_not_error",
     fixture: "Fixture",
     source: `

@@ -1,9 +1,3 @@
-// Flow parameters on the program engine (#1436): a scene or a branch that
-// declares parameters binds them where it is entered, and a divert, a tunnel,
-// a thread or an onward return passes them its arguments; a jump into the
-// middle of such a flow binds none; and a
-// change to a flow's parameter list emits again exactly the chunks that pass
-// it arguments.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -49,8 +43,6 @@ const silence = <T>(run: () => T): T => {
   }
 };
 
-/** What a script shows from its top, taking the choices
- *  `picks` names at its menus, and the program's root. */
 const runOf = (text: string, picks: number[] = []) =>
   silence(() => {
     const { program } = compileScript(text);
@@ -63,7 +55,6 @@ const runOf = (text: string, picks: number[] = []) =>
 const texts = (run: { beats: { text: string }[] }) =>
   run.beats.map((beat) => beat.text.trim());
 
-/** The chunks of a root whose code holds instruction `op`. */
 const chunksWith = (root: ProgramRoot, op: number): ProgramChunk[] => {
   const reader = new BinaryProgramReader(root);
   return rootChunks(root).filter((chunk) =>
@@ -71,9 +62,6 @@ const chunksWith = (root: ProgramRoot, op: number): ProgramChunk[] => {
   );
 };
 
-/** A compiler over one script (`programSession`), its first program, and
- *  an edit that replaces one occurrence of `before` with `after` and gives
- *  the program it compiles. */
 const session = (
   text: string,
   configure?: Parameters<typeof programSession>[1],
@@ -95,8 +83,6 @@ const cold = (text: string) =>
   silence(() => programCompiler({ [MAIN_URI]: text }).compile().program);
 
 describe("the fixtures that fell back for a flow's parameters", () => {
-  // Every shared fixture that declared a flow with parameters fell back,
-  // naming `Argument`, before #1436. None offers a choice.
   for (const [fixture, shown] of [
     ["builtins/read-count-variable-target.sd", ["Count start - 0 0 0", "1", "2", "3", "Count end - 3 3 3"]],
     ["diverts/complex-tunnels.sd", ["one (1)", "one and a half (1.5)", "two (2)", "three (3)"]],
@@ -117,8 +103,6 @@ describe("the fixtures that fell back for a flow's parameters", () => {
 });
 
 describe("a dotted target's arguments (#1642)", () => {
-  // A divert, a tunnel, a thread and an onward return to a dotted target
-  // pass their arguments.
   it("runs diverts/dotted-divert-targets-with-arguments.sd from its chunks", () => {
     const text = readFileSync(
       join(FIXTURES, "diverts/dotted-divert-targets-with-arguments.sd"),
@@ -170,9 +154,6 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    // The divert binds `how`; the jump to `middle` from another scene binds
-    // nothing and enters the scene with a fresh scope, so `how` reads the
-    // global there.
     expect(texts(actual)).toEqual([
       "Visit by tunnel.",
       "Forked by thread.",
@@ -225,7 +206,6 @@ describe("a flow's parameters on the program engine", () => {
         "",
       ].join("\n"),
     );
-    // A thread and a divert that pass nothing pass nil and an empty `...`.
     expect(texts(actual)).toEqual(["Many 1 2.", "None nil 0.", "None nil 0."]);
   });
 
@@ -250,8 +230,6 @@ describe("a flow's parameters on the program engine", () => {
   });
 });
 
-// The onward return goes on to the flow the variable holds, with the
-// arguments bound.
 describe("an onward return to a variable target", () => {
   it("passes its arguments to the flow the variable holds", () => {
     const text = [
@@ -303,8 +281,6 @@ describe("a host entering a scene that takes parameters", () => {
     expect(actual).toBe("Pair 1 2.\n");
   });
 
-  // A scene returns nothing; an extra argument is dropped, a missing one
-  // is nil, and the rest go to `...`.
   it("arranges EvaluateFunction's arguments for the scene's parameters", () => {
     const { program } = silence(() => compileScript(text));
     const engine = new ProgramStory(program.chunks!);
@@ -321,8 +297,6 @@ describe("a host entering a scene that takes parameters", () => {
 });
 
 describe("a flow's entry", () => {
-  // The entry of a scene that starts with a branch jumps to it, and keeps
-  // its chunk through an edit of its header that reads the same.
   it("keeps its chunk when its header is lowered again and reads the same", () => {
     const s = session(
       [
@@ -347,15 +321,8 @@ describe("a flow's entry", () => {
   });
 });
 
-// The flow screenplay's randomized edits (#1436's acceptance) met a compile
-// whose resolution stopped at a builtin call's proxy divert, which its
-// generation never reached: `-- c` written inside `{READ_COUNT(-> …)}`
-// leaves `READ_COUNT(-> after > Never …)`, and the story's resolution ended
-// there, so a cold compile read `{mid}` below as a variable while an
-// incremental one kept the label's count.
 describe("a compile whose builtin call reports its arguments", () => {
   it("resolves the names after the call, as an incremental compile does", () => {
-    // The edit the flow screenplay's fuzz made (#56 of its per-edit run).
     const text = flowScreenplay(3);
     const s = session(text);
     expect(s.first.chunks).toBeDefined();
@@ -366,8 +333,6 @@ describe("a compile whose builtin call reports its arguments", () => {
     const fresh = cold(s.text);
     expect(fresh.chunks).toBeDefined();
     const coldLines = describeRoot(fresh.chunks!);
-    // Both read the label's count, which the cold compile read as a
-    // variable once its resolution had stopped.
     expect(coldLines.some((line) => line.includes('GetCount "FLOW_2.after.mid"'))).toBe(true);
     expect(describeRoot(edited.chunks!)).toEqual(coldLines);
   });
@@ -395,8 +360,6 @@ describe("a flow's parameter list", () => {
     "",
   ].join("\n");
 
-  // The statements that pass the flow arguments read its parameters; the
-  // flow's entry binds them; nothing else depends on them.
   for (const [what, after] of [
     ["a parameter added", "scene target(a, b)"],
     ["a variadic parameter", "scene target(a, ...)"],
@@ -412,8 +375,6 @@ describe("a flow's parameter list", () => {
       const reader = new BinaryProgramReader(edited.chunks!);
       const ops = (chunk: ProgramChunk) =>
         [...reader.instructions(chunk)].map((i) => i.op);
-      // The two tunnels that pass arguments, and the entry, which binds the
-      // parameters and holds nothing else.
       expect(emitted).toHaveLength(3);
       const calls = chunksWith(edited.chunks!, Op.Call);
       expect(calls).toHaveLength(2);
@@ -423,9 +384,6 @@ describe("a flow's parameter list", () => {
     });
   }
 
-  // No syntax declares a by-reference parameter (`lowerArguments` makes each
-  // one a value), so the store's definition of the flow says it takes one,
-  // as the parameter kinds a parser that read `ref` would give it.
   it("emits again, for a by-reference parameter, the chunks that pass the flow arguments, each with a pointer at its variable, and no other", () => {
     let kinds = PARAM_VALUE;
     class RefStore extends ChunkStore {
@@ -467,7 +425,6 @@ describe("a flow's parameter list", () => {
     const after = s.edit("Plain line.", "Plain line, again.");
     expect(after.chunks).toBeDefined();
     const emitted = rootChunks(after.chunks!).filter((chunk) => !before.has(chunk));
-    // The two tunnels that pass the flow arguments, and the edited line.
     expect(emitted).toHaveLength(3);
     const pointers = chunksWith(after.chunks!, Op.VarPtr);
     expect(pointers).toHaveLength(2);

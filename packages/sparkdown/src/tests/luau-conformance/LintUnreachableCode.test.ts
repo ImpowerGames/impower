@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// UnreachableCode rule. Snippets and expected messages are quoted verbatim
-// and placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import { lintInFunction } from "./diagnosticTestHarness";
 
@@ -204,8 +198,6 @@ return foo1
 });
 
 // Luau: UnreachableCodeLoopRepeat
-// Upstream notes this silence is technically a bug (the body always
-// returns); sparkdown keeps Luau's result.
 describe("a repeat loop does not end its block", () => {
   test("repeat return until a, then return", () => {
     expect(
@@ -244,10 +236,7 @@ return 1
   });
 });
 
-// Sparkdown-specific. Luau refuses a `return` that is not the last statement
-// of its block as a syntax error, which is why the upstream cases wrap it in
-// `do ... end`. Sparkdown accepts it, so the lint is what reports the dead
-// statements after it.
+// Sparkdown-specific
 describe("statements after a return in the same block", () => {
   test("return, then print", () => {
     expect(
@@ -275,8 +264,6 @@ end
   });
 });
 
-// As in Luau, an expression on the line after a bare `return` is the value it
-// returns, and a statement there is not.
 describe("the line after a bare return", () => {
   test("an expression on the next line is the returned value", () => {
     expect(

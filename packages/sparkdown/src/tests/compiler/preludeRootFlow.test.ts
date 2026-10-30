@@ -5,8 +5,6 @@ import BUILTINS_PRELUDE from "../../compiler/builtins/builtins.sd?raw";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { flowListings } from "../programListing";
 
-// The same synthetic URI and options SparkdownCompiler uses when it compiles
-// the prelude once, in isolation, to seed its builtins cache (getCompiledPrelude).
 const PRELUDE_URI = "file:///__builtins__.sd";
 const MAIN_URI = "inmemory:///main.sd";
 
@@ -56,8 +54,6 @@ const startFlowText = (program: any): string[] => {
   });
 };
 
-/** Error-severity diagnostics, so an empty root flow cannot pass for a clean
- *  one when the prelude has stopped compiling at all. */
 const errors = (program: any): string[] => {
   const out: string[] = [];
   for (const list of Object.values(program.diagnostics ?? {})) {
@@ -81,12 +77,8 @@ describe("the builtins prelude's top level", () => {
     const SRC = "scene start\n  Hello from the script.\nend\n";
     const seeded = compileScript(SRC, true);
     const unseeded = compileScript(SRC, false);
-    // The script's own line first, so the comparisons below cannot agree by
-    // both sides being empty.
     expect(startFlowText(unseeded)).toContain("Hello from the script.");
     expect(startFlowText(seeded)).toEqual(startFlowText(unseeded));
-    // Stated in full, because the text comparison alone would hide anything
-    // the prelude contributes that is not text.
     expect(startFlowContent(seeded)).toEqual(startFlowContent(unseeded));
   });
 });

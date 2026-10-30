@@ -20,8 +20,6 @@ describe("asset names inherited from Object.prototype (#1762)", () => {
       });
       expect(Object.getOwnPropertyDescriptors(protectedObject)).toEqual(descriptors);
     } finally {
-      // The broken compiler writes metadata onto the native function before
-      // throwing. Keep the reproduction from contaminating later assertions.
       for (const key of Reflect.ownKeys(protectedObject)) {
         if (!Object.hasOwn(descriptors, key)) Reflect.deleteProperty(protectedObject, key);
       }

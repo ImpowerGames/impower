@@ -8,20 +8,6 @@ import type { LowerContext } from "../context";
 import { buildDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// Asset lines lower to their raw bracketed directive text, emitted inline:
-//
-//   [[show backdrop rooftop_night]]   → Text "[[show backdrop rooftop_night]]"
-//   ((play music stars))              → Text "((play music stars))"
-//   [[show X]] ((play Y))             → Text "[[show X]]", Text "((play Y))", then Text "\n"
-//
-// The directive text survives into the runtime as display text, where the
-// InterpreterModule's `[[...]]` / `((...))` parser re-parses it into image /
-// audio instructions — the SAME path used for directives written inline at the
-// end of an action/dialogue line. (Previously these lowered to ink tags
-// `image:...` / `audio:...`, but nothing in the runtime consumed those tags, so
-// directives on their own line were silently dropped — e.g. a standalone
-// `[[show backdrop ...]]` never changed the backdrop.)
-
 export function lowerImageLine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -47,23 +33,16 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
   const content: ParsedObject[] = [];
   const commands = getDescendents(["ImageCommand", "AudioCommand"], node);
   for (const cmd of commands) {
-    // Emit the raw bracketed directive (e.g. `[[show backdrop X]]`) so the
-    // runtime interpreter parses it exactly like an inline directive.
     content.push(new Text(extractCommandText(cmd, ctx)));
   }
   if (content.length === 0) {
     return wrapInWeave(content);
   }
-  // The directives ride one `display({ text })` call on the default target, as
-  // the text of a directive-only line.
   return wrapInWeave([
     buildDisplayCall(undefined, undefined, content, node, ctx),
   ]);
 }
 
-// Reads the raw `[[...]]` / `((...))` directive text. The grammar's
-// ImageCommand/AudioCommand node may span a trailing space when followed by
-// another command on the same line, so trim to anchor the closing bracket.
 function extractCommandText(cmd: SyntaxNode, ctx: LowerContext): string {
   return ctx.read(cmd.from, cmd.to).trim();
 }

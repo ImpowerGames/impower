@@ -1,7 +1,3 @@
-// A store's value list with two values and no comma between them, and a
-// story local with no name or a trailing comma in its name list, report the
-// errors Luau reports, once each, in Luau's words at Luau's tokens (I-1407,
-// after I-1370). Valid lists report nothing.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -11,7 +7,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -23,7 +18,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for a line, moved down `line` lines and right `indent` characters. */
 function official(text: string, line = 0, indent = 0): string[] {
   return officialErrorList(`${text}\n`)
     .map((e) =>
@@ -33,8 +27,6 @@ function official(text: string, line = 0, indent = 0): string[] {
 }
 
 describe("a store's value list and a story local's name list report Luau's errors (I-1407)", () => {
-  // The tree ends the store before the value with no comma before it, and
-  // reads the rest of the line as story.
   const stores = ["store a, b = 1 2", "store a = 1 2", "store a, b, c = 1, 2 3", "store t = {1, 2} 3", "store a = 1 Hello", "store a, = 1 2"];
   for (const line of stores) {
     const expected = official(line.replace(/^store/, "local"));
@@ -45,19 +37,14 @@ describe("a store's value list and a story local's name list report Luau's error
     test(`${JSON.stringify(line)} ending the document`, () => {
       expect(sparkdownErrors(`${line}\n`)).toEqual(expected);
     });
-    // The reading of the rest of the line reaches the document's end.
     test(`${JSON.stringify(line)} with no line break after it`, () => {
       expect(sparkdownErrors(line)).toEqual(expected);
     });
-    // Indented in a block the top level opens, where a store may stand.
     test(`${JSON.stringify(line)} in a top-level block`, () => {
       expect(sparkdownErrors(`if true then\n  ${line}\n  Hello.\nend\n`)).toEqual(official(line.replace(/^store/, "local"), 1, 2));
     });
   }
 
-  // The tree reads the declaration's names and assignment however few
-  // names it holds: a local in a scene, and the same names in a store at
-  // the top level.
   const locals = ["local = 1", "local a, = 1", "local a, b, = 1, 2", "local , = 1", "local a,, = 1", "local a: number, = 1"];
   for (const line of locals) {
     test(`${JSON.stringify(line)} in a scene`, () => {
@@ -81,7 +68,6 @@ describe("a store's value list and a story local's name list report Luau's error
     ]);
   });
 
-  // A name missing at the line's end keeps Sparkdown's own report.
   test.each([
     ["scene start\n  local a,\n  Hello.\nend\n", ["1:9-1:10 Expected identifier when parsing variable name, got <eof>"]],
     [`store a,\n${SCENE}`, ["0:7-0:8 Expected identifier when parsing variable name, got <eof>"]],
@@ -90,8 +76,6 @@ describe("a store's value list and a story local's name list report Luau's error
     expect(sparkdownErrors(text)).toEqual(expected);
   });
 
-  // A block's `end` right after a store on its line closes the block, and
-  // the store's reading stops before it (round 1).
   test.each(["if true then\n  store a = 1 end\n", "if true then\n  store a = 1 end", "if true then\n  store a, b = 1, 2 end\n"])(
     "%j reports nothing at the block's end",
     (text) => {
@@ -99,8 +83,6 @@ describe("a store's value list and a story local's name list report Luau's error
     },
   );
 
-  // After story on the store's line, the tree reads an `end` as story too,
-  // and the line reports what Luau reports for it.
   test.each(["store a = 1 2 end", "store a, b = 1 Hello end"])("%j in a top-level block reads its end as story", (line) => {
     const expected = official(line.replace(/^store/, "local"), 1, 2);
     expect(expected.some((e) => e.includes("got 'end'")), "the official parser reports the end").toBe(true);

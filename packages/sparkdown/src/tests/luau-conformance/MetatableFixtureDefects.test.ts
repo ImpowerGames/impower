@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// The defects that kept Luau's events.luau and tmerror.luau metatable
-// fixtures from running (I-415). Each script is a fixture body; the
-// harness wraps it in `function run() ... end` and reports a failed
-// `assert` as a runtime error.
 const passes = (source: string, name = "main") => {
   const r = runConformanceSource(source, undefined, name);
   expect(r.errorMessages).toEqual([]);
@@ -12,9 +8,6 @@ const passes = (source: string, name = "main") => {
 };
 
 describe("a function redefined in a function body with and without `...`", () => {
-  // events.luau defines `f` four times, the third with `...`; the
-  // reference after it failed to compile ("Since `f` is a variable, it
-  // shouldn't be preceded by '->' here").
   test("a variadic redefinition after a fixed one is the value after it", () => {
     passes(`
 local t = {}
@@ -41,8 +34,6 @@ assert(f() == 2)
 `);
   });
 
-  // Round 1's compiler review (comment 6280158984): the name has one
-  // binding, which every call and capture sees.
   test("a call inside a fixed redefinition of a variadic function reaches the redefinition", () => {
     passes(`
 function f(...) return 1 end
@@ -73,8 +64,6 @@ assert(f() == 3, tostring(f()))
 `);
   });
 
-  // Round 2's review (comment 6280983135): a definition of a name that is
-  // a parameter assigns the parameter.
   test("a redefinition of a parameter assigns the parameter", () => {
     passes(`
 local function change(f)
@@ -129,7 +118,6 @@ assert(not pcall(function() return c < d end))
   });
 
   test("a builtin set as `__eq` on two metatables is one handler", () => {
-    // `type(a, b)` returns "table", a true result, only when it is called.
     passes(`
 local a = setmetatable({}, { __eq = type })
 local b = setmetatable({}, { __eq = type })
@@ -308,7 +296,6 @@ assert(#seen == 1 and seen[1] == "c")
 });
 
 describe("errors raised in a tag method", () => {
-  // tmerror.luau line 45: `error` called by `pcall` names no line.
   test("pcall(error, msg) returns the message without a position", () => {
     passes(
       `

@@ -25,40 +25,15 @@ import { SimpleJson } from "./SimpleJson";
 interface WriterMemo {
   nextId: number;
   ids: Map<object, number>;
-  // Each table written, by its id, which a save of several states written
-  // with one writer reads to write a table again under its id
-  // (`WriteTableDefinition`).
   tables: Map<number, ObjectValue>;
   nextCellId: number;
   cellIds: Map<VariablePointerValue, number>;
-  // Each table init built, by its underlying Map, to its path from a
-  // default global (`SetWriterAnchors`).
   anchors: Map<object, string> | null;
-  // Each closed upvalue cell init built to its anchor.
   cellAnchors: Map<VariablePointerValue, string> | null;
-  // How a binary program's function value is written in a durable save, in
-  // place of its session's symbol id (`SetWriterSymbolEncoder`).
   symbols: ((value: SymbolValue) => string) | null;
 }
 
 export class JsonSerialisation {
-  // ----------------------------------------------------------------
-  // Reference-ID table (de)serialization sessions.
-  //
-  // WRITE side: the memo rides the SimpleJson.Writer instance (one
-  // writer per StoryState.ToJson call), mapping each underlying Map
-  // to its save-session id. READ side: a module-level id →
-  // ObjectValue registry, reset by StoryState.LoadJsonObj at the
-  // start of every load. `objectForLoadSessionId` returns the slot
-  // for an id, creating an empty placeholder when a forward
-  // reference arrives before its definition — the definition then
-  // fills the SAME ObjectValue, so identity holds regardless of
-  // field order in the save.
-  // ----------------------------------------------------------------
-
-  // Upvalue cells (`VariablePointerValue`s) have their own id space in
-  // the same session: `cellIds` on the write side, the cell registry on
-  // the read side.
   private static writerObjectMemo(writer: SimpleJson.Writer): WriterMemo {
     const w = writer as unknown as { __objGraphMemo?: WriterMemo };
     w.__objGraphMemo ??= {
@@ -74,10 +49,6 @@ export class JsonSerialisation {
     return w.__objGraphMemo;
   }
 
-  // A durable save of the program engine names a function value by its
-  // qualified name or by the statement and part that own its anonymous
-  // symbol (docs/engine/binary-program.md, section 10), which `encode`
-  // writes as a string and the load session's decoder reads back.
   public static SetWriterSymbolEncoder(
     writer: SimpleJson.Writer,
     encode: (value: SymbolValue) => string,
@@ -89,37 +60,12 @@ export class JsonSerialisation {
     | ((saved: string) => SymbolValue)
     | null = null;
 
-  // Reads a function value a durable save wrote; set after
-  // `ResetObjectLoadSession`, which clears it.
   public static SetLoadSessionSymbolDecoder(
     decode: (saved: string) => SymbolValue,
   ): void {
     this._loadSessionSymbolDecoder = decode;
   }
 
-  // ----------------------------------------------------------------
-  // Anchored tables.
-  //
-  // A table init built (a `store` table, a define, a `new` instance a
-  // store holds, or any table reachable from one) exists in every story
-  // from init, and init can wire other defaults to it (a define's prop
-  // can hold it). A save writes every occurrence of such a table, its
-  // definition and each `objref`, with `"anchor": <its path from a
-  // default global>` (`VariablesState.SnapshotInitTables`). A load
-  // resolves the anchor at whichever occurrence it reads first to the
-  // loading story's own table at that path, and restores the saved
-  // contents into it instead of building a new one, so every reference
-  // to it, saved or built by init, stays one table. A plain table's
-  // entries, metatable, freeze flag and `#` hints are replaced; a
-  // define's store props are merged and its freeze flag restored, since
-  // init rebuilds the rest. A constant's table only joins references: its
-  // contents are the compiled program's, never the save's.
-  //
-  // A closed upvalue cell a closure init built holds is anchored the same
-  // way, by the closure's path and the cell's key: a load restores the
-  // saved value into the loading story's own cell, so closures init built
-  // that share it (and that the save may not write) keep sharing it.
-  // ----------------------------------------------------------------
   public static SetWriterAnchors(
     writer: SimpleJson.Writer,
     anchors: Map<object, string>,
@@ -136,8 +82,6 @@ export class JsonSerialisation {
       ) => { cell: VariablePointerValue; restore: boolean } | null)
     | null = null;
 
-  // Resolves a cell anchor to the loading story's cell at that path; set
-  // after `ResetObjectLoadSession`, which clears it.
   public static SetLoadSessionCellAnchorResolver(
     resolve: (
       anchor: string,
@@ -146,8 +90,6 @@ export class JsonSerialisation {
     this._loadSessionCellAnchorResolver = resolve;
   }
 
-  // The loading story's cell for an anchored occurrence, which takes the
-  // occurrence's cell slot; null as for `anchoredObjectForLoad`.
   private static anchoredCellForLoad(
     anchor: string,
     id: number,
@@ -161,15 +103,12 @@ export class JsonSerialisation {
     return found;
   }
 
-  // The cells a constant reaches, which keep their compiled values.
   private static _loadSessionConstantCells = new Set<VariablePointerValue>();
 
   private static _loadSessionAnchorResolver:
     | ((anchor: string) => { table: ObjectValue; restore: boolean } | null)
     | null = null;
 
-  // Resolves an anchor to the loading story's table at that path; set
-  // after `ResetObjectLoadSession`, which clears it.
   public static SetLoadSessionAnchorResolver(
     resolve: (
       anchor: string,
@@ -178,11 +117,6 @@ export class JsonSerialisation {
     this._loadSessionAnchorResolver = resolve;
   }
 
-  // The loading story's table for an anchored occurrence, which takes the
-  // occurrence's id slot. Null when the anchor names no table here, or
-  // when the slot already holds another table (a reference written
-  // without an anchor was read first), in which case the occurrence loads
-  // as an unanchored one.
   private static anchoredObjectForLoad(
     anchor: string,
     objid: unknown,
@@ -205,10 +139,6 @@ export class JsonSerialisation {
     VariablePointerValue
   >();
 
-  // `new`-instance tables loaded with a `defref` (their class link is a
-  // NAME, not an inline table). The class is reconstructed by init, so we
-  // relink each instance's metatable `__index` to the LIVE class global in
-  // a post-pass once globals exist (RelinkPendingDefineRefs).
   private static _pendingDefineRefs: { obj: ObjectValue; className: string }[] =
     [];
 
@@ -222,23 +152,16 @@ export class JsonSerialisation {
     this._pendingDefineRefs = [];
   }
 
-  // A table's definition: its id (and anchor), its entries, its class
-  // linkage or metatable, its frozen flag and its length hints, the id
-  // already given to it in the writer's memo.
   private static WriteTableBody(
     writer: SimpleJson.Writer,
     objVal: ObjectValue,
   ): void {
     const map = objVal.value as Map<string, AbstractValue> | null;
     const memo = JsonSerialisation.writerObjectMemo(writer);
-    // Store-keyed define tables persist ONLY their `store` props (the
-    // rest is reconstructed at init); plain tables serialize in full.
     const defInfo = JsonSerialisation.defineSerializationInfo(objVal);
 
     writer.WriteObjectStart();
     if (map !== null) {
-      // NB: NOT `"#"` — that key is ink's Tag token in this wire
-      // format.
       writer.WriteIntProperty("objid", memo.ids.get(map)!);
       const anchor = memo.anchors?.get(map);
       if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
@@ -247,12 +170,7 @@ export class JsonSerialisation {
     writer.WriteObjectStart();
     if (map !== null) {
       for (const [k, v] of map) {
-        // Per-iteration scratch on builtin-iterator marker maps is
-        // a raw JS array (not an AbstractValue) — never serialized.
         if (k === "__iter_key_snapshot") continue;
-        // Define tables write ONLY store props — non-store props,
-        // methods, and the hidden bookkeeping lists are all
-        // reconstructed from the definition at init.
         if (defInfo && !defInfo.storeNames.has(k)) continue;
         writer.WritePropertyStart(k);
         if (v && v instanceof InkObject) {
@@ -266,33 +184,18 @@ export class JsonSerialisation {
     writer.WriteObjectEnd();
     writer.WritePropertyEnd();
     if (defInfo) {
-      // Class linkage by NAME (never inline the reconstructable class):
-      // `defself` → a named define; load merges the store delta onto the
-      // init default. `defref` → a `new` instance; load relinks
-      // `__index` to the live class global.
       writer.WriteProperty(
         defInfo.kind === "named" ? "defself" : "defref",
         defInfo.name,
       );
     } else if (objVal.metatable) {
-      // Metatable round-trip — only emit the slot when one is set, so
-      // existing tables without metatables stay compact in the wire
-      // format. Recursive write since metatables are themselves
-      // ObjectValues (and can in turn carry their own metatables, e.g.
-      // class inheritance chains); the memo above keeps shared
-      // metatables shared.
       writer.WritePropertyStart("mt");
       this.WriteRuntimeObject(writer, objVal.metatable);
       writer.WritePropertyEnd();
     }
-    // `table.freeze` state.
     if (objVal.isFrozen) {
       writer.WriteIntProperty("frz", 1);
     }
-    // Luau `#` border-search hints (capacity from table.create /
-    // table.clear, cached boundary) ride the underlying Map as JS
-    // properties — without these a loaded table answers `#`
-    // differently than it did before the save.
     const cap = map !== null ? ((map as any).__luauCapacity ?? 0) : 0;
     const bnd = map !== null ? ((map as any).__luauBoundary ?? 0) : 0;
     if (cap > 0) writer.WriteIntProperty("cap", cap);
@@ -300,25 +203,18 @@ export class JsonSerialisation {
     writer.WriteObjectEnd();
   }
 
-  /** The tables a writer has written, by the id each was written under. */
   public static WrittenTables(
     writer: SimpleJson.Writer,
   ): ReadonlyMap<number, ObjectValue> {
     return JsonSerialisation.writerObjectMemo(writer).tables;
   }
 
-  /** The upvalue cells a writer has written, with the id each was written
-   *  under. */
   public static WrittenCells(
     writer: SimpleJson.Writer,
   ): ReadonlyMap<VariablePointerValue, number> {
     return JsonSerialisation.writerObjectMemo(writer).cellIds;
   }
 
-  /** Writes `table` whole again under the id the writer gave it when it
-   *  first wrote it: its entries, metatable, frozen flag and length hints as
-   *  they are now. A durable save writes so a table written since the state
-   *  the save wrote before (docs/engine/binary-program.md, section 7). */
   public static WriteTableDefinition(
     writer: SimpleJson.Writer,
     table: ObjectValue,
@@ -326,12 +222,6 @@ export class JsonSerialisation {
     this.WriteTableBody(writer, table);
   }
 
-  /** Reads a table definition `WriteTableDefinition` wrote into the table
-   *  this load already holds under its id, in place: `before` hears of the
-   *  table before it changes, and the table's entries, metatable, frozen
-   *  flag and length hints are replaced by the definition's (a define's
-   *  `store` fields merged, as a load merges them). Returns the table, or
-   *  null when the load holds none under the id. */
   public static RedefineLoadSessionTable(
     token: Record<string, any>,
     before: (table: ObjectValue) => void,
@@ -342,9 +232,6 @@ export class JsonSerialisation {
       return null;
     }
     before(table);
-    // A define's `store` fields are merged onto the table, so a field the
-    // definition no longer holds, one assigned nil since, is taken out first:
-    // the table reads it as it did.
     const content = token["obj"];
     if (
       (token["defself"] !== undefined || token["defref"] !== undefined) &&
@@ -366,8 +253,6 @@ export class JsonSerialisation {
       }
     }
     if (token["anchor"] !== undefined) {
-      // A table the program initialized is restored in place by its anchor,
-      // and a constant's keeps its compiled content.
       this.JTokenToRuntimeObject(token);
       return table;
     }
@@ -390,23 +275,15 @@ export class JsonSerialisation {
     return table;
   }
 
-  /** The upvalue cell this load holds under `id`, which a load may write,
-   *  or null: none, or one a constant reaches, which keeps its compiled
-   *  value. */
   public static LoadSessionCell(id: number): VariablePointerValue | null {
     const cell = this._loadSessionCellsById.get(id) ?? null;
     return cell && !this._loadSessionConstantCells.has(cell) ? cell : null;
   }
 
-  /** Every upvalue cell this load holds, by the id the save gave it. */
   public static LoadSessionCells(): ReadonlyMap<number, VariablePointerValue> {
     return this._loadSessionCellsById;
   }
 
-  /** Reads every table and cell definition a saved token holds, so that a
-   *  later reference to one resolves to it, without reading anything else
-   *  the token holds: a durable save's state that the load does not place,
-   *  whose definitions the states after it refer to. */
   public static ReadDefinitions(token: unknown): void {
     if (Array.isArray(token)) {
       token.forEach((item) => this.ReadDefinitions(item));
@@ -438,9 +315,6 @@ export class JsonSerialisation {
     this._pendingDefineRefs.push({ obj, className });
   }
 
-  // Relink every `defref` instance's `__index` to the class table the
-  // resolver returns (the init-reconstructed global). Called after the
-  // variables state is loaded, so the live class globals are available.
   static RelinkPendingDefineRefs(
     resolve: (className: string) => ObjectValue | null,
   ): void {
@@ -464,8 +338,6 @@ export class JsonSerialisation {
     return existing;
   }
 
-  // Returns the pointer this load holds for an upvalue cell id, creating an
-  // open one at the first occurrence, whichever occurrence that is.
   private static upvalueCellForLoadSessionId(
     id: number,
     variableName: string,
@@ -479,24 +351,8 @@ export class JsonSerialisation {
     return existing;
   }
 
-  // ----------------------------------------------------------------
-  // Store-keyed define serialization.
-  //
-  // A define table persists ONLY its `store`-marked props; its class /
-  // definition is reconstructed at init. Class linkage is written by
-  // NAME, never inlined:
-  //   - named define (own `__define` marker — a type table or a
-  //     `define X` instance, both reconstructed by init): the store delta
-  //     is tagged `defself` so load MERGES it onto the init default,
-  //     preserving the definition's own non-store props + identity.
-  //   - `new` instance (metatable `__index` → a define table, no own
-  //     `__define`): written with `defref` = the class name; load creates
-  //     it fresh and relinks `__index` to the live class global.
-  // ----------------------------------------------------------------
   static readonly DEFINE_MARKER = "__define";
 
-  // Classify a table for store-keyed serialization, or null for a plain
-  // (non-define) table that serializes in full as before.
   static defineSerializationInfo(
     objVal: ObjectValue,
   ): { kind: "named" | "instance"; name: string; storeNames: Set<string> } | null {
@@ -531,9 +387,6 @@ export class JsonSerialisation {
     return null;
   }
 
-  // Collect every `store`-marked prop name reachable from a define table
-  // (its own `__storeProps` list plus every ancestor's, walked through
-  // the metatable `__index` chain).
   private static collectDefineStoreNames(objVal: ObjectValue): Set<string> {
     const names = new Set<string>();
     let cur: ObjectValue | null = objVal;
@@ -615,9 +468,6 @@ export class JsonSerialisation {
 
     let nullVal = asOrNull(obj, NullValue);
     if (nullVal) {
-      // Serialize Lua `nil` as the literal token `"nil"` — mirrors
-      // the way `Void` writes itself as `"void"`. Reader picks this
-      // up in the string-token branch below.
       writer.Write("nil");
       return;
     }
@@ -653,12 +503,8 @@ export class JsonSerialisation {
       return;
     }
 
-    // Checked after the scalars, which are far more common and never packed.
     let multiVal = asOrNull(obj, MultiValue);
     if (multiVal) {
-      // A tuple — the `__varargs$` pack of a vararg function's frame,
-      // or a multi-return result on the evaluation stack — writes its
-      // inner values in order, so the arity survives a save.
       writer.WriteObjectStart();
       writer.WritePropertyStart("tuple");
       this.WriteListRuntimeObjs(writer, multiVal.values);
@@ -669,20 +515,6 @@ export class JsonSerialisation {
 
     let objVal = asOrNull(obj, ObjectValue);
     if (objVal) {
-      // Reference-ID table serialization (pickle-memo style). Each
-      // DISTINCT table writes its full contents once, tagged with a
-      // save-session-unique id (`"objid"`); every later occurrence of
-      // the same underlying Map writes a compact `{"objref": id}`. This
-      // preserves Lua reference semantics across save/load:
-      //   - aliasing (`local copy = t` — both names load as ONE table)
-      //   - cycles (`t.self = t` — registration happens BEFORE the
-      //     entry recursion, so the inner occurrence refs out)
-      //   - shared class tables (every instance's metatable `__index`
-      //     points at the same class — instances load attached to the
-      //     same table instead of each dragging in a private copy)
-      // The memo rides the WRITER instance, so it spans exactly one
-      // StoryState.ToJson call (one save = one object graph) and
-      // resets naturally on the next save.
       const map = objVal.value as Map<string, AbstractValue> | null;
       const memo = JsonSerialisation.writerObjectMemo(writer);
       if (map !== null) {
@@ -703,9 +535,6 @@ export class JsonSerialisation {
       return;
     }
 
-    // A binary program's function value, which holds its symbol within a
-    // session: its id, the table generation of the id, its name (empty for
-    // an anonymous symbol) and how it prints.
     if (obj instanceof SymbolValue) {
       const encode = JsonSerialisation.writerObjectMemo(writer).symbols;
       if (encode) {
@@ -733,13 +562,6 @@ export class JsonSerialisation {
       writer.WriteObjectStart();
       writer.WriteProperty("^var", varPtrVal.value);
       writer.WriteIntProperty("ci", varPtrVal.contextIndex);
-      // An upvalue cell (a pointer the running story bound to a frame, or
-      // one that has closed) is written with its save-session id, so every
-      // closure and call-stack registry sharing the cell loads sharing one
-      // pointer. The cell's first occurrence also carries its closed state
-      // and value; the id is claimed before the value is written, so a
-      // closed value that holds the cell again (a recursive local function)
-      // writes it as a reference.
       if (varPtrVal.contextIndex > 0 || varPtrVal.isClosed) {
         const memo = JsonSerialisation.writerObjectMemo(writer);
         const existingId = memo.cellIds.get(varPtrVal);
@@ -752,8 +574,6 @@ export class JsonSerialisation {
           memo.cellIds.set(varPtrVal, id);
           writer.WriteIntProperty("cell", id);
           if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
-          // The block scope whose binding the cell captured, kept even
-          // when closed: a taken choice's thread can reopen it.
           if (varPtrVal.scopeIndex >= 0) {
             writer.WriteIntProperty("si", varPtrVal.scopeIndex);
           }
@@ -785,12 +605,6 @@ export class JsonSerialisation {
 
       if (name == "^") name = "L^";
 
-      // Variadic natives (the `__method_*` builtin-method family) need
-      // the call-site arg count preserved through serialization — their
-      // prototype's `numberOfParameters` is -1, so the deserialized
-      // call would otherwise pop zero args off the eval stack. Encode
-      // the actual arity as a `@<n>` suffix; the deserializer parses
-      // it back and restores it on the instance.
       if (nativeFunc.isVariadic) {
         name = `${name}@${nativeFunc.numberOfParameters}`;
       }
@@ -806,12 +620,7 @@ export class JsonSerialisation {
       let key = varAss.isGlobal ? "VAR=" : "temp=";
       writer.WriteProperty(key, varAss.variableName);
 
-      // Reassignment?
       if (!varAss.isNewDeclaration) writer.WriteProperty("re", true);
-      // Varargs slot — runtime skips MultiValue → first-value
-      // unwrapping for this binding so `__varargs$` keeps the
-      // packed tuple intact. Serialized as `va: true` to survive
-      // JSON round-trip when running pre-compiled stories.
       if (varAss.isVarargsSlot) writer.WriteProperty("va", true);
 
       writer.WriteObjectEnd();
@@ -863,33 +672,21 @@ export class JsonSerialisation {
     if (typeof token === "string") {
       let str = token.toString();
 
-      // Explicit float value: "123.00f", plus exponent forms like
-      // "3.4e+38f" (large integral floats stringify with an exponent,
-      // so the writer appends a bare `f` there — see
-      // SimpleJson.WriteFloat).
       const floatRepresentation =
         /^(-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?f)$/.exec(str);
       if (floatRepresentation) {
         return new FloatValue(parseFloat(floatRepresentation[0]));
       }
 
-      // Non-finite floats — JSON can't carry Infinity/NaN, so the
-      // writer (SimpleJson.WriteFloat) emits these string markers.
-      // Required for Lua semantics: `math.huge` compiles to a real
-      // Infinity constant and `0/0` results must stay NaN through
-      // the story-JSON round trip (clamping them to 3.4e38 / 0 broke
-      // basic.luau's fp-special fixtures).
       if (str === "inff") return new FloatValue(Infinity);
       if (str === "-inff") return new FloatValue(-Infinity);
       if (str === "nanf") return new FloatValue(NaN);
 
-      // String value
       let firstChar = str[0];
       if (firstChar == "^") return new StringValue(str.substring(1));
       else if (firstChar == "\n" && str.length == 1)
         return new StringValue("\n");
 
-      // Control commands (would looking up in a hash set be faster?)
       for (let i = 0; i < JsonSerialisation._controlCommandNames.length; ++i) {
         let cmdName = JsonSerialisation._controlCommandNames[i];
         if (str == cmdName) {
@@ -897,11 +694,7 @@ export class JsonSerialisation {
         }
       }
 
-      // Native functions
       if (str == "L^") str = "^";
-      // Variadic natives are serialized as `name@arity` (see serializer
-      // above for the rationale). Parse the suffix back into the
-      // call-site arity so the runtime knows how many params to pop.
       const at = str.lastIndexOf("@");
       if (at > 0) {
         const bareName = str.slice(0, at);
@@ -913,10 +706,8 @@ export class JsonSerialisation {
       if (NativeFunctionCall.CallExistsWithName(str))
         return NativeFunctionCall.CallWithName(str);
 
-      // Void
       if (str == "void") return new Void();
 
-      // Lua `nil` — see write path for the matching literal token.
       if (str == "nil") return new NullValue();
     }
 
@@ -924,7 +715,6 @@ export class JsonSerialisation {
       let obj = token as Record<string, any>;
       let propValue;
 
-      // A binary program's function value, as a durable save names it.
       if (typeof obj["^symsave"] === "string") {
         if (!this._loadSessionSymbolDecoder) {
           throw new Error("A function value of a save read without its program.");
@@ -932,7 +722,6 @@ export class JsonSerialisation {
         return this._loadSessionSymbolDecoder(obj["^symsave"]);
       }
 
-      // A binary program's function value.
       if (Array.isArray(obj["^sym"])) {
         const [symbol, generation, name, label] = obj["^sym"];
         return new SymbolValue(
@@ -945,13 +734,9 @@ export class JsonSerialisation {
         );
       }
 
-      // VariablePointerValue
       if (obj["^var"]) {
         propValue = obj["^var"];
         const contextIndex = "ci" in obj ? parseInt(obj["ci"]) : -1;
-        // An upvalue cell resolves to the one pointer this load holds for
-        // its id; the occurrence that carries the closed state closes it.
-        // A pointer written without a cell id loads as its own pointer.
         if (obj["cell"] !== undefined) {
           const id = parseInt(obj["cell"]);
           const anchored =
@@ -959,8 +744,6 @@ export class JsonSerialisation {
               ? JsonSerialisation.anchoredCellForLoad(String(obj["anchor"]), id)
               : null;
           if (anchored) {
-            // A cell a constant reaches keeps its compiled value; the saved
-            // value is still read, so the tables it defines get their ids.
             if (obj["closed"] && obj["cv"] !== undefined) {
               const value = this.JTokenToRuntimeObject(obj["cv"]);
               if (anchored.restore) anchored.cell.closedValue = value;
@@ -988,7 +771,6 @@ export class JsonSerialisation {
         return varPtr;
       }
 
-      // Variable assignment
       let isVarAss = false;
       let isGlobalVar = false;
       if ((propValue = obj["VAR="])) {
@@ -1011,9 +793,6 @@ export class JsonSerialisation {
         return new Tag(propValue.toString());
       }
 
-      // Tuple (see the writer side). The array length is the arity that
-      // `select("#", ...)` reports, so an element that does not read back
-      // as a value becomes nil rather than being dropped.
       if (Array.isArray(obj["tuple"])) {
         const values: AbstractValue[] = [];
         for (const t of obj["tuple"]) {
@@ -1023,11 +802,6 @@ export class JsonSerialisation {
         return new MultiValue(values);
       }
 
-      // Reference to a table materialized elsewhere in this load
-      // session (aliasing / cycles / shared class tables). Returns
-      // the SAME ObjectValue the definition produced — or a
-      // placeholder that the definition fills when it's read (so the
-      // wire format is order-independent).
       if (obj["objref"] !== undefined) {
         if (obj["anchor"] !== undefined) {
           const anchored = JsonSerialisation.anchoredObjectForLoad(
@@ -1041,15 +815,8 @@ export class JsonSerialisation {
         );
       }
 
-      // Object value
       if (obj["obj"] !== undefined) {
         const objContent = obj["obj"] as Record<string, any>;
-        // Identity-tagged definition: fill (or create) the session's
-        // slot for this id so every `objref` resolves to the same
-        // ObjectValue. Untagged form (legacy saves) builds a fresh
-        // standalone table exactly as before. The slot is claimed
-        // BEFORE the entry recursion so cyclic refs inside the
-        // entries find it.
         const isDefine =
           obj["defref"] !== undefined || obj["defself"] !== undefined;
         const anchored =
@@ -1061,9 +828,6 @@ export class JsonSerialisation {
             : null;
         if (anchored) {
           const table = anchored.table;
-          // A constant's table keeps its compiled contents. Its saved
-          // entries and metatable are still read, so the tables they define
-          // get their ids.
           const target = anchored.restore
             ? (table.value as Map<string, AbstractValue>)
             : new Map<string, AbstractValue>();
@@ -1108,23 +872,14 @@ export class JsonSerialisation {
           const childVal = asOrNull(child, AbstractValue);
           if (childVal) entries.set(key, childVal);
         }
-        // Store-keyed define linkage (see the writer side). The class is
-        // reconstructed at init — restored by name, never from the save.
         if (obj["defref"] !== undefined) {
-          // `new` instance: relink `__index` to the live class global in
-          // a post-pass (RelinkPendingDefineRefs), once globals exist.
           JsonSerialisation.registerPendingDefineRef(
             result,
             String(obj["defref"]),
           );
         } else if (obj["defself"] !== undefined) {
-          // Named define: the store delta is merged onto the init default
-          // by VariablesState.SetJsonToken — flagged here for it to find.
           (result as any).__loadDefSelf = String(obj["defself"]);
         } else if (obj["mt"] !== undefined) {
-          // Restore the metatable if the writer emitted one. The slot
-          // is itself an ObjectValue, so we recurse through the same
-          // entry point — its own `mt` is restored too if present.
           const mtParsed = this.JTokenToRuntimeObject(obj["mt"]);
           const mt = asOrNull(mtParsed, ObjectValue);
           if (mt) result.metatable = mt;
@@ -1132,7 +887,6 @@ export class JsonSerialisation {
         if (obj["frz"]) {
           result.Freeze();
         }
-        // Luau `#` border-search hints (see the writer side).
         if (obj["cap"] !== undefined) {
           (entries as any).__luauCapacity = parseInt(obj["cap"]);
         }
@@ -1143,13 +897,9 @@ export class JsonSerialisation {
       }
     }
 
-    // A token this reader does not know reads as nothing.
     return null;
   }
 
-  // Each control command's token in a save. Of the control commands, a save
-  // writes only those on the output stream: a string evaluation's opening and
-  // a tag's brackets.
   private static _controlCommandNames = (() => {
     let _controlCommandNames: string[] = [];
 

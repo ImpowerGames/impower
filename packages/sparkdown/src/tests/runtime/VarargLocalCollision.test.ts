@@ -1,8 +1,3 @@
-// #1747 — the local a vararg function binds its `...` to has a name no
-// identifier can contain, so an author's `local __varargs__` inside a vararg
-// function is an ordinary local: `...` still yields the passed arguments and
-// the author's local keeps the author's value.
-
 import { describe, expect, test } from "vitest";
 import { VARARGS_LOCAL_NAME } from "../../compiler/lower/utils/lowerArguments";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";

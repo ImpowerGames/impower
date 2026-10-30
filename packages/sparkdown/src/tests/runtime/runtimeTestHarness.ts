@@ -1,14 +1,3 @@
-// Runtime test harness — mirrors the role of `inkjs`'s
-// `src/tests/specs/common.ts` for sparkdown. Compiles a `.sd` fixture
-// through the full `SparkdownCompiler` pipeline and returns a runnable
-// story (the program engine's) plus the diagnostics surfaced during
-// compilation.
-//
-// The point of these tests is to verify end-to-end runtime behavior
-// against the ported inkjs test suite, so anything that diverges from
-// inkjs's known-good outputs is a real bug — either in our lowerer, in
-// our grammar, or in our runtime patches.
-
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,13 +12,9 @@ export interface RuntimeTestContext {
   story: TestStory;
   errorMessages: string[];
   warningMessages: string[];
-  /** The compile's root (`program.chunks`), which `testStory` makes another
-   *  story of. */
   root: ProgramRoot;
 }
 
-// Load a fixture by feature folder + filename (without extension), compile
-// through SparkdownCompiler, and return a ready-to-run Story.
 export function makeRuntimeStoryFromFile(
   feature: string,
   name: string,
@@ -39,27 +24,12 @@ export function makeRuntimeStoryFromFile(
   return makeRuntimeStoryFromSource(source, `inmemory://${feature}/${name}.sd`);
 }
 
-// Load a multi-file fixture from a directory. The directory is a project
-// folder: every `.sd` file under `fixtures/<feature>/<name>/` is registered
-// with the compiler under a stable in-memory URI tree rooted at
-// `inmemory://<feature>/<name>/`, and the `main.sd` entry point is compiled,
-// which makes every script under its folder part of the story with no
-// include line. A script other than `main.sd` holds declarations only
-// (scenes, functions, defines, stores and the like).
-//
-// Layout convention:
-//   fixtures/<feature>/<name>/main.sd
-//   fixtures/<feature>/<name>/includes/other.sd
-//   fixtures/<feature>/<name>/includes/nested.sd
 export function makeRuntimeStoryFromDirectory(
   feature: string,
   name: string,
 ): RuntimeTestContext {
   const fixtureRoot = join(FIXTURE_ROOT, feature, name);
   const files = collectSparkdownFiles(fixtureRoot);
-  // `inmemory://<feature>/<name>/` is the URL base; sub-paths use forward
-  // slashes so the WHATWG `URL` resolver inside the compiler treats them
-  // as URL path components rather than Windows-style backslash separators.
   const baseUri = `inmemory://${feature}/${name}/`;
   const mainUri = `${baseUri}main.sd`;
 
@@ -80,8 +50,6 @@ export function makeRuntimeStoryFromDirectory(
 }
 
 interface FixtureFile {
-  // Forward-slash path relative to the fixture root (e.g. `"main.sd"` or
-  // `"includes/other.sd"`). Used to build the in-memory URI.
   relativePath: string;
   text: string;
 }
@@ -107,16 +75,11 @@ function collectSparkdownFiles(root: string): FixtureFile[] {
   return files;
 }
 
-// Compile a sparkdown source string and return a runnable Story plus any
-// diagnostics raised during compilation.
 export function makeRuntimeStoryFromSource(
   source: string,
   uri: string = "inmemory:///main.sd",
 ): RuntimeTestContext {
   const compiler = testCompiler();
-  // `configure` initializes the internal document registry. Passing the
-  // fixture as the initial file means the compiler is ready to compile
-  // immediately, without further `addFile` / `updateDocument` plumbing.
   compiler.configure({
     files: [
       {
@@ -133,10 +96,6 @@ export function makeRuntimeStoryFromSource(
   return runCompiledStory(compiler, uri);
 }
 
-// Drive the post-`configure` half of the pipeline: run `compile()`, drain
-// diagnostics into error / warning buckets, and construct the story from the
-// compile's root. Shared by `makeRuntimeStoryFromSource` and
-// `makeRuntimeStoryFromDirectory`.
 function runCompiledStory(
   compiler: SparkdownCompiler,
   uri: string,
@@ -147,15 +106,8 @@ function runCompiledStory(
   const result = compiler.compile({ textDocument: { uri } });
   const program = result.program;
 
-  // Pull diagnostics out of `program.diagnostics` (keyed by URI) and split by
-  // severity so tests can match the inkjs harness's `errorMessages` /
-  // `warningMessages` API.
   for (const docDiagnostics of Object.values(program.diagnostics ?? {})) {
     for (const diag of docDiagnostics) {
-      // The LSP diagnostic shape is `{ message: string | { value, kind } }`
-      // where the markdown form is `{ value: "<text>", kind: "markdown" }`.
-      // Flatten both into a plain string so tests can do substring matches
-      // mirroring inkjs's `expect(errorMessages).toContain(...)` style.
       let message: string;
       if (typeof diag === "string") {
         message = diag;
@@ -173,18 +125,10 @@ function runCompiledStory(
         }
       }
       const severity = (diag as { severity?: number }).severity;
-      // 1 = Error, 2 = Warning, 3 = Information, 4 = Hint
-      // (DiagnosticSeverity from vscode-languageserver). Information
-      // and Hint severities (e.g. "Unreachable statement detected"
-      // with the `Unnecessary` tag) are stylistic — VS Code renders
-      // them faded — and tests treat them as non-fatal, so they're
-      // silently dropped here rather than surfaced through
-      // `errorMessages`.
       if (severity === 1) errorMessages.push(message);
       else if (severity === 2) warningMessages.push(message);
       else if (severity === 3 || severity === 4) {
-        // Information / Hint — drop silently.
-      } else errorMessages.push(message); // unknown severity, surface as error
+      } else errorMessages.push(message);
     }
   }
 
@@ -205,9 +149,6 @@ function runCompiledStory(
   };
 }
 
-// Compile a source string for the sole purpose of collecting diagnostics —
-// doesn't construct a story or throw when `program.chunks` is empty.
-// Mirrors inkjs's `compileStoryWithoutRuntime` helper.
 export function collectDiagnostics(
   source: string,
   uri: string = "inmemory:///main.sd",
@@ -252,11 +193,6 @@ export function collectDiagnostics(
   return { errorMessages, warningMessages };
 }
 
-/** The visits of the scene, branch or label named `name` (`scene.branch` for
- *  a branch), as `VisitCountAtPathString` read the current engine's count of
- *  the container of that path: on the program engine, the count of the
- *  symbol of that qualified name, which every counted symbol keeps, or 0 for
- *  one never visited. */
 export function visitCountOf(story: TestStory, name: string): number {
   const entries = (
     story.state as unknown as { GetVisitCountEntries(): [string, number][] }
@@ -264,9 +200,6 @@ export function visitCountOf(story: TestStory, name: string): number {
   return entries.find(([key]) => key === name)?.[1] ?? 0;
 }
 
-/** The diagnostics of a fixture, by feature folder and name, compiled with no
- *  story made: for a fixture whose compile reports an error and makes no
- *  program the engine runs. */
 export function collectDiagnosticsFromFile(
   feature: string,
   name: string,
@@ -278,23 +211,14 @@ export function collectDiagnosticsFromFile(
   );
 }
 
-// Convenience: run the story to completion and return the accumulated output.
-// Mirrors inkjs's `story.ContinueMaximally()` flow used in their specs.
 export function runToEnd(story: TestStory): string {
   return story.ContinueMaximally();
 }
 
-/** Whether the last continue brought anything to show: text, a display table
- *  or choices. A continue returns at its line's newline, so the one after a
- *  story's last line completes with nothing, and the game makes no beat of
- *  it; a helper that collects beats skips it the same way. */
 export function continueShowedSomething(story: TestStory): boolean {
   return story.continueShowedSomething;
 }
 
-/** The routing of each `display(<table>)` call the last step made, in order:
- *  the table's `target` and dialogue `character`, each present only when the
- *  table names it. */
 export function displayRouting(
   story: TestStory,
 ): { target?: string; character?: string }[] {

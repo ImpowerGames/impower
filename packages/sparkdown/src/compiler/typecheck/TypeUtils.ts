@@ -62,7 +62,6 @@ export function inConditional(context: TypeContext): boolean {
   return context === TypeContext.Condition;
 }
 
-/** Whether a blocked or pending type occurs in a union or intersection it is compared with. */
 export function occursCheck(needle: TypeId, haystack: TypeId): boolean {
   haystack = follow(haystack);
   if (needle === haystack) return true;
@@ -154,7 +153,6 @@ export function findTablePropertyRespectingMeta(
   return undefined;
 }
 
-/** The fewest arguments a parameter pack needs, and the most it takes (undefined for any number). */
 export function getParameterExtents(tp: TypePackId, includeHiddenVariadics = false): { min: number; max: number | undefined } {
   let minCount = 0;
   let optionalCount = 0;
@@ -171,10 +169,6 @@ export function getParameterExtents(tp: TypePackId, includeHiddenVariadics = fal
   return { min: minCount, max: minCount + optionalCount };
 }
 
-/**
- * The first `length` types of a pack, with its remaining tail. A free pack
- * is made to have at least `length` elements, with fresh free types.
- */
 export function extendTypePack(arena: TypeArena, builtinTypes: BuiltinTypes, pack: TypePackId, length: number): TypePack {
   const result: TypePack = typePack([]);
   for (;;) {
@@ -204,7 +198,6 @@ export function extendTypePack(arena: TypeArena, builtinTypes: BuiltinTypes, pac
     }
     const ftp = getPack(pack, "FreeTypePack");
     if (ftp) {
-      // Taking types out of a free pack proves it has at least `length` of them.
       const newTail = arena.freshTypePack(ftp.scope, ftp.polarity);
       trackInteriorFreeTypePack(ftp.scope, newTail);
       const newHead: TypeId[] = [];
@@ -223,7 +216,6 @@ export function extendTypePack(arena: TypeArena, builtinTypes: BuiltinTypes, pac
       result.tail = pack;
       return result;
     }
-    // A blocked or generic pack cannot be extended.
     result.tail = pack;
     return result;
   }
@@ -321,7 +313,6 @@ export function isLiteral(expr: AstExpr): boolean {
   );
 }
 
-/** Records a free type with the nearest enclosing scope that generalizes. */
 export function trackInteriorFreeType(scope: Scope | undefined, ty: TypeId): void {
   for (; scope; scope = scope.parent) {
     if (scope.interiorFreeTypes) {
@@ -345,10 +336,6 @@ export function fastIsSubtype(subTy: TypeId, superTy: TypeId): boolean {
   return r === Relation.Coincident || r === Relation.Superset;
 }
 
-/**
- * The one member of an expected union that a table literal can be meant as,
- * judged by its properties rather than by subtyping.
- */
 export function extractMatchingTableType(
   expectedUnion: { options: TypeId[] },
   exprType: TypeId,
@@ -410,7 +397,6 @@ export function isOptionalType(ty: TypeId, builtinTypes: BuiltinTypes): boolean 
   return false;
 }
 
-/** Whether a type is exactly `false | nil`, in either order. */
 export function isApproximatelyFalsyType(ty: TypeId): boolean {
   ty = follow(ty);
   let seenNil = false;
@@ -426,7 +412,6 @@ export function isApproximatelyFalsyType(ty: TypeId): boolean {
   return seenFalse && seenNil;
 }
 
-/** Whether a type is exactly `~(false | nil)`. */
 export function isApproximatelyTruthyType(ty: TypeId): boolean {
   ty = follow(ty);
   const nt = get(ty, "NegationType");

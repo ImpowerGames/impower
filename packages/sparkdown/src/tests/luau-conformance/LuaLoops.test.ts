@@ -1,31 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Loop semantics (basic.luau lines 163-215):
-//
-//   - GRAMMAR: `while`/`for` loops close immediately after their
-//     do-block's `end` (`(?<=\bend)` end-pattern alternative), so a
-//     one-line `while c do BODY end return x` no longer swallows the
-//     trailing statements; `until <cond>` terminates at
-//     statement-boundary keywords and bare reassignments.
-//   - Numeric for drives a HIDDEN index (`__forIdx_*`); the user
-//     variable is a fresh copy each iteration, so body writes to it
-//     can't affect iteration (line 188).
-//   - Direction check is `step > 0` forward, otherwise backward —
-//     zero and nan steps take the backward branch (`for i=10,1,0`
-//     iterates; `for i=1,10,0/0` doesn't), and a nan INDEX exits
-//     (both comparisons false). Lines 194-215.
-//   - `scanFreeVariables` binds only the loop TARGETS, not names in
-//     the start/stop/step expressions — `local z = 0` + an IIFE with
-//     `for i=10,1,z` must capture z as an upvalue (lines 196-197).
-//   - `nan` and `inf` are ordinary IDENTIFIERS (the grammar literals
-//     were removed) — `local nan = tonumber("nan")` declares a
-//     variable (line 201).
-//   - Infinity/NaN survive the story-JSON round trip via "inff" /
-//     "-inff" / "nanf" string markers (SimpleJson.WriteFloat +
-//     JsonSerialisation) — `math.huge` constants compile to real
-//     Infinity instead of the old 3.4e38 clamp (lines 214-215).
-
 describe("one-line loop statements", () => {
   test("one-line while + trailing return (basic.luau line 164)", () => {
     const r = runConformanceSource(

@@ -37,15 +37,6 @@ import { publishesConst, reassignedConstName, reportReassignedConst } from "../u
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
 
-// Assignments, from the converter's AST, bare or after `&`:
-//
-//   total = total + i             (a name)
-//   count += 1                    (compound, desugared to `count = count + 1`)
-//   obj.field = value             (a field → StorePropertyAssignment)
-//   o:get().a[k] = v              (a field of what a call returns)
-//   a, b = b, a                   (several targets, or one with several values)
-
-/** `target = value`, or with several targets or values, the multiple assignment. */
 export function lowerAssignment(
   stat: AstStatAssign,
   site: StatementSite,
@@ -65,20 +56,12 @@ export function lowerAssignment(
   return lowerMultipleAssignment(vars, stat.values, site, ctx);
 }
 
-// A const's name as an assignment target: the converter reads the target as
-// Luau's error. The compiler reports a published const's re-assignment with
-// its own wording, so in story text the assignment is lowered with its name.
-// In a function the const is Luau's, a local whose re-assignment is Luau's
-// error (`reportReassignedConst`), and the assignment is not lowered (the
-// reading of a function's body holds none of the story's constants, so a
-// const it reads as a local is the function's own).
 function reassignedConst(target: AstExpr, site: StatementSite, ctx: LowerContext): AstExpr {
   reportReassignedConst(target, site.node, ctx);
   const local = reassignedConstName(target);
   return local && publishesConst(ctx) ? local : target;
 }
 
-/** `target op= value` (`+=`, `..=`, …), which reads and writes the target once each. */
 export function lowerCompoundAssignment(
   stat: AstStatCompoundAssign,
   site: StatementSite,
@@ -93,18 +76,11 @@ export function lowerCompoundAssignment(
   );
 }
 
-/**
- * A call written as a statement (`foo()`, `obj:method(x)`, the IIFE
- * `(function () ... end)()`): the call runs and the value it returns is
- * popped. Any other expression has no effect as a statement.
- */
 export function lowerCallStatement(
   stat: AstStatExpr,
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  // An alternator written as a statement runs its selected arm, whose
-  // value is discarded (I-1397).
   if (stat.expr instanceof AstExprSparkdownSequentialAlternator || stat.expr instanceof AstExprSparkdownConditionalAlternator) {
     const node = stat.expr.source.node as SyntaxNode | undefined;
     const alternator = node ? lowerAlternatorValue(node, ctx, true) : null;
@@ -125,10 +101,6 @@ function lowerSingleAssignment(
   site: StatementSite,
   ctx: LowerContext,
 ): CompiledBlock {
-  // A value the parser could not read (`x =` with nothing after it), which
-  // the type checker reports, assigns nothing: an assignment with no value
-  // would take whatever is on the evaluation stack, or nothing, and leave
-  // the target holding no value at all.
   if (!value) return {};
   const store = storeTarget(target, site.source, ctx);
   if (store) {
@@ -147,11 +119,6 @@ function lowerSingleAssignment(
   if (!identifier) return {};
   const variableName = identifier.name ?? "";
 
-  // `f = <expr>` REBINDS the name to a runtime value (Lua's
-  // `function f` is itself sugar for this kind of assignment —
-  // vararg.luau line 155 reassigns the twice-defined `f` to a fresh
-  // function value), which later calls dispatch through
-  // (`recordRebind`).
   recordRebind(variableName, ctx);
 
   const expr =
@@ -170,12 +137,6 @@ function lowerSingleAssignment(
   ]);
 }
 
-// Several targets (`a, b = 10, 20`, `a, b = f()`), or one target with
-// several values (`g = 1, bump()`, whose extra values Luau still
-// evaluates). Targets that are all names go through one
-// `MultiVariableAssignment`. A field among them (`a.x, b = …`,
-// `a[f()], b, a[f()+3] = f(), a, 'x'`, attrib.luau lines 13, 15) needs the
-// values stashed in temporaries first and a store per target.
 function lowerMultipleAssignment(
   vars: readonly AstExpr[],
   values: readonly AstExpr[],
@@ -191,27 +152,10 @@ function lowerMultipleAssignment(
     ]);
   }
 
-  // Mixed shape: stash each RHS slot into a synthetic local, then
-  // emit per-target stores. Offset-tagged temp names keep multiple
-  // multi-target assignments in the same function body from
-  // colliding. The MultiVariableAssignment handles PackTuple +
-  // UnpackTuple semantics — including spreading a multi-return f()
-  // in the LAST RHS expression across as many temps as we declare.
   const id = syntheticId(offsetAt(vars[0]!.location.begin, ctx), ctx);
   const tempIdents = vars.map((_, i) => new Identifier(`__mt_${id}_${i}`));
   const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
 
-  // Lua's "assignments with local conflicts" semantics (basic.luau
-  // lines 53-55): ALL expressions — RHS values AND each property
-  // target's base + subscript — evaluate before ANY store happens.
-  // `local a, b = 1, {} a, b[a] = 43, -1` must store into `b[1]`
-  // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
-  // the table `a` referenced BEFORE `a` is overwritten with -1. So
-  // property targets stash their base + key into temps up front
-  // (`preStores`), and the store phase references only temps. As in Luau,
-  // whose compiler evaluates complex targets before the values, the bases
-  // and keys are taken first, so a call in a target (`t[key()]`) runs before
-  // a call among the values (`bump()`).
   const preStores: ParsedObject[] = [];
   const writes: ParsedObject[] = [];
   vars.forEach((target, i) => {

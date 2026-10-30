@@ -1,13 +1,3 @@
-// A `do` block served from its statement memo reports what the statements of
-// its body reported (#1846). A `do` block's lowering places its body's
-// statements beside its scope markers rather than inside an object of its
-// own, so the block's memo used to be completed with none of its body's
-// resolution diagnostics; once the block was served whole from that memo, an
-// incremental compile lost them, and the typechecker's `Unknown global`
-// warnings, which those diagnostics suppress, appeared in their place. Each
-// case edits a statement of the function elsewhere twice, so the second
-// compile serves the block from the memo the first completed, and compares
-// the diagnostics after every edit with a cold compile's.
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { memosOf } from "../../compiler/lower/statementMemo";
@@ -34,8 +24,6 @@ const diagnosticsOf = (program: SparkProgram): string[] =>
     })
     .sort();
 
-/** Whether a compiled block of the main script holds a block statement
- *  served whole from its memo. */
 const servesABlockStatement = (compiler: SparkdownCompiler): boolean => {
   const iter = (compiler as any).documents.annotations(MAIN_URI).compilations.iter();
   while (iter.value) {
@@ -47,23 +35,16 @@ const servesABlockStatement = (compiler: SparkdownCompiler): boolean => {
   return false;
 };
 
-// A comment line long enough that the incremental parse restarts inside the
-// function rather than reparsing it whole.
 const PAD = `// ${"a".repeat(140)}\n`;
 const FILL = Array.from({ length: 6 }, (_, i) => `  local f${i} = ${i}`).join("\n");
 const script = (block: string) =>
   `${PAD}function reckon()\n${FILL}\n${block}\n    t.a = t.a + i\n  end\n  local y = 1\nend\n`;
 
-// Edits elsewhere in the function, the second of which serves the block.
 const ELSEWHERE: [string, string][] = [
   ["local f5 = 5", "local f5 = 6"],
   ["local f5 = 6", "local f5 = 7"],
 ];
 
-/** Compiles `start`, then makes each edit, replacing the first `find` with
- *  `replace`, and compiles again, comparing the diagnostics after every edit
- *  with a cold compile's. Returns whether the last compile served a block
- *  statement from its memo, and its diagnostics. */
 function replay(start: string, edits: [string, string][]) {
   const session = programSession(start);
   let diagnostics: string[] = [];
@@ -76,7 +57,6 @@ function replay(start: string, edits: [string, string][]) {
   return { served: servesABlockStatement(session.compiler), diagnostics };
 }
 
-// The body statement's resolution diagnostics, on line 9 of every script.
 const BODY_DIAGNOSTICS = [
   "9:10 Cannot find item or path named `t.a`",
   "9:16 Cannot find variable named `i`",

@@ -1,5 +1,3 @@
-// A top-level `function f` is Luau's `f = function` (#1591): `f` is a global,
-// and a later assignment to it changes what `f()` calls.
 import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -10,8 +8,6 @@ import {
   storyBeats,
 } from "../program/programHarness";
 
-// The text a compiled story runs to, with the compile's error diagnostics
-// and the run's errors.
 const outcome = ({ program }: { program: SparkProgram }) => {
   const diagnostics = Object.values(program.diagnostics ?? {})
     .flat()
@@ -85,9 +81,6 @@ const cases: [string, string, string][] = [
       start("& f = function() return 4 end", "g is {g()}."),
     "g is 4.\n",
   ],
-  // Each level of the original body calls the global, which is the wrapper:
-  // f(3) = 100 + 3 + (100 + 2 + (100 + 1 + 0)) = 406, where a call that kept
-  // the original would give 100 + 6.
   [
     "the function's own recursive call reaches the rebound value",
     "function f(n)\n  if n <= 0 then\n    return 0\n  end\n  return n + f(n - 1)\nend\n" +
@@ -131,8 +124,6 @@ const cases: [string, string, string][] = [
   ],
 ];
 
-// The text a compile of `text` runs to after an edit that replaces `before`
-// with `after`, which compiles the edited script incrementally.
 const runAfterEdit = (
   text: string,
   before: string,

@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 
-// `program.labelLocations` and `program.branchLocations` are keyed by the
-// label's or branch's scope path. A branch's `end` closes the branch, so a
-// label after it is keyed under the scene again.
-
 const URI = "file://proj/main.sd";
 
 const script = (text: string): File => ({
@@ -109,8 +105,6 @@ end
   });
 });
 
-// The `end` that closes a scene or branch belongs to that flow, which PLAY
-// and the preview at the line read (I-1618).
 describe("the header and end lines of the scenes and branches", () => {
   it("lists a scene's with another scene below it", () => {
     const program = compile(`scene start

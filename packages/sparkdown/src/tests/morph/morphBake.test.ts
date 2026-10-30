@@ -26,7 +26,6 @@ const elements = (svg: string): Element[] => {
   return out;
 };
 
-/** The shoelace area of a flat x, y loop. */
 const area = (flat: number[]) => {
   let sum = 0;
   for (let i = 0; i < flat.length; i += 2) {
@@ -50,7 +49,6 @@ describe("morph bake", () => {
     expect(closing.clips).toHaveLength(1);
     const loops = artifact.apertures[closing.clips[0]!.loops.index]!;
     expect(loops).toHaveLength(MORPH_BAKE_SAMPLES);
-    // One aperture for one eye, open at the start and empty when closed.
     expect(loops[0]).toHaveLength(1);
     expect(area(loops[0]![0]!)).toBeGreaterThan(500);
     expect(area(loops[MORPH_BAKE_SAMPLES - 1]![0]!)).toBeLessThan(1e-3);
@@ -70,8 +68,6 @@ describe("morph bake", () => {
     expect(backward.every((r) => r.reversed)).toBe(true);
     expect(opening!.clips[0]!.loops).toEqual({ index: closing!.clips[0]!.loops.index, reversed: true });
     expect(artifact.frames).toHaveLength(2);
-    // Every track draws on the open lash the variant rests on: its source
-    // while closing, its destination while opening.
     const draws = (transitions: MorphTransition[]) =>
       transitions.flatMap((t) => (t.kind === "morph" ? [t.draw === t.from ? "from" : "to"] : []));
     expect(draws(closing!.transitions)).toEqual(["from", "from"]);
@@ -94,11 +90,8 @@ describe("morph bake", () => {
     expect(below!.some((e) => e.attributes["data-name"] === "face")).toBe(true);
     expect(above!.some((e) => e.attributes["data-name"] === "nose")).toBe(true);
     expect(live!.filter((e) => e.attributes["data-morph"]).length).toBe(5);
-    // Written in the rest pose: the closed lash starts hidden, so the parts
-    // composed as written are the rest render.
     const hidden = live!.filter((e) => e.attributes["data-morph"] && /display:none/.test(e.attributes["style"] ?? ""));
     expect(hidden.map((e) => e.attributes["d"])).toEqual([elements(portrait()).find((e) => e.attributes["d"]?.startsWith("M20,60 C50,54"))!.attributes["d"]]);
-    // Every part keeps the root's sizing so the parts overlay exactly.
     for (const part of artifact.parts) {
       const root = elements(part.svg)[0]!;
       expect(root.attributes["viewBox"]).toBe("0 0 260 140");
@@ -113,7 +106,6 @@ describe("morph bake", () => {
     expect(gradient.attributes["id"]).toBe(`${artifact.idPrefix}skin`);
     const face = below.find((e) => e.attributes["data-name"] === "face")!;
     expect(face.attributes["fill"]).toBe(`url(#${artifact.idPrefix}skin)`);
-    // The nose part does not use the gradient, so it does not carry it.
     expect(elements(artifact.parts[2]!.svg).some((e) => e.tagName === "linearGradient")).toBe(false);
   });
 
@@ -128,7 +120,6 @@ describe("morph bake", () => {
       "eyeball-white-left",
       "pupil-left",
     ]);
-    // The art itself is exactly the static render's: only wrappers are added.
     const plain = elements(filterSVGAttributes(svg, {}));
     const drawn = (list: Element[]) => list.filter((e) => e.tagName === "path" && e.attributes["data-name"]).map((e) => JSON.stringify(e.attributes));
     expect(drawn(rest)).toEqual(drawn(plain));
@@ -144,16 +135,11 @@ describe("morph bake", () => {
   });
 
   test("morph frames are in the source element's own user space", () => {
-    // The open lashes sit in a translated group; the closed lash does not.
     const artifact = bake(portrait({ openTransform: "translate(0 0)", dx: 20, dy: 10 }));
     const moved = bake(portrait({ openTransform: "translate(5 0)", dx: 20, dy: 10 }));
     expect(errors(moved)).toEqual([]);
     const first = (a: MorphArtifact) => a.frames[0]!.frames[0]!;
-    // At the start pose each frame is the open lash in its own coordinates,
-    // so the translation does not show up in the numbers.
     expect(first(moved).slice(0, 2)).toEqual(first(artifact).slice(0, 2));
-    // At the end it lands on the closed lash, which in the translated
-    // group's space is 5 units to the left.
     const last = (a: MorphArtifact) => a.frames[0]!.frames[MORPH_BAKE_SAMPLES - 1]!;
     expect(last(moved)[0]! - last(artifact)[0]!).toBeCloseTo(-5, 3);
   });
@@ -169,7 +155,6 @@ describe("morph bake", () => {
     const artifact = bake(portrait({ dx: 0, dy: 0 }));
     const frame = artifact.frames[0]!.frames[0]!;
     const xs = frame.filter((_, i) => i % 2 === 0);
-    // The handoff polyline sits on the authored outline: within its bounds.
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(-0.5);
     expect(Math.max(...xs)).toBeLessThanOrEqual(100.5);
     expect(UPPER_OPEN.startsWith("M0,50")).toBe(true);

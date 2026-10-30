@@ -2710,6 +2710,63 @@ export async function playPreview(page, action, { request = (method, params) => 
   return out;
 }
 
+const running = (s) => s?.launchState === "play" || s?.launchState === "pause";
+
+async function gameNotifications(page) {
+  await waitForProtocol(page);
+  await page.evaluate(() => {
+    if (window.__driverGameLog) return;
+    window.__driverGameLog = [];
+    window.__editorProtocol.subscribe((message) => {
+      if (typeof message?.method === "string" && message.method.startsWith("game/")) {
+        window.__driverGameLog.push({ method: message.method, params: message.params ?? null });
+      }
+    });
+  });
+  return () => page.evaluate(() => window.__driverGameLog.splice(0));
+}
+
+async function clickGame(page) {
+  const frame = page.frames().find((f) => f !== page.mainFrame() && /\/__player\//.test(f.url()));
+  if (!frame) return { clicked: false, reason: "no same-origin player frame is on the page; `up` without --cross-origin" };
+  const box = await frame.locator("#game").first().boundingBox().catch(() => null);
+  if (!box || box.width <= 0 || box.height <= 0) return { clicked: false, reason: "the game's view (#game) is not on screen in the player frame" };
+  const at = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+  await page.mouse.click(at.x, at.y);
+  return { clicked: true, at };
+}
+
+export async function advanceGame(page, count, {
+  request = (method, params) => protocolRequest(page, method, params),
+  click = () => clickGame(page),
+  settle = () => waitForPreviewSettle(page),
+  notifications = () => gameNotifications(page),
+} = {}) {
+  const drain = await notifications();
+  await drain();
+  const out = { advance: count, clicked: 0, clicks: [] };
+  for (let n = 1; n <= count; n++) {
+    const before = await request("preview/gameState");
+    if (!running(before)) {
+      out.launchState = before?.launchState ?? null;
+      out.reason = `click ${n} of ${count} was not made: no game is running (launch state ${out.launchState}); --play start runs one`;
+      return out;
+    }
+    const clicked = await click();
+    if (!clicked.clicked) {
+      out.launchState = before.launchState;
+      out.reason = `click ${n} of ${count} was not made: ${clicked.reason}`;
+      return out;
+    }
+    out.clicked = n;
+    const settled = await settle();
+    const state = await request("preview/gameState");
+    out.clicks.push({ click: n, at: clicked.at, settled: settled.settled, visible: settled.text, launchState: state?.launchState ?? null, notifications: await drain() });
+    out.launchState = state?.launchState ?? null;
+  }
+  return out;
+}
+
 /**
  * A `ui --insert line:col=text` step: put the caret at the position and
  * insert the text through the page's input path as one edit (Playwright's
@@ -3665,6 +3722,17 @@ export function parseUiSteps(args) {
         steps.push({ play: v });
         break;
       }
+      case "--advance": {
+        const v = args[i + 1];
+        if (v == null || v.startsWith("--")) {
+          steps.push({ advance: 1 });
+          break;
+        }
+        if (!/^\d+$/.test(v) || !Number.isSafeInteger(Number(v)) || Number(v) < 1) bad(`--advance takes a positive click count, got "${v}"`);
+        i++;
+        steps.push({ advance: Number(v) });
+        break;
+      }
       case "--scrub": {
         const v = value();
         if (!/^\d+$/.test(v) || !Number.isSafeInteger(Number(v)) || Number(v) < 1) bad(`--scrub needs a positive line number, got "${v}"`);
@@ -3771,6 +3839,7 @@ function gatedStep(step, reason) {
   if (step.hover) return { hover: step.hover, present: false, ...gated };
   if (step.complete) return { completion: step.complete, popupPresent: false, ...gated };
   if (step.play) return { play: step.play, clicked: false, reached: false, ...gated };
+  if (step.advance) return { advance: step.advance, clicked: 0, clicks: [], ...gated };
   if (step.insert) return { insert: step.insert, inserted: false, textMatches: false, ...gated };
   if (step.scrub) return { scrub: step.scrub, clicked: false, ...gated };
   return { ...step, ...gated };
@@ -4012,13 +4081,14 @@ async function ui(args, deps = liveDeps) {
               continue;
             }
             result.steps.push(await pressInEditor(page, step.press, { wait: deps.waitForDomQuiet }));
-          } else if (step.play || step.insert || step.scrub) {
-            const ready = await requireEditor(page, step.play ? "PLAY" : step.insert ? "insert" : "scrub", stepNo);
+          } else if (step.play || step.advance || step.insert || step.scrub) {
+            const ready = await requireEditor(page, step.play ? "PLAY" : step.advance ? "advance" : step.insert ? "insert" : "scrub", stepNo);
             if (ready.ok === false) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
             if (step.play) result.steps.push(await playPreview(page, step.play));
+            else if (step.advance) result.steps.push(await advanceGame(page, step.advance));
             else if (step.insert) result.steps.push(await insertText(page, step.insert, step.text, { settle: deps.waitForPreviewSettle, route: deps.routeLabel }));
             else result.steps.push(scrubReport(step.scrub, await scrubPreview(page, step.scrub, deps)));
           } else if (step.click) {

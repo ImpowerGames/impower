@@ -6,10 +6,6 @@ import type { Position } from "./Location";
 import type { Module, SourceModule } from "./Module";
 import type { TypeId } from "./Type";
 
-/**
- * Finds the innermost node containing a position (Luau's `FindNode`). As
- * with Luau's visitor, types and type packs are never entered.
- */
 class FindNode implements AstVisitor {
   best: AstNode | undefined;
 
@@ -43,7 +39,6 @@ class FindNode implements AstVisitor {
       this.best = node;
       return true;
     }
-    // At the very end of the document, the innermost node ending there is the answer.
     if (node.location.end.equals(this.documentEnd) && this.pos.ge(this.documentEnd)) {
       this.best = node;
       return true;

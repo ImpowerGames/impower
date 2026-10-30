@@ -1,7 +1,3 @@
-// A header's attribute prefix reads one on-line quoted string per quote kind
-// (I-1315), which takes no carriage return as string content. A structural
-// word's arms open only at a `|` at the word's own level (I-1310), so a
-// quoted string still open at a `\r` keeps a later `|` from opening them.
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
 

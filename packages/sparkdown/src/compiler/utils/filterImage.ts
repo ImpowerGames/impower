@@ -22,38 +22,14 @@ const lookup = (context: ImageContext, ref: any): any => {
     getContextEntry(context, "image", ref.$name);
 };
 
-/**
- * Everything derived from one root image and one ordered attribute list.
- *
- * The visibility walk visits every layer of the vocabulary, and an attribute
- * portrait's vocabulary runs to hundreds of layers, so a page that resolves
- * every displayed and every predicted image on each preview update pays for it
- * hundreds of times over. The walk, the attribute resolution and the SVG
- * rewrite above it are pure functions of `(root image, attributes)`, so each
- * is computed once and reused.
- *
- * `visibility`, `filteredSrc` and `filteredLayers` are filled on first demand:
- * a plain `image` root reaching a `?attributes=` URL needs only the selection.
- */
 interface AttributeDerivation {
   selection: AttributeSelection;
-  /** Vocabulary and selection diagnostics; the visibility walk adds its own. */
   diagnostics: AttributeDiagnostic[];
   visibility?: { visible: Record<string, boolean>; diagnostics: AttributeDiagnostic[] };
   filteredSrc?: string | undefined;
   filteredLayers?: any[];
 }
 
-/**
- * The vocabulary of one root image, with a derivation per attribute list.
- *
- * Keyed by the root struct's identity, and guarded by every field the
- * derivation reads: a struct that is rewritten in place — a root redefined
- * from an `image` to a `layered_image` (#340), a file whose bytes changed, a
- * vocabulary attached after a partial compile — fails the guard and derives
- * again. Nothing is written back onto the program's structs, so a warm-up
- * resolving on copies still cannot decide what the game renders.
- */
 interface RootMemo {
   $type: unknown;
   $name: unknown;
@@ -66,7 +42,6 @@ interface RootMemo {
   derivations: Map<string, AttributeDerivation>;
 }
 
-/** How many attribute lists one root keeps derivations for before starting over. */
 const MAX_DERIVATIONS_PER_ROOT = 64;
 
 const memo = new WeakMap<object, RootMemo>();
@@ -92,8 +67,6 @@ const rootMemo = (image: any): RootMemo => {
   if (!vocabulary && image.$type === "layered_image") {
     vocabulary = buildAttributeVocabulary(Object.keys(image.assets ?? {}).map((key) => ({
       key,
-      // Positional entries are explicitly listed images; only authored table
-      // keys carry conditions. Automatic folders already have a vocabulary.
       name: key,
     })));
   }
@@ -107,11 +80,6 @@ const rootMemo = (image: any): RootMemo => {
 };
 
 const derivationOf = (entry: RootMemo, attributes: string[]): AttributeDerivation => {
-  // The key tells an empty list apart from a list holding one empty string:
-  // the first selects nothing and says nothing, the second is what a
-  // half-typed `portrait~` produces and earns an unknown-attribute warning.
-  // No single separator can separate those two, so the encoding carries each
-  // entry's own bounds.
   const key = JSON.stringify(attributes);
   const cached = entry.derivations.get(key);
   if (cached) return cached;
@@ -120,7 +88,6 @@ const derivationOf = (entry: RootMemo, attributes: string[]): AttributeDerivatio
     selection: resolved.selection,
     diagnostics: [...entry.vocabulary!.diagnostics, ...resolved.diagnostics],
   };
-  // A script cycling through looks would otherwise grow this without bound.
   if (entry.derivations.size >= MAX_DERIVATIONS_PER_ROOT) entry.derivations.clear();
   entry.derivations.set(key, derivation);
   return derivation;
@@ -132,13 +99,6 @@ const visibilityOf = (entry: RootMemo, derivation: AttributeDerivation) =>
     derivation.selection,
   ));
 
-/**
- * Resolve named looks from the root outward, so appended attributes win.
- *
- * A chain that comes back to a look it already passed through has no root;
- * `cycle` then lists the looks that form the loop, in chain order, leaving out
- * any look that only leads into it.
- */
 const resolveChain = (context: ImageContext, struct: any): {
   image?: any;
   attributes: string[];
@@ -151,8 +111,6 @@ const resolveChain = (context: ImageContext, struct: any): {
   const visit = (current: any): any => {
     if (!current || typeof current !== "object") return undefined;
     if (seen.has(current)) {
-      // A reference object two looks share is seen again before the look it
-      // names, so the loop starts at that look.
       const start = looks.indexOf(current.$type ? current : lookup(context, current));
       cycle = looks.slice(Math.max(start, 0));
       return undefined;
@@ -172,19 +130,6 @@ const resolveChain = (context: ImageContext, struct: any): {
   return { image, attributes };
 };
 
-/**
- * The root image a named look resolves to, the attributes gathered along the
- * way, and what they select.
- *
- * `visibility: false` asks for the selection alone, skipping the walk over
- * every layer; the returned `diagnostics` then carry the vocabulary's and the
- * selection's, without the visibility warnings. Callers that report
- * diagnostics to an author leave it on.
- *
- * The selection and the diagnostic list are copies, so a caller that keeps or
- * edits either cannot reach the memo's own derivation and change what a later
- * caller renders.
- */
 export const resolveImageAttributes = (context: ImageContext, struct: any, options?: {
   visibility?: boolean;
 }): {
@@ -210,7 +155,6 @@ export const resolveImageAttributes = (context: ImageContext, struct: any, optio
     diagnostics: [...derivation.diagnostics, ...visibility.diagnostics] };
 };
 
-/** Write the derived output of a named look onto the struct the caller holds. */
 export const filterImage = (context: ImageContext, filteredImage: any): void => {
   if (!filteredImage) return;
   delete filteredImage.filtered_src;
@@ -247,8 +191,6 @@ export const filterImage = (context: ImageContext, filteredImage: any): void => 
         .map(([, value]) => value);
       if (derivation) derivation.filteredLayers = layers;
     }
-    // A fresh array each time: the memo's copy outlives this call, and a
-    // caller holding `filtered_layers` must not be able to edit it.
     filteredImage.filtered_layers = [...layers];
   }
 };

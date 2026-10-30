@@ -18,21 +18,6 @@ import { reportValueInVain } from "../utils/lineContinuation";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { asOneValue, lowerExpression } from "./lowerExpression";
 
-// Luau tables, from the converter's `AstExprTable`. Three entry shapes:
-//
-//   `{a = 1}`           — a name key, the name's text.
-//   `{["a"] = 1}`       — a bracket key. A string or number literal keys the
-//                         entry by its text as written: a string's between
-//                         its quotes, a number's as typed (`[0x10]` keys
-//                         "0x10"), as `rawget`/`rawset` users would write
-//                         it. Any other key (`{[1+2] = 4}`, `{[i] = v}`) is
-//                         lowered and evaluated at runtime, where the
-//                         runtime EndObject stringifies it (basic.luau line
-//                         293).
-//   `{1, 2, 3}`         — list entries, keyed "1", "2", "3", ....
-//
-// A keyed entry's value is one value, even the last entry's, which only a
-// list entry spreads (`{ [1] = f() }`).
 export function lowerTable(
   table: AstExprTable,
   source: LuauSource,
@@ -59,9 +44,6 @@ export function lowerTable(
         key = computed ? asOneValue(computed) : null;
       }
     }
-    // An empty keyed-entry value (`{ a = }`) is the same parse error as a
-    // statement-level empty value, reported at the entry's `=`; the entry
-    // is dropped.
     if (item.value instanceof AstExprError && item.key) {
       const operation = nodeWithin(
         source,
@@ -81,8 +63,6 @@ export function lowerTable(
 
 const ASSIGNMENT_OPERATION = nodeNameSet(["LuauAssignmentOperation"]);
 
-// The key a bracket's literal gives, by its text as written: a string's
-// between its quotes, a number's as typed. Null for any other key.
 function staticKey(key: AstExpr, ctx: LowerContext): string | null {
   if (
     !(key instanceof AstExprConstantString) &&

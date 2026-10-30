@@ -1,6 +1,3 @@
-// An onward return with arguments to a variable target (#1641) compiles and
-// plays: the program engine (#1620), the one compile path since #705, goes on
-// to the flow the variable holds with the arguments. This pins that.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";

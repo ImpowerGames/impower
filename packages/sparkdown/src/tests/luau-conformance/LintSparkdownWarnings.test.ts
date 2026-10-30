@@ -1,9 +1,3 @@
-// Warnings sparkdown gives for mistakes Luau has no counterpart for: the
-// narrative, Sparkle UI and asset syntax around the Luau subset. Luau's
-// linter tests have no cases for these; they sit beside the ported ones so
-// the suite lists everything sparkdown warns about. Messages are pinned
-// verbatim.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseWithLints, diagnoseDetailed } from "./diagnosticTestHarness";
 
@@ -47,8 +41,6 @@ describe("an unrecognized rich text tag", () => {
   });
 });
 
-// A misspelled control word is read as the first asset name, so what is
-// reported is a missing asset rather than an unknown command.
 describe("a misspelled asset command control", () => {
   test("[[shoe x]]", () => {
     expect(diagnoseWithLints("scene start\n  [[shoe x]]\nend\n")).toEqual([
@@ -76,10 +68,6 @@ describe("an empty choice", () => {
   });
 });
 
-// `...` in a function without a `...` parameter reads the hidden variable
-// the lowering gives varargs, and the warning names that variable, beside
-// Luau's error for the same mistake (FunctionErrors.test.ts, I-1322). The
-// call keeps FunctionUnused out of the way.
 describe("varargs outside a vararg function", () => {
   test("the warning names the internal variable", () => {
     expect(diagnoseWithLints("function add(x, y) return ... end\nscene start\n  & add(1, 2)\nend\n")).toEqual([
