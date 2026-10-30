@@ -100,13 +100,10 @@ export const NARRATIVE_STATEMENT_NAMES = nodeNameSet([
 export const CALLEE_END_NAMES = nodeNameSet([
   "PunctuationParenClose",
   "PunctuationBracketClose",
-  "LuauStylePropertyName",
   "StylingDeclarationScalarPropertyName",
-  "OperatorPrefixedPropertyName",
   "PropertyName",
   "StylingFunctionName",
   "VariableName",
-  "InvalidSelectorPropertyName",
   "LuauFunctionName",
   "LuauSelfKeyword",
   "LuauPropertyName",

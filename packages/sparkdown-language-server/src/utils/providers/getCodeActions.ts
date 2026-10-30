@@ -1,5 +1,9 @@
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
+  TOP_LEVEL_STATEMENT_MESSAGE,
+  runnableTopLevelRuns,
+} from "@impower/sparkdown/src/compiler/utils/declarationOnly";
+import {
   STORE_INSIDE_FLOW_MESSAGE,
   assignmentFixOf,
 } from "@impower/sparkdown/src/compiler/utils/declarationPlacement";
@@ -9,6 +13,7 @@ import {
   runFixesOf,
   type RunFix,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
+import type { SyntaxNode } from "@lezer/common";
 import {
   CodeAction,
   CodeActionKind,
@@ -24,7 +29,11 @@ export type ActionableDiagnostic = Omit<Diagnostic, "message"> & {
 
 const QUICK_FIXES = new Map<
   string,
-  (document: TextDocument, diagnostic: ActionableDiagnostic) => CodeAction[]
+  (
+    document: TextDocument,
+    diagnostic: ActionableDiagnostic,
+    startSceneMissingIn?: SyntaxNode,
+  ) => CodeAction[]
 >([
   [
     INCLUDE_LINE_MESSAGE,
@@ -47,27 +56,43 @@ const QUICK_FIXES = new Map<
           ];
     },
   ],
+  [
+    TOP_LEVEL_STATEMENT_MESSAGE,
+    (document, diagnostic, startSceneMissingIn) => {
+      const wrap =
+        startSceneMissingIn &&
+        wrapInStartScene(document, startSceneMissingIn, diagnostic);
+      return wrap
+        ? [quickFix("Wrap in scene start", document, diagnostic, [wrap])]
+        : [];
+    },
+  ],
 ]);
 
 export const getCodeActions = (
   document: TextDocument | undefined,
   diagnostics: readonly ActionableDiagnostic[],
+  startSceneMissingIn?: SyntaxNode,
 ): CodeAction[] => {
   if (!document) {
     return [];
   }
   return diagnostics.flatMap(
     (diagnostic) =>
-      QUICK_FIXES.get(messageOf(diagnostic))?.(document, diagnostic) ??
-      runQuickFixes(document, diagnostic),
+      QUICK_FIXES.get(messageOf(diagnostic))?.(
+        document,
+        diagnostic,
+        startSceneMissingIn,
+      ) ?? runQuickFixes(document, diagnostic),
   );
 };
 
 export const getDiagnosticActions = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
+  startSceneMissingIn?: SyntaxNode,
 ): { name: string; changes: { from: number; to: number; insert: string }[] }[] =>
-  getCodeActions(document, [diagnostic]).map((action) => ({
+  getCodeActions(document, [diagnostic], startSceneMissingIn).map((action) => ({
     name: action.title,
     changes: (action.edit?.changes?.[document.uri] ?? []).map((edit) => ({
       from: document.offsetAt(edit.range.start),
@@ -118,6 +143,75 @@ const runQuickFixes = (
     return fixes([{ title: "Close the quote", newText: operand + operand[0] }]);
   }
   return fixes(runFixesOf(diagnostic.data));
+};
+
+const wrapInStartScene = (
+  document: TextDocument,
+  top: SyntaxNode,
+  diagnostic: ActionableDiagnostic,
+): TextEdit | undefined => {
+  const text = document.getText();
+  const at = document.offsetAt(diagnostic.range.start);
+  const run = runnableTopLevelRuns(top, (from, to) => text.slice(from, to)).find(
+    ({ from, to }) => from <= at && at < to,
+  );
+  if (!run) {
+    return undefined;
+  }
+  const first = document.positionAt(run.from).line;
+  const last = document.positionAt(
+    run.from + text.slice(run.from, run.to).trimEnd().length,
+  ).line;
+  const lines = text.split(/\r?\n/);
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const literal = (line: number) =>
+    startsInsideString(top, document.offsetAt({ line, character: 0 }));
+  const indent = indentOf(lines, literal);
+  const body = lines
+    .slice(first, last + 1)
+    .map((line, i) =>
+      literal(first + i) ? line : line.trim() ? indent + line : "",
+    );
+  return {
+    range: {
+      start: { line: first, character: 0 },
+      end: { line: last, character: lines[last]!.length },
+    },
+    newText: ["scene start", ...body, "end"].join(eol),
+  };
+};
+
+const startsInsideString = (top: SyntaxNode, at: number): boolean => {
+  for (
+    let node: SyntaxNode | null = top.resolveInner(at, 1);
+    node;
+    node = node.parent
+  ) {
+    if (node.from < at && node.name.endsWith("String")) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const indentOf = (
+  lines: readonly string[],
+  literal: (line: number) => boolean,
+): string => {
+  let spaces = 0;
+  for (const [i, line] of lines.entries()) {
+    const leading = /^[ \t]*/.exec(line)![0];
+    if (!leading || !line.trim() || literal(i)) {
+      continue;
+    }
+    if (leading.startsWith("\t")) {
+      return "\t";
+    }
+    if (spaces === 0 || leading.length < spaces) {
+      spaces = leading.length;
+    }
+  }
+  return " ".repeat(spaces || 2);
 };
 
 const deleteLine = (document: TextDocument, line: number): TextEdit => {

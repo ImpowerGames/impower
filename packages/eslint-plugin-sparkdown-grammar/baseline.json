@@ -33,7 +33,6 @@
     "repository.InlineAction": 1,
     "repository.InlineDialogue": 2,
     "repository.InlineWrite": 1,
-    "repository.InvalidSelectorPropertyName": 2,
     "repository.Italic": 1,
     "repository.LineEnd": 2,
     "repository.LuauAccessPath": 6,
@@ -134,7 +133,6 @@
     "repository.NameValue": 1,
     "repository.NamespaceAccessor": 1,
     "repository.NumberValue": 1,
-    "repository.OperatorPrefixedPropertyName": 3,
     "repository.Parameter": 1,
     "repository.ParentheticalLine": 3,
     "repository.PlainStringContent": 1,
@@ -386,7 +384,6 @@
     "variables.SPARKLE_BACKTICKED": 1,
     "variables.SPARKLE_BACKTICK_CODE": 3,
     "variables.SPARKLE_CLOSED_LONG_BRACKET": 8,
-    "variables.SPARKLE_HEAD": 1,
     "variables.SPARKLE_LONE_SQUOTE": 1,
     "variables.SPARKLE_LONE_SQUOTE_RUN": 1,
     "variables.SPARKLE_LONG_BRACKET": 8,
@@ -396,26 +393,8 @@
     "variables.STRUCT_BLOCK_LITERAL": 1,
     "variables.STRUCT_BLOCK_QUOTED": 1
   },
-  "no-unreferenced-rule": {
-    "repository.InvalidSelectorPropertyName": 1,
-    "repository.LuauStyleAssignmentMark": 1,
-    "repository.LuauStylePropertyName": 1,
-    "repository.LuauStylePropertyValue": 1,
-    "repository.LuauUIAttribute": 1,
-    "repository.LuauUIAttributeEquals": 1,
-    "repository.LuauUIAttributeName": 1,
-    "repository.LuauUIAttributeSigil": 1,
-    "repository.LuauUIAttributeValue": 1,
-    "repository.LuauUIContent": 1,
-    "repository.LuauUIContentText": 1,
-    "repository.LuauUIElementTag": 1,
-    "repository.LuauUIQuote": 1,
-    "repository.OperatorPrefixedPropertyName": 1
-  },
-  "no-unreferenced-variable": {
-    "variables.SPARKLE_HEAD": 1,
-    "variables._LUAU_SEMICOLON_AHEAD_": 1
-  },
+  "no-unreferenced-rule": {},
+  "no-unreferenced-variable": {},
   "scoped-end-has-bailout": {
     "repository.AssignedBracedEventAttribute": 1,
     "repository.AssignedBracedStyleAttribute": 1,

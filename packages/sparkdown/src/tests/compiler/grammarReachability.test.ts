@@ -26,25 +26,11 @@ const SOURCE = YAML.parse(
   variables: Record<string, unknown>;
 };
 
-const KNOWN_UNREACHABLE_RULES = [
-  "InvalidSelectorPropertyName",
-  "LuauStyleAssignmentMark",
-  "LuauStylePropertyName",
-  "LuauStylePropertyValue",
-  "LuauUIAttribute",
-  "LuauUIAttributeEquals",
-  "LuauUIAttributeName",
-  "LuauUIAttributeSigil",
-  "LuauUIAttributeValue",
-  "LuauUIContent",
-  "LuauUIContentText",
-  "LuauUIQuote",
-  "OperatorPrefixedPropertyName",
-];
+const KNOWN_UNREACHABLE_RULES = [] as string[];
 
 const VARIABLES_READ_FROM_TYPESCRIPT = ["FLOW_MODULE_KEYWORDS", "LUAU_LOCAL_DECLARATION_KEYWORDS", "LUAU_LOOP_BLOCK_KEYWORDS"];
 
-const KNOWN_UNUSED_VARIABLES = ["SPARKLE_HEAD", "_LUAU_SEMICOLON_AHEAD_"];
+const KNOWN_UNUSED_VARIABLES = [] as string[];
 
 function visit(node: unknown, onString: (s: string) => void): void {
   if (typeof node === "string") {

@@ -5,6 +5,7 @@ import type {
 import {
   MORPH_BLENDS,
   MORPH_CLIP_FIELDS,
+  MORPH_CLIP_LIST_FIELDS,
   MORPH_CONTAINER_FIELDS,
   MORPH_DIRECTIONS,
   MORPH_FALLBACKS,
@@ -20,6 +21,7 @@ import {
   parseMorphPartner,
   parseMorphQualifiedState,
   parseMorphSpan,
+  parseMorphSpread,
 } from "./morphSchema";
 import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
@@ -54,6 +56,7 @@ for (const f of MORPH_PAINT_FIELDS) HOME[f] ??= "in a `paints { … }` entry";
 HOME["targets"] = "in a `clips { … }` or `paints { … }` entry";
 for (const f of ["keyframes", "layers", "clips", "paints"]) HOME[f] = "at the morph root";
 HOME["timing"] = "at the morph root";
+HOME["spread"] = "at the morph root, under a label in `layers { … }` or in a `clips { … }` entry";
 HOME["offset"] = "directly in a keyframe";
 
 const ALLOWED: Record<Where, readonly string[]> = {
@@ -506,7 +509,10 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         }
         checkFields(clip, "clip");
         const lists: Record<string, string[]> = {};
-        for (const field of MORPH_CLIP_FIELDS) {
+        if ("spread" in clip && parseMorphSpread(clip["spread"]) === undefined) {
+          push(valueSpan(clip, "spread"), "`spread` is a length in `px` or `0`, such as `spread = 1px` or `spread = -0.5px`.");
+        }
+        for (const field of MORPH_CLIP_LIST_FIELDS) {
           const list = clip[field];
           if (list === undefined) {
             push(itemLine ?? lineSpan(clip), `This clip entry needs \`${field} { … }\` with at least one layer label.`);

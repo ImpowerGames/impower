@@ -29,7 +29,7 @@ const tabsList = cva("flex w-full", {
 const tabTrigger = cva(
   [
     "group relative flex flex-1 items-center justify-center overflow-hidden",
-    "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer pointer-events-auto",
+    "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
     "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   ],

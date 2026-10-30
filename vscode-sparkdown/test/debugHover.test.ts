@@ -65,6 +65,10 @@ vi.mock("../src/managers/SparkdownPreviewGamePanelManager", () => ({
   SparkdownPreviewGamePanelManager: { instance: {} },
 }));
 
+vi.mock("../src/managers/SparkProgramManager", () => ({
+  SparkProgramManager: { instance: {} },
+}));
+
 import { activateDebugger } from "../src/debugger/activateDebugger";
 import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
 

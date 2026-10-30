@@ -220,7 +220,7 @@ export function DropdownContent({
 
 const dropdownItem = cva([
   "relative overflow-hidden",
-  "flex h-10 w-full cursor-pointer pointer-events-auto flex-row items-center gap-2 px-5",
+  "flex h-10 w-full cursor-pointer flex-row items-center gap-2 px-5",
   "text-sm text-foreground/70 select-none outline-none text-left",
   "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   "focus:bg-foreground/5",

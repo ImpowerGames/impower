@@ -136,59 +136,59 @@ contact:
 
 ---
 
-### 6. You can define objects and arrays with `define`
+### 6. You can define objects with `define`
 
-The new compiler supports using yaml-esque syntax to define constant objects and arrays:
+A `define` block opens with `define <name> with`, lists its properties one per line, and closes with `end`. A property can hold a list written as a table of values:
 
 ```
-define alison:
+define alison with
   first_name = "Alison"
   last_name = "Smith"
   nickname = "Allie"
-
-define fears:
-  - "spiders"
-  - "heights"
-  - "darkness"
+  fears = { "spiders", "heights", "darkness" }
+end
 ```
 
 ---
 
-### 7. You can specify an object's type with `DEFINE type.name`
+### 7. You can specify an object's type with `as`
 
-An object's type can be specified by prefixing its name with a type and a dot separator
+An object's type is given by `as` followed by the type's name, between the object's name and `with`.
 
-This will ensure that the object inherits all properties from the defined type (and overrides them if specified).
+The object inherits every property of that type and overrides the ones it sets itself.
 
 ```
-define character:
+define character with
   first_name = "???"
   last_name = "???"
   nickname = "???"
   voice = "mid"
   color = "#FFFFFF"
+end
 
-define character.alison:
+define alison as character with
   first_name = "Alison"
   last_name = "Smith"
   nickname = "Alice"
   voice = "high"
+end
 
-define character.robert:
+define robert as character with
   first_name = "Robert"
   last_name = "Smith"
   nickname = "Bob"
   voice = "low"
+end
 ```
 
-Defines can't be set at runtime and aren't saved in the save state.
-So they are mostly useful for configuration:
+Defines can't be set at runtime and aren't saved in the save state. So they are mostly useful for configuration:
 
 ```
-define style.dialogue:
+define dialogue_box with
   color = "#FFFFFF"
   background_color = "#0000FF"
   border = "1px solid #000000"
+end
 ```
 
 ---

@@ -785,6 +785,11 @@ async function reportFreshWorker(...args) {
   return worker.reportFreshWorker(...args);
 }
 
+export async function grantDurableStorage(ctx, page) {
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send("Browser.grantPermissions", { permissions: ["durableStorage"] });
+}
+
 async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
   const record = state();
   if (!record?.url)
@@ -808,6 +813,7 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
   page.on("console", (m) => consoleLines.push(consoleLine(m)));
   page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
+    await grantDurableStorage(ctx, page);
     return await fn({ page, ctx, url, consoleLines, mode, cleanups });
   } finally {
     for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});

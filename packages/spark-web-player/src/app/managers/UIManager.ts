@@ -8,7 +8,7 @@ import {
   createVideoElement,
 } from "../../../../spark-dom/src/utils/createVideoElement";
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
-import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
+import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
@@ -1026,8 +1026,7 @@ export default class UIManager extends Manager {
             .flatMap(([k, v]) => {
               const arr = [];
               if (v != null) {
-                const [prop, value] = getCSSPropertyKeyValue(k, v);
-                const cssEntries = getCssEquivalent(prop, value);
+                const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
                 for (const [k, v] of cssEntries) {
                   arr.push(`${k}:${v}`);
                 }
@@ -1125,15 +1124,14 @@ export default class UIManager extends Manager {
         if (params.style != undefined) {
           if (params.style) {
             Object.entries(params.style).forEach(([k, v]) => {
-              const [prop, value] = getCSSPropertyKeyValue(k, v);
               if (v == null) {
-                for (const cssProp of getCssPropertyNames(prop)) {
+                for (const cssProp of getCssPropertyNames(k)) {
                   if (element) {
                     element.style.removeProperty(cssProp);
                   }
                 }
               } else {
-                const cssEntries = getCssEquivalent(prop, value);
+                const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
                 for (const [cssProp, cssValue] of cssEntries) {
                   if (element) {
                     element.style.setProperty(cssProp, cssValue);
@@ -1310,8 +1308,7 @@ export default class UIManager extends Manager {
     style: Record<string, string | number | null>,
   ) {
     for (const [k, v] of Object.entries(style)) {
-      const [prop, value] = getCSSPropertyKeyValue(k, v);
-      const cssEntries = getCssEquivalent(prop, value);
+      const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
       if (v == null) {
         for (const [cssProp] of cssEntries) {
           el.style.removeProperty(cssProp);

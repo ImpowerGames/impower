@@ -33,7 +33,6 @@ const EDITOR_THEME: {
   },
   "*, *::before, *::after": {
     boxSizing: "border-box",
-    backgroundSize: "auto",
   },
   ".indent": {
     display: "inline-block",
@@ -509,9 +508,6 @@ const EDITOR_THEME: {
     "& button[name='close']": {
       display: "none",
     },
-  },
-  "& .cm-lintRange": {
-    backgroundSize: "auto",
   },
   "& .cm-lintRange-active": {
     backgroundColor: "#ffdd991a",
