@@ -561,29 +561,58 @@ function scanYaml(text) {
     }
     i = next;
     if (quote) continue;
-    const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?([|>])([-+1-9]*)\s*$/.exec(code);
-    if (!header) continue;
-    const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+[|>]/.test(code) ? 0 : -1);
-    const indicator = /[1-9]/.exec(header[3]);
-    const indentOf = (line) => /^ */.exec(line)[0].length;
-    let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
-    let blockEnd = i;
-    while (blockEnd < text.length) {
-      const lineStop = lineEnd(text, blockEnd);
-      const line = text.slice(blockEnd, lineStop);
-      if (line.trim()) {
-        content ??= indentOf(line) > parent ? indentOf(line) : Infinity;
-        if (indentOf(line) < content) break;
-      }
-      blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
-    }
     records ??= yamlRecords(text);
-    const index = records.findIndex((r) => r.start === lineStart);
-    const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
-    const indent = Number.isFinite(content) ? content : 0;
-    if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
-    else if (scan) for (const c of scan(text.slice(i, blockEnd), indent)) comments.push({ start: c.start + i, end: c.end + i });
-    i = blockEnd;
+    const block = blockScalarComments(text, lineStart, i, code, records);
+    if (!block) continue;
+    comments.push(...block.comments);
+    i = block.end;
+  }
+  return comments;
+}
+
+function blockScalarComments(text, lineStart, i, code, records) {
+  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?([|>])([-+1-9]*)\s*$/.exec(code);
+  if (!header) return null;
+  const comments = [];
+  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+[|>]/.test(code) ? 0 : -1);
+  const indicator = /[1-9]/.exec(header[3]);
+  const indentOf = (line) => /^ */.exec(line)[0].length;
+  let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
+  let blockEnd = i;
+  while (blockEnd < text.length) {
+    const lineStop = lineEnd(text, blockEnd);
+    const line = text.slice(blockEnd, lineStop);
+    if (line.trim()) {
+      content ??= indentOf(line) > parent ? indentOf(line) : Infinity;
+      if (indentOf(line) < content) break;
+    }
+    blockEnd = Math.min(text.indexOf("\n", lineStop) + 1 || text.length, text.length);
+  }
+  const index = records.findIndex((r) => r.start === lineStart);
+  const scan = records[index]?.key === "run" ? RUN_SCANNERS[runShell(records, index)] : undefined;
+  const indent = Number.isFinite(content) ? content : 0;
+  if (scan && header[2] === ">") comments.push(...foldedComments(text, i, blockEnd, indent, scan));
+  else if (scan) for (const c of scan(text.slice(i, blockEnd), indent)) comments.push({ start: c.start + i, end: c.end + i });
+  return { comments, end: blockEnd };
+}
+
+function scanYamlLexed(yaml, text) {
+  const comments = [];
+  const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR, yaml.CST.BOM]);
+  let offset = 0, records = null;
+  for (const token of new yaml.Lexer().lex(text)) {
+    if (control.has(token)) continue;
+    const type = yaml.CST.tokenType(token);
+    if (type === "comment") comments.push({ start: offset, end: offset + token.length });
+    else if (type === "block-scalar-header") {
+      const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
+      const stop = lineEnd(text, offset);
+      const next = Math.min(text.indexOf("\n", stop) + 1 || text.length, text.length);
+      records ??= yamlRecords(text);
+      const block = blockScalarComments(text, lineStart, next, text.slice(lineStart, offset + token.length), records);
+      if (block) comments.push(...block.comments);
+    }
+    offset += token.length;
   }
   return comments;
 }
@@ -650,18 +679,30 @@ function scanPs1(text, indent = 0) {
 const SCANNERS = { js: scanJs, css: scanCss, html: scanHtml, py: scanPy, sh: scanSh, yaml: scanYaml, ps1: scanPs1 };
 
 const defaultRoot = path.resolve(here, "../..");
-const typescriptCache = new Map();
+const moduleCaches = { typescript: new Map(), yaml: new Map() };
 
-function resolveTypescriptFrom(base) {
+function resolveFrom(base, name) {
   try {
     nodeModule.enableCompileCache?.();
     const require = nodeModule.createRequire(path.join(base, "package.json"));
-    const resolved = require.resolve("typescript");
+    const resolved = require.resolve(name);
     if (path.relative(base, resolved).startsWith("..")) return null;
     return require(resolved);
   } catch {
     return null;
   }
+}
+
+function loadModule(name, root) {
+  const cache = moduleCaches[name];
+  if (cache.has(root)) return cache.get(root);
+  let loaded = resolveFrom(root, name);
+  if (!loaded) {
+    const main = mainCheckout(root);
+    if (main && path.resolve(main) !== path.resolve(root)) loaded = resolveFrom(main, name);
+  }
+  cache.set(root, loaded);
+  return loaded;
 }
 
 function mainCheckout(root) {
@@ -670,14 +711,12 @@ function mainCheckout(root) {
 }
 
 export function loadTypescript(root = defaultRoot) {
-  if (typescriptCache.has(root)) return typescriptCache.get(root);
-  let ts = resolveTypescriptFrom(root);
-  if (!ts) {
-    const main = mainCheckout(root);
-    if (main && path.resolve(main) !== path.resolve(root)) ts = resolveTypescriptFrom(main);
-  }
-  typescriptCache.set(root, ts);
-  return ts;
+  return loadModule("typescript", root);
+}
+
+export function loadYaml(root = defaultRoot) {
+  const yaml = loadModule("yaml", root);
+  return yaml?.Lexer && yaml.CST?.tokenType ? yaml : null;
 }
 
 function scanTypescript(ts, text, file) {
@@ -708,6 +747,11 @@ function scanTypescript(ts, text, file) {
 }
 
 function scanFamily(text, file, family, options) {
+  if (family === "yaml") {
+    const yaml = options.scanner === "fallback" ? null : loadYaml(options.root ?? defaultRoot);
+    if (yaml) return { scanner: "the yaml package's lexer", comments: scanYamlLexed(yaml, text) };
+    return { scanner: "the fallback YAML scanner, since yaml does not resolve from this checkout or its main checkout", comments: scanYaml(text) };
+  }
   if (family !== "js") return { scanner: `the ${family} scanner`, comments: SCANNERS[family](text) };
   const ts = options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
   if (ts) return { scanner: `TypeScript ${ts.version}`, comments: scanTypescript(ts, text, file) };

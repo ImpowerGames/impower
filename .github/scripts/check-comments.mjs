@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { bodyLines, codeFile, exemptPath, judgeComments, loadTypescript, rule, scanComments } from "../../.agents/hooks/comment-policy.mjs";
+import { bodyLines, codeFile, exemptPath, judgeComments, loadTypescript, loadYaml, rule, scanComments } from "../../.agents/hooks/comment-policy.mjs";
 
 export const LISTING_LIMIT = 3000;
 export const DUPLICATE_MIN_LENGTH = 30;
@@ -220,6 +220,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const root = path.resolve(option("--root") ?? process.cwd());
   if (process.env.COMMENT_POLICY_REQUIRE_TYPESCRIPT === "1" && !loadTypescript(root)) {
     console.log(`COMMENT_POLICY_REQUIRE_TYPESCRIPT is set, but typescript does not resolve from ${root} or its main checkout, so the check refuses to judge JavaScript and TypeScript with the fallback scanner.`);
+    process.exit(1);
+  }
+  if (process.env.COMMENT_POLICY_REQUIRE_YAML === "1" && !loadYaml(root)) {
+    console.log(`COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve from ${root} or its main checkout, so the check refuses to judge YAML with the fallback scanner.`);
     process.exit(1);
   }
   const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));

@@ -54,11 +54,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install typescript at the root package's range so the classifier uses TypeScript's scanner
+      - name: Install typescript and yaml at the root package's ranges so the classifier uses TypeScript's scanner and the yaml lexer
         run: |
-          npm install --prefix "$RUNNER_TEMP/typescript" --no-audit --no-fund --ignore-scripts "typescript@$(node -p "require('./package.json').devDependencies.typescript")"
+          npm install --prefix "$RUNNER_TEMP/typescript" --no-audit --no-fund --ignore-scripts "typescript@$(node -p "require('./package.json').devDependencies.typescript")" "yaml@$(node -p "require('./package.json').devDependencies.yaml")"
           mkdir -p node_modules
-          cp -R "$RUNNER_TEMP/typescript/node_modules/typescript" node_modules/
+          cp -R "$RUNNER_TEMP/typescript/node_modules/typescript" "$RUNNER_TEMP/typescript/node_modules/yaml" node_modules/
       - name: List the pull request's files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -79,6 +79,7 @@ jobs:
       - name: Check the comments the pull request adds
         env:
           COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1"
+          COMMENT_POLICY_REQUIRE_YAML: "1"
           MERGE_BASE: ${{ steps.merge-base.outputs.sha }}
         run: node .github/scripts/check-comments.mjs --files "$RUNNER_TEMP/pull-request-files.json" --merge-base "$MERGE_BASE"
 

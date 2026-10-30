@@ -195,7 +195,7 @@ try {
   const listing = path.join(tempDir("check-comments-listing-"), "files.json");
   const run = (files, env = {}, cwd = checkout) => {
     fs.writeFileSync(listing, JSON.stringify(files));
-    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", ...env } });
+    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "", ...env } });
   };
 
   const failing = run(records);
@@ -222,12 +222,15 @@ try {
   bare.write("src/a.ts", "export {};\n// prose\n");
   bare.commit("head");
   fs.writeFileSync(listing, JSON.stringify([bare.record(bareBase, "src/a.ts")]));
-  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
+  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(required.status, 1);
   assert.match(required.stdout + required.stderr, /COMMENT_POLICY_REQUIRE_TYPESCRIPT/, "a required scanner that does not resolve fails rather than falling back");
-  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "" } });
+  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(fallback.status, 1);
   assert.match(fallback.stdout, /Scanned with the fallback JavaScript scanner/, "the report names the fallback when it judged the file");
+  const requiredYaml = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "1" } });
+  assert.equal(requiredYaml.status, 1);
+  assert.match(requiredYaml.stdout + requiredYaml.stderr, /COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve/, "a required yaml lexer that does not resolve fails rather than falling back");
 
   console.log("ok: check-comments judges added comments, duplicates, exempt paths, missing patches and truncated listings");
 } finally {

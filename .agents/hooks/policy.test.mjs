@@ -7,7 +7,7 @@ import os from "node:os";
 import { decide } from "./policy.mjs";
 import { normalize } from "./pre-tool-use.mjs";
 import { createRequire } from "node:module";
-import { classifyComment, loadTypescript, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
+import { classifyComment, loadTypescript, loadYaml, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -96,9 +96,13 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const labelBlock = "outer: {} /[/*]/.test(\"/\"); // yes";
     const heuristicLimits = new Map([[labelBlock, "a brace after a statement label is read as an object literal, so the regex after it reads as division"]]);
     const javascript = (file) => /\.(?:ts|tsx|js|mjs|cjs)$/.test(file);
+    const yamlLexer = loadYaml(root);
+    assert.ok(yamlLexer || process.env.COMMENT_POLICY_REQUIRE_YAML !== "1", "COMMENT_POLICY_REQUIRE_YAML is set, so yaml must resolve from this checkout or its main checkout");
+    if (!yamlLexer) console.log("SKIP: yaml does not resolve from this checkout or its main checkout, so the YAML cases ran through the fallback scanner only");
+    const yamlFile = (file) => /\.ya?ml$/.test(file);
     const comments = (text, file) => {
       const fallback = scanComments(text, file, { scanner: "fallback" }).map((c) => c.text);
-      if (!typescript || !javascript(file)) return fallback;
+      if (!(typescript && javascript(file)) && !(yamlLexer && yamlFile(file))) return fallback;
       const exact = scanComments(text, file).map((c) => c.text);
       if (heuristicLimits.has(text)) assert.notDeepEqual(fallback, exact, `known fallback limit still differs: ${heuristicLimits.get(text)}`);
       else assert.deepEqual(fallback, exact, `both scanners agree on ${JSON.stringify(text)}`);
@@ -169,7 +173,68 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("a: (?:\"x|[^\"])(?:\"|$)\n# yes\nb: [\"q # no\", 'r'] # yes\nc: x - \"y\" # yes\nd:\n  - \"e # no\" # yes\n", "a.yml"), ["# yes", "# yes", "# yes", "# yes"], "a quote opens a quoted scalar only where a value starts, so a quote inside a plain scalar hides no later comment");
     assert.deepEqual(comments("a: {\"key\":\"value # no\"} # yes\nb: {\"key\":[x], \"next # no\": value} # yes\nc: {? \"key # no\": value} # yes\n", "a.yml"), ["# yes", "# yes", "# yes"], "inside a flow collection a value or nested collection starts right after a colon or explicit key indicator");
     assert.deepEqual(comments("a: [word:\"tail, \"safe # no\"] # yes\nb: [word:\"tail # yes\n]\n# yes\nc: {?x:\"y # yes\n}\n", "a.yml"), ["# yes", "# yes", "# yes", "# yes"], "inside a flow collection a colon or question mark within a plain scalar starts no value");
-    const workflow = ({ top = [], job = [], step = [] } = {}) => [
+    assert.match(scanComments("a: b # c\n", "a.yml", { root: checkout })[0].scanner, /^the fallback YAML scanner/, "a checkout without yaml, whose main checkout cannot be found, takes the fallback");
+    if (yamlLexer) {
+      assert.equal(scanComments("a: b # c\n", "a.yml")[0].scanner, "the yaml package's lexer");
+      const lexerOnly = [
+        ["a: [word\":\"tail, \"safe # no\"] # yes\n", ["# yes"], "a quote inside a plain key before a colon closes no key"],
+        ["a: [word\":\"tail # yes\n]\n", ["# yes"], "a plain key holding a quote hides no comment"],
+        ["a: {\"key\"\n  :\"value # no\"} # yes\n", ["# yes"], "a JSON-like key and its colon on separate lines"],
+        ["a: first\n  [tail\nb: word, \"tail # yes\n# yes\n", ["# yes", "# yes"], "a continued plain scalar starting with a bracket"],
+        ["a: !!str \"value # no\" # yes\nb: &v \"value # no\" # yes\n", ["# yes", "# yes"], "a tagged or anchored quoted scalar"],
+        ["? ? 's # no'\n- ? 's # no'\n", [], "nested block indicators before a quoted scalar"],
+      ];
+      for (const [text, expected, why] of lexerOnly) {
+        heuristicLimits.set(text, why);
+        assert.deepEqual(comments(text, "a.yml"), expected, why);
+      }
+      const plain = (v) => (v instanceof Map ? [[...v].map(([k, x]) => [plain(k), plain(x)])] : v instanceof Set ? [[...v].map(plain)] : Array.isArray(v) ? v.map(plain) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)])) : v);
+      const data = (text) => {
+        const docs = yamlLexer.parseAllDocuments(text);
+        return docs.some((d) => d.errors.length || d.warnings.length) ? null : JSON.stringify(docs.map((d) => plain(d.toJS({ maxAliasCount: -1, mapAsMap: true }))));
+      };
+      const withoutYamlComments = (text) => {
+        let out = "";
+        const control = new Set([yamlLexer.CST.DOCUMENT, yamlLexer.CST.FLOW_END, yamlLexer.CST.SCALAR, yamlLexer.CST.BOM]);
+        for (const token of new yamlLexer.Lexer().lex(text)) if (!control.has(token) && yamlLexer.CST.tokenType(token) !== "comment") out += token;
+        return out;
+      };
+      const tracked = spawnSync("git", ["-C", root, "ls-files", "-z", "--", "*.yml", "*.yaml"], { encoding: "utf8", maxBuffer: 1 << 26 }).stdout.split("\0").filter(Boolean);
+      assert.ok(tracked.length > 0);
+      for (const file of new Set(tracked)) {
+        const text = fs.readFileSync(path.join(root, file), "utf8");
+        const before = data(text);
+        if (before === null) continue;
+        assert.deepEqual(scanComments(text, file, { scanner: "fallback" }).map((c) => [c.start, c.end]), scanComments(text, file).map((c) => [c.start, c.end]), `both YAML scanners agree on ${file}`);
+        assert.equal(data(withoutYamlComments(text)), before, `removing ${file}'s YAML comments keeps its data`);
+      }
+      let seed = 7;
+      const next = () => {
+        seed = (seed + 0x6d2b79f5) >>> 0;
+        let x = seed;
+        x = Math.imul(x ^ (x >>> 15), x | 1);
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+      };
+      const pick = (xs) => xs[Math.floor(next() * xs.length)];
+      const atoms = ["a", "b:c", "x?y", "w:\"t", "q'r", "(?:\"", "[", "]", "{", "}", ",", ":", "? ", ": ", " ", "\"s # h\"", "'s # h'", "\"k\"", "'k'", "\"\"", " # c", "-", "- ", "#", "\\", "\"e\\\"f\"", "!!str ", "&a ", "\n  "];
+      let parsed = 0, commentDependent = 0;
+      const losses = [];
+      for (let k = 0; k < 6000; k++) {
+        const text = Array.from({ length: 1 + Math.floor(next() * 3) }, () => pick(["a: ", "- ", "? ", "k: [", "k: {", "", "  "]) + Array.from({ length: 1 + Math.floor(next() * 7) }, () => pick(atoms)).join("")).join("\n") + "\n";
+        const before = data(text);
+        if (before === null) continue;
+        parsed++;
+        if (data(withoutYamlComments(text)) !== before) {
+          commentDependent++;
+          continue;
+        }
+        if (data(stripComments(text, "a.yml")) !== before) losses.push(text);
+      }
+      assert.ok(parsed > 500 && commentDependent < parsed / 20, `the generator produced ${parsed} parseable inputs, ${commentDependent} of them parsed differently once the lexer's own comments are removed`);
+      assert.deepEqual(losses.slice(0, 5), [], `stripping keeps the parsed data of every generated input whose data does not depend on its comments (${losses.length} of ${parsed - commentDependent} lost data)`);
+    }
+    const workflow =({ top = [], job = [], step = [] } = {}) => [
       ...top,
       "jobs:",
       "  build:",
