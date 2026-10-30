@@ -1,20 +1,20 @@
-import { CSS_ALIASES } from "../constants/CSS_ALIASES.js";
+import {
+  CSS_ALIASES,
+  SPARKLE_TO_CSS_NAME_MAP,
+} from "../constants/CSS_ALIASES.js";
 import { CSS_UTILITIES } from "../constants/CSS_UTILITIES.js";
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 import { getCssPropertyName } from "./getCssPropertyName.js";
+import { getCssWideKeyword } from "./getCssWideKeyword.js";
 
 const LENGTH_PROPERTY_SUFFIX = /-(width|height|top|bottom|left|right)$/;
 
-const CSS_WIDE_KEYWORDS = new Set([
-  "initial",
-  "inherit",
-  "unset",
-  "revert",
-  "revert-layer",
-]);
-
 const keep = (v: string) => v;
+
+const hasValueSlot = (
+  cssUtility: Record<string, Record<string, string>>,
+): boolean => Object.values(cssUtility[""] ?? {}).some((v) => v === "");
 
 const isNumber = (value: unknown): boolean => !Number.isNaN(Number(value));
 
@@ -73,10 +73,14 @@ export const getCssEquivalent = (
   const sparklePropName = getSparklePropertyName(key);
   const cssUtility = cssUtilities[sparklePropName];
   const text = getCssValueText(value);
-  const resolve = CSS_WIDE_KEYWORDS.has(text)
-    ? keep
-    : (styleTransformers[sparklePropName] ?? keep);
-  if (cssUtility) {
+  const resolve = styleTransformers[sparklePropName] ?? keep;
+  const keyword = getCssWideKeyword(text);
+  const keywordTarget: string | undefined = (
+    SPARKLE_TO_CSS_NAME_MAP as Record<string, string>
+  )[sparklePropName];
+  if (cssUtility && keyword && keywordTarget && !hasValueSlot(cssUtility)) {
+    entries.push([keywordTarget, keyword]);
+  } else if (cssUtility) {
     const defaultSelector = cssUtility[""];
     if (defaultSelector) {
       for (let [k, v] of Object.entries(defaultSelector)) {

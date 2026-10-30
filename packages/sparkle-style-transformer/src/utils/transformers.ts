@@ -922,6 +922,18 @@ export const getCssSize = (
   if (value === "") {
     return defaultUnit === "px" ? "8px" : "0.5rem";
   }
+  if (
+    typeof value === "string" &&
+    WHITESPACE_REGEX.test(value.trim()) &&
+    !value.includes("(") &&
+    !value.includes(",")
+  ) {
+    return value
+      .trim()
+      .split(WHITESPACE_REGEX)
+      .map((part) => getCssSize(part, defaultUnit))
+      .join(" ");
+  }
   if (value === "xs") {
     return defaultUnit === "px" ? "2px" : "0.125rem";
   }

@@ -7,9 +7,14 @@ import {
   renderCssVDOM,
   renderHtmlVDOM,
 } from "../../../../sparkle-screen-renderer/src";
-import { CSS_ALIASES } from "../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
+import {
+  CSS_ALIASES,
+  SPARKLE_TO_CSS_NAME_MAP,
+} from "../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
 import { CSS_UTILITIES } from "../../../../sparkle-style-transformer/src/constants/CSS_UTILITIES";
 import { STYLE_ALIASES } from "../../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
+import { STYLE_TRANSFORMERS } from "../../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
+import { generateSparkleAttributesAndStyles } from "../../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 
@@ -88,21 +93,71 @@ describe("one resolver owns each name and its value", () => {
     "the CSS-wide keyword %s passes through every table entry",
     (keyword) => {
       test.each(Object.keys(CSS_UTILITIES))("%s", (key) => {
-        const slots = Object.entries(
-          (
-            CSS_UTILITIES as Record<
-              string,
-              Record<string, Record<string, string>>
-            >
-          )[key]![""] ?? {},
-        ).filter(([, v]) => v === "");
-        const entries = new Map(getCssEquivalent(key, keyword));
-        for (const [prop] of slots) {
-          expect(entries.get(prop)).toBe(keyword);
-        }
+        const entry = (
+          CSS_UTILITIES as Record<
+            string,
+            Record<string, Record<string, string>>
+          >
+        )[key]!;
+        const defaults = Object.entries(entry[""] ?? {});
+        const expected = defaults.some(([, v]) => v === "")
+          ? defaults.map(([prop, v]) => [prop, v === "" ? keyword : v])
+          : [
+              [
+                (SPARKLE_TO_CSS_NAME_MAP as Record<string, string>)[key],
+                keyword,
+              ],
+            ];
+        expect(expected.length).toBeGreaterThan(0);
+        expect(getCssEquivalent(key, keyword)).toEqual(expected);
       });
+
+      test.each(Object.keys(STYLE_TRANSFORMERS))(
+        "the %s transformer returns it as written",
+        (name) => {
+          const transform = (
+            STYLE_TRANSFORMERS as Record<string, (v: string) => string>
+          )[name]!;
+          expect(transform(keyword)).toBe(keyword);
+        },
+      );
     },
   );
+
+  test.each([
+    ["color", "INITIAL", [["color", "initial"]]],
+    ["color", " Inherit ", [["color", "inherit"]]],
+    ["filter", "Revert-Layer", [["filter", "revert-layer"]]],
+    ["flex-direction", "inherit", [["flex-direction", "inherit"]]],
+    ["child-layout", "unset", [["flex-direction", "unset"]]],
+  ])("%s = %j keeps its CSS-wide keyword", (key, value, expected) => {
+    expect(getCssEquivalent(key, value)).toEqual(expected);
+  });
+
+  test.each([
+    ["filter", "inherit"],
+    ["backdrop-filter", "revert"],
+    ["bg-color", "initial"],
+  ])(
+    "a sparkle attribute %s = %s keeps its CSS-wide keyword",
+    (prop, keyword) => {
+      const { styles } = generateSparkleAttributesAndStyles({
+        [prop]: keyword,
+      });
+      expect(Object.values(styles)).toContain(keyword);
+      expect(Object.values(styles).join(" ")).not.toContain("var(--theme-");
+    },
+  );
+
+  test.each([
+    ["margin", "auto 0", [["margin", "auto 0px"]]],
+    ["margin", "0 auto", [["margin", "0px auto"]]],
+    ["inset", "auto 0", [["inset", "auto 0px"]]],
+    ["padding", "md lg", [["padding", "8px 16px"]]],
+    ["padding", [4, 8], [["padding", "4px 8px"]]],
+  ])("compound size %s = %j resolves each part", (key, value, expected) => {
+    expect(getCssEquivalent(key, value)).toEqual(expected);
+  });
 
   test.each([
     ["filter", "none", [["filter", "none"]]],
@@ -191,6 +246,9 @@ describe("an animation player keyframe resolves through the same table", () => {
     [{ width: "inherit" }, { width: "inherit" }],
     [{ filter: "revert-layer" }, { filter: "revert-layer" }],
     [{ margin: "auto" }, { margin: "auto" }],
+    [{ margin: "auto 0" }, { margin: "auto 0px" }],
+    [{ color: "INITIAL" }, { color: "initial" }],
+    [{ flex_direction: "inherit" }, { flexDirection: "inherit" }],
   ])("the native keyword in %j plays unchanged", (keyframe, played) => {
     expect(playKeyframe(keyframe)).toEqual(played);
   });
