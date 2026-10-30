@@ -2,6 +2,16 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
+const NATIVE_SIZE_KEYWORDS = new Set([
+  "auto",
+  "min-content",
+  "max-content",
+  "fit-content",
+  "stretch",
+  "thin",
+  "medium",
+  "thick",
+]);
 const GRADIENT_KEYWORDS = new Set([
   "left",
   "right",
@@ -546,6 +556,9 @@ export const getCssEase = (
 };
 
 export const getCssFilter = (value: string): string => {
+  if (value === "none") {
+    return value;
+  }
   if (
     value.startsWith("var(") ||
     value.startsWith("blur(") ||
@@ -913,8 +926,23 @@ export const getCssSize = (
   if (value === "none") {
     return "0";
   }
+  if (typeof value === "string" && NATIVE_SIZE_KEYWORDS.has(value)) {
+    return value;
+  }
   if (value === "") {
     return defaultUnit === "px" ? "8px" : "0.5rem";
+  }
+  if (
+    typeof value === "string" &&
+    WHITESPACE_REGEX.test(value.trim()) &&
+    !value.includes("(") &&
+    !value.includes(",")
+  ) {
+    return value
+      .trim()
+      .split(WHITESPACE_REGEX)
+      .map((part) => (part === "/" ? part : getCssSize(part, defaultUnit)))
+      .join(" ");
   }
   if (value === "xs") {
     return defaultUnit === "px" ? "2px" : "0.125rem";
