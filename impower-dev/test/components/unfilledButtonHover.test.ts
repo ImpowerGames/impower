@@ -166,7 +166,14 @@ const classSources = (file: ParsedFile, node: ts.Node, seen = new Set<string>())
     add(classSources(file, node.whenFalse, seen));
   } else if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
     add(classSources(file, node.right, seen));
-  } else if (ts.isElementAccessExpression(node) || ts.isPropertyAccessExpression(node)) {
+  } else if (
+    ts.isElementAccessExpression(node) ||
+    ts.isPropertyAccessExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isParenthesizedExpression(node) ||
+    ts.isNonNullExpression(node)
+  ) {
     add(classSources(file, node.expression, seen));
   } else if (ts.isPropertyAssignment(node)) {
     add(classSources(file, node.initializer, seen));
