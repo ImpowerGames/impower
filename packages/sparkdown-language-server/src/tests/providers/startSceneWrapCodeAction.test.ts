@@ -17,8 +17,13 @@ const lines = (...text: string[]) => text.join(NEWLINE);
 const messageOf = (d: { message: string | { value: string } }) =>
   typeof d.message === "string" ? d.message : d.message.value;
 
-const project = (main: string, defs = lines("store gold = 1", "")) => {
-  const texts = { [MAIN]: main, [DEFS]: defs };
+const project = (
+  main: string,
+  defs = lines("store gold = 1", ""),
+  entry = MAIN,
+) => {
+  const texts: Record<string, string> =
+    entry === MAIN ? { [MAIN]: main, [DEFS]: defs } : { [entry]: defs };
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: Object.entries(texts).map(([uri, text]) => ({
@@ -35,7 +40,7 @@ const project = (main: string, defs = lines("store gold = 1", "")) => {
   console.warn = console.error = console.log = () => {};
   let program: SparkProgram;
   try {
-    program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    program = compiler.compile({ textDocument: { uri: entry } }).program;
   } finally {
     console.warn = warn;
     console.error = error;
@@ -52,7 +57,8 @@ const project = (main: string, defs = lines("store gold = 1", "")) => {
   ) as SparkdownLanguageServerWorkspace;
   Object.assign(workspace, {
     _documents: documents,
-    _entryPrograms: new Map([[MAIN, program]]),
+    _entryPrograms: new Map([[entry, program]]),
+    _watchedFiles: new Map([MAIN, DEFS].map((uri) => [uri, {}])),
   });
   return { program, workspace, texts };
 };
@@ -159,6 +165,33 @@ describe("the Wrap in scene start quick fix", { timeout: 60000 }, () => {
     ).toEqual([]);
   });
 
+  test("leaves the lines inside a multiline string as they are", () => {
+    const main = lines(
+      "& print([[Alpha",
+      "  Beta",
+      "",
+      "Gamma]])",
+      '& message = "one\\',
+      'two"',
+      "Hello.",
+      "",
+    );
+    expect(actionsOn(main, 6).map((a) => a.text)).toEqual([
+      lines(
+        "scene start",
+        "  & print([[Alpha",
+        "  Beta",
+        "",
+        "Gamma]])",
+        '  & message = "one\\',
+        'two"',
+        "  Hello.",
+        "end",
+        "",
+      ),
+    ]);
+  });
+
   test("is not offered once a script declares a start scene", () => {
     expect(
       actionsOn(
@@ -177,6 +210,20 @@ describe("the Wrap in scene start quick fix", { timeout: 60000 }, () => {
       getCodeActions(
         document,
         [topLevelDiagnostic(program, DEFS, 1)],
+        workspace.startSceneMissingIn(DEFS),
+      ),
+    ).toEqual([]);
+  });
+
+  test("is not offered for a script other than main.sd compiled on its own", () => {
+    const stray = lines("Stray.", "");
+    const { program, workspace } = project("", stray, DEFS);
+    expect(program.uri).toBe(DEFS);
+    const document = TextDocument.create(DEFS, "sparkdown", 1, stray);
+    expect(
+      getCodeActions(
+        document,
+        [topLevelDiagnostic(program, DEFS, 0)],
         workspace.startSceneMissingIn(DEFS),
       ),
     ).toEqual([]);

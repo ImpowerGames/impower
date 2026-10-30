@@ -285,6 +285,7 @@ export class GamePlayerController {
   _app?: Application;
   _debugging = false;
   _program?: SparkProgram;
+  _playRefusal?: string;
   private _mounted = false;
   /** The controller has gone: nothing it began may start a game or publish
    *  its state from then on. */
@@ -589,7 +590,8 @@ export class GamePlayerController {
     }
   }
 
-  protected showPlayRefusal(refusal: string | undefined) {
+  protected refusePlay(refusal: string | undefined) {
+    this._playRefusal = refusal;
     const button = this.refs.playButton;
     if (!button) {
       return;
@@ -1805,7 +1807,7 @@ export class GamePlayerController {
   };
 
   protected handleStartGame = async (message: StartGameMessage.Request) => {
-    if (!playRefusalOf(this._program)) {
+    if (!this._playRefusal) {
       this.hidePlayButton();
     }
     const success = await this.startGameAndApp();
@@ -1815,7 +1817,7 @@ export class GamePlayerController {
       : StartGameMessage.type.error(message.id, {
           code: 1,
           message:
-            playRefusalOf(this._program) ??
+            this._playRefusal ??
             (!isRunnableProgram(this._program)
               ? "The program contains errors that prevent it from being compiled"
               : `The game could not be started`),
@@ -2258,6 +2260,7 @@ export class GamePlayerController {
       // that script again.
       return;
     }
+    this.refusePlay(playRefusalOf(program));
     for (const arrived of [...this._programWaiters]) {
       arrived();
     }
@@ -2279,7 +2282,6 @@ export class GamePlayerController {
       this._canonicalInvalid = false;
       const isInitialProgram = !this._program;
       this._program = program;
-      this.showPlayRefusal(playRefusalOf(program));
       if (!this._startingPlay && !this._workerAppBuilding) {
         // The worker keeps each real program the page can still name. PLAY
         // that is starting, and a display waiting for the worker's
@@ -2385,7 +2387,7 @@ export class GamePlayerController {
         return false;
       }
     }
-    if (!this._program || playRefusalOf(this._program)) {
+    if (!this._program || this._playRefusal) {
       return false;
     }
     const link = workspace?.gameLink;

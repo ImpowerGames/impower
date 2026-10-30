@@ -164,10 +164,14 @@ const wrapInStartScene = (
   ).line;
   const lines = text.split(/\r?\n/);
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  const indent = indentOf(lines);
+  const literal = (line: number) =>
+    startsInsideString(top, document.offsetAt({ line, character: 0 }));
+  const indent = indentOf(lines, literal);
   const body = lines
     .slice(first, last + 1)
-    .map((line) => (line.trim() ? indent + line : ""));
+    .map((line, i) =>
+      literal(first + i) ? line : line.trim() ? indent + line : "",
+    );
   return {
     range: {
       start: { line: first, character: 0 },
@@ -177,11 +181,27 @@ const wrapInStartScene = (
   };
 };
 
-const indentOf = (lines: readonly string[]): string => {
+const startsInsideString = (top: SyntaxNode, at: number): boolean => {
+  for (
+    let node: SyntaxNode | null = top.resolveInner(at, 1);
+    node;
+    node = node.parent
+  ) {
+    if (node.from < at && node.name.endsWith("String")) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const indentOf = (
+  lines: readonly string[],
+  literal: (line: number) => boolean,
+): string => {
   let spaces = 0;
-  for (const line of lines) {
+  for (const [i, line] of lines.entries()) {
     const leading = /^[ \t]*/.exec(line)![0];
-    if (!leading || !line.trim()) {
+    if (!leading || !line.trim() || literal(i)) {
       continue;
     }
     if (leading.startsWith("\t")) {

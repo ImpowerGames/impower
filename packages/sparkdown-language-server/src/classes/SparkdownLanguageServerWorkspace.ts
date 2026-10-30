@@ -614,7 +614,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     uri: string,
     program: SparkProgram | undefined = this.compiledProgram(uri),
   ) {
-    return program?.uri === uri && playRefusalOf(program)
+    return program?.uri === uri &&
+      playRefusalOf(program) &&
+      this.getMainScriptUri(uri) === uri
       ? this.tree(uri)?.topNode
       : undefined;
   }
