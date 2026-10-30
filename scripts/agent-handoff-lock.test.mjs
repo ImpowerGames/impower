@@ -19,9 +19,6 @@ const lock = git("rev-parse", "--path-format=absolute", "--git-path", "agent-han
 const jobDir = path.join(scratch, "repo.review-jobs", "pr-962", "round-1");
 fs.mkdirSync(jobDir, { recursive: true });
 const run = (...args) => spawnSync(process.execPath, [launcher, ...args], { encoding: "utf8", windowsHide: true });
-// A coordinator runs as its own process through a wrapper that pins the cutover
-// switch off, from a copy of the repos file, and reports a refusal on stderr as
-// the launcher does.
 const reposFile = path.join(scratch, "repos-off.json");
 fs.writeFileSync(reposFile, JSON.stringify({ ...readRepos(), cutover: false }));
 const OFF = readRepos(reposFile);
@@ -30,8 +27,6 @@ fs.writeFileSync(coordinatorWrapper, `import { runHandoff } from ${JSON.stringif
 const coordinate = (planFile) => spawnSync(process.execPath, [coordinatorWrapper, planFile], { encoding: "utf8", windowsHide: true });
 const until = (predicate, what) => { const end = Date.now() + 60000; while (!predicate()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); } };
 
-// A coordinator that dies abruptly while its child runs, as one killed with
-// the session that started it, leaves its lock naming a dead process.
 const capturedLock = path.join(scratch, "captured-lock.json");
 const child = path.join(scratch, "kill-coordinator.mjs");
 fs.writeFileSync(child, `import fs from "node:fs"; fs.copyFileSync(process.argv[2], process.argv[3]); process.kill(process.ppid); setTimeout(() => process.exit(0), 500);`);
@@ -63,7 +58,6 @@ assert.equal(fs.readFileSync(result.copy, "utf8"), fs.readFileSync(capturedLock,
 assert.deepEqual(JSON.parse(run("recover-lock", worktree).stdout), { alreadyAbsent: lock }, "a second recovery reports the absence");
 console.log("PASS: a coordinator killed while its child runs leaves a lock that recover-lock removes once both are gone, keeping a copy beside the journal");
 
-// The remaining states are built by hand, with the process probe replaced.
 const { recoverHandoffLock } = await import("./agent-handoff.mjs");
 const host = os.hostname();
 const coordinator = { pid: 4242, start: "100" };
@@ -117,9 +111,6 @@ assert.ok(fs.existsSync(lock), "a truncated journal keeps the lock");
 setup(lockRecord, null);
 assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: () => { throw new Error("Process start identity unavailable"); }, host }), /identity unavailable/, "an inaccessible identity is never read as absence");
 assert.ok(fs.existsSync(lock), "an inaccessible identity keeps the lock");
-// A second recovery, or one interrupted, holds the marker: recovery refuses
-// and leaves both in place, and a coordinator that takes the free lock
-// meanwhile gives it up again before writing a journal.
 setup(lockRecord, null); fs.writeFileSync(marker, "{}");
 assert.throws(() => recoverHandoffLock(worktree, { identifyProcess: probe({}), host }), /Recovery marker exists/, "a held marker refuses recovery");
 assert.ok(fs.existsSync(lock) && fs.existsSync(marker), "a held marker keeps the lock and the marker");
@@ -141,9 +132,6 @@ accepted("a coordinator that died waiting for a slot", lockRecord, [...launched,
 accepted("a child confirmed absent at registration", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }], {});
 console.log("PASS: recover-lock removes the lock of a gone coordinator whose journal leaves no child that may run");
 
-// The launcher itself writes executionDrained on the exit row only once the
-// delegated service has closed, and false when the close fails; recovery
-// accepts the first journal and refuses the second.
 {
   const { runHandoff: actualRunHandoff } = await import("./agent-handoff.mjs");
   const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
@@ -174,7 +162,6 @@ console.log("PASS: recover-lock removes the lock of a gone coordinator whose jou
     assert.equal(exitedBeforeDrain, false, `${name}: the exit row waits for the service to finish closing`);
     const execRows = fs.readFileSync(execJournal, "utf8").trim().split("\n").map(JSON.parse);
     assert.equal(execRows.find((row) => row.event === "exited").executionDrained, !fails, `${name}: the exit row records whether the service drained`);
-    // Treat the run's coordinator as dead and its lock as left behind.
     const ran = execRows.find((row) => row.event === "coordinator").processIdentity;
     fs.writeFileSync(repoLock, JSON.stringify({ pid: ran.pid, processIdentity: ran, host, startedAt: new Date().toISOString(), journal: execJournal }));
     if (fails) {
@@ -188,8 +175,6 @@ console.log("PASS: recover-lock removes the lock of a gone coordinator whose jou
 }
 console.log("PASS: the launcher records executionDrained only after the delegated service closes, and recovery refuses a failed drain");
 
-// A filesystem failure after the lock is moved aside puts the record back;
-// when even that fails, the marker stays so no coordinator takes the worktree.
 const faulted = (overrides, act) => {
   const saved = Object.fromEntries(Object.keys(overrides).map((name) => [name, fs[name]]));
   Object.assign(fs, Object.fromEntries(Object.entries(overrides).map(([name, wrap]) => [name, wrap(saved[name])])));
@@ -224,9 +209,6 @@ assert.ok(!fs.existsSync(lock) && !fs.existsSync(whileAside), "the refused coord
 fs.unlinkSync(path.join(path.dirname(lock), aside[0])); fs.unlinkSync(marker);
 console.log("PASS: a failure after the lock is moved aside puts it back, and a failed restore keeps the recovery marker");
 
-// A launcher that died after its child was identified leaves a journal at
-// identified; settle-launch ends it on record once both are gone and the lock
-// is recovered, and recover-lock settles such a journal in the same call.
 {
   const agentHandoff = await import("./agent-handoff.mjs");
   const { roundState } = await import("../.agents/skills/orchestrate-issues/review-checkpoint.mjs");
@@ -259,7 +241,6 @@ console.log("PASS: a failure after the lock is moved aside puts it back, and a f
   assert.match(blocked.reason, /died.*settled/);
   assert.doesNotMatch(blocked.reason, /unconfirmed/, "the settled reason is not read as an unconfirmed child");
   assert.deepEqual(launchBlockers(settleJournal), [], "roundState treats the settled launch as ended");
-  // Lock recovery's own rule holds on the settled journal.
   setup({ ...lockRecord, journal: settleJournal }, null);
   assert.ok(recoverHandoffLock(worktree, { identifyProcess: probe({}), host }).recovered, "lock recovery accepts the settled journal");
   console.log("PASS: settle-launch ends a dead launcher's identified journal on record");
@@ -278,7 +259,6 @@ console.log("PASS: a failure after the lock is moved aside puts it back, and a f
   refusedSettle("an undrained execution service", [...identifiedRows.slice(0, 4), { event: "execution-service", index: 0, directory: "execution-x" }, ...identifiedRows.slice(4)], {}, /delegated execution service/);
   refusedSettle("an empty journal", [], {}, /is empty/);
   refusedSettle("no recovered lock copy", identifiedRows, {}, /no recovered lock copy/, { copy: false });
-  // A still-present lock the journal's plan leads to refuses.
   write(identifiedRows);
   fs.writeFileSync(path.join(settleDir, "plan.json"), JSON.stringify({ worktree, journal: settleJournal, steps: {} }));
   fs.writeFileSync(lock, JSON.stringify({ ...lockRecord, journal: settleJournal }));
@@ -290,7 +270,6 @@ console.log("PASS: a failure after the lock is moved aside puts it back, and a f
   assert.throws(() => settleLaunch(settleJournal, {}), /unreadable/, "an unparsable journal refuses");
   console.log("PASS: settle-launch refuses a live child or coordinator, an ended launch, an undrained service, an empty or unparsable journal and an unrecovered lock");
 
-  // recover-lock settles the identified journal in the same call.
   write(identifiedRows, { copy: false });
   setup({ ...lockRecord, journal: settleJournal }, null);
   const recoveredAndSettled = recoverHandoffLock(worktree, { identifyProcess: probe({}), host });

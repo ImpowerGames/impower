@@ -1,10 +1,7 @@
-// PreToolUse hook for the PowerShell tool: refuses a gh --jq filter holding a
-// double quote, which Windows PowerShell 5.1 strips from native arguments. The
-// decision lives in .agents/hooks/write-hazards.mjs.
-
 import { pathToFileURL } from "node:url";
 import { jqQuoteReason } from "../../.agents/hooks/write-hazards.mjs";
 
+// workaround(powershell): Windows PowerShell 5.1 strips double quotes from native command arguments, breaking gh --jq filters
 export async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;

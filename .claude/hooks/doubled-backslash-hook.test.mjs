@@ -1,8 +1,3 @@
-// Exercises the doubled-backslash hook two ways: the decision table runs
-// against decide() directly, and payloads run through the literal PreToolUse
-// "command" string that .claude/settings.json ships, under bash. Run:
-//   node .claude/hooks/doubled-backslash-hook.test.mjs
-
 import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -21,8 +16,6 @@ function check(ok, label, detail) {
   }
 }
 
-// Each entry is written so the JavaScript string holds the bytes the tool
-// would receive: "\\\\" here is two backslash characters.
 const denies = [
   ["a doubled backslash in a here-doc body", "python - <<'PY'\nimport re\nre.compile(r\"\\\\b\")\nPY"],
   ["a doubled backslash in a quoted argument", "printf '%s' 'A\\\\B'"],
@@ -54,7 +47,6 @@ for (const [label, command] of allows) {
   check(reason === null, `allowed: ${label}`, JSON.stringify(reason));
 }
 
-// The reason has to say what to do instead and what is still allowed.
 {
   const reason = decide("echo 'A\\\\B'");
   check(/editor capability/.test(reason), "the reason names the editor capability", JSON.stringify(reason));
@@ -62,7 +54,6 @@ for (const [label, command] of allows) {
   check(/lone backslash is not collapsed/.test(reason), "the reason says a lone backslash is fine", JSON.stringify(reason));
 }
 
-// The wired command string, under bash, with the payloads the harness sends.
 {
   const settings = JSON.parse(readFileSync(resolve(root, ".claude", "settings.json"), "utf8"));
   const entry = (settings.hooks?.PreToolUse ?? []).find((e) => e.matcher === "Bash");
@@ -89,8 +80,6 @@ for (const [label, command] of allows) {
         parsed = out ? JSON.parse(out) : null;
       } catch {}
       const denied = parsed?.hookSpecificOutput?.permissionDecision === "deny";
-      // A refusal the agent cannot act on is half a fix: the wired output must
-      // carry the reason with its guidance, not only the decision.
       const reason = parsed?.hookSpecificOutput?.permissionDecisionReason;
       const guided = !expectDeny || (typeof reason === "string" && /editor capability/.test(reason) && /runner notes/.test(reason));
       check(r.status === 0 && denied === expectDeny && guided, `wired: ${label}`, `status=${r.status} stdout=${JSON.stringify(out)} stderr=${JSON.stringify(r.stderr)}`);
@@ -101,9 +90,6 @@ for (const [label, command] of allows) {
     wire("a here-doc without backslashes passes", JSON.stringify({ tool_name: "Bash", tool_input: { command: "cat <<'EOF'\nhello\nEOF" } }), false);
     wire("an empty payload passes", "", false);
     wire("unrelated unparseable text passes", "not json", false);
-    // A truncated payload still carrying the four-backslash JSON encoding of a
-    // doubled backslash is refused, as the sibling hooks refuse a broken
-    // payload that still resembles what they guard.
     wire("a truncated payload that still shows a doubled backslash is refused", dangerous.slice(0, -1), true);
     wire("a truncated payload with only a lone backslash passes", JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo 'A\\B'" } }).slice(0, -1), false);
     {

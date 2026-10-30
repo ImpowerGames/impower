@@ -131,7 +131,7 @@ test("a Discord credentials file saved after the broker is already running is pi
   const { requestBroker } = await import("../src/broker.mjs?discord-creds-test");
   try {
     assert.equal((await requestBroker({ type: "status" })).discord, "disabled");
-    if (process.platform !== "win32") return; // the watcher is Windows-only; this already confirmed it stays fully inert elsewhere
+    if (process.platform !== "win32") return;
     await writeFile(join(folder, "discord-credentials.json"), JSON.stringify({ clientId: "test-client", clientSecret: "test-secret" }));
     let discordStatus = "disabled";
     for (let attempt = 0; attempt < 30 && discordStatus === "disabled"; attempt++) {

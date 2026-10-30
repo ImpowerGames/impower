@@ -41,7 +41,6 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');
   checkWriterEffort(plan.writer,plan.writerEffort);
-  // Its reports are verified on this thread; ticket follows the cutover switch.
   reviewThread(plan,repos);
   if(plan.reportPosting!==undefined)throw new Error('A coordinator-posted report uses the awaited launcher; the supervised route verifies reports its reviewers post');
   const limit=plan.reviewRoundLimit??3;
@@ -74,9 +73,6 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
     if(!fs.statSync(review.prompt).isFile())throw new Error('Reviewer prompt missing');
     if(!fs.statSync(review.executable).isFile())throw new Error('Reviewer executable missing');
   }
-  // The job directory holds the launcher plan and journal, which the launcher
-  // refuses outside the review job root; refusing here happens before the
-  // job's files or the worktree freeze exist.
   assertInsideJobRoot([['jobDir',plan.jobDir],...plan.reviews.flatMap(review=>[[`review ${review.id} prompt`,review.prompt],...(review.permissions?.cwd!==undefined?[[`review ${review.id} reviewer directory`,review.permissions.cwd]]:[])])],jobRoot??reviewJobRoot(plan.worktree),`in pr-${plan.pr}${path.sep}round-${plan.round}`);
   assertWalkedJobState([['jobDir',plan.jobDir,'directory']],jobRoot??reviewJobRoot(plan.worktree));
   checkCrossVendor(plan,jobRoot??reviewJobRoot(plan.worktree));
@@ -86,7 +82,6 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
 export async function createReviewJob(input,host,{verifyExecutable=verifyReviewerExecutable,...validation}={}) {
   const plan=validateReviewPlan(input,validation);plan.jobId=randomUUID();plan.continuationId=randomUUID();plan.terminalContinuationId=randomUUID();
   for(const review of plan.reviews)verifyExecutable(review);
-  // The adapter validates private storage containment and exact host identity.
   const capability=await host.preflight(plan.destination,plan);
   if(capability?.supported!==true)throw new Error('Automatic continuation unsupported; use awaited mode');
   fs.mkdirSync(plan.jobDir);
@@ -109,8 +104,6 @@ export async function launchReviewWorker(dir,{spawnWorker=spawnDetached}={}) {
       await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
     }catch(error){await transaction(dir,()=>appendEvent(dir,child?.pid?'worker-launch-uncertain':'worker-launch-failed',failureDetails(error)));throw error;}
     child.unref();
-    // Worker records its own identity before launching any reviewer. No blind
-    // retry if either process dies in this registration interval.
     return {pid:child.pid};
   }finally{if(log!==undefined)fs.closeSync(log);}
 }
@@ -128,8 +121,6 @@ export async function launchSupervisor(dir,{spawnMonitor=spawnDetached,registrat
       registered=snapshot.rows.find(row=>row.sequence>baseline&&row.event==='monitor-started'&&row.identity?.pid===child.pid);
       if(registered&&(!outcome||outcome.code===0)){child.unref();return{pid:child.pid};}
       if(outcome){
-        // A second run may exit successfully after finding an already running
-        // monitor. Reuse only its recorded generation and actual OS identity.
         const owner=snapshot.owner;
         if(outcome.code===0&&owner&&snapshot.rows.some(row=>row.event==='monitor-started'&&row.token===owner.token&&sameIdentity(row.identity,owner.identity))&&alive(owner.identity))return{pid:owner.identity.pid,existing:true};
         throw Object.assign(new Error(`Monitor exited ${registered?'during startup':'before registration'} (code ${outcome.code}, signal ${outcome.signal??'none'})`),{status:outcome.code,signal:outcome.signal});
@@ -168,8 +159,6 @@ async function advanceDelivery(dir,host,{plan,envelope,rows,outstanding,accepted
         if(request||accepted(current)||outstanding(current)||!maySubmit(current))return;
         assertAdmission(current);
         appendEvent(dir,intent,{envelope});
-        // One admission lock covers durable intent and invocation. Keep the
-        // promise locally even if the lock's finally subsequently fails.
         try{request=Promise.resolve(host.submit(envelope));}catch(error){request=Promise.reject(error);}
         request.catch(()=>{});
       });
@@ -235,8 +224,6 @@ export async function advanceReviewJob(dir,host,{identify=processIdentity,failpo
   const worker=last(rows,'worker-started');
   if(worker&&!exitObserved(rows,worker)) {
     if(!observeWorker&&!last(rows,'worker-finished'))return jobStatus(dir);
-    // Slow OS identity inspection is outside the mutation lock. Only actual
-    // absence/reuse is persisted; a completion row never substitutes for exit.
     let running;try{running=alive(worker.identity,identify);}catch(error){error.observationUnavailable=true;throw error;}
     if(running)return jobStatus(dir);
     await transaction(dir,current=>{if(!exitObserved(current,worker))appendEvent(dir,'worker-exit-observed',{identity:worker.identity});});
@@ -333,8 +320,6 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
       const before=await mutate(rows=>jobStatus(dir,rows));
       if(['claimed','continuation-accepted','workflow-cancelled'].includes(before.state))return{state:before.state};
       if(['blocked','review-failed'].includes(before.state)){
-        // A prior completion admission may already have reached the task. Its
-        // uncertain receipt must never be followed by a second terminal send.
         if(submissionOutstanding(before.events))return{state:before.state};
         const delivered=await advanceTerminalNotification(dir,host,{failpoint:deliveryFailpoint});
         if(delivered)return{state:before.state};
@@ -366,8 +351,6 @@ export async function runReviewMonitor(dir,host,{identify=processIdentity,wait=s
     }
   }catch(error){
     primary=error;
-    // Independent token-owned diagnostics remain writable when a stale shared
-    // mutation lock prevents safely appending to the canonical journal.
     persistFailure(error);
     try{await mutate(()=>appendEvent(dir,'monitor-suspended',{...failureDetails(error),resumable:true}));flush(readEvents(dir));}catch(recordError){if(recordError!==error)error.message+=`; journal suspension unavailable: ${recordError.message}`;}
     return{state:'monitor-suspended',...failureDetails(error)};

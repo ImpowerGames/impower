@@ -1,5 +1,3 @@
-// A caller chooses these paths before launching a coordinator. Neither test
-// output nor a delegated reviewer operation can nominate recovery evidence.
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
@@ -57,7 +55,6 @@ export function openReceipt(file, { packageRoot, files, waitMs, fileTimeoutMs })
     throw new Error("Supervision descriptor does not match the actual invocation");
   const record = { version: 1, descriptorHash: sha256, nonce: descriptor.nonce, phase: "preparing",
     coordinator: processIdentity(process.pid), preparation: [], attempts: [], createdAt: new Date().toISOString() };
-  // Exclusive admission: no replay into an existing authored receipt.
   fs.writeFileSync(descriptor.receiptFile, JSON.stringify(record), { flag: "wx" });
   const save = () => atomic(descriptor.receiptFile, record);
   return { descriptor, record, save,
@@ -160,8 +157,6 @@ export function readReceiptDisposition(authored, { identify = processIdentity, c
       if (events.length !== 1 || events[0].event !== "unknown" || typeof events[0].reason !== "string" || !events[0].reason)
         throw new Error("Linux capability refusal was not observed before acknowledgement");
       for (const expected of request.bindings) checkBinding(expected);
-      // Linux --check cannot fork an engine. This accepts only its authenticated
-      // nonzero close, not status alone, interrupted preparation or compilation.
       return { confirmed: true, record };
     }
     if (!record.runtime || record.runtime.status !== "prepared") throw new Error("Preparation admission remains unresolved");
@@ -195,8 +190,6 @@ export async function awaitReceiptDisposition(authored, { timeoutMs = 12000, ...
   }
 }
 
-// Durable CI fixtures already author a fresh Git state directory. Validate its
-// retained attempt proofs directly; direct-journal status is not a public API.
 export function readDurableDisposition(directory, { packageRoot, coordinator, identify = processIdentity, priorAttempts = [] }) {
   try {
     directory = canonical(directory); packageRoot = canonical(packageRoot);

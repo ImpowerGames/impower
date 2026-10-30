@@ -1,7 +1,3 @@
-// A delegated editor shutdown recorded as not drained (I-1395): the driver's
-// `down` keeps a nonzero taskkill exit a failure unless the whole tree is
-// gone, and confirm-drained settles a journal whose drain was recorded false
-// once nothing of its service runs, which the checkpoint then accepts.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -20,9 +16,6 @@ const launcher = fileURLToPath(new URL("./agent-handoff.mjs", import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-drain-"));
 console.log(`Scratch directory: ${scratch}`);
 
-// --- The driver's stop ------------------------------------------------------
-
-// A nonzero taskkill exit removes the record only when the tree is shown gone.
 const stop = async (code, verifyStopped) => {
   const messages = [], failures = [];
   let removed = false;
@@ -45,8 +38,6 @@ console.log("PASS: a nonzero taskkill exit is a stop only when no process of the
 
 const driver = await import("../.agents/skills/drive-web-editor/driver.mjs");
 assert.equal(typeof driver.treeSurvivors, "function", "the driver exports treeSurvivors");
-// Root 10 started npm 11, which started vite 12. 20 names 10 as its parent
-// but predates it, so 10's pid was reused and 20 is not in the tree.
 const before = [{ pid: 10, ppid: 1, start: "1000" }, { pid: 11, ppid: 10, start: "1001" }, { pid: 12, ppid: 11, start: "1002" }, { pid: 20, ppid: 10, start: "900" }, { pid: 30, ppid: 1, start: "500" }];
 assert.deepEqual(driver.treeSurvivors(before, [{ pid: 20, ppid: 10, start: "900" }, { pid: 30, ppid: 1, start: "500" }], 10), [], "unrelated processes are no survivors");
 assert.deepEqual(driver.treeSurvivors(before, [{ pid: 12, ppid: 11, start: "1002" }], 10).map((row) => row.pid), [12], "a member still running survives");
@@ -59,24 +50,16 @@ const settling = await driver.treeStopped(before, 10, { table: async () => (++ca
 assert.deepEqual([settling.stopped, calls], [true, 2], "a member still exiting is read again");
 const stuck = await driver.treeStopped(before, 10, { table: async () => [{ pid: 12, ppid: 11, start: "1002" }], attempts: 2, waitMs: 1 });
 assert.deepEqual(stuck, { stopped: false, reason: "pid 12 of its tree still run" });
-// A child seen in one reading that exits after starting its own child: the
-// grandchild is still the tree's.
 const readings = [[{ pid: 40, ppid: 10, start: "2000" }], [{ pid: 41, ppid: 40, start: "2100" }], [{ pid: 41, ppid: 40, start: "2100" }]];
 let reading = 0;
 const handedOn = await driver.treeStopped([{ pid: 10, ppid: 1, start: "1000" }], 10, { table: async () => readings[Math.min(reading++, 2)], attempts: 3, waitMs: 1 });
 assert.deepEqual(handedOn, { stopped: false, reason: "pid 41 of its tree still run" }, "a survivor's own child is still found after the survivor exits");
-// Three new generations in one reading, of which only the youngest is left
-// in the next.
 const generations = [[{ pid: 40, ppid: 10, start: "2000" }, { pid: 41, ppid: 40, start: "2100" }, { pid: 42, ppid: 41, start: "2200" }], [{ pid: 42, ppid: 41, start: "2200" }]];
 let generation = 0;
 const nested = await driver.treeStopped([{ pid: 10, ppid: 1, start: "1000" }], 10, { table: async () => generations[Math.min(generation++, 1)], attempts: 3, waitMs: 1 });
 assert.deepEqual(nested, { stopped: false, reason: "pid 42 of its tree still run" }, "every new generation in a reading stays a member");
-// A member's pid passed to a new child of the tree: the child stays a member
-// in every reading, though its pid matches an older member's.
 const collision = await driver.treeStopped([{ pid: 10, ppid: 1, start: "1000" }, { pid: 40, ppid: 10, start: "1100" }], 10, { table: async () => [{ pid: 40, ppid: 10, start: "2000" }], attempts: 3, waitMs: 1 });
 assert.deepEqual(collision, { stopped: false, reason: "pid 40 of its tree still run" }, "a new child reusing a member's pid stays a member");
-// The parent is whoever held the parent pid when the child was created: a
-// child of a process that reused a member's pid is not the tree's.
 assert.deepEqual(driver.treeSurvivors([{ pid: 10, ppid: 1, start: "1000" }, { pid: 40, ppid: 10, start: "1100" }], [{ pid: 40, ppid: 5, start: "3000" }, { pid: 50, ppid: 40, start: "3100" }], 10), [], "a child of a reused member pid is not the tree's");
 if (process.platform === "win32") {
   const table = await driver.windowsProcessTable();
@@ -85,9 +68,6 @@ if (process.platform === "win32") {
 }
 console.log("PASS: the tree census names a member still running, a child started after it, and nothing else");
 
-// --- confirm-drained ----------------------------------------------------------
-
-// The driver's server records live under a private home for these fixtures.
 const env = { ...process.env, IMPOWER_DRIVER_HOME: path.join(scratch, "driver-home") };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const goneWithin = async (pid, ms = 30000) => {
@@ -95,8 +75,6 @@ const goneWithin = async (pid, ms = 30000) => {
   while (processIdentity(pid) !== null) { if (Date.now() > end) throw new Error(`PID ${pid} never disappeared`); await sleep(100); }
 };
 
-// A process that has exited, with the identity it had while it ran and
-// when it exited.
 const exitedProcess = async () => {
   const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 3000)"], { stdio: "ignore", windowsHide: true });
   const identity = processIdentity(child.pid);
@@ -107,11 +85,7 @@ const exitedProcess = async () => {
 };
 const standIns = await Promise.all([exitedProcess(), exitedProcess(), exitedProcess(), exitedProcess()]);
 const [launcherGone, upChild, stopped, serverLauncher] = standIns.map((standIn) => standIn.identity);
-// The fixture's records are dated when the stand-ins exited, as a real
-// shutdown's are: a process that reuses one of their PIDs is created later,
-// so it reads as reused rather than as a process that may predate them.
 const recordedAt = new Date(Math.min(...standIns.map((standIn) => standIn.exitedAt)) - 1000);
-// Ports nothing listens on: each was bound once and released.
 const closedPort = async () => {
   const server = net.createServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -124,10 +98,6 @@ const head = "85c2ec9b2930617de3da95c4e78da826498855c4";
 const thread = { repo: "ImpowerGames/impower-internal", number: 1091, issueUrl: "https://api.github.com/repos/ImpowerGames/impower-internal/issues/1091" };
 const goodComment = (t, id) => ({ id, issue_url: t.issueUrl, body: `Report for ${head}` });
 
-// A launch directory as the launcher leaves it after a drain recorded false:
-// the journal, its plan, the completion artifact, and the editor session's
-// started records, session file, up.log and down.log; with `state`, the
-// driver's server record that a failed `down` keeps.
 const fixture = (name, { thread, coordinator = launcherGone, state, planName = "plan.json", session: withSession = true, startedIdentity = upChild, downPids = [stopped.pid], datedAt = recordedAt, alsoBlockedBy = null, stateChecked = true, stateRow = {} } = {}) => {
   const launchDir = path.join(scratch, name, "round-1", "launch-ax-1");
   const execution = path.join(launchDir, "handoff-0-review", "execution-x");
@@ -168,8 +138,6 @@ const fixture = (name, { thread, coordinator = launcherGone, state, planName = "
 };
 const journalRows = (journal) => fs.readFileSync(journal, "utf8").trim().split("\n").map((line) => JSON.parse(line));
 const confirm = (journal) => spawnSync(process.execPath, [launcher, "confirm-drained", journal], { encoding: "utf8", windowsHide: true, env });
-// A refusal, from the CLI's result or a rejected call, leaves the journal as
-// it was before the command ran.
 const refusedUnchanged = async (journal, act, pattern, label) => {
   const before = fs.readFileSync(journal, "utf8");
   const outcome = await Promise.resolve().then(act).then((value) => (value && "status" in value && "stderr" in value ? value : { status: 0, stderr: JSON.stringify(value) }), (error) => ({ status: 1, stderr: error.message }));
@@ -181,14 +149,9 @@ const refusedUnchanged = async (journal, act, pattern, label) => {
 const plain = fixture("launch-plain", { state: {} });
 assert.ok(roundState(readJournals(plain.jobDir)).blockers.some((b) => /shutdown is not confirmed \(executionDrained false\)/.test(b)), "the checkpoint refuses the journal before the confirmation");
 
-// A live process holds the confirmation: one naming the execution
-// directory, one whose recorded identity still runs, and one a record names.
 const live = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", plain.execution], { stdio: "ignore", windowsHide: true });
 const handoff = await import("./agent-handoff.mjs");
 const quietCensus = () => [{ pid: process.pid, ppid: process.ppid, start: null, commandLine: "node" }];
-// Calls with an injected census also get an identity probe that finds the
-// exited stand-ins absent: a census that lists none of the machine's
-// processes cannot date a stand-in PID another user's process has reused.
 const standInPids = new Set([launcherGone, upChild, stopped, serverLauncher].map((identity) => identity.pid));
 const probeStandIns = (pid) => (standInPids.has(pid) ? null : processIdentity(pid));
 const confirmWith = (journal, options) => handoff.confirmExecutionDrained(journal, { identifyProcess: probeStandIns, env, ...options });
@@ -209,14 +172,10 @@ await new Promise((resolve) => (live.exitCode !== null || live.signalCode !== nu
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: () => { throw new Error("CIM unavailable"); }, env }), /process census failed \(CIM unavailable\)/, "a census that fails");
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: quietCensus, env, identifyProcess: () => { throw new Error("Process start identity unavailable"); } }), /cannot be probed|start identity/, "an identity probe that fails");
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: quietCensus, env, probePort: async () => { throw new Error("no answer"); } }), /port \d+, recorded in .*, cannot be probed \(no answer\)/, "a port that cannot be probed");
-// A server of the service outlives its launcher: its parent PID (Windows),
-// or its process group or session (Linux), still names a recorded PID.
 const orphanOf = (pid, start) => () => [...quietCensus(), { pid: 999999, ppid: pid, group: 0, sessionId: 0, start, commandLine: "node vite" }];
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: orphanOf(serverLauncher.pid, "1"), env }), new RegExp(`PID 999999 \\(descended from recorded PID ${serverLauncher.pid}\\) still runs`), "a server orphaned by its launcher");
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: () => [...quietCensus(), { pid: 999999, ppid: 1, group: serverLauncher.pid, sessionId: serverLauncher.pid, start: null, commandLine: "node vite" }], env }), /descended from recorded PID/, "a reparented server still in its launcher's session");
 await refusedUnchanged(plain.journal, () => confirmWith(plain.journal, { census: orphanOf(serverLauncher.pid, null), env }), /descended from recorded PID/, "a child whose creation time is unknown");
-// The driver's kept record: its launcher still running, or a server still
-// answering on a recorded port.
 const keptLive = fixture("launch-kept-live", { state: { pid: process.pid, startedAt: Date.now() } });
 await refusedUnchanged(keptLive.journal, () => confirmWith(keptLive.journal, { census: quietCensus, env }), /the server launcher .*state\.json records, may still run/, "the driver record's launcher still running");
 const listener = net.createServer((socket) => socket.end("alive"));
@@ -225,8 +184,6 @@ try {
   const answering = fixture("launch-answering", { state: { ports: { ...ports, hmr: listener.address().port } } });
   await refusedUnchanged(answering.journal, () => confirm(answering.journal), new RegExp(`port ${listener.address().port}, recorded in .*state\\.json, still accepts connections`), "a server still answering on a recorded port");
 } finally { await new Promise((resolve) => listener.close(resolve)); }
-// One run at a time: a marker naming a live run refuses, and one whose run is
-// gone is replaced.
 const marked = fixture("launch-marked");
 fs.writeFileSync(`${marked.journal}.confirm-drained`, JSON.stringify({ processIdentity: processIdentity(process.pid) }));
 await refusedUnchanged(marked.journal, () => confirm(marked.journal), /another confirm-drained \(PID \d+\) is running on it/, "a confirmation already running");
@@ -238,10 +195,6 @@ const running = fixture("launch-running", { coordinator: processIdentity(process
 await refusedUnchanged(running.journal, () => confirm(running.journal), /launcher \(PID \d+\) is still running/, "a launcher still running");
 console.log("PASS: confirm-drained refuses while any process of the service may run, and writes nothing");
 
-// A real detached server whose launcher is gone, with nothing recording its
-// port: on Windows the hidden wrapper the launcher started still names it as
-// its parent; on Linux the server keeps the session of the detached leader
-// the driver would record.
 {
   const helper = pathToFileURL(fileURLToPath(new URL("./detached-launch.mjs", import.meta.url))).href;
   const serve = "require('node:net').createServer((c) => c.end('alive')).listen(0, '127.0.0.1')";
@@ -272,12 +225,6 @@ console.log("PASS: confirm-drained refuses while any process of the service may 
 }
 console.log("PASS: a detached server outliving its recorded launcher holds the confirmation");
 
-// With nothing left, the CLI records the drain with its evidence. This
-// journal names no review thread, so the completion cannot be recorded and
-// the journal ends blocked, with the drain confirmed.
-// The real census can briefly show a child of a short-lived process that
-// reused a stand-in's PID (a console host, say); the command refuses that,
-// as it must, and a later run passes, as an operator's would.
 let settled = confirm(plain.journal);
 for (let attempt = 1; settled.status !== 0 && /descended from recorded PID/.test(settled.stderr) && attempt < 10; attempt++) {
   console.log(`retrying after a transient child of a reused PID: ${settled.stderr.trim()}`);
@@ -296,15 +243,9 @@ assert.deepEqual(drained.census.ports.map((entry) => entry.port).sort((a, b) => 
 assert.match(journalRows(plain.journal).at(-1).reason ?? "", /Drain confirmed; the review completion was not recorded: its coordinator row names no review thread/);
 const state = roundState(readJournals(plain.jobDir));
 assert.ok(!state.blockers.some((b) => /shutdown is not confirmed/.test(b)), `the checkpoint accepts the confirmed drain: ${state.blockers.join("; ")}`);
-// Running it again retries only the completion.
 const retried = confirm(plain.journal);
 assert.equal(retried.status, 0, retried.stderr);
 assert.equal(journalRows(plain.journal).filter((row) => row.event === "execution-drained").length, 1, "a retry records no second confirmation");
-// A creation time alone does not show a recorded parent PID was reused: a
-// child created after the records still holds the confirmation while that
-// PID is absent, or held by a process older than the child; it is let go
-// only when the PID is held by a process newer than the records and older
-// than the child.
 const ticks = (ms) => String(BigInt(Math.floor(ms)) * 10000n + 621355968000000000n);
 const reusedParent = fixture("launch-reused-parent");
 const childOf = (pid, at) => ({ pid: 999999, ppid: pid, start: ticks(at), commandLine: "node" });
@@ -314,11 +255,6 @@ await refusedUnchanged(reusedParent.journal, () => confirmWith(reusedParent.jour
 await refusedUnchanged(reusedParent.journal, () => confirmWith(reusedParent.journal, { census: () => [...quietCensus(), holder, childOf(stopped.pid, heldAt - 1000)], env }), /PID 999999 \(descended from recorded PID \d+\)/, "a child older than the PID's new holder");
 const later = await confirmWith(reusedParent.journal, { census: () => [...quietCensus(), holder, childOf(stopped.pid, heldAt + 1000)], env });
 assert.equal(later.confirmed.event, "execution-drained", "a child of a PID held by a newer process does not hold the confirmation");
-// A PID the identity probe cannot read (another user's process) is dated by
-// the census: a creation time within a millisecond of the recorded identity
-// is that process still running, a later one a reuse, and a PID the census
-// does not list either refuses. Only Windows dates processes in ticks; the
-// Linux census reports no creation time, so there the probe's failure stands.
 if (process.platform === "win32") {
   const unreadable = (pid) => (asked) => { if (asked === pid) throw new Error("Process start identity unavailable"); return probeStandIns(asked); };
   const censusDated = fixture("launch-census-dated");
@@ -328,22 +264,13 @@ if (process.platform === "win32") {
   const dated = await confirmWith(censusDated.journal, { census: withRow(ticks(Date.now())), identifyProcess: unreadable(upChild.pid), env });
   assert.deepEqual(dated.confirmed.census.identities.map((entry) => [entry.pid, entry.state, entry.dated]), [[upChild.pid, "reused", "census"]], "a later census creation time is a reuse");
 }
-// What still runs is read from a census taken after every probe: a recorded
-// process that starts a child and exits between the first census and the
-// probes, or one the last census still shows holding its PID, refuses.
 const raced = fixture("launch-raced");
 const sequence = (...readings) => { let reading = 0; return () => readings[Math.min(reading++, readings.length - 1)](); };
 await refusedUnchanged(raced.journal, () => confirmWith(raced.journal, { census: sequence(quietCensus, () => [...quietCensus(), childOf(stopped.pid, Date.now())]), env }), /PID 999999 \(descended from recorded PID \d+\)/, "a child started after the first census");
 await refusedUnchanged(raced.journal, () => confirmWith(raced.journal, { census: sequence(quietCensus, () => [...quietCensus(), { pid: stopped.pid, ppid: 4, start: ticks(recordedAt.getTime() - 60000), commandLine: "node" }]), env }), new RegExp(`recorded PID ${stopped.pid} is held by a process the last census cannot show is newer than the records naming it`), "a recorded PID the last census shows held by an older process");
-// Ancestry runs through both censuses: a chain the first census saw from a
-// recorded PID, whose intermediates exited before the last census, still
-// holds the confirmation through its surviving leaf.
 const chained = fixture("launch-chained");
 const chain = [{ pid: 999001, ppid: stopped.pid, start: ticks(Date.now() - 3000), commandLine: "cmd" }, { pid: 999002, ppid: 999001, start: ticks(Date.now() - 2000), commandLine: "npm" }, { pid: 999003, ppid: 999002, start: ticks(Date.now() - 1000), commandLine: "vite" }];
 await refusedUnchanged(chained.journal, () => confirmWith(chained.journal, { census: sequence(() => [...quietCensus(), ...chain], () => [...quietCensus(), chain[2]]) }), /PID 999003 \(descended from recorded PID \d+\)/, "a leaf whose intermediates exited between the censuses");
-// Only an editor shutdown failure is answered by confirming the drain; any
-// other failure the service's close joined into the blocked reason, such as
-// a changed frozen worktree, keeps the review uncompleted.
 assert.equal(handoff.onlyDrainFailures("Editor shutdown unverified; preserve C:/x/editor-a and inspect C:/x/editor-a/down.log"), true);
 assert.equal(handoff.onlyDrainFailures("Editor shutdown unverified; preserve C:/x/editor-a and inspect C:/x/editor-a/down.log; Editor shutdown unverified; preserve C:/x/editor-b and inspect driver state"), true, "two editor sessions that failed to stop");
 assert.equal(handoff.onlyDrainFailures("Editor shutdown unverified; preserve C:/x/editor-a and inspect C:/x/editor-a/down.log; Execution refused: reviewed head or worktree changed"), false, "a changed frozen worktree as well");
@@ -355,9 +282,6 @@ assert.equal(notCompleted.confirmed.event, "execution-drained", "the drain itsel
 assert.equal(notCompleted.ended, "blocked", "a review blocked by more than its drain is not completed");
 assert.match(notCompleted.reason, /blocked by more than the drain.*Execution refused: reviewed head or worktree changed/);
 assert.equal(journalRows(frozenChanged.journal).some((row) => row.event === "completed"), false);
-// The real case behind that rule (Windows, where a child keeps its parent's
-// PID): an original process starts a child after the records were written,
-// then exits.
 if (process.platform === "win32") {
   const helper = pathToFileURL(fileURLToPath(new URL("./detached-launch.mjs", import.meta.url))).href;
   const serve = "setInterval(() => {}, 1000)";
@@ -382,9 +306,6 @@ if (process.platform === "win32") {
 }
 console.log("PASS: confirm-drained records the drain, who confirmed it and the evidence, and the checkpoint accepts it");
 
-// A review that exited cleanly also takes the completion the drain failure
-// kept the launcher from writing, once its posted report verifies, so the
-// round completes and the journal finishes. Its plan is found by content.
 const reviewed = fixture("launch-reviewed", { thread, planName: "handoff.plan", state: {} });
 const offThread = await confirmWith(reviewed.journal, { census: quietCensus, env, readComment: () => ({ issue_url: thread.issueUrl.replace("1091", "1092"), body: `Report for ${head}` }) });
 assert.equal(offThread.ended, "blocked", "a report that does not verify on the review thread leaves the completion unrecorded");
@@ -398,10 +319,6 @@ assert.deepEqual(roundState(readJournals(reviewed.jobDir)).blockers, [], "the ro
 await refusedUnchanged(reviewed.journal, () => confirm(reviewed.journal), /already confirmed/, "a finished journal");
 console.log("PASS: a clean review blocked only by its drain completes once the drain is confirmed and its report verifies");
 
-// A review is completed only on the launcher's own check of the reviewed
-// head, worktree and install at the reviewer's exit. A journal from a
-// launcher that predates that record keeps its drain confirmation, and the
-// review is left to a retry.
 const stateUnchecked = fixture("launch-unchecked", { thread, stateChecked: false });
 const historical = await confirmWith(stateUnchecked.journal, { census: quietCensus, readComment: goodComment });
 assert.equal(historical.confirmed.event, "execution-drained", "a historical journal's drain is still confirmed");
@@ -409,8 +326,6 @@ assert.match(historical.reason ?? "", /recorded no check of the reviewed head, w
 const stateChanged = fixture("launch-state-changed", { thread, stateRow: { installChanges: ["node_modules added 1 (added-by-review)"] } });
 const changedState = await confirmWith(stateChanged.journal, { census: quietCensus, readComment: goodComment });
 assert.match(changedState.reason ?? "", /left the reviewed head, worktree or install changed or unchecked/, "a recorded install change holds the completion even when the reason names only the drain");
-// The launcher records that check when a clean review's drain fails, and a
-// reviewer that changed the install is never completed.
 {
   const OFF = readRepos((() => { const file = path.join(scratch, "repos-off.json"); fs.writeFileSync(file, JSON.stringify({ ...readRepos(), cutover: false })); return file; })());
   const repo = path.join(scratch, "exec-repo");
@@ -447,8 +362,6 @@ assert.match(changedState.reason ?? "", /left the reviewed head, worktree or ins
     if (damage) fs.rmSync(path.join(repo, "node_modules", "added-by-review"), { recursive: true });
     return { journal, rows };
   };
-  // The launcher runs in this process, so its coordinator identity is this
-  // one; the confirmation is told it is gone.
   const gone = (pid) => (pid === process.pid ? null : probeStandIns(pid));
   const clean = await launched("clean", false);
   assert.deepEqual(clean.rows.filter((row) => row.event === "review-state-checked").map((row) => [row.headUnchanged, row.changedPaths, row.installChanges]), [[true, 0, []]], "a clean review's state is checked and journalled before the drain failure stops it");

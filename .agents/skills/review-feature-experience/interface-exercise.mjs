@@ -4,11 +4,6 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { ticketsRepo } from "../../repos.mjs";
 
-// The interface exercise of the experience review. Nothing is built when a
-// design is reviewed, so the reviewing session walks through an author's tasks
-// on paper. This module does the two mechanical parts: it checks that each
-// declared interface element carries the four items the walkthrough needs, and
-// it prints the per-task record the session fills in.
 export const REQUIRED_ITEMS = ["Location", "Trigger", "States", "Failure view"];
 export const REQUIRED_TASKS = ["First use", "Everyday repeated use", "Recovering from a mistake", "Undoing or removing what the feature added"];
 export const COLUMNS = ["What the author sees", "What the author does", "What the tickets leave unspecified"];
@@ -20,17 +15,8 @@ const BULLET = /^\s*[-*+]\s+/;
 const FENCE = /^\s*(?:`{3,}|~{3,})/;
 const canonical = (label) => REQUIRED_ITEMS.find((item) => item.toLowerCase() === label.toLowerCase());
 const emptyItems = () => Object.fromEntries(REQUIRED_ITEMS.map((item) => [item, null]));
-// Bold markers and a leading bullet are decoration on the line they sit in.
 const plain = (line) => line.replace(BULLET, "").replace(/\*\*/g, "").trim();
 
-// The declared elements of one ticket body: an `Interface element: <name>`
-// line, then lines labeled Location, Trigger, States and Failure view, as
-// bullets or bare lines. The block may sit inside a code fence, its labels may
-// be bold, and a label may carry its text on nested bullets or continuation
-// lines. A heading, or a paragraph after a blank line, or the next element
-// line ends the block. A name declared twice (a complete block under Proposed
-// solution and an abbreviated copy in an embedded draft, say) is one element
-// whose items come from whichever copy states them.
 export function interfaceElements(body) {
   const blocks = [];
   let current = null, pending = null, blank = false;
@@ -62,13 +48,6 @@ export function interfaceElements(body) {
 
 export const missingItems = (element) => REQUIRED_ITEMS.filter((item) => !element.items[item]);
 
-// Reviewability of the interface surface across the tickets. A name declared
-// in several tickets (the parent's complete block and a slice's abbreviated
-// copy) is one element whose items come from whichever ticket states them.
-// The named elements are the ones the tickets describe only in prose; a named
-// element that no ticket declares lacks all four items. With no element at all
-// the result is undetermined: the session names the elements the prose
-// describes, or reports that the feature has no interface surface.
 export function reviewability(tickets, named = []) {
   const elements = [];
   for (const ticket of tickets) {
@@ -100,8 +79,6 @@ export function reviewabilityReport(result) {
   return lines.join("\n");
 }
 
-// The record one element's walkthrough fills in: the four required tasks, each
-// a table with the three columns.
 export function walkthroughRecord(name) {
   const lines = [`## Interface walkthrough: ${name}`, "", "Every entry in the third column is a finding; so is a step that conflicts with how the existing editor works.", ""];
   REQUIRED_TASKS.forEach((task, index) => {
@@ -110,13 +87,11 @@ export function walkthroughRecord(name) {
   return lines.join("\n");
 }
 
-// Tickets are read from the tickets repository the repos file names.
 export const ghIssueCommand = (number, repo = ticketsRepo()) => ["api", `repos/${repo}/issues/${number}`];
 export function ghIssueBody(number) {
   return JSON.parse(execFileSync("gh", ghIssueCommand(number), { encoding: "utf8", windowsHide: true })).body ?? "";
 }
 
-// Sources are live issues (`--issue N`, read through gh) or markdown files.
 function readTickets(sources, fetchIssue) {
   return sources.map((source) => {
     if (source.issue !== undefined) return { number: source.issue, body: fetchIssue(source.issue) };

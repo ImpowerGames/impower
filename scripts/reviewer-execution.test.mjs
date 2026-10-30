@@ -12,7 +12,6 @@ import { createReviewJob as actualCreate } from "./review-supervisor.mjs";
 import { readRepos } from "../.agents/repos.mjs";
 import {createReceiptDescriptor,openReceipt,readReceiptDisposition} from "./test-suite-receipt.mjs";
 
-// Launches run with the cutover switch off, read from a copy of the repos file.
 const reposDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-repos-off-"));
 fs.writeFileSync(path.join(reposDir, "repos.json"), JSON.stringify({ ...readRepos(), cutover: false }));
 const OFF = readRepos(path.join(reposDir, "repos.json"));
@@ -20,8 +19,6 @@ fs.rmSync(reposDir, { recursive: true, force: true });
 const runHandoff = (file, options) => actualRunHandoff(file, { repos: OFF, ...options });
 const createReviewJob = (input, host, options) => actualCreate(input, host, { repos: OFF, ...options });
 
-// A reviewer must be able to author its own UI attempts without receiving
-// arbitrary coordinator commands or widening its filesystem permissions.
 assert.doesNotThrow(() => validateExecutionShape({ role: "review", execution: [
   { id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 },
 ] }), "the launcher accepts a bounded editor delegation");
@@ -32,22 +29,16 @@ const eightFiles = Array.from({ length: 8 }, (_, index) => `file-${index}.test.t
 assert.doesNotThrow(() => validateExecutionShape(vitestBoundary(eightFiles)), "eight authored test files fit the public runner limit");
 assert.throws(() => validateExecutionShape(vitestBoundary([...eightFiles, "file-8.test.ts"])), /1\.\.8 test files/, "reject nine files at delegation admission, before any coordinator launch");
 console.log("PASS: delegated Vitest admission accepts eight files and rejects nine (schema only, no engine)");
-// Keep the base-facing assertion above imports that did not exist on the base.
 const { saveScreenshots } = await import("./reviewer-execution-client.mjs");
 const { validateEditorRequest } = await import("./reviewer-editor.mjs");
 const oversizedSteps = Array.from({ length: 8 }, () => ({ action: "type", field: "search", text: "x".repeat(4096) }));
 assert.throws(() => validateEditorRequest({ requestId: "too-long", command: "ui", steps: oversizedSteps }), /step payload/, "combined text must fit the Windows command line");
 
-// The machine's temp directory: the delegated editor case opens a browser
-// profile under it, and the driver refuses a profile path past the Windows
-// limit, which the checkout's .tmp/ a run under check-agent-tooling is given
-// can reach.
 const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "impower-review-execution-"));
 console.log(`Scratch repository: ${scratch}`);
 const root = path.join(scratch, "repo"), evidence = path.join(scratch, "evidence");
 fs.mkdirSync(root); fs.mkdirSync(evidence);
 const browserCache = path.join(scratch, "browser-cache");
-// The driver's resolver only takes this platform's cache layouts (#1470).
 const cacheLayout = { win32: ["chrome-win", "chrome.exe"], darwin: ["chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"] }[process.platform] ?? ["chrome-linux64", "chrome"];
 const cacheExecutable = path.join(browserCache, "chromium-999999", ...cacheLayout);
 fs.mkdirSync(path.dirname(cacheExecutable), { recursive: true }); fs.writeFileSync(cacheExecutable, "fixture");
@@ -57,10 +48,6 @@ const write = (name, body) => { const file = path.join(root, name); fs.mkdirSync
 git("init");
 write("packages/example/package.json", "{}");
 write("packages/example/a.test.ts", "// fixture\n");
-// This runner tests transport and its queue clock, not Vitest behavior. Its
-// independently validated receipt proves real compiler/capability exit and
-// that no engine was authorized. Real cancellation is covered separately by
-// the required installed API integration check.
 const transportRunner = (queueMs = 0, runMs = 0) => `
 import fs from "node:fs"; import path from "node:path";
 import { openReceipt } from ${JSON.stringify(new URL("./test-suite-receipt.mjs", import.meta.url).href)};
@@ -81,8 +68,6 @@ console.log("Test Files  1 passed (1)\\nTests  2 passed (2)");`;
 write("scripts/test-suite.mjs", transportRunner());
 write("scripts/bench/engine-bench.mjs", `console.log("measured fixture"); process.exitCode=3;`);
 write("scripts/bench/preview-bench.mjs", `console.log("started"); setTimeout(()=>console.log("finished"), 250);`);
-// A process fixture exercises the real transport, argv, files and cleanup.
-// It does not stand in for the separate live browser acceptance.
 write(".agents/skills/drive-web-editor/driver.mjs", `import fs from "node:fs"; import path from "node:path"; import assert from "node:assert/strict";
 const args=process.argv.slice(2);
 console.log(JSON.stringify({args,session:process.env.IMPOWER_DRIVER_SESSION,gh:process.env.GH_TOKEN,cache:process.env.PLAYWRIGHT_BROWSERS_PATH}));
@@ -101,7 +86,6 @@ if(args.includes("--sd")) console.log(fs.readFileSync(args[args.indexOf("--sd")+
 `);
 git("add", "."); git("commit", "-m", "fixture");
 const head = git("rev-parse", "HEAD");
-// Receipt/transport control only: no supervisor or engine is launched here.
 for(const files of [["a.test.ts"],["a.test.ts","./a.test.ts"]]) {
   const directory=fs.mkdtempSync(path.join(scratch,"receipt-alias-"));
   const packageRoot=path.join(root,"packages/example");
@@ -111,8 +95,6 @@ for(const files of [["a.test.ts"],["a.test.ts","./a.test.ts"]]) {
   assert.deepEqual(opened.descriptor.files,[fs.realpathSync.native(path.join(packageRoot,"a.test.ts"))]);
 }
 console.log("PASS: repeated/aliased authored files retain canonical receipt binding (no engine)");
-// Validator-only synthetic Linux metadata. Native capability refusal and real
-// same-service successor execution are covered by required Linux API CI.
 {
   const directory=fs.realpathSync.native(fs.mkdtempSync(path.join(scratch,"receipt-refusal-")));
   const packageRoot=path.join(root,"packages/example"),authored=createReceiptDescriptor({directory,operation:"refusal",head,
@@ -184,10 +166,8 @@ for (const invalid of [
   { ...authorRequest, steps: Array(31).fill({ action: "open", value: "find" }) },
   { ...authorRequest, steps: Array(5).fill({ action: "shot", target: "page" }) },
 ]) assert.throws(() => validateEditorRequest(invalid));
-// The editor's own format commands reach a delegated reviewer (#1461).
 for (const value of ["Shift+Alt+f", "Control+s"]) validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] });
 for (const value of ["Control+S", "Alt+Shift+f", "Control+Shift+s"]) assert.throws(() => validateEditorRequest({ ...authorRequest, steps: [{ action: "press", value }] }), /Unknown or invalid editor step/);
-// PLAY, insert and scrub reach a delegated reviewer with the driver's bounds (#969).
 const playInsertScrub = [{ action: "play", value: "start" }, { action: "insert", line: 2, column: 1, text: "a\nb" }, { action: "scrub", line: 3 }, { action: "play", value: "stop" }];
 validateEditorRequest({ ...authorRequest, steps: playInsertScrub });
 validateEditorRequest({ ...authorRequest, steps: [{ action: "insert", line: 1, column: 1, text: "x".repeat(4096) }] });
@@ -204,8 +184,6 @@ for (const step of [
   const session = createEditorSession({ id: "argv", args: ["driver.mjs"], timeoutSeconds: 1 }, root, fakeDirectory, async (command) => { calls.push(command.args); return { exit: 0 }; });
   await session.run({ requestId: "argv", command: "ui", steps: playInsertScrub });
   assert.deepEqual(calls[1].slice(1, 9), ["ui", "--play", "start", "--insert", "2:1=a" + String.fromCharCode(92) + "nb", "--scrub", "3", "--play"]);
-  // A literal backslash, and a literal backslash-n, survive the argv
-  // encoding and the driver's decoding unchanged.
   const { parseUiSteps } = await import("../.agents/skills/drive-web-editor/driver.mjs");
   const slash = String.fromCharCode(92);
   for (const text of [slash + "n", "a" + slash + slash + "b\nc" + slash, "x\r\ny"]) {
@@ -268,8 +246,6 @@ const down = JSON.parse(fs.readFileSync(path.join(sessionDirectory, "down.log"),
 assert.equal(up.session, down.session);
 assert.deepEqual(down.args, ["down"]);
 console.log("PASS: editor grant, bounded author requests, screenshots through both clients, replay, request budget and owned cleanup");
-// Real launcher/reviewer process round trip. Only the eventual public report
-// is deliberately absent; delegated execution must finish before that refusal.
 const reviewer = path.join(scratch, "reviewer.mjs"), prompt = path.join(scratch, "prompt.txt"), planFile = path.join(scratch, "plan.json");
 fs.writeFileSync(prompt, "fixture review");
 fs.writeFileSync(reviewer, `import fs from "node:fs"; import assert from "node:assert/strict"; import { requestExecution } from ${JSON.stringify(new URL("./reviewer-execution-client.mjs", import.meta.url).href)}; let prompt=""; for await (const c of process.stdin) prompt+=c; if(prompt.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} let result; try { result=await requestExecution("tests"); } catch(error) { assert.fail("Delegated tests must be available: " + error.message); } assert.equal(result.passed,true); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(prompt)[1],JSON.stringify({head:${JSON.stringify(head)},next:null,commentIds:[],summary:"delegated test ran"}));`);
@@ -357,15 +333,12 @@ try {
   await assert.rejects(fetch(url + "/operations", { headers }));
 } finally { await service.close(); }
 
-// Frozen input changes refuse execution, and the shutdown preserves the failure.
 const changed = await startExecutionService({ operations, root, directory: evidence, head });
 write("packages/example/a.test.ts", "// changed\n");
 await assert.rejects(requestExecution("tests", { env: changed.environment }), /worktree changed/);
 await assert.rejects(changed.close(), /worktree changed/);
 git("restore", "packages/example/a.test.ts");
 
-// Hold one admitted operation until the second request has been refused. This
-// does not race a one-second timeout against Windows process-identity probes.
 const serialDirectory = path.join(scratch, "serial"); fs.mkdirSync(serialDirectory);
 let releaseRun;
 const heldRun = new Promise(resolve => { releaseRun = resolve; });
@@ -377,14 +350,11 @@ try {
   await assert.rejects(requestExecution("tests", { env: serial.environment }), /Another operation/);
 } finally { releaseRun(); await serial.close(); }
 
-// A Vitest run that never took the machine-wide reservation is not a result:
-// it reports `notRun`, never a pass, whatever exit status the runner gave.
 const marker = "test-suite: not run: Existing suite running\n";
 for (const [label, exit, line] of [["exit 75", 75, marker], ["marker with exit 0", 0, marker], ["exit 75 without marker", 75, ""]]) {
   const notRunDirectory = fs.mkdtempSync(path.join(scratch, "not-run-"));
   const notRunLog = path.join(notRunDirectory, "tests.log");
   fs.writeFileSync(notRunLog, `{"status":"waiting"}\n${line}`);
-  // This injected executor isolates classification; it is not containment evidence.
   const waiting = await startExecutionService({ operations: [operations[0]], root, directory: notRunDirectory, head }, { run: async command => ({ id: command.id, exit, signal: null, log: notRunLog, containmentConfirmed: true }) });
   try {
     const result = await requestExecution("tests", { env: waiting.environment, pollMs: 10 });
@@ -402,8 +372,6 @@ try {
   assert.notEqual(result.notRun, true, "a real failure is not a not-run");
 } finally { await ran.close(); }
 
-// A normally fulfilled executor result still freezes the service if its owned
-// disposition is unknown. This is a service-latch unit control; no child starts.
 for (const containmentConfirmed of [false, undefined]) {
   const directory = fs.mkdtempSync(path.join(scratch, "unknown-disposition-"));
   let admissions = 0;
@@ -418,7 +386,6 @@ for (const containmentConfirmed of [false, undefined]) {
   assert.equal(admissions, 1, "unknown fulfilled result blocks the next operation and service release");
 }
 
-// A real owned child timeout cannot be a pass.
 write("scripts/bench/preview-bench.mjs", `console.log("waiting"); setTimeout(()=>{}, 30000);`);
 git("add", "."); git("commit", "-m", "timeout fixture");
 const timeoutDirectory = path.join(scratch, "timeout"); fs.mkdirSync(timeoutDirectory);
@@ -431,10 +398,6 @@ try {
   assert.equal(result.passed, false);
 } finally { await timed.close(); }
 
-// A Vitest child queued behind another suite for longer than timeoutSeconds
-// still starts and finishes, because the wait and the run are separate budgets.
-// The runner prints its acquired line once it holds the reservation; the run's
-// timeout starts there, so a run that starts at once cannot spend the wait.
 const acquired = JSON.stringify({ status: "acquired" });
 const queueFixture = transportRunner;
 for (const [label, queueMs, runMs, timedOut] of [["queued past timeoutSeconds, then a short run", 1500, 300, false], ["started at once, then a run past timeoutSeconds", 0, 2500, true]]) {
@@ -452,8 +415,6 @@ for (const [label, queueMs, runMs, timedOut] of [["queued past timeoutSeconds, t
 }
 console.log("PASS: delegated tests and benchmarks, authentication, fixed inputs, retained failures, freeze, serial execution and drained shutdown");
 
-// The client must be told when returned output is incomplete, while the
-// coordinator retains the complete log for inspection.
 write("scripts/bench/engine-bench.mjs", `console.log("x".repeat(4 * 1024 * 1024 + 64));`);
 git("add", "."); git("commit", "-m", "large output fixture");
 const largeDirectory = path.join(scratch, "large-output"); fs.mkdirSync(largeDirectory);
@@ -466,8 +427,6 @@ try {
   assert.equal(result.outputBytes, fs.statSync(result.log).size);
 } finally { await large.close(); }
 
-// A service failure after a command drains must not hide confirmed reviewer
-// exit or leak the machine-wide reviewer slot.
 fs.unlinkSync(path.join(root, ".git", "agent-review-job.json"));
 write("scripts/bench/preview-bench.mjs", `import fs from "node:fs"; fs.writeFileSync("unexpected-output", "dirty");`);
 git("add", "."); git("commit", "-m", "dirty command fixture");
@@ -484,7 +443,6 @@ assert.equal(fs.readdirSync(path.join(scratch, "dirty-slots")).length, 0, "drain
 assert.equal(fs.existsSync(path.join(root, ".git", "agent-handoff.lock")), false);
 console.log("PASS: service failure preserves diagnosis and confirmed exit without leaking reviewer capacity");
 
-// A second cleanup error must retain the delegated command's failure too.
 for (const mode of ["journal", "slot", "both"]) {
   fs.unlinkSync(path.join(root, "unexpected-output"));
   const combinedJournal = path.join(scratch, `combined-${mode}.jsonl`);

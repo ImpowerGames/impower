@@ -1,35 +1,10 @@
-// Holds the skills' Gotchas and Troubleshooting lists to the size they are.
-// Run:
-//   node .agents/skills/mechanism-counts.test.mjs
-//
-// Both lists hold what no mechanism can absorb: a behaviour of an app the
-// driver does not wrap, a fact about this machine, a judgement call. Every
-// other trap belongs in a refusal, a report field, a hook or a check, where a
-// session meets it at the moment it matters instead of reading a warning
-// beforehand and forgetting it. The leading sentence on each list says so,
-// and a sentence is exactly what does not stop the next session from adding
-// one more bullet.
-//
-// So the sizes are written here. Adding an entry fails this check until the
-// number below moves, and moving the number is a line in a diff a reviewer
-// reads, in the same change that either adds the mechanism the entry is the
-// fallback for or says in its pull request why no mechanism is possible.
-//
-// The counter itself is exercised on fixtures at the end, so a bullet the
-// parser stops seeing fails here rather than quietly lowering the count.
-
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// This file sits in the skills directory, so the skills are its siblings and
-// the check reads the same set from any working directory.
 const SKILLS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
-// The sizes the lists stand at. Raise one only in the change that adds the
-// mechanism the new entry falls back from, or whose pull request says why the
-// entry can have none.
 const PINNED = { gotchas: 18, troubleshooting: 3 };
 
 const WHY =
@@ -39,15 +14,6 @@ const WHY =
   "machine, a judgement call), raise the number in this check in the same change and say in the pull request why no mechanism " +
   "is possible.";
 
-/**
- * The Gotchas bullets and Troubleshooting rows one SKILL.md holds.
- *
- * A section runs from its heading to the next heading of any level. Inside
- * one, a Gotchas entry is a top-level ordered or unordered list item (a
- * nested item continues the entry above it), and a Troubleshooting entry is a table row
- * that is neither the header nor the rule under it. Fenced blocks are code,
- * whatever their lines start with.
- */
 export function countEntries(markdown) {
   const lines = markdown.split(/\r?\n/);
   const counts = { gotchas: 0, troubleshooting: 0 };
@@ -95,11 +61,8 @@ export function countEntries(markdown) {
     if (section === "troubleshooting") {
       if (/^ {0,3}\|/.test(line)) {
         tableRun += 1;
-        // The first two lines of a table are its header and the rule under
-        // it; every line after them is an entry.
         if (tableRun > 2) counts.troubleshooting += 1;
       } else if (line.trim() === "") {
-        // A blank line ends the table; a wrapped cell does not.
         tableRun = 0;
       }
     }
@@ -108,7 +71,6 @@ export function countEntries(markdown) {
 }
 
 function skillFiles(directory = path.resolve(SKILLS_DIR, "..")) {
-  // Read canonical instructions and references, never linked browser state.
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory() && !entry.name.startsWith(".")) return skillFiles(file);
@@ -127,8 +89,6 @@ function check(label, fn) {
     console.log(`  ${String(err.message || err).split("\n").slice(0, 8).join("\n  ")}`);
   }
 }
-
-// ---------------------------------------------------------------- fixtures ---
 
 check("a bullet is an entry, and an indented one, a fenced line and another section's list are not", () => {
   const md = [
@@ -179,8 +139,6 @@ check("every Markdown unordered-list marker counts as a Gotchas entry", () => {
   assert.deepEqual(countEntries("## Gotchas\n\n- One.\n* Two.\n+ Three.\n"), { gotchas: 3, troubleshooting: 0 });
 });
 
-// -------------------------------------------------------------- the lists ---
-
 check("numbered items and indented tables count, with nested detail and thematic breaks excluded", () => {
   assert.deepEqual(countEntries("## Gotchas\n\n1. One.\n2) Two.\n"), { gotchas: 2, troubleshooting: 0 });
   assert.deepEqual(countEntries("## Gotchas\n\n* * *\n- - -\n___\n"), { gotchas: 0, troubleshooting: 0 });
@@ -222,8 +180,6 @@ check("the Gotchas and Troubleshooting lists are the size this check pins", () =
     if (counts.gotchas || counts.troubleshooting) rows.push(`  ${path.relative(path.resolve(SKILLS_DIR, ".."), file)}: ${counts.gotchas} gotchas, ${counts.troubleshooting} troubleshooting`);
   }
   for (const row of rows) console.log(row);
-  // A heading renamed or a list moved reads as zero here, which would make
-  // this check pass while pinning nothing.
   assert.ok(total.gotchas > 0, "no Gotchas bullet was found in any skill; the heading or the list shape changed");
   assert.ok(total.troubleshooting > 0, "no Troubleshooting row was found in any skill; the heading or the table shape changed");
   for (const kind of ["gotchas", "troubleshooting"]) {

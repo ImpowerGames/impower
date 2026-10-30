@@ -96,10 +96,8 @@ function loadEvidence(run, identify = processIdentity) {
       try {assertAttemptBinding(attempt.supervision,attempt);}
       catch(error){attempt.status="unknown";attempt.containmentError=error.message;continue;}
     }
-    // A coordinator may exit after persisting the per-file result but before
-    // updating the aggregate journal. Recover only matching, terminal evidence.
     let saved;
-    try { saved = read(path.join(attempt.directory, "attempt.json")); } catch { /* missing evidence remains incomplete */ }
+    try { saved = read(path.join(attempt.directory, "attempt.json")); } catch {}
     const terminal = ["passed", "failed", "timed-out", "not-run", "interrupted"];
     if (saved?.id === attempt.id && saved.file === attempt.file && saved.directory === attempt.directory && saved.mode === attempt.mode
       && saved.endedAt && terminal.includes(saved.status)) {
@@ -130,7 +128,7 @@ function loadEvidence(run, identify = processIdentity) {
           if (selection.version !== 1 || selection.requested !== attempt.file || selection.status !== "not-run"
             || !Array.isArray(selection.specifications) || selection.specifications.length) throw new Error("Unverified configured empty selection");
           attempt.status = "not-run"; attempt.configuredSelection = selection;
-        } else attempt.status = "passed"; // structured verification below decides the actual test result
+        } else attempt.status = "passed";
       }
       catch (error) { attempt.status = "unknown"; attempt.containmentError = error.message; }
     }
@@ -143,12 +141,8 @@ function loadEvidence(run, identify = processIdentity) {
   }
 }
 
-// Both output streams go directly to one UTF-8 file: surviving children retain
-// their handles after coordinator interruption, with no shell encoding conversion.
 function settleNoChild(reservation, evidence) {
   if (reservation.record.phase !== "launching") return;
-  // Spawn has definitely not returned a child. This is a token-checked cleanup
-  // transition, never an admission retry or a claim about any running child.
   try { reservation.update({ phase: "exited", child: null }); }
   catch (error) { evidence.reservationCleanupError = error.message; }
 }
@@ -221,8 +215,6 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
       try { receipt?.attempt({ id, mode, file, directory, supervision: attempt.supervision }); }
       catch (error) { attempt.journalError = error.message; onJournalError(error.message); throw error; }
     };
-    // Persist possible helper launch before calling a function that can spawn.
-    // Missing identities after a crash remain unknown, never reserved/no-child.
     persist({version:1,directory,attemptId:id,reservationToken:reservation.record.token,
       launchNonce:prepared.launchNonce,proofFile:prepared.proofFile,platform:prepared.platform,
       helperLaunchPhase:"may-start"},"no-launch");
@@ -236,16 +228,11 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
         attempt.status = "running";
         try { persist(value, "root-started"); }
         catch (error) {
-          // Authorization already happened after validated identity/bindings.
-          // A shared-write availability fault latches admission, but cannot
-          // replace the original bounded child result by causing cancellation.
           if (!attempt.reservationError && !attempt.journalError) throw error;
         }
       }, onPoll: () => {
         try { progress(); }
         catch (error) {
-          // As at root-start, a latched shared-write fault stops admission and
-          // further writes while the original authorized unit completes.
           if (!attempt.reservationError && !attempt.journalError) throw error;
         }
       } });
@@ -256,8 +243,6 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
       onReservationError(error.message);
       return { attempt, report: null };
     }
-    // Only explicit pre-helper failure can settle the launching phase. This
-    // live observation is not a recovery shortcut for abandoned partial state.
     update({ phase: reservation.record.phase, child: null });
     settleNoChild(reservation, attempt);
     Object.assign(attempt, { status: "not-run", endedAt: now() });
@@ -277,7 +262,6 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
     attempt.status = "unknown";
     attempt.containmentError = result.protocolError || result.coordinationError || "Owned tree exit is unconfirmed";
     onReservationError(attempt.containmentError);
-    // Never clear supervision or make an exited transition on helper PID death.
     return { attempt, report: null };
   }
   try { receipt?.attempt({ id, terminal: true, supervision: attempt.supervision }); }
@@ -309,18 +293,12 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
         verificationError: error.message, problems: ["Result verification failed: " + error.message] });
     }
   }
-  // Actual proof/outcome is still verified when its publication failed; known
-  // complete results survive final availability faults just as #797 requires.
   publish(() => { atomic(path.join(directory, "attempt.json"), attempt); save(); });
   return { attempt, report };
 }
 
 const reportWait = value => console.log(JSON.stringify({ status: "waiting", ...value }));
 
-// Nothing has run when the run is not admitted within its wait; the error
-// says so, so callers never read a refusal as a test result. Once admitted,
-// the run says so on its own line: the reviewer execution service starts a
-// delegated run's timeout from it, not from the launch.
 export const reservationAcquiredLine = JSON.stringify({ status: "acquired" });
 const queue = async (run, { pool = "writer", ...options }) => {
   const reservation = await acquireWaiting(run, { ...options, pool, onWait: reportWait })
@@ -330,19 +308,11 @@ const queue = async (run, { pool = "writer", ...options }) => {
   return reservation;
 };
 
-// Every execution unit waits for the unit gate first: the free-memory reading
-// at or above the floor and no foreign Vitest process, for up to `--wait`,
-// as the census wait before each file did. The holder keeps its slot while it
-// waits; a gate that stays shut past the bound ends the run as any other
-// refusal between units does.
 const underUnit = async (reservation, { waitMs = 0, ...dependencies }, unit) => {
   await waitForUnit(reservation, { ...dependencies, deadline: Date.now() + waitMs, onWait: reportWait });
   return unit();
 };
 
-// The exit status and marker line for a failed command. 75 (EX_TEMPFAIL) and
-// the marker say no test ran and the same command can be run again; the
-// red/green driver reads the marker.
 export function notRunExit(error, write = console.error) {
   if (!error?.notRun) { write(error?.stack ?? String(error)); return error?.exitCode === 124 ? 124 : 1; }
   write(`test-suite: not run: ${error.message}`);
@@ -355,7 +325,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   packageRoot = canonicalPath(packageRoot ?? read(path.join(directory, "run.json")).packageRoot);
   let invocationEnvironment;
   try { invocationEnvironment = (dependencies.environment ?? childEnvironment)(); }
-  catch(error) { throw Object.assign(error,{notRun:true}); } // no preparation or engine could launch
+  catch(error) { throw Object.assign(error,{notRun:true}); }
   const runtimeDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-runtime-"));
   const invocationRuntime = await (dependencies.prepareRuntime ?? prepareOwnedRuntime)({
     directory: runtimeDirectory, env: invocationEnvironment });
@@ -388,9 +358,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     if (!error) return false;
     attemptError = error;
     reservationError ||= attempt.reservationError;
-    // These observed results are for this invocation only, never reusable
-    // durable evidence. After uncertainty, a token read followed by rename
-    // would not establish ownership of any shared journal.
     if (attempt.reservationError || attempt.journalError || attempt.containmentError) unpersistedAttempts.push({ ...attempt });
     console.error(JSON.stringify({ attemptError: attempt }));
     if (!childAttempted) throw Object.assign(new Error(error), { notRun: true, attempt, unpersistedAttempts });
@@ -398,8 +365,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   };
   let semanticRefusal;
   const refuseStale = message => {
-    // The inputs are already known to be unusable, even if publishing that
-    // fact fails. A journal error cannot turn this refusal into an admission retry.
     semanticRefusal = new Error(message);
     run.stale = true;
     try { save(); }
@@ -413,7 +378,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     summary = aggregate(run);
     if (!reservationError && !journalError && !attemptError) {
       try { publish(() => atomic(path.join(directory, "summary.json"), summary)); }
-      catch { /* The original outcome remains returned beside journalError. */ }
+      catch {}
     }
     if (reservationError || journalError || attemptError) {
       if (!run.identity && summary.status !== "timed-out" && summary.status !== "unknown") summary.status = "incomplete";
@@ -436,7 +401,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       if (run.stale || run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, [])) {
         refuseStale("Source/configuration/dependency identity changed; start a new run (old attempts preserved)");
       }
-      // Acquisition reconciled both the previous coordinator and its child.
       for (const attempt of run.attempts) if (!["passed", "failed", "timed-out", "not-run", "interrupted"].includes(attempt.status)) {
         attempt.status = "interrupted";
         attempt.reconciledAt = now();
@@ -449,7 +413,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     } else {
       packageRoot = canonicalPath(packageRoot);
       const root = canonicalPath(git(packageRoot, ["rev-parse", "--show-toplevel"]).trim());
-      // Journals must live outside the source inventory, even with custom paths.
       const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
       if (!isWithinDirectory(gitDir, directory)) throw new Error("Place run directories below this worktree's Git directory");
       fs.mkdirSync(directory, { recursive: true });
@@ -484,20 +447,16 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     if (fingerprint(run.root, []) !== run.identity) {
       run.stale = true;
       try { save(); }
-      catch { /* finish retains the known stale summary beside journalError. */ }
+      catch {}
     }
     return finish();
   } catch (error) {
-    // Coordinator publication can fail between children or after aggregation.
-    // Stop admission and retain every result this invocation already observed.
     if (journalError && childAttempted && !semanticRefusal) return finish();
     failureInFlight = error;
     Object.assign(error, { observedAttempts, unpersistedAttempts });
     if (!semanticRefusal && !childAttempted && (journalError || error.code)) error.notRun = true;
     throw error;
   } finally {
-    // Persist while still owning the reservation: a successor may acquire it
-    // immediately after release and must never be overwritten by this owner.
     try {
       if (!reservationError && !journalError && run?.token === reservation.record.token) { run.active = false; save(); }
     } catch (error) {
@@ -506,9 +465,6 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       if (failureInFlight) failureInFlight.journalError = error.message;
       console.error(`Final journal save failed before release: ${error.message}`);
     }
-    // A failed release never replaces the summary or the error already in
-    // flight. summary.json is already written, and after the release attempt
-    // this owner writes nothing more, so the failure goes on the returned summary only.
     try { reservation.release(); }
     catch (error) {
       if (summary) summary.releaseError = error.message;
@@ -518,16 +474,12 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
   }
 }
 
-// A direct Vitest run under the machine-wide reservation, so single-file runs
-// and suites queue behind each other instead of racing.
 export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "inherit", ...dependencies }) {
   packageRoot = canonicalPath(packageRoot);
   files = [...new Set(files.map(file => canonicalPath(path.resolve(packageRoot, file))))];
   const receipt = dependencies.receiptPath ? openReceipt(dependencies.receiptPath,
     { packageRoot, files, waitMs, fileTimeoutMs: dependencies.fileTimeoutMs ?? 1800000 }) : undefined;
   let vitestVersion, invocationEnvironment;
-  // This branch precedes every preparation/spawn-capable call. A refusal can
-  // authenticate no launch; an interrupted or partial receipt cannot.
   try {
     vitestVersion = JSON.parse(fs.readFileSync(createRequire(path.join(packageRoot, "package.json"))
       .resolve("vitest/package.json"), "utf8")).version;
@@ -581,9 +533,6 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
           && value.supervision.exitConfirmed===true && value.supervision.status==="not-run"));
     result = { exit: unknown ? 1 : timedOut ? 124 : whollyNotRun || definiteNoEngine ? 75 : !complete || failed || summary.status !== "passed" ? 1 : 0,
       signal: null, directory, ...summary, reservationError, journalError, observedAttempts: run.attempts };
-    // A terminal timeout stops later execution by design. Preserve it when
-    // every requested file already has a confirmed outcome; a publication
-    // fault that prevents still-requested files remains an incomplete failure.
     if ((reservationError || journalError) && !complete && !timedOut && !definiteNoEngine) result.exit = 1;
     try { receipt?.finished({ exit: result.exit, status: result.status, complete }); }
     catch (error) { result.receiptError = error.message; }
@@ -623,8 +572,6 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
     const requestFile = path.join(directory, "aggregate-request.json"), bytes = JSON.stringify(request);
     fs.writeFileSync(requestFile, bytes, { flag: "wx" });
     const final = await attempt("merge", requestFile, { engineArguments: [createHash("sha256").update(bytes).digest("hex")] });
-    // Admission latches and terminal evidence answer different questions. No
-    // successor is permitted after a fault, but this is the final unit already.
     return finish(final.attempt.containment?.exitConfirmed === true
       && ["passed", "failed"].includes(final.attempt.status));
   } catch (error) {
@@ -633,8 +580,6 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
     result = finish(); result.coordinationError = error.message;
     return result;
   } finally {
-    // A publication fault never erases independently verified complete results.
-    // It also never authorizes further attempts or writes into a peer's journal.
     try { if (!reservationError && !journalError) { run.active = false; save(); } }
     catch (error) { if (result) result.journalError = error.message; }
     try { reservation.release(); }
@@ -684,8 +629,6 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   try {
     live ||= !!(run.active && run.owner && same(run.owner, identify(run.owner.pid)));
   } catch { unknown = true; }
-  // Observing an active process must stay cheap. Reusable evidence is checked
-  // once it is terminal; a live/unknown run cannot be reported as passed.
   run.stale = !!run.stale || !live && !unknown && !!run.identity && (run.manifestHash !== manifestHash(run.files) || run.identity !== fingerprint(run.root, []));
   const summary = aggregate(run);
   if (live) summary.status = "running";
@@ -694,14 +637,6 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   return { run: run.directory, ...summary, identityChecked: !live && !unknown && !!run.identity, attempts: run.attempts };
 }
 
-// The most test files one local `run` may name. A change under work touches
-// a handful of test files; a longer list is a package run spelled out, which
-// the Test Suite workflow already runs for the pushed head while this machine
-// is shared with other sessions. There is no override; a wrapper script or a
-// `--test` string handed to the redgreen driver reaches this check even when
-// the local-test hook, which reads only literal command text, does not see
-// it. The hook's copy of this bound (.agents/hooks/local-test-hook.mjs) must
-// match so direct Vitest calls are refused at the same width.
 export const MAX_RUN_FILES = 8;
 
 export function directTerminalSummary(direct, fileTimeoutMs) {
@@ -718,7 +653,6 @@ export function directTerminalSummary(direct, fileTimeoutMs) {
       .filter(key => direct[key]).map(key => [key, direct[key]])) };
 }
 
-// Validate the whole request before dependency lookup or queue admission.
 function validateTestFiles(packageRoot, files) {
   for (const requested of files) {
     const escaped = JSON.stringify(requested)?.replace(/[\u007f-\u009f\u2028\u2029]/g, value => `\\u${value.charCodeAt(0).toString(16).padStart(4, "0")}`);
@@ -736,7 +670,6 @@ function validateTestFiles(packageRoot, files) {
   }
 }
 
-// Refuse mistaken workspace names before dependency lookup or queue admission.
 function packageDirectory(target) {
   const directory = path.resolve(target);
   try {
@@ -751,8 +684,6 @@ function packageDirectory(target) {
   throw new Error(`Expected a package directory containing a package.json file: ${directory}. Use the package's directory, such as packages/sparkdown, rather than its workspace name.`);
 }
 
-// The command line. `dependencies` is the test seam for the reservation store,
-// census and child programs; the entry point below passes none.
 export async function main(argv, dependencies = {}) {
   const [command, target, ...rest] = argv;
   const waited = waitOption(rest);
@@ -761,9 +692,6 @@ export async function main(argv, dependencies = {}) {
   if (receiptPath && command !== "run") throw new Error("Caller-authored receipt requires an exact named-file run");
   let result;
   if (command === "run" && target) {
-    // Local runs name the files under work; the Test Suite workflow gives the
-    // package result. `start` remains for resumable runs, but the local-test
-    // hook refuses it.
     if (!args.length) throw new Error("Name the test files under work; the package result comes from the Test Suite workflow on the pushed head");
     if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
     const packageRoot = packageDirectory(target);

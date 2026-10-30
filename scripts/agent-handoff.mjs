@@ -22,9 +22,6 @@ const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
 const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
 export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
-// Review comments live on the plan's review thread (reviewThread in
-// .agents/repos.mjs): the pull request until the cutover, its internal ticket
-// after it. A comment is read by id from the thread's repository.
 const readReviewComment = (thread, id, cwd) => JSON.parse(execFileSync("gh", ["api", `repos/${thread.repo}/issues/comments/${id}`], { cwd, encoding: "utf8", windowsHide: true }));
 const onThread = (comment, thread) => typeof comment?.issue_url === "string" && comment.issue_url.toLowerCase() === thread.issueUrl.toLowerCase();
 
@@ -40,8 +37,6 @@ export async function verifyReviewComment(id, thread, head, cwd, { readComment =
 
 const listThreadComments = (thread, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/${thread.repo}/issues/${thread.number}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
 
-// A review that exited cleanly without its completion artifact is covered by the one report it posted for the reviewed head since launch.
-// Only this launch's private prompt carries reportToken, so a comment containing it is attributable to this reviewer.
 export function deriveMissingCompletion(step, thread, head, notBefore, reportToken, cwd, excluded, { listComments = listThreadComments } = {}) {
   if (step.role !== "review") return null;
   if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the review thread's comments`);
@@ -58,11 +53,6 @@ export function checkReviewRound(round, completedRound, finalCorrections, review
   if (finalCorrections && completedRound >= reviewRoundLimit) throw new Error(`Final corrections after round ${reviewRoundLimit} require explicit user direction for further review; no automatic review`);
 }
 
-// A round's reviewers run one at a time and the writer may correct between them,
-// so a reviewer the round still plans may launch on a head the last one did not see.
-// `reviewers` is the planned count or the planned reviewer ids. With named
-// reviewers the completed count holds distinct planned reviewers, so a retried
-// attempt never spends another reviewer's place.
 export function plannedReviewerPending(round, completedRound, completedRoundReviews, reviewers) {
   const planned = Array.isArray(reviewers) ? reviewers.length : reviewers;
   return round === completedRound && Number.isInteger(completedRoundReviews) && Number.isInteger(planned) && completedRoundReviews < planned;
@@ -70,8 +60,6 @@ export function plannedReviewerPending(round, completedRound, completedRoundRevi
 
 const reviewerIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
-// A step naming its planned reviewers names its own place among them; a retry
-// of that place carries a higher attempt and keeps the same reviewerId.
 function validateReviewerIdentity(name, step) {
   const named = Array.isArray(step?.reviewers);
   if (named && (step.reviewers.length < 1 || step.reviewers.length > 3 || !step.reviewers.every((id) => typeof id === "string" && reviewerIdPattern.test(id)) || new Set(step.reviewers).size !== step.reviewers.length)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count from 1 through 3, or its 1 to 3 distinct planned reviewer ids`);
@@ -84,11 +72,8 @@ function validateReviewerIdentity(name, step) {
   if (step.attempt !== undefined && (!Number.isSafeInteger(step.attempt) || step.attempt < 1)) throw new Error(`Step ${name} attempt must be a positive integer`);
 }
 
-// Validated completions of the completed round, keyed by planned reviewer id,
-// each holding the attempt that completed.
 function validateCompletedRoundReviewers(config) {
   const record = config.completedRoundReviewers, planned = config.plannedRoundReviewers;
-  // A count-form round journals both as null; null and omission mean the same.
   if (record == null && planned == null) return;
   if (!Array.isArray(planned) || planned.length < 1 || planned.length > 3 || !planned.every((id) => typeof id === "string" && reviewerIdPattern.test(id)) || new Set(planned).size !== planned.length) throw new Error("Supply plannedRoundReviewers from the journal with completedRoundReviewers: the completed round's 1 to 3 distinct planned reviewer ids");
   if (!record || typeof record !== "object" || Array.isArray(record)) throw new Error("Supply completedRoundReviewers from the journal as an object of planned reviewer ids and their completed attempts");
@@ -97,10 +82,6 @@ function validateCompletedRoundReviewers(config) {
   if (config.completedRoundReviews !== entries.length) throw new Error("Supply completedRoundReviewers with completedRoundReviews equal to its number of reviewers, both from the journal's latest completed row");
 }
 
-// Refuses a launch whose identity the round's record cannot place: a named
-// reviewer without the round's record, planned reviewers that differ from the
-// ones the round started with, a retry that does not advance the attempt, or a
-// mix of named and unnamed reviewers in one round.
 export function checkReviewerPlace(step, completedRound, completedRoundReviewers, plannedRoundReviewers) {
   if (step.round !== completedRound) return;
   if (step.reviewerId === undefined) {
@@ -113,22 +94,12 @@ export function checkReviewerPlace(step, completedRound, completedRoundReviewers
   if (previous !== undefined && (step.attempt ?? 1) <= previous) throw new Error(`Reviewer ${step.reviewerId} completed attempt ${previous} in round ${step.round}; a retry needs a higher attempt`);
 }
 
-// --- Reading launch journals ------------------------------------------------
-
-// A journal's rows, one JSON object per line.
 export function readJournalRows(file) {
   return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((line, i) => {
     try { return JSON.parse(line); } catch { throw new Error(`${file} line ${i + 1} is not JSON`); }
   });
 }
 
-// What a journal records about one launch: its exit and whether a delegated
-// execution service drained, its running and identified rows, a child
-// confirmed absent, a slot reservation, and the launch's last row. Lock
-// recovery and the round accounting below judge a launch's end from these
-// facts, each with its own policy. A service has drained when the exit row
-// says so, or when confirm-drained recorded an `execution-drained` row after
-// that exit row.
 export function launchEvidence(rows, index) {
   const of = rows.filter((row) => row.index === index);
   const find = (event) => of.find((row) => row.event === event) ?? null;
@@ -139,21 +110,11 @@ export function launchEvidence(rows, index) {
 
 const TERMINAL_ROWS = new Set(["finished", "blocked", "report-posted"]);
 
-// Appends one timestamped row to an open journal and syncs it; the launcher
-// and settle-launch write every row through it.
 export function appendJournalRow(fd, row) {
   fs.writeSync(fd, JSON.stringify({ time: new Date().toISOString(), ...row }) + "\n");
   fs.fsyncSync(fd);
 }
 
-// Settles the last launch of a journal whose launcher died after its child
-// started: once the journal's coordinator and the launch's child are both
-// verified absent by OS start identity and the worktree lock is recovered (a
-// recovered copy beside the journal names this journal and coordinator, and
-// no lock a plan here leads to still names it), it appends a confirmed-absent
-// row and a terminal blocked row, so the round accounting and lock recovery
-// treat the launch as ended. Every other state refuses and leaves the journal
-// unchanged. Rows are only appended and nothing is signalled.
 export function settleLaunch(journal, { identifyProcess = processIdentity, holdingRecovery = false } = {}) {
   const refuse = (why) => new Error(`Journal ${journal} not settled: ${why}`);
   if (typeof journal !== "string" || !path.isAbsolute(journal)) throw refuse("give the journal as an absolute path");
@@ -179,8 +140,6 @@ export function settleLaunch(journal, { identifyProcess = processIdentity, holdi
     const live = identifyProcess(child ? child.pid : running.pid);
     if (child ? sameIdentity(child, live) : live) throw refuse(child ? `its child (PID ${child.pid}) is still running; await its exit` : `PID ${running.pid} of its child is in use and the journal records no OS start identity to tell reuse apart; confirm the child's exit by hand`);
   }
-  // The lock must be recovered first: recover-lock keeps its copy beside the
-  // journal, and a lock that still names this journal means it was not.
   const dir = path.dirname(journal);
   const names = fs.readdirSync(dir);
   const same = (a, b) => typeof a === "string" && path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
@@ -192,7 +151,6 @@ export function settleLaunch(journal, { identifyProcess = processIdentity, holdi
     if (!same(plan?.journal, journal) || typeof plan.worktree !== "string") continue;
     let lock;
     try { lock = git(fs.realpathSync.native(plan.worktree), ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"]); } catch { continue; }
-    // recover-lock itself holds the marker while it settles.
     if (same(readJson(lock)?.journal, journal) || (!holdingRecovery && fs.existsSync(lockRecoveryMarker(lock)))) throw refuse(`the worktree lock ${lock} still names it or is being recovered; run recover-lock first`);
   }
   const verifiedAt = new Date().toISOString();
@@ -204,18 +162,6 @@ export function settleLaunch(journal, { identifyProcess = processIdentity, holdi
   return { settled: journal, index: launch.index, step: launch.step, coordinator, child, verifiedAt };
 }
 
-// Round accounting across the launch journals of one PR's review jobs, by
-// the rules the launcher enforces on a recovery plan. Each review launch
-// carries its round, its reviewer place (reviewerId and attempt), the plan
-// it declared and its evidence; each validated completion its reviewed head
-// and reports, including a report the coordinator posted for it. A round's
-// plan (its named reviewers, or the count its step declares) is fixed at the
-// round's first launch, and a later declaration of another is recorded as a
-// change; the round is complete once each named reviewer has a completion,
-// or once the completions present number the declared count. `recovery`
-// holds the plan fields a recovery plan carries from the latest validated
-// completion: completedReviewRound, reviewedHead, completedRoundReviews,
-// completedRoundReviewers and plannedRoundReviewers.
 export function reviewAccounting(journals) {
   const launches = [], completions = [], files = [];
   const byTime = (a, b) => Date.parse(a.time) - Date.parse(b.time);
@@ -243,8 +189,6 @@ export function reviewAccounting(journals) {
   launches.sort(byTime);
   completions.sort(byTime);
   const declares = (e) => e.plannedRoundReviewers ?? e.plannedReviewers;
-  // A count-form launch whose plan is not here has an unknown count, which
-  // neither fixes nor changes the round's plan, and leaves it incomplete.
   const planOf = (e) => (declares(e) ? declares(e).join(", ") : e.plannedCount === null ? null : `${e.plannedCount} unnamed`);
   const rounds = new Map();
   for (const e of [...launches.map((l) => ({ ...l, launch: true })), ...completions].sort(byTime)) {
@@ -254,9 +198,6 @@ export function reviewAccounting(journals) {
     else if (planOf(e) !== null && planOf(e) !== r.plan) r.changed.push({ file: e.file, declared: planOf(e) });
     if (e.plannedCount === null && !declares(e)) r.unknownPlans = [...new Set([...(r.unknownPlans ?? []), e.file])];
     if (e.launch) continue;
-    // A reviewer id may name an inherited property (constructor, toString),
-    // so the completed attempt is read as an own property only, as
-    // checkReviewerPlace reads it.
     if (e.reviewerId) r.completedReviewers[e.reviewerId] = Math.max(Object.hasOwn(r.completedReviewers, e.reviewerId) ? r.completedReviewers[e.reviewerId] : 0, e.attempt);
     r.counted = Math.max(r.counted, e.completedRoundReviews ?? 0);
     r.seen++;
@@ -300,9 +241,6 @@ export function validateReviewRecovery(config) {
 
 const planFields = ["pr", "ticket", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
 
-// A review step's lens is the value scripts/build-review-prompt.mjs received.
-// An author-experience lens needs the editor, so a lens step that declares no
-// editor operation gains the author grant here, before the plan is validated.
 export const authorExperienceLenses = ["author-experience", "author-experience (short)"];
 export const authorEditorGrant = Object.freeze({ id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 });
 export function applyLensEditorGrant(config) {
@@ -322,8 +260,6 @@ export function applyLensEditorGrant(config) {
   }
 }
 
-// The coordinator environment runs the delegated editor, so its driver
-// preflight must pass before a reviewer is spent discovering it cannot.
 export async function driverPreflight({ cwd, env }) {
   const driver = path.join(cwd, ".agents", "skills", "drive-web-editor", "driver.mjs");
   return await new Promise((resolve) => {
@@ -339,8 +275,6 @@ export async function driverPreflight({ cwd, env }) {
   });
 }
 
-// Checks the fields the chain reads only later, so a malformed plan is refused
-// before any lock, journal, slot or child exists.
 export function validatePlanShape(config) {
   if (!Number.isSafeInteger(config.pr) || config.pr < 1) throw new Error("Supply the top-level pr as a positive integer PR number");
   if (!config.steps || typeof config.steps !== "object" || Array.isArray(config.steps) || !Object.keys(config.steps).length) throw new Error("Supply steps as an object of named steps");
@@ -353,8 +287,6 @@ export function validatePlanShape(config) {
     if (step?.reviewers !== undefined && !Array.isArray(step.reviewers) && (!Number.isInteger(step.reviewers) || step.reviewers < 1 || step.reviewers > 3)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count, an integer from 1 through 3, or its planned reviewer ids`);
     validateReviewerIdentity(name, step);
   }
-  // A reviewer without GitHub access leaves its report for the coordinator to
-  // post, which the chain cannot await, so such a plan holds one review.
   if (config.reportPosting !== undefined) {
     if (config.reportPosting !== "coordinator") throw new Error('reportPosting must be "coordinator" when set; omit it when the reviewer posts its own report');
     const steps = Object.values(config.steps);
@@ -365,30 +297,17 @@ export function validatePlanShape(config) {
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 const normalizeBody = (text) => text.replace(/\r\n/g, "\n").trimEnd();
 
-// The reviewer's final message is its report when the coordinator posts it.
 export function coordinatorReport(file, head, reportToken) {
   let text;
   try { text = fs.readFileSync(file, "utf8"); }
   catch (error) { throw new Error(`Reviewer report missing at ${file}: ${error.message}`); }
-  // The token must be the report's last line: a quoted prompt or an
-  // interrupted answer can contain it without the report being complete.
   const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
   if (!lines.length || !text.includes(head) || lines.at(-1) !== reportToken) throw new Error(`Reviewer report at ${file} must name reviewed head ${head} and end with its report token`);
   return { report: file, reportSha256: sha256(text) };
 }
 
-// A coordinator whose host appends an attribution footer to every comment
-// posts the report followed by a rule and one "Generated by" line; nothing
-// else may follow the report.
 const attributionFooter = /\n+---\n_Generated by [^\n]*_$/;
 
-// What a validated review completion makes of the round accounting its launch
-// started from: the reviewer's place in its round (a retried attempt replaces
-// its reviewer's place instead of taking another), the round and head it
-// completes, the planned reviewers still pending, and whether final
-// corrections remain accepted. The run loop and record-report both write a
-// `completed` row from this, so a completion recorded after the fact carries
-// the same fields as one the launcher wrote at the reviewer's exit.
 export function completeReviewAccounting(before, step, head) {
   const newRound = step.round > before.completedRound;
   let { completedRoundReviews, completedRoundReviewers, plannedRoundReviewers } = before;
@@ -406,17 +325,8 @@ export function completeReviewAccounting(before, step, head) {
   return { completedRound: step.round, reviewedHead: head, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, ...(pendingReviewers ? { pendingReviewers } : {}), finalCorrections };
 }
 
-// The reason the run loop blocks a review that exited cleanly with a
-// completion artifact naming no posted comment: the reviewer wrote its report
-// but could not post it (the shared GitHub GraphQL quota was exhausted). Its
-// journal has no `completed` row, and record-report completes it once the
-// coordinator posts that report.
 const NEEDS_POSTED_IDS = "Review/adjudication needs posted comment IDs";
 
-// A journal that ended `blocked` on NEEDS_POSTED_IDS after a clean exit, read
-// as the review it holds: the launch's report file (the --output-last-message
-// argument the launch recorded), its completion artifact and the accounting
-// state it started from. Anything else about the journal is refused.
 function blockedReview(rows, blocked) {
   if (blocked.reason !== NEEDS_POSTED_IDS) throw new Error(`Journal does not end awaiting a coordinator-posted report, and its blocked reason is not "${NEEDS_POSTED_IDS}"`);
   const launching = rows.findLast((row) => row.event === "launching");
@@ -433,19 +343,10 @@ function blockedReview(rows, blocked) {
   try { done = read(launching.completion); }
   catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
   if (done?.head !== launching.head || !Array.isArray(done.commentIds) || done.commentIds.length || typeof done.summary !== "string" || !done.summary.trim() || !(done.next === null || typeof done.next === "string")) throw new Error(`Launch ${index} completion artifact at ${launching.completion} must name head ${launching.head}, no comment IDs, a summary and its transition`);
-  // The comment is counted from the report-posted row, as for a
-  // coordinator-posted report, and named here so a retry after an
-  // interrupted record cannot substitute another comment.
   const completed = { ...lateCompletion(launching, exited, { ...done, commentIds: [] }), postedBy: "coordinator" };
   return { pending: { index, step: launching.step, head: launching.head, ...report }, completed };
 }
 
-// A journal that settle-launch ended `blocked` after the launcher died before
-// journalling the review's exit, read as the review whose reviewer posted its
-// own report: the launch with its reviewed head, report token and launch
-// time, the review thread, the time its child was confirmed absent, the
-// transitions its plan declares and the completion artifact the reviewer
-// wrote, if any. Anything else about the journal is refused.
 function settledReview(rows, journalFile) {
   const launching = rows.findLast((row) => row.event === "launching");
   if (!launching || launching.role !== "review" || typeof launching.reportToken !== "string" || !Number.isSafeInteger(launching.index) || !Number.isFinite(Date.parse(launching.reportNotBefore))) throw new Error("Settled journal records no review launch with a report token and launch time");
@@ -462,8 +363,6 @@ function settledReview(rows, journalFile) {
   const step = plan && Object.hasOwn(plan.steps, launching.step) ? plan.steps[launching.step] : null;
   if (!step || !Array.isArray(step.next)) throw new Error(`Launch ${index}: no launcher plan in its job directory names this journal and step ${launching.step}`);
   if (typeof launching.completion !== "string") throw new Error(`Launch ${index} records no completion artifact path`);
-  // Whether the reviewer wrote an artifact is kept apart from what it holds,
-  // so an artifact holding null, false, 0 or "" is validated, not ignored.
   const wroteArtifact = fs.existsSync(launching.completion);
   let done = null;
   if (wroteArtifact) {
@@ -473,13 +372,6 @@ function settledReview(rows, journalFile) {
   return { index, step: launching.step, head: launching.head, launching, thread, reportToken: launching.reportToken, notBefore: launching.reportNotBefore, absentAt: absent.time, next: step.next, wroteArtifact, done };
 }
 
-// The `completed` row for a settled review, from the reviewer's own comment
-// as read back: its body names the reviewed head and ends with the launch's
-// report token (only this launch's prompt carries it), and it was created
-// during the launch, between the launch time and its child confirmed absent.
-// A completion artifact the reviewer wrote supplies the summary and
-// transition, and names no comment or only this one; without it the plan must
-// declare a single transition.
 function reviewerPostedCompletion(review, posted, body, commentId) {
   const content = normalizeBody(body.replace(attributionFooter, ""));
   const lines = content.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -500,26 +392,12 @@ function reviewerPostedCompletion(review, posted, body, commentId) {
   return { ...lateCompletion(review.launching, { time: new Date(created).toISOString() }, { head: review.head, next, commentIds: [], summary }), postedBy: "reviewer" };
 }
 
-// The `completed` row the launcher would have written for a review launch
-// whose completion it could not record, from the round accounting its
-// launching row started from. It is dated at the reviewer's exit, when the
-// launcher would have written it, so a reviewer that later completed on a
-// corrected head keeps its place as the round's latest; the caller adds
-// recordedAt, which says when the row was written.
 function lateCompletion(launching, exited, done) {
   const before = { completedRound: launching.completedRound, reviewedHead: launching.reviewedHead ?? null, completedRoundReviews: launching.completedRoundReviews ?? null, completedRoundReviewers: launching.completedRoundReviewers ?? null, plannedRoundReviewers: launching.plannedRoundReviewers ?? null, finalCorrections: launching.finalCorrections ?? false };
   const step = { round: launching.round, reviewerId: launching.reviewerId, attempt: launching.attempt, reviewers: launching.plannedReviewers };
   return { time: exited.time, event: "completed", index: launching.index, step: launching.step, head: done.head, next: done.next, commentIds: done.commentIds, summary: done.summary, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1 } : {}), ...completeReviewAccounting(before, step, launching.head) };
 }
 
-// --- Confirming a delegated service's drain after the fact -------------------
-
-// Every process on this machine, as { pid, ppid, start, commandLine }, for
-// confirm-drained, with its process group and session on Linux, where an
-// orphan is reparented but keeps both. `start` is the Windows creation time
-// in UTC ticks, or null where it is not comparable with a file time (Linux)
-// or not reported. A
-// command line the system withholds (another user's process) reads empty.
 export function processCensus() {
   if (process.platform === "linux") {
     return fs.readdirSync("/proc").filter((name) => /^\d+$/.test(name)).flatMap((name) => {
@@ -542,11 +420,6 @@ export function processCensus() {
   throw new Error("confirm-drained needs a Windows or Linux process census");
 }
 
-// Whether something accepts connections on a local port: true when it does,
-// false when every address refuses; anything else (a timeout, another error)
-// is unknown and throws. `localhost` is tried as 127.0.0.1 and ::1 one at a
-// time, since a server may listen on either; an IPv6 loopback the machine
-// does not have cannot hold a listener.
 export async function portAnswers(host, port, { timeoutMs = 10000 } = {}) {
   const addresses = host === "localhost" ? ["127.0.0.1", "::1"] : [host];
   for (const address of addresses) {
@@ -562,7 +435,6 @@ export async function portAnswers(host, port, { timeoutMs = 10000 } = {}) {
   return false;
 }
 
-// Every file under a directory, without following links.
 function filesUnder(directory) {
   const found = [];
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -573,11 +445,6 @@ function filesUnder(directory) {
   return found;
 }
 
-// The launcher plan that names a journal, found by its content under any
-// name, as the orchestrate checkpoint finds it: first beside the journal,
-// then anywhere in the PR's job directory (the `pr-<N>` directory holding
-// the journal) where the review workflow writes plans (reviewJobFiles),
-// never inside a reviewer's workspace.
 function planNaming(journalFile) {
   const same = (a, b) => process.platform === "win32" ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
   const naming = (file, size) => {
@@ -606,44 +473,10 @@ function planNaming(journalFile) {
   return null;
 }
 
-// Windows creation ticks (100 ns since 0001-01-01 UTC) of a time in ms.
 const windowsTicks = (ms) => BigInt(Math.floor(ms)) * 10000n + 621355968000000000n;
 
-// The reason prefix of a journal whose drain was confirmed but whose review
-// completion could not be recorded; confirm-drained retries the completion.
 const COMPLETION_PENDING = "Drain confirmed; the review completion was not recorded: ";
 
-// Records that the delegated execution service of a launch whose exit row
-// carries executionDrained false has in fact stopped, so the checkpoint and
-// recover-lock accept the journal (I-1395). The journal's launcher must be
-// gone and have ended blocked after that exit. Every check below must pass;
-// a live process, a probe or census that fails, a PID it cannot date, or a
-// port it cannot read refuses, and nothing is written. It never signals a
-// process.
-//
-// The service's records name its processes: each command's
-// `<id>.started.json` (the OS identities of the command and of the
-// coordinator that ran it), each `down.log` (the PIDs taskkill named), each
-// editor session's `up.log` (the server launcher's PID and URL) and the
-// driver's own server record for that session (`state.json` under the
-// driver's session directory, which a failed `down` keeps: the launcher PID,
-// its launch time and every port). A recorded identity must be absent or
-// reused; a recorded PID must be absent or held by a process created after
-// the record was last written; the driver record's launcher must not still
-// run; no process may still accept connections on a recorded port, since a
-// server outlives its launcher; and no process may still run as a child of a
-// recorded PID (unless that PID is shown reused, below) or name the execution
-// directory in its command line.
-//
-// The `execution-drained` row names who confirmed it and the evidence. A
-// review launch that exited cleanly then also takes the `completed` row the
-// drain failure kept the launcher from writing, after the launcher's checks
-// that do not need the frozen worktree (its result transport, the completion
-// artifact and each posted report on the review thread), and the journal
-// ends `finished`; when those fail it ends `blocked` with COMPLETION_PENDING
-// and the reason, and running the command again retries the completion alone.
-// One run at a time holds `<journal>.confirm-drained`, naming its process; a
-// marker whose process is gone is replaced.
 export async function confirmExecutionDrained(journalFile, options = {}) {
   if (!path.isAbsolute(journalFile)) throw new Error("Supply the absolute path of the launch journal");
   const { identifyProcess = processIdentity } = options;
@@ -681,7 +514,6 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const { exited } = evidence;
   if (!exited) throw refuse(`launch ${index}'s exit was never journalled, so its reviewer may still run`);
   const now = new Date().toISOString();
-  // The launcher's own blocked row after that exit says why it stopped.
   const blockedReason = rows.find((row, i) => i > rows.indexOf(exited) && row.event === "blocked")?.reason;
   const complete = async () => settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }).then((completed) => [{ ...completed, recordedAt: now, drainConfirmed: true }, { event: "finished" }], (error) => [{ event: "blocked", reason: COMPLETION_PENDING + error.message }]);
   const outcome = (ending) => ({ ended: ending.at(-1).event, ...(ending[0].event === "blocked" ? { reason: ending[0].reason } : {}) });
@@ -708,15 +540,8 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
     if (!Array.isArray(taken) || !taken.length) throw refuse("the process census found no process at all, so it cannot be trusted");
     return taken;
   };
-  // A first census dates the PIDs the identity probe cannot read; the checks
-  // on what still runs read a second one, taken after every probe, so a
-  // recorded process that starts a child and exits meanwhile is still seen.
   const firstCensus = takeCensus();
   const byPid = new Map(firstCensus.map((p) => [p.pid, p]));
-  // A process whose start the identity probe cannot read (another user's)
-  // is dated by the census's creation time, which is reported to the
-  // microsecond rather than the identity's 100 ns, so it is flagged and an
-  // identity compares with it to within a millisecond.
   const probe = (pid) => {
     try { return identifyProcess(pid); }
     catch (error) {
@@ -735,13 +560,8 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const readRecord = (file) => {
     try { return read(file); } catch (error) { throw refuse(`${file} is unreadable (${error.message})`); }
   };
-  // For each recorded PID, when the latest record naming it was written. The
-  // original process held that PID then, so a process holding it now that was
-  // created later is another one.
   const namedAt = new Map();
   const noteNamed = (pid, file) => { namedAt.set(pid, Math.max(namedAt.get(pid) ?? 0, fs.statSync(file).mtimeMs)); };
-  // A PID with no recorded identity is another process only when that
-  // process was created after the record naming it.
   const pids = [];
   const checkPid = (pid, file) => {
     noteNamed(pid, file);
@@ -761,15 +581,10 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
       identities.push({ pid: recorded.pid, start: recorded.start, file, state: live ? "reused" : "absent", ...(live?.fromCensus ? { dated: "census" } : {}) });
     }
   }
-  // The PIDs a down.log shows taskkill acting on, every tree member it
-  // reached; a "(child process of PID N)" parent is not shown alive when the
-  // log was written, and the tree's root's parent is the `up` command the
-  // started records already name.
   const downLogs = files.filter((file) => path.basename(file) === "down.log");
   for (const file of downLogs) {
     for (const match of fs.readFileSync(file, "utf8").matchAll(/(?:The process with PID|could not stop pid) (\d+)/gi)) checkPid(Number(match[1]), file);
   }
-  // Each editor session's server launch and the driver's record of it.
   const ports = [];
   const servers = [];
   for (const sessionFile of files.filter((file) => path.basename(file) === "session.json")) {
@@ -812,27 +627,10 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   const plain = (text) => { const slashed = String(text ?? "").split(path.win32.sep).join("/"); return process.platform === "win32" ? slashed.toLowerCase() : slashed; };
   const named = processes.filter((p) => p.pid !== process.pid && plain(p.commandLine).includes(plain(directory)));
   if (named.length) throw refuse(`PID${named.length > 1 ? "s" : ""} ${named.map((p) => p.pid).join(", ")} name the execution directory ${directory} and still run`);
-  // A live process whose parent PID (Windows), or process group or session
-  // (Linux), is a recorded PID is taken as the service's: a server orphaned
-  // by its launcher, or a child an original process started after the
-  // records were written and before it exited. A creation time alone cannot
-  // tell those from a child of a reused PID; the one exception is a recorded
-  // PID now held by a process created after the records naming it, with the
-  // child created after that holder.
   const recorded = new Set([...identities, ...pids].map((entry) => entry.pid));
   const newer = (id) => { const holder = current.get(id); return Boolean(holder) && holder.start !== null && BigInt(holder.start) > windowsTicks(namedAt.get(id) ?? Date.now()); };
-  // A recorded PID the last census shows held by a process no newer than the
-  // records naming it may be the original, whatever the probes found.
   const unproven = [...recorded].filter((id) => current.has(id) && !newer(id));
   if (unproven.length) throw refuse(`recorded PID${unproven.length > 1 ? "s" : ""} ${unproven.join(", ")} ${unproven.length > 1 ? "are" : "is"} held by a process the last census cannot show is newer than the records naming ${unproven.length > 1 ? "them" : "it"}`);
-  // Ancestry is traced by process identity through both censuses, so a
-  // process whose parent, or any process between it and a recorded PID,
-  // exited between them is still found. A process's parent is whichever
-  // process held its parent PID when it was created: the latest one seen
-  // with that PID created no later than it. A process descends from the
-  // service when that chain reaches a recorded PID that no seen process
-  // newer than the records naming it holds, or, on Linux, when its process
-  // group or session is a recorded PID.
   const seenByPid = new Map();
   for (const p of new Map([...firstCensus, ...processes].map((p) => [`${p.pid}:${p.start}`, p])).values()) seenByPid.set(p.pid, [...(seenByPid.get(p.pid) ?? []), p]);
   const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
@@ -870,29 +668,18 @@ async function confirmDrainedOnce(journalFile, { identifyProcess = processIdenti
   return { journal: journalFile, index, confirmed: drained, ...outcome(ending) };
 }
 
-// Whether a blocked reason holds nothing but editor shutdown failures, as
-// the delegated editor session's close reports them; the service's close
-// joins every failure with "; ", a retained operation failure or a changed
-// frozen worktree included, and any of those keeps the review uncompleted.
 const EDITOR_SHUTDOWN = /Editor shutdown unverified; preserve [^;]+ and inspect [^;]+/g;
 export function onlyDrainFailures(reason) {
   if (typeof reason !== "string" || !reason.match(EDITOR_SHUTDOWN)) return false;
   return reason.replace(EDITOR_SHUTDOWN, "").split(";").every((part) => part.trim() === "");
 }
 
-// The `completed` row of a review launch whose clean exit was blocked only by
-// its drain failure, after the launcher's checks that do not need the frozen
-// worktree. It throws when the launch is not such a review or a check fails.
 async function settledCompletion(rows, exited, journalFile, { readComment, cwd, blockedReason }) {
   const launching = rows.find((row) => row.event === "launching" && row.index === exited.index);
   if (launching?.role !== "review") throw new Error(`launch ${exited.index} is not a review`);
   if (!onlyDrainFailures(blockedReason)) throw new Error(`its launcher was blocked by more than the drain, which confirming the drain does not answer: ${blockedReason ?? "no reason recorded"}`);
   if (exited.code !== 0 || exited.signal) throw new Error(`its reviewer exited with code ${exited.code}${exited.signal ? ` (signal ${exited.signal})` : ""}`);
   if (rows.some((row) => row.event === "completed" && row.index === exited.index)) throw new Error(`launch ${exited.index} already has a completed row`);
-  // The launcher checks a clean review's frozen head, worktree and install
-  // before it gives up on a failed drain; without that record (a launcher
-  // that predates it) the review is not counted, and a retry of the same
-  // reviewer replaces it.
   const state = rows.find((row) => row.event === "review-state-checked" && row.index === exited.index);
   if (!state) throw new Error("its launcher recorded no check of the reviewed head, worktree and install at the reviewer's exit (it predates that record), so the review is not counted; relaunch that reviewer with a higher attempt");
   if (state.error || state.headUnchanged !== true || state.changedPaths !== 0 || !Array.isArray(state.installChanges) || state.installChanges.length) throw new Error(`its reviewer left the reviewed head, worktree or install changed or unchecked (${JSON.stringify({ headUnchanged: state.headUnchanged, changedPaths: state.changedPaths, installChanges: state.installChanges, error: state.error })})`);
@@ -920,10 +707,6 @@ function appendRows(file, rows, time) {
   } finally { fs.closeSync(fd); }
 }
 
-// Where a journal's coordinator-posted report lives: the review thread its
-// coordinator row records, or, for a journal from a launcher that predates
-// review threads and posted on the pull request, an issue of the code
-// repository, while that repository still holds the review conversation.
 function reportPlace(rows, repos) {
   const thread = rows.find((row) => row.event === "coordinator")?.thread;
   if (thread !== undefined) {
@@ -934,11 +717,6 @@ function reportPlace(rows, repos) {
   return { repo: repos.code, thread: null };
 }
 
-// Writes the posted comment, as GitHub's REST API returns it, to the read-back
-// file record-report takes. gh's output is written byte for byte, since a
-// shell redirect can re-encode it: Windows PowerShell 5.1 decodes a native
-// command's output through the console code page, which turns the em dash of
-// a report heading into other characters.
 export function writeReportReadBack(journalFile, commentId, readBackFile, { repos = readRepos(), run = (args) => execFileSync("gh", args, { windowsHide: true, maxBuffer: 16 * 1024 * 1024 }) } = {}) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const { repo } = reportPlace(readJournalRows(journalFile), repos);
@@ -951,8 +729,6 @@ export function writeReportReadBack(journalFile, commentId, readBackFile, { repo
   return { readBack: readBackFile, repository: repo, issueUrl: comment.issue_url };
 }
 
-// A read-back's text: UTF-8, with or without a byte order mark, or UTF-16
-// with one, as an editor or Windows PowerShell 5.1 may write it.
 function readBackText(file) {
   const bytes = fs.readFileSync(file);
   if (bytes[0] === 0xff && bytes[1] === 0xfe) return bytes.subarray(2).toString("utf16le");
@@ -961,36 +737,9 @@ function readBackText(file) {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
-// Records the comment the coordinator posted for a reviewer that could not
-// post its own report: one without GitHub access (its journal ends
-// `report-awaiting-post`), or one whose post failed after a clean exit (its
-// journal ends `blocked` on NEEDS_POSTED_IDS, and takes the `completed` row
-// the launcher could not write). The read-back is the posted comment as
-// GitHub's REST API returns it, read by id from the review thread's
-// repository; a coordinator without a gh login (a cloud session) reads it
-// through its own integration, so the command takes the read-back rather than
-// reading GitHub. Its `id` must be the comment ID, its `issue_url` the review
-// thread the journal's coordinator row names, and its body one line saying it
-// is posted on the reviewer's behalf, a blank line, and the reviewer's report
-// verbatim, with at most the host's attribution footer after it. A journal
-// written before the launcher recorded a thread takes a comment on an issue of
-// the code repository while the switch is off. A journal whose last rows are
-// this command's own rows for this same comment (its `finished` row was
-// never written) takes the missing rows without a second post.
-//
-// It also records the report a reviewer with GitHub access posted itself
-// when its launcher died before journalling the reviewer's exit, so that
-// settle-launch ended the journal `blocked`: the read-back is then the
-// reviewer's own comment on the review thread, bound to the launch by the
-// checks in reviewerPostedCompletion, and the command appends the
-// `completed` row the launcher could not write, `report-posted` and
-// `finished`, without relaunching the reviewer.
 export function recordCoordinatorReport(journalFile, commentId, readBackFile, { repos = readRepos() } = {}) {
   if (!/^[1-9][0-9]*$/.test(String(commentId)) || !Number.isSafeInteger(Number(commentId))) throw new Error("Supply the posted comment's numeric ID");
   const rows = fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
-  // The row the record rests on, and the rows this command wrote after it
-  // before an interruption: `report-posted` after an awaiting row, or
-  // `completed` then `report-posted` after a blocked row.
   const anchorAt = rows.findLastIndex((row) => row.event === "report-awaiting-post" || row.event === "blocked");
   const anchor = anchorAt < 0 ? undefined : rows[anchorAt];
   const written = anchorAt < 0 ? [] : rows.slice(anchorAt + 1);
@@ -1016,8 +765,6 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile, { 
     if (!prefix || prefix.includes("\n") || !/behalf/i.test(prefix) || content.slice(split + 2) !== normalizeBody(report)) throw new Error("The posted comment must be one line saying it is posted on the reviewer's behalf and why, a blank line, then the reviewer's report verbatim");
   }
   const record = { event: "report-posted", index: pending.index, step: pending.step, head: pending.head, commentId: Number(commentId), postedBy: settled ? "reviewer" : "coordinator", readBackSha256: sha256(body) };
-  // Every row this command writes names the comment and read-back, so the
-  // first row to survive an interruption fixes them for the retry.
   const recorded = written.findLast((row) => row.event === "report-posted" || row.event === "completed");
   if (recorded && (recorded.commentId !== record.commentId || recorded.readBackSha256 !== record.readBackSha256)) throw new Error(`Journal already records comment ${recorded.commentId} for this report; a different comment or read-back cannot complete it`);
   if (Number(posted.id) !== record.commentId) throw new Error(`The read-back is comment ${posted.id ?? "with no id"}, not comment ${commentId}`);
@@ -1043,15 +790,6 @@ export function recordCoordinatorReport(journalFile, commentId, readBackFile, { 
   } finally { fs.closeSync(fd); }
 }
 
-// Releases a worktree lock whose coordinator is gone. The lock is removed only
-// when it was written on this host, its coordinator's recorded OS start
-// identity is absent or reused, and its journal shows no launched child that
-// may still run; every other state, including a lock or journal it cannot
-// parse, refuses and leaves the lock in place. A copy of the lock is kept in
-// the job directory beside the journal before the lock is removed. Nothing is
-// signalled and nothing but the verified lock file is deleted. Recovery holds
-// the exclusive marker `<lock>.recovery` throughout, which excludes a second
-// recovery and makes a coordinator that takes the lock meanwhile give it up.
 export function recoverHandoffLock(worktree, { identifyProcess = processIdentity, host = os.hostname() } = {}) {
   const lock = git(fs.realpathSync.native(worktree), ["rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock"]);
   const recovery = lockRecoveryMarker(lock);
@@ -1066,14 +804,11 @@ export function recoverHandoffLock(worktree, { identifyProcess = processIdentity
     fs.fsyncSync(marker);
     return recoverMarkedLock(lock, identifyProcess, host);
   } catch (error) {
-    // A lock that could not be put back stays protected by the marker, so no
-    // coordinator takes the worktree while its record sits aside.
     if (error.keepMarker) { fs.closeSync(marker); marker = undefined; error.message += `; the recovery marker ${recovery} is kept until that record is restored by hand`; }
     throw error;
   } finally { if (marker !== undefined) { fs.closeSync(marker); fs.unlinkSync(recovery); } }
 }
 
-// The lock path's recovery marker, which a coordinator checks after it takes the lock.
 export const lockRecoveryMarker = (lock) => lock + ".recovery";
 const validIdentity = (value) => !!value && Number.isSafeInteger(value.pid) && value.pid > 0 && typeof value.start === "string" && value.start.length > 0;
 
@@ -1094,7 +829,6 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   try { rows = readJournalRows(record.journal); }
   catch (error) {
     journalFound = false;
-    // The coordinator opens its journal before it launches any child.
     if (error.code !== "ENOENT") throw refuse(`its journal ${record.journal} is unreadable (${error.message}); a child it launched may still run`);
   }
   const coordinatorRow = rows.find((row) => row.event === "coordinator");
@@ -1104,16 +838,11 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   if (launch && !Number.isSafeInteger(launch.index)) throw refuse(`its journal ${record.journal} records a launch without a step index`);
   const evidence = launch ? launchEvidence(rows, launch.index) : null;
   const exited = evidence?.exited;
-  // A delegated command may run detached and outlive the coordinator; only an
-  // exit row recording a clean drain of the service, or a later drain
-  // confirmation, shows it has stopped.
   const service = evidence?.service;
   if (service && !evidence.drained) throw refuse(`step ${launch.step} started a delegated execution service (${service.directory}) ${exited ? "whose shutdown failed or was not recorded" : "and its exit was never journalled"}, so its commands may still run; ${exited ? `once they have exited, record that with node scripts/agent-handoff.mjs confirm-drained ${record.journal}` : "confirm they have exited by hand"}`);
   if (launch && !exited) {
     const running = evidence.running;
     if (!running) {
-      // Waiting for a slot or a probed route precede the reserved row; the
-      // child is spawned only after that row.
       if (!["waiting", "route-probed"].includes(evidence.last.event)) throw refuse(`step ${launch.step} may have spawned a child before its running row; confirm no child of the coordinator runs and inspect it by hand`);
     } else if (!evidence.confirmedAbsent) {
       const identified = evidence.identified;
@@ -1126,8 +855,6 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   const claimed = `${lock}.recovering-${randomUUID()}`;
   try { fs.renameSync(lock, claimed); }
   catch (error) { if (error.code === "ENOENT") return { alreadyAbsent: lock }; throw error; }
-  // Every failure from here on puts the record back first. Linking back never
-  // replaces a lock another coordinator took meanwhile.
   const restore = (why) => {
     try { fs.linkSync(claimed, lock); }
     catch (error) { return Object.assign(refuse(`${why}; restoring it failed (${error.message}), so the claimed record is at ${claimed}`), { keepMarker: true }); }
@@ -1137,7 +864,6 @@ function recoverMarkedLock(lock, identifyProcess, host) {
   };
   const copy = path.join(path.dirname(record.journal), `agent-handoff.lock.recovered-${Date.now()}.json`);
   let failure;
-  // Under the marker no one else moves the lock; a changed record is put back.
   try { if (fs.readFileSync(claimed, "utf8") !== text) failure = "it changed during recovery; inspect it again"; }
   catch (error) { failure = `the claimed record could not be read back (${error.message})`; }
   if (!failure) {
@@ -1145,12 +871,9 @@ function recoverMarkedLock(lock, identifyProcess, host) {
     catch (error) { failure = `its copy could not be kept at ${copy}: ${error.message}`; }
   }
   if (failure) throw restore(failure);
-  // The lock is released and its copy kept; a leftover claimed file is reported, not fatal.
   let result = { recovered: lock, copy, coordinator: owner };
   try { fs.unlinkSync(claimed); }
   catch (error) { result = { ...result, leftover: claimed, leftoverError: error.message }; }
-  // A launch left running with no exit row is settled in the same call, so
-  // the round accounting sees it ended; a failure is reported, not hidden.
   if (launch && evidence.running && !exited && !TERMINAL_ROWS.has(rows.at(-1)?.event)) {
     try { result.settled = settleLaunch(record.journal, { identifyProcess, holdingRecovery: true }); }
     catch (error) { result.settleError = error.message; }
@@ -1170,12 +893,6 @@ export function validateNativeReviewArgs(review) {
   }
 }
 
-// Retries the atomic reservation while every slot is occupied, until one frees
-// or the bound expires. It runs before any spawn and under the worktree lock,
-// so a wait never races a separate status poll. Other reservation failures
-// (store access, identity) are not waited out.
-// Every retry checks the deadline first, so no reservation is attempted once
-// the bound has passed, however late a timer fires.
 export async function reserveWithinBound(root, seconds, onWaiting, pollMs = 1000) {
   const deadline = Date.now() + seconds * 1000;
   for (let attempt = 0; ; attempt++) {
@@ -1197,17 +914,9 @@ export function validateSlotWait(value) {
   if (value !== undefined && (!Number.isInteger(value) || value < 0 || value > 3600)) throw new Error("slotWaitSeconds must be an integer from 0 through 3600");
 }
 
-// Provider messages that mean the route itself cannot answer: usage and rate
-// limits, rejected credentials, and a CLI too old for the requested model.
-// Status codes count only as a status line renders them, and authentication
-// only beside a failure word, so a benign line naming either is not a cause.
 const routeFailurePattern = /hit your .*limit|usage limit|rate limit|too many requests|\b(401|429)\s+(unauthori[sz]ed|too many)|(status|http|error)\W{0,3}(401|429)\b|unauthori[sz]ed|incorrect api key|invalid api key|not logged in|please run .*login|failed to authenticate|authentication (failed|error|required|expired)|API Error: 400|requires (a newer|claude code|version)|update claude code|model .*(not found|not available|not supported|does not exist)|quota exceeded|exceeded .*quota/i;
 export const reviewerProbePrompt = "Reviewer route probe: reply with the single word OK and do nothing else.";
 
-// Native Claude `--output-format json` puts long metadata ahead of its result,
-// so a line is read as JSON first and its semantic message (result, error,
-// message) is classified and named whole. A line that is not JSON, or names no
-// failing message, is classified as text.
 function semanticMessages(line) {
   let parsed;
   try { parsed = JSON.parse(line); } catch { return undefined; }
@@ -1216,15 +925,9 @@ function semanticMessages(line) {
   return fields.filter((field) => typeof field === "string");
 }
 
-// The excerpt is capped for display but always holds the failure it names, so
-// a match far into a long message is not cut away. A usage limit outranks an
-// earlier failure in the same message, because the excerpt is what the fallback
-// classification reads and only a usage limit permits a same-vendor reviewer.
 function failureExcerpt(text) {
   const match = usageLimitPattern.exec(text) ?? routeFailurePattern.exec(text);
   if (!match || match.index + match[0].length <= 400) return text.trim().slice(0, 400);
-  // Every pattern alternative that spans text joins two fixed words with `.*`,
-  // so a span longer than the cap keeps its two ends and still matches.
   const span = match[0].length > 400 ? `${match[0].slice(0, 190)} … ${match[0].slice(-190)}` : text.slice(Math.max(0, match.index - Math.min(20, 400 - match[0].length)));
   return span.trim().slice(0, 400);
 }
@@ -1256,15 +959,9 @@ export function exitFailure(name, output, diagnostics) {
   return new Error(`Role ${name} failed${found ? `; route unavailable: ${found}` : ""}; inspect ${output}`);
 }
 
-// The route failures that mean the provider's allowance is spent, as opposed
-// to a rejected credential or a CLI too old for the model.
 const usageLimitPattern = /hit your .*limit|usage limit|rate limit|too many requests|\b429\s+too many|(status|http|error)\W{0,3}429\b|quota exceeded|exceeded .*quota/i;
 export const usageLimitWindowMs = 6 * 60 * 60 * 1000;
 
-// Review is cross-vendor. A reviewer of the writer's own vendor, whether the
-// defaults' fallback or an explicit route, launches only when the plan names a
-// journal in which this launcher recorded a cross-vendor reviewer blocked by a
-// usage limit within the window. Routes of neither known vendor are not judged.
 export function checkCrossVendor(config, root, now = Date.now()) {
   const vendor = routeVendor(config.writer);
   const evidence = config.usageLimitJournal;
@@ -1273,8 +970,6 @@ export function checkCrossVendor(config, root, now = Date.now()) {
     if (evidence !== undefined || authorization !== undefined) throw new Error("usageLimitJournal and sameVendorAuthorization apply only to a reviewer of the writer's vendor");
     return undefined;
   }
-  // The user may ask for a same-vendor reviewer outright; the plan then
-  // carries their request verbatim in place of the journal.
   if (authorization !== undefined) {
     if (typeof authorization !== "string" || !authorization.trim()) throw new Error("sameVendorAuthorization must carry the user's request for a same-vendor reviewer verbatim");
     if (evidence !== undefined) throw new Error("Supply usageLimitJournal or sameVendorAuthorization, not both");
@@ -1295,11 +990,6 @@ export function checkCrossVendor(config, root, now = Date.now()) {
   return { usageLimitJournal: evidence, usageLimitRoute: rows[launch].model, usageLimitReason: blocked.reason, usageLimitTime: blocked.time };
 }
 
-// A probe with the review step's own executable, arguments and environment
-// shows whether the route answers before a reviewer slot is reserved. A route
-// answers only when it exits 0 and its output carries the requested OK. Every
-// Codex step's report file is left out so the probe never writes the report
-// the real launch creates.
 export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000 }) {
   const codex = step.nativeResult === "codex-jsonl" || step.args[0] === "exec";
   const probeArgs = [];
@@ -1330,12 +1020,6 @@ export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120
   throw new Error(`Reviewer route ${step.model} unavailable before slot reservation: ${detail || `exit code ${code}`}${version}; ${usageLimitPattern.test(detail ?? "") ? "wait for the limit to reset, or name this plan's journal as usageLimitJournal in a plan for a same-vendor reviewer" : "repair the route or wait for it to recover; this failure does not permit a same-vendor reviewer"}`);
 }
 
-// Configuration is a local, caller-authored artifact. Comments and child output
-// can select a declared transition but can never supply executable commands.
-// Every step's Codex authentication secret leaves the launcher's environment
-// for the run, so no child it or its helpers start (git, gh, the version
-// probe, the route probe, the reviewer) inherits it; the reviewer's own
-// environment is built from a source holding only its step's secret.
 export function withholdCodexAuthSecrets(config, env = process.env) {
   const names = [...new Set(Object.values(config.steps ?? {}).map((step) => step?.permissions?.codexAuthEnv).filter((name) => typeof name === "string"))];
   const values = Object.fromEntries(names.filter((name) => Object.hasOwn(env, name)).map((name) => [name, env[name]]));
@@ -1360,9 +1044,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   const root = jobRoot ?? reviewJobRoot(cwd);
-  // A Codex reviewer's private directory is declared in its permissions; a
-  // Claude reviewer's directory exists only inside its built prompt, which
-  // scripts/build-review-prompt.mjs checks when it fills REVDIR and DIFF.
   assertInsideJobRoot([["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).flatMap(([name, step]) => [[`step ${name} prompt`, step?.prompt], ...(step?.permissions?.cwd !== undefined ? [[`step ${name} reviewer directory`, step.permissions.cwd]] : [])])], root, `in pr-${config.pr}${path.sep}round-<R>`);
   assertWalkedJobState([["plan file", configFile, "file"], ["journal", journal, "file"]], root);
   const selection = resolveReviewer(config, cwd);
@@ -1377,8 +1058,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
-  // The secrets are withheld from process.env above; the probe's environment
-  // is a copy of what remains, and a step's source holds its own secret only.
   const authSecrets = withheld.names;
   const probeEnv = { ...process.env };
   for (const name of authSecrets) delete probeEnv[name];
@@ -1418,8 +1097,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     if(error.code==="EEXIST")throw new Error(`EEXIST: a coordinator already owns this worktree; inspect ${lock} and await confirmed exit, or, once its coordinator is gone, run node scripts/agent-handoff.mjs recover-lock ${cwd}`);
     throw error;
   }
-  // A lock taken while a recovery runs is given up, so the recovery never
-  // moves aside a lock that a live coordinator owns.
   let recovering = true;
   try { fs.lstatSync(lockRecoveryMarker(lock)); }
   catch (error) { if (error.code === "ENOENT") recovering = false; else { fs.closeSync(owner); fs.unlinkSync(lock); throw error; } }
@@ -1434,10 +1111,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let plannedRoundReviewers = config.plannedRoundReviewers ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
-  // Set once a Codex reviewer's exit is confirmed and taken by the first
-  // runProbeCleanup, which runs after validation or, when a later step throws,
-  // before the blocked row: an exited reviewer's probe checkouts never wait on
-  // its report passing.
   let pendingProbeCleanup = null;
   const runProbeCleanup = () => {
     const cleanup = pendingProbeCleanup;
@@ -1459,7 +1132,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), host: os.hostname(), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
-    // Job cleanup retains a job directory while any process a journal names is running.
     append({ event: "coordinator", pid: process.pid, processIdentity: processIdentity(process.pid), thread });
     for (let index = 0; current; index++) {
       if(automaticJob)await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');}));
@@ -1488,7 +1160,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         : `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`);
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const reportNotBefore=new Date().toISOString();
-      // What the reviewer directory holds before the reviewer runs is never cleaned up afterwards.
       const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...(reviewerHad ? { reviewerDirectory: step.permissions.cwd, reviewerHad: [...reviewerHad] } : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
@@ -1498,11 +1169,8 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       let slot,env;
       const discardAuth=()=>discardCodexAuthCopy(step,env);
       try {
-        // The source holds this step's secret only; the helper children the
-        // builder starts (gh) receive the source without it.
         env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,secretSourceFor(step),{worktree:cwd,reportPosting:config.reportPosting}):{...process.env};
         for (const name of authSecrets) delete env[name];
-        // Never inherit a service grant from a parent review or unrelated task.
         for (const key of Object.keys(env)) if (/^IMPOWER_REVIEW_EXECUTION_/i.test(key)) delete env[key];
         if (step.role === "review") {
           await probeReviewerRoute(step, args, { cwd, env, timeoutMs: probeTimeoutMs });
@@ -1512,8 +1180,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       try { slot = step.role === "review" ? await reserveWithinBound(slotRoot, slotWaitSeconds, (occupied) => append({event:"waiting",index,slotWaitSeconds,occupied})) : null; }
       catch (error) { closeLogs(); discardAuth(); throw error; }
       if (slot) {
-        // A failed reservation row refuses before the spawn, so the launch's
-        // cleanup (logs, the authentication copy, the slot) is this block's.
         try {
           slot.append({phase:"launching",head,output,completion,journal});
           append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
@@ -1524,8 +1190,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         }
       }
       let child,childError,exited,launchError,executionService,executionClose,executionFailure;
-      // Service errors are reported only after the owned command has drained.
-      // They must not bypass confirmed reviewer-exit journalling or slot release.
       const drainExecution = async () => {
         if (!executionService) return;
         executionClose ??= executionService.close().catch(error => { executionFailure = error; });
@@ -1574,8 +1238,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         activeChild = null;
         pendingProbeCleanup = probeCleanupAfterExit;
       } catch(error) {
-        // The handle belongs to the child just spawned here. Close its input
-        // and terminate that child, retaining ownership until close is observed.
         child.stdin.destroy();
         const waitForClose = (ms) => new Promise(resolve=>{
           const timer=setTimeout(()=>resolve(null),ms);
@@ -1590,8 +1252,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
         if(stopped){
           activeChild=null;
-          // The observed close is the stopped reviewer's exit evidence, which
-          // the journal cleanup command requires before it removes anything.
           try { append({ event: "exited", index, step: current, ...stopped, stopped: true }); }
           catch(journalError){error.message += `; stopped-child exit journal write failed: ${journalError.message}`;}
           pendingProbeCleanup = probeCleanupAfterExit;
@@ -1605,12 +1265,9 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         throw error;
       } finally {
         closeLogs();
-        // A running reviewer still needs its authentication.
         if (!activeChild) discardAuth();
         await drainExecution();
       }
-      // executionDrained records whether the delegated service closed cleanly;
-      // lock recovery accepts a service-bearing launch only on true.
       try { append({ event: "exited", index, step: current, ...result, ...(executionService ? { executionDrained: !executionFailure } : {}) }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
@@ -1619,10 +1276,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         throw error;
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run${executionFailure ? `; delegated execution: ${executionFailure.message}` : ""}`);}}
-      // A failed drain stops this launch before the review checks below, so a
-      // review that exited cleanly has its frozen head, worktree and install
-      // checked and journalled first: confirm-drained completes it later only
-      // on that evidence, and damage found here joins the failure.
       if (executionFailure && step.role === "review" && result.code === 0 && !result.signal) {
         let state;
         try { state = { headUnchanged: gitHead(cwd) === head, changedPaths: gitStatus(cwd).split("\n").filter(Boolean).length, installChanges: installChanges(install, installFingerprint(cwd)) }; }
@@ -1641,8 +1294,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         const damage = installChanges(install, installFingerprint(cwd));
         if (damage.length) throw new Error(`Review changed the reviewed install: ${damage.join("; ")}; restore these before any later step or local test`);
       }
-      // A coordinator-posted report is the reviewer's final message, checked
-      // before the completion artifact so a missing artifact can rest on it.
       const awaiting = coordinatorPosts ? { index, step: current, head, ...coordinatorReport(reportFile, head, reportToken) } : undefined;
       let done;
       try { done = read(completion); }
@@ -1662,8 +1313,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         usedReports.add(id);
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
-      // The reviewer's probe clones and installs go once its exit is confirmed;
-      // a skipped or failed cleanup never voids the validated review.
       runProbeCleanup();
       let pendingReviewers;
       if (step.role === "review") {
@@ -1675,12 +1324,10 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       pendingReport = awaiting;
       current = done.next;
     }
-    // The chain finishes when record-report adds the posted comment's ID.
     if (pendingReport) append({ event: "report-awaiting-post", ...pendingReport });
     else append({ event: "finished" });
   } catch (error) {
     if (fd !== undefined) {
-      // A step that threw after its reviewer exited still frees the disk.
       try { runProbeCleanup(); }
       catch(journalError){error.message += `; probe cleanup journal write failed: ${journalError.message}`;}
       try { append({ event: "blocked", ...failureDetails(error) }); }

@@ -5,11 +5,6 @@ import {git} from './review-job-store.mjs';
 import {assertReviewerDirectory} from './review-job-root.mjs';
 import {validateCodexSandboxStorage,validateCodexAuthHome,readCodexAuthSecret,codexReviewMode,isSupportedCodexVersion,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 
-// The sandboxed grammar needs the elevated Windows sandbox. The full-access
-// grammar runs as the user under the repository hooks, which a Linux cloud
-// container provides as well.
-// The version probe's environment is the caller's: the launcher passes one
-// without the authentication secret, which no child may inherit.
 export function verifyReviewerExecutable(review,{platform=process.platform,env=process.env}={}) {
   if(review.transport!=='native-codex-jsonl')return;
   const fullAccess=codexReviewMode(review)==='full-access';
@@ -32,10 +27,6 @@ export function verifyCodexReviewResult(output) {
   if(!text.endsWith('\n'))throw new Error('Incomplete native Codex event stream');
   let rows;try{rows=text.trim().split('\n').map(JSON.parse);}catch{throw new Error('Invalid native Codex JSONL stream');}
   const starts=rows.filter(row=>row.type==='thread.started'),turns=rows.filter(row=>row.type==='turn.started'),done=rows.filter(row=>row.type==='turn.completed');
-  // Codex emits top-level `error` rows for conditions it recovers from (a
-  // stream reconnect, the fall back from WebSockets to HTTPS when a proxy
-  // refuses the socket), then completes the turn; only `turn.failed`, or an
-  // `error` after the terminal event, ends the turn without a result.
   if(starts.length!==1||typeof starts[0].thread_id!=='string'||!starts[0].thread_id||turns.length!==1||done.length!==1||rows[0]!==starts[0]||rows.at(-1)!==done[0]||rows.indexOf(turns[0])>rows.indexOf(done[0])||rows.some(row=>row.type==='turn.failed'))throw new Error('Native Codex review failed, interrupted, or incomplete');
   if(!rows.some(row=>row.type==='item.completed'&&row.item?.type==='agent_message'&&typeof row.item.text==='string'&&row.item.text.trim())||!done[0].usage||!['input_tokens','output_tokens','cached_input_tokens'].every(key=>Number.isSafeInteger(done[0].usage[key])&&done[0].usage[key]>=0))throw new Error('Native Codex review lacks a complete response');
   if(rows.some(row=>!['thread.started','turn.started','turn.completed','item.started','item.updated','item.completed','error'].includes(row.type)))throw new Error('Unknown native Codex event type');
@@ -45,8 +36,6 @@ export function verifyCodexReviewResult(output) {
 
 const contains=(parent,child)=>{const rel=path.relative(parent,child);return rel===''||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};
 
-// A deliberately small exec argument grammar. Profiles, opaque config overrides,
-// alternate providers, resume/fork, and extra writable roots require new evidence.
 export function validateCodexReviewer(review,plan) {
   const args=review.args,values=new Map(),config=new Map(),disabled=new Set();
   if(args[0]!=='exec'||args.at(-1)!=='-')throw new Error('Native Codex review requires exec with its prompt on stdin');
@@ -71,12 +60,8 @@ export function validateCodexReviewer(review,plan) {
     } else {if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,value);}
   }
   const permission=review.permissions??{};
-  // Every requirement is checked before refusing, so one refusal names each
-  // missing or mismatched argument and step field together.
   const missing=[];
   const need=(ok,label)=>{if(!ok)missing.push(label);};
-  // The full-access grammar runs as the user under the repository hooks the
-  // launcher installs; the sandbox settings have no effect there, so they are refused.
   const fullAccess=codexReviewMode(review)==='full-access';
   for(const flag of ['--ignore-user-config','--ignore-rules','--strict-config','--json','--skip-git-repo-check'])need(values.get(flag),flag);
   need(config.get('model_provider')==='openai','-c model_provider="openai"');
@@ -86,8 +71,6 @@ export function validateCodexReviewer(review,plan) {
     need(values.get('--dangerously-bypass-hook-trust'),'--dangerously-bypass-hook-trust (the launcher installs the repository hooks in the reviewer home)');
     for(const key of sandboxKeys)need(!config.has(key),`no -c ${key} (sandbox settings do not apply to danger-full-access)`);
     for(const field of ['windowsSandbox','sandboxStateHome'])need(permission[field]===undefined,`no step permissions.${field} (sandbox settings do not apply to danger-full-access)`);
-    // The authentication comes from a Codex home on disk or, in a container,
-    // from an environment secret holding the contents of auth.json.
     if(permission.codexAuthEnv===undefined)need(path.isAbsolute(permission.codexHome??''),'step permissions.codexHome as the absolute existing Codex home holding auth.json, or step permissions.codexAuthEnv naming the environment secret that holds its contents');
     else need(permission.codexHome===undefined,'step permissions.codexHome or step permissions.codexAuthEnv, not both');
     need(permission.codexAuthProxied===undefined||(permission.codexAuthProxied===true&&permission.codexAuthEnv!==undefined),'step permissions.codexAuthProxied only as true, with step permissions.codexAuthEnv naming the template');
@@ -119,7 +102,6 @@ export function validateCodexReviewer(review,plan) {
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,common)||contains(common,root))throw new Error(`Codex reviewer writes must exclude repository and supervisor state: reviewer directory ${root}, worktree ${worktree}, common Git directory ${common}`);
   if(contains(root,job)||contains(job,root))throw new Error(`Codex reviewer writes must exclude repository and supervisor state: reviewer directory ${root} conflicts with journal state directory ${job}; put the journal in a sibling state directory such as launch-<reviewer-id>, outside the reviewer directory`);
-  // The launcher withholds the secret from its environment and supplies it here.
   if(fullAccess&&permission.codexAuthEnv!==undefined)readCodexAuthSecret(permission,plan.secretSource??process.env);
   else if(fullAccess)validateCodexAuthHome(permission,worktree);
   else validateCodexSandboxStorage(permission,job,worktree);

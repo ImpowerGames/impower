@@ -5,19 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// resolve-issue branches are <type>/<issue>-<slug>; the session title is
-// derived from that branch so no agent has to compose it.
 const BRANCH = /^(fix|feat|perf|docs|test|refactor|ci)\/(\d+)-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const SHELLS = new Set(["bash", "powershell"]);
 const RENAME = /(?:^|__)set_(?:session|thread)_title$/i;
 const self = fileURLToPath(import.meta.url);
 
-// Splits Bash or PowerShell text into simple commands of words. Quoted text
-// stays inside its word, and a `#` starting a word comments out the rest of
-// the line, so separators and keywords only count where the shell runs them.
-// A backslash (Bash) or backtick (PowerShell) escapes only a quote,
-// whitespace, separator or escape character, which keeps Windows paths such
-// as C:\work intact.
 const ESCAPABLE = /["'`\s;&|()\\#]/;
 export function simpleCommands(text) {
   const commands = [];
@@ -44,7 +36,6 @@ export function simpleCommands(text) {
 
 const LEADING = new Set(["then", "do", "else", "elif", "{", "!"]);
 
-// Returns the branch and target path of a `git worktree add -b` command.
 export function deriveWorktree(command) {
   for (let words of simpleCommands(String(command))) {
     while (LEADING.has(words[0])) words = words.slice(1);
@@ -65,10 +56,6 @@ export function deriveWorktree(command) {
 
 export const deriveTitle = (command) => deriveWorktree(command)?.title ?? null;
 
-// A parent issue's coordinator is titled from its run record: the orchestrate-issues
-// command that writes the record (issue-run.mjs init, or checkpoint.mjs resume
-// for a takeover) names it with --record, and the record holds the title
-// `ORCH #<N>: <slug words>`. Returns the record path the command names.
 const RECORD_WRITERS = [["issue-run.mjs", "init"], ["checkpoint.mjs", "resume"]];
 export function deriveRunRecord(command) {
   for (let words of simpleCommands(String(command))) {
@@ -88,15 +75,9 @@ function recordTitle(cwd, record) {
     return typeof title === "string" && ORCH_TITLE.test(title) ? title : null;
   } catch { return null; }
 }
-// A coordinator's title belongs to the whole session, so its entry has no
-// worktree and gates every shell command. Once renamed it stays recorded as
-// acknowledged, so a coordinator resumed on the same session is not asked
-// again.
 const titleId = (title) => createHash("sha256").update(`session-title:${title}`).digest("hex").slice(0, 16);
 const forSession = (entry) => entry.worktree === null;
 
-// Real paths expand Windows 8.3 short names and symbolic links, which Git
-// reports in their long form; a path that does not exist matches nothing.
 const realPath = (p) => { try { return fs.realpathSync.native(path.resolve(p)); } catch { return null; } };
 const samePath = (a, b) => {
   const [x, y] = [realPath(a), realPath(b)];
@@ -104,9 +85,6 @@ const samePath = (a, b) => {
   return process.platform === "win32" ? x.toLowerCase() === y.toLowerCase() : x === y;
 };
 
-// Codex runs PostToolUse after failed commands too and reports only their
-// output, so the title is recorded only once Git lists a worktree at the
-// command's target path on its branch.
 export function worktreeCreated(cwd, { branch, target }) {
   let list;
   try {
@@ -122,10 +100,6 @@ export function worktreeCreated(cwd, { branch, target }) {
   });
 }
 
-// Private per-session state outside any checkout, so concurrent sessions in
-// different worktrees never see each other's pending title. The key is a hash
-// of the complete session id, which may contain any characters; it also names
-// the session in the acknowledgement command without shell syntax.
 export const sessionKey = (sessionId) => createHash("sha256").update(String(sessionId)).digest("hex");
 const stateDir = () => process.env.IMPOWER_SESSION_TITLE_DIR || path.join(os.tmpdir(), "impower-session-titles");
 const keyPath = (key) => path.join(stateDir(), key + ".json");
@@ -137,9 +111,6 @@ function sessionOf(payload) {
   return payload.session_id;
 }
 
-// Writers that run as subagents of one session share its id, so the record
-// holds one pending entry { id, title, worktree } per worktree, and each is
-// gated, renamed and acknowledged on its own.
 const canonical = (p) => {
   const slashed = (realPath(p) ?? path.resolve(p)).replaceAll("\\", "/").replace(/\/+$/, "");
   return process.platform === "win32" ? slashed.toLowerCase() : slashed;
@@ -158,12 +129,6 @@ function pending(sessionId) {
 
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
-// Sibling writers' hooks are separate processes that update one record, so each
-// read-modify-write holds an exclusive lock file beside it. A lock older than
-// STALE_LOCK_MS belongs to a hook that died and is taken over. The record is
-// replaced by renaming a complete file, so an unlocked reader never sees a
-// partial write. `change` receives the session's entries and returns
-// { entries, value }.
 const STALE_LOCK_MS = 10000;
 function modify(file, sessionId, change) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -172,7 +137,7 @@ function modify(file, sessionId, change) {
     try { fs.closeSync(fs.openSync(lock, "wx")); break; }
     catch (error) {
       if (!["EEXIST", "EPERM", "EACCES"].includes(error.code)) throw error;
-      try { if (Date.now() - fs.statSync(lock).mtimeMs > STALE_LOCK_MS) fs.rmSync(lock, { force: true }); } catch { /* released meanwhile */ }
+      try { if (Date.now() - fs.statSync(lock).mtimeMs > STALE_LOCK_MS) fs.rmSync(lock, { force: true }); } catch {}
       if (Date.now() > giveUp) throw new Error(`Session title record is locked: ${lock}`);
       pause(20);
     }
@@ -208,13 +173,9 @@ function instruction(entry, sessionId, harness) {
   return `${what} ${call} Only if this runner offers no rename tool, run \`${ackFor(sessionId, entry.id)}\` instead.`;
 }
 
-// A renamed coordinator title stays recorded as acknowledged; a worktree's
-// title is dropped once renamed.
 const settle = (entries, done) => (forSession(done) ? entries.map((entry) => (entry === done ? { ...entry, acknowledged: true } : entry)) : entries.filter((entry) => entry !== done));
 const open = (entries) => entries.filter((entry) => !entry.acknowledged);
 
-// PostToolUse: record the title after worktree creation or a coordinator's
-// run-record write; clear it after the rename.
 export function afterTool(payload, harness) {
   const sessionId = sessionOf(payload);
   const tool = String(payload.tool_name ?? "");
@@ -237,19 +198,13 @@ export function afterTool(payload, harness) {
   }
   if (RENAME.test(tool)) {
     return modify(statePath(sessionId), sessionId, (stored) => {
-      // A coordinator title stays acknowledged only while the session still
-      // carries it: renaming this session to anything else forgets it, so a
-      // later init or takeover asks again.
       const target = payload.tool_input?.session_id;
       const self = target === undefined || target === "self" || target === sessionId;
       const entries = self ? stored.filter((entry) => !(entry.acknowledged && entry.title !== payload.tool_input?.title)) : stored;
       const pendingEntries = open(entries);
       if (!pendingEntries.length) return { entries };
-      // A rename issued from inside one pending worktree can acknowledge only that worktree's title; a coordinator's
-      // title belongs to the whole session, wherever the rename runs.
       const from = payload.cwd ? pendingEntries.find((entry) => !forSession(entry) && touches(entry, { cwd: payload.cwd })) : undefined;
       const match = pendingEntries.find((entry) => entry.title === payload.tool_input?.title && (forSession(entry) || !from || entry === from));
-      // A rename aimed at another session does not rename this one.
       if (!match || !self) {
         const entry = match ?? from ?? pendingEntries[0];
         return { entries, value: `The session title must be exactly "${entry.title}". ${instruction(entry, sessionId, harness)}` };
@@ -260,16 +215,11 @@ export function afterTool(payload, harness) {
   return null;
 }
 
-// Whether the command runs in, or names, the entry's worktree. A coordinator's
-// title covers every command of its session.
 function touches(entry, payload) {
   if (forSession(entry)) return true;
   const worktree = canonical(entry.worktree);
   const within = (p) => { const c = canonical(p); return c === worktree || c.startsWith(worktree + "/"); };
   if (payload.cwd && within(payload.cwd)) return true;
-  // A path operand may spell the worktree differently (relative, with parent
-  // segments, or by its Windows 8.3 name), so each word is resolved from the
-  // working directory and compared by real path.
   const base = payload.cwd || process.cwd();
   for (const words of simpleCommands(String(payload.tool_input?.command ?? "")))
     for (const word of words.slice(0, 64)) {
@@ -285,7 +235,6 @@ function touches(entry, payload) {
   return false;
 }
 
-// PreToolUse: deny shell commands in a worktree whose derived title is unconfirmed.
 export function gate(payload, harness) {
   const tool = String(payload?.tool_name ?? "").toLowerCase();
   if (!SHELLS.has(tool)) return null;
@@ -295,7 +244,6 @@ export function gate(payload, harness) {
   return isAck(payload.tool_input?.command, sessionId, entry) ? null : instruction(entry, sessionId, harness);
 }
 
-// The only command let through is this script's own confirm for this session and worktree.
 function isAck(command, sessionId, entry) {
   const match = String(command ?? "").trim().match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})\s+([0-9a-f]{16})$/);
   return Boolean(match) && match[3] === sessionKey(sessionId) && match[4] === entry.id && samePath(match[1] ?? match[2], self);

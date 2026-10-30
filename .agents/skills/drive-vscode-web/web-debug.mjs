@@ -1,17 +1,11 @@
 import { command } from "./desktop.mjs";
 
-// The inline debug adapter also runs in the served workbench. Keep this UI
-// path separate from desktop DAP checks and from unsupported web breakpoints.
 export async function debugWorkbench(page, { expression, result, screenshot }) {
   const report = { breakpointBinding: "unverified: served source URI mapping", failed: [] };
   try {
     await command(page, "Sparkdown: Preview Game", "sparkdown.previewGame");
     await page.locator("iframe.webview").waitFor({ timeout: 60000 });
-    // The panel is mounted before the extension has received its ready event.
-    // Wait for actual story text before dispatching the debugger command.
     await page.frameLocator("iframe.webview").frameLocator("#active-frame").locator("#game span").first().waitFor({ timeout: 60000 });
-    // Opening at line one need not produce a selection-change event. Select
-    // a script position just as an author does before using Run & Debug.
     await page.locator(".monaco-editor .view-line").first().click();
     await page.keyboard.press("ArrowRight");
     const run = page.frameLocator("iframe.webview").frameLocator("#active-frame").locator("#play-button");
@@ -54,8 +48,6 @@ export async function debugWorkbench(page, { expression, result, screenshot }) {
     report.stepped = await stack.allTextContents();
     if (screenshot) await page.screenshot({ path: screenshot });
     await command(page, "Debug: Continue", "workbench.action.debug.continue");
-    // Sparkdown pauses again at author interactions. Continue is successful
-    // when execution runs or reaches a different stopped frame.
     await page.waitForFunction(previous => {
       if (document.querySelector(".debug-toolbar .codicon-debug-pause")) return true;
       const frames = [...document.querySelectorAll(".debug-call-stack .monaco-list-row")].map(el => el.textContent);

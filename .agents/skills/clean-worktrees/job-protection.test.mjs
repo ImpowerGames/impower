@@ -199,9 +199,6 @@ try {
   assert.ok(fullLogs.some((line) => line.includes('worktree ownership could not be inspected') && line.includes(brokenCheckout)));
   assert.ok(isRegistered(brokenCheckout));
   assert.equal(fs.readFileSync(path.join(brokenCheckout, 'ignored.txt'), 'utf8'), 'broken sentinel');
-  // A reviewer's probe clone inside a closed PR's job directory is scratch once
-  // it holds nothing origin/main lacks; a registered worktree beside one still
-  // keeps the directory, and so does a clone with a change or a local commit.
   const probeClone = (dir, name = 'probe-clone') => {
     const clone = path.join(dir, 'round-1', 'reviewer-a-1', name);
     fs.mkdirSync(path.dirname(clone), { recursive: true });
@@ -250,15 +247,12 @@ try {
     const external = path.join(scratch, `linked-${fixture.name}`);
     if (state === 'linked') inClone('worktree', 'add', '-q', '--detach', external, 'HEAD');
     if (state === 'am') {
-      // A mail patch whose context does not apply leaves `git am` paused, its
-      // patch kept under the Git directory and the status clean.
       const patch = ['From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001', 'From: Scratch <scratch@example.com>', 'Date: Mon, 12 Oct 2026 00:00:00 +0000', 'Subject: [PATCH] pending', '', '---', '', 'diff --git a/.gitignore b/.gitignore', '--- a/.gitignore', '+++ b/.gitignore', '@@ -1 +1 @@', '-not-the-content', '+pending-unique-work', '-- ', '2.40.1', ''].join('\n');
       const r = spawnSync('git', ['-c', 'user.email=scratch@example.com', '-c', 'user.name=Scratch', 'am'], { cwd: clone, input: patch, windowsHide: true, encoding: 'utf8' });
       assert.notEqual(r.status, 0, 'the fixture patch applied');
       assert.ok(fs.existsSync(path.join(clone, '.git', 'rebase-apply')), r.stderr);
     }
     if (state === 'assume-unchanged') {
-      // A change to a file marked assume-unchanged does not show in status.
       inClone('update-index', '--assume-unchanged', '.gitignore');
       fs.appendFileSync(path.join(clone, '.gitignore'), 'hidden-unique-work\n');
       assert.equal(inClone('status', '--porcelain', '--untracked-files=all'), '', 'the fixture change shows in status');
@@ -334,7 +328,6 @@ try {
   assert.ok(isRegistered(aliasCheckout));
   console.log('PASS review-job ownership protection');
 } finally {
-  // Only this printed scratch root is disposable; never touch live jobs.
   for (const link of fixtureLinks) unlinkFixture(link);
   fs.rmSync(scratch, { recursive: true, force: true });
 }
