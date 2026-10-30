@@ -486,7 +486,7 @@ export function verifyIssue(record, { snapshot, evidence, mainSha }) {
   });
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
   // A ticket filed during the run is placed before the parent issue closes.
-  incomplete.push(...filedActions(record).map((f) => ({ number: f.number, action: f.action === "triage-filed" ? "filed during the run, with no triage outcome" : `named as filed in #${f.from}'s writer's report, not confirmed and triaged` })));
+  incomplete.push(...filedActions(record).map((f) => ({ number: f.number, action: f.unplaced ? "triaged separate with no umbrella it was attached under" : f.action === "triage-filed" ? "filed during the run, with no triage outcome" : `named as filed in #${f.from}'s writer's report, not confirmed and triaged` })));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
   const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
   const v = { id: randomUUID().slice(0, 8), time: new Date().toISOString(), coordinator: record.coordinator.session, mainSha, snapshotAt: snapshot.observedAt, verdict, criteria: rows, acceptanceSha256: snapshot.issue.acceptanceSha256 ?? null, incomplete, unsettled, tickets: snapshot.tickets.filter((t) => !t.container).map((t) => t.number) };

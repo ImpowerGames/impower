@@ -1241,6 +1241,11 @@ try {
     assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", reason: "same root cause" })), /--slice must name the slice/);
     assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "separate", reason: "outside the parent's goal" })), /--under must name the umbrella[\s\S]*record maintainer instead/);
     assert.throws(() => f.change((r) => run.triage(r, { filed: 3004, outcome: "separate", under: 1259, reason: "x" })), /not recorded as filed/);
+    f.change((r) => { r.filed[3002].outcome = { kind: "separate", reason: "outside the parent's goal", time: "2026-10-01T00:00:00.000Z" }; });
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3002: "triage-filed" }, "a saved separate outcome with no umbrella is triaged again");
+    assert.deepEqual(run.verificationGaps({ ...run.readRecord(f.file), verifications: verified.verifications }, doneSnap), ["#3002 was triaged separate with no umbrella it was attached under; triage it again with issue-run.mjs triage --under, or record maintainer"]);
+    f.change((r) => run.triage(r, { filed: 3002, outcome: "separate", under: 1259, reason: "outside the parent's goal" }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a separate outcome under an umbrella settles the ticket");
     f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", slice: 3001, reason: "it replaces the guard PR #3901 adds" }));
     assert.deepEqual(run.verificationGaps({ ...run.readRecord(f.file), verifications: verified.verifications }, doneSnap), [], "a triaged ticket leaves the verification holding");
     assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {});
