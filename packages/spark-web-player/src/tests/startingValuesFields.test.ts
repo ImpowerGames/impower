@@ -250,6 +250,12 @@ describe("the Starting values fields", () => {
     state = drafted(state, S, "store:trust", "3");
     state = hostSent(state, { [S]: { "store:trust": "3" } });
     expect(view(state).drafts).toEqual({});
+    state = hostSent(state, { [S]: { "store:trust": "4" } });
+    expect(view(state)).toEqual({
+      values: { "store:trust": "4" },
+      drafts: {},
+      unsaved: {},
+    });
   });
 
   test("a change the host kept while a later change to the field waits leaves the later one waiting over it", () => {

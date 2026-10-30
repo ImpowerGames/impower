@@ -51,9 +51,17 @@ const withFields = (
 ): StartingValuesFields => {
   const fields = new Map(state.fields);
   change(fields);
+  const shown = shownValues({ ...state, fields });
   for (const [id, field] of fields) {
-    if (isEmpty(field)) {
+    const [start, key] = splitId(id);
+    const kept =
+      field.draft === (ownEntry(shown, start)?.[key] ?? "")
+        ? { ...field, draft: undefined }
+        : field;
+    if (isEmpty(kept)) {
       fields.delete(id);
+    } else {
+      fields.set(id, kept);
     }
   }
   return { ...state, fields };
@@ -98,12 +106,10 @@ export const fieldsView = (
   const drafts: Record<string, string> = {};
   const unsaved: Record<string, string> = {};
   for (const [key, field] of fieldsOf(state, start)) {
-    const shown = values[key] ?? "";
-    const draft = field.draft === shown ? undefined : field.draft;
-    if (draft !== undefined) {
-      drafts[key] = draft;
+    if (field.draft !== undefined) {
+      drafts[key] = field.draft;
     }
-    if (field.refused && draft === undefined) {
+    if (field.refused && field.draft === undefined) {
       unsaved[key] = values[key] ?? firstOf(key) ?? "nil";
     }
   }
@@ -118,10 +124,9 @@ export const drafted = (
 ): StartingValuesFields =>
   withFields(state, (fields) => {
     const field = fields.get(fieldId(start, key)) ?? {};
-    const shown = ownEntry(shownValues(state), start)?.[key] ?? "";
     fields.set(fieldId(start, key), {
       ...field,
-      draft: text === null || text === shown ? undefined : text,
+      draft: text ?? undefined,
     });
   });
 
