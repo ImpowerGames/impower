@@ -62,6 +62,7 @@ export const searchRouteFor = (
       callerResetsStory: true,
       resumeFrom,
       levelZeroStore: game.levelZeroStore,
+      startPlans: game.startPlans,
       pins: game.pinnedOptions,
     };
     const route = fromStart

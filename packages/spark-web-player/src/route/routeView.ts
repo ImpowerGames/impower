@@ -6,6 +6,7 @@ import type {
   RunMeeting,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { RouteTab, StartingValuesViewState } from "./startingValuesView";
 
 export type RouteKind = "pinned" | "auto" | "forced" | "clipped";
 
@@ -53,6 +54,8 @@ export interface RouteViewState {
   failure?: RouteFailure;
   open: boolean;
   toggles: RouteToggles;
+  tab: RouteTab;
+  values?: StartingValuesViewState;
   pins: RoutePin[];
   pinNote?: string;
   lastRun?: number;
@@ -242,13 +245,6 @@ export const routeLabel = (
 ): string | null => {
   const parts = routeLabelParts(state, nameOf);
   return parts && `${parts.name} ${parts.lines}`;
-};
-
-export const routeStartText = (route: PreviewRoute, nameOf: ScriptName) => {
-  const line = lineOf(route.start.location);
-  return route.start.scene
-    ? `From the top of scene ${route.start.scene}, line ${line}, with every store at its first value`
-    : `From the top of ${nameOf(route.start.location.uri)}, line ${line}, with every store at its first value`;
 };
 
 export const routeTitle = (

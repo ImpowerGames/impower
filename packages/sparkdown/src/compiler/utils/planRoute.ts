@@ -9,6 +9,11 @@ import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import { START_FLOW_NAME } from "../../program/ProgramSymbols";
 import { planRouteFallback } from "./planRouteFallback";
 import {
+  startPlanKey,
+  startStoryAt,
+  type StartPlan,
+} from "../../program/startingValues";
+import {
   gateWinsMenu,
   NO_PINS,
   pinnedAtMenu,
@@ -304,6 +309,8 @@ export interface SearchOptions {
 
   resumeFrom?: RouteResumePoint;
 
+  start?: StartPlan;
+
   stateImages?: boolean;
 
   levelZeroStore?: LevelZeroStore;
@@ -363,6 +370,7 @@ const levelZeroKey = (
     maxNodes,
     faithfulBudget.steps,
     LEVEL_SHARE,
+    startPlanKey(options?.start),
     options?.pins?.key ?? "",
     PIN_SHARE,
   ]);
@@ -822,7 +830,7 @@ const planRouteFaithful = (
       ? null
       : options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port);
+        : makeStartNode(story, from, port, options?.start);
 
     const raisedErrors = new Set<string>(
       reuse?.errors.map((e) => `${e.address} ${e.message}`),
@@ -1557,15 +1565,9 @@ const makeStartNode = (
   story: Story,
   from: string,
   port: StatePort,
+  start?: StartPlan,
 ): SearchNode => {
-  if (!story.stateIsPristine) {
-    resetStory(story);
-  }
-  if (from === START_FLOW_NAME) {
-    story.ChooseStart();
-  } else {
-    story.ChoosePathString(from);
-  }
+  enterStart(story, from, start);
   return {
     state: port.fork().state,
     seq: "",
@@ -1579,6 +1581,21 @@ const makeStartNode = (
     metPins: [],
     route: newRoute(),
   };
+};
+
+export const enterStart = (story: Story, from: string, start?: StartPlan) => {
+  if (start) {
+    startStoryAt(story, { ...start, from });
+    return;
+  }
+  if (!story.stateIsPristine) {
+    resetStory(story);
+  }
+  if (from === START_FLOW_NAME) {
+    story.ChooseStart();
+  } else {
+    story.ChoosePathString(from);
+  }
 };
 
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {

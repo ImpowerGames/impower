@@ -23,12 +23,17 @@ import {
   routeIcon,
   routeLabel,
   routeLabelParts,
-  routeStartText,
   routeTitle,
   type RouteKind,
   type RouteViewState,
   type ScriptName,
 } from "./routeView";
+import type { RouteTab } from "./startingValuesView";
+import {
+  StartingValuesTab,
+  StartingValuesTabLabel,
+  type StartingValuesEvents,
+} from "./StartingValuesViews";
 
 export interface RouteButtonProps {
   state: RouteViewState;
@@ -55,7 +60,11 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => (state.open ? onClose() : onOpen())}
     >
-      {icon ? <RouteIconSvg icon={icon} /> : null}
+      {icon ? (
+        <RouteIconSvg icon={icon} />
+      ) : (
+        <span class="route-icon route-icon-slot" aria-hidden="true" />
+      )}
       <span class="route-button-label">
         <span class="route-button-name">{parts.name}</span>
         <span class="route-button-lines">{` ${parts.lines}`}</span>
@@ -70,6 +79,8 @@ export interface RouteListProps {
   onClose: () => void;
   onToggle: (kind: RouteKind, shown: boolean) => void;
   onShowLine: (location: DocumentLocation) => void;
+  onTab?: (tab: RouteTab) => void;
+  values?: StartingValuesEvents;
   onChangePins: (change: RoutePinChange) => void;
   onPinLastRun: () => void;
 }
@@ -138,6 +149,8 @@ export function RouteList({
   onClose,
   onToggle,
   onShowLine,
+  onTab,
+  values,
   onChangePins,
   onPinLastRun,
 }: RouteListProps) {
@@ -147,6 +160,11 @@ export function RouteList({
   }
   const route = state.route;
   const target = route?.target ?? state.failure?.target;
+  const routeTitle = target
+    ? `Route to line ${target.range.start.line + 1}`
+    : "Route";
+  const valuesState = values ? state.values : undefined;
+  const tab: RouteTab = valuesState ? state.tab : "route";
   const counts = kindCounts(route);
   const decisions = route?.decisions ?? [];
   const shown = decisions.filter((d) => state.toggles[d.kind]);
@@ -177,30 +195,31 @@ export function RouteList({
     </button>
   );
   return (
-    <section
-      class="route-list"
-      aria-label={target ? `Route to line ${target.range.start.line + 1}` : "Route"}
-    >
+    <section class="route-list" aria-label={routeTitle}>
       <header class="route-list-head">
-        <span class="route-list-title">
-          {target ? `Route to line ${target.range.start.line + 1}` : "Route"}
-        </span>
-        <div class="route-list-toggles" role="group" aria-label="Show">
-          {ROUTE_KINDS.map((kind) => (
+        <div class="route-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            class="route-tab"
+            data-tab="route"
+            aria-selected={tab === "route"}
+            onClick={() => onTab?.("route")}
+          >
+            <span class="route-list-title">{routeTitle}</span>
+          </button>
+          {valuesState ? (
             <button
-              key={kind}
               type="button"
-              class="route-toggle"
-              data-kind={kind}
-              aria-pressed={state.toggles[kind]}
-              title={ROUTE_KIND_MEANINGS[kind]}
-              onClick={() => onToggle(kind, !state.toggles[kind])}
+              role="tab"
+              class="route-tab"
+              data-tab="values"
+              aria-selected={tab === "values"}
+              onClick={() => onTab?.("values")}
             >
-              <RouteIconSvg icon={kind} />
-              <span>{ROUTE_KIND_LABELS[kind]}</span>
-              <span class="route-toggle-count">{counts[kind]}</span>
+              <StartingValuesTabLabel state={valuesState} />
             </button>
-          ))}
+          ) : null}
         </div>
         <button
           type="button"
@@ -212,118 +231,135 @@ export function RouteList({
           ×
         </button>
       </header>
-      {state.failure || !route ? (
-        <p class="route-list-failure">{state.failure?.message ?? ""}</p>
+      {tab === "values" && valuesState && values ? (
+        <StartingValuesTab state={valuesState} events={values} />
       ) : (
-        <>
-          <ol class="route-list-entries">
-            <li class="route-entry route-start">
-              <div class="route-entry-row">
-                {lineLink(route.start.location)}
-                <span class="route-text">{routeStartText(route, nameOf)}</span>
-              </div>
-            </li>
-            {shown.map((decision) => {
-              const key = entryKey(decision);
-              const choice = decision.options != null;
-              const open = choice && isExpanded(decision);
-              return (
-                <li
-                  key={key}
-                  class={open ? "route-entry expanded" : "route-entry"}
-                  data-kind={decision.kind}
-                >
+        <div class="route-tab-body" role={valuesState ? "tabpanel" : undefined}>
+          <div class="route-list-toggles" role="group" aria-label="Show">
+            {ROUTE_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                class="route-toggle"
+                data-kind={kind}
+                aria-pressed={state.toggles[kind]}
+                title={ROUTE_KIND_MEANINGS[kind]}
+                onClick={() => onToggle(kind, !state.toggles[kind])}
+              >
+                <RouteIconSvg icon={kind} />
+                <span>{ROUTE_KIND_LABELS[kind]}</span>
+                <span class="route-toggle-count">{counts[kind]}</span>
+              </button>
+            ))}
+          </div>
+          {state.failure || !route ? (
+            <p class="route-list-failure">{state.failure?.message ?? ""}</p>
+          ) : (
+            <>
+              <ol class="route-list-entries">
+                {shown.map((decision) => {
+                  const key = entryKey(decision);
+                  const choice = decision.options != null;
+                  const open = choice && isExpanded(decision);
+                  return (
+                    <li
+                      key={key}
+                      class={open ? "route-entry expanded" : "route-entry"}
+                      data-kind={decision.kind}
+                    >
+                      <div class="route-entry-row">
+                        {lineLink(decision.location)}
+                        <RouteIconSvg icon={decision.kind} />
+                        {choice ? (
+                          <button
+                            type="button"
+                            class="route-text route-entry-toggle"
+                            aria-expanded={open}
+                            title={open ? "Hide the pin control" : "Pin the option taken here"}
+                            onClick={() =>
+                              setExpanded({ ...expanded, [key]: !open })
+                            }
+                          >
+                            {decisionText(decision)}
+                          </button>
+                        ) : (
+                          <span class="route-text">{decisionText(decision)}</span>
+                        )}
+                        <span class="route-badge">{ROUTE_KIND_LABELS[decision.kind]}</span>
+                      </div>
+                      {open ? (
+                        <PinControl
+                          decision={decision}
+                          target={route.target}
+                          pins={state.pins}
+                          onChangePins={onChangePins}
+                        />
+                      ) : null}
+                    </li>
+                  );
+                })}
+                <li class="route-entry route-target">
                   <div class="route-entry-row">
-                    {lineLink(decision.location)}
-                    <RouteIconSvg icon={decision.kind} />
-                    {choice ? (
+                    {lineLink(route.target)}
+                    <span class="route-text">Target line</span>
+                  </div>
+                </li>
+              </ol>
+              {unresolved.length > 0 ? (
+                <ul class="route-unresolved-pins" aria-label="Pins with no option">
+                  {unresolved.map((pin) => (
+                    <li
+                      key={`${pin.uri}:${pin.line}:${pin.offer}`}
+                      class="route-unresolved-pin"
+                    >
+                      <RouteIconSvg icon="pinned" />
+                      <span class="route-text">{unresolvedPinText(pin, nameOf)}</span>
                       <button
                         type="button"
-                        class="route-text route-entry-toggle"
-                        aria-expanded={open}
-                        title={open ? "Hide the pin control" : "Pin the option taken here"}
-                        onClick={() =>
-                          setExpanded({ ...expanded, [key]: !open })
-                        }
+                        class="route-pin-remove"
+                        onClick={() => onChangePins({ remove: [pin] })}
                       >
-                        {decisionText(decision)}
+                        Remove
                       </button>
-                    ) : (
-                      <span class="route-text">{decisionText(decision)}</span>
-                    )}
-                    <span class="route-badge">{ROUTE_KIND_LABELS[decision.kind]}</span>
-                  </div>
-                  {open ? (
-                    <PinControl
-                      decision={decision}
-                      target={route.target}
-                      pins={state.pins}
-                      onChangePins={onChangePins}
-                    />
-                  ) : null}
-                </li>
-              );
-            })}
-            <li class="route-entry route-target">
-              <div class="route-entry-row">
-                {lineLink(route.target)}
-                <span class="route-text">Target line</span>
-              </div>
-            </li>
-          </ol>
-          {unresolved.length > 0 ? (
-            <ul class="route-unresolved-pins" aria-label="Pins with no option">
-              {unresolved.map((pin) => (
-                <li
-                  key={`${pin.uri}:${pin.line}:${pin.offer}`}
-                  class="route-unresolved-pin"
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {decisions.length === 0 ? (
+                <p class="route-list-note">The preview runs this line as the game does</p>
+              ) : null}
+            </>
+          )}
+          {state.pinNote ? (
+            <p class="route-list-note route-pin-note" role="status">
+              {state.pinNote}
+            </p>
+          ) : null}
+          {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
+            <footer class="route-list-foot">
+              {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+              {lastRun > 0 ? (
+                <button
+                  type="button"
+                  class="route-pin-last-run"
+                  onClick={onPinLastRun}
                 >
-                  <RouteIconSvg icon="pinned" />
-                  <span class="route-text">{unresolvedPinText(pin, nameOf)}</span>
-                  <button
-                    type="button"
-                    class="route-pin-remove"
-                    onClick={() => onChangePins({ remove: [pin] })}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  {lastRunText(lastRun)}
+                </button>
+              ) : null}
+              {state.pins.length > 0 ? (
+                <button
+                  type="button"
+                  class="route-clear-pins"
+                  onClick={() => onChangePins({ removeAll: true })}
+                >
+                  Clear pins
+                </button>
+              ) : null}
+            </footer>
           ) : null}
-          {decisions.length === 0 ? (
-            <p class="route-list-note">The preview runs this line as the game does</p>
-          ) : null}
-        </>
+        </div>
       )}
-      {state.pinNote ? (
-        <p class="route-list-note route-pin-note" role="status">
-          {state.pinNote}
-        </p>
-      ) : null}
-      {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
-        <footer class="route-list-foot">
-          {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
-          {lastRun > 0 ? (
-            <button
-              type="button"
-              class="route-pin-last-run"
-              onClick={onPinLastRun}
-            >
-              {lastRunText(lastRun)}
-            </button>
-          ) : null}
-          {state.pins.length > 0 ? (
-            <button
-              type="button"
-              class="route-clear-pins"
-              onClick={() => onChangePins({ removeAll: true })}
-            >
-              Clear pins
-            </button>
-          ) : null}
-        </footer>
-      ) : null}
     </section>
   );
 }

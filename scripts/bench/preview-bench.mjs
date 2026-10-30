@@ -65,6 +65,9 @@ export function parseBenchArgs(args) {
       case "--json":
         out.json = value(args, i++, name);
         break;
+      case "--starting-values":
+        out.startingValues = JSON.parse(value(args, i++, name));
+        break;
       case "--cpu-prof":
         out.cpuProf = value(args, i++, name);
         break;
@@ -174,7 +177,7 @@ async function main(args) {
     for (const mode of modes) {
       const json = options.json ? path.resolve(`${options.json}.${mode}.json`) : path.join(scratch, `${mode}.json`);
       const gaps = cpuProf ? path.join(cpuProf, `${mode}.gaps.json`) : undefined;
-      const config = { project, line, word, options: replacements, structural, mode, samples: options.samples, warmup: options.warmup, json, gaps, noFlowReuse: options.noFlowReuse, heapProbe: heapProbe && `${heapProbe}.${mode}`, windows: cpuProf && path.join(cpuProf, `${mode}.windows.json`) };
+      const config = { project, line, word, options: replacements, structural, mode, samples: options.samples, warmup: options.warmup, json, gaps, noFlowReuse: options.noFlowReuse, heapProbe: heapProbe && `${heapProbe}.${mode}`, windows: cpuProf && path.join(cpuProf, `${mode}.windows.json`), startingValues: options.startingValues };
       const profile = cpuProf ? ["--cpu-prof", "--cpu-prof-dir", cpuProf, "--cpu-prof-name", `${mode}.cpuprofile`] : [];
       const run = spawnSync(process.execPath, ["--max-old-space-size=4096", "--expose-gc", ...profile, script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
       if (run.status !== 0) failed = true;

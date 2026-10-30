@@ -65,6 +65,9 @@ export interface SparkProgram {
   labelLocations?: {
     [name: string]: ScriptLocation;
   };
+  storeTypes?: {
+    [name: string]: string;
+  };
   sceneAssets?: { [flowName: string]: SceneAssets };
   version?: number;
   filesEpoch?: number;

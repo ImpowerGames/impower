@@ -598,6 +598,11 @@ spark-web-player {
   --swp-route-active-color: var(--swp-toolbar-button-active-color);
   --swp-route-muted-color: color-mix(in srgb, currentColor 60%, transparent);
   --swp-route-list-max-height: 50%;
+  --swp-route-field-background-color: rgba(255, 255, 255, 0.06);
+  --swp-route-field-border-color: rgba(255, 255, 255, 0.15);
+  --swp-route-popup-background-color: #252526;
+  --swp-route-popup-border-color: rgba(255, 255, 255, 0.2);
+  --swp-route-row-height: 24px;
 }
 
 spark-web-player #route-button {
@@ -720,13 +725,14 @@ spark-web-player .route-list-head {
 
 spark-web-player .route-list-title {
   font-weight: 600;
-  margin-right: auto;
 }
 
 spark-web-player .route-list-toggles {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 2px;
+  padding: 4px var(--swp-toolbar-button-gap);
 }
 
 spark-web-player .route-toggle,
@@ -817,6 +823,325 @@ spark-web-player .route-pin-note {
   color: var(--swp-route-error-color);
 }
 
+spark-web-player .route-tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 2px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+spark-web-player .route-tab {
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--swp-route-muted-color);
+  font: inherit;
+  white-space: nowrap;
+}
+
+spark-web-player .route-tab[aria-selected="true"] {
+  color: inherit;
+  border-bottom-color: var(--swp-route-accent-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  spark-web-player .route-tab:hover {
+    background-color: var(--swp-route-hover-color);
+  }
+}
+
+spark-web-player .route-tab-count {
+  min-width: 1.6em;
+  padding: 0 5px;
+  border-radius: 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background-color: var(--swp-route-field-background-color);
+}
+
+spark-web-player .sv-tab-icon {
+  display: flex;
+}
+
+spark-web-player .sv-tab-icon[data-icon="warning"] {
+  color: var(--swp-route-warning-color);
+}
+
+spark-web-player .sv-tab-icon[data-icon="error"] {
+  color: var(--swp-route-error-color);
+}
+
+spark-web-player .route-icon-slot {
+  display: inline-block;
+}
+
+spark-web-player .sv-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px var(--swp-toolbar-button-gap) 6px;
+}
+
+spark-web-player .sv-search,
+spark-web-player .sv-input {
+  box-sizing: border-box;
+  height: 22px;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--swp-route-field-border-color);
+  border-radius: 3px;
+  background-color: var(--swp-route-field-background-color);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+spark-web-player .sv-search:focus,
+spark-web-player .sv-input:focus {
+  border-color: var(--swp-route-accent-color);
+}
+
+spark-web-player .sv-group-head {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .sv-group-note {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+spark-web-player .sv-group[data-group="unresolved"] .sv-group-head {
+  color: var(--swp-route-warning-color);
+}
+
+spark-web-player .sv-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) 22px;
+  align-items: center;
+  gap: 8px;
+  height: var(--swp-route-row-height);
+  padding-left: 8px;
+}
+
+spark-web-player .sv-row[data-set]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background-color: var(--swp-route-accent-color);
+}
+
+spark-web-player .sv-row[data-field] .sv-name {
+  padding-left: 12px;
+}
+
+spark-web-player .sv-name {
+  display: flex;
+  flex-direction: row;
+  min-width: 0;
+  white-space: nowrap;
+  font-family: var(--swp-route-code-font-family, monospace);
+}
+
+spark-web-player .sv-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+spark-web-player .sv-line {
+  flex: none;
+  margin-left: 0.6em;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .sv-row[data-unresolved] .sv-name-text {
+  text-decoration: line-through;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .sv-field {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+spark-web-player .sv-input {
+  flex: 1;
+  width: 100%;
+  padding-right: 24px;
+  font-family: var(--swp-route-code-font-family, monospace);
+}
+
+spark-web-player .sv-input::placeholder {
+  color: var(--swp-route-muted-color);
+  opacity: 1;
+}
+
+spark-web-player .sv-input.unset::placeholder {
+  color: var(--swp-route-warning-color);
+}
+
+spark-web-player .sv-field[data-set] .sv-input {
+  border-color: color-mix(
+    in srgb,
+    var(--swp-route-accent-color) 55%,
+    var(--swp-route-field-border-color)
+  );
+}
+
+spark-web-player .sv-field[data-status="warning"] .sv-input {
+  border-color: var(--swp-route-warning-color);
+}
+
+spark-web-player .sv-field[data-status="error"] .sv-input {
+  border-color: var(--swp-route-error-color);
+}
+
+spark-web-player .sv-slot {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  bottom: 0;
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+spark-web-player .sv-badge {
+  position: relative;
+  display: flex;
+  outline: none;
+  cursor: default;
+}
+
+spark-web-player .sv-badge > .route-icon {
+  width: 14px;
+  height: 14px;
+}
+
+spark-web-player .sv-badge[data-status="warning"] {
+  color: var(--swp-route-warning-color);
+}
+
+spark-web-player .sv-badge[data-status="error"] {
+  color: var(--swp-route-error-color);
+}
+
+spark-web-player .sv-badge:focus-visible {
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--swp-route-accent-color);
+}
+
+spark-web-player .sv-popup {
+  visibility: hidden;
+  position: absolute;
+  right: -4px;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+  width: max-content;
+  max-width: 280px;
+  padding: 6px 8px;
+  border: 1px solid var(--swp-route-popup-border-color);
+  border-radius: 6px;
+  background-color: var(--swp-route-popup-background-color);
+  color: var(--swp-toolbar-color, #fff);
+  white-space: normal;
+  line-height: 1.4;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+spark-web-player .sv-popup > .route-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+spark-web-player .sv-badge:hover > .sv-popup,
+spark-web-player .sv-badge:focus > .sv-popup {
+  visibility: visible;
+}
+
+spark-web-player .sv-clear {
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--swp-route-muted-color);
+  font: inherit;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  spark-web-player .sv-clear:hover {
+    background-color: var(--swp-route-hover-color);
+    color: inherit;
+  }
+}
+
+spark-web-player .sv-status {
+  height: 20px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--swp-route-muted-color);
+}
+
+spark-web-player .sv-foot {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--swp-route-panel-border-color);
+}
+
+spark-web-player .sv-reset {
+  cursor: pointer;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--swp-route-accent-color);
+  font: inherit;
+  font-weight: 600;
+}
+
+spark-web-player .sv-reset:disabled {
+  cursor: default;
+  color: var(--swp-route-muted-color);
+}
 spark-web-player .route-list-foot {
   display: flex;
   flex-direction: row;

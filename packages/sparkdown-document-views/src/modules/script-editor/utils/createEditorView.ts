@@ -63,6 +63,10 @@ import {
   type DocumentRoutePin,
 } from "../../../cm-route-pins/routePins";
 import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
+import {
+  lineAnchorMoves,
+  lineAnchors,
+} from "../../../cm-line-anchors/lineAnchors";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -112,6 +116,7 @@ interface EditorConfig {
   breakpointLineNumbers?: number[];
   pinpointLineNumbers?: number[];
   highlightLineNumbers?: number[];
+  startingValueLines?: number[];
   routePins?: DocumentRoutePin[];
   mobileTopContainer?: HTMLElement;
   mobileBottomContainer?: HTMLElement;
@@ -131,6 +136,10 @@ interface EditorConfig {
   ) => void;
   onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
+  onStartingValueLinesChanged?: (
+    update: ViewUpdate,
+    moves: [from: number, to: number | null][],
+  ) => void;
   onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onRoutePinsChanged?: (update: ViewUpdate, pins: DocumentRoutePin[]) => void;
   onHeightChanged?: () => void;
@@ -177,6 +186,7 @@ const createEditorView = (
   const onSelectionChanged = config?.onSelectionChanged;
   const onBreakpointsChanged = config?.onBreakpointsChanged;
   const onPinpointsChanged = config?.onPinpointsChanged;
+  const onStartingValueLinesChanged = config?.onStartingValueLinesChanged;
   const onHighlightsChanged = config?.onHighlightsChanged;
   const onRoutePinsChanged = config?.onRoutePinsChanged;
   const onHeightChanged = config?.onHeightChanged;
@@ -282,6 +292,7 @@ const createEditorView = (
               .filter((r): r is Range<GutterMarker> => Boolean(r)) ?? [];
           return RangeSet.of(gutterMarkers, true);
         }),
+        lineAnchors(initialText, config?.startingValueLines),
         pinpointsField.init(() => {
           let decorations = RangeSet.empty;
           if (pinpointLineNumbers) {
@@ -396,6 +407,10 @@ const createEditorView = (
               prevBreakpointLineNumbers = currentBreakpointLineNumbers;
               onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
             }
+          }
+          const startingValueMoves = lineAnchorMoves(u);
+          if (startingValueMoves.length > 0) {
+            onStartingValueLinesChanged?.(u, startingValueMoves);
           }
           if (u.docChanged || pinpointsChanged(u)) {
             const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);

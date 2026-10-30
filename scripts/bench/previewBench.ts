@@ -28,6 +28,7 @@ interface BenchConfig {
   noFlowReuse?: boolean;
   heapProbe?: string;
   windows?: string;
+  startingValues?: Record<string, Record<string, string>>;
 }
 
 interface ContentChange {
@@ -295,6 +296,9 @@ async function main() {
     const t0 = performance.now();
     if (!workerGame) {
       workerGame = new Game({ program, ...system } as any);
+      if (config.startingValues) {
+        workerGame.setStartingValues(config.startingValues);
+      }
     } else {
       workerGame.updateProgram(program);
     }

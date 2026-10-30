@@ -289,7 +289,7 @@ const bindingFlowOf = (root: ProgramRoot, sequence: SequenceRow): number | undef
   return sequence.flow;
 };
 
-const entryParameters = (
+export const entryParameters = (
   root: ProgramRoot,
   flow: SequenceRow,
 ): { name: string; vararg: boolean }[] => {

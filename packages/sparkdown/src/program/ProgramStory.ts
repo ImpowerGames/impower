@@ -358,6 +358,7 @@ export class ProgramStory implements StoryEngine {
   executedLog: number[] | null = null;
   beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
+  resetSeed: number | null = null;
 
   errorMessageFormatter?: (story: any, message: string) => string;
 
@@ -925,6 +926,9 @@ export class ProgramStory implements StoryEngine {
       },
       callStack,
     );
+    if (this.resetSeed !== null) {
+      this._state.storySeed = this.resetSeed;
+    }
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
       this.ownDeclarations();
@@ -2695,7 +2699,6 @@ export class ProgramStory implements StoryEngine {
     state.blockStack = [];
     state.didSafeExit = true;
   }
-
 
   protected land(
     target: ProgramPosition,

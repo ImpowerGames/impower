@@ -1,6 +1,6 @@
 # Previewing a Line
 
-When you put the cursor on a line, the Game Preview runs your story from the top of the scene that line is in, with every store at its first value, and shows what the game would show there. On the way it makes decisions no player sees: it takes an option at every menu, it can force an `if` the game would skip when your line is inside it, and it can leave a long loop before the game would. The route button and the route list show you each of these, so you can tell whether what is on screen is what a player would see.
+When you put the cursor on a line, the Game Preview runs your story from the top of the scene that line is in, with the starting values you set for that scene (every store at its first value when you set none), and shows what the game would show there. On the way it makes decisions no player sees: it takes an option at every menu, it can force an `if` the game would skip when your line is inside it, and it can leave a long loop before the game would. The route button and the route list show you each of these, so you can tell whether what is on screen is what a player would see.
 
 ## The route button
 
@@ -12,24 +12,25 @@ interrogation (4 → 21)
 
 A route that starts in the content before any scene names the script instead (`main (1 → 21)`), and a route that ends in another script names that script (`interrogation (4 → chapter_2 : 12)`).
 
-One icon before the name says how the route differs from play, the first that applies:
+One icon before the name says how the route differs from play, the first that applies. When there is none, its place stays empty, so the name never moves:
 
 - a detour arrow: the preview forced a branch the game would not take;
 - scissors: the preview left a loop before the game would;
 - a pin: your pins steered the route;
 - no icon: the preview runs this line as the game does.
 
-Hover over the button to read the route in words. Press it, or press Enter while it has focus, to open the route list; press it again, or press Escape, to close the list. While the game plays, the toolbar shows the line that is running instead.
+Hover over the button to read the route in words. Press it, or press Enter while it has focus, to open the route panel; press it again, or press Escape, to close it. While the game plays, the toolbar shows the line that is running instead.
 
 When no route reaches your line, the button turns the error colour and shows a warning triangle, and the list says why.
 
 ## The route list
 
-The list opens below the toolbar, inside the preview, and the game shrinks to make room. It reads, in the order the route took them:
+The route panel opens below the toolbar, inside the preview, and the game shrinks to make room. It has two tabs, "Route to line 21" and "Starting values" (described below), and opens on the one you used last. The route tab lists, in the order the route took them:
 
-- where the run starts: "From the top of scene interrogation, line 4, with every store at its first value";
 - one entry for each menu the route met, each `if` it forced and each loop it left early;
 - Target line, the line you are previewing.
+
+The route button already names where the route starts.
 
 Each entry starts with its line number. Press the number to move the cursor to that line.
 
@@ -71,6 +72,34 @@ A pin has these limits:
 - The preview searches the routes that keep your pins first, for a limited share of its work. A pin whose routes take more work than that to reach your line, such as one that runs a long loop on every route, is not followed, as if the line could not be reached through it.
 - When a menu offers only options a thread (`<- name`) adds, a pin on one of the menu's own options that it did not offer, such as a gated option whose condition the route left false, is not shown at that menu: the entry does not say it was not followed, and Unpin and Pin there leave it. Remove it from a route that offers one of the menu's own options, or with Clear pins.
 - A pin follows its line through edits made in this editor. An edit made elsewhere can leave a pin on another line. A pin whose line holds no option is ignored, and the list shows it with Remove.
+
+## Starting values
+
+A scene the story reaches late is seldom in its first state when a player gets there: an earlier scene raised a store, the scene has been visited before, or the divert that entered it passed its parameters. The Starting values tab tells the preview what the scene starts with. Each scene has its own starting values, the start scene's included. They are kept for you in this project, and are never written into the project's files.
+
+The tab lists what the scene of the line you are previewing can take, in four groups:
+
+- Parameters: each parameter of the scene. An unset parameter reads nil, which the tab marks with a warning.
+- Stores: every `store`, and each `store` field of a `define` by its dotted name (`define guide with store mood = 1` gives `guide.mood`). A table store lists its fields under it, and a field set on its own applies over the store's first value. A `const` cannot be set.
+- Visits, the counts before the scene starts: each scene, branch and label; each once-only option, by its text and line, with how many times it was taken; and each alternator, by its first alternative and line. Entering the scene adds one to its own count, as it does in a run, and a place given a count above zero reads as visited on the turn before the scene starts.
+- Randomization: the seed. When it is unset, the preview and Play from a line use the seed 0, so a line shows the same random results every time. Setting the seed also resets the last draw, as `math.randomseed` does.
+
+Each row shows the value its name starts with in grey. Type a value and press Enter, or leave the field, to set it; × clears it, and Reset all clears every value of the scene. A set row has a bar in its margin, the tab counts the values set, and the line at its foot says how many of the scene's values are set. The search field narrows the list.
+
+A value is a literal: a number, a string, `true`, `false`, `nil` or a table, such as `{ name = "Ana", hp = 10 }`, with no expressions. A visit count or a seed is a whole number.
+
+- A value that is not one yet shows an error badge, and is not kept until it is one.
+- A value of another type than the store's shows a warning badge and still applies: a warning never stops a story from running. A store's type is its annotation when it has one (`store hp: number`, with `string?` also taking `nil`), and otherwise the type of its first value. An annotation that is not one type, such as `number | string`, takes any value.
+- A value whose name, or whose option's or alternator's line, is no longer in the script is listed under "No longer in the script" with a warning badge. The preview ignores it, and × removes it. A value does not follow a rename.
+- A change the editor could not keep goes back to the value before it, with an error badge that says so.
+
+Hover over a badge, or move to it with the keyboard, to read its message. The tab's own icon is the warning or the error icon while any field shows one.
+
+An option's or an alternator's value is kept on its line, and follows the line as you insert or delete lines above it. Deleting the line leaves the value under "No longer in the script".
+
+Starting values apply wherever a route starts at the top of the scene: the preview, Play from a line, which starts from the preview's route, and the suggestion preview. A Play that started in an earlier scene carries its own values into later scenes, and applies none.
+
+While none of a scene's parameters is set, a line in a scene that takes parameters is still reached from the story's start, through the divert that enters the scene with its arguments; setting any of its parameters starts the route at the top of the scene with the values you set.
 
 ## An example
 

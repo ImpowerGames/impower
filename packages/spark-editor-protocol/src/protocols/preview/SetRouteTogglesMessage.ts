@@ -10,6 +10,7 @@ export type RouteTogglesParams = Partial<
 
 export interface SetRouteTogglesParams {
   toggles: RouteTogglesParams;
+  tab?: "route" | "values";
 }
 
 export interface SetRouteTogglesResult {}
