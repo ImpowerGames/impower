@@ -5,10 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 
-// Two projects registered in one workspace (#1388): each compile sees its own
-// project's assets, so a name both projects use is published as a collision
-// on neither file, whichever project compiles first.
-
 const mainA = "file:///workspace/alpha/main.sd";
 const mainB = "file:///workspace/beta/main.sd";
 const forestA = "file:///workspace/alpha/assets/forest.png";

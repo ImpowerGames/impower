@@ -32,8 +32,6 @@ const SYMBOL_KINDS: Record<DeclarationHeading["type"], SymbolKind> = {
 
 const toSymbol = (heading: DeclarationHeading): DocumentSymbol => {
   const { nameRange } = heading;
-  // A label is just its name; a scene, branch or function spans from the
-  // start of its declaration line to where its extent ends.
   const selectionRange =
     heading.type === "label"
       ? nameRange

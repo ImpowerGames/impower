@@ -20,9 +20,9 @@ const PREVIEW_THEME: {
     position: "relative",
   },
   "& .cm-content": {
-    padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
+    padding: "68px 24px 68px 24px",
     margin: "auto",
-    width: "100%", // grow to fill the scroller so short scripts still render at page width
+    width: "100%",
     maxWidth: "640px",
     position: "relative",
     cursor: "default",
@@ -31,7 +31,7 @@ const PREVIEW_THEME: {
     "&:before": {
       content: "''",
       position: "absolute",
-      inset: "0 -96px", // 96px ≈ 1 inch
+      inset: "0 -96px",
       backgroundColor: "rgb(235, 234, 232)",
       backgroundImage: "var(--screenplay-preview-texture)",
       zIndex: "-1",

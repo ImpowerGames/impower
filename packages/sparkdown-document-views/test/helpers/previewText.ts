@@ -1,24 +1,3 @@
-// Reduce the CodeMirror screenplay preview to a normalized "visible text"
-// string matching the format produced by pdfText.ts.
-//
-// Critical design rule: we extract by walking source characters, NOT by
-// walking known block nodes. The preview shows EVERY character in the source
-// that isn't covered by a hide decoration — including stray characters
-// between known nodes (like a stray > BREAK marker). A node-walking extractor
-// would silently swallow those, hiding the very bugs we're trying to find.
-//
-// Algorithm:
-//   1. Parse source into a syntax tree (sync, via the textmate parser).
-//   2. Construct a no-language EditorState wrapping the doc (decorate() only
-//      uses state.doc / state.sliceDoc; the language facet is irrelevant
-//      once we pass the tree in via treeOverride).
-//   3. Call decorate(state, 0, undefined, tree) -> Range<Decoration>[].
-//   4. Identify "hide" decorations (Decoration.replace, with or without
-//      widget — widgets replace the source range with their own DOM).
-//   5. Walk each line of source. Subtract hidden ranges intersecting that
-//      line. If anything remains, look up the enclosing block kind in the
-//      tree at the line's starting position and emit `<kind> visible`.
-
 import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Range } from "@codemirror/state";
@@ -32,16 +11,11 @@ import { completeTree } from "./parseSettle";
 
 type HideInterval = { from: number; to: number };
 
-// Build state with language facet via language.of() (Language.extension
-// getter doesn't activate the facet correctly in this test environment).
 const parseSource = (source: string): { state: EditorState; tree: Tree } => {
   const state = EditorState.create({
     doc: source,
     extensions: [language.of(SCREENPLAY_LANGUAGE_SUPPORT.language)],
   });
-  // `completeTree`, NOT `syntaxTree(state)` — the latter returns the
-  // 20ms-budgeted truncated snapshot taken when the state was created, which
-  // is what made this extractor's output depend on machine load (#281).
   return { state, tree: completeTree(state) };
 };
 
@@ -53,17 +27,9 @@ const collectHiddenRanges = (
     if (r.from >= r.to) continue;
     const spec: any = (r.value as any).spec;
     if (!spec) continue;
-    // Mark decorations have a `class` or `attributes` and don't replace text.
-    // Line decorations carry `class` / `attributes` but apply to the line
-    // (CodeMirror enforces from==to for them, so the `from >= to` check above
-    // already filters them out).
-    // Replace decorations may or may not have a widget; both hide source text.
     const isReplace =
       spec.widget !== undefined ||
       spec.block === true ||
-      // a bare Decoration.replace({}) sets spec to {} — distinguishable from
-      // mark because mark would have class/attributes; if there's nothing
-      // we treat as replace.
       (spec.class === undefined &&
         spec.attributes === undefined &&
         spec.tagName === undefined);
@@ -104,8 +70,6 @@ const sliceVisible = (
   return out;
 };
 
-// Walk up the tree at position `pos` to find the enclosing block. Returns a
-// label that matches what pdfText.ts emits for the same content.
 const blockKindAt = (tree: Tree, pos: number): string => {
   const ancestors: string[] = [];
   let node: any = tree.resolve(pos, 1);
@@ -114,10 +78,8 @@ const blockKindAt = (tree: Tree, pos: number): string => {
     node = node.parent;
   }
   const has = (n: string) => ancestors.includes(n);
-  // Innermost specific markers first
   if (has("ParentheticalLineContent")) return "parenthetical";
   if (has("DialogueCharacter") || has("DialogueCharacterName")) return "character";
-  // Then block kinds
   if (has("BlockHeading") || has("InlineHeading")) return "scene_heading";
   if (has("BlockTransitional") || has("InlineTransitional")) return "transitional";
   if (has("BlockTitle") || has("InlineTitle")) return "centered_title";
@@ -146,7 +108,6 @@ export const extractPreviewText = (source: string): string => {
       lines.push(`<${kind}> ${trimmed}`);
       lastBlank = false;
     } else {
-      // Blank line acts as a separator; collapse consecutive blanks.
       if (!lastBlank && lines.length > 0) {
         lines.push("");
         lastBlank = true;
@@ -155,7 +116,6 @@ export const extractPreviewText = (source: string): string => {
     if (newlineIdx === -1) break;
     pos = newlineIdx + 1;
   }
-  // Trim trailing blank
   while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
   return lines.join("\n");
 };

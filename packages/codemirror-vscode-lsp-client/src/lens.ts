@@ -22,9 +22,6 @@ export const CODELENS_SEPARATOR_CLASS_NAME = "cm-codeLens-separator";
 export const codeLensWidgetTheme = EditorView.baseTheme({
   [`.${CODELENS_WRAPPER_CLASS_NAME}`]: {
     display: "flex",
-    // Explicit: a host may normalize `flex-direction` across its subtree
-    // (spark-editor forces `column` on every descendant of the editor root),
-    // and a direction-less flex container silently stacks when it does.
     flexDirection: "row",
     alignItems: "center",
     color: "#999999",
@@ -56,18 +53,13 @@ export interface DocumentCodeLens {
   lens: lsp.CodeLens;
 }
 
-/**
- * Parses icon syntax `$(icon-name)` and returns an array of DOM nodes and strings.
- */
 export function renderLabelWithIcons(text: string): (string | HTMLElement)[] {
-  // Matches $(icon-name) or $(icon-name~animation)
   const regex = /\$\(([\w-]+)(?:~([\w-]+))?\)/g;
   const result: (string | HTMLElement)[] = [];
   let lastIndex = 0;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
-    // Add text before the icon
     if (match.index > lastIndex) {
       result.push(text.slice(lastIndex, match.index));
     }
@@ -75,7 +67,6 @@ export function renderLabelWithIcons(text: string): (string | HTMLElement)[] {
     const iconName = match[1];
     const animation = match[2];
 
-    // Create the codicon span
     const span = document.createElement("span");
     span.className = `codicon codicon-${iconName}`;
     if (animation) {
@@ -86,7 +77,6 @@ export function renderLabelWithIcons(text: string): (string | HTMLElement)[] {
     lastIndex = regex.lastIndex;
   }
 
-  // Add any remaining text after the last icon
   if (lastIndex < text.length) {
     result.push(text.slice(lastIndex));
   }
@@ -112,7 +102,6 @@ export default class CodeLensWidget extends WidgetType {
     wrapper.className = CODELENS_WRAPPER_CLASS_NAME;
 
     this.lenses.forEach((l, index) => {
-      // Add separator between multiple lenses on the same line
       if (index > 0) {
         const sep = document.createElement("span");
         sep.className = CODELENS_SEPARATOR_CLASS_NAME;
@@ -127,7 +116,6 @@ export default class CodeLensWidget extends WidgetType {
 
       elements.forEach((el) => {
         if (typeof el === "string") {
-          // Wrap text in a span to allow targeted hover underlines
           const textSpan = document.createElement("span");
           textSpan.textContent = el;
           item.appendChild(textSpan);
@@ -136,7 +124,6 @@ export default class CodeLensWidget extends WidgetType {
         }
       });
 
-      // Handle executing the command when clicked
       item.onclick = (e) => {
         e.stopPropagation();
         if (l.lens.command) {
@@ -151,7 +138,6 @@ export default class CodeLensWidget extends WidgetType {
   }
 
   override ignoreEvent() {
-    // Ignore all internal events so CodeMirror doesn't try to handle clicks
     return true;
   }
 
@@ -159,7 +145,6 @@ export default class CodeLensWidget extends WidgetType {
     const plugin = LSPPlugin.get(view);
     if (!plugin) return;
 
-    // Send the execute command request to the language server
     plugin.client
       .request("workspace/executeCommand", {
         command: command.command,
@@ -207,16 +192,13 @@ const codeLensState = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(decorations, tr) {
-    // Map existing decorations through document changes
     decorations = decorations.map(tr.changes);
 
     for (let e of tr.effects) {
       if (e.is(updateCodeLensDecorationEffect)) {
-        // Group lenses that appear on the exact same line
         const groups = new Map<number, DocumentCodeLens[]>();
 
         for (const lens of e.value) {
-          // Clamp position to document bounds
           const safePos = Math.min(Math.max(0, lens.pos), tr.newDoc.length);
           const lineStart = tr.newDoc.lineAt(safePos).from;
 
@@ -226,18 +208,16 @@ const codeLensState = StateField.define<DecorationSet>({
           groups.get(lineStart)!.push(lens);
         }
 
-        // Create block widgets for each group
         const decos = Array.from(groups.entries())
           .sort(([posA], [posB]) => posA - posB)
           .map(([pos, lenses]) =>
             Decoration.widget({
               widget: new CodeLensWidget(lenses),
               block: true,
-              side: -1, // Render strictly above the line
+              side: -1,
             }).range(pos),
           );
 
-        // Replace decorations with the newly fetched/grouped ones
         decorations = Decoration.set(decos);
       }
     }
@@ -267,7 +247,6 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
 
     if (!result) return;
 
-    // Resolve CodeLens items if they are missing a command
     const resolvedLenses = await Promise.all(
       result.map(async (lens) => {
         if (!lens.command) {
@@ -279,7 +258,6 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
             >("codeLens/resolve", lens);
             return resolved || lens;
           } catch (err) {
-            // Silently fallback to the unresolved lens if the server doesn't support resolving
             return lens;
           }
         }
@@ -287,8 +265,6 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
       }),
     );
 
-    // A result for a version the editor has moved past is dropped: the
-    // change that moved it pulled again (#1785).
     if (client.workspace.getFile(uri)?.version !== version) return;
     if (LSPPlugin.get(view) !== plugin) return;
     view.dispatch(
@@ -298,9 +274,7 @@ export async function updateDocumentCodeLenses(client: LSPClient, uri: string) {
       ),
     );
   } catch (err) {
-    // A server still starting up is asked again (#1785).
     if (err instanceof RequestTimeoutError) throw err;
-    // If the server does not support codeLens, it will throw an error here, which we can safely ignore
     console.debug("LSP CodeLens Error or Unsupported:", err);
   }
 }
@@ -327,7 +301,6 @@ export function serverCodeLenses(): LSPClientExtension {
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        // In a production environment, you might want to debounce this call
         pullInBackground(client, params.textDocument.uri, () =>
           updateDocumentCodeLenses(client, params.textDocument.uri),
         );
@@ -336,7 +309,6 @@ export function serverCodeLenses(): LSPClientExtension {
         client,
         params: lsp.PublishDiagnosticsParams,
       ) => {
-        // Re-request CodeLenses as they often depend on live diagnostics (like reference counts)
         pullInBackground(client, params.uri, () =>
           updateDocumentCodeLenses(client, params.uri),
         );

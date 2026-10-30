@@ -3,11 +3,6 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mobileViewportManager } from "../src/modules/script-editor/utils/extensions/mobileViewportManager";
 
-// The manager marks the document root `keyboard-open` while the soft keyboard
-// is up, and the web editor hides its bottom navigation on that class. The
-// document outlives any one editor, so an editor that unmounts while the
-// keyboard is open must leave the root unmarked.
-
 const KEYBOARD_HEIGHT = 300;
 
 const nextFrame = () =>

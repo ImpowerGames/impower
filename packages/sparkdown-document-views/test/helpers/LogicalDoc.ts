@@ -1,20 +1,3 @@
-// A normalized representation of "what the screenplay looks like" that both
-// the PDF export pipeline and the CodeMirror preview pipeline can be reduced
-// to. Equivalence tests compare these structures, not pixels.
-//
-// Design notes:
-//
-// - We intentionally do NOT model exact line wrapping or page boundaries.
-//   The PDF rewraps to page width using pdfkit font metrics; the preview
-//   wraps via CSS using the editor container width. Pixel-perfect parity
-//   would require running CodeMirror in a real browser AND extracting text
-//   from the PDF — well beyond the scope of "logical equivalence".
-//
-// - We DO model: block kind, alignment, dual-dialogue side, character cues,
-//   parentheticals, inline emphasis runs, scene-heading prefix, choice
-//   markers, title-page positions. These are the things a reader sees and
-//   would notice as "wrong".
-
 export type Emphasis = {
   bold?: boolean;
   italic?: boolean;
@@ -39,9 +22,7 @@ export type BlockKind =
 
 export type Block = {
   kind: BlockKind;
-  runs: Run[]; // empty for separator / page_break
-  // Dual-dialogue position. For non-dialogue blocks (or single dialogue) this
-  // is undefined. For dual dialogue: "l" or "r".
+  runs: Run[];
   dualPosition?: "l" | "r";
 };
 
@@ -67,10 +48,6 @@ export type LogicalDoc = {
 
 export const emptyDoc = (): LogicalDoc => ({ titlePage: [], body: [] });
 
-// Stable textual representation used for diffs in test failures. Multi-line
-// dialogue gets one Block per line of source-broken text — we collapse those
-// into "one block per kind boundary" before formatting so noisy single-line
-// splits don't dominate the diff.
 export const formatDoc = (doc: LogicalDoc): string => {
   const lines: string[] = [];
   if (doc.titlePage.length > 0) {

@@ -14,9 +14,6 @@ import { LSPPlugin } from "./plugin";
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
     display: "flex",
-    // Explicit: a host may normalize `flex-direction` across its subtree
-    // (spark-editor forces `column` on every descendant of the editor root),
-    // and a direction-less flex container silently stacks when it does.
     flexDirection: "row",
     alignItems: "stretch",
     gap: "4px",
@@ -103,7 +100,6 @@ function createRenameTooltip(spec: {
       input.ariaLabel = view.state.phrase("Rename");
       input.addEventListener("input", () => {
         if (!input.textContent) {
-          // Force-clear hidden <br> tags
           input.innerHTML = "";
         }
       });
@@ -113,7 +109,6 @@ function createRenameTooltip(spec: {
       button.textContent = view.state.phrase("Rename");
 
       dom.onmousedown = (e) => {
-        // Prevent tooltip from closing when clicking inside the tooltip
         e.stopPropagation();
       };
 
@@ -179,14 +174,6 @@ function createRenameTooltip(spec: {
   };
 }
 
-/// This command will, if the cursor is over a word, prompt the user
-/// for a new name for that symbol, and ask the language server to
-/// perform a rename of that symbol.
-///
-/// Note that this may affect files other than the one loaded into
-/// this view. See the
-/// [`Workspace.updateFile`](#lsp-client.Workspace.updateFile)
-/// method.
 export const renameSymbol: Command = (view) => {
   const plugin = LSPPlugin.get(view);
 
@@ -284,7 +271,6 @@ const doRename = async (view: EditorView, newName: string, pos: number) => {
   return true;
 };
 
-/// A keymap that binds F2 to [`renameSymbol`](#lsp-client.renameSymbol).
 export const renameKeymap: readonly KeyBinding[] = [
   { key: "F2", run: renameSymbol, preventDefault: true },
 ];

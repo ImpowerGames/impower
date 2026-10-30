@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { complete as completeAt } from "./completionHarness";
 
-// The clauses offered inside `[[…]]` and `((…))` (I-1378): a clause the
-// command already has is not offered again, wherever the cursor sits after
-// it, and a word typed after a name or after a clause may be the start of a
-// clause, so the clauses are offered there too.
-
 const program = {
   context: {
     image: { forest: { $type: "image", $name: "forest" } },
@@ -24,11 +19,9 @@ describe("clauses already written are not offered again (I-1378)", () => {
     ["[[show backdrop bunny_idle with fade lo|]]", "with", "mute"],
     ["((play music theme loop |))", "loop", "once"],
     ["((play music theme loop lo|))", "loop", "mute"],
-    // A space typed right before a clause inserts before it.
     ["[[show foreground trailer |loop]]", "loop", "once"],
     ["[[show backdrop bunny_idle with fade |loop]]", "loop", "mute"],
     ["((play music theme |loop))", "loop", "once"],
-    // The cases of I-1597: the cursor at the end, and between clauses.
     ["[[show portrait bunny over 1s |]]", "over", "after"],
     ["[[show portrait bunny over 1s | with shake]]", "over", "after"],
     ["[[show portrait bunny over 1s | with shake]]", "with", "wait"],

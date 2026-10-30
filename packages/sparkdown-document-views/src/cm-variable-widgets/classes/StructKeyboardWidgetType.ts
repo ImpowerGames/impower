@@ -222,27 +222,6 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.appendChild(whiteKeyList);
     popup.appendChild(blackKeyList);
 
-    // const closeListItem = createOption(
-    //   {
-    //     innerHTML: CheckIcon,
-    //     onClick: () => {
-    //       if (popup.style.display !== "none") {
-    //         popup.style.display = "none";
-    //       }
-    //     },
-    //   }
-    // );
-    // closeListItem.style.borderTop = "1px solid #FFFFFF26";
-    // const closeButton = closeListItem.firstElementChild as HTMLElement;
-    // closeButton.style.color = "#99daff";
-    // closeButton.style.display = "flex";
-    // closeButton.style.justifyContent = "center";
-    // closeButton.style.alignItems = "center";
-    // closeButton.style.padding = "8px 16px";
-    // const closeButtonIcon = closeButton.firstElementChild as HTMLElement;
-    // closeButtonIcon.style.height = "1rem";
-    // popup.appendChild(closeListItem);
-
     root.appendChild(button);
     root.appendChild(popup);
 

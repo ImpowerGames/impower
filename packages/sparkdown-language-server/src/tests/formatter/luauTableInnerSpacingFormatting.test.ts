@@ -1,9 +1,6 @@
 import { expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// #1226: a one-line Luau table constructor or table type has one space
-// inside each brace, as the brace blocks of #1222 do. Formatting the result
-// again changes nothing.
 function expectFormatsTo(source: string, expected: string) {
   expect(formatSource(source)).toBe(expected);
   expect(formatSource(expected)).toBe(expected);
@@ -130,9 +127,6 @@ end
   expectFormatsTo(source, source);
 });
 
-// Joining an interpolation or binding brace to a table inside it would write
-// `{{`, which reads as the `{{fn(args)}}` call shorthand instead of a table,
-// so the space between the two braces stays.
 test("formatting keeps a table inside interpolation and binding braces apart from them", () => {
   expectFormatsTo(
     `local s = \`v={ {a=1} }\`

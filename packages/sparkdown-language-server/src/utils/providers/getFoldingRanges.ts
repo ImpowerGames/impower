@@ -15,7 +15,6 @@ import {
 
 const INDENT_REGEX = /^([ \t]+)/;
 
-// The declarations whose bodies may hold brace blocks (#1222).
 const BRACE_BODY_DECLARATIONS = new Set([
   "LuauStyle",
   "LuauAnimation",
@@ -26,13 +25,6 @@ const BRACE_BODY_DECLARATIONS = new Set([
   "LuauScreen",
 ]);
 
-/**
- * A fold for each brace block that spans lines, from its header's line (the
- * line of its key or element, or of a list entry's `{`) to the line of its
- * `}`, whatever the indentation. A block left open folds to its last line
- * that holds text. Where blocks start on the same line, the outermost one
- * folds there.
- */
 const getBraceFoldingRanges = (
   document: SparkdownDocument,
   tree: Tree,
@@ -87,12 +79,10 @@ export const getFoldingRanges = (
   for (let i = 0; i < document.lineCount; i += 1) {
     lines.push(document.getText(Range.create(i, 0, i + 1, 0)));
   }
-  // Support indentation folding
   const getIndentLevel = (text: string): number => {
     return text?.match(INDENT_REGEX)?.[1]?.length || 0;
   };
   const getPrevNonBlankLine = (index: number): number => {
-    // Search backward for line that has content.
     for (let i = index - 1; i >= 0; i -= 1) {
       const prev = lines[i]!;
       if (prev.trim()) {
@@ -103,11 +93,9 @@ export const getFoldingRanges = (
   };
   const getIndentationCloseLine = (index: number): number => {
     const curr = lines[index]!;
-    // Find the next line that is indented less than the current line
     for (let i = index + 1; i < lines.length; i += 1) {
       const next = lines[i]!;
       if (next && getIndentLevel(next) <= getIndentLevel(curr)) {
-        // fold ends the line before the outdented line
         return getPrevNonBlankLine(i);
       }
     }
@@ -133,7 +121,6 @@ export const getFoldingRanges = (
       });
     }
   });
-  // A brace block's fold replaces the indentation fold on its header line.
   const braceFolding = tree ? getBraceFoldingRanges(document, tree) : [];
   if (braceFolding.length > 0) {
     const braceStarts = new Set(braceFolding.map((r) => r.startLine));
@@ -146,8 +133,6 @@ export const getFoldingRanges = (
   if (!program) {
     return indentFolding;
   }
-  // Each scene, branch and function folds over the same extent the outline
-  // gives it.
   const headingFolding: FoldingRange[] = [];
   const addFolds = (headings: DeclarationHeading[]) => {
     for (const heading of headings) {

@@ -1,12 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { accept, completeAt } from "./braceCompletionHarness";
 
-// One table over where a brace entry starts and whether the cursor is inside
-// a value (#1228), in the struct, morph and element providers and in brace and
-// indented bodies. Every row asserts what is offered and, for every item
-// offered, that accepting it replaces only the word being typed: an edit that
-// would delete a quote, a `;` or a brace fails here whatever the row expects.
-
 const structProgram = {
   context: {
     animation: {
@@ -42,15 +36,11 @@ const elementProgram = {
 } as any;
 
 interface Row {
-  /** What the row's cursor stands after. */
   name: string;
-  /** The body line(s), with `|` at the cursor. */
   body: string;
   offers?: string[];
   omits?: string[];
-  /** Nothing at all is offered. */
   none?: boolean;
-  /** Accepting `label` gives this body. */
   edit?: { label: string; body: string };
 }
 

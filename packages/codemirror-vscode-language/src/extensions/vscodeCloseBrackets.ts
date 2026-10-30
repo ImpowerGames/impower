@@ -58,8 +58,6 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     }
     let sel = view.state.selection.main;
 
-    // We remove the insert.length > 2 check here, because a user might paste
-    // a multi-character string that completes an open bracket.
     if (from != sel.from || to != sel.to) {
       return false;
     }
@@ -70,22 +68,16 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     const autoClosingPairRule = config?.autoClosingPairs?.find((rule) => {
       const open = Array.isArray(rule) ? rule[0] : rule.open;
       const close = Array.isArray(rule) ? rule[1] : rule.close;
-      //  Is the rule valid?
       if (open == null || close == null) return false;
 
-      //  Does the typed text finish this open rule?
       if (!open.endsWith(insert)) return false;
 
-      //  How far back do we need to check?
       const lookBackLength = open.length - insert.length;
 
-      // If there isn't enough text before the cursor on this line, skip it.
       if (pos - line.from < lookBackLength) return false;
 
-      //  Get the text strictly before the cursor
       const textBefore = view.state.sliceDoc(pos - lookBackLength, pos);
 
-      //  Does the text before match the start of the rule?
       return textBefore === open.slice(0, lookBackLength);
     });
 
@@ -116,8 +108,6 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
       return false;
     }
 
-    // Create a transaction that inserts the typed text AND the close bracket,
-    // placing the cursor perfectly between them.
     const tr = view.state.changeByRange((range) => {
       return {
         changes: { from: range.from, to: range.to, insert: insert + close },

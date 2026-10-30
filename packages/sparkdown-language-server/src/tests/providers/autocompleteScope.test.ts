@@ -6,18 +6,6 @@ import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScop
 import { BUG } from "./autocompleteBugs";
 import { complete, labelsAt, upstreamCase } from "./completionHarness";
 
-// Scope and visibility cases from Luau's Autocomplete.test.cpp. Sparkdown runs
-// Luau statements inside function bodies; its top level is narrative, where a
-// bare word is prose. So an upstream snippet whose statements sit at the top
-// of a Luau module is adapted by moving them into `function main() … end`, and
-// an upstream top-level `local` that the rest of the snippet reads as a global
-// becomes a `store` declaration. `local` stays block-scoped in sparkdown.
-
-/**
- * `text` with a cursor at each position from the start of `from` up to the
- * start of `to` after it, both ends included: the sparkdown form of
- * upstream's loops over a range of columns.
- */
 const cursorsWithin = (text: string, from: string, to: string) => {
   const start = text.indexOf(from);
   const end = text.indexOf(to, start);
@@ -27,13 +15,11 @@ const cursorsWithin = (text: string, from: string, to: string) => {
   );
 };
 
-/** The sources, among `sources`, whose cursor is offered anything. */
 const offering = (sources: string[]) =>
   sources.filter((source) => labelsAt(source).length > 0);
 
 describe("autocomplete · scope and visibility", () => {
   upstreamCase("empty_program", "an empty function body offers statement keywords", () => {
-    // Upstream: ` @1` in an empty module offers the globals and statement keywords.
     const labels = labelsAt("function main()\n  @1\nend\n");
     expect(labels).toEqual(expect.arrayContaining(["local", "if", "for", "while", "return"]));
   });
@@ -44,21 +30,16 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase.bug(BUG.emptySlot, "local_initializer", "the value of a new local offers the globals in scope", () => {
-    // Upstream: `local a = @1` offers `table` and `math`.
     const labels = labelsAt("store gold = 5\nfunction main()\n  local a = @1\nend\n");
     expect(labels).toContain("gold");
   });
 
   upstreamCase("leave_numbers_alone", "a decimal point in a number offers nothing", () => {
-    // Member completion after a dot offers nothing anywhere while #867 is
-    // open, so this starts guarding numbers once that is fixed.
     expect(labelsAt("store a = 3.@11\n")).toEqual([]);
     expect(labelsAt("function main()\n  local a = 3.@11\nend\n")).toEqual([]);
   });
 
   upstreamCase("user_defined_globals", "a stored global is offered for a typed word in a function body", () => {
-    // Upstream: `local myLocal = 4; @1` offers `myLocal` on an empty
-    // statement; the empty statement is the next test.
     const labels = labelsAt("store myLocal = 4\nfunction main()\n  m@1\nend\n");
     expect(labels).toContain("myLocal");
   });
@@ -69,8 +50,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("dont_suggest_local_before_its_definition", "a local is offered only after its declaration and inside its block", () => {
-    // Upstream's cursors are on empty lines; these type a first letter so the
-    // case isolates scoping from the empty-statement gap tested above.
     const source = [
       "store myLocal = 4",
       "function abc()",
@@ -105,10 +84,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("user_defined_local_functions_in_own_definition", "a local function is offered inside its own body", () => {
-    // Upstream's second snippet, `local abc = function() @1 end`, expects
-    // `abc` too and marks that expectation "actually incorrect": a local is
-    // not in scope in its own initializer (skip_current_local), so it is not
-    // ported.
     expect(
       labelsAt("function main()\n  local function abc()\n    a@1\n  end\nend\n"),
     ).toContain("abc");
@@ -332,21 +307,15 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase.bug(BUG.emptySlot, "function_parameters","a parameter is offered on an empty line of its function's body", () => {
-    // Upstream's cursor is on a blank line of the body.
     expect(labelsAt("function abc(test)\n\n  @1\nend\n")).toContain("test");
   });
 
   upstreamCase("get_suggestions_for_new_statement", "a new statement in a function body offers statement keywords", () => {
-    // Upstream: `@1` in an empty module offers `table`; the standard library
-    // half is covered by empty_program's skipped test.
     const labels = labelsAt("function main()\n  @1\nend\n");
     expect(labels).toEqual(expect.arrayContaining(["local", "function", "if"]));
   });
 
   upstreamCase("get_suggestions_for_the_very_start_of_the_script", "the first word of a script offers the top-level statement keywords it starts", () => {
-    // Upstream: `@1` before `function aaa() end` offers `table`. Sparkdown's
-    // top level is narrative, so the first line offers the statement keywords
-    // that match what has been typed.
     const labels = labelsAt("f@1\n\nfunction aaa() end\n");
     expect(labels).toEqual(expect.arrayContaining(["function", "for"]));
   });
@@ -366,7 +335,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase.bug(BUG.members, "bias_toward_inner_scope", "the shadowing local's members are the ones offered", () => {
-    // Upstream checks the offered `A` has the inner table's type, with `two`.
     const labels = labelsAt(
       "store A = { one = 1 }\n\nfunction B()\n  local A = { two = 2 }\n\n  return A.@1\nend\n",
     );
@@ -387,24 +355,19 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("local_function_params", "every position inside a local function's name and parameters offers nothing", () => {
-    // Upstream's markers @2 to @4 and its column loop over `abc(def`; the
-    // position before the name (@1) is the next test.
     expect(offering(cursorsWithin("function main()\n  local function abc(def)\n  end\nend\n", "bc(", ")"))).toEqual([]);
     expect(labelsAt("function main()\n  local function abc(def, ghi@1)\n  end\nend\n")).toEqual([]);
   });
 
   upstreamCase.bug(BUG.keywordPosition, "local_function_params", "the position before a local function's name offers nothing", () => {
-    // Upstream's marker @1.
     expect(labelsAt("function main()\n  local function @1abc(def)\n  end\nend\n")).toEqual([]);
   });
 
   upstreamCase("local_function_params", "a space after a local function's header offers something", () => {
-    // Upstream's marker @6.
     expect(labelsAt("function main()\n  local function abc(def) @1")).not.toEqual([]);
   });
 
   upstreamCase.bug(BUG.keywordPosition, "local_function_params", "the end of a local function's header offers something", () => {
-    // Upstream's marker @5, and its check one column past `)`.
     expect(labelsAt("function main()\n  local function abc(def)@1")).not.toEqual([]);
     expect(labelsAt("function main()\n  local function abc(def)@1\n  end\nend\n")).not.toEqual([]);
   });
@@ -423,8 +386,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("global_function_params", "every position inside a global function's name and parameters offers nothing", () => {
-    // Upstream's column loops, over an open and a closed function; their
-    // first column, before the name, is the next test.
     for (const text of ["function abc(def)\n", "function abc(def)\nend\n"]) {
       expect(offering(cursorsWithin(text, "bc(", ")"))).toEqual([]);
     }
@@ -437,7 +398,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase.bug(BUG.keywordPosition, "global_function_params", "the end of a global function's header offers something", () => {
-    // Upstream's column past `)`, over an open and a closed function.
     expect(labelsAt("function abc(def)@1\n")).not.toEqual([]);
     expect(labelsAt("function abc(def)@1\nend\n")).not.toEqual([]);
   });
@@ -459,8 +419,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("function_expr_params", "every position in a function expression's parameters offers nothing, and a space after the header offers something", () => {
-    // Upstream's column loops, over an open and a closed expression; their
-    // first columns, inside `function` and at its end, are the next test.
     for (const text of ["function main()\n  abc = function(def) ", "function main()\n  abc = function(def) \n  end\nend\n"]) {
       expect(offering(cursorsWithin(text, "def)", ")"))).toEqual([]);
       const afterHeader = text.indexOf(") ") + 2;
@@ -469,8 +427,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase.bug(BUG.keywordPosition, "function_expr_params", "positions inside and at the end of a function expression's `function` keyword offer nothing", () => {
-    // The keyword is finished and followed by its parameters, so offering
-    // `function` there completes nothing.
     for (const text of ["function main()\n  abc = function(def) ", "function main()\n  abc = function(def) \n  end\nend\n"]) {
       expect(offering(cursorsWithin(text, "on(", "("))).toEqual([]);
     }
@@ -489,8 +445,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("local_initializer#2", "a prefix in a new local's value offers the globals it matches", () => {
-    // Upstream: `local a = t@1` offers `table` and `true`; `true` is the next
-    // test, the standard library's `table` is empty_program's.
     const labels = labelsAt("store total = 5\nfunction main()\n  local a = t@1\nend\n");
     expect(labels).toContain("total");
   });
@@ -548,10 +502,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("source_module_preservation_and_invalidation", "a request after an incremental edit sees the edit", () => {
-    // Upstream clears, re-checks and marks the module dirty between requests,
-    // and each request must still see the source. Sparkdown's equivalent is
-    // the registry's incremental update: the document is opened without
-    // `beta`, parsed, and edited to declare it, as an author types it in.
     const source = "store alpha = 2\nstore beta = 4\nfunction main()\n  return a@1\nend\n";
     const before = "store alpha = 2\nfunction main()\n  return a\nend\n";
     const labels = labelsAt(source, { editedFrom: before });
@@ -576,8 +526,6 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
-    // Upstream uses a `class`, which sparkdown does not implement; a `define`
-    // with a method is the sparkdown equivalent.
     const labels = labelsAt(
       "define Bar with\n  value = 0\n  function new()\n    return B@1\n  end\nend\n",
     );

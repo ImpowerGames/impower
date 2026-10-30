@@ -32,9 +32,6 @@ const viewportPlugin = ViewPlugin.fromClass(
     view: EditorView;
     closeTimeout?: ReturnType<typeof setTimeout>;
     destroyed = false;
-    // True from the moment this view locks the body to the visual viewport
-    // until its close runs, so teardown can release a lock whose queued open
-    // has not landed yet.
     lockedLayout = false;
 
     constructor(view: EditorView) {
@@ -79,15 +76,10 @@ const viewportPlugin = ViewPlugin.fromClass(
       const vv = window.visualViewport;
       if (!vv) return;
 
-      // Prevent the browser from trying to scroll the hidden body
-      // when the input is focused.
       window.scrollTo(0, 0);
 
-      // Get the root (either document or the ShadowRoot)
       const root = this.view.dom.getRootNode() as Document | ShadowRoot;
 
-      // Check if focus is in the main text area OR inside any editor panel/widget
-      // We check both the global activeElement and the ShadowRoot's activeElement
       const activeElt = root.activeElement;
       const isActiveEltEditable =
         activeElt &&
@@ -102,18 +94,13 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
 
-      // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
-      // If the editor is losing focus or doesn't currently have focus,
-      // release the height constraint and ignore the trailing resize events
-      // from the keyboard animation.
       if (
         keyboardHeight > 0 &&
         !isFocusEvent &&
         (isBlurEvent || !isEditorInputFocused)
       ) {
-        // Keyboard will close
         if (!this.closeTimeout) {
           this.closeTimeout = setTimeout(() => {
             this.closeKeyboardUI();
@@ -123,30 +110,23 @@ const viewportPlugin = ViewPlugin.fromClass(
         return;
       }
 
-      // If we reach here, we are actively focused (or the keyboard is natively closed).
-      // Cancel any pending close teardown to maintain the locked layout.
       if (this.closeTimeout) {
         clearTimeout(this.closeTimeout);
         this.closeTimeout = undefined;
       }
 
-      // We only reach here if the editor has focus, so we can safely
-      // lock the body height to the visual viewport.
       this.lockedLayout = true;
       document.body.style.height = `${vv.height}px`;
 
       const isKeyboardVisible = keyboardHeight > 0;
 
       if (isKeyboardVisible) {
-        // Keyboard is open
         this.openKeyboardUI(keyboardHeight);
       } else {
-        // Keyboard is closed
         this.closeKeyboardUI();
       }
 
       if (isKeyboardVisible && this.view.hasFocus) {
-        // Scroll so cursor remains visible
         requestAnimationFrame(() => {
           this.view.dispatch({
             effects: EditorView.scrollIntoView(this.view.state.selection.main, {
@@ -200,11 +180,6 @@ const viewportPlugin = ViewPlugin.fromClass(
     destroy() {
       this.destroyed = true;
       this.unbind();
-      // The keyboard state lives on the document, which outlives this view.
-      // A focused editor that unmounts (closing a script from its Back
-      // button) takes the keyboard with it after these listeners are gone,
-      // so release the state here or the host keeps laying out for a
-      // keyboard that is no longer open.
       if (this.lockedLayout) {
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");

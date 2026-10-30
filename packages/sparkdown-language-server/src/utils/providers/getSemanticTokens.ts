@@ -47,14 +47,6 @@ export const getSemanticTokens = (
   };
   const add = (cur: RangeCursor<SparkdownAnnotation<SemanticInfo>>) => {
     if (!cur.value) return;
-    // Annotations marked `possibleDivertPath: true` deliberately
-    // arrive with no `tokenType` — they're resolved further down via
-    // the program's location maps, NOT through the generic `add`
-    // path. Refuse the emission here so a misrouted divert-path
-    // annotation can't silently fall back to the LSP-encoder's
-    // `indexOf(undefined) === -1` (which would emit a corrupt token
-    // index). Every other annotation site provides a concrete
-    // `tokenType`.
     const tokenType = cur.value.type.tokenType;
     if (tokenType === undefined) return;
     const start = document.positionAt(cur.from);
@@ -78,25 +70,6 @@ export const getSemanticTokens = (
     }
     const text = document.read(cur.from, cur.to);
     if (cur.value.type.possibleDivertPath) {
-      // Divert-target resolution: the annotator emits a placeholder
-      // `function` tokenType for every `DivertPart`. Here we pick
-      // the FINAL tokenType based on which declaration map the path
-      // resolves to in the compiled program. Sparkdown's narrative
-      // anchors — scenes, branches, and labels — collectively form
-      // the **beat** family (matching the grammar's
-      // `FLOW_BEAT_KEYWORDS` umbrella, extended here to include
-      // labels). Beats render purple via the LSP `class` tokenType;
-      // pure Luau functions stay yellow via `function`.
-      //
-      // Knots / stitches are not supported (legacy ink construct);
-      // they're intentionally not consulted.
-      //
-      // The path may be dotted (`area.entrance.intro`); try the
-      // full text first, then progressively shorter prefixes so a
-      // partial dotted ref still highlights against its longest
-      // resolvable parent. Paths that don't resolve at all are
-      // dropped (no LSP token) — the grammar's TextMate scope
-      // handles "this is a divert path" coloration alone.
       const pathPart1 = text.split(".").slice(0, 1).join(".");
       const pathPart2 = text.split(".").slice(0, 2).join(".");
       const resolvesToBeat =
@@ -114,11 +87,6 @@ export const getSemanticTokens = (
         !!program?.functionLocations?.[pathPart1] ||
         !!program?.functionLocations?.[pathPart2];
       if (resolvesToBeat || resolvesToFunction) {
-        // Override the annotator's placeholder with the correct
-        // narrative-flow tokenType. Beats (scene/branch/label) win
-        // over functions when both maps contain the same name
-        // (shouldn't happen in well-formed source — a conservative
-        // deterministic tiebreak).
         const resolvedType: string = resolvesToBeat ? "class" : "function";
         const start = document.positionAt(cur.from);
         tokens.push(
@@ -136,19 +104,14 @@ export const getSemanticTokens = (
     }
     cur.next();
   }
-  // See LSP Spec for semantic tokens for information on the encoding process:
-  // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
   const data: number[] = [];
   for (let i = tokens.length - 1; i >= 0; i--) {
     const curr = tokens[i]!;
     const prev = tokens[i - 1];
     if (prev) {
-      // on the same line
       if (prev[0] === curr[0]) {
-        // startChar is relative startChar of prev token
         curr[1] -= prev[1];
       }
-      // line is relative to line of prev token
       curr[0] -= prev[0];
     }
     data.unshift(...curr);

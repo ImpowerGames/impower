@@ -11,19 +11,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
 
-/**
- * jsdom implements `Range` but none of its geometry, and CodeMirror measures
- * text by asking a `Range` for its client rects on an animation frame. An empty
- * list is what a layout engine that does no layout honestly reports, and
- * CodeMirror already falls back to a default character width when it sees one.
- */
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () =>
     Object.assign([], { item: () => null }) as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
 }
 
-/** The hard space a contenteditable mints in place of one that would collapse. */
 const NBSP = String.fromCharCode(0xa0);
 
 const DOC = ["hello world", "hello there", "one", "two", ""].join("\n");
@@ -59,7 +52,6 @@ const control = <T extends HTMLElement>(view: EditorView, name: string) => {
   return el!;
 };
 
-/** Announce a field edit the way a browser announces the user's own. */
 const input = (field: HTMLElement) => {
   field.dispatchEvent(new InputEvent("input", { bubbles: true }));
   field.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
@@ -70,12 +62,6 @@ const type = (field: HTMLElement, text: string) => {
   input(field);
 };
 
-/**
- * Put the caret in a field.
- *
- * `at` counts characters into the field's first text node, which is where the
- * caret sits after typing into a field the panel has written.
- */
 const caret = (field: HTMLElement, at: number) => {
   const range = document.createRange();
   const node = field.firstChild;
@@ -91,7 +77,6 @@ const caret = (field: HTMLElement, at: number) => {
   selection.addRange(range);
 };
 
-/** Select a stretch of the field's first text node. */
 const select = (field: HTMLElement, from: number, to: number) => {
   const node = field.firstChild!;
   const range = document.createRange();
@@ -107,13 +92,6 @@ const press = (field: HTMLElement, key: string, init: KeyboardEventInit = {}) =>
     new KeyboardEvent("keydown", { key, bubbles: true, ...init }),
   );
 
-/**
- * A paste, as a browser delivers one.
- *
- * jsdom implements neither `DataTransfer` nor the `clipboardData` a
- * `ClipboardEvent` carries, so the clipboard is a stand-in answering the one
- * question the panel asks it: what does the clipboard hold in this format.
- */
 const pasteEvent = (field: HTMLElement, formats: Record<string, string>) => {
   const event = new Event("paste", { bubbles: true, cancelable: true });
   Object.defineProperty(event, "clipboardData", {
@@ -126,14 +104,6 @@ const pasteEvent = (field: HTMLElement, formats: Record<string, string>) => {
 const paste = (field: HTMLElement, text: string) =>
   pasteEvent(field, { "text/plain": text });
 
-/**
- * The DOM a browser leaves in a field when two lines are pasted into it.
- *
- * Verified in the running editor: copying two lines out of the script and
- * pressing Ctrl+V in the replace field leaves `<div>one</div><div>two</div>`,
- * whose `textContent` is "onetwo". jsdom has no editing model, so the shape has
- * to be built rather than performed.
- */
 const pasteBlocks = (field: HTMLElement, lines: string[]) => {
   field.innerHTML = "";
   for (const line of lines) {
@@ -144,7 +114,6 @@ const pasteBlocks = (field: HTMLElement, lines: string[]) => {
   input(field);
 };
 
-/** The same two lines as the other shape a browser leaves: text and breaks. */
 const pasteBreaks = (field: HTMLElement, lines: string[]) => {
   field.innerHTML = "";
   lines.forEach((line, i) => {
@@ -165,8 +134,6 @@ afterEach(() => {
 });
 
 describe("multi-line find and replace fields (#360)", () => {
-  // Positive control. Green with or without the change: if it goes red the
-  // harness has stopped driving the panel and nothing below means anything.
   it("still commits a single line typed into each field", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -188,7 +155,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
   });
 
-  // The ticket's own steps: paste two lines into replace, click Replace All.
   it("replaces every match with both pasted lines", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -212,13 +178,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
   });
 
-  // A browser puts a break at the end of a field so the empty last line has a
-  // height. Counting it would commit a trailing newline nobody entered, and
-  // replace all would then push every following line down one.
-  //
-  // Also a positive control: reading with `textContent` ignored elements
-  // altogether, so this was green before the change too, for a different
-  // reason. It guards the rule rather than proving it.
   it("does not read the trailing filler break as a line", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -232,7 +191,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("hi");
   });
 
-  // The same break with content after it is a line the user entered.
   it("reads a break followed by an empty line as a trailing newline", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -247,9 +205,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("hi\n");
   });
 
-  // A block element ends a line as surely as it starts one. Text dropped or
-  // composed in beside a block leaves this shape, and reading it as one line
-  // would join two lines the user can see are separate.
   it("reads a line break between a block and the text beside it", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -266,7 +221,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("a\nb\nc");
   });
 
-  // One line, however many elements are wrapped around it.
   it("reads nested blocks as one line, not two", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -285,12 +239,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("first\nsecond");
   });
 
-  // The browser's insert command writes newline characters rather than `<br>`,
-  // and leaves one at the end that the field does not show. Measured in the
-  // running editor: the field is 32px tall holding "abc" and 32px holding "abc"
-  // and a trailing newline, against 55px for two lines. Committing that
-  // newline made replace-all write a line break nobody entered -- seen in the
-  // editor, where replacing "hello" with "abc" produced "abc\n world".
   it("does not read a trailing newline character as a line", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -309,8 +257,6 @@ describe("multi-line find and replace fields (#360)", () => {
     );
   });
 
-  // The one before the last is a line the user entered, and only the last is
-  // the break the field does not show.
   it("reads all but the last of a run of trailing newlines", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -323,8 +269,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("abc\n");
   });
 
-  // A block already ends its line, so a newline at the end of its own text is
-  // the invisible trailing break within it, not an empty line after it.
   it("does not put an empty line after a block whose text ends in a newline", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -359,7 +303,6 @@ describe("multi-line find and replace fields (#360)", () => {
     pasteBlocks(search, ["one", "two"]);
 
     expect(getSearchQuery(view.state).search).toBe("one\ntwo");
-    // Line 3 and line 4 of the document, and the break between them.
     expect(view.state.selection.main.from).toBe(
       view.state.doc.line(3).from,
     );
@@ -404,9 +347,6 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
     });
 
-    // Enter on its own still belongs to the search, in both fields. A positive
-    // control as well: this was green before the change, and it goes red only
-    // if the new modifier handling has swallowed the plain key.
     it("is not what a bare Enter does", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -421,10 +361,6 @@ describe("multi-line find and replace fields (#360)", () => {
       );
     });
 
-    // The caret at the very start is the case where the field's first child is
-    // the break itself, so every position the caret can take sits before any
-    // text there is. Repeating it stacks empty lines, which is where placing
-    // the caret by counting characters is easiest to get wrong.
     it("adds one at the very start, twice over", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -436,8 +372,6 @@ describe("multi-line find and replace fields (#360)", () => {
 
       expect(getSearchQuery(view.state).replace).toBe("\nhello");
 
-      // Back to the start, which is now before a break rather than before any
-      // text -- the position that has no text node to measure from.
       caret(replace, 0);
       press(replace, "Enter", { ctrlKey: true });
 
@@ -455,8 +389,6 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(getSearchQuery(view.state).replace).toBe("\n");
     });
 
-    // Shift+Enter finds the previous match, and holding the modifier as well
-    // must not quietly turn that into something else.
     it("leaves Ctrl+Shift+Enter to the search", () => {
       const view = mount();
       const { search } = fields(view);
@@ -479,8 +411,6 @@ describe("multi-line find and replace fields (#360)", () => {
       caret(replace, 3);
       press(replace, "Enter", { ctrlKey: true });
 
-      // A newline inside a text node is not a line break the field can be
-      // relied on to show; a <br> is one whatever the field's white-space is.
       expect(replace.querySelectorAll("br")).toHaveLength(1);
       expect(replace.textContent).toBe("onetwo");
     });
@@ -569,9 +499,6 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
     });
 
-    // A clipboard holding only an image has no text to insert. The paste is
-    // still refused, because the alternative is the browser putting the image
-    // in a field whose whole content is a search pattern.
     it("refuses a paste with no text in it, and changes nothing", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -585,11 +512,6 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(replace.textContent).toBe("hi");
     });
 
-    // A paste goes in through the browser's own insert command, so the browser
-    // records it and Ctrl+Z takes it back. jsdom implements no such command,
-    // which is the case the fallback exists for and the one these tests
-    // otherwise exercise; here the command is supplied so the path a browser
-    // takes is the one under test.
     it("inserts through the browser's own command when there is one", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -599,7 +521,6 @@ describe("multi-line find and replace fields (#360)", () => {
       };
       doc.execCommand = (...args: unknown[]) => {
         calls.push(args);
-        // What the command does to the field, as a browser would leave it.
         replace.appendChild(document.createTextNode(String(args[2])));
         replace.dispatchEvent(new InputEvent("input", { bubbles: true }));
         return true;
@@ -615,19 +536,12 @@ describe("multi-line find and replace fields (#360)", () => {
       }
     });
 
-    // Two reviewers predicted that a browser might write a single newline for
-    // a break, which reads as the invisible trailing one and would be lost.
-    // Chromium writes two, measured in the running editor, so the break
-    // survives there -- but nothing promises that, so a command that leaves
-    // the value where it was is treated as a command that did not work.
     it("writes the field itself when the command changes nothing", () => {
       const view = mount();
       const { search, replace } = fields(view);
       const doc = replace.ownerDocument as Omit<Document, "execCommand"> & {
         execCommand?: (...args: unknown[]) => boolean;
       };
-      // A browser whose insert leaves only the newline the reader treats as
-      // the trailing break, so the field's value does not move.
       doc.execCommand = () => {
         replace.appendChild(document.createTextNode("\n"));
         replace.dispatchEvent(new InputEvent("input", { bubbles: true }));
@@ -666,7 +580,6 @@ describe("multi-line find and replace fields (#360)", () => {
       const view = mount();
       const { search, replace } = fields(view);
 
-      // jsdom defines no `execCommand`, so this is the fallback path.
       expect(
         (replace.ownerDocument as Document & { execCommand?: unknown })
           .execCommand,
@@ -678,16 +591,12 @@ describe("multi-line find and replace fields (#360)", () => {
       expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
     });
 
-    // Undo and redo replay the browser's own record of the field. Emptying the
-    // field's leftover break underneath that record is what leaves a redo with
-    // nothing to redo into, so it is left alone until the user edits again.
     it("does not tidy the field underneath an undo", () => {
       const view = mount();
       const { search, replace } = fields(view);
 
       type(search, "hello");
       type(replace, "hi");
-      // What a browser leaves when an undo takes the text back out.
       replace.innerHTML = "";
       replace.appendChild(document.createElement("br"));
       replace.dispatchEvent(
@@ -696,14 +605,9 @@ describe("multi-line find and replace fields (#360)", () => {
 
       expect(replace.childNodes).toHaveLength(1);
       expect(getSearchQuery(view.state).replace).toBe("");
-      // The leftover break stays, so the browser's record of the field keeps
-      // pointing at something, and the placeholder still comes back.
       expect(replace.hasAttribute("data-empty")).toBe(true);
     });
 
-    // The placeholder is drawn on a field with no content at all, which a field
-    // holding that leftover break is not. The attribute says it is empty
-    // without emptying it.
     it("says a field is empty for the placeholder without emptying it", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -720,13 +624,10 @@ describe("multi-line find and replace fields (#360)", () => {
 
       expect(replace.hasAttribute("data-empty")).toBe(true);
 
-      // And it goes as soon as there is something to show again.
       type(replace, "back");
       expect(replace.hasAttribute("data-empty")).toBe(false);
     });
 
-    // Without a clipboard there is nothing to read, and taking the event over
-    // would leave the user with a paste that does nothing at all.
     it("leaves a paste carrying no clipboard to the browser", () => {
       const view = mount();
       const { search, replace } = fields(view);
@@ -741,9 +642,6 @@ describe("multi-line find and replace fields (#360)", () => {
     });
   });
 
-  // The panel rewrites both fields when an effect from outside changes the
-  // query -- restoring a saved search, or `openSearchPanel` over a selection.
-  // A value it cannot render is a value the user cannot see before running it.
   it("shows a multi-line value handed to it from outside", () => {
     const view = mount();
     const { replace } = fields(view);
@@ -756,15 +654,10 @@ describe("multi-line find and replace fields (#360)", () => {
 
     expect(replace.querySelectorAll("br")).toHaveLength(1);
     expect(replace.textContent).toBe("onetwo");
-    // And what it shows is what it commits back.
     input(replace);
     expect(getSearchQuery(view.state).replace).toBe("one\ntwo");
   });
 
-  // Emptying a field leaves a break behind, and an element holding one is not
-  // `:empty`, so the placeholder never returns. The field is only empty when
-  // its text is. The fourth positive control: the old emptiness check agreed
-  // on this case, so it guards against the new one having lost the behaviour.
   it("empties a field the user has cleared", () => {
     const view = mount();
     const { search, replace } = fields(view);
@@ -779,10 +672,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(getSearchQuery(view.state).replace).toBe("");
   });
 
-  // #367 keeps a hard space that was typed or pasted deliberately, and
-  // normalizes only the ones a browser mints where a space would collapse. A
-  // line break collapses whitespace beside it exactly as the field's own edge
-  // does, so the same rule has to apply at the end of every line.
   it("normalizes a hardened space at the end of a line, not only of the field", () => {
     const view = mount(`hello \nworld\n`);
     const { search } = fields(view);
@@ -793,13 +682,6 @@ describe("multi-line find and replace fields (#360)", () => {
     expect(view.state.selection.main.from).toBe(0);
   });
 
-  // jsdom applies no styling, so nothing here can prove what the field looks
-  // like. What it can prove is that the rules are still declared -- and one of
-  // them is load-bearing: without preserved whitespace the field would display
-  // an indented replacement with its indent collapsed away, showing the user
-  // one string while the document receives another. That is the defect this
-  // whole change exists to end, so it is worth a guard against the rule being
-  // dropped. It was looked at in the running editor; this only pins the rule.
   it("declares the whitespace and height rules the fields depend on", () => {
     const panel = EDITOR_THEME["& .cm-panel.cm-search"] as Record<
       string,

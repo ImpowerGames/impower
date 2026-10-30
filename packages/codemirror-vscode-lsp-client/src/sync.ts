@@ -3,7 +3,6 @@ import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
 export interface ServerAutoSyncConfig {
-  /** Debounce fetch after edits (ms). Default: 500 */
   delay?: number;
 }
 

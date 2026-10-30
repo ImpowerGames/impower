@@ -1,17 +1,3 @@
-// SAFETY NET for incremental (delta) formatting.
-//
-// Format-on-save reformats only the top-level construct(s) the edit
-// touched (the `incrementalDirtyRange` path in getDocumentFormattingEdits).
-// That's only sound if it produces BYTE-FOR-BYTE the same result as a full
-// format. This suite proves it: take a canonically-formatted document,
-// corrupt one spot, then assert
-//
-//   delta-format(corrupted, dirtyRange) === full-format(corrupted)
-//
-// for corruptions in every kind of construct and at the boundary edges.
-// If they ever diverge, the boundary-expansion rule is too aggressive and
-// this fails loudly.
-
 import { Text } from "@codemirror/state";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { SparkdownCombinedAnnotator } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
@@ -51,7 +37,6 @@ function applyEdits(doc: SparkdownDocument, edits: TextEdit[]): string {
   return result;
 }
 
-// Format `source`. With `dirtyRange`, use the incremental (delta) path.
 function format(
   source: string,
   dirtyRange?: { from: number; to: number },
@@ -75,9 +60,6 @@ function format(
   return applyEdits(doc, edits);
 }
 
-// A multi-construct document: external decl, define, function, type
-// function, and two scenes with dialogue + a branch — so there are several scene_begin /
-// top_level_begin boundaries to scope between.
 const CANONICAL = format(`external host_record(v)
 
 define companion as character with
@@ -140,8 +122,6 @@ scene outro
 end
 `);
 
-// Corrupt one line of the canonical text (by 0-based line index) and
-// return the corrupted source + the byte range of the corruption.
 function corruptLine(
   text: string,
   lineIndex: number,
@@ -159,7 +139,6 @@ function corruptLine(
   };
 }
 
-// Corruptions that the formatter must repair, one per construct kind.
 const CORRUPTIONS: { label: string; lineMatch: RegExp; mutate: (l: string) => string }[] = [
   { label: "scene-body dialogue (extra indent)", lineMatch: /HERO: Hello/, mutate: (l) => "      " + l.trim() },
   { label: "scene-body dialogue (bad spacing)", lineMatch: /Goodbye/, mutate: (l) => l.replace(":", "  :  ") },
@@ -173,8 +152,6 @@ const CORRUPTIONS: { label: string; lineMatch: RegExp; mutate: (l: string) => st
   { label: "screen element (bad attr spacing)", lineMatch: /#class=title/, mutate: (l) => l.replace("=", " = ") },
 ];
 
-// Brace bodies (#1227), which nest by their braces. A full format repairs
-// each of these back to the canonical text.
 const BRACE_CORRUPTIONS: typeof CORRUPTIONS = [
   { label: "line in a layout block (extra indent)", lineMatch: /text\.title "Inventory"/, mutate: (l) => "          " + l.trim() },
   { label: "one-line layout block (tight)", lineMatch: /row \{ text "a"/, mutate: (l) => l.replace("{ ", "{").replace("; ", ";").replace(" }", "}") },
@@ -213,22 +190,17 @@ describe("delta format ≡ full format", () => {
   }
 
   test("a clean (already-formatted) doc yields no delta edits", () => {
-    // Dirty range over the whole doc, but nothing to fix → identical.
     const delta = format(CANONICAL, { from: 0, to: CANONICAL.length });
     expect(delta).toBe(CANONICAL);
   });
 });
 
-// The real integration path: the dirty range comes from diffing the
-// current text against the last formatted output (not hand-computed).
 describe("diff-driven dirty range ≡ full format", () => {
   const lines = CANONICAL.split("\n");
   for (const c of CORRUPTIONS) {
     test(c.label, () => {
       const lineIndex = lines.findIndex((l) => c.lineMatch.test(l));
       const { source } = corruptLine(CANONICAL, lineIndex, c.mutate);
-      // Baseline = the last formatted output (CANONICAL); dirty range =
-      // its diff against the corrupted current text.
       const dirty = diffDirtyRange(CANONICAL, source);
       expect(dirty).not.toBeNull();
       const full = format(source);

@@ -7,13 +7,6 @@ export function convertToPosition(doc: Text, pos: number): lsp.Position {
 }
 
 export function convertFromPosition(doc: Text, pos: lsp.Position): number {
-  // Clamp to the document's bounds. LSP positions can legitimately arrive
-  // stale — e.g. a range computed against a previous, longer version of
-  // the document, or a cross-file coordinate — and `doc.line()` throws a
-  // RangeError on an out-of-range line. That must not propagate and break
-  // the consumer (the screenplay preview's selectRange crashed the whole
-  // preview render this way). Map an out-of-bounds position to the nearest
-  // valid offset instead.
   const lineNumber = Math.min(Math.max(pos.line + 1, 1), doc.lines);
   const line = doc.line(lineNumber);
   const character = Math.min(Math.max(pos.character, 0), line.length);

@@ -36,11 +36,6 @@ const GLUE_HOVER = {
     "A `..` after a `>` break carries on in the same box after the click, when the part before the break ends with `..`.",
 };
 
-// The hover for a glue mark under the cursor. The grammar gives a `..` its
-// `Glue` or `LeadingGlue` node only where it joins lines; a `..` that is text
-// (`a..b`, `{x} .. more`) is part of a text chunk and gets no hover. A `..`
-// that ends a line right after a `>` break has no part after the break to
-// begin, so it marks nothing and gets none either.
 const getGlueHover = (
   document: SparkdownDocument,
   tree: Tree,
@@ -54,8 +49,6 @@ const getGlueHover = (
   if (!mark) {
     return null;
   }
-  // `Glue` spans the spaces written before its `..`, which is always its last
-  // two characters.
   const from = mark.name === "Glue" ? mark.to - 2 : mark.from;
   if (offset < from || offset >= mark.to) {
     return null;
@@ -86,11 +79,6 @@ const getGlueHover = (
   };
 };
 
-// The documentation of a morph field under the cursor: a name written as a
-// field (followed by `=` or a `{ … }` block) inside a `morph` block, with the
-// text completion shows for it. A field a `paints` entry shares with another
-// place (`state`, `targets`) shows the entry's own documentation there. A
-// layer label under `layers { … }` is a label, not a field.
 const getMorphFieldHover = (
   document: SparkdownDocument,
   tree: Tree,
@@ -159,8 +147,6 @@ export const getHover = async (
   if (!document || !annotations || !program) {
     return null;
   }
-  // The annotation walk is synchronous, so pick the struct out first and build
-  // the (possibly composited, therefore async) markup afterwards.
   let match: { struct: any; range: Range } | null = null;
   const searchFrom = document.offsetAt(position);
   const searchTo = document.offsetAt({ line: position.line + 1, character: 0 });
@@ -209,15 +195,6 @@ export const getHover = async (
             match = { struct: resolvedValue, range };
             return false;
           }
-          // TODO: const name: type
-          // TODO: var name: type
-          // TODO: list name
-          // TODO: define type.name
-          // TODO: == knot
-          // TODO: = stitch
-          // TODO: - (label)
-          // TODO: ~ temp name: type
-          // TODO: ~ param name: type
         }
       }
     }

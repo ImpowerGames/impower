@@ -1,18 +1,3 @@
-// Every case of Luau's tests/Autocomplete.test.cpp at the commit the repo's
-// vendored Luau conformance suite is pinned to (see
-// packages/sparkdown/src/tests/luau-conformance/upstream/VENDORING.md), in
-// upstream order. A name upstream uses twice carries `#2` on its second use.
-//
-//   ported   the upstream snippet, placed in a function body when upstream
-//            writes it at the top of a module, with its upstream expectation
-//   adapted  the snippet rewritten in sparkdown syntax (`store`, `define`,
-//            `//`, narrative blocks) or the expectation changed to sparkdown's,
-//            with the difference stated at the test
-//   n/a      no sparkdown test, for the reason given
-//
-// The manifest test proves each ported and adapted case has a test in one of
-// the autocomplete*.test.ts files and that those files name no other case.
-
 export const UPSTREAM_COMMIT = "c8cf2864adec33eb4eb5b4cc7e0708aa74893ba0";
 
 export type UpstreamCase =

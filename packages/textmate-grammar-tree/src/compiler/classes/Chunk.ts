@@ -12,96 +12,43 @@ import { type ITreeBuffer } from "../types/ITreeBuffer";
 import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
 
-/**
- * Sets the initial array size for chunks, and how much to grow a chunk's
- * array if it's full.
- */
 export const CHUNK_ARRAY_INTERVAL = 1024;
 
-/**
- * Tree buffers must be under this limit so children indexes can fit inside 16-bit typed array slots
- */
-export const TREE_BUFFER_LENGTH_LIMIT = 2 ** 16; // (65536)
+export const TREE_BUFFER_LENGTH_LIMIT = 2 ** 16;
 
-/**
- * A syntactic chunk of a parsed document. The full syntax tree can be
- * constructed by stringing these chunks together in a list. They can also
- * be used to restart a parse from the chunk's starting position.
- */
 export class Chunk {
-  /** The starting document position of the chunk. */
   declare from: number;
 
-  /** The ending document position of the chunk. */
   declare to: number;
 
-  /** The document length of the chunk. */
   length = 0;
 
   compiled = new Int32Array(CHUNK_ARRAY_INTERVAL);
 
   stack: CompileStack = new CompileStack();
 
-  /** The node(s) that are currently open. */
   scopes?: ParserAction;
 
-  /** The number of nodes in this chunk */
   nodeCount: number = 0;
 
-  /**
-   * {@link ITreeBuffer} version of this chunk.
-   * If `null`, the tree will not be available, ever, due to the shape of the chunk.
-   */
   treeBuffer?: ITreeBuffer | null;
 
-  /** The number of nodes emitted by the compiler so far */
   compilerNodeCount: number = 0;
 
-  /** The number of reused tree buffers emitted by the compiler so far */
   compilerReusedCount: number = 0;
 
-  /** The max tree buffer length emitted by the compiler so far */
   compilerMaxTreeBufferLength: number = 0;
 
   isSplitPoint: boolean;
 
-  /**
-   * True when this chunk began with no open scopes. Chunks minted at a
-   * line boundary inside open scopes (see {@link inheritFrom}) start
-   * impure; they are valid RESTART points (via their {@link resume}
-   * snapshot) but must not be spliced in as reused-ahead chunks — their
-   * baked child counts assume the exact token stream that preceded them.
-   */
   startsPure = true;
 
-  /**
-   * Tokenizer state needed to restart a parse at this chunk's `from`.
-   * Only present on split-point chunks minted inside open scopes.
-   */
   resume?: TokenizerResume;
 
-  /**
-   * The inherited open frames this chunk was seeded with, recorded at mint
-   * time (the live `stack` mutates as tokens arrive). `children` are the
-   * accumulated child counts at entry — the baseline a mid-scope splice
-   * diffs against to fix up baked close sizes; `absPositions` are the
-   * document-absolute open positions.
-   */
   entrySeeds?: { ids: number[]; children: number[]; absPositions: number[] };
 
-  /**
-   * Compiled-buffer offsets of nodes that CLOSED an inherited frame, with
-   * the seed index they closed — the records a mid-scope splice must patch
-   * (their baked size/position assume the old preceding token stream).
-   */
   inheritedCloseRecords?: { seedIndex: number; offset: number }[];
 
-  /**
-   * True when the tokenizer state entering this chunk (its {@link resume})
-   * fully accounts for the inherited chunk-level stack ({@link entrySeeds})
-   * — i.e. the boundary added no retroactive close markers to the token
-   * before it. Only such boundaries can be spliced into mid-scope.
-   */
   spliceSafe = false;
 
   get endsPure() {
@@ -112,26 +59,15 @@ export class Chunk {
     return this.nodeCount * 4;
   }
 
-  /**
-   * @param from - The starting position.
-   * @param inherits - The scopes at the starting position.
-   */
   constructor(from: number, isSplitPoint: boolean = false) {
     this.from = from;
     this.to = from;
     this.isSplitPoint = isSplitPoint;
   }
 
-  /**
-   * Offsets the chunk's starting position.
-   *
-   * @param offset - The offset to add to the chunk's starting position.
-   */
   offset(offset: number) {
     this.from += offset;
     this.to = this.from + this.length;
-    // Resume/seed positions are document-absolute — keep them in the same
-    // coordinate space as the chunk when it slides.
     if (this.resume) {
       for (const f of this.resume.frames) {
         f.openedAtAbs += offset;
@@ -144,24 +80,12 @@ export class Chunk {
     }
   }
 
-  /**
-   * Seeds this chunk's compile stack from the previous chunk's residual
-   * open frames so that a scope opened in an earlier chunk can be closed
-   * here with a correct span AND a correct child count (the "inherit
-   * scopes + accumulate counts" fix proven in crossChunkAssemblySpike):
-   * the open position is carried ABSOLUTE (stored relative to this chunk,
-   * possibly negative — the Uint32Array wraps it and the Int32Array
-   * compile buffer unwraps it on emit), and the child count carries the
-   * running total instead of restarting at zero.
-   */
   inheritFrom(prev: Chunk) {
     this.startsPure = false;
     const ids: number[] = [];
     const children: number[] = [];
     const absPositions: number[] = [];
     for (let i = 0; i < prev.stack.length; i++) {
-      // `| 0` unwraps a possibly-wrapped negative stored by an earlier
-      // inherit before rebasing to this chunk's coordinates.
       const prevRelative = prev.stack.positions[i]! | 0;
       const abs = prev.from + prevRelative;
       this.stack.push(prev.stack.ids[i]!, abs - this.from, prev.stack.children[i]!);
@@ -175,13 +99,6 @@ export class Chunk {
     }
   }
 
-  /**
-   * Adds a new token to the chunk.
-   *
-   * @param id - The token ID.
-   * @param from - The starting position of the token.
-   * @param to - The ending position of the token.
-   */
   add(token: GrammarToken) {
     let [id, from, to, open, close] = token;
 
@@ -192,7 +109,6 @@ export class Chunk {
       this.length = to - this.from;
     }
 
-    // make token relative to chunk position
     from -= this.from;
     to -= this.from;
 
@@ -205,7 +121,6 @@ export class Chunk {
     }
 
     if (id != null) {
-      // Full node that doesn't contain any children
       this.emitNode(id, from, to, 4);
     }
 
@@ -219,20 +134,13 @@ export class Chunk {
         }
         const idx = this.stack.last(c);
         if (idx !== null) {
-          // Record closes of INHERITED frames: their emitted size/position
-          // bake in the token stream that preceded this chunk, which a
-          // mid-scope splice replaces and must patch (see Compiler).
           if (this.entrySeeds && idx < this.entrySeeds.ids.length) {
             (this.inheritedCloseRecords ??= []).push({
               seedIndex: idx,
               offset: this.nodeCount * 4,
             });
           }
-          // cut off anything past the closing element
-          // i.e. inside nodes won't persist outside their parent if they
-          // never closed before their parent did
           this.stack.close(idx);
-          // finally pop the node
           const s = this.stack.pop()!;
           const node = s[0]!;
           const pos = s[1]!;
@@ -252,13 +160,6 @@ export class Chunk {
     );
   }
 
-  /**
-   * Tries to convert this chunk into a {@link Tree}. If that isn't
-   * possible, this function will return `null` and cache the result. The
-   * cache is invalidated if the chunk changes.
-   *
-   * @param nodes - The language node set to use when creating the tree.
-   */
   tryForTreeBuffer() {
     if (!this.canConvertToTreeBuffer()) {
       this.treeBuffer = null;
@@ -272,9 +173,6 @@ export class Chunk {
     const treeBufferLength = this.nodeCount * 4;
     const cursor = new FlatBufferCursor(this.compiled, treeBufferLength);
     const treeBuffer = new Uint16Array(treeBufferLength);
-    // Unlike compiled buffers (which are stored in suffix order, children before parents),
-    // TreeBuffers must be stored in prefix order (parents before children)
-    // So we must traverse the compiled buffer and copy the nodes to a new buffer in prefix order
     this.copyToTreeBuffer(cursor, 0, treeBuffer, treeBufferLength);
 
     this.treeBuffer = {
@@ -288,7 +186,6 @@ export class Chunk {
   private emitNode(type: number, from: number, to: number, children: number) {
     const idx = this.nodeCount * 4;
 
-    // we may need to resize the array
     if (idx + 4 > this.compiled.length) {
       const old = this.compiled;
       this.compiled = new Int32Array(old.length + CHUNK_ARRAY_INTERVAL);

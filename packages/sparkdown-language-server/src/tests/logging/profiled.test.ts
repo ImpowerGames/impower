@@ -6,11 +6,6 @@ const perf = globalThis.performance;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Entries are cleared as soon as they are emitted (#321), so the buffer cannot
-// be read back — an observer is the only way to see what was measured.
-// Observer delivery is asynchronous and the callback can be delayed well past
-// a fixed sleep when the suite runs under load, so wait for the entries rather
-// than for the clock.
 const observeMeasures = async (
   run: () => void | Promise<void>,
   minCount = 1,
@@ -50,8 +45,6 @@ describe("profiled()", () => {
     expect(seen.map((s) => s.name)).toEqual(["lsp: sync file:///main.sd"]);
   });
 
-  // The whole point: a hand-written start/end pair loses the phase whenever the
-  // body throws, which is exactly when the timing is worth having.
   it("still measures a phase whose body throws", async () => {
     const seen = await observeMeasures(() => {
       expect(() =>
@@ -71,7 +64,6 @@ describe("profiled()", () => {
       });
     });
     expect(seen).toHaveLength(1);
-    // A bare try/finally would end the phase at the first await and report ~0.
     expect(seen[0]!.duration).toBeGreaterThan(50);
   });
 
@@ -85,7 +77,6 @@ describe("profiled()", () => {
       ).rejects.toThrow("nope");
     });
     expect(seen.map((s) => s.name)).toEqual(["lsp: rejects file:///main.sd"]);
-    // Ending at the first await would emit a measure too — but a ~0ms one.
     expect(seen[0]!.duration).toBeGreaterThan(50);
   });
 
@@ -98,7 +89,6 @@ describe("profiled()", () => {
 
   it("measures both a throwing phase and the next one of the same name", async () => {
     const seen = await observeMeasures(async () => {
-      // A throwing phase, an idle gap, then a short phase of the same name.
       expect(() =>
         profiled("lsp: reused", "file:///main.sd", () => {
           throw new Error("boom");
@@ -107,9 +97,6 @@ describe("profiled()", () => {
       await sleep(200);
       profiled("lsp: reused", "file:///main.sd", () => 1);
     }, 2);
-    // Without the fix the throwing phase emits nothing and only one measure
-    // arrives. (The second phase's duration is not the discriminator — the
-    // profiler pairs newest-first, so it never absorbs the gap either way.)
     expect(seen).toHaveLength(2);
     expect(seen[1]!.duration).toBeLessThan(100);
   });
