@@ -1,9 +1,3 @@
-// UninitializedLocal and UnbalancedAssignment (I-604): a local read that no
-// statement gives a value, and a value list longer or shorter than its
-// names. The upstream cases are in `luau-conformance/LintCandidatesScope.test.ts`
-// (DeadLocalsUsed) and `LintCandidatesStyle.test.ts` (UnbalancedAssignment);
-// these are the controls around them and the Sparkdown forms.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 
@@ -64,7 +58,6 @@ describe("UninitializedLocal", () => {
   });
 
   test("a keyword the grammar reads in place of a name silences that name", () => {
-    // `match = 1` is read as the start of a `match` block, not a write of the local.
     const source = (write: string) => inFunction(`local match\nprint(match)${write}`);
     expect(messages(uninitialized(source("")))).toEqual([never("match", 2)]);
     expect(messages(uninitialized(source("\nmatch = 1")))).toEqual([]);
@@ -75,8 +68,6 @@ describe("UninitializedLocal", () => {
   });
 });
 
-// luau-analyze 0.721 reports neither rule inside a type; of these rules'
-// neighbours, only LocalUnused reads a function there.
 describe("a function inside a type", () => {
   test.each([
     ["a type alias in a function", inFunction("type T = typeof(function() local a, b = 1; local x; return a, b, x end)")],
@@ -145,9 +136,7 @@ describe("UnbalancedAssignment", () => {
   });
 
   test.each([
-    // Recovery ends the statement at `m`, and `= 2` is the error.
     ["an error after the statement on its line", "local k = 1, m = 2\n"],
-    // A story loop's header ends at its line; the range below it is no assignment the author wrote.
     ["a statement inside one holding a syntax error", "for\n  i = 1, 3\ndo\n  x = i\nend\n"],
   ])("is silent for %s", (_label, source) => {
     expect(messages(unbalanced(source))).toEqual([]);

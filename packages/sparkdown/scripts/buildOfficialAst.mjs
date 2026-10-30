@@ -1,4 +1,3 @@
-// Run with an activated Emscripten 4.0.10 SDK and a checkout of upstream Luau.
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -73,7 +72,6 @@ execFileSync(
   ],
   { stdio: "inherit" },
 );
-// Match Git's LF checkout policy before hashing Emscripten's Windows output.
 const loader = join(artifactDir, "luau-ast.cjs");
 writeFileSync(
   loader,

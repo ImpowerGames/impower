@@ -1,9 +1,3 @@
-// A story `store` declaration that Sparkdown reports no error on reports
-// every syntax error Luau reports for the declaration read alone, once each,
-// in Luau's words at Luau's range, as the same declaration spelled with
-// Luau's `local` (I-1370, after I-1322 and I-1368). One Sparkdown already
-// reports keeps that report alone. A store's values that are Sparkdown's own
-// (a double-quoted string's interpolation, a divert target) are Sparkdown's.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -13,7 +7,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -25,13 +18,11 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/** The official parser's errors for the store's line spelled with `local`, which has the same length. */
 function officialForStore(line: string): string[] {
   return officialErrorList(`${line.replace(/^store/, "local")}\n`).sort();
 }
 
 describe("a store reports every error Luau reports for the declaration (I-1370)", () => {
-  // Values the grammar reads token by token, which no reader reported.
   const unreported = [
     "store t = {nil=1}",
     "store t = {1 2}",
@@ -43,13 +34,10 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     "store t = {[1] = 2, 3 4}",
     "store t = foo(",
     "store t = function() return {1 2} end",
-    // A quoted string where the table expects a separator (round 1).
     'store t = {1 "a"}',
     'store t = {"a" "b"}',
     'store t = {1, "a" "b"}',
   ];
-  // Values whose errors were reported before, by the validator or by the
-  // type checker at a token the grammar leaves unread: still reported, once.
   const reported = ["store t = {1 ? 2}", "store t = 1 +", "store t =", "store t: = 1", 'store t = "abc'];
   for (const line of [...unreported, ...reported]) {
     const official = officialForStore(line);
@@ -68,8 +56,6 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     ]);
   });
 
-  // A store in a function's own Luau is read on into the lines after it, as
-  // the function is: reading it alone would end it at its line (round 1).
   test("a store in a function's body adds no error at its line's end", () => {
     expect(sparkdownErrors("function f(t)\n  store x = 1 +\n  local y = 2 +;\nend\n")).toEqual([
       "2:15-2:16 Expected identifier when parsing expression, got ';'",
@@ -77,9 +63,6 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     ]);
   });
 
-  // A store another reporter already reports an error on keeps exactly that
-  // report, in its own words and range: the store's errors have one owner,
-  // as a story statement's do (round 1). These are the reports on main.
   test.each([
     [`store hp = 100,\n${SCENE}`, ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
     ["store x = if true then 1\nStory follows.\n", ["0:10-0:12 Expected 'else' when parsing if then else expression"]],
@@ -98,7 +81,6 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     expect(sparkdownErrors(text)).toEqual(expected);
   });
 
-  // Each edit's compile reports what a cold compile of the edited text does.
   test("an incremental compile reports what a cold one does", () => {
     let text = `store t = {1, 2}\nstore u = 1\n${SCENE}`;
     const compiler = new SparkdownCompiler();
@@ -136,8 +118,6 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     }
   });
 
-  // I-819: an operator with no operand at the end of a store that ends the
-  // file, and the store's line ending its statement before the next one.
   test("an operator with no operand ending the file is reported once", () => {
     expect(sparkdownErrors("store x = 1 +")).toEqual(["0:13-0:13 Expected identifier when parsing expression, got <eof>"]);
     expect(sparkdownErrors("store x = 1 +;\n")).toEqual(["0:13-0:14 Expected identifier when parsing expression, got ';'"]);
@@ -146,16 +126,12 @@ describe("a store reports every error Luau reports for the declaration (I-1370)"
     ]);
   });
 
-  // A token the tree ends the declaration before, on its line: the
-  // validator names it, and the reading of the declaration alone adds no
-  // error at its own end of input.
   test("a value list the tree ends before a token on its line is reported once", () => {
     expect(sparkdownErrors(`store a = 1, return\n${SCENE}`)).toEqual([
       "0:11-0:12 Expected identifier when parsing expression, got 'return'",
     ]);
   });
 
-  // Sparkdown's own syntax in a store's value.
   test("a double-quoted string's interpolation is Sparkdown's", () => {
     expect(sparkdownErrors(`store s = "a {1 2} b"\n${SCENE}`)).toEqual([]);
     expect(sparkdownErrors(`store s = "a {x"\n${SCENE}`)).toEqual([

@@ -1,16 +1,3 @@
-// Glue needs a `..` on each side: a line that ends with `..` joins the next
-// line shown when that line begins with `..`. The join keeps the spaces written
-// before the first mark and drops those after the second, so `A ..` then
-// `.. B` shows "A B" and `A..` then `..B` shows "AB". A mark on one side only
-// joins nothing (LeadingGlueIntent.test.ts). A line that ends with `..` lowers
-// to a display call whose table carries `glue`, which leaves its newline
-// waiting, and one that begins with `..` to one whose table carries
-// `continues`, which takes it up; no `Glue` object is emitted. A `..` before a
-// `>` break marks the break's table `extend` instead: its step ends at the
-// click, and the next carries on in its box (ExtendAfterBreak.test.ts). A
-// `choose` block's last caption line leaves its newline pending too: its step
-// completes with the choices unless the run shows something first.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
 import {
@@ -23,8 +10,6 @@ type RuntimeStory = TestStory;
 
 type Routing = { target?: string; character?: string };
 
-// Each step's text and what `read` reports of it. The text is what its tables
-// say joined, since `Continue()` collapses a run of spaces.
 function stepsWith<T>(
   story: RuntimeStory,
   read: (story: RuntimeStory) => T,
@@ -45,7 +30,6 @@ function stepsWith<T>(
   return out;
 }
 
-// Each step's text and the routing of each of its tables.
 function steps(story: RuntimeStory): [string, Routing[]][] {
   return stepsWith(story, displayRouting);
 }
@@ -93,8 +77,6 @@ function makeStory(source: string) {
 const BASE = "inmemory:///";
 const URI = `${BASE}main.sd`;
 
-// Compiles `main.sd` with the other scripts beside it, which its project folder
-// makes part of its story.
 function compile(text: string, others: Record<string, string> = {}) {
   const compiler = testCompiler();
   compiler.configure({
@@ -128,10 +110,6 @@ function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
     }));
 }
 
-// What the compiled program holds: its `display` calls, and how many of those
-// tables carry `open`, `glue`, `extend` or `caption`, read from the keys its
-// chunks push (`programListing`). The program's instruction set has no
-// instruction for ink's glue or a `line` marker, so no join can emit either.
 function programShape(text: string) {
   const ctx = makeStory(text);
   expect(ctx.errorMessages).toEqual([]);
@@ -179,7 +157,6 @@ const TYPES: {
   },
 ];
 
-// Each trailing form and the joined text it shows.
 const SPACINGS: { first: string; joined: string }[] = [
   { first: "A ..", joined: "A B\n" },
   { first: "A   ..", joined: "A   B\n" },
@@ -189,8 +166,6 @@ const SPACINGS: { first: string; joined: string }[] = [
 
 describe("a trailing `..` joins the next line that begins with `..`", () => {
   for (const { label, inline, block, routing } of TYPES) {
-    // An action line that begins with `..` names no routing, and every other
-    // kind keeps its own; the beat takes the first table's.
     const own = label === "action" ? {} : routing;
     for (const { first, joined } of SPACINGS) {
       test(`${label}: ${JSON.stringify(first)} then .. B`, () => {
@@ -277,8 +252,6 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([false, false]);
     }
-    // A `..` before the break ends the step at the click, keeping the spaces
-    // the join keeps, and the next line carries on in its box.
     for (const [source, before] of [
       [`{3}.. >\n.. B\n`, "3\n"],
       [`{3} .. >\n.. B\n`, "3 \n"],
@@ -330,7 +303,6 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
     ] as const) {
       const ctx = makeStory(source);
       expect(ctx.errorMessages).toEqual([]);
-      // The line is one display line, as `3 .. and more.` would be (#1746).
       expect(texts(ctx.story)).toEqual([shown]);
     }
   });
@@ -372,8 +344,6 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual(["Hello world.\n"]);
-      // Without the second mark the line break stays, without the spaces
-      // before the lone mark.
       const lone = makeStory(
         `${block}\n  Hello .. # marker\n  world.\n`,
       );
@@ -493,9 +463,6 @@ end
     expect(ctx.story.variablesState.$("x")).toBe(1);
   });
 
-  // An external call is not safe to run ahead of a line's newline, so without
-  // the caption running on, the caption would complete a step of its own and
-  // the choices would come from the next continue.
   test("runs through an external call to its choices", () => {
     const ctx = makeStory(
       `external ring()
@@ -568,9 +535,6 @@ end
     expect(ctx.story.variablesState.$("x")).toBe(2);
   });
 
-  // `pcall` runs a function the story defines against an output stream of its
-  // own and drops what it printed, so a `print` inside `aside` shows nothing.
-  // A stdlib callee is called directly: `pcall(print, ...)` shows its text.
   test("runs through calls that show nothing on this run", () => {
     for (const between of [
       `& assert(true)`,
@@ -629,15 +593,11 @@ end
     expect(ctx.story.Continue()).toBe("Pick.\n");
     expect(ctx.story.currentChoices).toEqual([]);
     expect(ctx.story.Continue()).toBe("Aside.\n");
-    // The function's last line returns at its newline too, and the choices
-    // come with the continue after it.
     expect(ctx.story.Continue()).toBe("More.\n");
     expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
-  // The step that shows something after the caption runs in the caption's
-  // continue, once: its output is carried, not produced again by the next.
   test("runs the step that shows after it once, before the next continue", () => {
     const source = `store count = 0\nchoose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  count = count + 1\n  print("Aside.")\nend\n`;
     const ctx = makeStory(source);
@@ -656,11 +616,6 @@ end
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
-  // What the preview credits a line to: the continue that shows it (#1686).
-  // The step that shows after the caption runs in the caption's continue,
-  // where a breakpoint on its line stops (`executedLog`), and its addresses
-  // are logged for the beat by the next continue, which shows it
-  // (`beatLog`), through a session's state and a durable save.
   test("reports the lines the carried step ran in the continue that shows them", () => {
     const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
     const ctx = makeStory(source);
@@ -706,10 +661,6 @@ end
     });
   });
 
-  // A line that begins with `..` takes up the line end the line before it
-  // left waiting, so what ran while it waited is logged with the beat they
-  // share, even when the joining line ends with `..` and leaves a line end
-  // waiting of its own.
   test("logs a joined line with the beat it joins", () => {
     const beats = (source: string) => {
       const ctx = makeStory(source);
@@ -747,8 +698,6 @@ end
     ]);
   });
 
-  // Every instruction a run executes is logged for exactly one beat, whatever
-  // waited or was carried on the way.
   test("logs each instruction a run executes for exactly one beat", () => {
     for (const source of [
       `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`,
@@ -775,14 +724,10 @@ end
     }
   });
 
-  // A caption the carried step shows keeps its own newline waiting, through a
-  // save too.
   test("carries a caption's own waiting line end", () => {
     const source = `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`;
     const ctx = makeStory(source);
     expect(ctx.errorMessages).toEqual([]);
-    // The last step raises the choices, with no table, so it reads as a
-    // lone newline here.
     expect(texts(ctx.story)).toEqual([
       "Outer.\n",
       "Inner.\n",
@@ -881,7 +826,6 @@ end
 });
 
 describe("the compiled program", () => {
-  // Each source, and how many tables carry `glue` and `open`.
   const cases: [string, string, number, number][] = [
     ["a trailing join", `A ..\n.. B\n`, 1, 0],
     ["a touching join", `A..\n..B\n`, 1, 0],

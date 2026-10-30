@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createSceneAssetCapture } from "../../compiler/types/SceneAssets";
 import { scanAssetDirectives } from "../../compiler/utils/scanAssetDirectives";
 
-// The scanner must read a directive the way the runtime interpreter does
-// (`InterpreterModule.createAssetChunk`): verb, then target, then names up to
-// the first clause keyword, names split on `+`. It only ever feeds the
-// preloader, so a superset is harmless and a miss costs a late asset.
-
 const scan = (text: string) => {
   const capture = createSceneAssetCapture();
   const beat = scanAssetDirectives(text, 0, capture);
@@ -96,7 +91,6 @@ describe("scanAssetDirectives", () => {
   it("does not treat the tail of a split directive as an opener", () => {
     const { capture, beat } = scan("]] and more text ((");
     expect(beat).toBeUndefined();
-    // The trailing `((` is a genuine unclosed opener.
     expect(capture.dynamic).toBe(true);
   });
 

@@ -1,7 +1,3 @@
-// Whether a `const` is the story's published constant or a function's Luau
-// local is decided while it is lowered, from the functions around it (#1319).
-// An edit that changes that answer, or changes a const in one function, has
-// to leave the incremental compile reading as a cold compile of the same text.
 import { describe, expect, it } from "vitest";
 import { File } from "../../compiler/types/File";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -44,8 +40,6 @@ function coldCompile(text: string) {
   });
 }
 
-// Compiles `base`, replaces `find` with `replace` through `updateDocument`,
-// and compiles again.
 function incrementalAfterEdit(base: string, find: string, replace: string) {
   const from = base.indexOf(find);
   if (from < 0) throw new Error(`${find} is not in the script`);

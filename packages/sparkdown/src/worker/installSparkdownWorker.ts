@@ -17,9 +17,6 @@ import { programSummary } from "../compiler/utils/programSummary";
 import { ProgramTransportEncoder } from "../workspace/utils/programTransport";
 
 export interface SparkdownWorkerOptions {
-  /** Answer compiles, preview compiles and selections as a host that leaves
-   *  each program in this worker expects: the program's summary
-   *  (`programSummary`) and no checkpoint. */
   summarize?: boolean;
 }
 
@@ -29,25 +26,12 @@ export function installSparkdownWorker(
 ) {
   console.log("running sparkdown-compiler v1.0");
 
-  // Pairs with the decoder in the SparkdownWorkspace on the other end of this
-  // connection. Programs are encoded as their responses are sent, which is the
-  // order the workspace receives and decodes them. A summary is not encoded,
-  // and the workspace does not decode one. `encodeProgram` is for a response
-  // sent on this connection that carries a whole program the compiler did not
-  // answer itself.
   const transport = new ProgramTransportEncoder();
   const state = {
     compiler: new SparkdownCompiler(),
     encodeProgram: (program: SparkProgram) => transport.encode(program),
   };
-  // Whether the compile being answered produced a program that runs (its
-  // statement chunks), which a summary reports in place of the compiled
-  // program.
   let producedStory = false;
-  // The last program compiled for each uri, which a host holding the
-  // program's copy asks for its locations (`LocateProgramMessage`): the copy
-  // leaves the statement chunks' root behind, by which a program compiled
-  // with them is located. A preview compile's program is not kept.
   const compiledPrograms = new Map<string, SparkProgram>();
   const noteStory = (params: { produced: boolean }) => {
     producedStory = params.produced;
@@ -83,8 +67,6 @@ export function installSparkdownWorker(
       if (ConfigureCompilerMessage.type.is(message)) {
         connection.sendResponse(message, () => {
           const result = state.compiler.configure(message.params);
-          // A configuration can replace the project's scripts: the programs
-          // of scripts it no longer holds go with them.
           for (const uri of [...compiledPrograms.keys()]) {
             if (!state.compiler.documents.has(uri)) {
               compiledPrograms.delete(uri);
@@ -107,7 +89,6 @@ export function installSparkdownWorker(
         return;
       }
       if (RemoveCompilerFileMessage.type.is(message)) {
-        // A removed script's program, and its root, go with it.
         compiledPrograms.delete(message.params.file.uri);
         connection.sendResponse(message, () =>
           state.compiler.removeFile(message.params),

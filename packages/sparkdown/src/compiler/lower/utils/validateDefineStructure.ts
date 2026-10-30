@@ -7,44 +7,6 @@ import { findChildByName } from "./alternatorArms";
 import { UNREAD_TOKENS } from "../../utils/unreadTokens";
 import { DEFINE_MEMBERS } from "../../utils/defineStatement";
 
-// Structural checks for a `define` block, none of which is a parse error:
-//
-//   - A define without a readable name is reported and nothing else is
-//     checked; the lowerer drops it. When the define's content has a node that
-//     begins on the header line, that node's text on the header line is
-//     quoted as the unreadable name: `define 2hero` quotes `2` (the grammar
-//     reads a number there) and `define "hero"` quotes `"hero"`. Otherwise
-//     (`define` alone, or `define .hero`, whose `.hero` parses outside the
-//     define) the define is reported as having no name.
-//   - A header line that goes on with a token the grammar left unread is
-//     reported on the readable part of the header, and nothing else is: the
-//     define's body takes that token and reads on to its own `end`
-//     (`LuauUnreadToken`), so a missing `end` there is the header's mistake.
-//     When the token is written right after the name or `as` parent, the
-//     unread text is in the name (a dotted name such as `config.thing`, or a
-//     letter outside `[A-Za-z0-9_]`); after `with`, it is whatever followed on
-//     that line.
-//   - Otherwise the grammar ends a define at its `end` keyword or, failing
-//     that, at the next `scene` / `branch` beat or the end of the document, so
-//     a missing `end` makes the define swallow every top-level line up to that
-//     point (a `store x = 1` below it parses as a stored property). A define
-//     whose `LuauDefine_end` holds no `end` keyword is reported on its header
-//     line.
-//   - A header that does not end in `with` may be followed on its own line by
-//     nothing but whitespace or a comment. Anything else there is reported where
-//     it starts: after `define hero as character:` the `:` keeps the header from
-//     reaching `with`, and the indented properties parse outside the header,
-//     where they are dropped. A body on the lines below a header without `with`
-//     is read as properties, but `with` at the end of the header line is the
-//     documented form, so it is reported on the body's first line when the
-//     define has its `end`.
-//
-// Every check reads only the define's own node: its `end` keyword is inside
-// that node, so an edit that changes the result re-lowers this chunk, and the
-// check can run in the lowerer. The scene and branch `end` checks cannot
-// (`validateSceneBranchScope.ts`): their `end` is a later root-level sibling,
-// so they run over the whole document each compile.
-
 const TRIVIA = new Set([
   "Newline",
   "Whitespace",
@@ -72,8 +34,6 @@ export function makeSource(
   };
 }
 
-// The span of non-blank text starting at or after `from`, clipped to the end
-// of its line (and to `limit`), or null when only whitespace remains.
 export function lineTextSpan(
   from: number,
   limit: number,
@@ -148,9 +108,6 @@ export function validateDefineStructure(
     !!headerEnd && !!getDescendent("LuauWithKeyword", headerEnd);
   const endNode = findChildByName(node, "LuauDefine_end");
   const hasEnd = !!endNode && !!getDescendent("LuauEndKeyword", endNode);
-  // The first token after the header on its line, when the grammar left it
-  // unread: the rest of a name or `as` parent written right after it
-  // (`config.thing`, `héro`), or what follows `with`.
   let rest = header?.nextSibling ?? null;
   while (rest && isTrivia(rest)) rest = rest.nextSibling;
   if (

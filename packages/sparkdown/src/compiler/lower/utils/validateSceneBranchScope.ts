@@ -5,32 +5,6 @@ import { isLuauDocument } from "../../typecheck/LuauUnitNodes";
 import type { LowerContext } from "../context";
 import { statementSource } from "./statementSource";
 
-// Scope-rule validation for `Scene` and `Branch` declarations. Scenes
-// and branches are boundary-only Scoped rules in the grammar (see
-// docs/compiler/GRAMMAR.md) — the body lives at root, and the explicit `end`
-// keyword that terminates the block is matched as a separate
-// top-level `LuauEndKeyword` sibling. The lowerer enforces the
-// pairing rules:
-//
-//   - Every `Scene` must be followed (eventually, at root level) by
-//     a matching `LuauEndKeyword` before the next `Scene` or EOF.
-//   - Every `Branch` must be inside an active `Scene` (a Scene appears
-//     earlier at root level with no matching `end` yet) AND must
-//     itself be followed by a matching `LuauEndKeyword` before the
-//     enclosing scene's `end`.
-//
-// Both checks are linear sibling walks over the parse tree, which
-// keeps them out of the parser and avoids wrapping potentially-large
-// regions in Scoped rules. The language server's completion scope
-// (`getSectionEnd` in sparkdown-language-server's
-// `getDeclarationScopes.ts`) pairs sections with the same walks, except
-// that it treats a `Scene` inside an open section as that section's end.
-
-// Walks forward from `decl` over root-level siblings, tracking
-// scene/branch nesting depth (start at 1 — `decl` itself is the
-// scope we're checking). Returns `true` iff a matching
-// `LuauEndKeyword` is found before EOF or before a "wrong" boundary
-// (e.g. a new `Scene` while still inside another).
 function findsMatchingEnd(decl: SyntaxNode): boolean {
   let depth = 1;
   let cur = decl.nextSibling;
@@ -46,13 +20,6 @@ function findsMatchingEnd(decl: SyntaxNode): boolean {
   return false;
 }
 
-// Walks backward from `branch` over root-level siblings, tracking
-// `end` depth (we want to find a `Scene` declaration that hasn't yet
-// been closed). Returns `true` iff a `Scene` is found "above" us in
-// source order with no matching `end` between it and the branch.
-// The language server's `getParentSectionPath` walks the same siblings
-// to find the cursor's scene and branch; on a script missing an `end`
-// (which `findsMatchingEnd` reports) the two may answer differently.
 function isInsideScene(branch: SyntaxNode): boolean {
   let pendingEnds = 0;
   let cur = branch.prevSibling;
@@ -61,10 +28,6 @@ function isInsideScene(branch: SyntaxNode): boolean {
       pendingEnds += 1;
     } else if (cur.name === "Branch") {
       if (pendingEnds === 0) {
-        // Outer Branch with no end of its own yet — branches don't
-        // nest in branches, so this is a malformed file rather than
-        // a valid enclosing context. Keep walking; the outer caller
-        // will error on the *outer* branch.
         return false;
       }
       pendingEnds -= 1;
@@ -77,8 +40,6 @@ function isInsideScene(branch: SyntaxNode): boolean {
   return false;
 }
 
-// A `.luau` or `run` file has no scene or branch, whatever its tree reads:
-// Luau's reading reports its lines (I-1322).
 function inLuauDocument(ctx: LowerContext): boolean {
   return ctx.filePath !== undefined && isLuauDocument(ctx.filePath);
 }

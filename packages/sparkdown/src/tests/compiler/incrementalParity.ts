@@ -1,11 +1,8 @@
-// An editor over a document registry, and the check that its incrementally
-// updated tree and annotations are what a cold parse of the same text gives.
 import { expect } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
 const sets = ["declarations", "references", "semantics"] as const;
 
-/** A registry holding `text` at `uri`, annotated with the sets the parity check compares. */
 export function openRegistry(uri: string, text: string) {
   const registry = new SparkdownDocumentRegistry([...sets]);
   registry.add({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
@@ -29,7 +26,6 @@ function snapshot(registry: SparkdownDocumentRegistry, uri: string) {
   });
 }
 
-/** Expects the registry's tree and annotations at `uri` to be those of a cold parse of `text`. */
 export function expectParity(registry: SparkdownDocumentRegistry, uri: string, text: string, label: string) {
   const cold = openRegistry(uri, text);
   expect(registry.tree(uri)!.toString(), `${label}: parse trees`).toBe(cold.tree(uri)!.toString());
@@ -38,7 +34,6 @@ export function expectParity(registry: SparkdownDocumentRegistry, uri: string, t
   expect({ extra: actual.filter((value) => !expected.includes(value)), missing: expected.filter((value) => !actual.includes(value)) }, label).toEqual({ extra: [], missing: [] });
 }
 
-/** Applies edits to the document at `uri` as an editor sends them, keeping its text. */
 export class Editor {
   version = 2;
   constructor(public registry: SparkdownDocumentRegistry, public uri: string, public text: string) {}

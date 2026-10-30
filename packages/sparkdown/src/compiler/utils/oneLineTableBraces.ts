@@ -5,15 +5,8 @@ import {
 } from "./inlineAlternators";
 import { nodeNameSet } from "./nodeNameSet";
 
-// The nodes whose braces the formatter spaces on the inside when the whole
-// table sits on one line: a table constructor and a table type. An
-// interpolation, a binding and a handler closure are written with the same
-// characters but are other nodes, so they stay tight.
 const SPACED_TABLE_NAMES = nodeNameSet(["LuauTable", "LuauTypeTableStruct"]);
 
-// The `}` that closes a braced node (a table, or a brace body's block or
-// closure, #1227), or `null` when it has none. The node's `_end` capture
-// begins with the `}` and carries the whitespace after it.
 export function closingBrace(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -26,9 +19,6 @@ export function closingBrace(
   return null;
 }
 
-// A table inside a one-line inline alternator keeps the alternator's own
-// spacing: there whitespace is either text the player shows or collapsed
-// tight, and a table written as the alternator's arms is rewritten to pipes.
 function isSpacedTable(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -40,16 +30,6 @@ function isSpacedTable(
   );
 }
 
-/**
- * The offsets of the `{` and `}` of a table constructor or table type that
- * sits on one line and holds something, or `null` for any other node, an
- * empty table, a table that spans lines, a table with no closing brace and
- * a table inside a one-line inline alternator.
- *
- * The formatter writes one space after the `{` and one before the `}` of
- * such a table (`{ a = 1 }`, `{ number }`), as #1222 writes a one-line
- * block, and leaves an empty table as `{}`.
- */
 export function oneLineTableBraces(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -62,8 +42,6 @@ export function oneLineTableBraces(
   return { open: node.from, close };
 }
 
-// Whether the brace at `pos` is one of a table's own braces, which the
-// table's inner spacing already separates from a brace beside it.
 function isTableBrace(
   node: SyntaxNode,
   pos: number,
@@ -81,17 +59,6 @@ function isTableBrace(
   return false;
 }
 
-/**
- * The offsets where the formatter keeps one space between a table and an
- * enclosing brace that is not a table's, such as an interpolation or a
- * binding: `before` is the table's `{` when only spaces separate it from a
- * `{` before it on its line, and, when there is a `before`, `after` is just
- * past its `}` when only spaces separate that from a `}` after it.
- *
- * Joining the two braces would write `{{`, which reads as the
- * `{{fn(args)}}` call shorthand instead of a table (`#value={ { a = 1 } }`),
- * so this applies to an empty or multi-line table too.
- */
 export function tableOuterGaps(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
@@ -103,8 +70,6 @@ export function tableOuterGaps(
   if (prev >= 0 && read(prev, prev + 1) === "{" && !isTableBrace(node, prev, read)) {
     gaps.before = node.from;
   }
-  // A `}}` alone reads as nothing else (`{f{ 1 }}`), so the closing side
-  // matches the opening one only when the table fills the enclosing braces.
   const close = gaps.before == null ? null : closingBrace(node, read);
   if (close != null) {
     let next = close + 1;

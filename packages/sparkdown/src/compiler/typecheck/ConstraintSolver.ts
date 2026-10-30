@@ -1,13 +1,5 @@
 // The constraint solver, ported from Luau's `ConstraintSolver.h`/
 // `ConstraintSolver.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// The solver dispatches the constraints that constraint generation produced.
-// A constraint is dispatched once the constraint graph has nothing
-// outstanding that it depends on; when no constraint can make progress that
-// way, the first one that succeeds when forced is forced. Dispatching binds
-// blocked types and narrows the bounds of free types, and a free type that no
-// outstanding constraint can change any more is generalized at once. The
-// order of dispatch decides the inferred types and the order of the errors.
 
 import { ApplyTypeFunction } from "./ApplyTypeFunction";
 import { findUniqueTypesIn } from "./AstUtils";
@@ -124,34 +116,25 @@ import {
 import { Unifier2, UnifyResult } from "./Unifier2";
 import { RecursionLimitError, TypeOnceVisitor, TypeVisitor } from "./VisitType";
 
-// Luau's `LuauSolverConstraintLimit`.
 const SOLVER_CONSTRAINT_LIMIT = 1000;
-// Luau's `LuauSolverRecursionLimit`.
 const SOLVER_RECURSION_LIMIT = 500;
 
-/** A subtype or equality constraint the solver has pushed; the solver pushes each one only once. */
 export interface SubtypeConstraintRecord {
   subTy: TypeId;
   superTy: TypeId;
   variance: SubtypingVariance;
 }
 
-/** A key for a `SubtypeConstraintRecord`, equal for equal records (Luau's `operator==` and `HashSubtypeConstraintRecord`). */
 export function subtypeConstraintRecordKey(record: SubtypeConstraintRecord): string {
   return `${record.subTy.serial},${record.superTy.serial},${record.variance}`;
 }
 
-/** A type alias applied to arguments. */
 export interface InstantiationSignature {
   fn: TypeFun;
   arguments: TypeId[];
   packArguments: TypePackId[];
 }
 
-/**
- * A key for an `InstantiationSignature`, equal for signatures of the same alias (its type, and its type parameters
- * with their defaults) and the same arguments (Luau's `operator==` and `HashInstantiationSignature`).
- */
 export function instantiationSignatureKey(signature: InstantiationSignature): string {
   const { fn } = signature;
   return [
@@ -164,15 +147,8 @@ export function instantiationSignatureKey(signature: InstantiationSignature): st
 }
 
 export interface TablePropLookupResult {
-  /** The types the lookup is blocked on. */
   blockedTypes: TypeId[];
-  /** The type of the property, when it could be determined. */
   propType: TypeId | undefined;
-  /**
-   * Whether the type definitely comes from an indexer. This decides whether `t.lol = nil` is legal: it is when
-   * `t: { [string]: ~nil }`, as "lol" need not exist, but not when `t: { lol: ~nil }`, as the assignment would remove
-   * "lol" from the table.
-   */
   isIndex: boolean;
 }
 
@@ -180,11 +156,6 @@ function lookupResult(blockedTypes: TypeId[], propType: TypeId | undefined, isIn
   return { blockedTypes, propType, isIndex };
 }
 
-/**
- * The arguments of an alias application with one argument for each of the alias's type and pack parameters: surplus
- * types go into a pack, a single-type pack can stand for a missing type, defaults fill in what was left out, and
- * error types fill in the rest.
- */
 export function saturateArguments(
   arena: TypeArena,
   builtinTypes: BuiltinTypes,
@@ -203,8 +174,6 @@ export function saturateArguments(
     else extraTypes.push(ty);
   }
 
-  // Extra types go into a type pack. This never happens together with the conversion of a type pack to a type below,
-  // as there are extra types only when there are more types than type parameters for them to go into.
   if (extraTypes.length && fn.typePackParams.length) {
     saturatedPackArguments.push(arena.addTypePack(extraTypes));
   }
@@ -212,7 +181,6 @@ export function saturateArguments(
   for (let i = 0; i < rawPackArguments.length; ++i) {
     const tp = rawPackArguments[i]!;
 
-    // Short of type arguments, a type pack of a single element stands for the type it holds.
     if (
       saturatedTypeArguments.length < fn.typeParams.length &&
       packSize(tp) === 1 &&
@@ -232,13 +200,9 @@ export function saturateArguments(
   const packsProvided = saturatedPackArguments.length;
   const packsRequired = fn.typePackParams.length;
 
-  // Defaults are not used when a pack was provided without enough types, as that is an error to report rather than
-  // one to hide behind the defaults. With enough types but not enough packs, the default packs are used.
   const needsDefaults = (typesProvided < typesRequired && packsProvided === 0) || (typesProvided === typesRequired && packsProvided < packsRequired);
 
   if (needsDefaults) {
-    // Defaults can refer to earlier parameters, as in `type T<A, B = A> = (A, B) -> number`, so they go through an
-    // `ApplyTypeFunction`.
     const atf = new ApplyTypeFunction(arena);
 
     for (let i = 0; i < typesProvided; ++i) atf.typeArguments.set(fn.typeParams[i]!.ty, saturatedTypeArguments[i]!);
@@ -246,7 +210,6 @@ export function saturateArguments(
     for (let i = typesProvided; i < typesRequired; ++i) {
       const defaultTy = fn.typeParams[i]!.defaultValue;
 
-      // The error type fills this in later.
       if (!defaultTy) break;
 
       const instantiatedDefault = atf.substitute(defaultTy) ?? builtinTypes.errorType;
@@ -261,7 +224,6 @@ export function saturateArguments(
     for (let i = packsProvided; i < packsRequired; ++i) {
       const defaultTp = fn.typePackParams[i]!.defaultValue;
 
-      // The error type pack fills this in later.
       if (!defaultTp) break;
 
       const instantiatedDefault = atf.substitutePack(defaultTp) ?? builtinTypes.errorTypePack;
@@ -270,12 +232,10 @@ export function saturateArguments(
     }
   }
 
-  // Without an extra type pack made from surplus types, a single missing type pack is the empty pack.
   if (extraTypes.length === 0 && saturatedPackArguments.length + 1 === fn.typePackParams.length) {
     saturatedPackArguments.push(arena.addTypePack([]));
   }
 
-  // Substituting the generics needs something for each of them, even the missing ones, so the error type fills in.
   for (let i = saturatedTypeArguments.length; i < typesRequired; ++i) {
     saturatedTypeArguments.push(builtinTypes.errorType);
   }
@@ -291,18 +251,15 @@ export function saturateArguments(
   return [saturatedTypeArguments, saturatedPackArguments];
 }
 
-/** A new list of the same constraints (Luau borrows the pointers of a list of owned constraints). */
 export function borrowConstraints(constraints: Constraint[]): Constraint[] {
   return [...constraints];
 }
 
-/** Removes the elements at the front of `vec` for as long as `pred` holds for them. */
 export function dropWhile<T>(vec: T[], pred: (elem: T) => boolean): void {
   const it = vec.findIndex((elem) => !pred(elem));
   vec.splice(0, it === -1 ? vec.length : it);
 }
 
-/** Queues the expansion of the pending aliases and the reduction of the type function instances in a type. */
 class InstantiationQueuer extends IterativeTypeVisitor {
   constructor(
     readonly scope: Scope,
@@ -310,7 +267,7 @@ class InstantiationQueuer extends IterativeTypeVisitor {
     readonly solver: ConstraintSolver,
     readonly moduleName: string | undefined,
   ) {
-    super("InstantiationQueuer", /* skipBoundTypes */ true);
+    super("InstantiationQueuer", true);
   }
 
   override visitType(ty: TypeId, v: TypeVariant): boolean {
@@ -339,7 +296,6 @@ class InstantiationQueuer extends IterativeTypeVisitor {
   }
 }
 
-/** Finds an expansion of an alias, within its own type, with arguments other than its own type parameters. */
 class InfiniteTypeFinder extends IterativeTypeVisitor {
   foundInfiniteType = false;
 
@@ -348,7 +304,7 @@ class InfiniteTypeFinder extends IterativeTypeVisitor {
     readonly signature: InstantiationSignature,
     readonly scope: Scope,
   ) {
-    super("InfiniteTypeFinder", /* skipBoundTypes */ true);
+    super("InfiniteTypeFinder", true);
   }
 
   override visit(_ty: TypeId): boolean {
@@ -365,10 +321,8 @@ class InfiniteTypeFinder extends IterativeTypeVisitor {
 
     if (!tf) return true;
 
-    // Different types mean two different aliases.
     if (follow(tf.type) !== follow(this.signature.fn.type)) return true;
 
-    // The arguments to this pending expansion have to be exactly the alias's generics.
     for (let i = 0; i < Math.min(petv.typeArguments.length, tf.typeParams.length); ++i) {
       const pendingTypeArg = follow(petv.typeArguments[i]!);
       const tfTypeParam = follow(tf.typeParams[i]!.ty);
@@ -380,7 +334,6 @@ class InfiniteTypeFinder extends IterativeTypeVisitor {
       }
     }
 
-    // Likewise with packs.
     for (let i = 0; i < Math.min(petv.packArguments.length, tf.typePackParams.length); ++i) {
       if (petv.packArguments[i] !== tf.typePackParams[i]!.tp) {
         this.foundInfiniteType = true;
@@ -392,7 +345,6 @@ class InfiniteTypeFinder extends IterativeTypeVisitor {
   }
 }
 
-/** Counts the occurrences of a type within another, and records the polarities it occurs with. */
 export class TypeSearcher extends TypeVisitor {
   current: Polarity;
 
@@ -403,7 +355,7 @@ export class TypeSearcher extends TypeVisitor {
     readonly needle: TypeId,
     initialPolarity = Polarity.Positive,
   ) {
-    super("TypeSearcher", /* skipBoundTypes */ true);
+    super("TypeSearcher", true);
     this.current = initialPolarity;
   }
 
@@ -451,11 +403,10 @@ class BlockedTypeFinder extends TypeOnceVisitor {
   blocked: TypeId | undefined;
 
   constructor() {
-    super("ContainsGenerics_DEPRECATED", /* skipBoundTypes */ true);
+    super("ContainsGenerics_DEPRECATED", true);
   }
 
   override visit(_ty: TypeId): boolean {
-    // Once one is found, the traversal stops.
     return this.blocked === undefined;
   }
 
@@ -468,13 +419,12 @@ class BlockedTypeFinder extends TypeOnceVisitor {
   }
 }
 
-/** Collects the members of a union, sorting out the ones that may still change. */
 class FindAllUnionMembers extends TypeOnceVisitor {
   readonly recordedTys = new TypeIds();
   readonly blockedTys = new TypeIds();
 
   constructor() {
-    super("FindAllUnionMembers", /* skipBoundTypes */ true);
+    super("FindAllUnionMembers", true);
   }
 
   override visit(ty: TypeId): boolean {
@@ -502,10 +452,6 @@ class FindAllUnionMembers extends TypeOnceVisitor {
   }
 }
 
-/**
- * The type a free type standing for a literal generalizes to: its lower bound when its upper bound, other than the
- * literal's primitive type, may be a singleton, and that primitive type otherwise.
- */
 function resolvePrimitiveLiteral(ft: FreeType): TypeId | undefined {
   if (!ft.primitiveType) return undefined;
 
@@ -517,7 +463,6 @@ function resolvePrimitiveLiteral(ft: FreeType): TypeId | undefined {
   return bindTo;
 }
 
-/** The value under `key`, inserting `make()` first when there is none, as `operator[]` on a C++ map. */
 function getOrInsert<K, V>(map: Map<K, V>, key: K, make: () => V): V {
   let value = map.get(key);
   if (value === undefined) {
@@ -527,7 +472,6 @@ function getOrInsert<K, V>(map: Map<K, V>, key: K, make: () => V): V {
   return value;
 }
 
-/** A table's property by name, added empty when it is missing, as `props[name]` on Luau's `std::map`. */
 function propertyAt(props: Props, name: string): Property {
   let prop = props.get(name);
   if (!prop) {
@@ -537,7 +481,6 @@ function propertyAt(props: Props, name: string): Property {
   return prop;
 }
 
-/** Luau's `BlockedType::setOwner`: a blocked type keeps the first owner it is given. */
 function setOwner(blocked: BlockedType, owner: Constraint): void {
   if (blocked.owner !== undefined) return;
   blocked.owner = owner;
@@ -547,70 +490,43 @@ function bySerial(a: TypeId, b: TypeId): number {
   return a.serial - b.serial;
 }
 
-/** Luau's `IllegalRequire` error. `TypeErrorData` has no such kind, so the data is cast. */
 function illegalRequire(moduleName: string, reason: string): TypeErrorData {
   return { kind: "IllegalRequire", moduleName, reason } as unknown as TypeErrorData;
 }
 
-/**
- * Whether a module is a module script (Luau's `module->type == SourceCode::Module`). `Module` does not record the type
- * of its source, so every module counts as one.
- */
 function isModuleScript(_module: Module): boolean {
   return true;
 }
 
-/**
- * Dispatches the constraints of a module, and the ones that dispatching them adds, until none are left or none can
- * make progress.
- */
 export class ConstraintSolver {
   readonly arena: TypeArena;
   readonly builtinTypes: BuiltinTypes;
   readonly normalizer: Normalizer;
   readonly typeFunctionRuntime: TypeFunctionRuntime;
-  /** The entire set of constraints that the solver is trying to resolve. */
   readonly constraintSet: ConstraintSet;
   readonly constraints: Constraint[];
   readonly scopeToFunction: Map<Scope, TypeId>;
   readonly rootScope: Scope;
   readonly module: Module;
-  /** The module that errors of the solve as a whole, such as `ConstraintSolvingIncompleteError`, are reported in. */
   readonly representativeModuleName: string;
 
-  /** The data flow graph of the program, used in constraint generation and by magic functions. */
   readonly dfg: DataFlowGraph;
 
-  /** The constraints the solver generated itself, rather than taking them from constraint generation. */
   readonly solverConstraints: Constraint[] = [];
 
-  /**
-   * Counts down each time the solver pushes a constraint. When it reaches zero, the solver reports that the code is
-   * too complex and stops dispatching.
-   */
   solverConstraintLimit: number;
 
-  /** Every constraint that has not been fully solved. A constraint can be both blocked and unsolved. */
   readonly unsolvedConstraints: Constraint[] = [];
 
-  /** Memoized instantiations of type aliases, keyed by `instantiationSignatureKey`. */
   readonly instantiatedAliases = new Map<string, TypeId>();
-  /**
-   * Where each free type's upper bound was expanded, for more helpful messages when a free type is unexpectedly
-   * solved as `never`.
-   */
   readonly upperBoundContributors = new Map<TypeId, [Location, TypeId][]>();
 
-  /** Irreducible or uninhabited type function and type pack function instances. */
   readonly uninhabitedTypeFunctions = new Set<object>();
 
-  /** The subtype and equality constraints the solver pushed, keyed by `subtypeConstraintRecordKey`. */
   readonly seenConstraints = new Map<string, Constraint>();
 
-  /** The types that generalization will definitely leave unchanged. */
   readonly generalizedTypes = new Set<TypeId>();
 
-  /** The errors found while solving. */
   readonly errors: LuauTypeError[] = [];
 
   readonly moduleResolver: ModuleResolver;
@@ -660,11 +576,9 @@ export class ConstraintSolver {
     this.initFreeTypeTracking();
   }
 
-  /** Tries to dispatch every pending constraint, to reach types that satisfy all of them. */
   run(): void {
     if (this.isDone()) return;
 
-    // Free types that have no constraints at all can be generalized right away.
     const freeTypesToProcess = this.cgraph.freeTypes;
     for (const ty of freeTypesToProcess) {
       if (!this.cgraph.hasUnsolvedDependencies(ty)) this.generalizeOneType(ty);
@@ -686,7 +600,6 @@ export class ConstraintSolver {
           continue;
         }
 
-        // With a limit on the constraints the solver may push, solving stops once it runs out.
         if (SOLVER_CONSTRAINT_LIMIT > 0 && this.solverConstraintLimit === 0) break;
 
         const success = this.tryDispatch(c, force);
@@ -704,8 +617,6 @@ export class ConstraintSolver {
               this.unblock(ty, new Location());
             }
           }
-
-          // Free type packs are never generalized eagerly.
         } else ++i;
 
         if (force && success) return true;
@@ -728,14 +639,10 @@ export class ConstraintSolver {
       if (get(follow(constraint.get("GeneralizationConstraint")!.generalizedType), "BlockedType")) this.tryDispatch(constraint, true);
     }
 
-    // With every constraint run, the type functions should be generalized; one final reduction tells whether they are
-    // truly uninhabited or can reduce.
     this.finalizeTypeFunctions();
   }
 
-  /** Tries one final reduction of the type functions still unreduced, once every constraint has run. */
   finalizeTypeFunctions(): void {
-    // Generalization is done, so as much as possible is reduced; the warnings are left to the type checker.
     for (const [t, constraint] of this.typeFunctionsToFinalize) {
       const ty = follow(t);
       if (get(ty, "TypeFunctionInstanceType")) {
@@ -768,7 +675,6 @@ export class ConstraintSolver {
     ty = follow(ty);
     const freeTy = get(ty, "FreeType");
 
-    // Some constraints also replace a free type with something concrete, which leaves nothing to do.
     if (!freeTy) return;
 
     const bindTo = resolvePrimitiveLiteral(freeTy);
@@ -786,14 +692,9 @@ export class ConstraintSolver {
     generalize(this.arena, this.builtinTypes, freeTy.scope!, this.generalizedTypes, functionTy, ty);
   }
 
-  /**
-   * Binds a blocked, free or pending type to another type, and unblocks it. A blocked type must be owned by the
-   * constraint, which keeps one constraint from interfering with another's blocked types.
-   */
   bind(constraint: Constraint, ty: TypeId, boundTo: TypeId): void {
     boundTo = follow(boundTo);
 
-    // `ty` is followed in case it is somehow already bound.
     if (follow(ty) === boundTo) {
       const freshTy = freshType(this.arena, this.builtinTypes, constraint.scope, Polarity.Mixed);
       emplaceType(ty, boundType(freshTy));
@@ -824,10 +725,6 @@ export class ConstraintSolver {
     this.unblockPack(tp, constraint.location);
   }
 
-  /**
-   * Tries to dispatch a constraint, and returns whether it succeeded. A constraint that did not stays unsolved and is
-   * tried again later.
-   */
   tryDispatch(constraint: Constraint, force: boolean): boolean {
     let success = false;
 
@@ -934,7 +831,6 @@ export class ConstraintSolver {
       if (fty) {
         if (c.maybeDeprecatedAttr) {
           fty.isDeprecatedFunction = true;
-          // The attribute's deprecation details (Luau's `deprecatedInfo`) have no field on the function type to go in.
         }
       }
     } else {
@@ -942,7 +838,6 @@ export class ConstraintSolver {
       this.bind(constraint, c.generalizedType, this.builtinTypes.errorType);
     }
 
-    // The loops go over the types present when they start.
     if (constraint.scope.interiorFreeTypes) {
       for (let ty of [...constraint.scope.interiorFreeTypes]) {
         ty = follow(ty);
@@ -951,7 +846,6 @@ export class ConstraintSolver {
           const params: GeneralizationParams = { foundOutsideFunctions: true, useCount: 1, polarity: freeTy.polarity };
           const res = generalizeType(this.arena, this.builtinTypes, constraint.scope, ty, params);
           if (res.resourceLimitsExceeded) {
-            // The scope's location is not a very good location for this.
             this.reportError({ kind: "CodeTooComplex" }, constraint.scope.location, this.moduleNameOf(constraint));
           }
         } else if (get(ty, "TableType")) sealTable(constraint.scope, ty);
@@ -986,19 +880,10 @@ export class ConstraintSolver {
   }
 
   tryDispatchIterableConstraint(c: IterableConstraint, constraint: Constraint, force: boolean): boolean {
-    // An iterable constraint is never forced.
     force = false;
-
-    // A `for ... in` loop plays out differently depending on the shape of the iteratee, which may be a next function
-    // (alone, with a table, or with a table and a first index); a table with a metatable and `__index`; a table with
-    // a metatable and `__call` but no `__index` (`__index` wins when there are both); or a table with an indexer but
-    // no `__index` or `__call` (or no metatable). Dispatching this needs enough of the iteratee's type to tell which
-    // shape it is, and a forced constraint that still cannot tell has to flag a warning. As it needs so much of the
-    // iteratee's type, the solver is also what applies the constraints on the types of the iterators.
 
     const block_ = (t: TypePackId): boolean => {
       if (force) {
-        // With the iteratee's type still unknown, there is nothing to do.
         return true;
       }
 
@@ -1075,7 +960,6 @@ export class ConstraintSolver {
 
     const tf = constraint.scope.lookupType(c.name);
     if (tf) {
-      // This checks whether the alias breaks the restriction on recursive uses.
       const signature: InstantiationSignature = { fn: tf, arguments: c.typeParameters, packArguments: c.typePackParameters };
 
       const itf = new InfiniteTypeFinder(this, signature, constraint.scope);
@@ -1115,7 +999,6 @@ export class ConstraintSolver {
 
     const bindResult = (result: TypeId): void => {
       const cTarget = follow(c.target);
-      // The occurs check keeps an alias from being bound to itself.
       if (occursCheck(cTarget, result)) {
         this.reportError({ kind: "OccursCheckFailed" }, constraint.location, this.moduleNameOf(constraint));
         this.bind(constraint, cTarget, this.builtinTypes.errorType);
@@ -1136,17 +1019,12 @@ export class ConstraintSolver {
       return true;
     }
 
-    // While the alias's type is itself blocked, this waits for it. This does not use `isBlocked`, as this constraint
-    // handles pending expansions and type function instances specially.
     if (get(follow(tf.type), "BlockedType")) return this.block(tf.type, constraint);
 
-    // A type function instance gets a reduce constraint.
     const tfit = get(follow(tf.type), "TypeFunctionInstanceType");
     if (tfit) {
       let toReduce = follow(tf.type);
 
-      // An instance from another arena, such as one imported from another module, is copied into this arena so that
-      // the reducer can mutate it.
       if (toReduce.owningArena !== this.arena) {
         toReduce = this.arena.addType(typeFunctionInstanceType(tfit.function, [...tfit.typeArguments], [...tfit.packArguments], tfit.userFuncName, tfit.userFuncData));
 
@@ -1161,8 +1039,6 @@ export class ConstraintSolver {
       }
     }
 
-    // Given how pending expansion types and aliases are made, passing this check means a cyclic, or corecursive,
-    // alias of size 0.
     const lhs = follow(c.target);
     const rhs = tf.type;
     if (occursCheck(lhs, rhs)) {
@@ -1171,7 +1047,6 @@ export class ConstraintSolver {
       return true;
     }
 
-    // An alias without parameters stands for its type directly.
     if (tf.typeParams.length === 0 && tf.typePackParams.length === 0) {
       bindResult(tf.type);
       return true;
@@ -1183,8 +1058,6 @@ export class ConstraintSolver {
 
     const samePacks = packArguments.length === tf.typePackParams.length && packArguments.every((itp, i) => itp === tf.typePackParams[i]!.tp);
 
-    // Instantiating the alias with its own generics is the identity substitution, which binds straight to the alias's
-    // type.
     if (sameTypes && samePacks) {
       bindResult(tf.type);
       return true;
@@ -1192,16 +1065,12 @@ export class ConstraintSolver {
 
     const signature: InstantiationSignature = { fn: tf, arguments: typeArguments, packArguments };
 
-    // Instantiation is deterministic, so a signature seen before reuses its instantiation.
     const cached = this.instantiatedAliases.get(instantiationSignatureKey(signature));
     if (cached) {
       bindResult(cached);
       return true;
     }
 
-    // To keep infinite types from being expanded forever, the alias's type is scanned for expansions of the same alias
-    // with different arguments (see https://github.com/luau-lang/luau/pull/68). This catches an infinite expansion
-    // before it is attempted, which is nicer than a recursion limit.
     const itf = new InfiniteTypeFinder(this, signature, constraint.scope);
     itf.run(tf.type);
 
@@ -1211,8 +1080,6 @@ export class ConstraintSolver {
       return true;
     }
 
-    // This is not quite instantiation, as the arguments also replace the binders: `<T...>(T...) -> T...` instantiated
-    // with `any` for `T...` becomes `<any>(any) -> any`, where none of these are generics.
     const applyTypeFunction = new ApplyTypeFunction(this.arena);
     for (let i = 0; i < typeArguments.length; ++i) {
       applyTypeFunction.typeArguments.set(tf.typeParams[i]!.ty, typeArguments[i]!);
@@ -1223,10 +1090,8 @@ export class ConstraintSolver {
     }
 
     const maybeInstantiated = applyTypeFunction.substitute(tf.type);
-    // `encounteredForwardedType` is never set here, as forward-declared generic aliases do not use free types.
 
     if (!maybeInstantiated) {
-      // No error is reported for this.
       bindResult(this.builtinTypes.errorType);
       return true;
     }
@@ -1234,13 +1099,10 @@ export class ConstraintSolver {
     let instantiated: TypeId = maybeInstantiated;
     let target = follow(instantiated);
 
-    // The application is not recursive, so the type function instantiations within the result are queued for it to
-    // be complete.
     const queuer = new InstantiationQueuer(constraint.scope, constraint.location, this, constraint.moduleName);
 
     queuer.run(target);
 
-    // The arguments may hold pending expansion types as well.
     for (const arg of typeArguments) queuer.run(arg);
     for (const arg of packArguments) queuer.runPack(arg);
 
@@ -1249,13 +1111,11 @@ export class ConstraintSolver {
       return true;
     }
 
-    // Applying an alias gives back the very same type when, for example, some generics go unused.
     const tfTable = getTableType(tf.type);
 
     const needsClone =
       follow(tf.type) === target || (tfTable !== undefined && tfTable === getTableType(target)) || typeArguments.some((other) => other === target);
 
-    // Only tables have the properties set here.
     let ttv = getTableType(target);
 
     if (ttv) {
@@ -1273,7 +1133,6 @@ export class ConstraintSolver {
         target = follow(instantiated);
       }
 
-      // This is a new type, defined here.
       ttv.definitionLocation = constraint.location;
       ttv.definitionModuleName = this.moduleNameOf(constraint);
 
@@ -1288,15 +1147,12 @@ export class ConstraintSolver {
     return true;
   }
 
-  /** Binds the discriminant types a call left unused to `*no-refine*`, and unblocks every one of them. */
   fillInDiscriminantTypes(constraint: Constraint, discriminantTypes: (TypeId | undefined)[]): void {
     for (const ty of discriminantTypes) {
       if (!ty) continue;
 
-      // `*no-refine*` marks an unused discriminant as safe to ignore.
       if (this.isBlocked(ty)) emplaceType(follow(ty), boundType(this.builtinTypes.noRefineType));
 
-      // These types are unblocked unconditionally, which keeps "Blocked on *no-refine*" from showing up.
       this.unblock(ty, constraint.location);
     }
   }
@@ -1315,7 +1171,6 @@ export class ConstraintSolver {
       return true;
     }
 
-    // Calling an error type gives an error type, and that's that.
     if (get(fn, "ErrorType")) {
       this.bindPack(constraint, c.result, this.builtinTypes.errorTypePack);
       this.fillInDiscriminantTypes(constraint, c.discriminantTypes);
@@ -1358,7 +1213,6 @@ export class ConstraintSolver {
       return fst;
     };
 
-    // Sometimes `fn` is a union or intersection whose members are all the same type.
     const ut = get(fn, "UnionType");
     if (ut) fn = collapse(ut) ?? fn;
     else {
@@ -1397,23 +1251,20 @@ export class ConstraintSolver {
 
     let overloadToUse = fn;
 
-    // A function type needs no overload selection, which would only waste time.
     if (!is(fn, "FunctionType")) {
       const res = resolver.resolveOverload(
         fn,
         argsPack,
         c.callSite ? c.callSite.func.location : new Location(),
         uniqueTypes,
-        /* useFreeTypeBounds */ true,
+        true,
       );
 
-      // Selection is never retried, as that is prohibitively expensive.
       const { overload } = res.getUnambiguousOverload();
 
       if (overload) {
         overloadToUse = overload;
       } else {
-        // Without an unambiguous overload, the result is the error type.
         this.bindPack(constraint, c.result, this.builtinTypes.errorTypePack);
         return true;
       }
@@ -1434,27 +1285,14 @@ export class ConstraintSolver {
     for (const freeTp of u2.newFreshTypePacks) trackInteriorFreeTypePack(constraint.scope, freeTp);
 
     if (u2.genericSubstitutions.size || u2.genericPackSubstitutions.size) {
-      // Given
-      //
-      //  local tbl = {}
-      //  for _ in 0..3 do
-      //      table.insert(tbl, i)
-      //  end
-      //  return table.unpack(tbl)
-      //
-      // the constraints of `table.unpack`, of type `<T>({ T }) -> ...T`, may leave `T` without bounds: `tbl` gets an
-      // indexer that is never unified with anything. The resolved overload would then be `({ unknown }) -> ...unknown`,
-      // which fails type checking, so when no generic has bounds, the resolved overload is not stored (CLI-191965).
       let hasNonTrivialSubstitution = false;
       for (const [, ty] of u2.genericSubstitutions) {
         const ft = get(ty, "FreeType");
         if (ft && (!is(follow(ft.lowerBound), "NeverType") || !is(follow(ft.upperBound), "UnknownType"))) hasNonTrivialSubstitution = true;
       }
 
-      // Generics to bind, with bounds to bind them to:
       const overloadAsFn = get(overloadToUse, "FunctionType");
       if (overloadAsFn && hasNonTrivialSubstitution) {
-        // Persistent types are cloned here, for example when instantiating `table.insert`.
         const clonedTy = shallowClone(overloadToUse, this.arena, true);
         const clonedFn = get(clonedTy, "FunctionType")!;
         clonedFn.generics = [];
@@ -1487,8 +1325,6 @@ export class ConstraintSolver {
     switch (unifyResult) {
       case UnifyResult.Ok:
         if (c.callSite) {
-          // The way bidirectional inference of function arguments works makes magic functions rely on getting the
-          // inferred type here (CLI-192090).
           c.astOverloadResolvedTypes!.set(c.callSite, usedMagic ? inferredTy : overloadToUse);
         }
         break;
@@ -1509,7 +1345,6 @@ export class ConstraintSolver {
   }
 
   tryDispatchFunctionCheckConstraint(c: FunctionCheckConstraint, constraint: Constraint, force: boolean): boolean {
-    // A function check is never forced.
     force = false;
 
     const fn = follow(c.fn);
@@ -1519,12 +1354,6 @@ export class ConstraintSolver {
 
     if (this.isBlockedPack(argsPack)) return true;
 
-    // The type of the function and the arguments it expects are known, and so are the types of the arguments it is
-    // passed. Bidirectional type checking forces the arguments' types to be the expected ones, and type checking
-    // reports anything incoherent. When an argument is a lambda, its unannotated parameters take the expected types
-    // too.
-    //
-    // Overloaded functions get no bidirectional type checking.
     const ftv = get(fn, "FunctionType");
     if (!ftv) return true;
 
@@ -1536,7 +1365,6 @@ export class ConstraintSolver {
     const u2 = new Unifier2(this.arena, this.builtinTypes, constraint.scope);
 
     for (const generic of ftv.generics) {
-      // Types other than generics can show up here, for example when checking a recursive function call.
       const gty = get(follow(generic), "GenericType");
       if (gty) {
         replacements.set(generic, gty.polarity === Polarity.Negative ? this.builtinTypes.neverType : this.builtinTypes.unknownType);
@@ -1551,7 +1379,6 @@ export class ConstraintSolver {
 
     const callSite = c.callSite!;
 
-    // A self call has one more type than the call has arguments, and the self type gets no bidirectional inference.
     const typeOffset = callSite.self ? 1 : 0;
 
     const expectedArgs = extendTypePack(this.arena, this.builtinTypes, ftv.argTypes, callSite.args.length + typeOffset).head;
@@ -1563,17 +1390,6 @@ export class ConstraintSolver {
 
       const result = pushTypeInto(c.astTypes, c.astExpectedTypes, this, constraint, genericTypesAndPacks, u2, this.subtyping, expectedArgTy, expr);
 
-      // Given
-      //
-      //  local Direction = { Left = 1, Right = 2 }
-      //  type Direction = keyof<Direction>
-      //
-      //  local function move(dirs: { Direction }) --[[...]] end
-      //
-      //  move({ "Left", "Right", "Left", "Right" })
-      //
-      // `keyof<Direction>` has to reduce before the arguments to `move` generalize to their lower bounds, and these
-      // constraints ensure that order.
       if (!force && result.incompleteTypes.length) {
         for (const { expectedType: newExpectedTy, targetType: newTargetTy, expr: newExpr } of result.incompleteTypes) {
           const addition = this.pushConstraint(
@@ -1594,7 +1410,6 @@ export class ConstraintSolver {
       }
     }
 
-    // As above, these make sure type functions such as `keyof<Direction>` reduce before the arguments generalize.
     for (const cv of u2.incompleteSubtypes) {
       const addition = this.pushConstraint(constraint.scope, constraint.location, cv, constraint.moduleName);
       this.inheritBlocks(constraint, addition);
@@ -1616,7 +1431,6 @@ export class ConstraintSolver {
       }
     }
 
-    // It does not matter whether the type came from an indexer.
     const { blockedTypes: blocked, propType: result } = this.lookupTableProp(
       constraint,
       subjectType,
@@ -1643,7 +1457,6 @@ export class ConstraintSolver {
     resultType: TypeId,
     seen: Set<TypeId>,
   ): boolean {
-    // Luau's `RecursionLimiter`.
     ++recursionDepth.value;
     try {
       if (SOLVER_RECURSION_LIMIT > 0 && recursionDepth.value > SOLVER_RECURSION_LIMIT) {
@@ -1677,7 +1490,6 @@ export class ConstraintSolver {
         const freeResult = freshType(this.arena, this.builtinTypes, ft.scope, Polarity.Mixed);
         trackInteriorFreeType(ft.scope, freeResult);
         this.bind(constraint, resultType, freeResult);
-        // `resultType` is followed later, so it is simply reassigned here.
         resultType = freeResult;
 
         const upperBound = this.arena.addType(
@@ -1700,7 +1512,6 @@ export class ConstraintSolver {
         }
 
         if (tt.state === TableState.Unsealed) {
-          // This is greedy.
           const freeResult = freshType(this.arena, this.builtinTypes, tt.scope, Polarity.Mixed);
           trackInteriorFreeType(tt.scope, freeResult);
           this.bind(constraint, resultType, freeResult);
@@ -1722,8 +1533,6 @@ export class ConstraintSolver {
           return true;
         }
       } else if (subject.kind === "IntersectionType") {
-        // Indexing into an intersection is roughly akin to overload selection: the result is the intersection of the
-        // results for every part that it is well typed to index into.
         const ib = new IntersectionBuilder(this.arena, this.builtinTypes);
         let success = false;
 
@@ -1732,7 +1541,6 @@ export class ConstraintSolver {
           setOwner(get(r, "BlockedType")!, constraint);
 
           const ok = this.tryDispatchHasIndexer(recursionDepth, constraint, part, indexType, r, seen);
-          // A recursive loop cut short is skipped.
           if (!ok) continue;
 
           r = follow(r);
@@ -1742,14 +1550,11 @@ export class ConstraintSolver {
           }
         }
 
-        // The flag tells the empty case, where no part could be indexed, from the bottom type, where one part's
-        // result was `never`, which the builder records alone.
         if (success) this.bind(constraint, resultType, ib.build());
         else this.bind(constraint, resultType, this.builtinTypes.errorType);
 
         return true;
       } else if (subject.kind === "UnionType") {
-        // Indexing into a union gives the union of the results, as which member it is is not known.
         const ub = new UnionBuilder(this.arena, this.builtinTypes);
         let success = false;
 
@@ -1758,7 +1563,6 @@ export class ConstraintSolver {
           setOwner(get(r, "BlockedType")!, constraint);
 
           const ok = this.tryDispatchHasIndexer(recursionDepth, constraint, option, indexType, r, seen);
-          // A recursive loop cut short is skipped.
           if (!ok) continue;
 
           r = follow(r);
@@ -1766,8 +1570,6 @@ export class ConstraintSolver {
           ub.add(r);
         }
 
-        // The flag tells the empty case, where no member could be indexed, from the top type, where one member's
-        // result was `unknown`, which the builder records alone.
         if (success) this.bind(constraint, resultType, ub.build());
         else this.bind(constraint, resultType, this.builtinTypes.errorType);
 
@@ -1792,7 +1594,6 @@ export class ConstraintSolver {
 
     const btf = new BlockedTypeFinder();
 
-    // `visit` looks at the subject alone without traversing it, so `blocked` stays unset.
     btf.visit(subjectType);
 
     if (btf.blocked) return this.block(btf.blocked, constraint);
@@ -1802,7 +1603,6 @@ export class ConstraintSolver {
 
     const result = this.tryDispatchHasIndexer(recursionDepth, constraint, subjectType, indexType, c.resultType, seen);
 
-    // This implies that the graph also needs an edge for having an indexer (CLI-205496).
     if (result) this.unblock(subjectType, new Location());
 
     return result;
@@ -1814,15 +1614,6 @@ export class ConstraintSolver {
     const rhsType = follow(c.rhsType);
 
     if (this.isBlocked(lhsType)) return this.block(lhsType, constraint);
-
-    // The cases are:
-    // 1. lhsType is an extern type that already has the prop
-    // 2. lhsType is a table that already has the prop (or a union or intersection that has the prop in aggregate)
-    // 3. lhsType has a metatable that already has the prop
-    // 4. lhsType is an unsealed table that does not have the prop, but has a string indexer
-    // 5. lhsType is an unsealed table that does not have the prop or a string indexer
-    //
-    // Every path through this function binds `c.propType` to something, even if it is just the error type.
 
     const lhsExternType = get(lhsType, "ExternType");
     if (lhsExternType) {
@@ -1858,7 +1649,6 @@ export class ConstraintSolver {
 
         upperTable.props.set(c.propName, Property.rw(rhsType));
 
-        // Could this block when simplification meets a blocked type?
         lhsFree.upperBound = this.simplifyIntersection(constraint.scope, constraint.location, lhsFreeUpperBound, newUpperBound);
 
         this.bind(constraint, c.propType, rhsType);
@@ -1866,7 +1656,6 @@ export class ConstraintSolver {
       }
     }
 
-    // A table that already has the property or a matching indexer, which also covers unions and intersections.
     const { blockedTypes: blocked, propType: maybeTy, isIndex } = this.lookupTableProp(constraint, lhsType, propName, ValueContext.LValue);
     if (blocked.length) {
       for (const t of blocked) this.block(t, constraint);
@@ -1883,8 +1672,6 @@ export class ConstraintSolver {
     const lhsMeta = get(lhsType, "MetatableType");
     if (lhsMeta) lhsType = follow(lhsMeta.table);
 
-    // A table without the named property, which may be a table with a string indexer, or an unsealed or free table
-    // that can grow.
     const lhsTable = get(lhsType, "TableType");
     if (lhsTable) {
       const prop = lhsTable.props.get(propName);
@@ -1913,7 +1700,6 @@ export class ConstraintSolver {
       }
 
       if (lhsTable.state === TableState.Unsealed || lhsTable.state === TableState.Free) {
-        // Inserting a free type 'a into a table {| |} means that anything that might affect {| |} might also affect 'a.
         this.cgraph.copyDependenciesOf(lhsType, rhsType);
         this.bind(constraint, c.propType, rhsType);
         const newProp = propertyAt(lhsTable.props, propName);
@@ -1924,17 +1710,6 @@ export class ConstraintSolver {
         if (lhsTable.state === TableState.Unsealed && c.decrementPropCount) {
           lhsTable.remainingProps -= 1;
 
-          // An unsealed table that was blocked on a missing member has to be woken up. In
-          //
-          //  local T = {}
-          //  function T:foo()
-          //         return T:bar(5)
-          //  end
-          //  function T:bar(i)
-          //        return i
-          //  end
-          //
-          // `hasProp T "bar"` may be tried and block, and would then never wake up without forcing a constraint.
           this.unblock(lhsType, constraint.location);
         }
 
@@ -1953,14 +1728,6 @@ export class ConstraintSolver {
     const rhsType = follow(c.rhsType);
 
     if (this.isBlocked(lhsType)) return this.block(lhsType, constraint);
-
-    // The cases are:
-    // 0. lhsType could be an intersection or union.
-    // 1. lhsType is an extern type with an indexer
-    // 2. lhsType is a table with an indexer, or it has a metatable that has an indexer
-    // 3. lhsType is a free or unsealed table and can grow an indexer
-    //
-    // Every path through this function binds `c.propType` to something, even if it is just the error type.
 
     const tableStuff = (lhsTable: TableType): boolean | undefined => {
       if (lhsTable.indexer) {
@@ -2058,7 +1825,6 @@ export class ConstraintSolver {
       this.unify(constraint, rhsType, res);
     }
 
-    // Other types do not support index assignment.
     this.bind(constraint, c.propType, this.builtinTypes.errorType);
 
     return true;
@@ -2083,8 +1849,6 @@ export class ConstraintSolver {
 
       if (get(resultTy, "BlockedType")) {
         if (follow(srcTy) === resultTy) {
-          // A blocked type that turns out to be blocked only on itself constrains nothing, so it becomes a free type.
-          // Whether positive is the right polarity for it is an open question.
           const f = freshType(this.arena, this.builtinTypes, constraint.scope, Polarity.Positive);
           trackInteriorFreeType(constraint.scope, f);
           this.bind(constraint, resultTy, f);
@@ -2095,8 +1859,6 @@ export class ConstraintSolver {
       ++i;
     }
 
-    // The result pack has no tail, but the source pack may be too short to fill every value: the remaining results
-    // become `nil`.
     while (resultIter !== resultEnd) {
       const resultTy = follow(c.resultPack[resultIter]!);
       if (get(resultTy, "BlockedType") || get(resultTy, "PendingExpansionType")) {
@@ -2128,13 +1890,11 @@ export class ConstraintSolver {
 
     ty = follow(ty);
 
-    // A type function that could not be reduced goes in the set to finalize.
     if (get(ty, "TypeFunctionInstanceType") && !result.irreducibleTypes.has(ty)) this.typeFunctionsToFinalize.set(ty, constraint);
 
     if (force || reductionFinished) {
       for (const message of result.messages) this.reportError(message.data, message.location, this.moduleNameOf(constraint));
 
-      // Dispatching this constraint for good records the uninhabited type functions to unblock.
       for (const error of result.errors) {
         if (error.data.kind === "UninhabitedTypeFunction") this.uninhabitedTypeFunctions.add(error.data.ty);
         else if (error.data.kind === "UninhabitedTypePackFunction") this.uninhabitedTypeFunctions.add(error.data.tp);
@@ -2151,7 +1911,6 @@ export class ConstraintSolver {
   }
 
   tryDispatchReducePackConstraint(c: ReducePackConstraint, constraint: Constraint, force: boolean): boolean {
-    // A reduce pack constraint is never forced.
     force = false;
 
     const tp = followPack(c.tp);
@@ -2166,7 +1925,6 @@ export class ConstraintSolver {
     const reductionFinished = result.blockedTypes.size === 0 && result.blockedPacks.size === 0;
 
     if (force || reductionFinished) {
-      // Dispatching this constraint for good records the uninhabited type functions to unblock.
       for (const error of result.errors) {
         if (error.data.kind === "UninhabitedTypeFunction") this.uninhabitedTypeFunctions.add(error.data.ty);
         else if (error.data.kind === "UninhabitedTypePackFunction") this.uninhabitedTypeFunctions.add(error.data.tp);
@@ -2192,8 +1950,6 @@ export class ConstraintSolver {
     const target = follow(c.ty);
 
     if (target.persistent || target.owningArena !== this.arena || !is(target, "UnionType")) {
-      // A persistent union like `false?`, a union from another arena, or something other than a union makes firing
-      // this constraint either harmful or useless, so it exits early.
       return true;
     }
 
@@ -2209,34 +1965,26 @@ export class ConstraintSolver {
       if (ty === target) continue;
       result = this.simplifyUnion(constraint.scope, constraint.location, result, ty);
     }
-    // A forced constraint may have blocked types, which join the union as well.
     for (let ty of finder.blockedTys) {
       ty = follow(ty);
       if (ty === target) continue;
       result = this.simplifyUnion(constraint.scope, constraint.location, result, ty);
     }
     emplaceType(target, boundType(result));
-    // This is one of the few places where the solver rewrites a type it does not claim to be able to mutate.
-    // `shiftReferences` is public in Luau's `ConstraintGraph`.
     this.cgraph["shiftReferences"](target, result);
     return true;
   }
 
   tryDispatchPushFunctionTypeConstraint(c: PushFunctionTypeConstraint, constraint: Constraint): boolean {
-    // This could probably share the logic of `FunctionCheckConstraint`, but that constraint does a few other things.
-
     let expectedFn = get(follow(c.expectedFunctionType), "FunctionType");
     const fn = get(follow(c.functionType), "FunctionType");
 
-    // Unless both the expected type and the given type are functions, there is nothing to do.
     if (!expectedFn || !fn) return true;
 
     const instantiated = instantiate(this.builtinTypes, this.arena, this.limits, constraint.scope, c.expectedFunctionType);
     if (instantiated) {
-      // A function type instantiates to a function type.
       expectedFn = get(instantiated, "FunctionType")!;
     } else {
-      // A failed instantiation leaves nothing to do.
       return true;
     }
 
@@ -2255,11 +2003,8 @@ export class ConstraintSolver {
       params++;
     }
 
-    // `idx` indexes the arguments of the `AstExprFunction`, so a `self` type does not advance it.
     let idx = 0;
     while (idx < c.expr.args.length && expectedParams !== expectedParamTypes.length && params !== paramTypes.length) {
-      // Annotations are respected above all else, and a type other than a free type is unexpected; either leaves the
-      // parameter alone.
       if (!c.expr.args[idx]!.annotation && get(paramTypes[params]!, "FreeType")) {
         this.bind(constraint, paramTypes[params]!, expectedParamTypes[expectedParams]!);
       }
@@ -2286,10 +2031,6 @@ export class ConstraintSolver {
     return true;
   }
 
-  /**
-   * Instantiates a function type with explicit type arguments. Generics left without an argument become free types,
-   * while generic packs left without one stay generic.
-   */
   instantiateFunctionType(
     functionTypeId: TypeId,
     typeArguments: TypeId[],
@@ -2299,7 +2040,6 @@ export class ConstraintSolver {
   ): TypeId {
     functionTypeId = follow(functionTypeId);
 
-    // Without arguments there is nothing to do.
     if (typeArguments.length === 0 && typePackArguments.length === 0) return functionTypeId;
 
     const ft = get(functionTypeId, "FunctionType");
@@ -2335,15 +2075,11 @@ export class ConstraintSolver {
 
     const r = new Replacer(this.arena, replacements, replacementPacks);
 
-    // Persistent types are cloned here so that generic builtins like `table.find` can be instantiated; otherwise, the
-    // lines after would corrupt the definition of the original function.
-    const clonedFunctionTypeId = shallowClone(functionTypeId, this.arena, /* clonePersistentTypes */ true);
+    const clonedFunctionTypeId = shallowClone(functionTypeId, this.arena, true);
     const ft2 = get(clonedFunctionTypeId, "FunctionType")!;
 
-    // Every generic is instantiated, with a free type where no argument is given.
     ft2.generics = [];
 
-    // Only as many generic packs are instantiated as there are pack arguments.
     if (ft2.genericPacks.length && typePackArguments.length < ft2.genericPacks.length) {
       ft2.genericPacks = ft2.genericPacks.slice(typePackArguments.length);
     } else {
@@ -2356,23 +2092,18 @@ export class ConstraintSolver {
   }
 
   tryDispatchPushTypeConstraint(c: PushTypeConstraint, constraint: Constraint, force: boolean): boolean {
-    // A push type constraint is never forced.
     force = false;
 
     const u2 = new Unifier2(this.arena, this.builtinTypes, constraint.scope, this.uninhabitedTypeFunctions);
 
-    // Without this check up front, push type constraints start multiplying almost at once.
     if (this.isBlocked(c.expectedType)) {
       this.block(c.expectedType, constraint);
-      // A forced constraint with a blocked expected type just gives up.
       return force;
     }
 
     const empty = new Set<object>();
     const result = pushTypeInto(c.astTypes, c.astExpectedTypes, this, constraint, empty, u2, this.subtyping, c.expectedType, c.expr);
 
-    // A forced constraint exits early, so that inference can go on with the rest of the file, at the risk of errors
-    // that should not be there.
     if (force || result.incompleteTypes.length === 0) return true;
 
     for (const { expectedType: newExpectedTy, targetType: newTargetTy, expr: newExpr } of result.incompleteTypes) {
@@ -2395,9 +2126,7 @@ export class ConstraintSolver {
     return true;
   }
 
-  /** Dispatches an iterable constraint over a table, which may have an `__iter` metamethod (`for a, ... in t do`). */
   tryDispatchIterableTable(iteratorTy: TypeId, c: IterableConstraint, constraint: Constraint, force: boolean): boolean {
-    // An iterable constraint is never forced.
     force = false;
 
     iteratorTy = follow(iteratorTy);
@@ -2447,16 +2176,11 @@ export class ConstraintSolver {
       return true;
     }
 
-    // Nothing guarantees that this table type never has a metatable.
-
     const iteratorTable = get(iteratorTy, "TableType");
     if (iteratorTable) {
-      // An iterable constraint over a free table waits, as other constraints on the table may make clearer what to do.
-      // Iteration should eventually get a type function of its own.
       if (iteratorTable.state === TableState.Free && !force) return this.block(iteratorTy, constraint);
 
       if (iteratorTable.indexer) {
-        // The indexer's result type goes through a reduce constraint on its refinement by `~nil`, as it cannot be nil.
         const intersectionWithNotNil = this.arena.addTypeFunction(this.builtinTypes.typeFunctions.refineFunc, [
           iteratorTable.indexer.indexResultType,
           this.builtinTypes.notNilType,
@@ -2491,7 +2215,6 @@ export class ConstraintSolver {
             const iterRets = extendTypePack(this.arena, this.builtinTypes, iterFtv.retTypes, 2);
 
             if (iterRets.head.length < 1) {
-              // This is as far as the solver goes; the type checker reports the error.
               return true;
             }
 
@@ -2501,7 +2224,6 @@ export class ConstraintSolver {
             if (instantiatedNextFn) {
               const nextFnTy = get(instantiatedNextFn, "FunctionType");
 
-              // Without a function type, the iterator function has an improper signature.
               if (nextFnTy) this.unpackAndAssign(c.variables, nextFnTy.retTypes, constraint);
 
               return true;
@@ -2509,14 +2231,12 @@ export class ConstraintSolver {
               this.reportError({ kind: "UnificationTooComplex" }, constraint.location, this.moduleNameOf(constraint));
             }
           }
-          // An `__iter` that is a table with `__call`, or an overloaded function, is not supported.
         } else {
           this.reportError({ kind: "UnificationTooComplex" }, constraint.location, this.moduleNameOf(constraint));
         }
       } else {
         const iteratorMetatable = get(iteratorTy, "MetatableType");
         if (iteratorMetatable) {
-          // Without an `__iter` metamethod, the table part of the metatable type is iterated over.
           return this.tryDispatchIterableTable(iteratorMetatable.table, c, constraint, force);
         } else {
           const primitiveTy = get(iteratorTy, "PrimitiveType");
@@ -2531,12 +2251,9 @@ export class ConstraintSolver {
     return true;
   }
 
-  /** Dispatches an iterable constraint over a next function (`for a, ... in next_function, t, ... do`). */
   tryDispatchIterableFunction(nextTy: TypeId, tableTy: TypeId, c: IterableConstraint, constraint: Constraint): boolean {
-    // The type of `nextAstFragment` is `nextTy`.
     c.astForInNextTypes!.set(c.nextAstFragment!, nextTy);
 
-    // A function call constraint tells the types of the loop variables that this iteration assigns to.
     const tableTyPack = this.arena.addTypePack([tableTy]);
 
     const variablesPack = this.arena.addTypePack(blockedTypePack());
@@ -2569,12 +2286,6 @@ export class ConstraintSolver {
     return true;
   }
 
-  /**
-   * Pushes a constraint that unpacks the types of `srcTypes` and assigns each to the corresponding blocked type in
-   * `destTypes`, and makes that constraint the owner of those blocked types. Only the decomposition of an iterable
-   * constraint uses this, which makes replacing the owners safe. Returns the unpack constraint, as iteration passes
-   * blocks on to it.
-   */
   unpackAndAssign(destTypes: TypeId[], srcTypes: TypePackId, constraint: Constraint): Constraint {
     const c = this.pushConstraint(
       constraint.scope,
@@ -2591,10 +2302,6 @@ export class ConstraintSolver {
     return c;
   }
 
-  /**
-   * Looks up a property of a type for reading or for writing. The lookup widens free types and free tables to have
-   * the property, and goes through `__index` for a metatable type.
-   */
   lookupTableProp(
     constraint: Constraint,
     subjectType: TypeId,
@@ -2606,7 +2313,6 @@ export class ConstraintSolver {
   ): TablePropLookupResult {
     if (seen.has(subjectType)) return lookupResult([], undefined);
 
-    // Luau's `ScopedSeenSet`: the subject as given counts as seen until this lookup returns.
     const seenKey = subjectType;
     seen.add(seenKey);
     try {
@@ -2633,9 +2339,8 @@ export class ConstraintSolver {
         if (ttv.indexer) {
           if (this.isBlocked(ttv.indexer.indexType)) return lookupResult([ttv.indexer.indexType], undefined, true);
 
-          // This needs the same logic as `index<_, _>` (CLI-169235).
           const fauxLiteral = this.arena.addType(stringSingleton(propName));
-          if (fastIsSubtype(fauxLiteral, ttv.indexer.indexType)) return lookupResult([], ttv.indexer.indexResultType, /* isIndex */ true);
+          if (fastIsSubtype(fauxLiteral, ttv.indexer.indexType)) return lookupResult([], ttv.indexer.indexResultType, true);
         }
 
         if (ttv.state === TableState.Free) {
@@ -2648,8 +2353,6 @@ export class ConstraintSolver {
             case ValueContext.LValue: {
               const it = ttv.props.get(propName);
               if (it && it.isReadOnly()) {
-                // Read-only properties are inferred, but separate read and write types are not: a write sensed to a
-                // read-only property of a free table makes the property read-write, with its read type for both.
                 it.writeTy = it.readTy;
                 return lookupResult([], it.readTy!);
               } else ttv.props.set(propName, Property.rw(result));
@@ -2660,11 +2363,8 @@ export class ConstraintSolver {
           return lookupResult([], result);
         }
 
-        // In a conditional context the property counts as present and `unknown`, as the table may be refined to
-        // include it. This only applies because tables are inexact, and wants revisiting once Luau has exact tables.
         if (inConditional) return lookupResult([], this.builtinTypes.unknownType);
       } else if (subject.kind === "MetatableType" && context === ValueContext.LValue) {
-        // `__newindex` is not considered (CLI-199848).
         return this.lookupTableProp(constraint, subject.table, propName, context, inConditional, suppressSimplification, seen);
       } else if (subject.kind === "MetatableType" && context === ValueContext.RValue) {
         const mt = subject;
@@ -2680,9 +2380,6 @@ export class ConstraintSolver {
             const indexProp = metatable.props.get("__index");
             if (!indexProp) return lookupResult([], result.propType);
 
-            // An overloaded `__index` function is not handled.
-
-            // A write-only property cannot be read from.
             if (indexProp.isWriteOnly()) return lookupResult([], this.builtinTypes.errorType);
 
             const indexType = follow(indexProp.readTy!);
@@ -2692,8 +2389,6 @@ export class ConstraintSolver {
               const rets = extendTypePack(this.arena, this.builtinTypes, ft.retTypes, 1);
               if (1 === rets.head.length) return lookupResult([], rets.head[0]!);
               else {
-                // This should probably be an error: the first result of `__index` is needed, but it returns no values
-                // (CLI-68672).
                 return lookupResult([], this.builtinTypes.nilType);
               }
             } else return this.lookupTableProp(constraint, indexType, propName, context, inConditional, suppressSimplification, seen);
@@ -2707,7 +2402,7 @@ export class ConstraintSolver {
         if (p) return lookupResult([], context === ValueContext.RValue ? p.readTy : p.writeTy);
 
         if (ct.indexer) {
-          return lookupResult([], ct.indexer.indexResultType, /* isIndex */ true);
+          return lookupResult([], ct.indexer.indexResultType, true);
         }
       } else if (subject.kind === "PrimitiveType" && subject.metatable) {
         const metatable = get(follow(subject.metatable), "TableType")!;
@@ -2715,7 +2410,6 @@ export class ConstraintSolver {
         const indexProp = metatable.props.get("__index");
         if (!indexProp) return lookupResult([], undefined);
 
-        // A write-only property cannot be read from.
         if (indexProp.isWriteOnly()) return lookupResult([], this.builtinTypes.errorType);
 
         return this.lookupTableProp(constraint, indexProp.readTy!, propName, context, inConditional, suppressSimplification, seen);
@@ -2725,8 +2419,6 @@ export class ConstraintSolver {
 
         if (get(upperBound, "TableType") || get(upperBound, "PrimitiveType")) {
           const res = this.lookupTableProp(constraint, upperBound, propName, context, inConditional, suppressSimplification, seen);
-          // The property type is missing when the bound is a sealed table or a primitive without the property; the
-          // upper bound still gains the property then.
           if (res.propType) return res;
         }
 
@@ -2764,7 +2456,6 @@ export class ConstraintSolver {
 
         if (blocked.length) return lookupResult(blocked, undefined);
 
-        // The options are in creation order, as Luau's `std::set` orders them by address.
         const sortedOptions = [...options].sort(bySerial);
 
         if (sortedOptions.length === 0) return lookupResult([], undefined);
@@ -2773,12 +2464,10 @@ export class ConstraintSolver {
           const one = sortedOptions[0]!;
           const two = sortedOptions[1]!;
 
-          // An lvalue context needs the common type here.
           if (context === ValueContext.LValue) return lookupResult([], this.simplifyIntersection(constraint.scope, constraint.location, one, two));
 
           return lookupResult([], this.simplifyUnion(constraint.scope, constraint.location, one, two));
         }
-        // An lvalue context needs the common type here.
         else if (context === ValueContext.LValue) return lookupResult([], this.arena.addType(intersectionType(sortedOptions)));
         else return lookupResult([], this.arena.addType(unionType(sortedOptions)));
       } else if (subject.kind === "IntersectionType") {
@@ -2793,7 +2482,6 @@ export class ConstraintSolver {
 
         if (blocked.length) return lookupResult(blocked, undefined);
 
-        // The options are in creation order, as Luau's `std::set` orders them by address.
         const sortedOptions = [...options].sort(bySerial);
 
         if (sortedOptions.length === 0) return lookupResult([], undefined);
@@ -2804,8 +2492,6 @@ export class ConstraintSolver {
           return lookupResult([], this.simplifyIntersection(constraint.scope, constraint.location, one, two));
         } else return lookupResult([], this.arena.addType(intersectionType(sortedOptions)));
       } else if (subject.kind === "PrimitiveType") {
-        // In a conditional context the property counts as present and `unknown`, as the table may be refined to
-        // include it. This only applies because tables are inexact, and wants revisiting once Luau has exact tables.
         if (inConditional && subject.type === PrimitiveKind.Table) return lookupResult([], this.builtinTypes.unknownType);
       }
 
@@ -2815,10 +2501,6 @@ export class ConstraintSolver {
     }
   }
 
-  /**
-   * Unifies `subTy` with `superTy`. The subtype constraints that unification leaves undecided are pushed, and block
-   * whatever this constraint blocks. Returns false when unification failed its occurs check or was too complex.
-   */
   unify(constraint: Constraint, subTy: TypeId, superTy: TypeId): boolean {
     const u2 = new Unifier2(this.arena, this.builtinTypes, constraint.scope, this.uninhabitedTypeFunctions);
     const result = u2.unify(subTy, superTy);
@@ -2831,7 +2513,6 @@ export class ConstraintSolver {
     return this.finishUnification(constraint, u2, result);
   }
 
-  /** The rest of `unify` and `unifyPack`, once the unifier has run. */
   private finishUnification(constraint: Constraint, u2: Unifier2, result: UnifyResult): boolean {
     for (const cv of u2.incompleteSubtypes) {
       this.inheritBlocks(constraint, this.pushConstraint(constraint.scope, constraint.location, cv, constraint.moduleName));
@@ -2855,12 +2536,10 @@ export class ConstraintSolver {
     }
   }
 
-  /** Makes `constraint` wait for the `target` constraint (Luau's `block` on a constraint). */
   blockOnConstraint(target: Constraint, constraint: Constraint): void {
     this.cgraph.addDependencyOf(target, constraint);
   }
 
-  /** Makes a constraint wait for a type to be resolved. Always returns false, so that `tryDispatch` can return the result. */
   block(target: TypeId, constraint: Constraint): boolean {
     this.cgraph.addDependencyOf(follow(target), constraint);
 
@@ -2873,14 +2552,12 @@ export class ConstraintSolver {
     return false;
   }
 
-  /** Blocks a constraint on every one of `targets` (Luau's `block` template). */
   blockAll(targets: Iterable<TypeId>, constraint: Constraint): boolean {
     for (const target of targets) this.block(target, constraint);
 
     return false;
   }
 
-  /** Makes every constraint that is blocked on `source` also blocked on `addition`. */
   inheritBlocks(source: Constraint, addition: Constraint): void {
     this.cgraph.inheritBlocks(source, addition);
   }
@@ -2898,8 +2575,6 @@ export class ConstraintSolver {
       else break;
     }
 
-    // The type passed on must be the unfollowed one, as unblocking it repairs every reference from `ty` to the type
-    // it follows to.
     this.cgraph.unblockType(ty);
   }
 
@@ -2907,10 +2582,6 @@ export class ConstraintSolver {
     this.cgraph.unblockTypePack(progressed);
   }
 
-  /**
-   * Pushes the constraints that the new types a substitution copied need; at present, those are the reductions of type
-   * function instances.
-   */
   reproduceConstraints(scope: Scope, location: Location, subst: Substitution, moduleName: string | undefined): void {
     for (const [, newTy] of subst.newTypes) {
       if (get(newTy, "TypeFunctionInstanceType")) {
@@ -2925,7 +2596,6 @@ export class ConstraintSolver {
     }
   }
 
-  /** Whether a type is blocked: a blocked type, a pending expansion, or an unsolved type function instance that is not uninhabited. */
   isBlocked(ty: TypeId): boolean {
     ty = follow(ty);
 
@@ -2938,7 +2608,6 @@ export class ConstraintSolver {
     return get(ty, "BlockedType") !== undefined || get(ty, "PendingExpansionType") !== undefined;
   }
 
-  /** Whether a type pack is blocked: a blocked pack, or a type pack function instance that is not uninhabited. */
   isBlockedPack(tp: TypePackId): boolean {
     tp = followPack(tp);
 
@@ -2947,7 +2616,6 @@ export class ConstraintSolver {
     return getPack(tp, "BlockedTypePack") !== undefined;
   }
 
-  /** Pushes a new constraint of the solver's own. A subtype or equality constraint already pushed is not pushed again. */
   pushConstraint(scope: Scope, location: Location, cv: ConstraintV, moduleName: string | undefined): Constraint {
     let scr: SubtypeConstraintRecord | undefined;
     if (cv.kind === "SubtypeConstraint") scr = { subTy: cv.subType, superTy: cv.superType, variance: SubtypingVariance.Covariant };
@@ -2975,10 +2643,6 @@ export class ConstraintSolver {
     return c;
   }
 
-  /**
-   * The type a module returns, which requiring it gives, or the error type when the module cannot be found or
-   * required. The errors are reported at `location`, in `moduleName`.
-   */
   resolveModule(info: ModuleInfo, location: Location, moduleName: string): TypeId {
     if (info.name === "") {
       this.reportError({ kind: "UnknownRequire", modulePath: "" }, location, moduleName);
@@ -3023,23 +2687,14 @@ export class ConstraintSolver {
     return moduleType;
   }
 
-  /** Records an error in `errorModule`, or in the representative module when that is empty. */
   reportError(data: TypeErrorData, location: Location, errorModule: string): void {
     this.errors.push(new LuauTypeError(location, data, errorModule === "" ? this.representativeModuleName : errorModule));
   }
 
-  /**
-   * The module a constraint belongs to, as Luau's `*constraint->moduleName`; a constraint made without one belongs to
-   * the representative module.
-   */
   private moduleNameOf(constraint: Constraint): string {
     return constraint.moduleName ?? this.representativeModuleName;
   }
 
-  /**
-   * Whether an outstanding constraint still involves a free type, which makes it unsafe to replace the type with one
-   * of its bounds yet.
-   */
   hasUnresolvedConstraints(ty: TypeId): boolean {
     ty = follow(ty);
     return this.cgraph.hasUnsolvedDependencies(ty);
@@ -3057,7 +2712,6 @@ export class ConstraintSolver {
     return Simplify.simplifyUnion(this.builtinTypes, this.arena, left, right).result;
   }
 
-  /** A module's return pack with its generics replaced by `any`: a generic variadic by `...any`, and others by `any`. */
   anyifyModuleReturnTypePackGenerics(tp: TypePackId): TypePackId {
     tp = followPack(tp);
 

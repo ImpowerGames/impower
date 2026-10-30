@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
 
-// #1224: typing a `}` inside a layout or component brace body, and deleting it
-// again, changes which lines the blocks around it hold. An incremental compile
-// after each keystroke must give the program a cold compile of the same text
-// gives.
-
 const URI = "inmemory:///main.sd";
 
 const SOURCE = `scene main
@@ -87,13 +82,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - (before.lastIndexOf("\n") + 1) };
 }
 
-// Where the extra `}` goes, and the `}` that is then stray (zero-based line
-// and character): the typed one when it closes nothing (`null`), otherwise
-// the `}` that used to close the outermost block, which the `}` before it now
-// closes. Typed inside the `for` branch, the `}` after it closes the `for`
-// (reported as missing its `end`), and the panel with it. The `else` below is
-// then a line the layout cannot read, so the layout stops there, before any
-// `}` is left inside it to be stray, and is reported as missing its `end`.
 const EDITS = [
   { name: "after a one-line block", after: "choice.0 { text }", stray: [{ line: 25, character: 2 }], missing: [] },
   {
@@ -101,8 +89,6 @@ const EDITS = [
     after: "        image #src={item.icon}",
     stray: [],
     missing: [15, 11],
-    // The row closes after its image, the button joins the `for`, and the
-    // row's own `}` ends the `for` and then closes the panel.
     tree: ["column[text[],choice[text[]],for[row[image[]],button[]|else:]]"],
   },
   { name: "after a block with two entries", after: "title { stroke; text }", stray: [{ line: 25, character: 2 }], missing: [] },
@@ -116,7 +102,6 @@ const EDITS = [
   tree?: string[];
 }[];
 
-/** The lines of a compiled program's missing-`}` and missing-`end` errors. */
 function missingClosers(program: ReturnType<typeof pick>) {
   return ((program.diagnostics as any)?.[URI] ?? [])
     .filter((d: any) =>
@@ -125,8 +110,6 @@ function missingClosers(program: ReturnType<typeof pick>) {
     .map((d: any) => d.range.start.line);
 }
 
-/** The shape of a layout tree: each element's tag and children, and each
- *  `for`'s children and `else` children. */
 function shape(nodes: any[]): string[] {
   return (nodes ?? []).map((n: any) =>
     n.kind === "element"
@@ -137,7 +120,6 @@ function shape(nodes: any[]): string[] {
   );
 }
 
-/** The `Invalid syntax` errors of a compiled program, by start position. */
 function invalidSyntax(program: ReturnType<typeof pick>) {
   return ((program.diagnostics as any)?.[URI] ?? [])
     .filter((d: any) => (typeof d.message === "string" ? d.message : d.message.value) === "Invalid syntax")
@@ -150,7 +132,6 @@ describe("typing and deleting a `}` in a layout or component brace body", () => 
     c.configure({ files: [file(SOURCE, 1)] } as any);
     c.compile({ textDocument: { uri: URI } });
 
-    // The last case types the `}` right after the outermost block's `}`.
     const offset =
       stray === null
         ? SOURCE.indexOf(after) + "\n  }".length
@@ -158,7 +139,6 @@ describe("typing and deleting a `}` in a layout or component brace body", () => 
     expect(SOURCE.indexOf(after)).toBeGreaterThanOrEqual(0);
     const typed = SOURCE.slice(0, offset) + "}" + SOURCE.slice(offset);
 
-    // Type the `}`.
     const at = posAt(SOURCE, offset);
     c.updateDocument({
       textDocument: { uri: URI, version: 2 },
@@ -167,17 +147,14 @@ describe("typing and deleting a `}` in a layout or component brace body", () => 
     const afterTyping = pick(c.compile({ textDocument: { uri: URI } }).program);
     const coldTyped = coldCompile(typed);
     expect(stable(afterTyping)).toBe(stable(coldTyped));
-    // The stray `}` is reported where it stands, and nowhere else.
     expect(invalidSyntax(coldTyped)).toEqual(stray ?? [at]);
     expect(invalidSyntax(coldCompile(SOURCE))).toEqual([]);
-    // A block or control block the `}` leaves open is reported where it opens.
     expect(missingClosers(coldTyped)).toEqual(missing);
     expect(missingClosers(coldCompile(SOURCE))).toEqual([]);
     if (tree) {
       expect(shape((coldTyped.sparkle as any)?.layouts?.["inventory"]?.children)).toEqual(tree);
     }
 
-    // Delete it again.
     const end = { line: at.line, character: at.character + 1 };
     c.updateDocument({
       textDocument: { uri: URI, version: 3 },
@@ -188,10 +165,6 @@ describe("typing and deleting a `}` in a layout or component brace body", () => 
   });
 });
 
-// Each `}` that closes a block in the layout and component bodies, and the
-// `end` of the `for` inside one, found by the text before it. Deleting one
-// leaves its block, or the `for`, open, which is reported where it opens,
-// before the edit.
 const CLOSERS = [
   { name: "the component's block", before: "    slot\n  ", text: "}" },
   { name: "a one-line block", before: "choice.0 { text ", text: "}" },
@@ -227,7 +200,6 @@ describe("deleting and retyping a block's closer in a layout or component body",
     const afterDeleting = pick(c.compile({ textDocument: { uri: URI } }).program);
     const coldDeleted = coldCompile(deleted);
     expect(stable(afterDeleting)).toBe(stable(coldDeleted));
-    // The open block or control block is reported.
     expect(((coldDeleted.diagnostics as any)?.[URI] ?? []).some((d: any) => {
       const message = typeof d.message === "string" ? d.message : d.message.value;
       return message.includes("is missing its closing");

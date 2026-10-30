@@ -1,9 +1,3 @@
-// A `>` in display text is a break unless it is escaped, closes a text command
-// or is the `>` of a `->` divert, so it needs no space on either side, as a
-// `..` glue mark does. Each `>` of `>>` is a break, and so is the `>` of `>=`.
-// `-->` is a `-` followed by a divert. `\>` is a literal `>`. A touching break
-// shows the same beats as the spaced one.
-
 import { describe, expect, test } from "vitest";
 import {
   collectDiagnostics,
@@ -21,8 +15,6 @@ interface Step {
   continues?: boolean;
 }
 
-// Every step that shows something: its text, the routing of its first routed
-// table, and the flags its tables carry.
 function steps(story: TestStory): Step[] {
   const out: Step[] = [];
   let guard = 0;
@@ -48,8 +40,6 @@ function steps(story: TestStory): Step[] {
   return out;
 }
 
-// The cues in these sources name characters no script declares, which the
-// compiler warns about; nothing else may be reported.
 const UNDECLARED = /^Cannot find character named/;
 
 function inStart(source: string): string {
@@ -174,8 +164,6 @@ describe("a `>` break that touches the words around it", () => {
   });
 
   test("a touching break splits a CRLF line as it splits an LF one", () => {
-    // Each is also compared with its spaced LF form, which a `>` that
-    // stopped breaking would no longer match.
     const inline = run(`A>B\r\nC>\r\nD\r\n`).steps;
     expect(inline).toEqual(run(`A>B\nC>\nD\n`).steps);
     expect(inline).toEqual(run(`A > B\nC >\nD\n`).steps);
@@ -185,7 +173,6 @@ describe("a `>` break that touches the words around it", () => {
       "C\n",
       "D\n",
     ]);
-    // In a block, the lines between two breaks are one beat.
     const block = run(`HERO:\r\n  A>B\r\n  C>\r\n  D\r\n`).steps;
     expect(block).toEqual(run(`HERO:\n  A>B\n  C>\n  D\n`).steps);
     expect(block).toEqual(run(`HERO:\n  A > B\n  C >\n  D\n`).steps);
@@ -265,8 +252,6 @@ describe("a `>` break that touches the words around it", () => {
         { text: shown, target: "action" },
       ]);
     }
-    // The word after `-->` is a divert target, so one that names no scene
-    // is a compile error, as it is after `->`.
     const dashed = collectDiagnostics(inStart(`A-->nowhere\n`)).errorMessages;
     expect(dashed).not.toEqual([]);
     expect(dashed).toEqual(
@@ -274,8 +259,6 @@ describe("a `>` break that touches the words around it", () => {
     );
   });
 
-  // A divert that begins the text after a break, a cue's colon or a block's
-  // indent is where a `DisplayLine` starts reading, ahead of any text chunk.
   test.each([
     ["after a spaced break", `Before > -> later\n`],
     ["after a touching break", `Before>->later\n`],

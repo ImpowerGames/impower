@@ -3,11 +3,6 @@ import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
 
-// Moves a nested block's diagnostics to `ctx.diagnostics`, where the
-// chunk-level annotator collects them. Every site that keeps a nested block's
-// content but discards the block itself calls this once for the block,
-// whether or not the block has content, or the diagnostics the nested lowerer
-// raised are lost.
 export function forwardBlockDiagnostics(
   block: CompiledBlock | undefined,
   ctx: LowerContext,
@@ -17,9 +12,6 @@ export function forwardBlockDiagnostics(
   }
 }
 
-// The content of a nested statement's block with its `Weave` wrappers
-// unwrapped, so every entry is a leaf statement. The block's diagnostics are
-// left to `forwardBlockDiagnostics`.
 export function unwrapBlockContent(
   block: CompiledBlock | undefined,
 ): ParsedObject[] {

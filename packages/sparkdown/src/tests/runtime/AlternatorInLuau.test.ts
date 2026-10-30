@@ -1,13 +1,3 @@
-// An alternator Luau code uses as a value (I-1284) or writes as a statement
-// (I-1397), inside a function's body or at the top level, runs as a displayed
-// one does: it selects its arm with the same counting, keyed to the
-// alternator in the script, so every call of a function shares one count; a
-// value alternator gives the selected arm's value (nil for an empty arm, or
-// for one no `match` arm takes), and a statement alternator runs the selected
-// arm's statements and calls. It never reads as nil silently and is never
-// dropped. Its count is saved and loaded as a displayed one's, and an edit to
-// an arm compiles incrementally as it does cold.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -22,7 +12,6 @@ const run = (source: string) => {
   return { output: runToEnd(ctx.story), errors: ctx.errorMessages };
 };
 
-/** The values `f()` gives over `n` calls, one displayed line each. */
 const calls = (n: number) => Array.from({ length: n }, (_, i) => `${i + 1} {f()}.`);
 const valuesOf = (output: string) =>
   output
@@ -30,13 +19,10 @@ const valuesOf = (output: string) =>
     .split("\n")
     .map((line) => line.replace(/^\d+ (.*)\.$/, "$1"));
 
-// A function that records what each arm ran, read after the calls.
 const TRAIL = ['store trail = ""', "function add(s)", "  trail = trail .. s", "end"];
 
 const isPermutation = (values: string[], of: string[]) => [...values].sort().join() === [...of].sort().join();
 
-// The sequential forms: what five calls give from the arms `a`, `b`, `c`,
-// and what a shuffling form's draws must satisfy.
 const SEQUENTIAL: [string, (values: string[]) => void][] = [
   ["queue", (v) => expect(v).toEqual(["a", "b", "c", "nil", "nil"])],
   ["cycle", (v) => expect(v).toEqual(["a", "b", "c", "a", "b"])],
@@ -105,8 +91,6 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     expect(valuesOf(output)).toEqual(["1!", expect.stringMatching(/^table/), "x!"]);
   });
 
-  // Round 2, comment 6348779895: an arm's locals are its own, as a `do`
-  // block's are, and a function with no name is a value an arm gives.
   test.each([
     ["cycle, as a value", "  local v = cycle | local x = 3 x end", "  return tostring(v) .. tostring(x)", "Value 37."],
     ["match, as a value", '  local v = match "a" | a = local x = 3 x end', "  return tostring(v) .. tostring(x)", "Value 37."],
@@ -115,7 +99,6 @@ describe("a sequential alternator used as a value in a function (I-1284)", () =>
     expect(run(lines("function f(x)", alternator, after, "end", ...inScene("Value {f(7)}.")))).toEqual({ output: `${output}\n`, errors: [] });
   });
 
-  // Round 3, comment 6350353372.
   test.each([
     ["as a value", ["  return cycle |", "    @native function g() return 3 end", "    g()", "  end"]],
     ["as a statement", ["  cycle |", "    @native function g() return 3 end", "    print(g())", "  end", '  return ""']],
@@ -238,8 +221,6 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     ).toEqual({ output: "Value in out.\n", errors: [] });
   });
 
-  // Round 1, comment 6347863425: a local of a name is the arm's only where
-  // it is in scope at the alternator.
   test.each([
     ["a block's local that ended before it", ["    do local x = 1 end", "    return cycle | x end"]],
     ["another function's parameter", ["    local function identity(x) return x end", "    return cycle | x end"]],
@@ -252,9 +233,6 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     });
   });
 
-  // Round 2, comment 6348352524: a name an arm's own statement declared
-  // before it is that local, so the closure captures nothing of its name
-  // and keeps nothing alive in a save.
   test("an arm reads the local its statement declares, capturing no outer local of its name", () => {
     const source = lines(
       "function make(y)",
@@ -270,9 +248,6 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
     expect(story.state.toJson().includes("retention-marker")).toBe(false);
   });
 
-  // Round 3, comment 6349294529: an arm's locals are the function's for every
-  // scan of what it declares, so a closure or a call in the arm reads them,
-  // and a value nothing reads captures nothing.
   test.each([
     ["a closure reads an arm's local named as a builtin", ["  return cycle | local math = 3 function() return math end end"], "local g = f()", "Value {g()}.", "Value 3."],
     ["a closure reads an arm's local named as a top-level function", ["  return cycle | local x = 3 function() return x end end"], "local g = f()", "Value {g()}.", "Value 3."],
@@ -287,7 +262,6 @@ describe("the names an alternator's head and arms read, in a closure (round 1, c
   ])("%s, which nothing reads, keeps nothing alive in a save", (_name, body) => {
     const source = lines("function make(y)", body, "end", ...inScene('local g = make(string.rep("unused-marker", 100))', "Value {g()}."));
     const { story, errorMessages } = makeRuntimeStoryFromSource(source);
-    // A head is an error, and runs as no head (I-1446).
     expect(errorMessages).toEqual(_name.includes("head") ? ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"] : []);
     expect(runToEnd(story)).toBe("Value 3.\n");
     expect(story.state.toJson().includes("unused-marker")).toBe(false);
@@ -369,7 +343,6 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
     ).toEqual({ output: "Value effect 9.\n", errors: [] });
   });
 
-  // What five calls of each form record, in the order of `SEQUENTIAL`.
   const statementTrail = (keyword: string, form: "block" | "line") =>
     run(
       lines(
@@ -423,8 +396,6 @@ describe("an alternator written as a statement in a function (I-1397)", () => {
   });
 
   test("a scene's `&` statement runs one arm each time the line runs", () => {
-    // The pass count bounds the loop whatever the alternator does (round 1,
-    // comment 6347863425).
     const { program } = compileScript(
       lines(
         ...TRAIL,
@@ -463,9 +434,6 @@ describe("an unread token in an arm (I-1284)", () => {
   });
 });
 
-// Round 3, comment 6349294529, and the coordinator's decision on it: an arm
-// of an alternator used as a value cannot leave its loop or function, since
-// the expression around the alternator has values waiting on the stack.
 describe("an exit in an arm of an alternator used as a value", () => {
   const exitErrors = (source: string) => {
     const { program } = compileScript(source);
@@ -533,7 +501,6 @@ describe("an exit in an arm of an alternator used as a value", () => {
     });
   });
 
-  // Round 3, comment 6350353372: the loop runs once, so the exit ran.
   test.each([
     ["local v = cycle | break end"],
     ["local v = (cycle | break end)"],
@@ -561,8 +528,6 @@ describe("a displayed alternator keeps its behaviour", () => {
     });
   });
 
-  // Round 1, comment 6347276089: a value that holds for no arm after a
-  // keyless first arm is popped, so the line keeps its text.
   test.each(["false", "nil"])("a story match on %s that no arm takes after a keyless first arm keeps its line", (condition) => {
     expect(run(lines(`store c = ${condition}`, ...inScene('Value {match c | "k" | x = "m" end}.', "After.")))).toEqual({ output: "Value .\nAfter.\n", errors: [] });
   });

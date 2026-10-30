@@ -1,12 +1,7 @@
-// Luau's type-checker tests from `tests/TypeInfer.negations.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.negations.test.cpp", [
   {
-    // TypeInfer.negations.test.cpp:32 TEST_CASE_FIXTURE(NegationFixture, "negated_string_is_a_subtype_of_string")
     name: "negated_string_is_a_subtype_of_string",
     fixture: "NegationFixture",
     source: `
@@ -17,7 +12,6 @@ portUpstreamFile("TypeInfer.negations.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.negations.test.cpp:43 TEST_CASE_FIXTURE(NegationFixture, "string_is_not_a_subtype_of_negated_string")
     name: "string_is_not_a_subtype_of_negated_string",
     fixture: "NegationFixture",
     source: `
@@ -28,7 +22,6 @@ portUpstreamFile("TypeInfer.negations.test.cpp", [
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.negations.test.cpp:54 TEST_CASE_FIXTURE(Fixture, "cofinite_strings_can_be_compared_for_equality")
     name: "cofinite_strings_can_be_compared_for_equality",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -46,7 +39,6 @@ portUpstreamFile("TypeInfer.negations.test.cpp", [
     expect: [{ errors: 0 }, { type: "f", equals: "(string) -> string" }],
   },
   {
-    // TypeInfer.negations.test.cpp:73 TEST_CASE_FIXTURE(NegationFixture, "compare_cofinite_strings")
     name: "compare_cofinite_strings",
     fixture: "NegationFixture",
     source: `
@@ -58,7 +50,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.negations.test.cpp:84 TEST_CASE_FIXTURE(NegationFixture, "subtyping_path_is_valid_for_union")
     name: "subtyping_path_is_valid_for_union",
     fixture: "NegationFixture",
     flags: { LuauNewTypePathErrorMessages: true, LuauFixSuperNegationTypePaths: true },
@@ -76,7 +67,6 @@ end
     ],
   },
   {
-    // TypeInfer.negations.test.cpp:102 TEST_CASE_FIXTURE(NegationFixture, "subtype_path_is_valid_for_intersections")
     name: "subtype_path_is_valid_for_intersections",
     fixture: "NegationFixture",
     flags: { LuauNewTypePathErrorMessages: true, LuauFixSuperNegationTypePaths: true },

@@ -1,11 +1,5 @@
 // Generalization, ported from Luau's `Generalization.h`/`Generalization.cpp`;
 // Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// Once no further constraint can change the free types in a type,
-// generalization decides which of them become generics of the enclosing
-// function and replaces each of the rest by its bounds. The decision rests on
-// the polarities a free type appears with, how often it appears, and whether
-// it appears outside any function.
 
 import { IterativeTypeVisitor } from "./IterativeTypeVisitor";
 import { subsumes, type Scope } from "./Scope";
@@ -40,11 +34,6 @@ import {
 import { TypeIds } from "./TypeIds";
 import { IntersectionBuilder, UnionBuilder } from "./TypeUtils";
 
-/**
- * How a free type or pack is used within the type being generalized: whether
- * it appears outside any function, how many times it appears, and the
- * polarities it appears with.
- */
 export interface GeneralizationParams {
   foundOutsideFunctions: boolean;
   useCount: number;
@@ -52,9 +41,7 @@ export interface GeneralizationParams {
 }
 
 export interface GeneralizationResult<T> {
-  /** Undefined when there was nothing to generalize; Luau's `operator bool` tests this field. */
   result: T | undefined;
-  /** True if the provided type was replaced with a generic. */
   wasReplacedByGeneric: boolean;
   resourceLimitsExceeded: boolean;
 }
@@ -63,7 +50,6 @@ function generalizationResult<T>(result: T | undefined, wasReplacedByGeneric: bo
   return { result, wasReplacedByGeneric, resourceLimitsExceeded: false };
 }
 
-/** The params recorded for a key, inserting default ones when there are none, as `InsertionOrderedMap::operator[]` does. */
 function paramsFor<K>(map: Map<K, GeneralizationParams>, key: K): GeneralizationParams {
   let params = map.get(key);
   if (!params) {
@@ -73,15 +59,6 @@ function paramsFor<K>(map: Map<K, GeneralizationParams>, key: K): Generalization
   return params;
 }
 
-// ---------------------------------------------------------------------------
-// Removing a type from unions and intersections
-// ---------------------------------------------------------------------------
-
-/**
- * Removes `needle` from a union or intersection, and from the unions and
- * intersections among its options or parts, rebinding each one that changes.
- * A union also drops `never` options and an intersection `unknown` parts.
- */
 class TypeRemover {
   readonly seen = new Set<TypeId>();
 
@@ -94,7 +71,6 @@ class TypeRemover {
   process(item: TypeId): void {
     item = follow(item);
 
-    // A type already visited, or outside this arena, is not mutated.
     if (this.seen.has(item) || item.owningArena !== this.arena || item.persistent) return;
     this.seen.add(item);
 
@@ -133,19 +109,11 @@ function removeType(arena: TypeArena, builtinTypes: BuiltinTypes, haystack: Type
   tr.process(haystack);
 }
 
-// ---------------------------------------------------------------------------
-// Collapsing free types whose bounds meet
-// ---------------------------------------------------------------------------
-
-/**
- * Collects the free types of an arena under a type, without descending into
- * tables, metatables, functions or extern types.
- */
 class FreeTypeFinder extends IterativeTypeVisitor {
   readonly freeTys = new TypeIds();
 
   constructor(readonly arena: TypeArena) {
-    super("FreeTypeFinder", /* skipBoundTypes */ true, /* visitOnce */ true);
+    super("FreeTypeFinder", true, true);
   }
 
   override visitType(ty: TypeId, v: TypeVariant): boolean {
@@ -171,7 +139,6 @@ function getDirectFreeNeighbor(ty: TypeId): TypeId | undefined {
   return undefined;
 }
 
-/** Binds each free type found under `ty` whose lower and upper bounds are one type to that type. */
 function collapseInvariantFreeType(arena: TypeArena, ty: TypeId): void {
   const ftf = new FreeTypeFinder(arena);
   ftf.run(ty);
@@ -185,22 +152,6 @@ function collapseInvariantFreeType(arena: TypeArena, ty: TypeId): void {
   }
 }
 
-/**
- * Walks direct free-type bounds starting from `startTy`. If a cycle is
- * reachable, every member collapses into one representative free type whose
- * bounds are the union of every member's external lower bound and the
- * intersection of every member's external upper bound. Cycle
- * self-references, whether direct or nested in unions and intersections, are
- * stripped from those bounds.
- *
- * A direct bound is a lower or upper bound that is itself a free type, not
- * one nested inside a union, intersection, table or function. Cycles formed by
- * direct bounds (A -> B -> ... -> A) are the only cycles detected; chains
- * without a cycle are left alone. Before the walk, each free type under
- * `startTy` whose bounds are one type is bound to that type.
- *
- * Returns true if any types were collapsed.
- */
 function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes, startTy: TypeId): boolean {
   collapseInvariantFreeType(arena, startTy);
 
@@ -213,7 +164,6 @@ function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes
 
   while (cur) {
     if (path.contains(cur)) {
-      // The cycle's members are everything on the path from `cur` onward.
       const cycleMembers = new TypeIds();
       let inCycle = false;
       for (const member of path) {
@@ -221,9 +171,6 @@ function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes
         if (inCycle) cycleMembers.insert(member);
       }
 
-      // Merges the external bounds of every member into the representative:
-      // lower bounds union and upper bounds intersect. Bounds that are
-      // entirely cycle self-references are skipped.
       const mergedLowers = new UnionBuilder(arena, builtinTypes);
       const mergedUppers = new IntersectionBuilder(arena, builtinTypes);
 
@@ -246,8 +193,6 @@ function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes
         }
       }
 
-      // The back-edge target (the first member, `cur`) is the representative:
-      // it takes the merged bounds, and the other members are bound to it.
       const rep = cycleMembers.front();
       const repFree = get(rep, "FreeType")!;
 
@@ -265,7 +210,6 @@ function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes
     const ft = get(cur, "FreeType");
     if (!ft) break;
 
-    // Follows a direct free-type bound, preferring the upper bound to the lower.
     let next = getDirectFreeNeighbor(ft.upperBound);
     if (!next || next === cur) next = getDirectFreeNeighbor(ft.lowerBound);
     if (next === cur) next = undefined;
@@ -276,20 +220,9 @@ function collapseDirectBoundCycleAt(arena: TypeArena, builtinTypes: BuiltinTypes
   return false;
 }
 
-/**
- * Collapses the direct-bound cycles among the free types found for
- * generalization. The order does not matter: once a cycle has been
- * collapsed, a walk from any of its members stops at once, because the member
- * is bound to the representative or the representative's bounds no longer
- * name cycle members.
- */
 function collapseFreeTypeCycles(arena: TypeArena, builtinTypes: BuiltinTypes, freeTypes: Map<TypeId, GeneralizationParams>): void {
   for (const [startTy] of freeTypes) collapseDirectBoundCycleAt(arena, builtinTypes, startTy);
 }
-
-// ---------------------------------------------------------------------------
-// Finding free types and generics with their polarity
-// ---------------------------------------------------------------------------
 
 interface WorkItem {
   value: TypeId | TypePackId;
@@ -297,17 +230,6 @@ interface WorkItem {
   isWithinFunction: boolean;
 }
 
-/**
- * Walks every type reachable from a root to find the polarity of each free
- * type and generic it reaches.
- *
- * Each type is visited at most once from a negative position and once from a
- * positive one; a mixed position visits both at once. The work list is a
- * stack, so the walk is depth-first, and the order it first meets free types
- * in is the order they are generalized in. The walk stops at the edges of the
- * target arena: types outside it do not decide the polarity of free types or
- * generics during generalization.
- */
 class FindTypesWithPolarity {
   readonly seenPositive = new Set<object>();
   readonly seenNegative = new Set<object>();
@@ -335,7 +257,6 @@ class FindTypesWithPolarity {
       default:
         break;
     }
-    // Only reached for a polarity that is not positive, negative or mixed.
     return true;
   }
 
@@ -347,7 +268,6 @@ class FindTypesWithPolarity {
 
   pushPack(tp: TypePackId, polarity: Polarity, isWithinFunction: boolean): void {
     tp = followPack(tp);
-    // Types this arena does not own do not decide polarity.
     if (!this.seenWithPolarity(tp, polarity) && tp.owningArena === this.targetArena) {
       this.observe(tp, polarity);
       this.work.push({ value: tp, polarity, isWithinFunction });
@@ -356,7 +276,6 @@ class FindTypesWithPolarity {
 
   push(ty: TypeId, polarity: Polarity, isWithinFunction: boolean): void {
     ty = follow(ty);
-    // Types this arena does not own do not decide polarity.
     if (!this.seenWithPolarity(ty, polarity) && ty.owningArena === this.targetArena) {
       this.observe(ty, polarity);
       this.work.push({ value: ty, polarity, isWithinFunction });
@@ -428,8 +347,6 @@ class FindTypesWithPolarity {
         for (const packArg of v.packArguments) this.pushPack(packArg, polarity, isWithinFunction);
         break;
       default:
-        // Pending expansion, blocked, error, primitive, singleton, any,
-        // no-refine, unknown, never and extern types lead nowhere.
         break;
     }
   }
@@ -467,7 +384,6 @@ class FindTypesWithPolarity {
         break;
       }
       default:
-        // Blocked and error packs lead nowhere.
         break;
     }
   }
@@ -488,11 +404,6 @@ class FindTypesWithPolarity {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Generalization
-// ---------------------------------------------------------------------------
-
-/** Replaces a single free type by its bounds according to the polarity provided. */
 export function generalizeType(
   arena: TypeArena,
   builtinTypes: BuiltinTypes,
@@ -502,16 +413,11 @@ export function generalizeType(
 ): GeneralizationResult<TypeId> {
   freeTy = follow(freeTy);
 
-  // Collapses any direct-bound cycle this free type is part of before
-  // deciding how to generalize it. This covers the solver's own calls, which
-  // bypass the batch pass in `generalize`, and does nothing when that pass has
-  // already collapsed the cycle. `freeTy` may now be bound to the cycle's
-  // representative, so it is followed again.
   collapseDirectBoundCycleAt(arena, builtinTypes, freeTy);
   freeTy = follow(freeTy);
 
   const ft = get(freeTy, "FreeType");
-  if (!ft) return generalizationResult(freeTy, /* wasReplacedByGeneric */ false);
+  if (!ft) return generalizationResult(freeTy, false);
 
   const hasLowerBound = !get(follow(ft.lowerBound), "NeverType");
   const hasUpperBound = !get(follow(ft.upperBound), "UnknownType");
@@ -522,13 +428,9 @@ export function generalizeType(
     if (!isWithinFunction) emplaceType(freeTy, boundType(builtinTypes.unknownType));
     else {
       emplaceType(freeTy, genericType({ scope, polarity: params.polarity }));
-      return generalizationResult(freeTy, /* wasReplacedByGeneric */ true);
+      return generalizationResult(freeTy, true);
     }
   }
-  // This free type may have other free types in its upper or lower bounds.
-  // Those references are replaced with never (for the lower bound) or unknown
-  // (for the upper bound); otherwise the bounds come out tautological, like
-  // a <: a <: unknown.
   else if (isPositive(params.polarity) && !hasUpperBound) {
     const lb = follow(ft.lowerBound);
     removeType(arena, builtinTypes, lb, freeTy);
@@ -536,38 +438,28 @@ export function generalizeType(
     if (follow(lb) !== freeTy) emplaceType(freeTy, boundType(lb));
     else if (!isWithinFunction) emplaceType(freeTy, boundType(builtinTypes.unknownType));
     else {
-      // A lower bound that is the type in question ('a <: 'a) is no lower bound at all.
       emplaceType(freeTy, genericType({ scope, polarity: params.polarity }));
-      return generalizationResult(freeTy, /* wasReplacedByGeneric */ true);
+      return generalizationResult(freeTy, true);
     }
   } else {
     const ub = follow(ft.upperBound);
-    // `collapseDirectBoundCycleAt` has already collapsed any 2-cycle here, so
-    // there is no neighbor bound to forward: the free type is only stripped
-    // from the upper bound.
     removeType(arena, builtinTypes, ub, freeTy);
 
     if (follow(ub) !== freeTy) emplaceType(freeTy, boundType(ub));
     else if (!isWithinFunction || params.useCount === 1) {
-      // A free type A <: 'b <: C generalizes approximately to the
-      // intersection of its bounds. The free type is clipped from the upper
-      // and lower bounds, and from the resulting intersection, so that no
-      // degenerate union or intersection is built.
       removeType(arena, builtinTypes, ft.lowerBound, freeTy);
       const cleanedTy = arena.addType(intersectionType([ft.lowerBound, ub]));
       removeType(arena, builtinTypes, cleanedTy, freeTy);
       emplaceType(freeTy, boundType(cleanedTy));
     } else {
-      // An upper bound that is the type in question is no upper bound at all.
       emplaceType(freeTy, genericType({ scope, polarity: params.polarity }));
-      return generalizationResult(freeTy, /* wasReplacedByGeneric */ true);
+      return generalizationResult(freeTy, true);
     }
   }
 
-  return generalizationResult(freeTy, /* wasReplacedByGeneric */ false);
+  return generalizationResult(freeTy, false);
 }
 
-/** Generalizes one type pack. */
 export function generalizeTypePack(
   arena: TypeArena,
   builtinTypes: BuiltinTypes,
@@ -577,23 +469,22 @@ export function generalizeTypePack(
 ): GeneralizationResult<TypePackId> {
   tp = followPack(tp);
 
-  if (tp.owningArena !== arena) return generalizationResult(tp, /* wasReplacedByGeneric */ false);
+  if (tp.owningArena !== arena) return generalizationResult(tp, false);
 
   const ftp = getPack(tp, "FreeTypePack");
-  if (!ftp) return generalizationResult(tp, /* wasReplacedByGeneric */ false);
+  if (!ftp) return generalizationResult(tp, false);
 
-  if (!subsumes(scope, ftp.scope)) return generalizationResult(tp, /* wasReplacedByGeneric */ false);
+  if (!subsumes(scope, ftp.scope)) return generalizationResult(tp, false);
 
   if (1 === params.useCount) emplaceTypePack(tp, boundTypePack(builtinTypes.unknownTypePack));
   else {
     emplaceTypePack(tp, genericTypePack({ scope, polarity: params.polarity }));
-    return generalizationResult(tp, /* wasReplacedByGeneric */ true);
+    return generalizationResult(tp, true);
   }
 
-  return generalizationResult(tp, /* wasReplacedByGeneric */ false);
+  return generalizationResult(tp, false);
 }
 
-/** Seals a free or unsealed table that belongs to `scope` or a scope within it. */
 export function sealTable(scope: Scope, ty: TypeId): void {
   const tableTy = get(follow(ty), "TableType");
   if (!tableTy) return;
@@ -603,16 +494,6 @@ export function sealTable(scope: Scope, ty: TypeId): void {
   if (tableTy.state === TableState.Unsealed || tableTy.state === TableState.Free) tableTy.state = TableState.Sealed;
 }
 
-/**
- * Attempts to generalize a type.
- *
- * If `generalizationTarget` is set, only that type is replaced by its bounds.
- * Then `ty` is some function that is not fully generalized, and
- * `generalizationTarget` is a type within its signature whose bounds no
- * further constraint can affect.
- *
- * Returns undefined if generalization failed due to resource limits.
- */
 export function generalize(
   arena: TypeArena,
   builtinTypes: BuiltinTypes,
@@ -684,15 +565,6 @@ export function generalize(
   return ty;
 }
 
-/**
- * Trims the generics of a generalized function to the ones it needs. Entries
- * that are no longer generic, duplicates, and unnamed generics the function
- * never mentions are dropped. An unnamed generic seen only in positive
- * positions becomes `never`, one seen only in negative positions becomes
- * `unknown`, and an unnamed generic pack seen with a single polarity becomes
- * `unknown...`. Explicitly named generics stay, taking the polarity they are
- * seen with.
- */
 export function pruneUnnecessaryGenerics(
   arena: TypeArena,
   builtinTypes: BuiltinTypes,
@@ -714,8 +586,6 @@ export function pruneUnnecessaryGenerics(
   const seenTypes = new Set<TypeId>();
   const seenPacks = new Set<TypePackId>();
 
-  // A pack in the generic list may have become a pack that (transitively) has
-  // a generic tail. That tail then joins the generic pack list.
   for (let i = 0; i < functionTy.genericPacks.length; ++i) {
     const genericPack = followPack(functionTy.genericPacks[i]!);
 
@@ -729,7 +599,6 @@ export function pruneUnnecessaryGenerics(
     const genericTy = get(generic, "GenericType");
 
     if (!genericTy) {
-      // This type is no longer generic, so it is clipped.
       functionTy.generics.splice(i, 1);
       continue;
     }
@@ -740,8 +609,6 @@ export function pruneUnnecessaryGenerics(
     }
 
     if (arena !== generic.owningArena) {
-      // Generics from other arenas should never flow into the generics of a
-      // function being generalized; any that do are left in place.
       i++;
       continue;
     }
@@ -749,7 +616,6 @@ export function pruneUnnecessaryGenerics(
     const entry = ftwp.types.get(generic);
 
     if (genericTy.explicitName) {
-      // The user said this should be generic, so it is.
       seenTypes.add(generic);
       if (entry) genericTy.polarity = entry.polarity;
       i++;
@@ -757,20 +623,17 @@ export function pruneUnnecessaryGenerics(
     }
 
     if (!entry) {
-      // The function never mentions this generic, so it is clipped.
       functionTy.generics.splice(i, 1);
       continue;
     }
 
     switch (entry.polarity) {
       case Polarity.Positive:
-        // A generic seen only in positive positions is clipped to `never`.
         emplaceType(generic, boundType(builtinTypes.neverType));
         functionTy.generics.splice(i, 1);
         break;
 
       case Polarity.Negative:
-        // A generic seen only in negative positions is clipped to `unknown`.
         emplaceType(generic, boundType(builtinTypes.unknownType));
         functionTy.generics.splice(i, 1);
         break;
@@ -783,7 +646,6 @@ export function pruneUnnecessaryGenerics(
 
       case Polarity.None:
       case Polarity.Unknown:
-        // An entry in `ftwp.types` always has some polarity recorded.
         i++;
         break;
     }
@@ -795,7 +657,6 @@ export function pruneUnnecessaryGenerics(
     const genericTy = getPack(generic, "GenericTypePack");
 
     if (!genericTy) {
-      // This pack is no longer generic, so it is clipped.
       functionTy.genericPacks.splice(i, 1);
       continue;
     }
@@ -806,8 +667,6 @@ export function pruneUnnecessaryGenerics(
     }
 
     if (arena !== generic.owningArena) {
-      // Generics from other arenas should never flow into the generics of a
-      // function being generalized; any that do are left in place.
       i++;
       continue;
     }
@@ -815,7 +674,6 @@ export function pruneUnnecessaryGenerics(
     const entry = ftwp.typePacks.get(generic);
 
     if (genericTy.explicitName) {
-      // The user said this should be generic, so it is.
       seenPacks.add(generic);
       if (entry) genericTy.polarity = entry.polarity;
       i++;
@@ -823,7 +681,6 @@ export function pruneUnnecessaryGenerics(
     }
 
     if (!entry) {
-      // The function never mentions this generic pack, so it is clipped.
       functionTy.genericPacks.splice(i, 1);
       continue;
     }
@@ -831,7 +688,6 @@ export function pruneUnnecessaryGenerics(
     switch (entry.polarity) {
       case Polarity.Positive:
       case Polarity.Negative:
-        // `never...` would also do here; `unknown...` is used.
         emplaceTypePack(generic, boundTypePack(builtinTypes.unknownTypePack));
         functionTy.genericPacks.splice(i, 1);
         break;

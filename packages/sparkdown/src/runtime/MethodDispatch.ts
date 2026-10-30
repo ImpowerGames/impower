@@ -1,31 +1,3 @@
-// Sparkdown builtin method-call dispatch. The lowerer translates
-// `receiver:method(args)` into a `FunctionCall("__method_<method>",
-// [receiver, ...args])`. `NativeFunctionCall.Call` recognizes the
-// `__method_` prefix and routes the call through `callBuiltinMethod`
-// below — bypassing the operator-style type-coercion path used by
-// numeric/list ops in favor of receiver-type branching inside each
-// method implementation.
-//
-// The design (names, semantics, return-type conventions) is documented
-// in `packages/sparkdown/docs/runtime/METHODS.md`. The runtime invariants this file
-// must preserve:
-//
-//   - All methods are *pure-return* — none mutate the receiver. Methods
-//     that conceptually mutate (`:insert`, `:remove`, `:sort`) build and
-//     return a new `ObjectValue`.
-//
-//   - `nil` is a real `NullValue`. Methods like `:find` and `:at`
-//     return it on miss / out-of-range so `if t:find(x) then ... end`
-//     works as a standard Luau idiom (nil is falsy; numbers — even
-//     0 — are truthy under Lua truthiness).
-//
-//   - Indices are 1-based throughout; negative indices on `:at` / `:sub`
-//     count from the end and follow Luau `string.sub` semantics.
-//
-//   - Tables (`ObjectValue`) preserve insertion order — the underlying
-//     `Map<string, AbstractValue>` does so natively, which is what
-//     `:keys` / `:values` / `:pairs` rely on.
-
 import { InkObject } from "./Object";
 import { ambientReads } from "./AmbientReads";
 import {
@@ -41,36 +13,13 @@ import {
 import { Void } from "./Void";
 import { StoryException } from "./StoryException";
 import { oneValue, spreadCallArgs } from "./CallArgs";
-// StdLib imports this module too; these are only called at run time, after
-// both modules have loaded, so the cycle is safe.
 import { coerceNumber, luauTypeOf } from "./StdLib";
-// LuaPatterns is a pure leaf module (zero imports), so a static
-// import is cycle-safe — the lazy `require("./LuaPatterns")` this
-// replaces failed under vitest's ESM transform ("Cannot find module")
-// and was guarding against a StdLib cycle that doesn't apply here.
 import { executeLuaPattern, luaPatternToJs } from "./LuaPatterns";
 
-// Prefix the lowerer adds to method names before emitting the
-// FunctionCall. Exposed so the lowerer / dispatch use a single source of
-// truth.
 export const METHOD_PREFIX = "__method_";
 
-// A builtin method gets the raw `InkObject[]` params (receiver at index
-// 0, then method args) and returns the resulting `InkObject` (or `null`
-// in the unusual void case — currently unused).
 export type BuiltinMethod = (params: InkObject[]) => InkObject | null;
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-// Real first-class nil. Methods like `:find` / `:at` return this on
-// miss / out-of-range, matching METHODS.md's documented contract
-// ("1-based position or `nil`") and Lua truthiness — `if t:find(x)`
-// and `not t:find(x)` both behave correctly because NullValue is
-// falsy while any number (including 0) is truthy. (Historically this
-// returned IntValue(0), which only read as "miss" under ink's
-// 0-is-falsy coercion.)
 function NIL(): InkObject {
   return new NullValue();
 }
@@ -101,16 +50,6 @@ function asTable(
   return v.value ?? new Map();
 }
 
-/**
- * Luau `luaL_checknumber` / `luaL_optnumber` for argument #`index` of the
- * builtin `name` (the short name, `'sub'`). A number or numeric string is
- * accepted. An absent slot raises `missing argument #N to 'name' (number
- * expected)`; any other non-number, nil included, raises `invalid argument #N
- * to 'name' (number expected, got <type>)`. With `optional`, an absent or nil
- * slot returns `undefined` instead. Both the `string.*` entry and the method
- * form call this, the method form numbering its arguments without the
- * receiver, as Luau does.
- */
 export function checkNumberArg(
   v: any,
   index: number,
@@ -146,8 +85,6 @@ export function checkNumberArg(
   return n;
 }
 
-// Extract the array portion of a table — integer keys 1, 2, 3, ...
-// stopping at the first hole. Matches Luau `ipairs` semantics.
 function arrayPortion(t: Map<string, AbstractValue>): AbstractValue[] {
   const arr: AbstractValue[] = [];
   for (let i = 1; ; i++) {
@@ -158,8 +95,6 @@ function arrayPortion(t: Map<string, AbstractValue>): AbstractValue[] {
   return arr;
 }
 
-// Build an array-style ObjectValue from a JS array. Keys are 1-based
-// string ints; insertion order is preserved.
 function arrayToObject(arr: AbstractValue[]): ObjectValue {
   const map = new Map<string, AbstractValue>();
   for (let i = 0; i < arr.length; i++) {
@@ -168,10 +103,6 @@ function arrayToObject(arr: AbstractValue[]): ObjectValue {
   return new ObjectValue(map);
 }
 
-// Build a new ObjectValue from an updated array portion, preserving any
-// non-array (record) entries from the original. The original's record
-// entries are appended after the rebuilt array portion so iteration
-// order stays predictable (array first, then record fields).
 function rebuildTable(
   arr: AbstractValue[],
   original: Map<string, AbstractValue>,
@@ -188,25 +119,16 @@ function rebuildTable(
   return new ObjectValue(next);
 }
 
-// Convert a Map key (always a string under the hood) back to an
-// AbstractValue for `:keys` / `:pairs`. Numeric-looking keys become
-// IntValue so `for k in t:keys()` over an array gives the author back
-// integer indices.
 function keyToValue(k: string): AbstractValue {
   if (/^-?\d+$/.test(k)) return new IntValue(parseInt(k, 10));
   return new StringValue(k);
 }
 
-// Shallow equality for `:find`, `:includes`, `:union`, etc. Handles
-// the common primitive cases (string/number/bool). For nested tables/
-// lists, falls back to identity comparison — deep equality would need
-// recursion and isn't needed for the current test surface.
 function valuesEqual(
   a: AbstractValue | null | undefined,
   b: AbstractValue | null | undefined,
 ): boolean {
   if (a == null || b == null) return a == null && b == null;
-  // Cross-type numeric: IntValue(1) == FloatValue(1.0)
   if (
     (a instanceof IntValue || a instanceof FloatValue) &&
     (b instanceof IntValue || b instanceof FloatValue)
@@ -214,19 +136,13 @@ function valuesEqual(
     return Number(a.value) === Number(b.value);
   }
   if (a.valueType !== b.valueType) return false;
-  // Both sides are the same value type — primitive .value comparison.
   return (
     (a as unknown as Value<any>).value === (b as unknown as Value<any>).value
   );
 }
 
-// `Value<T>` import would be heavy — re-declare the minimal shape we
-// need locally instead.
 type Value<T> = { value: T | null };
 
-// Normalize a Luau-style 1-based [i, j] slice range against a length,
-// handling negative indices and out-of-range clamping. Returns
-// `[start, end]` for a JS half-open slice (`arr.slice(start, end)`).
 function normalizeRange(
   i: number,
   j: number | undefined,
@@ -237,10 +153,6 @@ function normalizeRange(
   const end = jEff < 0 ? Math.max(len + jEff + 1, 0) : Math.min(jEff, len);
   return [start, Math.max(end, start)];
 }
-
-// ============================================================================
-// String methods
-// ============================================================================
 
 function methodUpper(params: InkObject[]): InkObject {
   return new StringValue(asString(params[0], "upper", "receiver").toUpperCase());
@@ -310,8 +222,6 @@ function methodRep(params: InkObject[]): InkObject {
 }
 
 function methodGsub(params: InkObject[]): InkObject {
-  // Plain-text replacement only — Luau pattern support is deferred.
-  // docs/runtime/METHODS.md documents this — see "Pattern support deferred".
   const s = asString(params[0], "gsub", "receiver");
   const old = asString(params[1], "gsub", "old");
   const replacement = asString(params[2], "gsub", "new");
@@ -319,10 +229,6 @@ function methodGsub(params: InkObject[]): InkObject {
   return new StringValue(s.split(old).join(replacement));
 }
 
-// `s:match(pattern)` — Lua-pattern match. Routes through the same
-// `luaPatternToJs` engine used by `string.match` / `string.find` /
-// `string.gmatch` / `string.gsub` in StdLib.ts. Returns the captures
-// (or whole match if no captures), or nil on miss.
 function methodMatch(params: InkObject[]): InkObject {
   const s = asString(params[0], "match", "receiver");
   const pattern = asString(params[1], "match", "pattern");
@@ -339,10 +245,6 @@ function methodMatch(params: InkObject[]): InkObject {
       s.slice(matched.index, matched.index + matched.length),
     );
   }
-  // Single capture: return it directly. Multiple captures: per Luau,
-  // method-form drops multi-return semantics and just returns the
-  // first capture. (`string.match` proper does multi-return; the
-  // `:match()` method-form is shorthand for the single-result case.)
   const first = matched.captures[0];
   if (first == null) return NIL();
   if (typeof first === "number") return new IntValue(first);
@@ -353,18 +255,12 @@ function methodSplit(params: InkObject[]): InkObject {
   const s = asString(params[0], "split", "receiver");
   const sep =
     params[1] instanceof StringValue ? params[1].value ?? "," : ",";
-  // JS `string.split("")` splits into chars; Luau `string.split(s, "")`
-  // returns the full string as a single-element table. Mirror Luau.
   if (sep === "") {
     return arrayToObject([new StringValue(s)]);
   }
   const parts = s.split(sep);
   return arrayToObject(parts.map((p) => new StringValue(p)));
 }
-
-// ============================================================================
-// Methods that work on both strings and tables
-// ============================================================================
 
 function methodLen(params: InkObject[]): InkObject {
   const r = params[0];
@@ -426,10 +322,6 @@ function methodFind(params: InkObject[]): InkObject {
   if (r instanceof StringValue) {
     const s = r.value ?? "";
     const needle = asString(params[1], "find", "needle");
-    // Full `string.find` semantics — `s:find(...)` must behave
-    // exactly like `string.find(s, ...)`: optional init (1-indexed,
-    // negative counts from the end), optional `plain` flag (literal
-    // substring search), multi-return `(start, end, captures...)`.
     let init = 1;
     const initParam = params[2];
     if (initParam instanceof IntValue || initParam instanceof FloatValue) {
@@ -458,7 +350,6 @@ function methodFind(params: InkObject[]): InkObject {
     try {
       compiled = luaPatternToJs(needle);
     } catch (e) {
-      // Trappable, matching `string.find`'s error route.
       throw new StoryException(`string.find: ${(e as Error).message}`);
     }
     const matched = executeLuaPattern(compiled, s, init - 1);
@@ -484,10 +375,6 @@ function methodFind(params: InkObject[]): InkObject {
   }
   throw new StoryException(":find called on non-string non-table");
 }
-
-// ============================================================================
-// Table methods
-// ============================================================================
 
 function methodClone(params: InkObject[]): InkObject {
   const t = asTable(params[0], "clone", "receiver");
@@ -517,7 +404,6 @@ function methodRemove(params: InkObject[]): InkObject {
   const arr = arrayPortion(t);
   const given = checkNumberArg(params[1], 1, "remove", true);
   if (arr.length === 0) {
-    // Remove from empty array — return the same shape (no-op).
     return new ObjectValue(new Map(t));
   }
   const pos = given ?? arr.length;
@@ -544,8 +430,6 @@ function methodConcat(params: InkObject[]): InkObject {
 function methodSort(params: InkObject[]): InkObject {
   const t = asTable(params[0], "sort", "receiver");
   const arr = arrayPortion(t);
-  // JS Array.prototype.sort is stable since ES2019 (Node ≥ 12). Matches
-  // our `:sort` stability decision in docs/runtime/METHODS.md.
   const sorted = arr.slice().sort((a, b) => compareValues(a, b, "sort"));
   return rebuildTable(sorted, t);
 }
@@ -612,12 +496,6 @@ function methodMax(params: InkObject[]): InkObject {
   return best;
 }
 
-// Returns a random element from the array portion, or nil for an empty
-// one. The element is picked by the story's draw (`drawStoryRandom`), which
-// the story's seed and previous draw decide, as `math.random` and a shuffle
-// are, so a state restored to an earlier point picks again what it picked
-// there. A call with no story to draw from (`draw` absent) picks by
-// `Math.random`.
 function methodRandom(
   params: InkObject[],
   draw: (() => number) | null = null,
@@ -746,12 +624,7 @@ function methodIpairs(params: InkObject[]): InkObject {
   return arrayToObject(out);
 }
 
-// ============================================================================
-// Registry
-// ============================================================================
-
 export const METHOD_DISPATCH: Record<string, BuiltinMethod> = {
-  // strings
   upper: methodUpper,
   lower: methodLower,
   trim: methodTrim,
@@ -765,13 +638,11 @@ export const METHOD_DISPATCH: Record<string, BuiltinMethod> = {
   gsub: methodGsub,
   match: methodMatch,
   split: methodSplit,
-  // shared (string OR table)
   len: methodLen,
   reverse: methodReverse,
   at: methodAt,
   sub: methodSub,
   find: methodFind,
-  // tables
   clone: methodClone,
   insert: methodInsert,
   remove: methodRemove,
@@ -796,10 +667,6 @@ export function isBuiltinMethod(name: string): boolean {
   return Object.prototype.hasOwnProperty.call(METHOD_DISPATCH, name);
 }
 
-// Entry point used by `NativeFunctionCall.Call` when it sees a
-// `__method_<name>` function name. Strips the prefix, looks up the
-// implementation, and delegates. Method impls handle their own arity
-// and receiver-type validation.
 export function callBuiltinMethod(
   fullName: string,
   params: InkObject[],
@@ -811,12 +678,6 @@ export function callBuiltinMethod(
   if (!impl) {
     throw new StoryException(`Unknown builtin method :${methodName}`);
   }
-  // Single-value adjustment of the RECEIVER slot: a multi-return in
-  // receiver position truncates to its first value —
-  // `select(2, pcall(...)):match(...)` calls :match on select's
-  // (single-element) multi-return (math.luau line 258) — and a call that
-  // returned none gives nil. The arguments after it are a call's: each
-  // but the last one value and the last spread (`("x"):rep(two())`).
   if (params.length > 0) {
     const args = params.slice(1);
     spreadCallArgs(args);

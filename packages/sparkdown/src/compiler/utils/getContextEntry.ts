@@ -1,4 +1,3 @@
-/** Context tables contain authored entries, never Object.prototype members. */
 export const getContextEntry = (
   context: { [type: string]: { [name: string]: any } } | undefined,
   type: string,

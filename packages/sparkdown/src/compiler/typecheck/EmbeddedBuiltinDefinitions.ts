@@ -349,7 +349,6 @@ declare integer: {
 
 `;
 
-/** The standard library, declared for the global scope. */
 export function getBuiltinDefinitionSource(): string {
   let result = kBuiltinDefinitionBaseSrc;
 
@@ -367,7 +366,6 @@ export function getBuiltinDefinitionSource(): string {
   return result;
 }
 
-// Luau keeps this one table type until the new solver can handle separate tagged unions.
 const kBuiltinDefinitionTypeMethodSrc = `
 
 export type type = {
@@ -447,7 +445,6 @@ declare types: {
 }
 `;
 
-/** The `type` type and the `types` library, declared for the scope type functions run in. */
 export function getTypeFunctionDefinitionSource(): string {
   let result = "";
 

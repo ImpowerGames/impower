@@ -1,13 +1,3 @@
-// Synthetic-name canonicalization vs. APPENDED content.
-//
-// `canonicalizeSyntheticFlowNames` skips subtrees it has previously seen to
-// contain no synthetic name, keyed by node identity. Assembly can append a
-// later changed chunk's content into an ALREADY-EXISTING container, so a
-// stale mark could hide newly-added synthetics and leave their ordinals
-// diverging from a cold compile. The memo guards against that by also
-// comparing the container's content length, and this pins the behaviour:
-// adding anonymous functions into existing scene bodies (including one that
-// shifts every later ordinal) must stay byte-identical to a cold compile.
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -86,14 +76,11 @@ describe("canonicalization with appended content", () => {
       incr.compile({ textDocument: { uri: URI } } as never);
       let version = 1;
       const steps = [
-        // warm: unrelated edit so subtrees get marked synth-free
         { find: "Room 5 line one.", replace: "Room 5 line ONE." },
-        // now add an anonymous fn INTO scene_2's existing body
         {
           find: "  Room 2 line two.",
           replace: "  Room 2 line two.\n& local f = function(x) return x + 1 end",
         },
-        // and another one earlier, to shift ordinals
         {
           find: "  Room 1 line two.",
           replace: "  Room 1 line two.\n& local g = function(y) return y + 2 end",

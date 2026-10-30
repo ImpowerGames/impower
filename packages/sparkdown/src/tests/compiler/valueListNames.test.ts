@@ -1,12 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
-// A name after the `=` in a declaration's list (`x` in `local a, b = 1, x`)
-// has the grammar shape of a target, but it reads `x` (#1116). The editor's
-// annotators must read it that way too: no declaration in the outline or
-// scope-aware completion, a read for find-references and rename, and a
-// reference, not a declaration, in the semantic tokens.
-
 const SOURCE = `function helper()
 end
 function f()
@@ -33,7 +27,6 @@ function annotationsFor(source: string, channel: "declarations" | "references" |
   return out;
 }
 
-// The offset of the `occurrence`-th whole-word `name` in `source`.
 function offsetOf(source: string, name: string, occurrence: number): number {
   const matches = [...source.matchAll(new RegExp(`\\b${name}\\b`, "g"))];
   return matches[occurrence - 1]!.index!;
@@ -60,16 +53,11 @@ describe("a name in a declaration's value list", () => {
     const tokens = annotationsFor(SOURCE, "semantics");
     const valueX = tokens.find((t) => t.from === offsetOf(SOURCE, "x", 2));
     expect(valueX?.value).toEqual({ tokenType: "variable", tokenModifiers: [] });
-    // Naming `helper` in a value list does not rebind it as a variable, so
-    // the call on the next line is still a function.
     const call = tokens.find((t) => t.from === offsetOf(SOURCE, "helper", 3));
     expect(call?.value.tokenType).toBe("function");
   });
 });
 
-// A name after the list's `=` is a value even when the grammar gives it a
-// type or an `=` of its own: `local a = 1, b = 2` reads `b` and then fails on
-// the second `=`, as the lowerer and the lints read it.
 describe.each([
   ["with a second `=`", "local a = 1, helper = 2"],
   ["with a type", "local a = 1, helper: number"],
@@ -95,9 +83,6 @@ describe.each([
   });
 });
 
-// A target's own `=` is the one directly after its name and type: the
-// `k = 1` inside `typeof({ k = 1 })` is not the list's `=`, so a bare name
-// after it, before a statement on the same line, is still declared.
 test("a bare name after a table type is a declaration", () => {
   const source = "function f()\n  local a: typeof({ k = 1 }), b return b\nend\n";
   const decls = annotationsFor(source, "declarations").map((d) => `${d.value} ${d.text}`);

@@ -1,12 +1,5 @@
 // Constraint generation, ported from Luau's `ConstraintGenerator.h`/
 // `ConstraintGenerator.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// The generator walks a module's syntax tree once. It gives every expression
-// a type, most of them free or blocked, creates the module's scopes, and
-// records each relationship it finds between types as a constraint in the
-// constraint graph, for the solver to dispatch. The order constraints, free
-// types and scopes are created in follows Luau's, since it decides the
-// solver's results and the names of printed types.
 
 import {
   AstAttrType,
@@ -181,18 +174,11 @@ import {
 } from "./TypeUtils";
 import { TypeOnceVisitor } from "./VisitType";
 
-// Luau's `DFInt::LuauConstraintGeneratorRecursionLimit`.
 export const CONSTRAINT_GENERATOR_RECURSION_LIMIT = 300;
-// Luau's `FInt::LuauPrimitiveInferenceInTableLimit`.
 const PRIMITIVE_INFERENCE_IN_TABLE_LIMIT = 500;
 
-/** The name the parser gives a declaration it could not read a name for (Luau's `kParseNameError`). */
 const kParseNameError = "%error-id%";
 
-/**
- * Marks an extern type that does not derive directly from the root extern
- * type as overriding what `typeof` returns (Luau's `kTypeofRootTag`).
- */
 const kTypeofRootTag = "typeofRoot";
 
 export interface Inference {
@@ -213,15 +199,10 @@ function inferencePack(tp: TypePackId, refinements: (RefinementId | undefined)[]
   return { tp, refinements };
 }
 
-/** A position in the constraint list, to find the constraints generated between two points. */
 interface Checkpoint {
   offset: number;
 }
 
-/**
- * The scope and location of an unannotated local, and every type it has in
- * one of its states. The local's binding becomes the union of those types.
- */
 interface InferredBinding {
   scope: Scope;
   location: Location;
@@ -234,36 +215,28 @@ interface InteriorFreeTypes {
 }
 
 interface RefinementPartition {
-  /** The types to intersect with the type of the expression. */
   discriminantTypes: TypeId[];
-  /** Whether the type discriminated against is implicitly nil too. */
   shouldAppendNilType: boolean;
 }
 
 type RefinementContext = Map<DefId, RefinementPartition>;
 
 interface FunctionSignature {
-  /** The type of the function. */
   signature: TypeId;
-  /** The scope that encloses the function's signature. */
   signatureScope: Scope | undefined;
-  /** The scope that encloses the function's body; a child of `signatureScope`. */
   bodyScope: Scope;
 }
 
-/** Luau's `BlockedType::setOwner`: a blocked type keeps its first owner. */
 function setOwner(bt: BlockedType, newOwner: Constraint): void {
   if (bt.owner !== undefined) return;
   bt.owner = newOwner;
 }
 
-/** The location spanning a list of nodes, or an empty location for none (Luau's `getLocation`). */
 function getLocation(array: readonly AstNode[]): Location {
   if (array.length === 0) return new Location();
   return new Location(array[0]!.location.begin, array[array.length - 1]!.location.end);
 }
 
-/** The attribute of a kind among a declaration's attributes, as Luau's `getAttribute`. */
 function getAttribute(attributes: readonly AstAttr[], type: AstAttrType): AstAttr | undefined {
   for (const attribute of attributes) {
     if (attribute.type === type) return attribute;
@@ -271,13 +244,11 @@ function getAttribute(attributes: readonly AstAttr[], type: AstAttrType): AstAtt
   return undefined;
 }
 
-/** A string literal read as a C string: Luau passes its bytes as `const char*` there, so an embedded NUL ends it. */
 function cString(value: string): string {
   const nul = value.indexOf(String.fromCharCode(0));
   return nul === -1 ? value : value.slice(0, nul);
 }
 
-/** The argument of `require(argument)`, the one form of call the generator resolves a module for. */
 function matchRequire(call: AstExprCall): AstExpr | undefined {
   const require = "require";
 
@@ -301,25 +272,18 @@ function forEachConstraint(start: Checkpoint, end: Checkpoint, cg: ConstraintGen
   }
 }
 
-/** For every constraint from `start` to `end`, blocks dispatching `target` on it. */
 function addAllAsDependencies(start: Checkpoint, end: Checkpoint, cg: ConstraintGenerator, target: Constraint): void {
   forEachConstraint(start, end, cg, (ptr) => {
     cg.cgraph.addDependencyOf(ptr, target);
   });
 }
 
-/** For every constraint from `start` to `end`, blocks dispatching it on `target`. */
 function addAllAsReverseDependencies(start: Checkpoint, end: Checkpoint, cg: ConstraintGenerator, target: Constraint): void {
   forEachConstraint(start, end, cg, (ptr) => {
     cg.cgraph.addDependencyOf(target, ptr);
   });
 }
 
-/**
- * For every constraint from `start` to `end`, blocks dispatching `target` on
- * it. The `PackSubtypeConstraint`s of return statements are also chained, each
- * blocked on the one before, to keep a behavior of Luau's old solver.
- */
 function addAllAsDependenciesAndChainReturns(start: Checkpoint, end: Checkpoint, cg: ConstraintGenerator, target: Constraint): void {
   let previous: Constraint | undefined;
   forEachConstraint(start, end, cg, (constraint) => {
@@ -337,7 +301,7 @@ class HasFreeType extends TypeOnceVisitor {
   result = false;
 
   constructor() {
-    super("TypeOnceVisitor", /* skipBoundTypes */ true);
+    super("TypeOnceVisitor", true);
   }
 
   override visit(ty: TypeId): boolean {
@@ -380,23 +344,17 @@ function hasFreeType(ty: TypeId): boolean {
 function findSetmetatableTargetOf(target: TypeId): TypeId {
   target = follow(target);
 
-  // This does not handle tables with `__metatable` correctly.
   const tt = get(target, "MetatableType");
   if (tt) return tt.table;
 
   return target;
 }
 
-/**
- * Constraint generation may be asked to simplify a union or intersection of
- * types that are not solved enough yet. This finds such types, so that the
- * simplification waits for constraint solving.
- */
 class FindSimplificationBlockers extends IterativeTypeVisitor {
   found = false;
 
   constructor() {
-    super("FindSimplificationBlockers", /* skipBoundTypes */ true);
+    super("FindSimplificationBlockers", true);
   }
 
   override visit(_ty: TypeId): boolean {
@@ -410,8 +368,6 @@ class FindSimplificationBlockers extends IterativeTypeVisitor {
       case "PendingExpansionType":
         this.found = true;
         return false;
-      // Simplifying a function in a union or intersection needs nothing of
-      // its argument or return types.
       case "FunctionType":
       case "ExternType":
         return false;
@@ -488,17 +444,14 @@ function polarityOfAccess(access: AstTableAccess, p: Polarity): Polarity {
   }
 }
 
-/** A key for a pair of a type and a property name, standing in for Luau's `std::pair<TypeId, std::string>`. */
 function propIndexPairKey(ty: TypeId, index: string): string {
   return `${ty.serial}:${index}`;
 }
 
-/** A copy of a level, as C++ copies a `TypeLevel` by value. */
 function copyLevel(level: TypeLevel): TypeLevel {
   return new TypeLevel(level.level, level.subLevel);
 }
 
-/** A copy of a type alias, as C++ copies a `TypeFun` by value. */
 function copyTypeFun(tf: TypeFun): TypeFun {
   return new TypeFun(
     tf.type,
@@ -508,16 +461,9 @@ function copyTypeFun(tf: TypeFun): TypeFun {
   );
 }
 
-/**
- * The constraint generator must tell globals apart from accesses to undefined
- * symbols. Doing that in general is hard, so a first scan of the syntax tree
- * notes which globals the module defines.
- */
 class GlobalPrepopulator implements AstVisitor {
   readonly uninitializedGlobals = new Set<string>();
 
-  // Not part of Luau: the Luau inside these Sparkdown expressions is not
-  // checked (`SparkdownReading.ts`), so it defines no globals.
   visitSparkdownInterpString(): boolean {
     return false;
   }
@@ -571,36 +517,25 @@ class GlobalPrepopulator implements AstVisitor {
       return true;
     }
 
-    // Every other node is visited, type annotations included, so that the
-    // globals in `typeof` annotations are found too.
     return true;
   }
 }
 
 export class ConstraintGenerator {
-  /** Every scope in the module, with the location it covers. */
   readonly scopes: [Location, Scope][] = [];
 
   readonly module: Module;
   private readonly sharedModuleName: string;
   readonly builtinTypes: BuiltinTypes;
   readonly arena: TypeArena;
-  /** The root scope of the module; undefined until `visitModuleRoot`. */
   rootScope: Scope | undefined = undefined;
 
   private typeContext = TypeContext.Default;
 
-  /**
-   * A local can have several type states. A scope's binding for the local is
-   * the union of every type the local can have over its lifetime, which this
-   * map accumulates (see `recordInferredBinding` and `fillInInferredBindings`).
-   */
   private readonly inferredBindings = new Map<LuauSymbol, InferredBinding>();
 
-  /** The private scope of each type alias, which its type parameters belong to. */
   private readonly astTypeAliasDefiningScopes = new Map<AstStatTypeAlias, Scope>();
 
-  /** The environment scope each type function's body is checked in, which the type functions of one block share. */
   private readonly astTypeFunctionEnvironmentScopes = new Map<AstStatTypeFunction, Scope>();
 
   readonly dfg: DataFlowGraph;
@@ -608,15 +543,12 @@ export class ConstraintGenerator {
 
   private recursionCount = 0;
 
-  /** The rare errors constraint generation itself reports. */
   errors: LuauTypeError[] = [];
 
-  /** Keeps error suppression for immediate refinements. */
   private readonly normalizer: Normalizer;
 
   private readonly typeFunctionRuntime: TypeFunctionRuntime;
 
-  /** Resolves modules so that `require` imports their types. */
   private readonly moduleResolver: ModuleResolver;
 
   private readonly globalScope: Scope;
@@ -633,7 +565,6 @@ export class ConstraintGenerator {
 
   readonly cgraph: ConstraintGraph;
 
-  /** The module's generalization constraint, which the solver dispatches after every other constraint. */
   private moduleGeneralizationConstraint: Constraint | undefined;
 
   private readonly interiorFreeTypes: InteriorFreeTypes[] = [];
@@ -646,7 +577,6 @@ export class ConstraintGenerator {
 
   private readonly propIndexPairsSeen = new Map<string, TypeId>();
 
-  /** How many large table literals the generator is inside, where literals are not inferred as singletons. */
   private largeTableDepth = 0;
 
   constructor(
@@ -677,11 +607,6 @@ export class ConstraintGenerator {
     this.cgraph = cgraph;
   }
 
-  /**
-   * Generates the constraints of a module. The constraints, the free types
-   * and the function of each signature scope go into the constraint graph;
-   * the module's generalization constraint is deferred to the end of solving.
-   */
   run(block: AstStatBlock): ConstraintSet {
     this.visitModuleRoot(block);
 
@@ -696,10 +621,6 @@ export class ConstraintGenerator {
     return { rootScope: this.rootScope!, errors, deferredConstraints: deferred };
   }
 
-  /**
-   * The entry point: creates the module's scopes, constraints and free types.
-   * @param block the root block to generate constraints for.
-   */
   visitModuleRoot(block: AstStatBlock): void {
     const scope = Scope.child(this.globalScope);
     this.rootScope = scope;
@@ -709,7 +630,6 @@ export class ConstraintGenerator {
 
     this.interiorFreeTypes.push({ types: [], typePacks: [] });
 
-    // The module's own scope for the type function environment.
     const localTypeFunctionScope = Scope.child(this.typeFunctionScope!);
     localTypeFunctionScope.location = block.location;
     this.typeFunctionRuntime.rootScope = localTypeFunctionScope;
@@ -767,10 +687,6 @@ export class ConstraintGenerator {
     for (const ty of this.unionsToSimplify) this.addConstraint(scope, block.location, { kind: "SimplifyConstraint", ty });
   }
 
-  /**
-   * A new free type belonging to a scope.
-   * @param scope the scope the free type belongs to.
-   */
   private freshType(scope: Scope, polarity = Polarity.Unknown): TypeId {
     const ft = freshType(this.arena, this.builtinTypes, scope, polarity);
     this.interiorFreeTypes[this.interiorFreeTypes.length - 1]!.types.push(ft);
@@ -778,21 +694,12 @@ export class ConstraintGenerator {
     return ft;
   }
 
-  /**
-   * A new free type pack belonging to a scope.
-   * @param scope the scope the free type pack belongs to.
-   */
   private freshTypePack(scope: Scope, polarity = Polarity.Unknown): TypePackId {
     const result = this.arena.addTypePack(freeTypePack(scope, polarity));
     this.interiorFreeTypes[this.interiorFreeTypes.length - 1]!.typePacks.push(result);
     return result;
   }
 
-  /**
-   * A type pack with the given head and tail, without allocating an empty
-   * pack: with no head it is the tail, or the empty pack when there is no
-   * tail either.
-   */
   private addTypePack(head: TypeId[], tail: TypePackId | undefined): TypePackId {
     if (head.length === 0) {
       if (tail) return tail;
@@ -800,11 +707,6 @@ export class ConstraintGenerator {
     } else return this.arena.addTypePack(head, tail);
   }
 
-  /**
-   * A new scope, the child of another.
-   * @param node the syntax node the scope belongs to.
-   * @param parent the parent of the new scope.
-   */
   private childScope(node: AstNode, parent: Scope): Scope {
     const scope = Scope.child(parent);
     this.scopes.push([node.location, scope]);
@@ -831,9 +733,7 @@ export class ConstraintGenerator {
       let res = this.builtinTypes.neverType;
 
       for (const operand of phi.operands) {
-        // An operand has a type only once its def has been seen, so a
-        // missing one is prototyped with a blocked type to use later.
-        let ty = this.lookup(scope, location, operand, /* prototype */ false);
+        let ty = this.lookup(scope, location, operand, false);
         if (!ty) {
           ty = this.arena.addType(blockedType());
           if (!this.localTypes.has(ty)) this.localTypes.set(ty, new TypeIds());
@@ -848,19 +748,12 @@ export class ConstraintGenerator {
     } else throw new InternalCompilerError("ConstraintGenerator::lookup is inexhaustive?");
   }
 
-  /**
-   * Adds a new constraint with no dependencies.
-   * @param scope the scope of the constraint.
-   * @param cv the constraint to add.
-   * @returns the constraint added.
-   */
   private addConstraint(scope: Scope, location: Location, cv: ConstraintV): Constraint {
     const c = new Constraint(scope, location, cv, this.sharedModuleName);
     this.cgraph.constraints.push(c);
     return c;
   }
 
-  /** Adds a constraint made elsewhere; every caller makes it with the module's name already. */
   private addConstraintObject(_scope: Scope, c: Constraint): Constraint {
     this.cgraph.constraints.push(c);
     return c;
@@ -933,7 +826,6 @@ export class ConstraintGenerator {
     } else if (refinement.kind === "Proposition") {
       let discriminantTy = refinement.discriminantTy;
 
-      // A negative sense negates the discriminant.
       if (!sense) {
         const nt = get(follow(discriminantTy), "NegationType");
         if (nt) discriminantTy = nt.ty;
@@ -948,7 +840,6 @@ export class ConstraintGenerator {
         if (!refis.has(key.def)) refis.set(key.def, { discriminantTypes: [], shouldAppendNilType: false });
         refis.get(key.def)!.discriminantTypes.push(discriminantTy);
 
-        // The leaf of the key.
         if (key.propName === undefined) break;
 
         const nextDiscriminantTy = this.arena.addType(tableType());
@@ -960,7 +851,6 @@ export class ConstraintGenerator {
         discriminantTy = nextDiscriminantTy;
       }
 
-      // When the top-level expression is `t[x]`, it refines to `nil`, not `never`.
       refis.get(refinement.key.def)!.shouldAppendNilType =
         (sense || !eq) && containsSubscriptedDefinition(refinement.key.def) && !refinement.implicitFromCall;
     }
@@ -971,7 +861,7 @@ export class ConstraintGenerator {
 
     const refinements: RefinementContext = new Map();
     const constraints: ConstraintV[] = [];
-    this.computeRefinement(scope, location, refinement, refinements, /* sense */ true, /* eq */ false, constraints);
+    this.computeRefinement(scope, location, refinement, refinements, true, false, constraints);
     const flushConstraints = (kind: RefinementsOpKind, ty: TypeId, discriminants: TypeId[]): TypeId => {
       if (discriminants.length === 0) return ty;
       if (kind === RefinementsOpKind.None) return ty;
@@ -988,12 +878,6 @@ export class ConstraintGenerator {
       const defTy = this.lookup(scope, location, def);
       if (defTy) {
         let ty = defTy;
-        // The type is intersected with every discriminant type. Consecutive
-        // discriminants share one type function instance with many arguments,
-        // since a chain of one instance per discriminant, each checked with
-        // `mustDeferIntersection`, overflows the stack on large types. Once
-        // either type is not solved enough, the rest go through a `refine`
-        // instance, which waits for the solver.
         const discriminants: TypeId[] = [];
         let kind = RefinementsOpKind.None;
         let mustDefer = mustDeferIntersection(ty);
@@ -1019,7 +903,6 @@ export class ConstraintGenerator {
           }
         }
 
-        // The discriminants left over make one last constraint.
         if (kind !== RefinementsOpKind.None) ty = flushConstraints(kind, ty, discriminants);
 
         if (partition.shouldAppendNilType) {
@@ -1032,19 +915,11 @@ export class ConstraintGenerator {
     for (const c of constraints) this.addConstraint(scope, location, c);
   }
 
-  /**
-   * Recursive and mutually recursive type aliases are handled in two passes.
-   * This first pass scans the block's surface, counts the generic parameters
-   * of each alias and stands a blocked type in for it; the main pass works
-   * out how to expand them.
-   */
   private prototypeTypeDefinitions(scope: Scope, block: AstStatBlock): void {
     const typeNameLocations = new Map<string, Location>();
 
     let hasTypeFunction = false;
 
-    // Mutually recursive type aliases need every type binding in place
-    // before any alias statement is checked.
     for (const stat of block.body) {
       if (stat instanceof AstStatTypeAlias) {
         const alias = stat;
@@ -1053,8 +928,6 @@ export class ConstraintGenerator {
           continue;
         }
 
-        // A syntactically illegal type alias may have no name, and then
-        // nothing is prepopulated for it.
         if (alias.name === kParseNameError || alias.name === "typeof") continue;
 
         const loc = typeNameLocations.get(alias.name);
@@ -1068,15 +941,11 @@ export class ConstraintGenerator {
         const initialType = this.arena.addType(blockedType());
         const initialFun = new TypeFun(initialType);
 
-        // `addTypes` is false so that the generic parameters stay out of the
-        // private type bindings until the alias is checked and their defaults
-        // are resolved; otherwise `F<T... = ...T>` would resolve `T` to
-        // itself instead of reporting an error.
-        for (const [, gen] of this.createGenerics(defnScope, alias.generics, /* useCache */ true, /* addTypes */ false)) {
+        for (const [, gen] of this.createGenerics(defnScope, alias.generics, true, false)) {
           initialFun.typeParams.push(gen);
         }
 
-        for (const [, genPack] of this.createGenericPacks(defnScope, alias.genericPacks, /* useCache */ true, /* addTypes */ false)) {
+        for (const [, genPack] of this.createGenericPacks(defnScope, alias.genericPacks, true, false)) {
           initialFun.typePackParams.push(genPack);
         }
         initialFun.definitionLocation = alias.location;
@@ -1090,9 +959,6 @@ export class ConstraintGenerator {
         const fn = stat;
         hasTypeFunction = true;
 
-        // A syntactically illegal type function may have no name, and then no
-        // type is bound for it, as for a type alias. Luau binds its
-        // placeholder name, which would show in a duplicate's error.
         if (fn.name === kParseNameError) continue;
 
         const loc = typeNameLocations.get(fn.name);
@@ -1101,7 +967,6 @@ export class ConstraintGenerator {
           continue;
         }
 
-        // The type takes one type parameter for each parameter of the function.
         const typeParams: TypeId[] = [];
         const quantifiedTypeParams: GenericTypeDefinition[] = [];
         for (let i = 0; i < fn.body.args.length; i++) {
@@ -1109,10 +974,6 @@ export class ConstraintGenerator {
           typeParams.push(ty);
           quantifiedTypeParams.push({ ty });
         }
-
-        // Luau registers the function with its type function runtime here,
-        // compiling it for the VM. Sparkdown has no VM, so a use of the type
-        // reports that it cannot be evaluated.
 
         const udtfData: UserDefinedFunctionData = { definition: fn, environmentFunction: new Map(), environmentAlias: new Map() };
 
@@ -1127,8 +988,6 @@ export class ConstraintGenerator {
         typeNameLocations.set(fn.name, fn.location);
       } else if (stat instanceof AstStatDeclareExternType) {
         const classDeclaration = stat;
-        // A syntactically illegal class may have no name, and then nothing is
-        // prepopulated for it.
         if (classDeclaration.name === kParseNameError) continue;
 
         const loc = typeNameLocations.get(classDeclaration.name);
@@ -1151,12 +1010,6 @@ export class ConstraintGenerator {
     if (hasTypeFunction) this.prototypeTypeFunctionEnvironment(scope, block);
   }
 
-  /**
-   * Fills in the environments of the block's type functions: the one scope
-   * all their bodies are checked in, under the type function runtime's, where
-   * each type function of the block is a value; and the type functions and
-   * type aliases of the module's enclosing scopes that each one can see.
-   */
   private prototypeTypeFunctionEnvironment(scope: Scope, block: AstStatBlock): void {
     const typeFunctionEnvScope = Scope.child(this.typeFunctionRuntime.rootScope!);
 
@@ -1167,13 +1020,10 @@ export class ConstraintGenerator {
       if (!(stat instanceof AstStatTypeFunction)) continue;
       const fn = stat;
 
-      // As globals are prepopulated, each type function has a binding in the
-      // environment before any body is checked.
       const bt = this.arena.addType(blockedType());
       typeFunctionEnvScope.bindings.set(fn.name, { typeId: bt, location: fn.location });
       this.astTypeFunctionEnvironmentScopes.set(fn, typeFunctionEnvScope);
 
-      // The type function already made for the name, which a duplicate shares.
       const binding = scope.privateTypeBindings.get(fn.name) ?? scope.exportedTypeBindings.get(fn.name);
       const mainTypeFun = binding ? get(binding.type, "TypeFunctionInstanceType") : undefined;
       if (!mainTypeFun?.userFuncData) continue;
@@ -1200,12 +1050,11 @@ export class ConstraintGenerator {
 
           referencedTypeFunctions.set(definition, ty);
 
-          const existing = this.astTypeFunctionEnvironmentScopes.get(definition)?.linearSearchForBinding(name, /* traverseScopeChain */ false);
+          const existing = this.astTypeFunctionEnvironmentScopes.get(definition)?.linearSearchForBinding(name, false);
           if (existing) typeFunctionEnvScope.bindings.set(definition.name, { typeId: existing.typeId, location: definition.location });
         } else if (!ty) {
           if (userFuncData.environmentAlias.has(name)) return;
 
-          // Only the aliases a body names are registered.
           if (!globalNames.has(name)) return;
 
           userFuncData.environmentAlias.set(name, tf);
@@ -1214,15 +1063,12 @@ export class ConstraintGenerator {
         }
       };
 
-      // Up the scopes to register type functions and aliases, but without
-      // reaching into the global scope.
       for (let curr: Scope | undefined = scope; curr && curr !== this.globalScope; curr = curr.parent) {
         for (const [name, tf] of curr.privateTypeBindings) addToEnvironment(name, tf);
         for (const [name, tf] of curr.exportedTypeBindings) addToEnvironment(name, tf);
       }
     }
 
-    // Each global a body names gets the environment's type for it.
     for (const stat of block.body) {
       if (!(stat instanceof AstStatTypeFunction)) continue;
       visitAst(stat.body, {
@@ -1236,7 +1082,6 @@ export class ConstraintGenerator {
       });
     }
 
-    // A type function also sees the aliases of the type functions it can call.
     for (const type of createdTypeFunctions) {
       const sourceFuncData = type.userFuncData!;
 
@@ -1321,8 +1166,6 @@ export class ConstraintGenerator {
 
     const assignees: TypeId[] = [];
 
-    // Names the first value type, even when it is not among the variable
-    // types, for synthetic name attribution.
     let firstValueType: TypeId | undefined;
 
     for (const local of statLocal.vars) {
@@ -1337,13 +1180,11 @@ export class ConstraintGenerator {
 
       if (local.annotation) {
         hasAnnotation = true;
-        const annotationTy = this.resolveType(scope, local.annotation, /* inTypeArguments */ false);
+        const annotationTy = this.resolveType(scope, local.annotation, false);
         annotatedTypes.push(annotationTy);
         expectedTypes.push(annotationTy);
         scope.bindings.set(local, { typeId: annotationTy, location });
       } else {
-        // `annotatedTypes` has one type per local; a local without an
-        // annotation takes the most conservative type.
         annotatedTypes.push(this.builtinTypes.unknownType);
 
         expectedTypes.push(undefined);
@@ -1357,14 +1198,12 @@ export class ConstraintGenerator {
     }
 
     const start = checkpoint(this);
-    const rvaluePack = this.checkPackList(scope, statLocal.values, expectedTypes, /* generalize */ true).tp;
+    const rvaluePack = this.checkPackList(scope, statLocal.values, expectedTypes, true).tp;
     const end = checkpoint(this);
 
     const deferredTypes: TypeId[] = [];
     const { head, tail } = flatten(rvaluePack);
 
-    // Kept apart from `deferredTypes` to tell the blocked types minted here
-    // from the ones that stand for annotations.
     const freshBlockedTypes = new Set<BlockedType>();
 
     for (let i = 0; i < statLocal.vars.length; ++i) {
@@ -1431,8 +1270,6 @@ export class ConstraintGenerator {
     }
 
     if (statLocal.values.length > 0) {
-      // A `require` imports the exported type bindings of the module it
-      // names into the variable's namespace.
       for (let i = 0; i < statLocal.values.length && i < statLocal.vars.length; ++i) {
         const call = statLocal.values[i];
         if (!(call instanceof AstExprCall)) continue;
@@ -1454,7 +1291,6 @@ export class ConstraintGenerator {
         scope.importedTypeBindings.set(name, importedBindings);
         scope.importedModules.set(name, moduleInfo.name);
 
-        // The imported types of a require that leads back to this module are replaced with `any`.
         for (const { path } of this.requireCycles) {
           if (path.length === 0 || path[0] !== moduleInfo.name) continue;
 
@@ -1469,7 +1305,7 @@ export class ConstraintGenerator {
 
   private visitFor(scope: Scope, for_: AstStatFor): ControlFlow {
     let annotationTy = this.builtinTypes.numberType;
-    if (for_.variable.annotation) annotationTy = this.resolveType(scope, for_.variable.annotation, /* inTypeArguments */ false);
+    if (for_.variable.annotation) annotationTy = this.resolveType(scope, for_.variable.annotation, false);
 
     const inferNumber = (expr: AstExpr | undefined): void => {
       if (!expr) return;
@@ -1509,7 +1345,7 @@ export class ConstraintGenerator {
       const def = this.dfg.getLocalDef(variable);
 
       if (variable.annotation) {
-        const annotationTy = this.resolveType(loopScope, variable.annotation, /* inTypeArguments */ false);
+        const annotationTy = this.resolveType(loopScope, variable.annotation, false);
         loopScope.bindings.set(variable, { typeId: annotationTy, location: variable.location });
         this.addConstraint(scope, variable.location, { kind: "SubtypeConstraint", subType: loopVar, superType: annotationTy });
         loopScope.lvalueTypes.set(def, annotationTy);
@@ -1527,7 +1363,6 @@ export class ConstraintGenerator {
       astForInNextTypes: this.module.astForInNextTypes,
     });
 
-    // An intersection with `~nil` on the key variable says that it cannot be nil.
     const keyVar = forIn.vars[0]!;
     const keyDef = this.dfg.getLocalDef(keyVar);
     const loopVar = loopScope.lvalueTypes.get(keyDef)!;
@@ -1556,7 +1391,6 @@ export class ConstraintGenerator {
 
     scope.inheritAssignments(loopScope);
 
-    // The iterable constraint dispatches first.
     addAllAsReverseDependencies(start, end, this, iterable);
     return ControlFlow.None;
   }
@@ -1587,11 +1421,10 @@ export class ConstraintGenerator {
   }
 
   private visitLocalFunction(scope: Scope, fn: AstStatLocalFunction): ControlFlow {
-    // The parser gives every local function a distinct symbol for its name.
     const functionType = this.arena.addType(blockedType());
     scope.bindings.set(fn.name, { typeId: functionType, location: fn.name.location });
 
-    const sig = this.checkFunctionSignature(scope, fn.func, /* expectedType */ undefined, fn.name.location);
+    const sig = this.checkFunctionSignature(scope, fn.func, undefined, fn.name.location);
     sig.bodyScope.bindings.set(fn.name, { typeId: sig.signature, location: fn.name.location });
 
     const def = this.dfg.getLocalDef(fn.name);
@@ -1622,10 +1455,8 @@ export class ConstraintGenerator {
   }
 
   private visitFunction(scope: Scope, fn: AstStatFunction): ControlFlow {
-    // The name is a local, a global or an index expression, with or without self.
-
     const start = checkpoint(this);
-    const sig = this.checkFunctionSignature(scope, fn.func, /* expectedType */ undefined, fn.name.location);
+    const sig = this.checkFunctionSignature(scope, fn.func, undefined, fn.name.location);
 
     const def = this.dfg.getDef(fn.name);
 
@@ -1717,9 +1548,6 @@ export class ConstraintGenerator {
   }
 
   private visitReturn(scope: Scope, ret: AstStatReturn): ControlFlow {
-    // The return type has interesting contents here only when the function
-    // has an explicit return annotation, and then the returned expressions
-    // are expected to conform to it.
     const expectedTypes: (TypeId | undefined)[] = [];
     for (const ty of flatten(scope.returnType).head) expectedTypes.push(ty);
     const exprTypes = this.checkPackList(scope, ret.list, expectedTypes, false).tp;
@@ -1733,8 +1561,6 @@ export class ConstraintGenerator {
 
     const flow = this.visitBlockWithoutChildScope(innerScope, block);
 
-    // A block has linear control flow, one entry and one exit, so every
-    // change it makes to the environment carries over.
     scope.inheritRefinements(innerScope);
     scope.inheritAssignments(innerScope);
 
@@ -1748,12 +1574,8 @@ export class ConstraintGenerator {
 
     const { head } = flatten(resultPack);
     if (head.length >= assign.vars.length) {
-      // The result pack is long enough for every variable, so its types are
-      // used directly, without an UnpackConstraint.
       for (let i = 0; i < assign.vars.length; ++i) valueTypes.push(head[i]!);
     } else {
-      // How many types the right side produces is not known yet, so an
-      // UnpackConstraint defers the split to the solver.
       for (let i = 0; i < assign.vars.length; ++i) valueTypes.push(this.arena.addType(blockedType()));
 
       const uc = this.addConstraint(scope, assign.location, { kind: "UnpackConstraint", resultPack: [...valueTypes], sourcePack: resultPack });
@@ -1771,7 +1593,6 @@ export class ConstraintGenerator {
   private visitCompoundAssign(scope: Scope, assign: AstStatCompoundAssign): ControlFlow {
     const resultTy = this.checkAstExprBinary(scope, assign.location, assign.op, assign.variable, assign.value, undefined).ty;
     this.module.astCompoundAssignResultTypes.set(assign, resultTy);
-    // Compound assignments do not update lvalues, by design.
     return ControlFlow.None;
   }
 
@@ -1807,7 +1628,7 @@ export class ConstraintGenerator {
       if (param.defaultValue && astTy.defaultValue !== undefined) {
         const resolvesTo = astTy.defaultValue;
         const toUnblock = param.defaultValue;
-        emplaceType(toUnblock, boundType(this.resolveType(defnScope, resolvesTo, /* inTypeArguments */ false)));
+        emplaceType(toUnblock, boundType(this.resolveType(defnScope, resolvesTo, false)));
       }
       defnScope.privateTypeBindings.set(astTy.name, new TypeFun(param.ty));
     }
@@ -1818,7 +1639,7 @@ export class ConstraintGenerator {
       if (param.defaultValue && astPack.defaultValue !== undefined) {
         const resolvesTo = astPack.defaultValue;
         const toUnblock = param.defaultValue;
-        emplaceTypePack(toUnblock, boundTypePack(this.resolveTypePack(defnScope, resolvesTo, /* inTypeArguments */ false)));
+        emplaceTypePack(toUnblock, boundTypePack(this.resolveTypePack(defnScope, resolvesTo, false)));
       }
       defnScope.privateTypePackBindings.set(astPack.name, param.tp);
     }
@@ -1839,14 +1660,13 @@ export class ConstraintGenerator {
 
     const typeBindings = alias.exported ? scope.exportedTypeBindings : scope.privateTypeBindings;
 
-    // These are undefined when the alias is a duplicate definition, which is skipped.
     const binding = typeBindings.get(alias.name);
     if (binding === undefined || defnScopePtr === undefined) return ControlFlow.None;
 
     const defnScope = defnScopePtr;
     this.resolveGenericDefaultParameters(defnScope, alias, binding);
 
-    const ty = this.resolveType(defnScope, alias.type, /* inTypeArguments */ false, /* replaceErrorWithFresh */ false);
+    const ty = this.resolveType(defnScope, alias.type, false, false);
 
     const aliasTy = binding.type;
     if (occursCheck(aliasTy, ty)) {
@@ -1855,10 +1675,10 @@ export class ConstraintGenerator {
     } else emplaceType(aliasTy, boundType(ty));
 
     const typeParams: TypeId[] = [];
-    for (const [, tyParam] of this.createGenerics(defnScope, alias.generics, /* useCache */ true, /* addTypes */ false)) typeParams.push(tyParam.ty);
+    for (const [, tyParam] of this.createGenerics(defnScope, alias.generics, true, false)) typeParams.push(tyParam.ty);
 
     const typePackParams: TypePackId[] = [];
-    for (const [, tpParam] of this.createGenericPacks(defnScope, alias.genericPacks, /* useCache */ true, /* addTypes */ false)) {
+    for (const [, tpParam] of this.createGenericPacks(defnScope, alias.genericPacks, true, false)) {
       typePackParams.push(tpParam.tp);
     }
 
@@ -1874,7 +1694,6 @@ export class ConstraintGenerator {
     return ControlFlow.None;
   }
 
-  /** Checks a type function's body in its type function environment. */
   private visitTypeFunction(scope: Scope, fn: AstStatTypeFunction): ControlFlow {
     if (fn.name === "typeof") this.reportError(fn.location, { kind: "ReservedIdentifier", name: "typeof" });
 
@@ -1882,9 +1701,8 @@ export class ConstraintGenerator {
     if (!environmentScope) throw new InternalCompilerError("prototypeTypeDefinitions did not make a type function environment");
 
     const startCheckpoint = checkpoint(this);
-    const sig = this.checkFunctionSignature(environmentScope, fn.body, /* expectedType */ undefined);
+    const sig = this.checkFunctionSignature(environmentScope, fn.body, undefined);
 
-    // The function's scope is also a child of the scope it is declared in.
     scope.children.push(sig.signatureScope!);
     this.interiorFreeTypes.push({ types: [], typePacks: [] });
     this.checkFunctionBody(sig.bodyScope, fn.body);
@@ -1920,7 +1738,7 @@ export class ConstraintGenerator {
   }
 
   private visitDeclareGlobal(scope: Scope, global: AstStatDeclareGlobal): ControlFlow {
-    const globalTy = this.resolveType(scope, global.type, /* inTypeArguments */ false);
+    const globalTy = this.resolveType(scope, global.type, false);
     const globalName = global.name;
 
     const rootScope = this.rootScope!;
@@ -1935,7 +1753,6 @@ export class ConstraintGenerator {
   }
 
   private visitDeclareExternType(scope: Scope, declaredExternType: AstStatDeclareExternType): ControlFlow {
-    // A declaration with no type binding, such as one without a name, is skipped.
     const binding = scope.exportedTypeBindings.get(declaredExternType.name);
     if (binding === undefined) return ControlFlow.None;
 
@@ -1957,8 +1774,6 @@ export class ConstraintGenerator {
           message: `Cannot use non-class type '${superName}' as a superclass of class '${declaredExternType.name}'`,
         });
 
-        // Without an error type here, a blocked type would be exposed in this
-        // module's type interface.
         emplaceType(binding.type, boundType(this.builtinTypes.errorType));
 
         return ControlFlow.None;
@@ -1989,22 +1804,20 @@ export class ConstraintGenerator {
       if (this.recursionCount >= CONSTRAINT_GENERATOR_RECURSION_LIMIT) {
         this.reportCodeTooComplex(declaredExternType.indexer.location);
       } else {
-        // Extern types are not generic, but an indexer over generics has
-        // mixed polarity.
         etv.indexer = new TableIndexer(
           this.resolveType(
             scope,
             declaredExternType.indexer.indexType,
-            /* inTypeArguments */ false,
-            /* replaceErrorWithFresh */ false,
-            /* initialPolarity */ Polarity.Mixed,
+            false,
+            false,
+            Polarity.Mixed,
           ),
           this.resolveType(
             scope,
             declaredExternType.indexer.resultType,
-            /* inTypeArguments */ false,
-            /* replaceErrorWithFresh */ false,
-            /* initialPolarity */ Polarity.Mixed,
+            false,
+            false,
+            Polarity.Mixed,
           ),
         );
       }
@@ -2015,14 +1828,13 @@ export class ConstraintGenerator {
       const propTy = this.resolveType(
         scope,
         externProp.ty,
-        /* inTypeArguments */ false,
-        /* replaceErrorWithFresh */ false,
-        /* initialPolarity */ Polarity.Mixed,
+        false,
+        false,
+        Polarity.Mixed,
       );
 
       const assignToMetatable = isMetamethod(propName);
 
-      // A method's type takes `self`, which its parsed annotation leaves out.
       if (externProp.isMethod) {
         const ftv = get(propTy, "FunctionType");
         if (ftv) {
@@ -2031,7 +1843,6 @@ export class ConstraintGenerator {
 
           ftv.hasSelf = true;
 
-          // No vararg location is kept.
           const defn: FunctionDefinition = {
             definitionModuleName: this.module.name,
             definitionLocation: externProp.location,
@@ -2060,7 +1871,6 @@ export class ConstraintGenerator {
 
         const readTy = prop.readTy;
         if (readTy) {
-          // Overloads keep the intersection flat instead of nesting intersections.
           const itv = get(readTy, "IntersectionType");
           if (itv) {
             const options = [...itv.parts];
@@ -2085,7 +1895,6 @@ export class ConstraintGenerator {
 
         const writeTy = prop.writeTy;
         if (writeTy && !addedWriteTypeByOverload) {
-          // Overloads keep the intersection flat instead of nesting intersections.
           const itv = get(writeTy, "IntersectionType");
           if (itv) {
             const options = [...itv.parts];
@@ -2128,16 +1937,16 @@ export class ConstraintGenerator {
     const paramPack = this.resolveTypePackList(
       funScope,
       global.params,
-      /* inTypeArguments */ false,
-      /* replaceErrorWithFresh */ false,
-      /* initialPolarity */ Polarity.Negative,
+      false,
+      false,
+      Polarity.Negative,
     );
     const retPack = this.resolveTypePack(
       funScope,
       global.retTypes,
-      /* inTypeArguments */ false,
-      /* replaceErrorWithFresh */ false,
-      /* initialPolarity */ Polarity.Positive,
+      false,
+      false,
+      Polarity.Positive,
     );
 
     const defn: FunctionDefinition = {
@@ -2175,7 +1984,6 @@ export class ConstraintGenerator {
     return ControlFlow.None;
   }
 
-  /** Runs `f` with the type context set to `newValue`, then restores it (Luau's `InConditionalContext`). */
   private withTypeContext<T>(newValue: TypeContext, f: () => T): T {
     const oldValue = this.typeContext;
     this.typeContext = newValue;
@@ -2195,7 +2003,7 @@ export class ConstraintGenerator {
       if (i < exprs.length - 1) {
         let expectedType: TypeId | undefined;
         if (i < expectedTypes.length) expectedType = expectedTypes[i];
-        head.push(this.check(scope, expr, expectedType, /* forceSingleton */ false, generalize).ty);
+        head.push(this.check(scope, expr, expectedType, false, generalize).ty);
       } else {
         let expectedTailTypes: (TypeId | undefined)[] = [];
         if (i < expectedTypes.length) expectedTailTypes = expectedTypes.slice(i);
@@ -2225,9 +2033,7 @@ export class ConstraintGenerator {
       } else {
         let expectedType: TypeId | undefined;
         if (expectedTypes.length !== 0) expectedType = expectedTypes[0];
-        // With an expected type, the lambdas in the expression keep their
-        // ungeneralized types; without one, `generalize` decides.
-        const t = this.check(scope, expr, expectedType, /* forceSingleton */ false, expectedType === undefined && generalize).ty;
+        const t = this.check(scope, expr, expectedType, false, expectedType === undefined && generalize).ty;
 
         result = inferencePack(this.arena.addTypePack([t]));
       }
@@ -2302,20 +2108,6 @@ export class ConstraintGenerator {
     let argTail: TypePackId | undefined;
     const argumentRefinements: (RefinementId | undefined)[] = [];
 
-    // `setmetatable` constructs a `MetatableType` directly instead of
-    // resolving a call, as in
-    //
-    //  local a = setmetatable({ a = 1 }, {
-    //      __call = function(self, b: number)
-    //          return self.a * b
-    //      end,
-    //  })
-    //  local foo = a(12)
-    //
-    // Lambdas in a call's arguments are open to bidirectional inference, but
-    // they must also be generalized at the right time; without an expected
-    // type, `setmetatable` never checks its arguments against anything, so
-    // the lambdas in its arguments are let-generalized.
     let generalize = matchSetMetatable(call);
     if (matchSetMetatable(call)) {
       if (expectedType) generalize = false;
@@ -2325,8 +2117,6 @@ export class ConstraintGenerator {
       const arg = exprArgs[i]!;
 
       if (i === 0 && call.self) {
-        // The self type was computed along with the function type; unless
-        // that exceeded a recursion limit, it is in `astTypes`.
         const selfTy = this.module.astTypes.get(exprArgs[0]!);
         if (selfTy) args.push(selfTy);
         else args.push(this.freshType(scope, Polarity.Negative));
@@ -2338,12 +2128,12 @@ export class ConstraintGenerator {
 
         if (i === 0 && matchAssert(call)) {
           const { ty, refinement } = this.withTypeContext(TypeContext.Condition, () =>
-            this.check(scope, arg, argExpectedType, /* forceSingleton */ false, generalize),
+            this.check(scope, arg, argExpectedType, false, generalize),
           );
           args.push(ty);
           argumentRefinements.push(refinement);
         } else {
-          const { ty, refinement } = this.check(scope, arg, argExpectedType, /* forceSingleton */ false, generalize);
+          const { ty, refinement } = this.check(scope, arg, argExpectedType, false, generalize);
           args.push(ty);
           argumentRefinements.push(refinement);
         }
@@ -2430,9 +2220,6 @@ export class ConstraintGenerator {
         scope.lvalueTypes.set(def, resultTy);
         this.updateRValueRefinements(scope, def, resultTy);
 
-        // The target local is already in `inferredBindings`; its old type is
-        // swapped for the result, so that the local's type is not a union
-        // like `tbl | { @metatable something, tbl }`.
         const ib = this.inferredBindings.get(targetLocal.local);
         if (ib) ib.types.erase(target);
 
@@ -2460,10 +2247,6 @@ export class ConstraintGenerator {
 
     const [explicitTypeIds, explicitTypePackIds]: [TypeId[], TypePackId[]] =
       call.typeArguments.length !== 0 ? this.resolveTypeArguments(scope, call.typeArguments) : [[], []];
-
-    // For bidirectional inference, the constraints are solved in this order:
-    // the function type; the propagation of its types to the argument types;
-    // the argument types; the call.
 
     const checkConstraint = this.addConstraint(scope, call.func.location, {
       kind: "FunctionCheckConstraint",
@@ -2500,14 +2283,6 @@ export class ConstraintGenerator {
     return inferencePack(rets, [this.refinementArena.variadic(returnRefinements)]);
   }
 
-  /**
-   * Checks an expression that is expected to evaluate to one type.
-   * @param scope the scope the expression is in.
-   * @param expr the expression to check.
-   * @param expectedType the type the surrounding context expects, for bidirectional inference.
-   * @param generalize whether to generalize the lambdas met.
-   * @returns the type of the expression.
-   */
   private check(scope: Scope, expr: AstExpr, expectedType?: TypeId, forceSingleton = false, generalize = true): Inference {
     this.recursionCount++;
     try {
@@ -2516,9 +2291,6 @@ export class ConstraintGenerator {
         return inference(this.builtinTypes.errorType);
       }
 
-      // An expression can be checked more than once, as in the compound
-      // assignment `a[b] += c`; its result is cached so that `b` gets one set
-      // of constraints.
       const cached = this.inferredExprCache.get(expr);
       if (cached) return cached;
 
@@ -2549,7 +2321,6 @@ export class ConstraintGenerator {
 
         result = inference(this.builtinTypes.errorType);
       } else if (sparkdownValue(expr)) {
-        // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
         const value = sparkdownValue(expr)!;
         for (const operand of value.operands) this.check(scope, operand);
         result = inference(value.type === "string" ? this.builtinTypes.stringType : this.builtinTypes.anyType);
@@ -2570,8 +2341,6 @@ export class ConstraintGenerator {
   private checkConstantString(scope: Scope, string: AstExprConstantString, expectedType: TypeId | undefined, forceSingleton: boolean): Inference {
     if (forceSingleton) return inference(this.arena.addType(stringSingleton(string.value)));
 
-    // A table like `{ "aback", "abacus", "abandon", ... }` is most likely
-    // meant as a `{ string }`, not an array of a huge union of singletons.
     if (this.largeTableDepth > 0) return inference(this.builtinTypes.stringType);
 
     const freeTy = this.freshType(scope, Polarity.Positive);
@@ -2587,8 +2356,6 @@ export class ConstraintGenerator {
     const singletonType = boolExpr.value ? this.builtinTypes.trueType : this.builtinTypes.falseType;
     if (forceSingleton) return inference(singletonType);
 
-    // A table like `{ Foo = true, Bar = false, Baz = true, ... }` is most
-    // likely meant to hold booleans, not a singleton in each property.
     if (this.largeTableDepth > 0) return inference(this.builtinTypes.booleanType);
 
     const freeTy = this.freshType(scope, Polarity.Positive);
@@ -2605,7 +2372,6 @@ export class ConstraintGenerator {
 
     let maybeTy: TypeId | undefined;
 
-    // A refinement key gives the local's type.
     if (key) maybeTy = this.lookup(scope, local.location, key.def);
 
     if (maybeTy) {
@@ -2622,9 +2388,7 @@ export class ConstraintGenerator {
 
     const def = key.def;
 
-    // `prepopulateGlobalScope` has added every global function to the
-    // environment, so a global that is not in scope is an unknown symbol.
-    const ty = this.lookup(scope, global.location, def, /* prototype */ false);
+    const ty = this.lookup(scope, global.location, def, false);
     if (ty) {
       return inference(ty, this.refinementArena.proposition(key, this.builtinTypes.truthyType));
     } else return inference(this.builtinTypes.errorType);
@@ -2634,13 +2398,8 @@ export class ConstraintGenerator {
     const obj = this.check(scope, indexee).ty;
     let result: TypeId | undefined;
 
-    // The HasProp constraint is optimized away in simple cases, to reason
-    // about updates to unsealed tables more accurately.
-
     let tt = getTableType(obj);
 
-    // If the local's domain grows at all, it grows somewhere after this
-    // position in the script.
     if (!tt) {
       const localDomain = this.localTypes.get(obj);
       if (localDomain && 1 === localDomain.size) tt = getTableType(localDomain.front());
@@ -2877,7 +2636,7 @@ export class ConstraintGenerator {
 
   private checkTypeAssertion(scope: Scope, typeAssert: AstExprTypeAssertion): Inference {
     this.check(scope, typeAssert.expr, undefined);
-    return inference(this.resolveType(scope, typeAssert.annotation, /* inTypeArguments */ false));
+    return inference(this.resolveType(scope, typeAssert.annotation, false));
   }
 
   private checkInterpString(scope: Scope, interpString: AstExprInterpString): Inference {
@@ -2914,9 +2673,9 @@ export class ConstraintGenerator {
 
     for (const typeOrPack of typeArguments) {
       if (typeOrPack.type) {
-        resolvedTypeArguments.push(this.resolveType(scope, typeOrPack.type, /* inTypeArguments */ false));
+        resolvedTypeArguments.push(this.resolveType(scope, typeOrPack.type, false));
       } else {
-        resolvedTypePackArguments.push(this.resolveTypePack(scope, typeOrPack.typePack!, /* inTypeArguments */ false));
+        resolvedTypePackArguments.push(this.resolveTypePack(scope, typeOrPack.typePack!, false));
       }
     }
 
@@ -2980,10 +2739,8 @@ export class ConstraintGenerator {
         else if (typeguard.type === "table") discriminantTy = this.builtinTypes.tableType;
         else if (typeguard.type === "function") discriminantTy = this.builtinTypes.functionType;
         else if (typeguard.type === "userdata") {
-          // A typeguard through `typeof` is not accurate about userdata.
           discriminantTy = this.builtinTypes.externType;
         } else if (typeguard.type === "vector" && !typeguard.isTypeof) {
-          // `vector` is defined in the embedded builtin definitions, not as a builtin type.
           const typeFun = this.globalScope.lookupType("vector");
           if (typeFun) discriminantTy = follow(typeFun.type);
         } else if (!typeguard.isTypeof) discriminantTy = this.builtinTypes.neverType;
@@ -2992,7 +2749,6 @@ export class ConstraintGenerator {
           if (typeFun && typeFun.typeParams.length === 0 && typeFun.typePackParams.length === 0) {
             const ty = follow(typeFun.type);
 
-            // Only the root type of an extern type matters.
             const etv = get(ty, "ExternType");
             if (etv && (etv.parent === this.builtinTypes.externType || hasTag(ty, kTypeofRootTag))) discriminantTy = ty;
           }
@@ -3003,7 +2759,6 @@ export class ConstraintGenerator {
         else if (op === BinaryOp.CompareNe) return [leftType, rightType, this.refinementArena.negation(proposition)];
         else throw new InternalCompilerError("matchTypeGuard should only return a Some under `==` or `~=`!");
       } else if (op === BinaryOp.CompareEq || op === BinaryOp.CompareNe) {
-        // That `a op b` is a boolean does not mean `a` and `b` are expected to be booleans.
         const leftType = this.check(scope, left, undefined, true).ty;
         const rightType = this.check(scope, right, undefined, true).ty;
 
@@ -3032,8 +2787,6 @@ export class ConstraintGenerator {
     else if (expr instanceof AstExprIndexName) this.visitLValueIndexName(scope, expr, rhsType);
     else if (expr instanceof AstExprIndexExpr) this.visitLValueIndexExpr(scope, expr, rhsType);
     else if (expr instanceof AstExprError) {
-      // The subexpressions of an error expression in an lvalue position are
-      // still checked, so that later visits make no invalid assumptions.
       for (const subExpr of expr.expressions) {
         this.check(scope, subExpr);
       }
@@ -3082,7 +2835,6 @@ export class ConstraintGenerator {
       const def = this.dfg.getDef(global);
       this.rootScope!.lvalueTypes.set(def, rhsType);
 
-      // A self-assignment makes no new constraint.
       if (annotatedTy === follow(rhsType)) return;
 
       const followedAnnotation = follow(annotatedTy);
@@ -3173,22 +2925,9 @@ export class ConstraintGenerator {
       const start = checkpoint(this);
 
       for (const item of expr.items) {
-        // Expected types reach table literals separately, through the
-        // PushTypeConstraint below. With `generalize` false, types can be
-        // pushed into the lambdas of a literal, as in
-        //
-        //  type Callback = (string) -> ()
-        //
-        //  local t: { Callback } = {
-        //      function (s)
-        //          -- s has type `string` here
-        //      end
-        //  }
-        const itemTy = this.check(scope, item.value, /* expectedType */ undefined, /* forceSingleton */ false, generalize).ty;
+        const itemTy = this.check(scope, item.value, undefined, false, generalize).ty;
 
         if (item.key) {
-          // The key is checked even when it is a string constant, whose type
-          // is not needed, to populate `astTypes`.
           const keyTy = this.check(scope, item.key).ty;
 
           if (item.key instanceof AstExprConstantString) {
@@ -3201,7 +2940,6 @@ export class ConstraintGenerator {
           }
         } else {
           const numberType = this.builtinTypes.numberType;
-          // The location is not quite right here.
           createIndexer(item.value.location, numberType, itemTy);
         }
       }
@@ -3258,8 +2996,6 @@ export class ConstraintGenerator {
 
     const signatureScope = this.childScope(fn, parent);
 
-    // The return type is assigned before the body scope is created, so that
-    // the body scope takes it.
     let returnType = this.freshTypePack(signatureScope, Polarity.Positive);
     signatureScope.returnType = returnType;
 
@@ -3269,7 +3005,6 @@ export class ConstraintGenerator {
       const genericDefinitions = this.createGenerics(signatureScope, fn.generics);
       const genericPackDefinitions = this.createGenericPacks(signatureScope, fn.genericPacks);
 
-      // Function generics have no default values, so only their types matter.
       for (const [, g] of genericDefinitions) {
         genericTypes.push(g.ty);
       }
@@ -3286,7 +3021,6 @@ export class ConstraintGenerator {
     let expectedArgPack: TypePack = typePack([]);
 
     let expectedFunction = expectedType ? get(expectedType, "FunctionType") : undefined;
-    // The expected type must be precisely optional, and not `any`, which is optional too.
     if (expectedType && isOptional(expectedType) && !get(expectedType, "AnyType")) {
       const ut = get(expectedType, "UnionType");
       if (ut) {
@@ -3322,7 +3056,7 @@ export class ConstraintGenerator {
 
       let argTy: TypeId;
       if (local.annotation) {
-        argTy = this.resolveType(signatureScope, local.annotation, /* inTypeArguments */ false, /* replaceErrorWithFresh */ true, Polarity.Negative);
+        argTy = this.resolveType(signatureScope, local.annotation, false, true, Polarity.Negative);
       } else {
         if (i < expectedArgPack.head.length) argTy = expectedArgPack.head[i]!;
         else argTy = this.freshType(signatureScope, Polarity.Negative);
@@ -3342,7 +3076,7 @@ export class ConstraintGenerator {
 
     if (fn.vararg) {
       if (fn.varargAnnotation) {
-        const annotationType = this.resolveTypePack(signatureScope, fn.varargAnnotation, /* inTypeArguments */ false, /* replaceErrorWithFresh */ true);
+        const annotationType = this.resolveTypePack(signatureScope, fn.varargAnnotation, false, true);
         varargPack = annotationType;
       } else if (expectedArgPack.tail && getPack(expectedArgPack.tail, "VariadicTypePack")) varargPack = expectedArgPack.tail;
       else varargPack = this.builtinTypes.anyTypePack;
@@ -3350,19 +3084,12 @@ export class ConstraintGenerator {
       signatureScope.varargPack = varargPack;
       bodyScope.varargPack = varargPack;
     } else {
-      varargPack = this.arena.addTypePack(variadicTypePack(this.builtinTypes.anyType, /* hidden */ true));
-      // `...` is not valid in a function without an explicit ellipsis, so
-      // the signature scope has no vararg pack.
+      varargPack = this.arena.addTypePack(variadicTypePack(this.builtinTypes.anyType, true));
 
       signatureScope.varargPack = undefined;
       bodyScope.varargPack = undefined;
     }
 
-    // Some of the unannotated parameters become generics and some do not;
-    // the ones that do not are pruned when the GeneralizationConstraint
-    // dispatches.
-
-    // The self parameter never has an annotation, so it could always become generic.
     if (fn.self) genericTypes.push(argTypes[0]!);
 
     let typeIndex = fn.self ? 1 : 0;
@@ -3378,12 +3105,8 @@ export class ConstraintGenerator {
     if (!fn.varargAnnotation) genericTypePacks.push(varargPack);
     if (!fn.returnAnnotation) genericTypePacks.push(returnType);
 
-    // With both an annotation and an expected type, the annotation wins;
-    // checking sorts out any mismatch later.
     if (fn.returnAnnotation) {
-      const annotatedRetType = this.resolveTypePack(signatureScope, fn.returnAnnotation, /* inTypeArguments */ false, /* replaceErrorWithFresh */ true);
-      // The annotated type is bound directly, so that the constraints of
-      // return statements know the annotated return type.
+      const annotatedRetType = this.resolveTypePack(signatureScope, fn.returnAnnotation, false, true);
       emplaceTypePack(returnType, boundTypePack(annotatedRetType));
     } else if (expectedFunction) {
       emplaceTypePack(returnType, boundTypePack(expectedFunction.retTypes));
@@ -3417,13 +3140,7 @@ export class ConstraintGenerator {
     };
   }
 
-  /**
-   * Checks the body of a function expression.
-   * @param scope the scope of the function's body.
-   * @param fn the function expression to check.
-   */
   private checkFunctionBody(scope: Scope, fn: AstExprFunction): void {
-    // When execution can reach the end of the function, the return type must accept `()`.
     const cf = this.visitBlockWithoutChildScope(scope, fn.body);
     if (cf === ControlFlow.None) {
       this.addConstraint(scope, fn.location, {
@@ -3447,7 +3164,6 @@ export class ConstraintGenerator {
     }
 
     if (alias !== undefined) {
-      // A non-generic alias needs no blocked type or instantiation constraint.
       if (alias.typeParams.length === 0 && alias.typePackParams.length === 0 && !ref.hasParameterList) {
         result = alias.type;
       } else {
@@ -3455,13 +3171,11 @@ export class ConstraintGenerator {
         const packParameters: TypePackId[] = [];
 
         for (const p of ref.parameters) {
-          // The parser enforces the order of types and type packs.
           if (p.type) {
-            parameters.push(this.resolveType_(scope, p.type, /* inTypeArguments */ true));
+            parameters.push(this.resolveType_(scope, p.type, true));
           } else if (p.typePack) {
-            const tp = this.resolveTypePack_(scope, p.typePack, /* inTypeArguments */ true);
+            const tp = this.resolveTypePack_(scope, p.typePack, true);
 
-            // Single-type packs fill in missing regular type parameters.
             if (parameters.length < alias.typeParams.length && packSize(tp) === 1 && finite(tp) && first(tp)) parameters.push(first(tp)!);
             else packParameters.push(tp);
           }
@@ -3469,12 +3183,9 @@ export class ConstraintGenerator {
 
         result = this.arena.addType(pendingExpansionType(ref.prefix, ref.name, parameters, packParameters));
 
-        // Outside type arguments, a constraint expands the pending type; its
-        // dispatch queues more constraints for nested type function applications.
         if (!inTypeArguments) this.addConstraint(scope, ty.location, { kind: "TypeAliasExpansionConstraint", target: result });
       }
     } else {
-      // The type checker reports the lookup failure when it visits the type.
       this.module.astTypeReferenceLookupFailures.add(ty);
       result = this.builtinTypes.errorType;
       if (replaceErrorWithFresh) result = this.freshType(scope, Polarity.Mixed);
@@ -3500,7 +3211,6 @@ export class ConstraintGenerator {
       let propRef = props.get(prop.name);
       if (!propRef) props.set(prop.name, (propRef = new Property()));
 
-      // The polarity of the property's type.
       this.polarity = polarityOfAccess(prop.access, p);
 
       const propTy = this.resolveType_(scope, prop.type, inTypeArguments);
@@ -3530,7 +3240,7 @@ export class ConstraintGenerator {
         indexer = new TableIndexer(
           this.resolveType_(scope, astIndexer.indexType, inTypeArguments),
           this.resolveType_(scope, astIndexer.resultType, inTypeArguments),
-          /* isReadOnly */ true,
+          true,
         );
       } else if (astIndexer.access === AstTableAccess.Write) {
         this.reportError(astIndexer.accessLocation ?? new Location(), { kind: "GenericError", message: "write keyword is illegal here" });
@@ -3561,7 +3271,6 @@ export class ConstraintGenerator {
     const genericTypes: TypeId[] = [];
     const genericTypePacks: TypePackId[] = [];
 
-    // Without generics, no child scope is needed for their bindings.
     if (hasGenerics) {
       signatureScope = this.childScope(fn, scope);
 
@@ -3576,7 +3285,6 @@ export class ConstraintGenerator {
         genericTypePacks.push(g.tp);
       }
     } else {
-      // The signature scope is the parent scope when there are no generics.
       signatureScope = scope;
     }
 
@@ -3605,19 +3313,11 @@ export class ConstraintGenerator {
     return this.arena.addType(ftv);
   }
 
-  /**
-   * Resolves a type from its annotation.
-   * @param scope the scope the annotation is in.
-   * @param ty the annotation to resolve.
-   * @param inTypeArguments whether the type is inside type arguments, `<...>`.
-   * @returns the type of the annotation.
-   */
   resolveType(scope: Scope, ty: AstType, inTypeArguments: boolean, replaceErrorWithFresh = false, initialPolarity = Polarity.Positive): TypeId {
     this.polarity = initialPolarity;
     return this.resolveType_(scope, ty, inTypeArguments, replaceErrorWithFresh);
   }
 
-  /** The recursive part of `resolveType`, which sets the polarity once at the start. */
   private resolveType_(scope: Scope, ty: AstType, inTypeArguments: boolean, replaceErrorWithFresh = false): TypeId {
     let result: TypeId;
 
@@ -3670,13 +3370,6 @@ export class ConstraintGenerator {
     return result;
   }
 
-  /**
-   * Resolves a type pack from its annotation.
-   * @param scope the scope the annotation is in.
-   * @param tp the annotation to resolve.
-   * @param inTypeArgument whether the pack is inside type arguments, `<...>`.
-   * @returns the type pack of the annotation.
-   */
   private resolveTypePack(
     scope: Scope,
     tp: AstTypePack,
@@ -3700,7 +3393,6 @@ export class ConstraintGenerator {
       if (lookup) {
         result = lookup;
       } else {
-        // The type checker reports the lookup failure when it visits the type pack.
         this.module.astTypePackReferenceLookupFailures.add(tp);
         result = this.builtinTypes.errorTypePack;
       }
@@ -3710,8 +3402,6 @@ export class ConstraintGenerator {
 
     const gtp = getPack(followPack(result), "GenericTypePack");
     if (gtp) {
-      // The initial polarity is unknown, so that bit is cleared by keeping at
-      // most Mixed, and the current polarity is added.
       gtp.polarity = (gtp.polarity & Polarity.Mixed) | this.polarity;
     }
 
@@ -3734,13 +3424,6 @@ export class ConstraintGenerator {
     return this.addTypePack(head, tail);
   }
 
-  /**
-   * Resolves a type pack from a list of annotations.
-   * @param scope the scope the annotations are in.
-   * @param list the annotations to resolve.
-   * @param inTypeArguments whether the list is inside type arguments, `<...>`.
-   * @returns the type pack of the annotations.
-   */
   private resolveTypePackList(
     scope: Scope,
     list: AstTypeList,
@@ -3752,14 +3435,6 @@ export class ConstraintGenerator {
     return this.resolveTypePackList_(scope, list, inTypeArguments, replaceErrorWithFresh);
   }
 
-  /**
-   * Creates the generic types of a list of generic parameters, with a
-   * blocked type standing for each default the parameters have.
-   * @param scope the scope the generics belong to.
-   * @param generics the generic parameters to create types for.
-   * @param useCache whether to reuse the generic types of the scope's parent with the same names.
-   * @param addTypes whether to add the types to the scope's private type bindings.
-   */
   private createGenerics(scope: Scope, generics: AstGenericType[], useCache = false, addTypes = true): [string, GenericTypeDefinition][] {
     const result: [string, GenericTypeDefinition][] = [];
     for (const generic of generics) {
@@ -3784,14 +3459,6 @@ export class ConstraintGenerator {
     return result;
   }
 
-  /**
-   * Creates the generic type packs of a list of generic pack parameters,
-   * with a blocked pack standing for each default the parameters have.
-   * @param scope the scope the generic packs belong to.
-   * @param generics the generic pack parameters to create packs for.
-   * @param useCache whether to reuse the generic packs of the scope's parent with the same names.
-   * @param addTypes whether to add the packs to the scope's private type pack bindings.
-   */
   private createGenericPacks(scope: Scope, generics: AstGenericTypePack[], useCache = false, addTypes = true): [string, GenericTypePackDefinition][] {
     const result: [string, GenericTypePackDefinition][] = [];
     for (const generic of generics) {
@@ -3841,7 +3508,6 @@ export class ConstraintGenerator {
     this.recursionLimitMet = true;
   }
 
-  /** The union of two types, simplified; a union that remains is simplified again by the solver. */
   private makeUnion(scope: Scope, location: Location, lhs: TypeId, rhs: TypeId): TypeId {
     if (get(follow(lhs), "NeverType")) return rhs;
     if (get(follow(rhs), "NeverType")) return lhs;
@@ -3851,7 +3517,6 @@ export class ConstraintGenerator {
     return result;
   }
 
-  /** The union of some types, which the solver later simplifies to keep types small. */
   private makeUnionOf(options: TypeId[]): TypeId {
     const ub = new UnionBuilder(this.arena, this.builtinTypes);
 
@@ -3864,17 +3529,12 @@ export class ConstraintGenerator {
     return unionTy;
   }
 
-  /** An `intersect` type function instance of two types. */
   private makeIntersect(scope: Scope, location: Location, lhs: TypeId, rhs: TypeId): TypeId {
     const resultType = this.createTypeFunctionInstance(this.builtinTypes.typeFunctions.intersectFunc, [lhs, rhs], [], scope, location);
 
     return resultType;
   }
 
-  /**
-   * Scans the program for global definitions, to tell globals apart from
-   * accesses to undefined symbols.
-   */
   private prepopulateGlobalScope(globalScope: Scope, program: AstStatBlock): void {
     const gp = new GlobalPrepopulator(globalScope, this.arena, this.dfg);
 
@@ -3884,8 +3544,6 @@ export class ConstraintGenerator {
 
     for (const name of gp.uninitializedGlobals) this.uninitializedGlobals.add(name);
 
-    // The globals of the type function environment are handled too, without
-    // preparing a module scope, since that environment is separate.
     const tfgp = new GlobalPrepopulator(this.typeFunctionRuntime.rootScope!, this.arena, this.dfg);
     visitAst(program, tfgp);
 
@@ -3934,7 +3592,6 @@ export class ConstraintGenerator {
     return incremented;
   }
 
-  /** Records that a local has a type in at least one of its states. */
   private recordInferredBinding(local: AstLocal, ty: TypeId): void {
     const ib = this.inferredBindings.get(local);
     if (ib) ib.types.insert(ty);
@@ -3953,11 +3610,6 @@ export class ConstraintGenerator {
     }
   }
 
-  /**
-   * The types the calls to an overloaded function are expected to take:
-   * each argument position takes the union of the overloads' parameters
-   * there, so `((number) -> string) & ((string) -> number)` gives `[number | string]`.
-   */
   private getExpectedCallTypesForFunctionOverloads(fnType: TypeId): (TypeId | undefined)[] {
     const funTys: TypeId[] = [];
     const it = get(follow(fnType), "IntersectionType");
@@ -3968,8 +3620,6 @@ export class ConstraintGenerator {
     }
 
     const expectedTypes: (TypeId | undefined)[] = [];
-    // For the functions `f_0 : e_0 -> r_0, ..., f_n : e_n -> r_n`, the
-    // arguments each position can take are the union of the arguments at it.
     const assignOption = (index: number, ty: TypeId): void => {
       if (index === expectedTypes.length) {
         expectedTypes.push(ty);

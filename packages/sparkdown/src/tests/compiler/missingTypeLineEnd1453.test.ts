@@ -1,9 +1,3 @@
-// A type annotation's `:`, a method access's `:` or a type's `|`, `&` or
-// `->` that ends its line, or is followed on it only by a comment, is
-// scoped alike by both TextMate engines, whatever the next line holds
-// (I-1453, closing I-1346 and I-1363): the missing-type rules decide on
-// their own line, as vscode-textmate does, and the author still sees Luau's
-// error for a missing type at Luau's range.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -16,7 +10,6 @@ const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
 const STORY = "After {run()}.\n";
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -28,10 +21,6 @@ function sparkdownErrors(text: string): string[] {
     .sort();
 }
 
-/**
- * The official parser's errors, with a missing type's range ending with
- * the line it is missing from, as Sparkdown reports it (I-1318, I-1322).
- */
 function officialErrors(luau: string): string[] {
   return officialErrorList(luau)
     .map((e) => e.replace(/^(\d+):(\d+)-(\d+):\d+ (Expected type, got .*)$/, (all, line, column, endLine, message) =>
@@ -44,14 +33,10 @@ async function expectEnginesAgree(source: string): Promise<void> {
   expect(result.divergences, formatDivergences(source, result.divergences)).toEqual([]);
 }
 
-// Forms in a function body, where a type may go on at the next line.
 const BODY_FORMS = [
-  // I-1346: a method access whose `:` ends its line before `end`.
   "t:",
   "local t = {}\n  t:",
   "local t = {}\n  t: --[[c]]",
-  // The same lookahead's other readers: an annotation, a return type and a
-  // type operator that end their line before a statement keyword.
   "local w:\n  local z = 1",
   "local w: --[[c]]\n  local z = 1",
   "local w: -- line\n  local z = 1",
@@ -62,22 +47,14 @@ const BODY_FORMS = [
   "local w: number &\n  local z = 1",
   "type F = () ->\n  local z = 1",
   "type F = () -> --[[c]]\n  local z = 1",
-  // A comment of a longer level, which the lookahead reads without a
-  // capture.
   "local w: number & --[==[c]==]\n  local z = 1",
   "local w: --[=========[c]=========]\n  local z = 1",
   "local w: --[==[c]==] = 1",
-  // Controls: a type on the next line is the annotation's.
   "local w:\n    number = 1",
   "local w: --[[c]]\n    number = 1",
   "local w: number |\n    string = 1",
 ];
 
-// I-1363: story statements, which end at their line. A scene's `local`
-// declaration's missing type is the one Luau reports for its line read
-// alone, at the line and column the scene puts it on; a top-level type
-// alias's is the one Luau reports for the story's Luau lines read together,
-// where the next statement's `if` stands in place of the type.
 const STORY_LUAU_TAIL = "\nif true then end\n";
 const STORY_FORMS: [form: string, text: (form: string) => string, luau: (form: string) => string][] = [
   ...[
@@ -108,7 +85,6 @@ const STORY_FORMS: [form: string, text: (form: string) => string, luau: (form: s
 ];
 
 describe("a missing type at a line end reads alike in both engines (I-1453)", () => {
-  // The tickets' own reproductions.
   test("I-1346: a method access whose `:` ends its line before `end`", () =>
     expectEnginesAgree("Value {f()}.\nfunction f()\n  t:\nend\n"));
   test("I-1363: a type operator before a comment at a story line's end", () =>

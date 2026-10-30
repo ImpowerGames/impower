@@ -68,8 +68,6 @@ describe("nested markers remain inside their bounded conditional", () => {
     if (body.startsWith("if")) expect(parents).toContain("LuauSparkdownExplicitIfBlock");
     if (body.startsWith("while") || body.startsWith("for")) expect(parents).toContain("LuauSparkdownExplicitLoop");
     if (body.startsWith("repeat")) expect(parents).toContain("LuauSparkdownExplicitRepeatLoop");
-    // Fail on lost ownership before executing: on the broken base a marked
-    // increment can escape its loop and leave an infinite empty loop behind.
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`return to the village\nValue ${value}.\n`);
@@ -78,9 +76,6 @@ describe("nested markers remain inside their bounded conditional", () => {
 });
 
 describe("unfinished bounded headers yield scene and branch ownership", () => {
-  // A bracket left open carries a story statement on (#1907): the next line
-  // is the bracket's, and the next header ends it, so the story after the
-  // header is story again.
   test.each(["& return (", "& return f(", "& do x = (", "& do if f(", "& do while f(", "& do repeat x = 1 until ("])("an unfinished bracket after %s carries the next line to the next header", async (prefix) => {
     const source = `${prefix}\nreturn to the village\nscene Next\nAfter.\nend\n`;
     const tree = parseSource(source);
@@ -91,13 +86,9 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
   });
   test.each(["scene", "branch", "scene\n    + 1"])("a function parenthetical preserves the identifier %s", async (expression) => {
     const source = `function f(scene, branch)\n  return (\n    ${expression}\n  )\nend\nscene start\n  Value {f(4, 5)}.\nend\n`;
-    // These names are reserved by Sparkdown's argument validator, but their
-    // parenthesized Luau token ownership must not turn into a story header.
     expect(diagnostics(source).map(messageOf).filter((m) => m.includes("missing its closing") || m.includes("Branches are only"))).toEqual([]);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  // A reserved word after the name is an operator or a clause keyword, never
-  // a header's name (#1907, round 1 of #2062's review).
   test.each([
     ["scene or true", "true"],
     ["branch or true", "true"],

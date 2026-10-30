@@ -28,7 +28,6 @@ end
     expect(forNode.numeric?.from?.source).toBe("1");
     expect(forNode.numeric?.to?.source).toBe("3");
     expect(forNode.numeric?.step).toBeUndefined();
-    // The body binding captures the loop var as an evaluator param.
     expect(forNode.children?.[0]?.content?.[1]?.binding?.params).toEqual(["i"]);
   });
 
@@ -167,7 +166,6 @@ end
         },
       },
     ]);
-    // Each binding gets its own evaluator id (distinct source positions).
     expect(text.content[1].binding.exprId).not.toBe(
       text.content[3].binding.exprId,
     );
@@ -223,8 +221,6 @@ end
             exprId: expect.stringMatching(/^__binding\$\d+$/),
             source: "take_damage(10)",
             span: expect.objectContaining({ from: expect.any(Number) }),
-            // `event` is a reserved evaluator param so the handler can pass it
-            // (write-back: the runtime supplies the DOM event table).
             params: ["event"],
           },
         },
@@ -247,8 +243,6 @@ end
           kind: "closure",
           binding: {
             exprId: expect.stringMatching(/^__binding\$\d+$/),
-            // The whole `{ … }` is the closure source; `event` is a reserved
-            // param so the body can read the DOM payload (event.value).
             source: "{ name = event.value }",
             span: expect.objectContaining({ from: expect.any(Number) }),
             params: ["event"],
@@ -399,7 +393,6 @@ end
     expect(forNode.else).toBeUndefined();
   });
 
-  // A loop variable's type annotation does not change its name (#1174).
   test.each([
     ["generic", "for k: string, v: number in scores do", ["k", "v"]],
     ["table-typed", "for k: {a: number, b: string}, v in scores do", ["k", "v"]],
@@ -468,9 +461,6 @@ end
     expect(fill.children[0]).toMatchObject({ tag: "button" });
   });
 
-  // `slot`/`fill` are positional KEYWORDS. Tag resolution otherwise prefers a
-  // builtin token wherever it sits on the line, so a slot NAMED after a builtin
-  // used to lower as that element carrying a stray "slot"/"fill" class.
   test("slot/fill still lower when the NAME collides with a builtin tag", () => {
     const ast = componentAst(`component card with
   box {
@@ -555,8 +545,6 @@ end
 `);
     const text = ast.card.children[0];
     const part = text.content.find((p: any) => p.kind === "binding");
-    // `{title}` must compile to `__binding$N(title) return title end` so the
-    // runtime can feed the call-arg value in as `title`.
     expect(part.binding.params).toEqual(["title"]);
   });
 
@@ -573,7 +561,6 @@ end
 `);
     const card = ast.sheet.children[0];
     expect(card.tag).toBe("card");
-    // One positional arg → one PropValue binding (`"Inventory"`).
     expect(card.params).toHaveLength(1);
     expect(card.params[0]).toEqual({
       kind: "binding",
@@ -583,7 +570,6 @@ end
         span: expect.objectContaining({ from: expect.any(Number) }),
       },
     });
-    // Default-slot child + a named fill attach as the call element's children.
     expect(card.children[0]).toMatchObject({ tag: "text" });
     expect(card.children[1]).toMatchObject({ kind: "fill", name: "footer" });
 
@@ -600,8 +586,6 @@ end
   card("Inventory")
 end
 `);
-    // `"Score is {score}!"` → content parts (literal + {expr} binding), so the
-    // quoted string interpolates like display content (spec D3).
     const interp = ast.sheet.children[0].params[0];
     expect(interp.kind).toBe("content");
     expect(interp.content).toEqual([
@@ -616,7 +600,6 @@ end
       },
       { kind: "literal", text: "!" },
     ]);
-    // A PLAIN quoted arg (no `{}`) stays a literal Luau-string binding.
     const plain = ast.sheet.children[1].params[0];
     expect(plain.kind).toBe("binding");
   });

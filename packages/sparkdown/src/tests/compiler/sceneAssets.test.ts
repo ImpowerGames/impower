@@ -9,11 +9,6 @@ import { type SparkProgram } from "../../compiler/types/SparkProgram";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { generatePerfScreenplay } from "./perfFixture";
 
-// `program.sceneAssets` is what the engine's asset module predicts and loads
-// from (docs/engine/asset-preloading-spec.md): per top-level flow, the asset
-// names its beats reference in document order, the flows it reaches, and
-// whether any name is only knowable at runtime.
-
 const URI = "file://proj/main.sd";
 
 const script = (text: string): File => ({
@@ -115,14 +110,10 @@ describe("program.sceneAssets", () => {
 
   it("unions a scene's names in first-use order and records the functions it calls", () => {
     const a = sceneAssets["A"]!;
-    // `bunny` comes from the branch's inline directive, after the layered
-    // `bunny~hat+hat` on the scene's first line.
     expect(a.image).toEqual(["bunny~hat", "hat", "bunny"]);
     expect(a.audio).toEqual(["theme"]);
     expect(a.layouts).toEqual(["hud"]);
     expect(a.loads).toEqual(["Other"]);
-    // A Luau call diverts through the variable holding the function; that is
-    // a call edge, never a successor and never a dynamic target.
     expect(a.calls).toEqual(["Fn"]);
     expect(sceneAssets["Fn"]!.image).toEqual([]);
   });
@@ -136,9 +127,6 @@ describe("program.sceneAssets", () => {
   });
 
   it("is static when every name is authored literally", () => {
-    // Braces inside a directive are literal text to the grammar, so no
-    // directive in this fixture is cut by an interpolation; the dynamic path
-    // is covered by the scanner's own tests.
     for (const flow of Object.values(sceneAssets)) {
       expect(flow.dynamic).toBeUndefined();
       expect(flow.dynamicBases).toBeUndefined();
@@ -161,8 +149,6 @@ describe("program.sceneAssets", () => {
   });
 });
 
-// A function body is Luau, so it cannot carry a display directive; the
-// callee-widening is exercised directly on captures instead.
 class Probe extends SparkdownCompiler {
   build(captures: Record<string, SceneAssetCapture>, functionNames: string[]) {
     this._flowAssetAccum = new Map(Object.entries(captures));
@@ -217,17 +203,13 @@ describe("populateSceneAssets", () => {
     expect(result["A"]!.kind).toBe("scene");
     expect(result["Helper"]!.kind).toBe("function");
     expect(result["0"]!.kind).toBe("root");
-    // Own names first, then callees in call order, each once.
     expect(result["A"]!.image).toEqual(["a1", "h1", "d1"]);
     expect(result["A"]!.audio).toEqual(["m"]);
     expect(result["A"]!.layouts).toEqual(["hud"]);
     expect(result["A"]!.calls).toEqual(["Helper"]);
     expect(result["A"]!.successors).toEqual(["B"]);
-    // A dynamic callee makes the caller dynamic and lends its bases.
     expect(result["A"]!.dynamic).toBe(true);
     expect(result["A"]!.dynamicBases).toEqual(["d"]);
-    // Beats stay the flow's own.
-    // Published beats are a copy of the capture (equal, never the same array).
     expect(result["A"]!.beats).toEqual(captures["A"]!.beats);
     expect(result["A"]!.beats).not.toBe(captures["A"]!.beats);
     expect(result["B"]!.successors).toEqual(["Tunneled"]);

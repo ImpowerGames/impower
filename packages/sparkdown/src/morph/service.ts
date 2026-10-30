@@ -1,9 +1,3 @@
-// The asynchronous bake service every host shares: it coalesces duplicate
-// requests, owns baked artifacts and the per-source geometry they reuse,
-// counts references, evicts within bounds and cancels work no consumer is
-// still waiting for. Hosts differ only in how they load a request
-// (hosts.ts); the bake itself is the same everywhere.
-
 import {
   bakeMorphArtifactAsync,
   type MorphBakeInput,
@@ -13,25 +7,13 @@ import {
 import type { MorphArtifact } from "./types";
 
 export interface MorphCacheLimits {
-  /** Artifacts kept, referenced ones included. */
   maxArtifacts: number;
-  /** Approximate bytes of unreferenced artifacts kept. */
   maxBytes: number;
-  /** Sources whose geometry is kept for reuse. */
   maxSources: number;
-  /** Geometry entries (pair morphs, sampled frames, apertures) kept per source. */
   maxGeometryPerSource: number;
-  /**
-   * Bakes running at once. The rest wait their turn, so a compile naming
-   * hundreds of variants cannot occupy a host's thread with all of them.
-   */
   maxConcurrentBakes: number;
 }
 
-/**
- * Starting bounds, not measured budgets: a portrait artifact is tens of
- * kilobytes, so these hold a scene's worth of variants. Hosts pass their own.
- */
 export const MORPH_CACHE_DEFAULTS: MorphCacheLimits = {
   maxArtifacts: 128,
   maxBytes: 8 * 1024 * 1024,
@@ -40,28 +22,19 @@ export const MORPH_CACHE_DEFAULTS: MorphCacheLimits = {
   maxConcurrentBakes: 2,
 };
 
-/** What a host's loader hands the service for one request. */
 export type MorphLoad =
-  /** Source to bake; `source` identifies its content for geometry reuse. */
   | { kind: "bake"; input: MorphBakeInput; source: string; uri?: string }
-  /** An artifact some other service already baked (an asset service's response). */
   | { kind: "artifact"; artifact: MorphArtifact; uri?: string };
 
 export interface MorphHandle {
   readonly key: string;
   readonly artifact: MorphArtifact;
-  /**
-   * An object URL for the rest render or a part, created on first use and
-   * revoked when the artifact leaves the cache. Needs `createObjectURL`.
-   */
   url(which: "rest" | number): string;
-  /** Gives the reference back; the artifact becomes evictable at zero. */
   release(): void;
 }
 
 export type MorphCacheEvent =
   | { type: "evict"; key: string; reason: "limit" | "invalidated" }
-  /** `milliseconds` is the bake itself; `waitedMilliseconds` the wait for a bake slot and the load. */
   | { type: "baked"; key: string; milliseconds: number; waitedMilliseconds: number; bytes: number };
 
 interface Entry {
@@ -90,14 +63,12 @@ interface Flight {
 const abortError = (signal?: AbortSignal) =>
   signal?.reason ?? new DOMException("The morph request was cancelled.", "AbortError");
 
-/** The size an artifact occupies, by its JSON form. */
 export const morphArtifactBytes = (artifact: MorphArtifact) => JSON.stringify(artifact).length * 2;
 
 export interface MorphBakeServiceOptions {
   limits?: Partial<MorphCacheLimits>;
   createObjectURL?: (blob: Blob) => string;
   revokeObjectURL?: (url: string) => void;
-  /** Replaces the bake, for tests that count or stall it. */
   bake?: (input: MorphBakeInput, options: { signal: AbortSignal; geometry: MorphGeometryCache }) => Promise<MorphArtifact>;
   now?: () => number;
 }
@@ -113,12 +84,6 @@ export class MorphBakeService {
     this.limits = { ...MORPH_CACHE_DEFAULTS, ...options.limits };
   }
 
-  /**
-   * The artifact for `key`, from the cache, from a bake already running for
-   * it, or from `load`. Each resolved handle holds one reference until
-   * released. Aborting `signal` rejects this caller; the shared work is
-   * cancelled only when no caller is still waiting for it.
-   */
   request(
     key: string,
     load: (signal: AbortSignal) => Promise<MorphLoad>,
@@ -132,8 +97,6 @@ export class MorphBakeService {
       return Promise.resolve(this.acquire(cached));
     }
     return new Promise<MorphHandle>((resolve, reject) => {
-      // Work every earlier caller abandoned is already cancelling; a new
-      // caller starts its own rather than inheriting that cancellation.
       const running = this.flights.get(key);
       const flight: Flight =
         running && !running.controller.signal.aborted
@@ -215,7 +178,6 @@ export class MorphBakeService {
   protected baking = 0;
   protected bakeQueue: (() => void)[] = [];
 
-  /** Waits for one of `maxConcurrentBakes`; the returned function gives it back. */
   protected bakeSlot(signal: AbortSignal): Promise<() => void> {
     const take = (): (() => void) => {
       this.baking += 1;
@@ -285,7 +247,6 @@ export class MorphBakeService {
     this.emit({ type: "evict", key: entry.key, reason });
   }
 
-  /** Evicts unreferenced artifacts, oldest use first, until within bounds. */
   protected trim() {
     let bytes = 0;
     for (const entry of this.entries.values()) if (entry.refs === 0) bytes += entry.bytes;
@@ -319,11 +280,6 @@ export class MorphBakeService {
     };
   }
 
-  /**
-   * Drops every artifact whose key or artwork URI matches, and the geometry
-   * of a matching source. Referenced artifacts go when their last handle is
-   * released; new requests for them bake again.
-   */
   invalidate(match: (entry: { key: string; uri?: string; source?: string }) => boolean) {
     for (const entry of [...this.entries.values()]) {
       if (!match(entry)) continue;

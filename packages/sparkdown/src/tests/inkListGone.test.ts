@@ -1,9 +1,3 @@
-// The ink LIST type is deleted (#1752): Sparkdown has no list syntax, so no
-// program could make a list value, a list definition or a parsed list. No
-// file under `packages/*/src` names the type's classes (`InkList` and its
-// item, `ListValue`, the runtime and parsed `ListDefinition`,
-// `ListDefinitionsOrigin`, `ListElementDefinition`), in code or in a
-// comment, so the type does not come back piece by piece.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,14 +6,8 @@ import { scanOf, sourcesUnder } from "./repositoryScan";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
-/** The names of the deleted type's classes, as whole words: `InkList` and
- *  every name it begins (`InkListItem`), and every name `ListDefinition`
- *  begins (`ListDefinitionsOrigin`). */
 const NAMES = /\b(InkList\w*|ListValue|ListDefinition\w*|ListElementDefinition)\b/g;
 
-/** Each name of the deleted type a file under the `src` of a package of
- *  `repo` holds, as `<file> names <name>` relative to `repo`, this file
- *  aside. */
 const whatRemains = (repo: string): string[] => {
   const found = new Set<string>();
   const packages = join(repo, "packages");
@@ -41,7 +29,6 @@ test("no file under packages/*/src names the ink LIST type", () => {
 });
 
 describe("the scan the check is held to", () => {
-  // A repository of its own, written to a temporary directory.
   const withRepo = (files: Record<string, string>): string[] =>
     scanOf("ink-list-gone-", files, whatRemains);
 

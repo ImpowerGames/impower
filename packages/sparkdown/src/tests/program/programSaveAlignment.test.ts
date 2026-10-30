@@ -1,12 +1,3 @@
-// A durable save loaded into a program that differs (#1429,
-// docs/engine/binary-program.md, section 8): each saved position is placed by
-// the alignment of its listing with the program's (matching blocks, then the
-// statement's own neighbourhood in every sequence, then its neighbours as an
-// edited statement), a body by its part, a renamed flow renames what the save
-// says about it, and a save falls back through its beats when a position
-// cannot be placed. Each fixture states the ordinal the design places the
-// save at, which differs from the ordinal the save names, so that keeping
-// the old ordinal gives another answer.
 import { describe, expect, it } from "vitest";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { SaveRefused } from "../../program/ProgramSave";
@@ -42,7 +33,6 @@ const engine = (root: ProgramRoot, saveHistory?: number): ProgramStory => {
 
 const shown = (story: ProgramStory) => story.currentText?.trim() ?? "";
 
-/** The next `count` beats that show something. */
 const advance = (story: ProgramStory, count: number): string[] => {
   const out: string[] = [];
   while (story.canContinue && out.length < count) {
@@ -52,7 +42,6 @@ const advance = (story: ProgramStory, count: number): string[] => {
   return out;
 };
 
-/** The beats to the end, taking `picks` at the menus in turn. */
 const play = (story: ProgramStory, picks: number[] = []): { beats: string[]; menus: string[][] } => {
   const beats: string[] = [];
   const menus: string[][] = [];
@@ -80,9 +69,6 @@ const scene = (lines: string[], name = "start", header: string[] = []) =>
     "",
   ].join("\n");
 
-/** Where the story stands: its flow's qualified name, the statement's
- *  ordinal in its sequence, and for a body, the owner's ordinal in the
- *  sequence that holds it. */
 const placed = (story: ProgramStory) => {
   const position = story.state.position!;
   const sequence = position.sequence;
@@ -94,9 +80,6 @@ const placed = (story: ProgramStory) => {
   };
 };
 
-/** Where the newest beat of a save stands, as it names it: the flow of its
- *  first level, the ordinal of its last level and, for a body, its owner's
- *  ordinal. */
 const savedAt = (save: string) => {
   const beat = JSON.parse(save).beats.at(-1);
   const levels = beat.position.st.levels as { at: number; flow?: string }[];
@@ -107,7 +90,6 @@ const savedAt = (save: string) => {
   };
 };
 
-/** A count by its symbol's qualified name. */
 const countOf = (story: ProgramStory, name: string): number => {
   const symbol = story.root.table.symbolIds.get(name);
   const id = symbol === undefined ? -1 : countIdOf(story.root.table, symbol);
@@ -117,12 +99,6 @@ const countOf = (story: ProgramStory, name: string): number => {
 const global = (story: ProgramStory, name: string) =>
   story.variablesState.GetVariableWithName(name);
 
-/**
- * Plays `before` for `beats` beats and saves, loads the save into `after`,
- * and checks that the newest beat was placed exactly where the fixture says
- * (`expected`), that the save named another ordinal there, and that the
- * story runs on as `rest` says.
- */
 const placesAt = (
   before: string,
   after: string,
@@ -134,7 +110,6 @@ const placesAt = (
   expect(advance(story, beats)).toHaveLength(beats);
   const save = story.toSave();
   const saved = savedAt(save);
-  // Keeping the saved ordinal gives another answer than the design's.
   expect(saved).not.toEqual(expected);
   const loaded = engine(rootOf(after));
   loaded.loadSave(save);
@@ -152,7 +127,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       scene(["One.", "Two.", "Three.", "Four."]),
       scene(["Zero.", "One.", "Two.", "Three.", "Four."]),
       2,
-      // "Three." was ordinal 2.
       { flow: "start", entry: 3 },
       ["Three.", "Four."],
     );
@@ -173,7 +147,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       scene(["A.", "B.", "C.", "D.", "E."]),
       scene(["Z.", "A.", "B, edited.", "C.", "D, edited.", "E."]),
       2,
-      // "C." was ordinal 2.
       { flow: "start", entry: 3 },
       ["C.", "D, edited.", "E."],
     );
@@ -184,7 +157,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       scene(["A.", "B.", "C.", "D.", "E.", "F.", "G.", "H."]),
       scene(["A.", "B.", "F.", "G.", "H.", "C.", "D.", "E."]),
       3,
-      // "D." was ordinal 3.
       { flow: "start", entry: 6 },
       ["D.", "E."],
     );
@@ -227,8 +199,6 @@ describe("a save taken below an edit loads at the same statement", () => {
         header,
       ),
       2,
-      // "P3." was ordinal 2 of the first `if`'s body, and is ordinal 3 of
-      // the second's.
       { flow: "start", owner: 1, entry: 3 },
       ["P3.", "P4.", "After."],
     );
@@ -262,7 +232,6 @@ describe("a save taken below an edit loads at the same statement", () => {
         "",
       ].join("\n"),
       3,
-      // The `if` was ordinal 2 of `start`, and is ordinal 1 of `other`.
       { flow: "other", owner: 1, entry: 1 },
       ["X2.", "X3.", "O2."],
     );
@@ -275,8 +244,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       scene(["A.", "X.", "Y.", "Z.", "E."]) +
         ["", "scene other", "  P.", "  Q.", "  B.", "  C.", "  D.", "end", ""].join("\n"),
       2,
-      // Placed in `other`, where "C." is ordinal 3, and not at "Y.", which
-      // the pairing in `start` would give.
       { flow: "other", entry: 3 },
       ["C.", "D."],
     );
@@ -287,8 +254,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       scene(["A.", "S.", "B.", "C."]),
       scene(["W.", "A.", "T.", "B.", "C.", "S."]),
       1,
-      // "S." was ordinal 1; "T." stands in its place, at ordinal 2, and the
-      // inserted "S." at 5 is not it.
       { flow: "start", entry: 2 },
       ["T.", "B.", "C.", "S."],
     );
@@ -311,15 +276,12 @@ describe("a save taken below an edit loads at the same statement", () => {
         "end",
         "After.",
       ]);
-    // At the first block's menu: the beat before it stands at the block.
     const story = engine(rootOf(blocks(false)));
     expect(advance(story, 1)).toEqual(["Intro."]);
     story.Continue();
     expect(story.currentChoices.map((c) => c.text)).toEqual(["Red"]);
     const first = story.toSave();
     expect(savedAt(first)).toEqual({ flow: "start", entry: 1 });
-    // At the second block's menu, after "Picked red.": the beat before it
-    // stands at the end of the red choice's body.
     story.ChooseChoiceIndex(0);
     expect(advance(story, 1)).toEqual(["Picked red."]);
     story.Continue();
@@ -328,7 +290,6 @@ describe("a save taken below an edit loads at the same statement", () => {
     expect(savedAt(second)).toEqual({ flow: "start", owner: 1, entry: 1 });
     const loaded = engine(rootOf(blocks(true)));
     loaded.loadSave(first);
-    // The red block is ordinal 2 now; ordinal 1 is the yellow one.
     expect(placed(loaded)).toEqual({ flow: "start", entry: 2 });
     expect(play(loaded, [0])).toEqual({
       beats: ["Picked red."],
@@ -398,14 +359,10 @@ describe("a save inside a flow that was renamed", () => {
     expect(rest).toEqual(["M2.", "M3.", "Turns 0 1.", "Gated.", "Last.", "In second 2."]);
     const loaded = engine(rootOf(ACT("PLAY")));
     loaded.loadSave(save);
-    // "M2." was ordinal 5 of `ACT.first`, which the program no longer has;
-    // it is ordinal 5 of `PLAY.first`, which the save does not name.
     expect(savedAt(save)).toEqual({ flow: "ACT.first", entry: 5 });
     expect(placed(loaded)).toEqual({ flow: "PLAY.first", entry: 5 });
     expect(savedAt(save).flow).toBe("ACT.first");
     expect(counts(loaded, "PLAY")).toEqual(before);
-    // The branch the sibling's count gated is still gated, and the variable
-    // that held the sibling's symbol still diverts to it.
     expect(play(loaded).beats).toEqual(rest);
   });
 
@@ -468,12 +425,10 @@ describe("a save inside a flow that was renamed", () => {
     const loaded = engine(rootOf(after));
     loaded.loadSave(save);
     expect(placed(loaded)).toEqual({ flow: "C.b", entry: 2 });
-    // `A` keeps its count, `C` takes none of it, and `A.b`'s goes to `C.b`.
     expect(play(loaded).beats).toEqual(["B three.", "B four.", "Report 1 0 1."]);
   });
 });
 
-// Round 1 of the review of #1654 (report 6030606004).
 describe("the beats of a save loaded into a release that differs", () => {
   it("rename a flow that only an older beat stands in, before the counts are read", () => {
     const ACT = (name: string) =>
@@ -504,7 +459,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     const story = engine(rootOf(ACT("ACT")));
     expect(advance(story, 6)).toEqual(["B1.", "B2.", "B3.", "B4.", "R1.", "R2."]);
     const save = story.toSave();
-    // The newest beat stands in `report`, which is unchanged.
     expect(savedAt(save)).toEqual({ flow: "report", entry: 2 });
     const loaded = engine(rootOf(ACT("PLAY")));
     loaded.loadSave(save);
@@ -545,7 +499,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     expect(play(loaded).beats).toEqual(["B3.", "B4.", "After."]);
   });
 
-  // Round 1 of the review of #1654 (report 6031317072).
   it("keep the value a beat had of a global whose initial value the release changed", () => {
     const story = engine(rootOf(scene(["First.", "Second {coins}."], "start", ["store coins = 1", ""])));
     expect(advance(story, 1)).toEqual(["First."]);
@@ -572,20 +525,16 @@ describe("the beats of a save loaded into a release that differs", () => {
     expect(play(reloaded).beats).toEqual(["Three."]);
   });
 
-  // Round 1 of the review of #1654 (report 6031983271).
   it("tell apart two displayed lines that differ inside a string of their interpolation, a `//` included", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", 'Line {"a // b"}.', "End."]),
       scene(["P1.", "P2.", "P3.", 'Line {"a // c"}.', 'Line {"a // b"}.', "End."]),
       3,
-      // The `a // b` line was ordinal 3, and is ordinal 4.
       { flow: "start", entry: 4 },
       ["Line a // b.", "End."],
     );
   });
 
-  // Round 2 of the review of #1654 (report 6032759458, finding 2): a long
-  // string in an interpolation, holding a brace and a `//`.
   it("tell apart two displayed lines that differ inside a long string of their interpolation, a brace and a `//` included", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "Line {[[a } // b]]}.", "End."]),
@@ -596,8 +545,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
-  // The other tokens of an interpolation whose text may hold a brace or a
-  // `//`, and of a line of logic whose text may hold a `--`.
   it("tell apart two displayed lines that differ after a block comment of their interpolation holding a brace and a `//`", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", 'Line {--[[ } // ]] "b"}.', "End."]),
@@ -618,8 +565,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
-  // Round 2 of the review of #1654 (report 6038272271, finding 3): a
-  // template string nested in a template string's interpolation.
   it("tell apart two displayed lines that differ inside a template string nested in their interpolation's template, a brace and a `//` included", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "Line {`{`a } // b`}`}.", "End."]),
@@ -650,8 +595,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
-  // Round 3 of the review of #1654 (report 6039459012): a string continued
-  // past its line, whose next line starts with what would be a comment.
   it("tell apart two calls that differ inside a string continued by `\\z` onto a line that starts with `--`", () => {
     const call = (text: string) => [String.raw`& table.insert(t, "a\z`, `-- ${text}")`];
     placesAt(
@@ -685,15 +628,12 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
-  // Round 3 of the review of #1654 (report 6040464865, finding 1): markup
-  // whose text a `//` is part of.
   it("tell apart two displayed lines that differ after a `//` in a raw span", () => {
     placesAt(
       scene(["P1.", "P2.", "P3.", "Line `a // b`.", "End."]),
       scene(["P1.", "P2.", "P3.", "Line `a // c`.", "Line `a // b`.", "End."]),
       3,
       { flow: "start", entry: 4 },
-      // The text the story gives keeps its markup: the `//` is text.
       ["Line `a // b`.", "End."],
     );
   });
@@ -708,8 +648,6 @@ describe("the beats of a save loaded into a release that differs", () => {
     );
   });
 
-  // Round 4 of the review of #1654 (report 6041582476): a long bracket's
-  // `=` run has no bound.
   it("tell apart two calls that differ inside a long string whose brackets hold 63 `=`", () => {
     const eq = "=".repeat(63);
     const call = (text: string) => `& table.insert(t, [${eq}[a--${text}]${eq}])`;
@@ -783,15 +721,12 @@ describe("the beats of a save loaded into a release that differs", () => {
     const story = engine(rootOf(before));
     expect(advance(story, 2)).toEqual(["First.", "Second."]);
     const save = story.toSave();
-    // The beat after the assignment wrote it as a change.
     expect(JSON.parse(save).beats.at(-1).globals).toHaveProperty("K");
     const loaded = engine(rootOf(scene(["First.", "Second.", "Value {K}."], "start", ["const K = 10", ""])));
     loaded.loadSave(save);
     expect(play(loaded).beats).toEqual(["Value 10."]);
   });
 
-  // Round 2 of the review of #1654 (report 6038272271, finding 1): the
-  // keyframe's value of the global defines the table another global holds.
   it("keep a table another global shares with a global the release made a constant, the keyframe its only definition", () => {
     const text = (k: string, assign: boolean) =>
       scene(
@@ -843,12 +778,10 @@ describe("a save that cannot be placed at its newest beat", () => {
       tick: countOf(s, "tick"),
     });
     expect(advance(story, 2)).toEqual(["One 0.", "Two 1 10."]);
-    // The run stopped at the beat that the load falls back to.
     const atTwo = state(story);
     expect(atTwo).toEqual({ n: "1", k: 10, tick: 1 });
     expect(advance(story, 1)).toEqual(["Three 2 20."]);
     expect(state(story)).toEqual({ n: "2", k: 20, tick: 2 });
-    // The newest beat stands at `& n = n + 5`, which is deleted.
     const save = story.toSave();
     const loaded = engine(rootOf(TEXT(true)));
     loaded.loadSave(save);
@@ -899,7 +832,6 @@ describe("the stated limits of the alignment", () => {
     );
     loaded.loadSave(save);
     const report = loaded.loadedSaveReport!;
-    // "Q." and "P." tie; "B." is placed.
     expect(report.beat).toBe(report.beats - 3);
     expect(placed(loaded)).toEqual({ flow: "start", entry: 1 });
     expect(play(loaded).beats).toEqual(["B.", "C."]);
@@ -922,28 +854,18 @@ describe("the stated limits of the alignment", () => {
     expect(play(loaded).beats).toEqual(["B.", "C."]);
   });
 
-  // Section 8: the alignment keeps order and matches the longest run first,
-  // so a save taken inside a run of identical lines resumes at the ordinal
-  // that run gives. Here the longest runs reach the scene's end
-  // (`flowEnd`), so the save resumes as far from the end of the run as it
-  // was taken, at an ordinal other than the saved one.
   it("resumes inside a run of identical statements, or at the statement after it, at the ordinal the design gives and not the saved one", () => {
     const before = scene(["Intro.", "Same.", "Same.", "Same.", "End."]);
     const story = engine(rootOf(before));
     expect(advance(story, 2)).toEqual(["Intro.", "Same."]);
     const save = story.toSave();
-    // The second "Same." is ordinal 2.
     expect(savedAt(save)).toEqual({ flow: "start", entry: 2 });
     const inserted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "Same.", "Same.", "End."])));
     inserted.loadSave(save);
-    // The block `Same. Same. Same. End.` and the scene's end is matched two
-    // ordinals down, so the save stands at the third of four.
     expect(placed(inserted)).toEqual({ flow: "start", entry: 4 });
     expect(play(inserted).beats).toEqual(["Same.", "Same.", "End."]);
     const deleted = engine(rootOf(scene(["Above.", "Intro.", "Same.", "Same.", "End."])));
     deleted.loadSave(save);
-    // The block `Same. Same. End.` and the scene's end is matched in place,
-    // so the save stands at the first of two.
     expect(placed(deleted)).toEqual({ flow: "start", entry: 2 });
     expect(play(deleted).beats).toEqual(["Same.", "Same.", "End."]);
   });
@@ -991,9 +913,6 @@ describe("a save at a menu", () => {
         "end",
         "scene merchant",
         "  choose",
-        // A choice added above the edited one, with one that is unchanged
-        // between them: an insertion beside the edited part would pair the
-        // two the wrong way round, the stated limit of section 2.
         ...(edited ? ['    * "Hello?"', "      Hello.", "      fin"] : []),
         '    * "Keep"',
         "      Kept.",
@@ -1018,7 +937,6 @@ describe("a save at a menu", () => {
     const story = engine(rootOf(THREADS(false)));
     while (story.canContinue) story.Continue();
     const save = story.toSave();
-    // The merchant's choices were raised before the guard's line.
     expect(JSON.parse(save).beats.at(-1).choices.map((c: { text: string }) => c.text)).toEqual([
       '"Keep"',
       '"What do you sell?"',
@@ -1027,12 +945,9 @@ describe("a save at a menu", () => {
     loaded.loadSave(save);
     while (loaded.canContinue) loaded.Continue();
     const texts = loaded.currentChoices.map((c) => c.text);
-    // The held choice keeps the text it was raised with.
     const held = texts.indexOf('"What do you sell?"');
     expect(held).toBeGreaterThanOrEqual(0);
     loaded.ChooseChoiceIndex(held);
-    // Its entry is the edited part's, which echoes the part's line as the
-    // program writes it now.
     expect(play(loaded).beats).toEqual(['"What do you sell now?"', "Nothing much."]);
   });
 
@@ -1052,10 +967,6 @@ describe("a save at a menu", () => {
         [`const OK = ${pear === "hidden" ? "false" : "true"}`, ""],
       );
 
-    // A save after the choice, from `toSave`, or, as a game exports a
-    // checkpoint it took right after the choice, from the image
-    // `captureBeat` gives (round 1 of the review of #1654, report
-    // 6031317072).
     const chosenSave = (from: "save" | "checkpoint" = "save") => {
       const story = engine(rootOf(CHOSEN("kept")));
       expect(advance(story, 1)).toEqual(["Before."]);
@@ -1063,7 +974,6 @@ describe("a save at a menu", () => {
       expect(story.currentChoices.map((c) => c.text)).toEqual(["Apple", "Pear"]);
       story.ChooseChoiceIndex(1);
       const save = from === "save" ? story.toSave() : story.saveOfImage(story.captureBeat())!;
-      // The menu's beat, with the choice in the saved form of its part.
       expect(JSON.parse(save).chosen.a.ch[2]).toBe(1);
       return save;
     };
@@ -1090,9 +1000,6 @@ describe("a save at a menu", () => {
       expect(play(loaded, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
     });
 
-    // A stop at a breakpoint or at the execution step ceiling part way
-    // through the chosen part's first line is still a save after the choice
-    // (#1693; round 1 of the review of #1696, report 6059804803).
     it("taken while the chosen part's first line is in progress, is the menu's beat with the choice", () => {
       const pausedAfterPear = () => {
         const story = engine(rootOf(CHOSEN("kept")));
@@ -1110,11 +1017,9 @@ describe("a save at a menu", () => {
       const story = pausedAfterPear();
       const save = story.toSave();
       expect(JSON.parse(save).chosen.a.ch[2]).toBe(1);
-      // The line finishes as it does when nothing saved.
       expect(story.asyncContinueComplete).toBe(false);
       const after = rest(story);
       expect(after).toEqual(rest(pausedAfterPear()));
-      // The choice's entry ends an empty line before its body's.
       expect(after).toEqual(["", "Ate pear.", "After."]);
 
       const kept = engine(rootOf(CHOSEN("kept")));
@@ -1142,8 +1047,6 @@ describe("a save at a menu", () => {
       expect(advance(loaded, 1)).toEqual(["Before."]);
     });
 
-    // Round 2 of the review of #1654 (report 6038272271, a concern the
-    // reviewer left unverified).
     it("and a callstack reset before the next beat is a save of the ended story, with no choice to take again", () => {
       const story = engine(rootOf(CHOSEN("kept")));
       advance(story, 1);
@@ -1170,7 +1073,6 @@ describe("a save at a menu", () => {
       expect(play(hidden, [0])).toEqual({ beats: ["Ate apple.", "After."], menus: [["Apple"]] });
     });
 
-    // Round 2 of the review of #1654 (report 6032759458, finding 3).
     it("as a checkpoint taken after the choice, restored and then saved, takes the choice again or is unplaced as a save just after the choice is", () => {
       const story = engine(rootOf(CHOSEN("kept")));
       expect(advance(story, 1)).toEqual(["Before."]);
@@ -1189,13 +1091,10 @@ describe("a save at a menu", () => {
       same.loadSave(save);
       expect(same.loadedSaveReport!.chosen).toBe("taken");
       expect(play(same).beats).toEqual(["Ate pear.", "After."]);
-      // Run on from the restored checkpoint, the story saves the beat it
-      // reached, with no choice.
       expect(advance(story, 1)).toEqual(["Ate pear."]);
       expect(JSON.parse(story.toSave()).chosen).toBeUndefined();
     });
 
-    // Round 2 of the review of #1654 (report 6038272271, finding 2).
     it("as a checkpoint taken after the choice, exported or restored and saved by the engine of a compile that emitted the menu again, takes the choice again", () => {
       const s = programSession(CHOSEN("kept"));
       const story = new ProgramStory(s.root);
@@ -1205,8 +1104,6 @@ describe("a save at a menu", () => {
       story.Continue();
       story.ChooseChoiceIndex(1);
       const checkpoint = story.captureBeat();
-      // A choice inserted above the menu's first: the menu's chunk is
-      // emitted again, and Pear is its third choice.
       const edited = s.edit("    * [Apple]", "    * [Banana]\n      Ate banana.\n    * [Apple]");
       expect(edited.position(chunkOfAddress(checkpoint.afterChoice!.address))).toBeUndefined();
       const next = new ProgramStory(edited, { images: story.images, history: story.history });
@@ -1222,8 +1119,6 @@ describe("a save at a menu", () => {
         expect(loaded.loadedSaveReport!.chosen).toBe("taken");
         expect(play(loaded).beats).toEqual(["Ate pear.", "After."]);
       }
-      // The decision the menu's beat records, handed on with the history,
-      // names the choice in the new program too.
       expect(JSON.parse(saved).beats.at(-1).decisions.map((d: any) => d.a.ch[2])).toEqual([2]);
     });
   });

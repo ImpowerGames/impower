@@ -1,48 +1,3 @@
-// Incremental annotation stability.
-//
-// `SparkdownCombinedAnnotator.update` re-annotates only the window
-// `[editStart, windowTo]` and drops the superseded annotations with the
-// complementary predicate (`to < editStart || from > windowTo` is KEPT).
-// `windowTo` is the parser's `reparsedTo`, moved past the last name of a
-// `local`/`store`/`const` list it stops inside.
-// Nothing is double-counted as long as every annotation an annotator emits
-// overlaps the window it was produced in — which is what carrying the entered
-// node's own `[from, to]` guarantees, since Lezer only enters a node that
-// overlaps the iterate range.
-//
-// Annotations anchored somewhere OTHER than the node's full range escape that.
-// A zero-width mark at a node's START (`top_level_begin`) sits before
-// `editStart` whenever the parser restarts at an in-block split point, so the
-// old copy is KEPT and an identical fresh copy is added. `RangeSet` does not
-// dedup, so the set grows by one entry per keystroke, unbounded, for as long
-// as typing continues inside one top-level block (issue #322).
-//
-// SCOPE: these pin the DUPLICATION direction only. The incremental window has
-// separate, pre-existing holes in the other direction — an in-block window can
-// drop annotations a cold parse emits (annotator state like
-// `SemanticAnnotator.scopeStack` is rebuilt from the window, not the document),
-// and nothing removes an out-of-window annotation the new parse stopped
-// emitting. Those are tracked in #326; do not read a green run here as
-// incremental ≡ cold in general.
-//
-// Each edit here is round-tripped (insert a character, then delete it) so the
-// document ends byte-identical to where it started — any drift in the
-// annotations is pure accumulation, with no legitimate content change to
-// explain it away. The insertion point is the end of an identifier so the
-// transient text stays valid Luau; a transient parse error perturbs the
-// annotations for reasons that have nothing to do with the delete window.
-//
-// The bug is only REACHABLE when the parser restarts at a split point strictly
-// inside the top-level block — otherwise `editStart <= block.from`, the mark is
-// inside the window, and the whole scenario is moot. `expectReachedTheBug`
-// asserts that precondition against the tree's own recorded reparse spans over
-// the real edit sequence, so these stay honest if the parser's chunking or
-// reuse policy changes: they go red rather than silently passing on a document
-// that can no longer trigger it.
-//
-// They are deliberately host-level (`SparkdownDocumentRegistry`) rather than
-// compiler-level: `formatting` is not in `SparkdownCompiler`'s annotate set,
-// so a bare-compiler harness cannot see this class of bug at all.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it } from "vitest";
 import type { SparkdownAnnotators } from "../../compiler/classes/SparkdownCombinedAnnotator";
@@ -50,7 +5,6 @@ import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocum
 
 const URI = "inmemory:///main.sd";
 
-// Mirrors `SparkdownLanguageServerWorkspace`'s set.
 const ANNOTATE: (keyof SparkdownAnnotators)[] = [
   "characters",
   "colors",
@@ -62,11 +16,8 @@ const ANNOTATE: (keyof SparkdownAnnotators)[] = [
   "semantics",
 ];
 
-// `SparkdownDocumentRegistry.update` ignores a change whose version equals the
-// current one, so keep one ever-increasing counter for the whole file.
 let nextVersion = 2;
 
-/** Every annotation in every set, as comparable `set from-to type` strings. */
 function snapshot(registry: SparkdownDocumentRegistry) {
   const annotations = registry.annotations(URI) as Record<string, any>;
   const out: string[] = [];
@@ -124,15 +75,6 @@ function reparsedSpan(registry: SparkdownDocumentRegistry) {
   };
 }
 
-/**
- * Simulate `cycles` keystrokes at `offset`, each one inserted and then
- * immediately deleted, exactly as the language server receives them (one
- * content change per event). The document is byte-identical afterwards.
- *
- * Returns the `editStart` the annotator computed for each update — that is
- * `min(reparsedFrom, edit start)`, the lower bound of the re-annotation window
- * (see `SparkdownCombinedAnnotator.update`).
- */
 function typeAndUndo(
   registry: SparkdownDocumentRegistry,
   text: string,
@@ -158,36 +100,16 @@ function typeAndUndo(
     });
     record();
   }
-  // The whole design rests on the document being restored exactly.
   expect(registry.get(URI)!.getText()).toBe(text);
   return editStarts;
 }
 
-/**
- * Assert the block actually emits the mark this is all about. Without this the
- * fixture could drift to a shape that produces no `top_level_begin` and every
- * assertion below would hold vacuously.
- */
 function expectMarkPresent(text: string, blockFrom: number) {
-  // The block start also carries a zero-width `indent` (it is a column-0
-  // line), so assert containment rather than exclusivity.
   expect(snapshot(open(text)), `top_level_begin at ${blockFrom}`).toContain(
     `formatting ${blockFrom}-${blockFrom} "top_level_begin"`,
   );
 }
 
-/**
- * Assert the typing burst actually reached the bug: at least one update must
- * have re-annotated a window that STARTS AFTER the block, leaving the
- * `top_level_begin` at `[blockFrom, blockFrom]` behind it. Only then is the
- * old mark kept by the delete-filter while the still-entered node re-emits it.
- *
- * The first edit after a cold parse always reparses the whole document, so
- * this only becomes true from the second edit onward; the assertion is over
- * the real sequence rather than a probe, so it stays honest if the parser's
- * chunking or reuse policy changes — the tests go red instead of silently
- * passing on a document that can no longer trigger the bug.
- */
 function expectReachedTheBug(editStarts: (number | null)[], blockFrom: number) {
   expect(
     editStarts.filter((s) => s != null && s > blockFrom).length,
@@ -195,7 +117,6 @@ function expectReachedTheBug(editStarts: (number | null)[], blockFrom: number) {
   ).toBeGreaterThan(0);
 }
 
-/** Canonical sparkdown: front matter, a scene, and top-level `function` blocks. */
 function buildScript(blocks: number, bodyLines: number) {
   const lines: string[] = [];
   lines.push("title: Annotation Stability");
@@ -221,14 +142,12 @@ function buildScript(blocks: number, bodyLines: number) {
   return lines.join("\n");
 }
 
-/** Offset of a block's `function` keyword — where `top_level_begin` is anchored. */
 function blockStart(text: string, block: number) {
   const at = text.indexOf(`function tally_${block}()`);
   expect(at, `block ${block} present`).toBeGreaterThanOrEqual(0);
   return at;
 }
 
-/** Offset just past an identifier deep inside a block's body. */
 function deepOffset(text: string, block: number, line: number) {
   const marker = `local slot_${block}_${line}`;
   expect(text).toContain(marker);
@@ -246,15 +165,11 @@ describe("incremental annotation stability", () => {
     const before = snapshot(registry);
     expectReachedTheBug(typeAndUndo(registry, text, offset, 30), blockFrom);
 
-    // Counts first: a mismatch here is the #322 growth, and the message names
-    // which set drifted. The full positional compare below is the real oracle.
     expect(counts(snapshot(registry))).toEqual(counts(before));
     expect(snapshot(registry)).toEqual(before);
   });
 
   it("does not accumulate annotations while typing in any of several top-level blocks", () => {
-    // Each block contributes its own `top_level_begin`, and each one is a
-    // separate anchor that can end up behind the window.
     const text = buildScript(4, 20);
     const registry = open(text);
     const before = snapshot(registry);

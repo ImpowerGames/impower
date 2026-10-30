@@ -113,8 +113,6 @@ Done.`,
   ],
 ];
 
-// `tick` counts its calls and returns false, so an empty-bodied loop on it
-// runs its condition once.
 const TICK = `function tick()
   n = n + 1
   return false

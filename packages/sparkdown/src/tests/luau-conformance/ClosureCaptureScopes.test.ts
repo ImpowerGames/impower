@@ -1,9 +1,3 @@
-// A function value captures the outer locals it reads, as Luau binds each
-// read: a local of the same name declared in a function nested in it, or
-// later in its own body, is another variable and does not stop the capture
-// (#1333). That holds for a `local function` and for a function statement
-// in a nested function as it does for a `local`.
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
@@ -44,9 +38,6 @@ describe("a closure captures the outer local it reads", () => {
   });
 });
 
-// A `local function`, or a function statement in a nested function, binds
-// through its local, as a `local` does (#1333, round 3 of the review of PR
-// #1324).
 describe("a function of the same name declared elsewhere is another variable", () => {
   test.each([
     [
@@ -156,8 +147,6 @@ assert(f() == 9)`,
     expect(r.returnedOK).toBe(true);
   });
 
-  // A function statement names the function's own function in every read
-  // inside it, though the name is an outer local's (basic.luau line 342).
   test.each([
     [
       "in the function's body",

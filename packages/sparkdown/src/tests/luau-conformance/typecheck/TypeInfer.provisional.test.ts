@@ -1,12 +1,7 @@
-// Luau's type-checker tests from `tests/TypeInfer.provisional.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { NEW_SOLVER_GUARD_REASON, portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.provisional.test.cpp", [
   {
-    // TypeInfer.provisional.test.cpp:44 TEST_CASE_FIXTURE(Fixture, "typeguard_inference_incomplete")
     name: "typeguard_inference_incomplete",
     fixture: "Fixture",
     source: `
@@ -29,7 +24,6 @@ portUpstreamFile("TypeInfer.provisional.test.cpp", [
     ` }],
   },
   {
-    // TypeInfer.provisional.test.cpp:99 TEST_CASE_FIXTURE(BuiltinsFixture, "luau-polyfill.Array.filter")
     name: "luau-polyfill.Array.filter",
     fixture: "BuiltinsFixture",
     source: `
@@ -62,7 +56,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:136 TEST_CASE_FIXTURE(BuiltinsFixture, "xpcall_returns_what_f_returns")
     name: "xpcall_returns_what_f_returns",
     fixture: "BuiltinsFixture",
     source: `
@@ -79,7 +72,6 @@ end
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:162 TEST_CASE_FIXTURE(Fixture, "weirditer_should_not_loop_forever")
     name: "weirditer_should_not_loop_forever",
     fixture: "Fixture",
     limits: { LuauTypeInferTypePackLoopLimit: 50 },
@@ -94,7 +86,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:182 TEST_CASE_FIXTURE(Fixture, "it_should_be_agnostic_of_actual_size")
     name: "it_should_be_agnostic_of_actual_size",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -109,7 +100,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:200 TEST_CASE_FIXTURE(BuiltinsFixture, "setmetatable_constrains_free_type_into_free_table")
     name: "setmetatable_constrains_free_type_into_free_table",
     fixture: "BuiltinsFixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -122,7 +112,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:220 TEST_CASE_FIXTURE(Fixture, "while_body_are_also_refined")
     name: "while_body_are_also_refined",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -141,7 +130,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:244 TEST_CASE_FIXTURE(BuiltinsFixture, "error_on_eq_metamethod_returning_a_type_other_than_boolean")
     name: "error_on_eq_metamethod_returning_a_type_other_than_boolean",
     fixture: "BuiltinsFixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -157,7 +145,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:267 TEST_CASE_FIXTURE(Fixture, "lvalue_equals_another_lvalue_with_no_overlap")
     name: "lvalue_equals_another_lvalue_with_no_overlap",
     fixture: "Fixture",
     source: `
@@ -178,7 +165,6 @@ end
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:290 TEST_CASE_FIXTURE(Fixture, "discriminate_from_x_not_equal_to_nil")
     name: "discriminate_from_x_not_equal_to_nil",
     fixture: "Fixture",
     source: `
@@ -199,7 +185,6 @@ end
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:320 TEST_CASE_FIXTURE(BuiltinsFixture, "bail_early_if_unification_is_too_complicated" * doctest::timeout(LUAU_TIMEOUT))
     name: "bail_early_if_unification_is_too_complicated",
     fixture: "BuiltinsFixture",
     limits: { LuauTarjanChildLimit: 1, LuauTypeInferIterationLimit: 1 },
@@ -228,7 +213,6 @@ end
     expect: [{ anyError: "UnificationTooComplex" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:367 TEST_CASE_FIXTURE(Fixture, "do_not_ice_when_trying_to_pick_first_of_generic_type_pack")
     name: "do_not_ice_when_trying_to_pick_first_of_generic_type_pack",
     fixture: "Fixture",
     source: `
@@ -246,7 +230,6 @@ end
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:407 TEST_CASE_FIXTURE(Fixture, "specialization_binds_with_prototypes_too_early")
     name: "specialization_binds_with_prototypes_too_early",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -258,7 +241,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:423 TEST_CASE_FIXTURE(Fixture, "weird_fail_to_unify_type_pack")
     name: "weird_fail_to_unify_type_pack",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -269,7 +251,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:438 TEST_CASE_FIXTURE(BuiltinsFixture, "choose_the_right_overload_for_pcall")
     name: "choose_the_right_overload_for_pcall",
     fixture: "BuiltinsFixture",
     source: `
@@ -286,7 +267,6 @@ end
     expect: [{ errors: 0 }, { type: "ok", equals: "boolean" }, { type: "res", equals: "number" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:459 TEST_CASE_FIXTURE(BuiltinsFixture, "function_returns_many_things_but_first_of_it_is_forgotten")
     name: "function_returns_many_things_but_first_of_it_is_forgotten",
     fixture: "BuiltinsFixture",
     source: `
@@ -309,7 +289,6 @@ end
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:481 TEST_CASE_FIXTURE(Fixture, "free_is_not_bound_to_any")
     name: "free_is_not_bound_to_any",
     fixture: "Fixture",
     source: `
@@ -320,7 +299,6 @@ end
     expect: [{ type: "foo", equals: "((any) -> (), any) -> ()" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:492 TEST_CASE_FIXTURE(Fixture, "dcr_can_partially_dispatch_a_constraint")
     name: "dcr_can_partially_dispatch_a_constraint",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -336,14 +314,12 @@ end
     expect: [{ errors: 0 }, { type: "prime_iter", equals: "(unknown, number) -> ()" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:535 TEST_CASE_FIXTURE(Fixture, "free_options_cannot_be_unified_together")
     name: "free_options_cannot_be_unified_together",
     fixture: "Fixture",
     skip: { notApplicable: "a unit test of the old solver's Unifier on types built in C++, with no Luau source to check" },
     checks: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:568 TEST_CASE_FIXTURE(BuiltinsFixture, "for_in_loop_with_zero_iterators")
     name: "for_in_loop_with_zero_iterators",
     fixture: "BuiltinsFixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -354,7 +330,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:581 TEST_CASE_FIXTURE(BuiltinsFixture, "generic_type_leak_to_module_interface")
     name: "generic_type_leak_to_module_interface",
     fixture: "BuiltinsFixture",
     checks: [
@@ -392,7 +367,6 @@ return wrapStrictTable(Constants, "Constants")
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:625 TEST_CASE_FIXTURE(BuiltinsFixture, "generic_type_leak_to_module_interface_variadic")
     name: "generic_type_leak_to_module_interface_variadic",
     fixture: "BuiltinsFixture",
     checks: [
@@ -430,7 +404,6 @@ return wrapStrictTable(Constants, "Constants")
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:669 TEST_CASE_FIXTURE(IsSubtypeFixture, "intersection_of_functions_of_different_arities")
     name: "intersection_of_functions_of_different_arities",
     fixture: "IsSubtypeFixture",
     source: `
@@ -445,7 +418,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ type: "t", equals: "((any) -> ()) & ((any, any) -> ())" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:690 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity")
     name: "functions_with_mismatching_arity",
     fixture: "IsSubtypeFixture",
     source: `
@@ -461,7 +433,6 @@ return wrapStrictTable(Constants, "Constants")
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:713 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity_but_optional_parameters")
     name: "functions_with_mismatching_arity_but_optional_parameters",
     fixture: "IsSubtypeFixture",
     source: `
@@ -476,7 +447,6 @@ return wrapStrictTable(Constants, "Constants")
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:773 TEST_CASE_FIXTURE(IsSubtypeFixture, "functions_with_mismatching_arity_but_any_is_an_optional_param")
     name: "functions_with_mismatching_arity_but_any_is_an_optional_param",
     fixture: "IsSubtypeFixture",
     source: `
@@ -491,7 +461,6 @@ return wrapStrictTable(Constants, "Constants")
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:822 TEST_CASE_FIXTURE(Fixture, "assign_table_with_refined_property_with_a_similar_type_is_illegal")
     name: "assign_table_with_refined_property_with_a_similar_type_is_illegal",
     fixture: "Fixture",
     source: `
@@ -504,7 +473,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:849 TEST_CASE_FIXTURE(BuiltinsFixture, "table_insert_with_a_singleton_argument")
     name: "table_insert_with_a_singleton_argument",
     fixture: "BuiltinsFixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -523,7 +491,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:878 TEST_CASE_FIXTURE(Fixture, "lookup_prop_of_intersection_containing_unions_of_tables_that_have_the_prop")
     name: "lookup_prop_of_intersection_containing_unions_of_tables_that_have_the_prop",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -535,7 +502,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:898 TEST_CASE_FIXTURE(Fixture, "expected_type_should_be_a_helpful_deduction_guide_for_function_calls")
     name: "expected_type_should_be_a_helpful_deduction_guide_for_function_calls",
     fixture: "Fixture",
     source: `
@@ -550,7 +516,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:925 TEST_CASE_FIXTURE(Fixture, "floating_generics_should_not_be_allowed")
     name: "floating_generics_should_not_be_allowed",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -573,14 +538,12 @@ return wrapStrictTable(Constants, "Constants")
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:949 TEST_CASE_FIXTURE(Fixture, "free_options_can_be_unified_together")
     name: "free_options_can_be_unified_together",
     fixture: "Fixture",
     skip: { notApplicable: "a unit test of the old solver's Unifier on types built in C++, with no Luau source to check" },
     checks: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:980 TEST_CASE_FIXTURE(Fixture, "unify_more_complex_unions_that_include_nil")
     name: "unify_more_complex_unions_that_include_nil",
     fixture: "Fixture",
     source: `
@@ -593,7 +556,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:993 TEST_CASE_FIXTURE(Fixture, "optional_class_instances_are_invariant_old_solver")
     name: "optional_class_instances_are_invariant_old_solver",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -608,7 +570,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:1011 TEST_CASE_FIXTURE(Fixture, "optional_class_instances_are_invariant_new_solver")
     name: "optional_class_instances_are_invariant_new_solver",
     fixture: "Fixture",
     skip: { notApplicable: "declares extern types, which a Luau host defines in C++ or a definition file; Sparkdown has neither" },
@@ -623,7 +584,6 @@ return wrapStrictTable(Constants, "Constants")
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1029 TEST_CASE_FIXTURE(BuiltinsFixture, "luau-polyfill.Map.entries")
     name: "luau-polyfill.Map.entries",
     fixture: "BuiltinsFixture",
     module: "Module/Map",
@@ -668,7 +628,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1078 TEST_CASE_FIXTURE(BuiltinsFixture, "table_unification_infinite_recursion")
     name: "table_unification_infinite_recursion",
     fixture: "BuiltinsFixture",
     limits: { LuauTypeInferRecursionLimit: 100 },
@@ -706,9 +665,6 @@ tbl:f3()
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:1115 TEST_CASE_FIXTURE(BuiltinsFixture, "normalization_limit_in_unify_with_any")
-    // The source declares 100 table types and an overloaded function type over
-    // all of them before the code upstream writes out.
     name: "normalization_limit_in_unify_with_any",
     fixture: "BuiltinsFixture",
     limits: { LuauNormalizeCacheLimit: 1000 },
@@ -726,7 +682,6 @@ foo(1 :: any)
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1151 TEST_CASE_FIXTURE(Fixture, "luau_roact_useState_nilable_state_1")
     name: "luau_roact_useState_nilable_state_1",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -755,7 +710,6 @@ foo(1 :: any)
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1192 TEST_CASE_FIXTURE(BuiltinsFixture, "luau_roact_useState_minimization")
     name: "luau_roact_useState_minimization",
     fixture: "BuiltinsFixture",
     source: `
@@ -786,7 +740,6 @@ foo(1 :: any)
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1229 TEST_CASE_FIXTURE(BuiltinsFixture, "bin_prov")
     name: "bin_prov",
     fixture: "BuiltinsFixture",
     source: `
@@ -811,7 +764,6 @@ foo(1 :: any)
     expect: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:1252 TEST_CASE_FIXTURE(BuiltinsFixture, "update_phonemes_minimized")
     name: "update_phonemes_minimized",
     fixture: "BuiltinsFixture",
     malformed: "an anonymous `function(response)` is not a statement",
@@ -827,14 +779,12 @@ foo(1 :: any)
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1267 TEST_CASE_FIXTURE(Fixture, "table_containing_non_final_type_is_erroneously_cached")
     name: "table_containing_non_final_type_is_erroneously_cached",
     fixture: "Fixture",
     skip: { notApplicable: "a unit test of Luau's Normalizer on types built in C++, with no Luau source to check" },
     checks: [],
   },
   {
-    // TypeInfer.provisional.test.cpp:1291 TEST_CASE_FIXTURE(Fixture, "we_cannot_infer_functions_that_return_inconsistently")
     name: "we_cannot_infer_functions_that_return_inconsistently",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -851,7 +801,6 @@ foo(1 :: any)
     expect: [{ errors: 1 }, { type: "find_first", equals: "<T>({T}, unknown) -> number" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1330 TEST_CASE_FIXTURE(Fixture, "loop_unsoundness")
     name: "loop_unsoundness",
     fixture: "Fixture",
     source: `
@@ -863,7 +812,6 @@ foo(1 :: any)
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1346 TEST_CASE_FIXTURE(BuiltinsFixture, "refine_unknown_to_table_and_test_two_props")
     name: "refine_unknown_to_table_and_test_two_props",
     fixture: "BuiltinsFixture",
     source: `
@@ -879,8 +827,6 @@ foo(1 :: any)
     expect: [{ errors: 1 }, { error: 0, code: "UnknownProperty", location: [3, 56, 3, 61] }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1368 TEST_CASE_FIXTURE(BuiltinsFixture, "function_indexer_satisfies_reading_property")
-    // Upstream prints the given type exhaustively.
     name: "function_indexer_satisfies_reading_property",
     fixture: "BuiltinsFixture",
     source: `
@@ -904,7 +850,6 @@ foo(1 :: any)
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:1399 TEST_CASE_FIXTURE(Fixture, "unification_inferring_never_for_refined_param")
     name: "unification_inferring_never_for_refined_param",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -924,7 +869,6 @@ foo(1 :: any)
     ],
   },
   {
-    // TypeInfer.provisional.test.cpp:1421 TEST_CASE_FIXTURE(BuiltinsFixture, "assert_and_many_nested_typeof_contexts")
     name: "assert_and_many_nested_typeof_contexts",
     fixture: "BuiltinsFixture",
     source: `
@@ -936,7 +880,6 @@ foo(1 :: any)
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1437 TEST_CASE_FIXTURE(Fixture, "indexing_union_of_indexers")
     name: "indexing_union_of_indexers",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -950,7 +893,6 @@ foo(1 :: any)
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1453 TEST_CASE_FIXTURE(BuiltinsFixture, "unions_should_work_with_bidirectional_typechecking")
     name: "unions_should_work_with_bidirectional_typechecking",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -972,7 +914,6 @@ foo(1 :: any)
     expect: [{ errors: 2 }, { error: 0, code: "TypeMismatch" }, { error: 1, code: "TypeMismatch" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1484 TEST_CASE_FIXTURE(Fixture, "while_loops_fail_to_apply_refinements_1")
     name: "while_loops_fail_to_apply_refinements_1",
     fixture: "Fixture",
     source: `
@@ -990,7 +931,6 @@ end
     expect: [{ anyError: "OptionalValueAccess" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1510 TEST_CASE_FIXTURE(Fixture, "while_loops_fail_to_apply_refinements_2")
     name: "while_loops_fail_to_apply_refinements_2",
     fixture: "Fixture",
     source: `
@@ -1010,7 +950,6 @@ end
     expect: [{ anyError: "OptionalValueAccess" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1538 TEST_CASE_FIXTURE(BuiltinsFixture, "oss_2305_keyof_index_example")
     name: "oss_2305_keyof_index_example",
     fixture: "BuiltinsFixture",
     flags: { LuauRemoveConstraintSolverEmplace: true },
@@ -1034,7 +973,6 @@ end
     expect: [{ errors: 1 }, { error: 0, code: "UninhabitedTypeFunction" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1572 TEST_CASE_FIXTURE(BuiltinsFixture, "pcall_calling_pcall")
     name: "pcall_calling_pcall",
     fixture: "BuiltinsFixture",
     source: `
@@ -1044,7 +982,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1595 TEST_CASE_FIXTURE(BuiltinsFixture, "union_super_with_multiple_free_members_over_constrains_lower_bounds")
     name: "union_super_with_multiple_free_members_over_constrains_lower_bounds",
     fixture: "BuiltinsFixture",
     source: `
@@ -1056,7 +993,6 @@ end
     expect: [{ errors: 0 }, { type: "a", equals: "boolean | number" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1615 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_intersection_of_indexers_should_error")
     name: "cli_181248_intersection_of_indexers_should_error",
     fixture: "BuiltinsFixture",
     source: `
@@ -1067,7 +1003,6 @@ end
     expect: [{ errors: 0 }, { type: "val", equals: "*error-type*" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1630 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_union_of_indexers_should_error")
     name: "cli_181248_union_of_indexers_should_error",
     fixture: "BuiltinsFixture",
     source: `
@@ -1078,7 +1013,6 @@ end
     expect: [{ errors: 0 }, { type: "val", equals: "*error-type*" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1645 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_union_of_indexers_with_one_good_option_should_error")
     name: "cli_181248_union_of_indexers_with_one_good_option_should_error",
     fixture: "BuiltinsFixture",
     source: `
@@ -1089,7 +1023,6 @@ end
     expect: [{ errors: 0 }, { type: "val", equals: "*error-type* | string" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1661 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_unreduced_intersection_of_indexers")
     name: "cli_181248_unreduced_intersection_of_indexers",
     fixture: "BuiltinsFixture",
     source: `
@@ -1100,7 +1033,6 @@ end
     expect: [{ errors: 0 }, { type: "val", equals: "(boolean | string) & (number | string)" }],
   },
   {
-    // TypeInfer.provisional.test.cpp:1675 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_unreduced_union_of_indexers")
     name: "cli_181248_unreduced_union_of_indexers",
     fixture: "BuiltinsFixture",
     source: `

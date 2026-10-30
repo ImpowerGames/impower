@@ -10,7 +10,6 @@ export type StructEntryKind = "item" | "header" | "property" | "other";
 
 export interface StructEntrySpan { from: number; to: number; }
 
-/** An entry and its explicitly nested block, independent of source columns. */
 export interface StructEntry {
   kind: StructEntryKind;
   shape: SyntaxNode;
@@ -25,7 +24,6 @@ const BRACED_ENTRY_NAMES: ReadonlySet<string> = new Set([
   "LuauStructBlock", "LuauStructListBlock", "LuauStructBlockProperty", "LuauStructListValue",
 ]);
 
-/** Read top-level entry lines; each block owns its children. */
 export function readStructBodyEntries(contentNode: SyntaxNode | null, _ctx: LowerContext): StructEntry[] {
   if (!contentNode) return [];
   const joins = joinSparkleContinuations(contentNode);
@@ -66,7 +64,6 @@ function elementEntries(nodes: SyntaxNode[], joins: SparkleJoins): StructEntry[]
   return entries;
 }
 
-/** The braced entries directly inside `node`, in source order. */
 function bracedEntries(node: SyntaxNode): StructEntry[] {
   const entries: StructEntry[] = [];
   const walk = (parent: SyntaxNode) => {
@@ -113,32 +110,24 @@ function bracedEntry(node: SyntaxNode): StructEntry {
   };
 }
 
-/** A `LuauStructBlock`'s `{ … }`. */
 function blockBody(block: SyntaxNode): SyntaxNode | null {
   const content = findChildByName(block, "LuauStructBlock_content");
   return content ? findChildByName(content, "LuauStructBlockBody") : null;
 }
 
-// The parts of a block's braces (a `LuauStructBlockBody`, a
-// `LuauStructListBlock`, or a layout or component `LuauSparkleElementBlock`),
-// shared with the editor's completion and folding.
 const braceParts = braceBodyParts;
 
-/** The entries part of a block's braces: everything between them. */
 function bodyContent(body: SyntaxNode): SyntaxNode {
   return braceParts(body).content ?? body;
 }
 
-/** The `{` that opens a block's braces. */
 export function blockOpenBrace(body: SyntaxNode): SyntaxNode | null {
   const { begin } = braceParts(body);
   return begin ? (getDescendent("LuauStructBlockOpen", begin) ?? null) : null;
 }
 
-/** Whether a block's braces end at their `}`, rather than at a bail-out. */
 export function blockIsClosed(body: SyntaxNode): boolean {
   const { end } = braceParts(body);
-  // A bail-out's end is empty; only a `}` gives the end any width.
   return (
     !!end && end.to > end.from && !!getDescendent("LuauStructBlockClose", end)
   );

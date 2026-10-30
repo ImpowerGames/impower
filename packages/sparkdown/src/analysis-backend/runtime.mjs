@@ -1,4 +1,3 @@
-// Shared production worker implementation. Browser-safe: no Node builtins.
 let native;
 const now = () => performance.now();
 const encoder = new TextEncoder();
@@ -70,14 +69,12 @@ export async function handleAnalysisRequest(message, initialize) {
       result = { status: "ok" };
     } else throw Error("Unknown analysis operation");
   } catch (error) {
-    // Emscripten OOM may abort instead of propagating a C++ bad_alloc.
     const message = String(error);
     const memoryFailure = /Aborted\(OOM\)/i.test(message) || (error instanceof RangeError && /WebAssembly.Memory|memory allocation|Array buffer allocation/i.test(message));
     result = { status: memoryFailure ? "memory-limit" : "error", message };
     native = undefined;
   }
   const encodingStart = now();
-  // Measure result encoding separately from native checking and worker transfer.
   const body = JSON.stringify(result);
   const inputBytes = new TextEncoder().encode(JSON.stringify(message)).length;
   const outputBytes = new TextEncoder().encode(body).length;

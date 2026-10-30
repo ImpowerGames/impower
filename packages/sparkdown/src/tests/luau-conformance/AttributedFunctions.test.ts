@@ -1,9 +1,3 @@
-// A function written with attributes (`@native`, `@checked`) runs as the
-// same function without them. The attributes are nodes of their own before
-// the function's in the syntax tree, while the converter's AST includes them
-// in the function, so the compiler finds the function's own node after them
-// (#1287).
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
@@ -20,7 +14,6 @@ describe("an attributed function runs", () => {
       "a function value inside a function",
       "local function g()\n  local f = @native function() return 7 end\n  return f()\nend\nassert(g() == 7)\n",
     ],
-    // A comment between the attribute and the function is trivia to Luau.
     ["a line comment after the attribute", "@native -- note\nfunction f() return 7 end\nassert(f() == 7)\n"],
     ["a block comment after the attribute", "@native --[[ note ]] function f() return 7 end\nassert(f() == 7)\n"],
     [

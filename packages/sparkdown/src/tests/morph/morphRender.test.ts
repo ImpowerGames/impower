@@ -23,7 +23,6 @@ const elements = (svg: string): Element[] => {
 };
 
 const shown = (list: Element[]) => list.filter((e) => e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""));
-// Unshifted, so the closed lash's authored path data is the fixture's own.
 const artifact = bakeMorphArtifact({ source: portrait({ dx: 0, dy: 0 }), selection: {}, recipe: blink(), key: "k", variant: "bunny" });
 
 describe("artifact playback", () => {
@@ -48,7 +47,6 @@ describe("artifact playback", () => {
     expect(d(mid)).not.toEqual(d(start));
     const aperture = (list: Element[]) => list.find((e) => e.tagName === "mask")!.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element;
     expect(aperture(mid).attributes["d"]).not.toBe(aperture(start).attributes["d"]);
-    // The clipped backing holds through the segment.
     expect(shown(mid).map((e) => e.attributes["data-name"])).toContain("eyeball-white-left");
   });
 
@@ -60,8 +58,6 @@ describe("artifact playback", () => {
         .filter((e) => e.attributes["data-name"] === "eyelash-left")
         .map((e) => `${e.attributes["data-morph"]} ${e.attributes["d"]}`)
         .sort();
-    // The closed lash splits into two on the way open: each track draws on
-    // its own open lash, at the same pose the closing passed through.
     expect(lashes(opening)).toHaveLength(2);
     expect(lashes(opening)).toEqual(lashes(closing));
   });
@@ -77,23 +73,17 @@ describe("artifact playback", () => {
       { segment: 0, progress: 0.9 },
       { segment: 1, progress: 0.1 },
     ]) {
-      // Paint order is document order: the shadow, clipped to the opening,
-      // stays under both lashes as the closed pose has it, so the lashes
-      // cover whatever of it the opening does not.
       const drawn = shown(elements(renderMorphFrame(shadowed, pose)));
       const order = drawn.map((e) => e.attributes["data-name"]);
       expect(order.filter((name) => name === "eyelash-left")).toHaveLength(2);
       const shadows = drawn.filter((e) => e.attributes["data-name"] === "eyeball-shadow-left");
       expect(shadows).toHaveLength(1);
-      // It is the moving shadow, on its way between the open and closed ones.
       expect([UPPER_OPEN, CLOSED]).not.toContain(shadows[0]!.attributes["d"]);
       expect(order.indexOf("eyeball-shadow-left")).toBeLessThan(order.indexOf("eyelash-left"));
     }
   });
 
   test("tracks sharing the drawing the variant rests on all paint at its depth", () => {
-    // At rest one lash is drawn below the brow; the other state draws two
-    // lashes above it.
     const merged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/></g>
 <path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
@@ -109,13 +99,11 @@ describe("artifact playback", () => {
     ]) {
       const frame = elements(renderMorphFrame(resting, pose));
       const drawn = shown(frame).filter((e) => e.attributes["data-name"] === "lash");
-      // Two shapes, each its own track, both below the brow.
       expect(drawn).toHaveLength(2);
       expect(drawn[0]!.attributes["d"]).not.toBe(drawn[1]!.attributes["d"]);
       const brow = frame.findIndex((e) => e.attributes["data-name"] === "brow");
       expect(Math.max(...drawn.map((e) => frame.indexOf(e)))).toBeLessThan(brow);
     }
-    // At rest the copies stay hidden, so the parts compose to the still.
     const rest = shown(elements(renderMorphFrame(resting, { segment: 0, progress: 0 })));
     expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN]);
   });
@@ -128,13 +116,10 @@ describe("artifact playback", () => {
     const resting = bakeMorphArtifact({ source: ellipses, selection: {}, recipe: blink({ method: "match", clips: [] }), key: "ellipses" });
     expect(resting.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
     expect(resting.status).toBe("live");
-    // The parts composed at rest draw the authored ellipse, as the still does.
     for (const offset of [0, 1]) {
       const rest = shown(elements(renderMorphAt(resting, offset)));
       expect(rest.map((e) => [e.tagName, e.attributes["cx"], e.attributes["rx"]])).toEqual([["ellipse", "80", "65"]]);
     }
-    // In motion two paths carry the tracks where the ellipse sits, and the
-    // ellipse itself is hidden.
     for (const segment of [0, 1]) {
       const moving = shown(elements(renderMorphFrame(resting, { segment, progress: 0.5 })));
       expect(moving.map((e) => e.tagName)).toEqual(["path", "path"]);
@@ -142,7 +127,6 @@ describe("artifact playback", () => {
   });
 
   describe("`depth` names the pose whose stacking a moving shape keeps", () => {
-    // The lowered arm is drawn behind the torso, the raised arm in front.
     const DOWN = "M10,60H30V90H10Z";
     const HALF = "M10,40H30V70H10Z";
     const RAISED = "M10,10H30V40H10Z";
@@ -158,10 +142,8 @@ ${TORSO}
         keyframes: states.map((state, i) => ({ offset: i / (states.length - 1), arm: { state } })),
         ...root,
       });
-    // One key for every bake, so artifacts that draw the same compare equal.
     const bake = (recipe: MorphRecipe, source = arm) =>
       bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "pose" });
-    /** For each drawn shape named `name`, whether it paints above `other`. */
     const above = (frame: Element[], name: string, other: string) => {
       const at = frame.findIndex((e) => e.attributes["data-name"] === other);
       return shown(frame)
@@ -182,7 +164,6 @@ ${TORSO}
           expect(above(elements(renderMorphFrame(raised, { segment, progress })), "arm-left", "torso")).toEqual([true]);
         }
       }
-      // The poses themselves and the still are what the art draws.
       for (const offset of [0, 0.5, 1]) {
         expect(renderMorphAt(raised, offset)).toBe(renderMorphAt(rest, offset));
       }
@@ -190,7 +171,6 @@ ${TORSO}
     });
 
     test("segments that do not reach the named pose keep its stacking on its drawing of the label", () => {
-      // The half-raised arm is drawn behind the torso, like the lowered one.
       const staged = arm.replace(
         `${TORSO}`,
         `<g data-name="arm.half"><path data-name="arm-left" d="${HALF}"/></g>\n${TORSO}`,
@@ -203,11 +183,9 @@ ${TORSO}
       for (const segment of [0, 1, 2, 3]) {
         const frame = midway(named, segment);
         expect(above(frame, "arm-left", "torso"), `segment ${segment}`).toEqual([true]);
-        // The moving arm is not the raised drawing's own outline.
         expect(shown(frame).find((e) => e.attributes["data-name"] === "arm-left")!.attributes["d"]).not.toBe(RAISED);
       }
       expect(above(midway(plain, 0), "arm-left", "torso")).toEqual([false]);
-      // At each keyframe the same drawings show; the carrier copy stays hidden.
       const drawn = (artifact: MorphArtifact, offset: number) =>
         shown(elements(renderMorphAt(artifact, offset))).map((e) => [e.attributes["data-name"], e.attributes["d"]]);
       for (const offset of [0, 0.25, 0.5, 0.75, 1]) {
@@ -217,8 +195,6 @@ ${TORSO}
     });
 
     test("a drawing of the named pose that a segment holds keeps its own place while a copy carries the moving shape", () => {
-      // A second arm-left, drawn in every state but `off`, holds through
-      // `down → half`; the raised pose draws only it.
       const HELD = "M100,60H120V90H100Z";
       const held = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100">
 <g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
@@ -233,14 +209,10 @@ ${TORSO}
       const arms = shown(frame).filter((e) => e.attributes["data-name"] === "arm-left");
       expect(arms.map((e) => e.attributes["d"])).toContain(HELD);
       expect(arms).toHaveLength(2);
-      // The moving copy sits where the held drawing does, above the torso.
       expect(above(frame, "arm-left", "torso")).toEqual([true, true]);
     });
 
     test("several drawings of the named pose are told apart by box centres that include their curves", () => {
-      // Both raised drawings run from (0,50) to (100,50); the one bowing up
-      // is drawn behind the torso, the one bowing down, nearer the moving
-      // arm, in front of it.
       const curved = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="arm.down:default"><path data-name="arm-left" d="M30,60H70V80H30Z"/></g>
 <g data-name="arm.half"><path data-name="arm-left" d="M30,62H70V82H30Z"/></g>
@@ -268,7 +240,6 @@ ${TORSO}
       expect(above(midway(bake(raise({ depth: "arm.raised" }))), "arm-left", "torso")).toEqual([true]);
       const undone = bake(raise({ depth: "arm.raised", layers: { "arm-left": { depth: "rest" } } }));
       expect(above(midway(undone), "arm-left", "torso")).toEqual([false]);
-      // The state the morph starts from is the variant's own rest.
       expect(midway(bake(raise({ depth: "arm.down" })))).toEqual(midway(bake(raise())));
     });
 
@@ -278,7 +249,6 @@ ${TORSO}
     });
 
     test("tracks sharing one drawing in the named pose are each drawn at its place", () => {
-      // Two open lashes below the brow, one closed lash above it.
       const lashes = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="eyes.open:default"><path data-name="lash" d="${UPPER_OPEN}" fill="#111"/><path data-name="lash" d="${LOWER_OPEN}" fill="#111"/></g>
 <path data-name="brow" d="M0,5H100V10H0Z" fill="#432"/>
@@ -295,14 +265,11 @@ ${TORSO}
         const drawn = shown(frame).filter((e) => e.attributes["data-name"] === "lash");
         expect(drawn[0]!.attributes["d"]).not.toBe(drawn[1]!.attributes["d"]);
       }
-      // At rest the copies stay hidden, so the parts compose to the still.
       const rest = shown(elements(renderMorphFrame(closed, { segment: 0, progress: 0 })));
       expect(rest.map((e) => e.attributes["d"])).toEqual([UPPER_OPEN, LOWER_OPEN]);
     });
 
     test("a named pose that does not draw the label keeps the rest pose's place and warns once", () => {
-      // The arm has no raised drawing: it moves from down to half and fades
-      // out of the half pose's segment.
       const staged = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="arm.down:default"><path data-name="arm-left" d="${DOWN}"/></g>
 ${TORSO}
@@ -322,8 +289,6 @@ ${TORSO}
     });
 
     test("a one-sided shape under a label whose moving shapes the named pose draws reports nothing", () => {
-      // The cuff exists only while the arm is down, so it fades; the arm
-      // under the same label moves and is drawn in the raised pose.
       const cuffed = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="arm.down:default"><g data-name="limb"><path data-name="arm-left" d="${DOWN}"/><path data-name="cuff" d="M10,88H30V92H10Z"/></g></g>
 ${TORSO}
@@ -398,15 +363,12 @@ ${TORSO}
     const artifact = bakeMorphArtifact({ source: faded, selection: {}, recipe, key: "fade" });
     const crease = elements(renderMorphFrame(artifact, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(crease.attributes["style"]).toBe("opacity:0.2");
-    // An important inline opacity takes effect over a later normal one, and stays important.
     const important = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4 !important;opacity:0.9"), selection: {}, recipe, key: "fade2" });
     const marked = elements(renderMorphFrame(important, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(marked.attributes["style"]).toBe("opacity:0.2 !important");
-    // Whitespace inside and after `!important` does not hide it.
     const spaced = bakeMorphArtifact({ source: faded.replace("opacity:0.4", "opacity:0.4\t!\nimportant ;opacity:0.9"), selection: {}, recipe, key: "fade3" });
     const kept = elements(renderMorphFrame(spaced, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-name"] === "crease")!;
     expect(kept.attributes["style"]).toBe("opacity:0.2 !important");
-    // A percentage is the number it stands for, inline or as the attribute.
     for (const [from, to] of [
       ["opacity:0.4", "opacity:40%"],
       ['style="opacity:0.4"', 'opacity="40%"'],
@@ -427,8 +389,6 @@ ${TORSO}
       const [x2, y2] = points[(i + 1) % points.length]!;
       sum += x1! * y2! - x2! * y1!;
     }
-    // A hundredth of the way from the last open sample, the opening is a
-    // sliver, not the half-open loop the previous sample held.
     expect(Math.abs(sum) / 2).toBeLessThan(20);
   });
 
@@ -436,9 +396,6 @@ ${TORSO}
     const clip = artifact.segments[0]!.clips[0]!;
     const nearly = aperturePathData(artifact.apertures[clip.loops.index]!, clip.loops, 0.99);
     const ys = [...nearly.matchAll(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[2]));
-    // The closed lash bows up from the line through its tips at y = 50; an
-    // opening closing onto that chord would leave the lash's underside
-    // uncovered and show what it clips there.
     expect(Math.min(...ys)).toBeLessThan(49);
   });
 

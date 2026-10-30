@@ -1,19 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Fix: stdlib `error(msg)` was using `story.AddError` which calls
-// `ForceEnd` — wiping the call stack and defeating pcall's
-// protection. Per `project_pcall_protected_dispatch.md`, stdlib
-// entries that should be trappable MUST use `story.Error` (which
-// throws a StoryException for the CallLuauFunctionProtected catch
-// to handle). Switched `error` to `story.Error(message)`.
-//
-// Symptom before the fix: `pcall(function() error("oops") end)`
-// would corrupt the eval state and the next ControlCommand
-// (EvalEnd from the surrounding expression) would assert with
-// "Not in expression evaluation mode" / "Expected to be in an
-// expression when evaluating a string null".
-
 describe("pcall traps `error()` calls", () => {
   test("pcall returns (false, msg) when callee calls error", () => {
     const r = runConformanceSource(
@@ -50,10 +37,7 @@ describe("pcall traps `error()` calls", () => {
   });
 
   test("regression: error() outside pcall still propagates as a runtime error", () => {
-    // Bare `error()` should still surface to the caller — pcall is
-    // the trap mechanism; without pcall the error bubbles up.
     const r = runConformanceSource(`error("oops")`);
-    // Expect a runtime error containing "oops".
     expect(
       r.errorMessages.some(
         (e) => e.startsWith("RUNTIME") && e.includes("oops"),

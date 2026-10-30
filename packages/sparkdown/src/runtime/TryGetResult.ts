@@ -1,27 +1,3 @@
-/**
- * This interface normalize the `TryGet` behavior found in the original
- * C# project. Any `TryGet` method will return a object conforming to this
- * interface.
- *
- * The original function returns a boolean and has a second parameter called
- * item that is an `out`. Both are needed and we can't just return the item
- * because it'll always be truthy. Instead, we return an object containing
- * whether the result exists (`exists`) and the result itself (`result`).
- *
- * For instance a `TryGet` prototype would look like this:
-```
-tryGetValueFromMap<K, V>(map: Map<K, V> | null, key: K, value: V): TryGetResult<V>
-```
- *
- * On the other hand, dealing with the result can be done in the following way:
-```
-var found = tryGetValueFromMap(map, key, null);
-if (found.exists) {
-	console.log(found.result)
-}
-```
- *
- */
 export interface TryGetResult<T> {
   result: T;
   exists: boolean;
@@ -30,7 +6,7 @@ export interface TryGetResult<T> {
 export function tryGetValueFromMap<K, V>(
   map: Map<K, V> | null,
   key: K,
-  /* out */ value: V,
+  value: V,
 ): TryGetResult<V> {
   if (map === null) {
     return { result: value, exists: false };
@@ -47,7 +23,7 @@ export function tryGetValueFromMap<K, V>(
 
 export function tryParseInt(
   value: any,
-  /* out */ defaultValue: number = 0,
+  defaultValue: number = 0,
 ): TryGetResult<number> {
   let val = parseInt(value);
 
@@ -60,7 +36,7 @@ export function tryParseInt(
 
 export function tryParseFloat(
   value: any,
-  /* out */ defaultValue: number = 0,
+  defaultValue: number = 0,
 ): TryGetResult<number> {
   let val = parseFloat(value);
 

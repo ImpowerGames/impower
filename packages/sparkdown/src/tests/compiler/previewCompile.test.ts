@@ -1,11 +1,3 @@
-// Preview compiles (#634): the program an autocomplete suggestion would
-// produce, compiled without applying the suggestion.
-//
-// The preview shows what accepting would show, so a preview compile has to be
-// the program an ordinary compile of the edited text produces, byte for byte.
-// And it must leave nothing of the hypothetical text behind: the document, its
-// version, the verdict on whether the real program is outdated, and the next
-// real compile are all exactly what they would have been without it.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { invertContentChanges } from "../../compiler/utils/invertContentChanges";
@@ -41,8 +33,6 @@ function screenplay(): string {
   return L.join("\n");
 }
 
-// The program's chunks by content (with their line tables), in place of the
-// current engine's compiled JSON and path-location table.
 const pick = (p: any) => ({
   chunks: programContent(p.chunks),
   functionLocations: p.functionLocations,
@@ -96,7 +86,6 @@ const posAt = (text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** A minimal-range change turning the first `find` in `text` into `replace`. */
 function change(text: string, find: string, replace: string) {
   const offset = text.indexOf(find);
   expect(offset, `"${find}" is in the text`).toBeGreaterThanOrEqual(0);
@@ -179,7 +168,6 @@ describe("a preview compile", () => {
 
     expect(stable(pick(preview.program))).toBe(cold(suggestion.after));
     expect(c.documents.get(URI)!.getText()).toBe(typed.after);
-    // The real edit is still waiting for its own compile.
     expect(c.isProgramOutdated()).toBe(true);
   });
 
@@ -196,8 +184,6 @@ describe("a preview compile", () => {
     expect(c.documents.get(URI)!.getText()).toBe(base);
   });
 
-  // The preview's program runs from its statement chunks: the event says it
-  // produced one and carries no runtime story.
   it("is announced to preview listeners only, with the program it produced", () => {
     const base = screenplay();
     const c = compilerFor(base);
@@ -222,9 +208,6 @@ describe("a preview compile", () => {
   });
 
   it("is followed by a real compile before the next selection is routed", () => {
-    // The listeners route a selection against the runtime story the last
-    // compile left, and a preview compile took over that story's unchanged
-    // flows. With no real edit pending, nothing else would recompile.
     const base = screenplay();
     const c = compilerFor(base);
     const real = stable(pick(quiet(() => c.compile({ textDocument: { uri: URI } })).program));
@@ -245,7 +228,6 @@ describe("a preview compile", () => {
     expect(stable(pick(recompiled[0].program))).toBe(real);
     expect(selected.programOutdated).toBe(false);
 
-    // Once restored, a further selection needs no compile.
     quiet(() =>
       c.selectDocument({
         textDocument: { uri: URI },

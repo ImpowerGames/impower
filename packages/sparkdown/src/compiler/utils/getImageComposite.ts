@@ -11,75 +11,21 @@ import {
 } from "./getImagePreviewSrc";
 import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
 
-/**
- * Reads a workspace file's bytes as base64, for hosts where a layer's `src`
- * isn't fetchable from the language server.
- *
- * VS Code is the case: its srcs are workspace uris (`file:`/`vscode-vfs:`)
- * that a worker cannot `fetch`, and only the extension host can read them —
- * so the bytes have to come back over the extension bridge. impower-dev
- * serves its assets over http and never needs this.
- */
 export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
 
 export interface ImageCompositeOptions {
   readFileBytes?: ReadFileBytes;
-  /**
-   * The rest render of a variant a morph plays on (its static render with the
-   * rest apertures applied), when the host has baked one. A preview shows it
-   * in place of the plain static render.
-   */
   morphRest?: (
     context: { [type: string]: { [name: string]: any } } | undefined,
     struct: any,
   ) => Promise<string | undefined>;
 }
 
-/**
- * Turn an image-ish struct into a single thumbnail a preview can display:
- * flattening a `layered_image`'s layers so previews show what the asset
- * actually looks like instead of just its base plate, and inlining a lone
- * image whose source the host cannot load on its own.
- *
- * Why one flattened image rather than stacked HTML: VS Code's markdown
- * sanitizer drops `style` and `class`, so a CSS stack works in the editor and
- * silently collapses there. One `<img src>` is the only markup both hosts
- * render identically.
- *
- * Generation itself is shared with the editor's service-worker thumbnails —
- * see `composeThumbnail`. This module only adds the language-server concerns:
- * resolving a struct to its layers, fetching them, and caching per session.
- */
+// workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack
 
-/** 2x the width the completion panel displays, so it stays sharp on retina. */
 const PREVIEW_WIDTH = 360;
 
-/**
- * Schemes a markdown host renders straight from an `<img src>`.
- *
- * A src carrying no scheme at all is a path resolved against the host page —
- * impower-dev's assets are served that way — and is equally loadable, so the
- * test is "an explicit scheme outside this set", not "not in this set".
- *
- * `file:` is here because desktop VS Code rewrites it. Measured on 1.136.1 by
- * emitting a real on-disk image into a hover and into the completion details
- * pane and reading both back: the src arrives as `vscode-file://vscode-app/…`
- * and the picture loads at its natural size. So a desktop workspace uri needs
- * no help, and inlining one would spend an encode to get a smaller picture.
- * That rewrite landed in VS Code 1.60 (microsoft/vscode#119786), long before
- * the 1.97 this extension requires.
- *
- * What is left out is left out because it was measured to fail, by emitting
- * one `<img>` per scheme and reading the DOM back: the markdown sanitizer
- * strips `vscode-vfs:` (VS Code for Web's workspace scheme), `vscode-userdata:`
- * and `vscode-resource:` off the element entirely. Those get an inlined `data:`
- * uri built from bytes read over the host's `readFileBytes` bridge, the one
- * route no host refuses.
- *
- * Keep this an allowlist of what is known to render. A scheme nobody has
- * measured should fall to the bridge, which is slower and always works, rather
- * than to a blank image.
- */
+// workaround(vscode): the markdown sanitizer strips vscode-vfs:, vscode-userdata: and vscode-resource: img srcs, so those are inlined as data: uris
 const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data", "file"]);
 
 const isDirectlyLoadable = (src: string) => {
@@ -87,23 +33,15 @@ const isDirectlyLoadable = (src: string) => {
   return !scheme || DIRECTLY_LOADABLE_SCHEMES.has(scheme.toLowerCase());
 };
 
-/**
- * Ceiling for the generated data URI. Anything past this suggests something
- * pathological; fall back rather than risk a host's string handling.
- */
 const MAX_BYTES = 512 * 1024;
 
-/** Per-session cache. Keyed by content, so nothing needs to invalidate it. */
 const MAX_CACHE_ENTRIES = 64;
 const sharedCache = new Map<string, string>();
-// A bridge belongs to one workspace session. The same URI/revision in a
-// different session must not reuse bytes supplied by the previous host.
 const bridgeCaches = new WeakMap<ReadFileBytes, Map<string, string>>();
 
 const cacheGet = (cache: Map<string, string>, key: string) => {
   const hit = cache.get(key);
   if (hit !== undefined) {
-    // Refresh recency so the working set survives eviction.
     cache.delete(key);
     cache.set(key, hit);
   }
@@ -124,14 +62,6 @@ const cacheSet = (cache: Map<string, string>, key: string, value: string) => {
 const toDataUri = (bytes: Uint8Array, mime: string) =>
   `data:${mime};base64,${bytesToBase64(bytes)}`;
 
-/**
- * Fetch one layer's bytes along with the metadata its cache key needs.
- *
- * `fetch` covers impower-dev, where layer srcs are served urls. It does NOT
- * cover VS Code, whose srcs are workspace uris a worker can't fetch — that
- * host hands the bytes over the extension bridge instead. A host offering
- * neither route gets `undefined`, and the caller falls back to plain markup.
- */
 const base64ToBlob = (base64: string) => {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -145,7 +75,6 @@ const loadLayer = async (
   layer: ImageLayer,
   readFileBytes?: ReadFileBytes,
 ): Promise<ThumbnailSource | undefined> => {
-  // Keep attribute query parameters and check actual bytes for identity.
   const path = layer.src;
   const identify = async (blob: Blob): Promise<string> => {
     const hash = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
@@ -153,8 +82,6 @@ const loadLayer = async (
     return JSON.stringify([path, digest]);
   };
   try {
-    // A local URL-pointer revision says nothing about the remote bytes.
-    // Revalidate even a fresh HTTP-cache entry before hashing those bytes.
     const response = await fetch(layer.src, /\.url(?:[?#]|$)/i.test(layer.uri ?? "")
       ? {cache: "no-cache"}
       : undefined);
@@ -171,8 +98,6 @@ const loadLayer = async (
       };
     }
   } catch {
-    // Fall through to the bridge — an un-fetchable src is expected in VS Code,
-    // not an error.
   }
   if (readFileBytes && layer.uri) {
     try {
@@ -188,21 +113,6 @@ const loadLayer = async (
   return undefined;
 };
 
-/**
- * Inlined data URI for a struct, or `undefined` when generating one isn't
- * possible or isn't worth it (nothing resolved, no canvas, an un-fetchable
- * layer, or an oversized result).
- *
- * Two cases reach the generator. Several layers are flattened into one image.
- * A single layer is inlined only when the host cannot load its source as it
- * stands — otherwise the plain resolver's `<img src>` is cheaper and sharper,
- * and re-encoding it would buy nothing.
- */
-/**
- * The layers a preview composites, bottom first: each one a morph plays on
- * shows its rest render, so a `+` composition with a blinking portrait
- * previews the portrait clipped as it rests.
- */
 export const resolvePreviewLayers = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
@@ -229,9 +139,6 @@ export const getImageCompositeSrc = async (
     return undefined;
   }
   if (layers.length === 1 && isDirectlyLoadable(layers[0]!.src)) {
-    // Nothing to flatten and nothing to rescue: the plain resolver already
-    // returns the right thing, unless the one layer is a rest render the
-    // plain resolver knows nothing about.
     return layers[0]!.rest ? layers[0]!.src : undefined;
   }
   const bridge = options?.readFileBytes;
@@ -240,7 +147,6 @@ export const getImageCompositeSrc = async (
     cache = bridgeCaches.get(bridge) ?? new Map<string, string>();
     bridgeCaches.set(bridge, cache);
   }
-  // Skip reads only with an explicit host revision or immutable inline source.
   const provisionalKey = layers.every(layer => layer.version !== undefined || layer.src.startsWith("data:"))
     ? JSON.stringify(layers.map(layer => [layer.src, layer.uri, layer.version]))
     : undefined;
@@ -253,8 +159,6 @@ export const getImageCompositeSrc = async (
     layers.map((layer) => loadLayer(layer, options?.readFileBytes)),
   );
   if (sources.some((s) => !s)) {
-    // A failed bridge read may be temporary even when the file's revision
-    // is unchanged. Only memoize an unreachable source without a bridge.
     if (!bridge && provisionalKey !== undefined) cacheSet(cache, provisionalKey, "");
     return undefined;
   }
@@ -282,11 +186,6 @@ export const getImageCompositeSrc = async (
   return value || undefined;
 };
 
-/**
- * Preview markup for an image-ish struct, inlining a generated thumbnail when
- * the host can build one and falling back to the plain resolved source when it
- * can't.
- */
 export const getImagePreviewMarkupComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
@@ -301,8 +200,6 @@ export const getImagePreviewMarkupComposited = async (
   if (composite) {
     return buildImagePreviewMarkup(composite, name);
   }
-  // Either a source the host loads as it stands, or one no thumbnail could be
-  // built from.
   if (getImagePreviewSrc(context, struct)) {
     return getImagePreviewMarkup(context, struct);
   }

@@ -1,14 +1,3 @@
-// Ported from inkjs `src/tests/specs/inkjs/utils/SimpleJson.spec.ts`.
-//
-// SimpleJson is the bespoke streaming JSON writer/reader that powers
-// `Story.state.ToJson()` and `state.LoadJson()`. Sparkdown's runtime
-// uses it unmodified — these tests verify the writer's bracket-balance
-// rules, integer/float distinction (and the `"3.0f"` marker convention
-// for whole-number floats), Infinity/NaN coercion, and the reader's
-// behavior on well-formed vs malformed JSON. Originally written against
-// Jest; ported to vitest with `import { describe, expect, it, beforeEach }`
-// instead of relying on Jest globals.
-
 import { beforeEach, describe, expect, it } from "vitest";
 import { SimpleJson } from "../../runtime/SimpleJson";
 
@@ -174,13 +163,6 @@ describe("SimpleJson.Writer", () => {
     });
 
     it("emits whole-number floats with the `\"N.0f\"` marker", () => {
-      // Diverges intentionally from upstream inkjs (which emits `[3,4]`
-      // for `WriteFloat(3); WriteFloat(4)`). Sparkdown's vendored
-      // SimpleJson uses the `"N.0f"` string marker so the loader can
-      // recover whole-number floats as FloatValue rather than IntValue
-      // — without this, mixed-type ops like `7 / 3.0` would degrade
-      // to integer division after a save/load round-trip. See the
-      // comment on `WriteFloat` in `engine/SimpleJson.ts`.
       writer.WriteArrayStart();
       writer.WriteFloat(3);
       writer.WriteFloat(4);
@@ -190,11 +172,6 @@ describe("SimpleJson.Writer", () => {
     });
 
     it("converts infinity and NaN to recoverable string markers", () => {
-      // Formerly clamped to 3.4e38 / -3.4e38 / 0 (the upstream inkjs
-      // behavior), which silently CHANGED the values — math.huge
-      // stopped being infinity after a JSON round trip. The markers
-      // are recovered as true Infinity/NaN FloatValues by
-      // JsonSerialisation.JTokenToRuntimeObject (Lua conformance).
       writer.WriteArrayStart();
       writer.WriteFloat(Infinity);
       writer.WriteFloat(-Infinity);
@@ -208,10 +185,6 @@ describe("SimpleJson.Writer", () => {
 
 describe("SimpleJson.Reader", () => {
   it("parses a JSON object string", () => {
-    // Whole-number floats in JSON (`3.0`) round-trip as the literal
-    // string `"3.0f"` so the writer can later re-serialize them as
-    // floats rather than integers. See `WriteFloat` for the f-marker
-    // convention.
     const jsonString = '{"key":"value", "array": [1, 2, null, 3.0, false]}';
     const object = {
       array: [1, 2, null, "3.0f", false],

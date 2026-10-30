@@ -29,15 +29,8 @@ export class SparkdownDocument implements TextDocument {
     return this.cachedText.length;
   }
 
-  // chunk() serves multi-line, line-aligned slices, not single lines.
   lineChunks = false;
 
-  /**
-   * The parser reads the document through `chunk()`/`read()`/`length` many
-   * thousands of times per parse; computing each read through positionAt's
-   * binary search almost doubled full-parse time on large documents. Cache the
-   * flat text and serve reads from it (invalidated on `update()`).
-   */
   protected _cachedText?: string;
 
   protected get cachedText(): string {
@@ -54,12 +47,6 @@ export class SparkdownDocument implements TextDocument {
     this.text = TextDocument.create(uri, languageId, version, content);
   }
 
-  /**
-   * A copy of this document at its version, which an update can edit while
-   * this one stays as it is. The line offsets the text document computes on
-   * first use are copied with it, so the copy's first position lookup does not
-   * scan the whole text again.
-   */
   clone(): SparkdownDocument {
     const copy = new SparkdownDocument(
       this.uri,
@@ -118,11 +105,6 @@ export class SparkdownDocument implements TextDocument {
     return lineText;
   };
 
-  /**
-   * One line starting at `from`, without its trailing newline -- unless `from`
-   * sits on a bare newline, which is returned as-is. (The pre-slice `chunk()`
-   * semantics, kept for line-oriented callers.)
-   */
   lineChunk(from: number): string {
     const start = this.text.positionAt(from);
     const end = { line: start.line + 1, character: 0 };
@@ -161,23 +143,8 @@ export class SparkdownDocument implements TextDocument {
     this._cachedText = undefined;
   }
 
-  /**
-   * Target size for `chunk()` slices. Large enough that a full parse only
-   * needs a handful of chunk calls (serving one LINE per call cost +86% on a
-   * 207KB document); bounded so an incremental resume doesn't pull the whole
-   * remaining document into the tokenizer's string window.
-   */
   static readonly CHUNK_TARGET_SIZE = 16384;
 
-  /**
-   * The text from `from` to the next slice end. Slices end right after the
-   * line break at or after each multiple of {@link CHUNK_TARGET_SIZE} (the
-   * tokenizer's window loop expects a slice to end a line), at the same
-   * places whatever position a read starts from. The tokenizer's window
-   * ends where the last slice it read ends, and a lookahead sees the end of
-   * the input there, so a parse that restarts mid-document has to see the
-   * window end where a parse from the start does.
-   */
   chunk(from: number): string {
     const text = this.cachedText;
     if (from >= text.length) {
@@ -188,8 +155,6 @@ export class SparkdownDocument implements TextDocument {
       const newline = text.indexOf("\n", pos);
       return newline === -1 ? text.length : newline + 1;
     };
-    // The first slice end past `from`: the one for the multiple at or
-    // before `from` when its line runs past `from`, otherwise the next.
     const multiple = Math.floor(from / size) * size;
     let end = multiple > 0 ? lineEndAfter(multiple) : 0;
     if (end <= from) {

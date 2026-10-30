@@ -1,9 +1,3 @@
-// How a compiled program crosses from the compiler worker to its workspace
-// (#634). Every compile, and every autocomplete suggestion previewed, sends a
-// program across that boundary, and on an illustrated project nearly all of its
-// bytes are the portraits' attribute vocabularies, which do not change from one
-// compile to the next. These tests pin that what arrives is the program that
-// was compiled, and that an unchanged vocabulary is not sent again.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -60,11 +54,8 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
-/** What a program sends: all of it but its statement chunks, which the
- *  compiler's worker reads by reference. */
 const sent = (program: any) => ({ ...program, chunks: undefined });
 
-/** Every shared-part marker in an encoded program. */
 function markers(encoded: unknown) {
   const found: { $shared: number; value?: unknown }[] = [];
   const walk = (v: any) => {
@@ -104,7 +95,6 @@ describe("the program transport", () => {
     const received = decoder.decode(structuredClone(encoder.encode(program)));
 
     expect(stable(received)).toBe(expected);
-    // Encoding copies; the compiler's own program is untouched.
     expect(stable(sent(program))).toBe(expected);
     expect(program.chunks).toBe(chunks);
   });
@@ -136,7 +126,6 @@ describe("the program transport", () => {
     const third = encoder.encode(changed);
     expect(markers(third).some((m) => "value" in m)).toBe(true);
     expect(stable(decoder.decode(structuredClone(third)))).toBe(stable(sent(changed)));
-    // Both sides now hold only what the newest program uses.
     expect((decoder as any)._held.size).toBe(new Set(markers(third).map((m) => m.$shared)).size);
   });
 

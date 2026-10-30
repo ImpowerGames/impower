@@ -1,22 +1,12 @@
 // Replacing the generics of a function type with the types inferred for them,
 // ported from Luau's `Instantiation2.h`/`Instantiation2.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// When a generic function is called, unification maps each of its generics to
-// a free type. `instantiate2` resolves each of those free types to one of its
-// bounds and substitutes the results for the generics.
 
 import type { Scope } from "./Scope";
 import { Substitution } from "./Substitution";
 import type { Subtyping } from "./Subtyping";
 import { flatten, follow, followPack, get, getPack, is, type FreeType, type TypeArena, type TypeId, type TypePackId } from "./Type";
 
-/**
- * A substitution that replaces each type and pack that is a key of its maps
- * with the mapped value. The maps belong to the caller, who may keep changing
- * them. A key must not be a bound type: the substitution only meets followed
- * types, so a bound key never matches.
- */
 export class Replacer extends Substitution {
   constructor(
     arena: TypeArena,
@@ -53,8 +43,6 @@ export class Replacer extends Substitution {
     if (ftv) {
       if (ftv.hasNoFreeOrGenericTypes) return false;
 
-      // A function type that quantifies over these generics shadows them, so
-      // the substitution goes no further into it.
       for (const generic of ftv.generics) if (this.replacements.has(generic)) return true;
 
       for (const generic of ftv.genericPacks) if (this.replacementPacks.has(generic)) return true;
@@ -64,13 +52,6 @@ export class Replacer extends Substitution {
   }
 }
 
-/**
- * Replaces each free type the substitutions map a generic to with the bound
- * that best describes it, in the maps themselves: the free types stay as they
- * are, as other parts of the solver may still refer to them. A pack
- * substitution that holds one of those free types is replaced by a new pack,
- * so that other references to the old pack are not affected.
- */
 export function resolveGenericSubstitutions(
   arena: TypeArena,
   genericSubstitutions: Map<TypeId, TypeId>,
@@ -78,9 +59,6 @@ export function resolveGenericSubstitutions(
   subtyping: Subtyping,
   scope: Scope,
 ): void {
-  // The free types the type substitutions map to, collected before the map's
-  // values are overwritten: these may also appear inside the pack
-  // substitutions, and are resolved there too.
   const originalFreeTypes = new Set<TypeId>();
   for (const v of genericSubstitutions.values()) {
     const followed = follow(v);
@@ -125,13 +103,6 @@ export function resolveGenericSubstitutions(
   }
 }
 
-/**
- * Substitutes the types inferred for the generics of a function type (Luau
- * notes that this is not really instantiation). The maps are copied first,
- * as Luau takes them by value, so resolving the substitutions leaves the
- * caller's maps as they were. Undefined when the type is too large to
- * substitute.
- */
 export function instantiate2(
   arena: TypeArena,
   genericSubstitutions: Map<TypeId, TypeId>,

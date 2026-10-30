@@ -1,7 +1,3 @@
-// A statement lowered inside a nested block (an `if` body, an `else` arm, a
-// loop body) reports the same diagnostics it reports directly in a scene,
-// on its own line, and a scene-level statement still reports each one once.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
@@ -18,18 +14,12 @@ const count = (messages: string[], fragment: string) =>
 const message = (d: any): string =>
   typeof d?.message === "string" ? d.message : (d?.message?.value ?? "");
 
-// The zero-based start lines of every diagnostic whose message holds
-// `fragment`.
 const diagnosticLines = (source: string, fragment: string) =>
   diagnostics(source, fragment).map((d: any) => d.range.start.line);
 
-// The zero-based start and end lines of every diagnostic whose message holds
-// `fragment`.
 const diagnosticRanges = (source: string, fragment: string) =>
   diagnostics(source, fragment).map((d: any) => [d.range.start.line, d.range.end.line]);
 
-// The zero-based line and start and end characters of every diagnostic whose
-// message holds `fragment`.
 const diagnosticSpans = (source: string, fragment: string) =>
   diagnostics(source, fragment).map((d: any) => ({
     line: d.range.start.line,
@@ -94,7 +84,6 @@ describe("diagnostics from statements inside nested blocks", () => {
   });
 });
 
-// Each body holds one empty divert, on zero-based line `line`.
 const NESTED_EMPTY_DIVERTS: [string, string, number][] = [
   ["as a queue arm", "  queue\n  | ->\n  | B\n  end", 3],
   ["on a line of a queue arm's body", "  queue\n  | A\n    ->\n  | B\n  end", 4],
@@ -123,7 +112,6 @@ describe("an empty divert as an arm of a braced inline alternator", () => {
   const BRACED = '  Two {queue | -> | "b" end} tail';
 
   test("the warning spans the `->` itself", () => {
-    // `  Two {queue | ` is 15 characters, so the `->` covers 15 to 17.
     expect(diagnosticSpans(scene(BRACED), EMPTY_DIVERT)).toEqual([
       { line: 2, from: 15, to: 17 },
     ]);
@@ -152,7 +140,6 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
     `store n = 0\nscene start\n  n = n + 1\n${line}\n  if n < 2 then\n    -> start\n  end\n  fin\nend\n${T}`;
 
   test.each([
-    // `  Two {queue | "a" | ` is 21 characters, so the `->` covers 21 to 23.
     ["-> end", '  Two {queue | "a" | -> end} tail'],
     ["->end", '  Two {queue | "a" | ->end} tail'],
   ])("written `%s`, `end` closes the alternator and the warning spans the `->`", (_, line) => {
@@ -213,8 +200,6 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
   });
 
   test("a named last arm of a braced match alternator is an empty divert too", () => {
-    // `  Two {match (n) | 0 = "a" | other = ` is 37 characters, so the `->`
-    // covers 37 to 39.
     const source = scene('  Two {match (n) | 0 = "a" | other = -> end} tail') + T;
     expect(diagnostics(source, TARGET_NOT_FOUND)).toEqual([]);
     expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 2, from: 37, to: 39 }]);
@@ -226,8 +211,6 @@ const LOAD_CHAIN = "`load` applies to a single target";
 
 const TARGETS = "\nscene Far\n  Far.\nend\n\nscene Near\n  Near.\nend\n";
 
-// Each case is [description, diagnostic fragment, body, zero-based line of
-// the statement the diagnostic belongs to].
 const OTHER_NESTED_DIAGNOSTICS: [string, string, string, number][] = [
   [
     "a choice mark on a line of a queue arm's body",
@@ -263,15 +246,11 @@ const OTHER_NESTED_DIAGNOSTICS: [string, string, string, number][] = [
   ],
 ];
 
-// A thread (`<- load Far -> Near`) has no case: the grammar never parses a
-// thread with a chain or a tunnel-onwards, so `lowerThread`'s load-shape
-// warning cannot be raised from source, even directly in a scene.
 describe("other diagnostics from statements inside alternator arms and choose blocks", () => {
   test.each(OTHER_NESTED_DIAGNOSTICS)("%s reports its diagnostic once, starting on its own line", (_, fragment, body, line) => {
     expect(diagnosticLines(scene(body) + TARGETS, fragment)).toEqual([line]);
   });
 
-  // The range currently runs through the next arm's line (#1030).
   test.fails("the unreachable range after fin in a queue arm ends before the next arm", () => {
     expect(diagnosticRanges(scene("  queue\n  | A\n    fin\n    Never.\n  | B\n  end"), UNREACHABLE)).toEqual([
       [5, 5],

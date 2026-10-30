@@ -6,7 +6,6 @@ import { compileSource } from "./compileSnapshot";
 
 const URI = "file:///main.sd";
 
-/** A portrait with folder-scoped eye defaults, lashes, eyeballs and posed layers. */
 const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="face.happy:default" id="happy">
   <g data-name="eyelash-left:eyes.open:default" id="la"/>
@@ -29,7 +28,6 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
 </g>
 </svg>`;
 
-/** The canonical example from the portrait-morph design (#565). */
 const BLINK = `morph blink with
   blend = morph
   method = bend
@@ -161,7 +159,6 @@ function diagnosticsOf(text: string, images?: Image[]): Found[] {
   });
 }
 
-/** Only the diagnostics the morph checks produce. */
 function morphDiagnostics(text: string, images?: Image[]): Found[] {
   return diagnosticsOf(text, images).filter((d) => d.code === "morph");
 }
@@ -267,8 +264,6 @@ end
 `,
       "m",
     );
-    // The list forms omit offsets, so only their normalized poses agree with
-    // the keyed form.
     expect(listed.keyframes[0].offset).toBeUndefined();
     expect(normalizeMorphKeyframes(listed.keyframes)).toEqual(keyed.keyframes);
 
@@ -715,7 +710,6 @@ end
   });
 });
 
-/** Wrap keyframe lines into an otherwise valid morph. */
 const BLINK_BRACED = `morph blink with
   blend = morph
   method = bend
@@ -759,7 +753,6 @@ const BLINK_BRACED = `morph blink with
 end
 `;
 
-/** Wrap brace keyframe entries into an otherwise valid morph. */
 const withBraceKeyframes = (keyframes: string, extra = "") => `morph m with
   method = match
 ${extra}  keyframes {
@@ -806,9 +799,6 @@ describe("morph blocks written with braces", () => {
     expect(found!.text).toBe(text);
   });
 
-  // The same keyframe cases as the indented table. Where the indented form
-  // reports a whole line (`- 0.5`, `eyes:`), the brace form reports the entry
-  // as it is written there (`0.5`, `eyes {`).
   test.each([
     [
       "a scalar shorthand pose",
@@ -909,7 +899,6 @@ describe("morph blocks written with braces", () => {
   });
 });
 
-/** An image whose eyes live in two folders with their own defaults. */
 const TWO_FOLDERS = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="face.happy:default" id="happy">
   <g data-name="lids:eyes.open:default" id="h-open"/>
@@ -978,7 +967,6 @@ describe("morph binding", () => {
     const bunny = binding.candidates.find((c) => c.image === "bunny")!;
     expect(bunny.compatible).toBe(true);
     const base = bunny.variants.find((v) => v.name === "bunny")!;
-    // Only the happy face is shown at rest, so only its open default counts.
     expect(base.status).toBe("active");
     expect(base.rest["eyes"]).toEqual({ "face.happy:default": "open" });
   });
@@ -1027,10 +1015,8 @@ describe("morph binding", () => {
   });
 
   test("a refinement is shown by its base artwork, but a base state is not invented from a refinement", () => {
-    // `open-wide` selects layers drawn for `open`, so this image can show it.
     const refined = SIMPLE_BLINK.replace("state = closed", "state = open-wide");
     expect(morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }])).toEqual([]);
-    // Artwork drawn only for `open-wide` cannot show a plain `open`.
     const wideOnly = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="lids:eyes.open-wide:default" id="wide"/>
 <g data-name="lids:eyes.closed" id="closed"/>
@@ -1049,7 +1035,6 @@ describe("morph binding", () => {
     expect(perImage).toHaveLength(1);
     expect(perImage[0]).toMatchObject({ line: 0, text: "blink" });
     expect(perImage[0]!.message).toContain("image `raffles`: its `eyes` group has no `closed` state");
-    // Another image has the state, so the state itself is not unknown.
     expect(found.find((d) => d.message.includes("No image's `eyes` group"))).toBeUndefined();
   });
 
@@ -1353,7 +1338,6 @@ end
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ text, severity: 1 });
     expect(found[0]!.message).toContain(message);
-    // A rejected value leaves the entry out of the recipe rather than guessed at.
     if (!message.startsWith("Unknown") && !message.includes("belongs")) expect(recipeOf(PAINTED([entry])).paints).toBeUndefined();
   });
 

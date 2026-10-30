@@ -9,30 +9,12 @@ import { joinSparkleContinuations } from "./sparkleContinuations";
 import { blockIsClosed, blockOpenBrace } from "./structBodyEntries";
 import { lineTextSpan, makeSource } from "./validateDefineStructure";
 
-// The structure errors of the brace blocks in a `layout` or `component` body:
-// a block left without its `}`, a block with no element before it, a line
-// that continues no element, and an `if`, `for` or `match` inside a block
-// left without its `end`.
-//
-// Each is reported where the mistake shows (the `{`, the control block's
-// header line), which can stand before the edit that makes or fixes it: typing
-// a `}` in a branch closes the control block around it early. The checks
-// therefore run as the declaration is lowered, so the diagnostics are rebuilt
-// with the declaration on every edit inside it, as `validateBlockEnds` does
-// for Luau blocks.
-
-/** Worded like the missing-`end` message of a define. A layout block left
- *  open ends where a line starts with `end`, `else`, `elseif` or `case`. */
 export const UNCLOSED_SPARKLE_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
 
-/** A continuation line (`.class`, `#prop=…`, `@event=…`, `"content"`) with
- *  no element before it to join. */
 export const STRAY_SPARKLE_CONTINUATION =
   "There is no element for this line to continue. A line that starts with `.`, `#`, `@` or a quote adds to the element just before it, and a property, an `if`, `for` or `match` block, or the element's `{ … }` block ends that element.";
 
-// The control blocks a layout or component block can hold, and what a
-// message calls each.
 const CONTROLS: Readonly<Record<string, string>> = {
   LuauSparkleBlockIf: "`if` block",
   LuauSparkleBlockFor: "`for` loop",
@@ -43,8 +25,6 @@ function missingEndMessage(label: string): string {
   return `This ${label} is missing its closing \`end\` keyword. Without it, the lines below it are read as part of this ${label}, up to the \`}\` of the block around it, the next \`scene\` or \`branch\`, or the end of the file.`;
 }
 
-// A control block's `_end`, each named literally so the grammar node-name
-// check sees every name.
 function controlEnd(node: SyntaxNode): SyntaxNode | null {
   switch (node.name) {
     case "LuauSparkleBlockIf":
@@ -58,7 +38,6 @@ function controlEnd(node: SyntaxNode): SyntaxNode | null {
   }
 }
 
-/** The brace structure errors in a layout or component body. */
 export function validateSparkleBlocks(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,

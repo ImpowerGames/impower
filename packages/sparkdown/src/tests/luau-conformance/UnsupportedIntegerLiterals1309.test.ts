@@ -1,5 +1,3 @@
-// #1309 deliberately rejects Luau's native 64-bit integers. Syntax recognition
-// in the upstream checker does not supply integer values or an integer library.
 import { beforeAll, describe, expect, test } from "vitest";
 import { diagnose, diagnoseDetailed, diagnoseInFunction } from "./diagnosticTestHarness";
 import { loadOfficialLuau } from "../compiler/officialLuau";
@@ -19,7 +17,6 @@ describe("unsupported Luau integer literals (#1309)", () => {
     expect(integerEntries.map((entry) => entry.fixture)).toEqual([
       "conformance/integers.luau", "conformance/integers_regspill.luau",
     ]);
-    // The cast keeps the assertion executable on the pre-classification base.
     const limitations = KNOWN_DISAGREEMENTS.filter((entry) =>
       (entry as { limitation?: unknown }).limitation !== undefined,
     );

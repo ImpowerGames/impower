@@ -23,7 +23,6 @@ export class TypeIds implements Iterable<TypeId> {
     for (const ty of tys) this.insert(ty);
   }
 
-  /** Keeps only the types that are also in `tys`. */
   retain(tys: TypeIds): void {
     this.order = this.order.filter((ty) => {
       if (tys.contains(ty)) return true;
@@ -64,7 +63,6 @@ export class TypeIds implements Iterable<TypeId> {
     return this.contains(ty) ? 1 : 0;
   }
 
-  /** Whether every type in the set is never; true for an empty set. */
   isNever(): boolean {
     return this.order.every((t) => get(t, "NeverType") !== undefined);
   }
@@ -74,7 +72,6 @@ export class TypeIds implements Iterable<TypeId> {
     return this.order.every((ty) => there.contains(ty));
   }
 
-  /** A key equal for equal sets, whatever their order. */
   key(): string {
     return this.order
       .map((t) => t.serial)

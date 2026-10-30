@@ -1,15 +1,3 @@
-// #1051 — a story state saved while a vararg function's frame is on the call
-// stack round-trips its `__varargs$` pack.
-//
-// A function declared with `...` keeps its extra arguments as one packed
-// temporary. Saving the state while that frame is live has to write the pack
-// and loading has to restore it with every value and its arity, because
-// `select("#", ...)` counts trailing and interior nils.
-//
-// Harness: story A pauses before the vararg function's first condition (the
-// route search forks there by saving the state), saves, and a fresh story B
-// loads the save and runs the rest of the function.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -71,7 +59,6 @@ describe("saving a state inside a vararg function", () => {
     const { errors, recorded, savedJson } = saveInsideVarargAndResume(
       `"a", nil, "c", nil`,
     );
-    // The save was taken inside `f`, so it holds the pack.
     expect(savedJson).toContain(`"tuple"`);
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["a", true, "c", true, 4]);

@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// statement layout, control flow and expressions. Snippets and expected
-// messages are quoted verbatim inside a function body; the upstream test-case
-// name is in the comment above each group, marked adapted where sparkdown's
-// result differs. Upstream cases whose expected result is silence run too.
-
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 import {
@@ -307,8 +301,6 @@ const IMPRECISE =
   "Number literal exceeded available precision and was truncated to closest representable number";
 
 // Luau: IntegerParsing
-// Adapted: Sparkdown's runtime preserves exact powers beyond uint64, so the
-// original overflow inputs are silent controls; their inexact neighbors warn.
 describe("binary and hex literals past 2^64", () => {
   test("original powers stay exact, while their neighbors lose precision", () => {
     expect(
@@ -325,9 +317,7 @@ local _ = 0x10000000000000001
   });
 });
 
-// Sparkdown-specific: IntegerParsing against the runtime's own conversion,
-// its spelling boundary, and literals in Sparkdown's text, which upstream has
-// no counterpart for.
+// Sparkdown-specific
 describe("IntegerParsing boundaries and spellings", () => {
   test("the largest uint64 rounds, while the next integer stays exact", () => {
     expect(lintMessagesInFunction(`

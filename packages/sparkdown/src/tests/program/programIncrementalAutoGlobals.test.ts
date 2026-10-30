@@ -1,9 +1,3 @@
-// The three incremental oracles over auto-globals and functions of their
-// names (#1607).
-//
-// The helpers are in ./incrementalOracleHarness; the oracle's shape is set
-// out there. Each top-level describe of the former programIncrementalOracles
-// test file runs from a file of its own (#1932).
 import { describe, expect, it } from "vitest";
 import { AUTO_GLOBAL_INSERTS, autoGlobalScreenplay } from "./autoGlobalScreenplay";
 import { MAIN_URI, programCompiler } from "./programHarness";
@@ -21,14 +15,6 @@ import {
   update,
 } from "./incrementalOracleHarness";
 
-// The program path's resolver resolves only the statements whose resolution
-// can read otherwise, and a bare assignment makes a global of its name only
-// where a cold compile's resolution reaches it, a function of the name
-// winning for a call (#1607). The three oracles above, over a screenplay of
-// auto-globals read before and after their assignments, in scenes and
-// functions, and globals named like functions: whole lines of assignments,
-// reads, `local`s, declarations and functions of those names are written,
-// moved and removed.
 const AUTO_LINES = [
   "tally = 4",
   "score = 2",
@@ -74,8 +60,6 @@ describe("the oracles over auto-globals and functions of their names", () => {
   it("incremental == cold across many cumulative edits on ONE compiler", () => {
     quiet(() => {
       const EDIT_COUNT = 90;
-      // Assignments, functions and declarations of the auto-globals' names
-      // move in and out of the program, both ways round.
       const shaped: [string, string][] = [
         ["  tally = 0\n", "  tally = 0\n  tally = 7\n"],
         ["function score()\n  return 10\nend\n", "function tally()\n  return 10\nend\n"],

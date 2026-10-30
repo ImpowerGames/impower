@@ -2,12 +2,6 @@
 // handling in the solver and the checker, ported from Luau's
 // `BuiltinDefinitions.h`/`BuiltinDefinitions.cpp`; Luau is MIT-licensed (see
 // `LICENSE-luau.txt`).
-//
-// Most builtins are declared in Luau source (`EmbeddedBuiltinDefinitions.ts`)
-// and parsed into JSON at build time. `registerBuiltinGlobals` loads that data
-// and then builds the few
-// types the declaration syntax cannot express, such as `pairs`, `next`,
-// `getmetatable` and `setmetatable`, and the string metatable.
 
 import {
   AstExprConstantBool,
@@ -68,7 +62,6 @@ import { ErrorSuppression, extendTypePack, reduceUnion, shouldSuppressErrors, tr
 
 export { matchTableFreeze, shouldTypestateForFirstArgument } from "./DataFlowGraph";
 
-/** The tag `registerBuiltinGlobals` attaches to the type of `require`. */
 export const kRequireTagName = "require";
 
 export function makeUnion(arena: TypeArena, types: TypeId[]): TypeId {
@@ -79,12 +72,10 @@ export function makeIntersection(arena: TypeArena, types: TypeId[]): TypeId {
   return arena.addType(intersectionType(types));
 }
 
-/** The optional type `t?`. */
 export function makeOption(builtinTypes: BuiltinTypes, arena: TypeArena, t: TypeId): TypeId {
   return makeUnion(arena, [builtinTypes.nilType, t]);
 }
 
-/** A monomorphic function type, for writing builtin definitions in code. */
 export function makeFunction(
   arena: TypeArena,
   selfType: TypeId | undefined,
@@ -95,7 +86,6 @@ export function makeFunction(
   return makeGenericFunctionWithNames(arena, selfType, [], [], paramTypes, [], retTypes, checked);
 }
 
-/** A polymorphic function type, for writing builtin definitions in code. */
 export function makeGenericFunction(
   arena: TypeArena,
   selfType: TypeId | undefined,
@@ -108,7 +98,6 @@ export function makeGenericFunction(
   return makeGenericFunctionWithNames(arena, selfType, generics, genericPacks, paramTypes, [], retTypes, checked);
 }
 
-/** A monomorphic function type with named parameters, for writing builtin definitions in code. */
 export function makeFunctionWithNames(
   arena: TypeArena,
   selfType: TypeId | undefined,
@@ -120,10 +109,6 @@ export function makeFunctionWithNames(
   return makeGenericFunctionWithNames(arena, selfType, [], [], paramTypes, paramNames, retTypes, checked);
 }
 
-/**
- * A polymorphic function type with named parameters, for writing builtin
- * definitions in code. A self type becomes the first parameter, named `self`.
- */
 export function makeGenericFunctionWithNames(
   arena: TypeArena,
   selfType: TypeId | undefined,
@@ -149,7 +134,6 @@ export function makeGenericFunctionWithNames(
   if (paramNames.length !== 0) {
     for (const p of paramNames) ftv.argNames.push({ name: p, location: new Location() });
   } else if (selfType) {
-    // With `self` named, the remaining parameters still need their (empty) slots.
     for (let i = 0; i < paramTypes.length; i++) ftv.argNames.push(undefined);
   }
 
@@ -158,20 +142,17 @@ export function makeGenericFunctionWithNames(
   return arena.addType(ftv);
 }
 
-/** Attaches a magic function to a function type; other types are left as they are. */
 export function attachMagicFunction(ty: TypeId, magic: MagicFunction): void {
   const ftv = get(ty, "FunctionType");
   if (ftv) ftv.magic = magic;
 }
 
-/** A read-write property with the given documentation symbol. */
 export function makeProperty(ty: TypeId, documentationSymbol?: string): Property {
   const prop = Property.rw(ty);
   prop.documentationSymbol = documentationSymbol;
   return prop;
 }
 
-/** Binds a global in the global scope, documented as `<packageName>/global/<name>`. */
 export function addGlobalBinding(globals: GlobalTypes, name: string, ty: TypeId, packageName: string): void {
   addGlobalBindingInScope(globals, globals.globalScope, name, ty, packageName);
 }
@@ -180,7 +161,6 @@ export function addGlobalBindingWithBinding(globals: GlobalTypes, name: string, 
   addGlobalBindingInScopeWithBinding(globals, globals.globalScope, name, binding);
 }
 
-/** Binds a global in the given scope, documented as `<packageName>/global/<name>`. */
 export function addGlobalBindingInScope(globals: GlobalTypes, scope: Scope, name: string, ty: TypeId, packageName: string): void {
   const documentationSymbol = packageName + "/global/" + name;
   addGlobalBindingInScopeWithBinding(globals, scope, name, {
@@ -196,7 +176,6 @@ export function addGlobalBindingInScopeWithBinding(_globals: GlobalTypes, scope:
   scope.bindings.set(name, { ...binding });
 }
 
-/** A copy of a global's binding in the global scope, if it has one. */
 export function tryGetGlobalBinding(globals: GlobalTypes, name: string): Binding | undefined {
   const binding = globals.globalScope.bindings.get(name);
   if (binding) return { ...binding };
@@ -204,25 +183,21 @@ export function tryGetGlobalBinding(globals: GlobalTypes, name: string): Binding
   return undefined;
 }
 
-/** The type of a global the global scope binds. */
 export function getGlobalBinding(globals: GlobalTypes, name: string): TypeId {
   const t = tryGetGlobalBinding(globals, name);
   return t!.typeId;
 }
 
-/** A global's binding in the global scope itself, to change in place, if it has one. */
 export function tryGetGlobalBindingRef(globals: GlobalTypes, name: string): Binding | undefined {
   return globals.globalScope.bindings.get(name);
 }
 
-/** Documents each property as `<baseName>.<name>`. */
 export function assignPropDocumentationSymbols(props: Props, baseName: string): void {
   for (const [name, prop] of props) {
     prop.documentationSymbol = baseName + "." + name;
   }
 }
 
-/** The property of the given name, added empty when there is none, as `std::map::operator[]` does. */
 function propAt(props: Props, name: string): Property {
   let prop = props.get(name);
   if (!prop) {
@@ -232,7 +207,6 @@ function propAt(props: Props, name: string): Property {
   return prop;
 }
 
-/** Makes every bound type persistent, and names each unnamed table `typeof(<global>)`. */
 function finalizeGlobalBindings(scope: Scope): void {
   for (const [symbol, binding] of scope.bindings) {
     persist(binding.typeId);
@@ -244,11 +218,6 @@ function finalizeGlobalBindings(scope: Scope): void {
   }
 }
 
-/**
- * Loads the builtin definitions into the global scope and the scope type
- * functions run in, then adds the builtins the definition syntax cannot
- * express and attaches the magic functions.
- */
 export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes): void {
   const arena = globals.globalTypes;
   const builtinTypes = globals.builtinTypes;
@@ -272,7 +241,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   addGlobalBinding(globals, "string", it!.readTy!, "@luau");
   addGlobalBinding(globals, "string", it!.writeTy!, "@luau");
 
-  // The metatable of `vector`.
   const vectorTypeFun = globals.globalScope.exportedTypeBindings.get("vector");
   if (vectorTypeFun) {
     const vectorTy = vectorTypeFun.type;
@@ -294,7 +262,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
     metatableTy.props.set("__idiv", Property.rw(makeIntersection(arena, [...mulOverloads])));
   }
 
-  // next<K, V>(t: Table<K, V>, i: K?) -> (K?, V)
   const nextArgsTypePack = arena.addTypePack([mapOfKtoV, makeOption(builtinTypes, arena, genericK)]);
   const nextRetsTypePack = arena.addTypePack([makeOption(builtinTypes, arena, genericK), genericV]);
   addGlobalBinding(
@@ -309,7 +276,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   const pairsNext = arena.addType(functionType(nextArgsTypePack, nextRetsTypePack));
   const pairsReturnTypePack = arena.addTypePack([pairsNext, mapOfKtoV, builtinTypes.nilType]);
 
-  // pairs<K, V>(t: Table<K, V>) -> ((Table<K, V>, K?) -> (K, V), Table<K, V>, nil)
   addGlobalBinding(
     globals,
     "pairs",
@@ -321,11 +287,9 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
 
   const genericT = arena.addType(genericType({ scope: globalScope, name: "T", polarity: Polarity.Mixed }));
 
-  // getmetatable : <T>(T) -> getmetatable<T>
   const getmtReturn = arena.addType(typeFunctionInstanceType(builtinTypes.typeFunctions.getmetatableFunc, [genericT]));
   addGlobalBinding(globals, "getmetatable", makeGenericFunction(arena, undefined, [genericT], [], [genericT], [getmtReturn]), "@luau");
 
-  // setmetatable<T: {}, MT>(T, MT) -> setmetatable<T, MT>
   const setmtReturn = arena.addType(typeFunctionInstanceType(builtinTypes.typeFunctions.setmetatableFunc, [genericT, genericMT]));
   addGlobalBinding(
     globals,
@@ -339,7 +303,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   attachMagicFunction(getGlobalBinding(globals, "assert"), new MagicAssert());
   attachMagicFunction(getGlobalBinding(globals, "pcall"), new MagicPcall());
 
-  // declare function assert<T>(value: T, errorMessage: string?): intersect<T, ~(false?)>
   const assertGenericT = arena.addType(genericType({ scope: globalScope, name: "T", polarity: Polarity.Mixed }));
 
   const refinedTy = arena.addType(
@@ -363,9 +326,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
 
   const ttv = get(getGlobalBinding(globals, "table"), "TableType");
   if (ttv) {
-    // The new solver has no generic tables (CLI-114044), which act like
-    // generics constrained to the top table type, so these functions use
-    // unconstrained generics instead.
     const genericTy = arena.addType(genericType({ scope: globalScope, name: "T", polarity: Polarity.Mixed }));
     const thePack = arena.addTypePack([genericTy]);
     const idTyWithMagic = arena.addType(functionType(thePack, thePack, { generics: [genericTy], genericPacks: [] }));
@@ -389,8 +349,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   attachTag(requireTy, kRequireTagName);
   attachMagicFunction(requireTy, new MagicRequire());
 
-  // The global scope cannot be the parent of the type function environment,
-  // because the embedder can change it, so the environment gets copies.
   globals.globalTypeFunctionScope.exportedTypeBindings.clear();
   for (const [name, typeFun] of globals.globalScope.exportedTypeBindings) {
     globals.globalTypeFunctionScope.exportedTypeBindings.set(name, typeFun);
@@ -398,9 +356,7 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   globals.globalTypeFunctionScope.builtinTypeNames.clear();
   for (const name of globals.globalScope.builtinTypeNames) globals.globalTypeFunctionScope.builtinTypeNames.add(name);
 
-  // The type function runtime removes some standard libraries and globals, so it gets only these.
   const typeFunctionRuntimeBindings = [
-    // Libraries
     "math",
     "table",
     "string",
@@ -408,7 +364,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
     "utf8",
     "buffer",
 
-    // Globals
     "assert",
     "error",
     "print",
@@ -432,7 +387,6 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   ];
 
   for (const name of typeFunctionRuntimeBindings) {
-    // The builtin definitions declare every one of these names.
     const binding = globals.globalScope.bindings.get(name);
     if (binding) globals.globalTypeFunctionScope.bindings.set(name, { ...binding });
   }
@@ -442,17 +396,14 @@ export function registerBuiltinGlobals(frontend: Frontend, globals: GlobalTypes)
   finalizeGlobalBindings(globals.globalTypeFunctionScope);
 }
 
-/** An expression as a constant string, as Luau's `expr->as<AstExprConstantString>()`. */
 function asConstantString(expr: AstExpr | undefined): AstExprConstantString | undefined {
   return expr instanceof AstExprConstantString ? expr : undefined;
 }
 
-/** Whether a byte is an ASCII letter or `*`, which is `c > 0 && (isalpha(c) || c == '*')` for a C `char` in the C locale. */
 function isAlphaOrStar(c: number): boolean {
   return (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 42;
 }
 
-/** The types the conversions of a `string.format` format string expect, in order. */
 function parseFormatString(builtinTypes: BuiltinTypes, data: string, size: number): TypeId[] {
   const options = "cdiouxXeEfgGqs*";
 
@@ -464,7 +415,6 @@ function parseFormatString(builtinTypes: BuiltinTypes, data: string, size: numbe
 
       if (i < size && data[i] === "%") continue;
 
-      // Every character before the first letter or `*`, such as flags and precision, is skipped.
       while (i < size && !isAlphaOrStar(data.charCodeAt(i))) i++;
 
       if (i === size) break;
@@ -480,18 +430,12 @@ function parseFormatString(builtinTypes: BuiltinTypes, data: string, size: numbe
   return result;
 }
 
-/**
- * `string.format`: the arguments after a constant format string must match
- * its conversions. The solver unifies them, and the checker checks them
- * once their types are final.
- */
 class MagicFormat implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const arena = context.solver.arena;
 
     const iter = flatten(context.arguments).head[0];
 
-    // `string.format` reports no errors when its format string suppresses errors.
     if (iter === undefined || shouldSuppressErrors(context.solver.normalizer, follow(iter)) === ErrorSuppression.Suppress) {
       const resultPack = arena.addTypePack([context.solver.builtinTypes.stringType]);
       emplaceTypePack(context.result, boundTypePack(resultPack));
@@ -521,14 +465,12 @@ class MagicFormat implements MagicFunction {
 
     const paramOffset = 1;
 
-    // The prefix is unified one argument at a time, which matters when any of the types are free.
     for (let i = 0; i < expected.length && i + paramOffset < params.length; ++i) {
       context.solver.unify(context.constraint, params[i + paramOffset]!, expected[i]!);
     }
 
-    // A known argument count, or one that is too many for sure, is an error.
     const numActualParams = params.length;
-    const numExpectedParams = expected.length + 1; // + 1 for the format string
+    const numExpectedParams = expected.length + 1;
 
     if (numExpectedParams !== numActualParams && (!tail || numExpectedParams < numActualParams)) {
       context.solver.reportError(
@@ -538,7 +480,6 @@ class MagicFormat implements MagicFunction {
       );
     }
 
-    // This runs at solve time, so it only has to give the result of the call.
     const resultPack = arena.addTypePack([context.solver.builtinTypes.stringType]);
     emplaceTypePack(context.result, boundTypePack(resultPack));
 
@@ -557,7 +498,6 @@ class MagicFormat implements MagicFunction {
       return true;
     }
 
-    // `string.format` reports no errors when its format string suppresses errors.
     if (shouldSuppressErrors(context.typechecker.normalizer, follow(iter)) === ErrorSuppression.Suppress) {
       return true;
     }
@@ -580,16 +520,11 @@ class MagicFormat implements MagicFunction {
 
     if (formatString === undefined) return true;
 
-    // CLI-150726: the arguments are checked one parameter at a time, so a
-    // call such as `string.format("%s %d %s", foo())`, where `foo` returns
-    // `...string`, is allowed although it should not be.
-
     const expected = parseFormatString(context.builtinTypes, formatString, formatString.length);
 
     const { head: params } = flatten(context.arguments);
 
     const paramOffset = 1;
-    // Whether the call used `:` shows in how many argument expressions there are for the types the format expects.
     const calledWithSelf = expected.length === callSite.args.length;
     for (let i = 0; i < expected.length && i + paramOffset < params.length; ++i) {
       const actualTy = params[i + paramOffset]!;
@@ -619,11 +554,6 @@ class MagicFormat implements MagicFunction {
   }
 }
 
-/**
- * The types the captures of a Lua pattern produce, in order: `string?` for
- * each capture and `number?` for each position capture `()`. A pattern without
- * captures produces its whole match; an unbalanced one produces nothing.
- */
 function parsePatternString(builtinTypes: BuiltinTypes, data: string, size: number): TypeId[] {
   const result: TypeId[] = [];
   let depth = 0;
@@ -665,7 +595,6 @@ function parsePatternString(builtinTypes: BuiltinTypes, data: string, size: numb
   return result;
 }
 
-/** `string.gmatch` with a constant pattern: the iterator returns the pattern's captures. */
 class MagicGmatch implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const { head: params } = flatten(context.arguments);
@@ -696,7 +625,6 @@ class MagicGmatch implements MagicFunction {
   }
 }
 
-/** `string.match` with a constant pattern: the call returns the pattern's captures. */
 class MagicMatch implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const { head: params } = flatten(context.arguments);
@@ -731,10 +659,6 @@ class MagicMatch implements MagicFunction {
   }
 }
 
-/**
- * `string.find` with a constant pattern: the call returns the match's start
- * and end, then the pattern's captures unless the search is plain.
- */
 class MagicFind implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const { head: params } = flatten(context.arguments);
@@ -787,10 +711,6 @@ class MagicFind implements MagicFunction {
   }
 }
 
-/**
- * `pcall` of a function that returns no values returns `(boolean, unknown)`;
- * any other call is inferred from the type `pcall` is declared with.
- */
 class MagicPcall implements MagicFunction {
   infer(ctx: MagicFunctionCallContext): boolean {
     const { head: argHead } = flatten(ctx.arguments);
@@ -811,7 +731,6 @@ class MagicPcall implements MagicFunction {
   }
 }
 
-/** The metatable of `string`: its `__index` is the `string` library, whose functions take the string as `self`. */
 export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
   const arena = builtinTypes.arena;
 
@@ -836,13 +755,13 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
   const formatFn = arena.addType(formatFTV);
   attachMagicFunction(formatFn, new MagicFormat());
 
-  const stringToStringType = makeGenericFunctionWithNames(arena, undefined, [], [], [stringType], [], [stringType], /* checked */ true);
+  const stringToStringType = makeGenericFunctionWithNames(arena, undefined, [], [], [stringType], [], [stringType], true);
 
   const replArgType = arena.addType(
     unionType([
       stringType,
       arena.addType(tableType({ indexer: new TableIndexer(stringType, stringType), state: TableState.Generic })),
-      makeGenericFunctionWithNames(arena, undefined, [], [], [stringType], [], [stringType], /* checked */ false),
+      makeGenericFunctionWithNames(arena, undefined, [], [], [stringType], [], [stringType], false),
     ]),
   );
   const gsubFunc = makeGenericFunctionWithNames(
@@ -853,7 +772,7 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
     [stringType, replArgType, optionalNumber],
     [],
     [stringType, numberType],
-    /* checked */ false,
+    false,
   );
   const gmatchFunc = makeGenericFunctionWithNames(
     arena,
@@ -863,7 +782,7 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
     [stringType],
     [],
     [arena.addType(functionType(emptyPack, stringVariadicList))],
-    /* checked */ true,
+    true,
   );
   attachMagicFunction(gmatchFunc, new MagicGmatch());
 
@@ -880,15 +799,12 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
   const findFunc = arena.addType(findFuncTy);
   attachMagicFunction(findFunc, new MagicFind());
 
-  // string.byte : string -> number? -> number? -> ...number
   const stringDotByte = functionType(arena.addTypePack([stringType, optionalNumber, optionalNumber]), numberVariadicList);
   stringDotByte.isCheckedFunction = true;
 
-  // string.char : .... number -> string
   const stringDotChar = functionType(numberVariadicList, arena.addTypePack([stringType]));
   stringDotChar.isCheckedFunction = true;
 
-  // string.unpack : string -> string -> number? -> ...any
   const stringDotUnpack = functionType(arena.addTypePack([stringType, stringType, optionalNumber]), variadicTailPack);
   stringDotUnpack.isCheckedFunction = true;
 
@@ -899,14 +815,14 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
     ["format", Property.rw(formatFn)],
     ["gmatch", Property.rw(gmatchFunc)],
     ["gsub", Property.rw(gsubFunc)],
-    ["len", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [], [], [numberType], /* checked */ true))],
+    ["len", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [], [], [numberType], true))],
     ["lower", Property.rw(stringToStringType)],
     ["match", Property.rw(matchFunc)],
-    ["rep", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [numberType], [], [stringType], /* checked */ true))],
+    ["rep", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [numberType], [], [stringType], true))],
     ["reverse", Property.rw(stringToStringType)],
     [
       "sub",
-      Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [numberType, optionalNumber], [], [stringType], /* checked */ true)),
+      Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [numberType, optionalNumber], [], [stringType], true)),
     ],
     ["upper", Property.rw(stringToStringType)],
     [
@@ -920,12 +836,12 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
           [optionalString],
           [],
           [arena.addType(tableType({ indexer: new TableIndexer(numberType, stringType), state: TableState.Sealed }))],
-          /* checked */ true,
+          true,
         ),
       ),
     ],
     ["pack", Property.rw(arena.addType(functionType(arena.addTypePack([stringType], variadicTailPack), oneStringPack)))],
-    ["packsize", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [], [], [numberType], /* checked */ true))],
+    ["packsize", Property.rw(makeGenericFunctionWithNames(arena, stringType, [], [], [], [], [numberType], true))],
     ["unpack", Property.rw(arena.addType(stringDotUnpack))],
   ]);
 
@@ -939,18 +855,10 @@ export function makeStringMetatable(builtinTypes: BuiltinTypes): TypeId {
   return arena.addType(tableType({ props: new Props([["__index", Property.rw(tableTy)]]), state: TableState.Sealed }));
 }
 
-/**
- * C++'s `int(value)` for a double as x86-64 computes it: the value truncated
- * toward zero, or `INT_MIN` for NaN and values out of the range of `int`.
- */
 function doubleToInt(value: number): number {
   return value > -2147483649 && value < 2147483648 ? Math.trunc(value) : -2147483648;
 }
 
-/**
- * `select` with a constant first argument: `select(n, ...)` returns the
- * arguments from the `n`th on, and `select("#", ...)` returns a number.
- */
 class MagicSelect implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     if (context.callSite.args.length <= 0) {
@@ -995,21 +903,18 @@ class MagicSelect implements MagicFunction {
   }
 }
 
-/** `setmetatable`, whose type the `setmetatable` type function computes. */
 class MagicSetMetatable implements MagicFunction {
   infer(_ctx: MagicFunctionCallContext): boolean {
     return false;
   }
 }
 
-/** `assert`, whose type the `intersect` type function computes. */
 class MagicAssert implements MagicFunction {
   infer(_ctx: MagicFunctionCallContext): boolean {
     return false;
   }
 }
 
-/** `table.pack`: the packed table's elements have the union of the argument types. */
 class MagicPack implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const arena = context.solver.arena;
@@ -1026,9 +931,6 @@ class MagicPack implements MagicFunction {
 
     options = reduceUnion(options);
 
-    // table.pack()         -> {| n: number, [number]: nil |}
-    // table.pack(1)        -> {| n: number, [number]: number |}
-    // table.pack(1, "foo") -> {| n: number, [number]: number | string |}
     let result: TypeId;
     if (options.length === 0) result = context.solver.builtinTypes.nilType;
     else if (options.length === 1) result = options[0]!;
@@ -1046,7 +948,6 @@ class MagicPack implements MagicFunction {
   }
 }
 
-/** `table.clone` of a table: the result is a shallow copy of the argument's table type. */
 class MagicClone implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const arena = context.solver.arena;
@@ -1061,7 +962,7 @@ class MagicClone implements MagicFunction {
 
     if (!get(inputType, "TableType")) return false;
 
-    const resultType = shallowClone(inputType, arena, /* clonePersistentTypes */ true);
+    const resultType = shallowClone(inputType, arena, true);
 
     const tableTy = get(resultType, "TableType");
     if (tableTy) {
@@ -1077,11 +978,6 @@ class MagicClone implements MagicFunction {
   }
 }
 
-/**
- * A read-only copy of a table type, or of the table of a metatable type:
- * sealed, with write-only properties removed and every other property made
- * read-only. Undefined for any other type.
- */
 function freezeTable(inputType: TypeId, context: MagicFunctionCallContext): TypeId | undefined {
   const arena = context.solver.arena;
   inputType = follow(inputType);
@@ -1097,8 +993,7 @@ function freezeTable(inputType: TypeId, context: MagicFunctionCallContext): Type
   }
 
   if (get(inputType, "TableType")) {
-    // The copy of the input type becomes the result once it is changed.
-    const resultType = shallowClone(inputType, arena, /* clonePersistentTypes */ true);
+    const resultType = shallowClone(inputType, arena, true);
     const tableTy = get(resultType, "TableType")!;
     tableTy.state = TableState.Sealed;
 
@@ -1113,10 +1008,6 @@ function freezeTable(inputType: TypeId, context: MagicFunctionCallContext): Type
   return undefined;
 }
 
-/**
- * `table.freeze` is the identity function bounded by `table`, except that it
- * returns a read-only version of its argument's table type.
- */
 class MagicFreeze implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     const arena = context.solver.arena;
@@ -1133,14 +1024,11 @@ class MagicFreeze implements MagicFunction {
     const resultTy = resultDef ? scope.lookupDef(resultDef) : undefined;
 
     if (resultTy && !get(follow(resultTy), "BlockedType")) {
-      // An existing result type that is not blocked means the call does not
-      // typestate its argument, so regular inference applies.
       return false;
     }
 
     const frozenType = freezeTable(inputType, context);
 
-    // Here `resultTy`, when there is one, is blocked, so it can be bound.
     if (!frozenType) {
       if (resultTy) emplaceType(resultTy, boundType(context.solver.builtinTypes.errorType));
       emplaceTypePack(context.result, boundTypePack(context.solver.builtinTypes.errorTypePack));
@@ -1171,23 +1059,17 @@ class MagicFreeze implements MagicFunction {
     if (paramTypes.length > 0) {
       firstParamType = paramTypes[0];
     } else if (paramTail) {
-      // CLI-185019: a variadic tail with no head should be a count mismatch,
-      // but the actual count is unknown, so the first type of the tail is
-      // checked instead, for a more informative type mismatch.
       firstParamType = first(paramTail);
     }
 
     if (firstParamType) {
-      // The argument must be a table.
       ctx.typechecker.testIsSubtype(follow(firstParamType), ctx.builtinTypes.tableType, callSite.location);
     } else {
-      // With no type to check, the whole argument pack is checked, for a type pack mismatch.
       const tableTyPack = ctx.typechecker.module.internalTypes.addTypePack([ctx.typechecker.builtinTypes.tableType]);
       ctx.typechecker.testIsSubtypePack(followPack(ctx.arguments), tableTyPack, callSite.location);
       return true;
     }
 
-    // More than one argument written out is an error too.
     if (paramTypes.length > 1) {
       ctx.typechecker.reportError(
         countMismatch(1, callSite.args.length, CountMismatchContext.Arg, { maximum: 1, isVariadic: false, function: "table.freeze" }),
@@ -1199,10 +1081,6 @@ class MagicFreeze implements MagicFunction {
   }
 }
 
-/**
- * Warns on each `.parent` in a `require` path: `require(foo.parent.bar)`
- * works only through deprecated machinery Luau does not support.
- */
 function checkRequirePathNewSolver(solver: ConstraintSolver, expr: AstExpr, moduleName: string): boolean {
   let good = true;
   let indexExpr = expr instanceof AstExprIndexName ? expr : undefined;
@@ -1219,7 +1097,6 @@ function checkRequirePathNewSolver(solver: ConstraintSolver, expr: AstExpr, modu
   return good;
 }
 
-/** `require`: the call returns the type of the module its argument resolves to. */
 export class MagicRequire implements MagicFunction {
   infer(context: MagicFunctionCallContext): boolean {
     if (context.callSite.args.length !== 1) {
@@ -1247,9 +1124,6 @@ export class MagicRequire implements MagicFunction {
     return false;
   }
 }
-
-// Some builtins are magical enough that their calls are matched by name;
-// these matchers keep that logic in one place.
 
 export function matchSetMetatable(call: AstExprCall): boolean {
   const smt = "setmetatable";

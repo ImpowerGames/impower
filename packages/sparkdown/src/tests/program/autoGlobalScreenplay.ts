@@ -1,12 +1,3 @@
-// A screenplay of auto-globals (#1607): bare assignments (`x = …` with no
-// declaration) that make a global of their name where resolution reaches
-// them, read in scenes before and after that point, inside functions and
-// through `if` blocks and loops, and globals named like functions, where a
-// call of the name calls the function and a read of it reads the global
-// once its assignment has made one. The resolver of the program path has to
-// give each read the answer a cold compile gives it, in the order a cold
-// compile reaches them (docs/engine/binary-program.md, What is built, The
-// incremental passes).
 export function autoGlobalScreenplay(scenes = 4): string {
   const L: string[] = [
     "store seen = 0",
@@ -64,9 +55,6 @@ export function autoGlobalScreenplay(scenes = 4): string {
   return L.join("\n");
 }
 
-// Edits the auto-global fuzz inserts: bare assignments, reads, a function
-// and a `local` of an auto-global's name, a declaration of one, and text
-// inside lines.
 export const AUTO_GLOBAL_INSERTS = [
   "x",
   "\n",

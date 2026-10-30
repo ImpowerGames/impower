@@ -2,10 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyRun } from "./programHarness";
 
-// The lowerer reports an alternator with no arm and emits no sequence
-// (#1617), so a compile cannot reach the engine with a sequence of no
-// elements. This lowerer builds one the way the lowerer did before, a
-// shuffle over no elements, so the engine's own guard is what runs.
 vi.mock(
   "../../compiler/lower/lowerers/lowerSparkdownSequentialAlternatorBlock",
   async () => {

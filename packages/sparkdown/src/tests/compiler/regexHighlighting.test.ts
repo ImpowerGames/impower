@@ -1,12 +1,3 @@
-// A regex literal's BODY is tokenized into its parts — the same breakdown
-// VS Code's TypeScript grammar gives a JS regex — so the editor can color a
-// character class differently from an anchor differently from a quantifier,
-// instead of painting `@/.../` as one flat string.
-//
-// Order is load-bearing: escapes and character classes are consumed BEFORE
-// anchors, so `\$` reads as an escape rather than an end-of-line anchor, and
-// the `^` inside `[^...]` belongs to the class rather than to the anchor rule.
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
 
@@ -54,9 +45,6 @@ describe("regex literal internals are tokenized", () => {
     expect(literal(String.raw`@/x$/`)).toContain("LuauRegexAnchor");
   });
 
-  // Inside `[...]` the shorthand classes still apply, but `^` is negation and
-  // `*` / `+` are literal characters — which is why the class is a scoped rule
-  // with its own pattern list rather than the same flat set as the body.
   test("a shorthand class inside `[...]` is still a shorthand class", () => {
     const names = literal(String.raw`@/[\p{Lu}\d]/u`);
     expect(names).toContain("LuauRegexCharacterClass");

@@ -25,7 +25,6 @@ describe("morph easing", () => {
     const easeOut = parseMorphEasing("ease-out")!;
     expect(easeOut(0)).toBe(0);
     expect(easeOut(1)).toBe(1);
-    // cubic-bezier(0, 0, 0.58, 1) at x = 0.5, found by sampling the curve.
     expect(easeOut(0.5)).toBeCloseTo(0.68464, 4);
     const ease = parseMorphEasing("ease")!;
     expect(ease(0.25)).toBeCloseTo(0.40851, 4);
@@ -68,7 +67,6 @@ describe("morph timeline", () => {
     const timeline = new MorphTimeline(timing({ delay: 0.7, iterations: 2 }), morphRandom("a"));
     expect(timeline.at(0.5)).toEqual({ phase: "waiting" });
     expect(timeline.at(0.7 + 0.125)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
-    // No bounds: the next play follows at once.
     expect(timeline.at(0.7 + 0.25 + 0.05)).toMatchObject({ phase: "playing", play: 1 });
     expect(timeline.at(5)).toEqual({ phase: "done", play: 1, offset: 1 });
   });
@@ -81,7 +79,6 @@ describe("morph timeline", () => {
     const timeline = new MorphTimeline(timing({ easing: "ease-out", direction: "alternate", iterations: 2 }), morphRandom("a"));
     const easeOut = parseMorphEasing("ease-out")!;
     expect(offsetAt(timeline, 0.05)).toBeCloseTo(easeOut(0.2), 9);
-    // The second play runs backwards: its directed progress is 1 - 0.2.
     expect(offsetAt(timeline, 0.3)).toBeCloseTo(easeOut(0.8), 9);
     const reverse = new MorphTimeline(timing({ direction: "reverse" }), morphRandom("a"));
     expect(offsetAt(reverse, 0.05)).toBeCloseTo(0.8, 9);
@@ -123,8 +120,6 @@ describe("morph timeline", () => {
 });
 
 describe("morph poses at a keyframe offset", () => {
-  // The blink of #379: open, closed at a rounded third, open again, played
-  // with `steps(3)` over 0.25 seconds.
   const recipe = blink({
     keyframes: [
       { offset: 0, eyes: { state: "open" } },
@@ -145,22 +140,17 @@ describe("morph poses at a keyframe offset", () => {
 
   test("the example samples open, closed, halfway back and open", () => {
     expect(artifact.status).toBe("live");
-    // 0 to 83.3 ms: open.
     expect(lashes(at(40)).poses["eyes"]).toEqual({ segment: 0, progress: 0 });
-    // 83.3 to 166.7 ms: closed, up to the rounded key's tiny overshoot.
     const closed = lashes(at(120)).poses["eyes"] as { segment: number; progress: number };
     expect(closed.segment).toBe(1);
     expect(closed.progress).toBeLessThan(1e-4);
-    // 166.7 to 250 ms: halfway from closed back to open.
     const half = lashes(at(200)).poses["eyes"] as { segment: number; progress: number };
     expect(half.segment).toBe(1);
     expect(half.progress).toBeCloseTo(0.5, 4);
-    // At 250 ms and through the gap: open.
     expect(lashes(at(260)).poses["eyes"]).toEqual({ segment: 1, progress: 1 });
   });
 
   test("a held pose draws what the reference renderer draws at that segment's end", () => {
-    // The closed pose by offset is the end of the closing segment.
     expect(renderMorphAt(artifact, 0.33333)).toBe(renderMorphFrame(artifact, { segment: 0, progress: 1 }));
     expect(renderMorphAt(artifact, 0.33333)).toContain(CLOSED);
     expect(renderMorphAt(artifact, 0)).toBe(renderMorphFrame(artifact, { segment: 0, progress: 0 }));
@@ -169,12 +159,10 @@ describe("morph poses at a keyframe offset", () => {
   test("outside its segments an aperture keeps the last pose its segments left it in", () => {
     const clip = artifact.clipTargets[0]!.aperture;
     const closedEnd = morphFrameState(artifact, morphPosesAt(artifact, 0.33333)).clips.get(clip);
-    // Halfway through the reopening the aperture follows that segment.
     const reopening = morphFrameState(artifact, morphPosesAt(artifact, 0.66)).clips.get(clip);
     expect(closedEnd).toBeDefined();
     expect(reopening).toBeDefined();
     expect(reopening).not.toBe(closedEnd);
-    // A held group past the end of its segments keeps its last aperture.
     const poses = morphPosesAt(artifact, 1);
     const held = morphFrameState(artifact, { eyes: { state: "open", last: 1 } }).clips.get(clip);
     expect(held).toBe(morphFrameState(artifact, poses).clips.get(clip));

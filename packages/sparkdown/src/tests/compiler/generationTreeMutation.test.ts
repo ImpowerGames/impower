@@ -1,23 +1,3 @@
-// Preparing a statement for the program must not mutate the parsed hierarchy.
-//
-// The incremental pipeline carries parsed chunks forward across compiles by
-// identity — that is the whole point of the design. So any node that MUTATES
-// itself while it is prepared accumulates one lowered generation per compile
-// and never releases the previous one.
-//
-// The object expression's code generation (deleted in #705) did exactly
-// that: it built a fresh
-// `StringExpression`/`Text` per static key and `AddContent`-ed it to itself on
-// every generation pass. Each accumulated `Text` then pinned a whole runtime
-// container subtree through its cached `_runtimeObject`'s parent chain, so a
-// real editing session retained ~5.5MB per keystroke and eventually exhausted
-// the language-server worker heap (issue #312).
-//
-// Its preparation (`PrepareIntoContainer`) builds the same key expressions
-// and keeps none of them. These tests pin the invariant structurally rather
-// than by measuring heap bytes, so they are deterministic and cheap:
-// preparation is idempotent with respect to the parsed tree, and repeated
-// incremental compiles do not grow it.
 import { describe, expect, it } from "vitest";
 import {
   ObjectExpression,
@@ -41,11 +21,6 @@ const quiet = <T,>(fn: () => T): T => {
   }
 };
 
-/**
- * Sum of `content.length` over every `ObjectExpression` reachable from the
- * compiler. Stays constant across compiles unless preparation is appending to
- * carried-forward parsed nodes.
- */
 function objectExpressionContentTotal(root: object): {
   nodes: number;
   content: number;
@@ -70,7 +45,6 @@ function objectExpressionContentTotal(root: object): {
     } else {
       children = [];
       for (const key of Object.getOwnPropertyNames(cur)) {
-        // Skip accessors — invoking a getter here could compute or throw.
         const d = Object.getOwnPropertyDescriptor(cur, key);
         if (d && !d.get) children.push(d.value);
       }
@@ -87,10 +61,6 @@ function objectExpressionContentTotal(root: object): {
   return { nodes, content };
 }
 
-// A `define` block lowers to a `__def(...)` call whose argument is an
-// ObjectExpression with static keys — the exact shape that accumulated. The
-// edit target sits in a separate scene so the define chunk is carried forward
-// untouched, which is what makes its ObjectExpression a carried-forward node.
 const SOURCE = [
   "define Portrait with",
   "  image = 1",
@@ -117,7 +87,6 @@ const SOURCE = [
   "",
 ].join("\n");
 
-// 0-based line of "  Action line in scene two." — the edit site.
 const EDIT_LINE = SOURCE.split("\n").indexOf(
   "  Action line in scene two.",
 );
@@ -133,7 +102,6 @@ describe("preparation does not mutate the parsed hierarchy", () => {
 
     for (let i = 0; i < 5; i++) {
       expr.PrepareIntoContainer();
-      // The parsed node must look exactly as it did before preparing.
       expect(expr.content.length).toBe(initial);
     }
   });
@@ -179,7 +147,6 @@ describe("preparation does not mutate the parsed hierarchy", () => {
       });
     };
 
-    // Warm up so every one-time cache is populated before the baseline.
     for (let i = 0; i < 3; i++) editAndCompile();
     const baseline = objectExpressionContentTotal(compiler);
     expect(baseline.nodes).toBeGreaterThan(0);
@@ -188,9 +155,6 @@ describe("preparation does not mutate the parsed hierarchy", () => {
     for (let i = 0; i < 8; i++) editAndCompile();
     const after = objectExpressionContentTotal(compiler);
 
-    // Same nodes, same content: no generation was appended to the tree.
-    // Before the fix this grew by one key expression per static key per
-    // compile, without bound.
     expect(after.nodes).toBe(baseline.nodes);
     expect(after.content).toBe(baseline.content);
   });
