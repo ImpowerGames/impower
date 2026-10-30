@@ -6,9 +6,6 @@ interface ScrollHost extends HTMLElement {
   requestUpdate: () => void;
 }
 
-/**
- * A controller for handling scrolling and mouse dragging.
- */
 export default class ScrollController<T extends ScrollHost> {
   private host: T;
   private pointers = new Set();

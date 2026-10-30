@@ -9,6 +9,9 @@ import {
   CLOSED,
   EYEBALL,
   LOWER_OPEN,
+  MASKED_VARIANTS,
+  maskedBlink,
+  maskedPortrait,
   partnerPortrait,
   portrait,
   PUPIL,
@@ -634,5 +637,56 @@ describe("split closed lashes whose tips never meet", () => {
       expect(elements(svg).some((e) => e.tagName === "clipPath" && e.attributes["id"]?.endsWith("-reach")), String(offset)).toBe(false);
     }
     expect(apertureArea(renderMorphAt(split, 0))).toBeGreaterThan(1000);
+  });
+});
+
+describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () => {
+  test("the fade's factor multiplies the entry's opacity", () => {
+    const source = maskedPortrait().replace(
+      '<g data-name="eyes.closed">',
+      '<g data-name="eyes.closed">\n<path data-name="eyeshadow" d="M100,0H110V10H100Z" fill="#536" opacity="0.9"/>',
+    );
+    const faded = bakeMorphArtifact({
+      source,
+      selection: { ...MASKED_VARIANTS.masked },
+      recipe: maskedBlink([{ targets: ["eyeshadow"], state: "eyes.closed", opacity: 0.5 }]),
+      key: "faded",
+      variant: "masked",
+    });
+    expect(faded.status).toBe("live");
+    const opacityAt = (progress: number) =>
+      shown(elements(renderMorphFrame(faded, { segment: 0, progress }))).filter((e) => e.attributes["data-name"] === "eyeshadow").map((e) => /opacity:([^;!]+)/.exec(e.attributes["style"] ?? "")?.[1]?.trim());
+    expect(opacityAt(0.5)).toEqual(["0.25"]);
+    expect(opacityAt(1)).toEqual(["0.5"]);
+  });
+
+  test.each(["morph", "scale"])("an `opacity` entry fades a drawing its partner carries over the span, blending in by %s", (blend) => {
+    const artifact = bakeMorphArtifact({
+      source: partnerPortrait(),
+      selection: {},
+      recipe: buildMorphRecipe("blink", {
+        blend: "morph",
+        method: "bend",
+        fallback: "fade",
+        layers: { "eyeball-shadow-left": { partner: "eyelash-left", ...(blend === "scale" ? { blend } : {}) } },
+        keyframes: [
+          { offset: 0, eyes: { state: "open" } },
+          { offset: 0.3, eyes: { state: "closed" } },
+          { offset: 0.6, eyes: { state: "closed" } },
+          { offset: 1, eyes: { state: "open" } },
+        ],
+        paints: [{ targets: ["eyeball-shadow-left"], state: "eyes.closed", opacity: 0, span: "40%" }],
+      }),
+      key: `carried-opacity-${blend}`,
+      variant: "open",
+    });
+    expect(artifact.diagnostics).toEqual([]);
+    const [arrival] = Object.keys(artifact.segments[0]!.carry!.to!);
+    const opacityAt = (offset: number) => morphFrameState(artifact, morphPosesAt(artifact, offset)).paint.get(arrival!)?.["opacity"];
+    expect(opacityAt(0.15)).toBeUndefined();
+    expect(Number(opacityAt(0.27))).toBeCloseTo(0.25, 2);
+    for (const offset of [0.3, 0.45, 0.6]) expect(opacityAt(offset), String(offset)).toBe("0");
+    expect(Number(opacityAt(0.64))).toBeCloseTo(0.25, 2);
+    expect(opacityAt(0.8)).toBeUndefined();
   });
 });

@@ -8,12 +8,6 @@ import { encodeBase64 } from "./encodeBase64";
 import { generateScreenplayMainHtml } from "./generateScreenplayMainHtml";
 import { generateScreenplayTitleHtml } from "./generateScreenplayTitleHtml";
 
-/**
- * Optional hook that embeds only the emoji a script actually uses, as inline
- * vector SVG. Supplied by callers that have the emoji font (see
- * `createEmojiHtmlInliner` in @impower/sparkdown-screenplay-pdf); kept as a
- * local interface so this package needs no font tooling dependency.
- */
 export interface EmojiHtmlInliner {
   inline(html: string): string;
   styleAndDefs(): string;
@@ -112,8 +106,6 @@ export const generateScreenplayHtmlData = (
     rawHtml = rawHtml.replace("$MAINPAGE$", "");
   }
 
-  // Embed the used-emoji styles (must come after inline() has run over both
-  // the title and main HTML so every used glyph is registered).
   if (emoji) {
     const emojiStyle = emoji.styleAndDefs();
     if (emojiStyle) {

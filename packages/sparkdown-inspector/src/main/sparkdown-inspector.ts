@@ -113,7 +113,6 @@ export default class SparkdownInspector extends Component(spec) {
     }, 100);
 
     setTimeout(() => {
-      // Detect when details are toggled open/closed
       this.root
         .querySelectorAll<HTMLDetailsElement>("details.collapsible[data-path]")
         .forEach((el) => {
@@ -123,7 +122,6 @@ export default class SparkdownInspector extends Component(spec) {
           if (!summary) return;
 
           summary.addEventListener("mousedown", (e) => {
-            // prevent clicking summary from erroneously selecting previous element
             e.preventDefault();
           });
 

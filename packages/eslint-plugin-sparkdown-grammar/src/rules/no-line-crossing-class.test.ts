@@ -46,8 +46,6 @@ test("a class that cannot match a line break passes", () => {
   match: ([^\\s,]+)([^\\S\\n\\r]*)`), []);
 });
 
-// SparkdownDocumentRegistry turns every line break into `\n`, so a class
-// that excludes `\n` alone keeps the pattern on its line.
 test("a class that excludes only the line feed passes", () => {
   assert.deepEqual(classes(`Rule:
   match: ([(][^()\\n]*[)])`), []);
@@ -64,8 +62,6 @@ test("a variable used only inside a lookbehind passes", () => {
 });
 
 test("a comment on a variable does not exempt the class it brings in", () => {
-  // The `# reads-past-line:` marker once exempted a variable; since I-1283
-  // no pattern can read past its line, so nothing is exempt.
   const variables = `# reads-past-line: skips blank and comment lines to the next token.
 TRIVIA: (?:[^\\]]*\\])`;
   assert.deepEqual(classes(`Rule:

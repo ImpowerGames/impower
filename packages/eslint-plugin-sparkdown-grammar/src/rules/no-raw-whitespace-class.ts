@@ -1,15 +1,3 @@
-// Rule: disallow `\s` outside character classes inside `match`/`begin`/
-// `end` patterns and inside `variables:` values. `\s` matches newlines
-// too, but TextMate is line-oriented and the grammar's vocabulary of
-// "whitespace" classes (`{{WS}}` / `{{NL}}` / etc., see GRAMMAR.md §12)
-// distinguishes between horizontal whitespace, line ends, and so on.
-// Letting `\s` slip in usually means a regex eats across line
-// boundaries that the rule was meant to respect.
-//
-// `\s` *inside* a character class (e.g. `[^\s,]`) is left alone — it's
-// a common negation idiom and the {{WS}} variable isn't a drop-in
-// replacement (it's a positive class, not a single char).
-
 import type { Rule } from "eslint";
 import {
   findPair,
@@ -66,7 +54,6 @@ const rule: Rule.RuleModule = {
         const mapping = node as YAMLMapping;
         if (!isMapping(mapping)) return;
 
-        // Top-level `variables:` block — check each value.
         const containerPair = mapping.parent;
         if (
           containerPair?.type === "YAMLPair" &&
@@ -84,7 +71,6 @@ const rule: Rule.RuleModule = {
           return;
         }
 
-        // Rule mappings — check match/begin/end values.
         if (!isRuleMapping(mapping)) return;
         for (const key of PATTERN_KEYS) {
           const pair = findPair(mapping, key);

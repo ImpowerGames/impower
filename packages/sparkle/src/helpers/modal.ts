@@ -25,7 +25,6 @@ export default class Modal {
   }
 
   isActive() {
-    // The "active" modal is always the most recent one shown
     return activeModals[activeModals.length - 1] === this.element;
   }
 
@@ -50,7 +49,6 @@ export default class Modal {
     if (event.key === "Tab" && event.shiftKey) {
       this.tabDirection = "backward";
 
-      // Ensure focus remains trapped after the key is pressed
       requestAnimationFrame(() => this.checkFocus());
     }
   };

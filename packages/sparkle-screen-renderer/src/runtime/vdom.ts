@@ -110,7 +110,7 @@ export function renderVNode(
     case "elseif":
     case "else":
     case "case":
-      return { tag: "fragment", props: {}, children: [] }; // handled by parent if/match
+      return { tag: "fragment", props: {}, children: [] };
 
     case "for": {
       const list = evaluate(args?.["each"], getContext(ctx)) || [];
@@ -136,10 +136,9 @@ export function renderVNode(
         const childVNodes =
           children?.map((c, i) => renderVNode(c, subCtx, el, i)) ?? [];
 
-        // Attach a key to the first element if missing
         for (const vnode of childVNodes) {
           if (typeof vnode !== "string" && !("key" in vnode.props)) {
-            vnode.key = key; // Use entry key
+            vnode.key = key;
           }
         }
 
@@ -168,10 +167,9 @@ export function renderVNode(
         const childVNodes =
           children?.map((c, j) => renderVNode(c, subCtx, el, j)) ?? [];
 
-        // Attach a key to the first element if missing
         for (const vnode of childVNodes) {
           if (typeof vnode !== "string" && !("key" in vnode.props)) {
-            vnode.key = String(i); // Use repeat index
+            vnode.key = String(i);
           }
         }
 
@@ -204,22 +202,17 @@ export function renderVNode(
     }
 
     case "fill":
-      // Handled by "organizeFills"
       return { tag: "fragment", props: {}, children: [] };
   }
 
   if (el.root === "screen" || el.root === "component") {
-    // Otherwise normal node
     const builtin = builtins.get(type);
     const componentDef = components?.[type];
     if (componentDef) {
-      // Look up component definition
       const componentScope: Record<string, any> = { ...ctx.scope };
 
-      // Handle component parameters by mapping provided args to formal parameters
       for (const [paramIndex, value] of Object.entries(el.args?.["parameters"])) {
         const param = componentDef.args?.["parameters"]?.[paramIndex];
-        // Evaluate param value if it's an expression
         if (param != null && typeof value === "string") {
           if (value.startsWith('"') && value.endsWith('"')) {
             componentScope[param] = interpolate(
@@ -232,13 +225,11 @@ export function renderVNode(
         }
       }
 
-      // Create new context with component scope
       const componentCtx = {
         ...ctx,
         scope: componentScope,
       };
 
-      // Process component children and slots
       const fills = organizeFills(el.children || []);
       const implicitFills = fills[""];
       const slotsFound: SparkleNode[] = [];
@@ -249,11 +240,9 @@ export function renderVNode(
       );
 
       if (slotsFound.length === 0 && implicitFills!.length > 0) {
-        // If no slots defined, append implicit fills as last children
         processedChildren.push(...implicitFills!);
       }
 
-      // Render the processed component
       return renderVNode(
         {
           ...componentDef,
@@ -272,7 +261,6 @@ export function renderVNode(
 
   if (el.root === "style") {
     if (type === "style") {
-      // Special case: build a style block
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join(" ");
@@ -301,7 +289,6 @@ export function renderVNode(
 
   if (el.root === "animation") {
     if (type === "animation") {
-      // Special case: build a style block
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join("\n");
@@ -382,7 +369,6 @@ export function renderVNode(
 
   if (el.root === "theme") {
     if (type === "theme") {
-      // Special case: build a style block
       const styleContent = (children ?? [])
         .map((c, i) => "--theme-" + renderVNode(c, ctx, el, i))
         .join("");
@@ -431,10 +417,8 @@ function renderBuiltinVNode(
     return { tag: "fragment", props: {}, children: [] };
   }
 
-  /*  1.  Clone the static skeleton  */
   const root = cloneVNode(builtin) as VElement;
 
-  /*  2.  Fill dynamic attrs/classes  */
   const inherited =
     type === "component"
       ? getInheritanceChain(args?.["base"], components)
@@ -450,42 +434,36 @@ function renderBuiltinVNode(
     .join(" ");
 
   if (!mergeClassesIntoHost(root, dynamicClass)) {
-    // fallback: put classes on root if no {classes} placeholder
     const base = root.props["class"] ? root.props["class"] + " " : "";
     root.props["class"] = base + dynamicClass;
   }
 
-  /* gather user-supplied attrs after interpolation */
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
   if (args["attributes"]) {
     for (const [k, v] of Object.entries(args["attributes"])) {
-      // content will be added as a child of the node later, so don't include amongst props
       if (k !== "content") {
         spreadProps[k] =
           typeof v === "string" ? interpolate(v, evalCtx) : String(v);
       }
     }
 
-    // Convert user attributes to sparkle attributes and styles
     const styleEntries: [string, string][] = [];
     for (const [k, v] of Object.entries(spreadProps)) {
       styleEntries.push(...getCssEquivalent(k, v, false));
     }
 
-    // Set initial slider --_fill-percentage
     if (!Number.isNaN(Number(spreadProps["value"]))) {
       const min = Number(spreadProps["min"] ?? 0);
       const max = Number(spreadProps["max"] ?? 100);
       const value = Number(spreadProps["value"] ?? min);
       const percentage =
         max === min
-          ? 0 // avoid divide-by-zero
+          ? 0
           : ((value - min) / (max - min)) * 100;
       styleEntries.push(["--_fill-percentage", `${percentage}%`]);
     }
 
-    // Add inline style to props
     const sparkleStyle = styleEntries.map(([k, v]) => `${k}:${v};`).join(" ");
     const existingStyle = spreadProps["style"] ?? "";
     const style = sparkleStyle + existingStyle;
@@ -494,7 +472,6 @@ function renderBuiltinVNode(
     }
   }
 
-  /* find the attrsHost in the cloned tree */
   function mergeIntoHost(node: VNode): boolean {
     if (typeof node === "string") return false;
     if (node.attrsHost) {
@@ -505,7 +482,6 @@ function renderBuiltinVNode(
   }
 
   if (!mergeIntoHost(root)) {
-    // fallback: no flag present, merge into root
     Object.assign(root.props, spreadProps);
   }
 
@@ -514,7 +490,6 @@ function renderBuiltinVNode(
     delete root.props["class"];
   }
 
-  /*  3.  Inject slot <content-slot> and <children-slot>  */
   const contentV: VNode =
     typeof args["attributes"]?.content === "string"
       ? interpolate(args["attributes"]?.content, evalCtx)
@@ -538,7 +513,6 @@ function renderBuiltinVNode(
       if (ch.tag === "children-slot") {
         return children?.map((c, i) => renderVNode(c, ctx, el, i)) || [];
       }
-      // recurse
       return injectSlots(ch, args["attributes"]?.content, children, ctx, el);
     })
     .filter(Boolean);
@@ -558,11 +532,9 @@ function injectSlots(
 
   return {
     ...vnode,
-    // deep-map children
     children: vnode.children
       .flatMap((ch) => {
         if (typeof ch === "string") {
-          // "plain" text inside the builtin: run interpolation on it too
           return interpolate(ch, evalCtx);
         }
         if (ch.tag === "content-slot") {
@@ -573,7 +545,6 @@ function injectSlots(
         if (ch.tag === "children-slot") {
           return childNodes?.map((c, i) => renderVNode(c, ctx, owner, i)) || [];
         }
-        // recurse
         return injectSlots(ch, content, childNodes, ctx, owner);
       })
       .filter(Boolean),
@@ -592,7 +563,6 @@ function cloneVNode(v: VNode): VNode {
     attrsHost: v.attrsHost,
     classHost: v.classHost,
 
-    /* keep fast-path data */
     builtin: v.builtin,
     template: v.template,
   };
@@ -610,7 +580,6 @@ function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
       otherChildren.push(child);
     }
   }
-  // fills for unnamed slots
   fills[""] ??= [];
   fills[""].push(...otherChildren);
   return fills;
@@ -625,17 +594,14 @@ function instantiateSlots(
 
   for (const child of componentChildren) {
     if (child.type === "slot") {
-      // if this is a slot, splice in its fills (or nothing)
       const name = child.args?.["name"] ?? "";
       if (fills[name]) {
         output.push(...fills[name]);
       }
       slotsFound.push(child);
     } else {
-      // otherwise, clone the node…
       const copy: SparkleNode = { ...child, args: { ...(child.args || {}) } };
 
-      // …and if it has its own children, recurse
       if (Array.isArray(child.children)) {
         copy.children = instantiateSlots(child.children, fills, slotsFound);
       }
@@ -656,7 +622,6 @@ function defaultEvaluate<T>(expr: string, context: Record<string, any>): T {
     const fn = new Function("context", `with(context) { return (${expr}); }`);
     return fn(context);
   } catch (e) {
-    // console.warn("Failed to evaluate expression:", expr, context, e);
     return undefined as T;
   }
 }
@@ -673,7 +638,6 @@ function defaultInterpolate(
       return defaultEvaluate<string>($2, context) ?? "";
     });
   } catch (e) {
-    // console.warn("Failed to interpolate expression:", template, context, e);
     return "";
   }
 }

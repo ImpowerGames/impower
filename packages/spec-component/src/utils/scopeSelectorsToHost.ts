@@ -1,11 +1,3 @@
-/**
- * Scopes all selectors within a full CSS string to the :host pseudo-class.
- * It identifies CSS rule blocks and processes the selector lists,
- * wrapping host-level selectors in :host() and prepending :host to descendants.
- *
- * @param css - The full CSS string containing rules (e.g., '.class { color: red; }').
- * @returns The transformed CSS string with all selectors scoped to :host.
- */
 export function scopeSelectorsToHost(css: string): string {
   let result = "";
   let i = 0;
@@ -39,9 +31,6 @@ export function scopeSelectorsToHost(css: string): string {
   return result;
 }
 
-/**
- * Internal helper to process a comma-separated selector list for :host scoping.
- */
 function transformToHostSelectorList(selector: string): string {
   const parts: string[] = [];
   let currentPart = "";
@@ -99,15 +88,11 @@ function transformToHostSelectorList(selector: string): string {
 
       if (!trimmedSelector) return leadingWhitespace;
 
-      // Determine if the selector applies to the host itself.
-      // If it starts with [ . # or :, it targets the host element's properties.
       const isHostSelector = /^[\[:.#]/.test(trimmedSelector);
 
       if (isHostSelector) {
-        // Wraps the selector: [my-attr] -> :host([my-attr])
         return `${leadingWhitespace}:host(${trimmedSelector})`;
       } else {
-        // Targets a descendant: span -> :host span
         return `${leadingWhitespace}:host ${trimmedSelector}`;
       }
     })
