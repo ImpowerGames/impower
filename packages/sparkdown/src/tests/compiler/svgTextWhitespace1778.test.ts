@@ -35,9 +35,11 @@ const file = (svg: string): FilteredSvgFile => new File([svg], "art.svg", { type
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const replaceWithStale = (cache: ReturnType<typeof memoryCache>, current: string, previous: string) => {
-  const [[key, body]] = [...cache.store];
+  const [entry] = [...cache.store];
+  if (!entry) throw new Error("nothing was cached");
+  const [key, body] = entry;
   cache.store.clear();
-  cache.store.set(key!.replace(current, previous), body!.split(SPACED).join(STRIPPED));
+  cache.store.set(key.replace(current, previous), body.split(SPACED).join(STRIPPED));
 };
 
 describe("SVG text keeps the whitespace a browser renders", () => {
