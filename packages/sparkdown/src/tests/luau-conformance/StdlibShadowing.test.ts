@@ -41,8 +41,10 @@ describe("local declarations can shadow built-in stdlib names", () => {
   test("local unpack = table.unpack does not error at compile time", () => {
     // Even though `unpack` is a built-in stdlib name, declaring a
     // local with the same name should be allowed (Lua-fidelity).
-    const { errors } = compileAndCapture(`& run()
-done
+    const { errors } = compileAndCapture(`scene start
+  & run()
+  done
+end
 
 function run()
 local unpack = table.unpack
@@ -69,8 +71,11 @@ external host_record(v)
     // for the fix that makes `count = count + 1` work inside a closure
     // that captures `count` as an upval.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local count = 0
@@ -89,8 +94,11 @@ end
     // `function f(print) ... end` should be legal — the local `print`
     // parameter shadows the stdlib `print` inside the body.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(print)

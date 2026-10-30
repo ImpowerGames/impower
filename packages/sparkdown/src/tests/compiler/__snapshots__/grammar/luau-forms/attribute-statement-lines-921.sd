@@ -6,4 +6,6 @@ end
   local f = @native --[[c]] function() return 7 end
   return hello(1, 2) + f()
 end
-Value {run()}.
+scene start
+  Value {run()}.
+end

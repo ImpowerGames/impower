@@ -24,7 +24,7 @@ function nodeNames(text: string): string[] {
   return names;
 }
 
-const STORY = "Hello.\n";
+const STORY = "scene start\n  Hello.\nend\n";
 
 // [the define's statements, the methods after them, the method readings].
 // They stand between `define X with` and the define's own `end`, which a
@@ -120,7 +120,7 @@ const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
   // Repeated `as` clauses, which the header reads (round 4, undirected).
   ["define X as Y as Z with f() return 1 end end\n", ["f:method"]],
   // A define nested in a one-line block (round 3, undirected).
-  ["if true then define X with f() return 1 end end end\n", ["f:method"]],
+  ["function outer() if true then define X with f() return 1 end end end end\n", ["f:method"]],
   ["function outer() define X with f() return 1 end end end\n", ["f:method"]],
 ];
 

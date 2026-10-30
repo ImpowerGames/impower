@@ -1,7 +1,9 @@
-label gather
-{gather}
-choose
-  + choice
+scene start
+  label gather
+  {gather}
+  choose
+    + choice
+  end
+  {gather}
+  done
 end
-{gather}
-done

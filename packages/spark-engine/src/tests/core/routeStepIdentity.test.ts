@@ -45,7 +45,7 @@ function compileSrc(src: string) {
 
 /** A scene with `beats` display lines, so a route to the end has many steps. */
 function longScene(beats: number): string {
-  const lines = ["-> start", "", "scene start"];
+  const lines = ["", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
     lines.push(`  Beat number ${i} of the long scene.`);
   }
@@ -97,7 +97,7 @@ describe("identity still drives checkpoint reuse across a re-plan", () => {
   // just re-simulated from scratch every time, so nothing else would notice.
   const LINEAR = `store score = 0
 
--> start
+
 
 scene start
   First beat.
@@ -231,7 +231,7 @@ describe("branches do not share an identity", () => {
   // two routes down different sides of it to the beats they share.
   const BRANCHY = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.

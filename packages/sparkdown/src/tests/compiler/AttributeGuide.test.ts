@@ -36,7 +36,7 @@ describe("Character portraits guide examples", () => {
     compiler.configure({
       files: [
         { uri, type: "script", name: "main", ext: "sd", version: 1,
-          languageId: "sparkdown", text: example! },
+          languageId: "sparkdown", text: `${example}\nscene start\nend` },
         { uri: "file:///project/assets/mia.svg", type: "image", name: "mia",
           ext: "svg", data: '<svg><g data-name="face.happy:default"/><g data-name="hat.on"/><g data-name="pupils:look.left:default"/></svg>' },
       ],

@@ -48,7 +48,9 @@ describe("a method of a define written in a function", () => {
         "  end",
         "  return inner()",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 7."));
   });
@@ -56,8 +58,7 @@ describe("a method of a define written in a function", () => {
   test("reads a scene's local the function does not read itself", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local b = 5",
         "  local function outer()",
         "    define thing with",
@@ -89,7 +90,9 @@ describe("a method of a define written in a function", () => {
         "  inner()",
         "  return a",
         "end",
-        "Got {outer()}.",
+        "scene start",
+        "  Got {outer()}.",
+        "end",
       ]),
     ).toEqual(got("Got 9."));
   });
@@ -109,7 +112,9 @@ describe("a method of a define written in a function", () => {
         "  end",
         "  return inner()",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 7."));
   });
@@ -134,7 +139,9 @@ describe("a method of a define written in a function", () => {
         "  end",
         "  return inner()",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 7."));
   });
@@ -155,7 +162,9 @@ describe("a method of a define written in a function", () => {
         "  end",
         "  return inner() + a",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 10."));
   });
@@ -180,7 +189,9 @@ describe("a method of a define written in a function", () => {
         "  end",
         "  return inner()",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 7."));
   });
@@ -200,7 +211,9 @@ describe("a method of a define written in a function", () => {
         "  inner()",
         "  return thing.get()",
         "end",
-        "Got {outer(7)}.",
+        "scene start",
+        "  Got {outer(7)}.",
+        "end",
       ]),
     ).toEqual(got("Got 7."));
   });
@@ -208,8 +221,7 @@ describe("a method of a define written in a function", () => {
   test("reads a scene's local through a function further out", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local b = 5",
         "  local function outer()",
         "    local function inner()",
@@ -236,7 +248,12 @@ describe("a method of a define written in a function", () => {
 describe("defines nested many levels in functions", () => {
   test("compile in time and read the outermost local", () => {
     const started = Date.now();
-    const result = run([...nestedDefines(20), "Got {outer(7)}."]);
+    const result = run([
+      ...nestedDefines(20),
+      "scene start",
+      "  Got {outer(7)}.",
+      "end",
+    ]);
     expect(Date.now() - started).toBeLessThan(20000);
     expect(result).toEqual(got("Got 7."));
   });

@@ -1,1 +1,3 @@
-f(x)[key]
+scene start
+  f(x)[key]
+end

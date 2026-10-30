@@ -1,1 +1,3 @@
-@hud.panel: text
+scene start
+  @hud.panel: text
+end

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..813]
+text.source.sparkdown [0..831]
  ├─ meta.function.luau [0..17]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -483,25 +483,32 @@ text.source.sparkdown [0..813]
  ├─ meta.function.luau [785..788]
  │   └─ keyword.control.end.luau [785..788]: "end"
  ├─ Newline [788..789]: "\n"
- ├─ string.display.text.chunk.sd [789..812]
- │   ├─ markup.raw.text.sd [789..794]: "Value"
- │   ├─ markup.raw.space.sd [794..795]: " "
- │   ├─ meta.template.expression.luau [795..805]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [795..796]: "{"
- │   │   ├─ meta.embedded.line.luau [796..804]
- │   │   │   ├─ entity.name.function.luau [796..802]: "stored"
- │   │   │   └─ meta.parameter.luau [802..804]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [802..803]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [803..804]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [804..805]: "}"
- │   ├─ markup.raw.space.sd [805..806]: " "
- │   ├─ meta.template.expression.luau [806..811]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [806..807]: "{"
- │   │   ├─ meta.embedded.line.luau [807..810]
- │   │   │   ├─ entity.name.function.luau [807..808]: "g"
- │   │   │   └─ meta.parameter.luau [808..810]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [808..809]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [809..810]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [810..811]: "}"
- │   └─ markup.raw.punctuation.sd [811..812]: "."
- └─ Newline [812..813]: "\n"
+ ├─ keyword.control.scene.sd [789..794]: "scene"
+ ├─ punctuation.whitespace.required.sd [794..795]: " "
+ ├─ keyword.control.section.sd [795..800]: "start"
+ ├─ Newline [800..801]: "\n"
+ ├─ punctuation.whitespace.optional.sd [801..803]: "  "
+ ├─ string.display.text.chunk.sd [803..826]
+ │   ├─ markup.raw.text.sd [803..808]: "Value"
+ │   ├─ markup.raw.space.sd [808..809]: " "
+ │   ├─ meta.template.expression.luau [809..819]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [809..810]: "{"
+ │   │   ├─ meta.embedded.line.luau [810..818]
+ │   │   │   ├─ entity.name.function.luau [810..816]: "stored"
+ │   │   │   └─ meta.parameter.luau [816..818]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [816..817]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [817..818]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [818..819]: "}"
+ │   ├─ markup.raw.space.sd [819..820]: " "
+ │   ├─ meta.template.expression.luau [820..825]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [820..821]: "{"
+ │   │   ├─ meta.embedded.line.luau [821..824]
+ │   │   │   ├─ entity.name.function.luau [821..822]: "g"
+ │   │   │   └─ meta.parameter.luau [822..824]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [822..823]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [823..824]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [824..825]: "}"
+ │   └─ markup.raw.punctuation.sd [825..826]: "."
+ ├─ Newline [826..827]: "\n"
+ ├─ keyword.control.end.luau [827..830]: "end"
+ └─ Newline [830..831]: "\n"

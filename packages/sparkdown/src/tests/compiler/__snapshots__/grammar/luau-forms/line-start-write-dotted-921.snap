@@ -1,31 +1,48 @@
-sparkdown [0..17]
- ├─ InlineWrite [0..16]
- │   ├─ InlineWrite_begin [0..12]
- │   │   ├─ InlineWrite_begin_c1 0
+sparkdown [0..35]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   ├─ InlineWrite_begin_c2 [0..1]
- │   │   │   └─ WriteMark [0..1]: "@"
- │   │   ├─ InlineWrite_begin_c3 1
- │   │   │   └─ InlineWrite_begin_c3 1
- │   │   │       └─ OptionalWhitespace 1
- │   │   ├─ InlineWrite_begin_c4 [1..10]
- │   │   │   └─ WriteTarget [1..10]: "hud.panel"
- │   │   ├─ InlineWrite_begin_c5 [10..11]
- │   │   │   └─ ColonSeparator [10..11]: ":"
- │   │   ├─ InlineWrite_begin_c6 [11..12]
- │   │   │   └─ RequiredWhitespace [11..12]: " "
- │   │   └─ InlineWrite_begin_c7 12
- │   ├─ InlineWrite_content [12..16]
- │   │   └─ LineEnd [12..16]
- │   │       ├─ LineEnd_begin 12
- │   │       │   └─ LineEnd_begin_c1 12
- │   │       │       └─ OptionalWhitespace 12
- │   │       ├─ LineEnd_content [12..16]
- │   │       │   └─ TextChunk [12..16]
- │   │       │       ├─ TextChunk_begin 12
- │   │       │       ├─ TextChunk_content [12..16]
- │   │       │       │   └─ Word [12..16]: "text"
- │   │       │       └─ TextChunk_end 16
- │   │       └─ LineEnd_end 16
- │   └─ InlineWrite_end 16
- └─ Newline [16..17]: "\n"
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ InlineWrite [12..30]
+ │   ├─ InlineWrite_begin [12..26]
+ │   │   ├─ InlineWrite_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ InlineWrite_begin_c2 [14..15]
+ │   │   │   └─ WriteMark [14..15]: "@"
+ │   │   ├─ InlineWrite_begin_c3 15
+ │   │   │   └─ InlineWrite_begin_c3 15
+ │   │   │       └─ OptionalWhitespace 15
+ │   │   ├─ InlineWrite_begin_c4 [15..24]
+ │   │   │   └─ WriteTarget [15..24]: "hud.panel"
+ │   │   ├─ InlineWrite_begin_c5 [24..25]
+ │   │   │   └─ ColonSeparator [24..25]: ":"
+ │   │   ├─ InlineWrite_begin_c6 [25..26]
+ │   │   │   └─ RequiredWhitespace [25..26]: " "
+ │   │   └─ InlineWrite_begin_c7 26
+ │   ├─ InlineWrite_content [26..30]
+ │   │   └─ LineEnd [26..30]
+ │   │       ├─ LineEnd_begin 26
+ │   │       │   └─ LineEnd_begin_c1 26
+ │   │       │       └─ OptionalWhitespace 26
+ │   │       ├─ LineEnd_content [26..30]
+ │   │       │   └─ TextChunk [26..30]
+ │   │       │       ├─ TextChunk_begin 26
+ │   │       │       ├─ TextChunk_content [26..30]
+ │   │       │       │   └─ Word [26..30]: "text"
+ │   │       │       └─ TextChunk_end 30
+ │   │       └─ LineEnd_end 30
+ │   └─ InlineWrite_end 30
+ ├─ Newline [30..31]: "\n"
+ ├─ LuauEndKeyword [31..34]: "end"
+ └─ Newline [34..35]: "\n"

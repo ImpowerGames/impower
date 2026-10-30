@@ -1,4 +1,6 @@
--> empty_world
+scene start
+  -> empty_world
+end
 scene empty_world
   {count.turns(-> then)} = -1
   choose

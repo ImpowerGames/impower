@@ -1,2 +1,4 @@
-N: Hello.   # greeting
-N: Bye.   # parting
+scene start
+  N: Hello.   # greeting
+  N: Bye.   # parting
+end

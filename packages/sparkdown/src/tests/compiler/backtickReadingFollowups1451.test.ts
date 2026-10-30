@@ -13,6 +13,7 @@ import { officialErrorList } from "./officialSyntax";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
+const SCENE = "scene start\n  Hello.\nend\n";
 
 /** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
 function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
@@ -79,7 +80,7 @@ describe("an interpolation holding an expression and then a backtick string with
       const luau = `local t = ${string}\n`;
       const expected = official(luau, 1);
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`function f()\n${luau}end\nGo {f()}.\n`)).toEqual(expected);
+      expect(sparkdownErrors(`function f()\n${luau}end\n${SCENE}`)).toEqual(expected);
     });
     test(`a story store t = ${string}`, () => {
       expect(sparkdownErrors(`store t = ${string}\n`)).toEqual(official(`local t = ${string}\n`));
@@ -128,7 +129,7 @@ describe("an interpolation left open inside a call reads on from the line after 
       const luau = `function run()\n${body}end\n`;
       const expected = official(luau);
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`${luau}After {run()}.\n`)).toEqual(expected);
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(expected);
     });
   }
 });
@@ -181,7 +182,7 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
   for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`", "`a {1 `b {x} c\nlocal z = {x = 1}", "`a {1 `b {x} c\nlocal z = 1"]) {
     test(`a function's local s = ${JSON.stringify(value)}`, () => {
       const luau = `function f()\nlocal s = ${value}\nend\n`;
-      expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(official(luau));
     });
   }
   // `\z` skips only Luau's whitespace, so a no-break space after it leaves

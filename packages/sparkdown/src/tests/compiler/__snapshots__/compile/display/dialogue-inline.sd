@@ -1,1 +1,3 @@
-N: Hello there.
+scene start
+  N: Hello there.
+end

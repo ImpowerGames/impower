@@ -1,5 +1,7 @@
 store back = false
--> main
+scene start
+  -> main
+end
 scene main
   choose
     * Up

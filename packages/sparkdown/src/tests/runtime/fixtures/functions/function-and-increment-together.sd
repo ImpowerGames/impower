@@ -1,5 +1,7 @@
 store x = 5
-& x += one()
-done
+scene start
+  & x += one()
+  done
+end
 
 function one() return 1 end

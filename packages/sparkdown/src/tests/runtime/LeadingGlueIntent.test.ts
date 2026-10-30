@@ -79,11 +79,13 @@ function programShape(source: string) {
 }
 
 const EXAMPLE = `store has_key = true
-You see a ..
-if has_key then
-  .. rusty key.
-else
-  .. locked door.
+scene start
+  You see a ..
+  if has_key then
+    .. rusty key.
+  else
+    .. locked door.
+  end
 end
 `;
 
@@ -101,12 +103,12 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
 
   test("inline, in a block body and in a dialogue block", () => {
     for (const source of [
-      `A ..\n.. B\n`,
-      `A ..\n..B\n`,
-      `ALICE:\n  A ..\n  .. B\n`,
-      `ALICE: A ..\nALICE:\n  .. B\n`,
-      `ALICE: A ..\nALICE: .. B\n`,
-      `A ..\n// note\n.. B\n`,
+      `scene start\n  A ..\n  .. B\nend\n`,
+      `scene start\n  A ..\n  ..B\nend\n`,
+      `scene start\n  ALICE:\n    A ..\n    .. B\nend\n`,
+      `scene start\n  ALICE: A ..\n  ALICE:\n    .. B\nend\n`,
+      `scene start\n  ALICE: A ..\n  ALICE: .. B\nend\n`,
+      `scene start\n  A ..\n  // note\n  .. B\nend\n`,
     ]) {
       expect(runSource(source), source).toEqual({
         texts: ["A B\n"],
@@ -117,10 +119,10 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
 
   test("joins across a divert, logic, and a `..` line that shows nothing", () => {
     for (const source of [
-      `You go ..\n-> s\n\nscene s\n  .. outside.\nend\n`,
-      `store x = 0\nYou go ..\n& x = 1\n.. outside.\n`,
-      `You go ..\n..\n.. outside.\n`,
-      `You go ..\n.. // note\n.. outside.\n`,
+      `scene start\n  You go ..\n  -> s\nend\n\nscene s\n  .. outside.\nend\n`,
+      `store x = 0\nscene start\n  You go ..\n  & x = 1\n  .. outside.\nend\n`,
+      `scene start\n  You go ..\n  ..\n  .. outside.\nend\n`,
+      `scene start\n  You go ..\n  .. // note\n  .. outside.\nend\n`,
     ]) {
       expect(diagnosticsOf(source), source).toEqual([]);
       expect(runSource(source), source).toEqual({
@@ -131,7 +133,9 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
   });
 
   test("a divert that holds its line open joins the scene's first line", () => {
-    expect(runSource(`You go -> s\n\nscene s\n  .. outside.\nend\n`)).toEqual({
+    expect(runSource(
+        `scene start\n  You go -> s\nend\n\nscene s\n  .. outside.\nend\n`,
+      )).toEqual({
       texts: ["You go outside.\n"],
       warnings: [],
     });
@@ -140,7 +144,7 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
   // The `..` after a cue's parenthetical and a `\` is the line's trailing
   // mark; only the `..` right after the colon begins its text.
   test("after a cue's parenthetical and a chain", () => {
-    expect(runSource(`BUNNY: (aside) \\ ..\n..joined\n`)).toEqual({
+    expect(runSource(`scene start\n  BUNNY: (aside) \\ ..\n  ..joined\nend\n`)).toEqual({
       texts: ["(aside)\njoined\n"],
       warnings: [],
     });
@@ -151,13 +155,25 @@ describe("a line that begins with `..` after a line that does not end with `..`"
   // The compiler cannot always tell which line runs before, so it reports
   // nothing; the run warns and shows the line on its own.
   test.each([
-    ["inline", `A\n.. B\n`],
-    ["touching", `A\n..B\n`],
-    ["as the first line of an if branch", `A\nif true then\n  .. B\nend\n`],
-    ["after an interpolation line", `store n = 3\n{n}\n.. B\n`],
-    ["the first line of a scene", `You go.\n-> s\n\nscene s\n  .. B\nend\n`],
-    ["after logic", `store x = 0\nA\n& x = 1\n.. B\n`],
-    ["after a `load` line", `load overworld\n.. B\n`],
+    ["inline", `scene start\n  A\n  .. B\nend\n`],
+    ["touching", `scene start\n  A\n  ..B\nend\n`],
+    [
+      "as the first line of an if branch",
+      `scene start\n  A\n  if true then\n    .. B\n  end\nend\n`,
+    ],
+    [
+      "after an interpolation line",
+      `store n = 3\nscene start\n  {n}\n  .. B\nend\n`,
+    ],
+    [
+      "the first line of a scene",
+      `scene start\n  You go.\n  -> s\nend\n\nscene s\n  .. B\nend\n`,
+    ],
+    [
+      "after logic",
+      `store x = 0\nscene start\n  A\n  & x = 1\n  .. B\nend\n`,
+    ],
+    ["after a `load` line", `scene start\n  load overworld\n  .. B\nend\n`],
   ])("%s", (_label, source) => {
     expect(diagnosticsOf(source)).toEqual([]);
     const { texts, warnings } = runSource(source);
@@ -167,14 +183,17 @@ describe("a line that begins with `..` after a line that does not end with `..`"
   });
 
   test("the first line of the story", () => {
-    expect(runSource(`.. A\n`)).toEqual({
+    expect(runSource(`scene start\n  .. A\nend\n`)).toEqual({
       texts: ["A\n"],
       warnings: [NOT_JOINED],
     });
   });
 
   test("in a block body, where the line break stays", () => {
-    for (const source of [`ALICE:\n  A\n  .. B\n`, `:\n  A\n  .. B\n  C ..\n  .. D\n`]) {
+    for (const source of [
+      `scene start\n  ALICE:\n    A\n    .. B\nend\n`,
+      `scene start\n  :\n    A\n    .. B\n    C ..\n    .. D\nend\n`,
+    ]) {
       expect(diagnosticsOf(source), source).toEqual([]);
       const { texts, warnings } = runSource(source);
       expect(texts[0]!.startsWith("A\nB"), source).toBe(true);
@@ -183,7 +202,10 @@ describe("a line that begins with `..` after a line that does not end with `..`"
   });
 
   test("a line that begins with an ellipsis is text, and joins nothing", () => {
-    for (const source of [`A\n...and then.\n`, `A ..\n...and then.\n`]) {
+    for (const source of [
+      `scene start\n  A\n  ...and then.\nend\n`,
+      `scene start\n  A ..\n  ...and then.\nend\n`,
+    ]) {
       expect(runSource(source), source).toEqual({
         texts: ["A\n", "...and then.\n"],
         warnings: [],
@@ -195,9 +217,9 @@ describe("a line that begins with `..` after a line that does not end with `..`"
 describe("a line that ends with `..` before a line that does not begin with `..`", () => {
   test("joins nothing, and the run does not warn", () => {
     for (const source of [
-      `A ..\nB\n`,
-      `A ..\n-> s\n\nscene s\n  B\nend\n`,
-      `A ..\nif true then\n  B\nend\n`,
+      `scene start\n  A ..\n  B\nend\n`,
+      `scene start\n  A ..\n  -> s\nend\n\nscene s\n  B\nend\n`,
+      `scene start\n  A ..\n  if true then\n    B\n  end\nend\n`,
     ]) {
       expect(diagnosticsOf(source), source).toEqual([]);
       expect(runSource(source), source).toEqual({
@@ -208,7 +230,7 @@ describe("a line that ends with `..` before a line that does not begin with `..`
   });
 
   test("in a block body, where the line break stays", () => {
-    expect(runSource(`ALICE:\n  A ..\n  B\n`)).toEqual({
+    expect(runSource(`scene start\n  ALICE:\n    A ..\n    B\nend\n`)).toEqual({
       texts: ["A\nB\n"],
       warnings: [],
     });
@@ -218,7 +240,7 @@ describe("a line that ends with `..` before a line that does not begin with `..`
 // The offer a line that ends with `..` makes (`StoryState.lineJoinable`) is
 // part of the story's state: a click falls between the two steps of `.. >`.
 describe("the offer to join", () => {
-  const CLICK = `A .. >\n.. B\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
+  const CLICK = `scene start\n  A .. >\n  .. B\nend\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
   const continuesOf = (story: TestStory) =>
     story.currentDisplayInstructions.map(
       (table) =>
@@ -269,10 +291,10 @@ describe("the offer to join", () => {
 // text that ends with `..` joins the next line.
 test("after a break in a `load` statement, the text beat joins", () => {
   for (const load of [
-    `load overworld > You see a ..`,
-    `:\n  load overworld\n  > You see a ..`,
+    `  load overworld > You see a ..`,
+    `  :\n    load overworld\n    > You see a ..`,
   ]) {
-    const source = `${load}\n.. rusty key.\n`;
+    const source = `scene start\n${load}\n  .. rusty key.\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages, source).toEqual([]);
     const texts: string[] = [];
@@ -292,13 +314,16 @@ describe("the compiled program", () => {
   test("marks `continues` on each line that begins with `..`, except inside a block body", () => {
     for (const [source, continues] of [
       [EXAMPLE, 2],
-      [`A ..\n.. B\n`, 1],
-      [`ALICE:\n  A ..\n  .. B\n`, 0],
-      [`A ..\nALICE:\n  .. B\n`, 1],
-      [`A -> s\n\nscene s\n  .. B\nend\n`, 1],
-      [`A -> s\n\nscene s\n  ALICE:\n    .. B\nend\n`, 1],
-      [`.. A\n`, 1],
-      [`A ..\nB\n`, 0],
+      [`scene start\n  A ..\n  .. B\nend\n`, 1],
+      [`scene start\n  ALICE:\n    A ..\n    .. B\nend\n`, 0],
+      [`scene start\n  A ..\n  ALICE:\n    .. B\nend\n`, 1],
+      [`scene start\n  A -> s\nend\n\nscene s\n  .. B\nend\n`, 1],
+      [
+        `scene start\n  A -> s\nend\n\nscene s\n  ALICE:\n    .. B\nend\n`,
+        1,
+      ],
+      [`scene start\n  .. A\nend\n`, 1],
+      [`scene start\n  A ..\n  B\nend\n`, 0],
     ] as const) {
       expect(programShape(source).continues, source).toBe(continues);
     }

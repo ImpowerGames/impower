@@ -79,10 +79,14 @@ const shadowWarnings = (list: string[]) => list.filter((d) => d.includes("shadow
 // Six scenes keep the store's chunk outside the region an edit at the top of
 // the document reparses, so the incremental compile carries it.
 const BASE = [
-  "-> s0",
+  "",
   "",
   ...[0, 1, 2, 3, 4, 5, 6].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]),
   "store thing = 1",
+  "",
+  "scene start",
+  "  -> s0",
+  "end",
   "",
 ].join("\n");
 

@@ -178,9 +178,6 @@ export interface DeclaredGlobal {
   assignment: VariableAssignment;
 }
 
-/** A statement that declares globals, as the compile hands it to the store,
- *  or a member function's write of a script other than main, which declares
- *  none and runs with the declarations (`programFlows`). */
 export interface DeclarationSource extends StatementSource {
   /** The script it is written in. */
   uri: string;
@@ -977,8 +974,6 @@ export class ChunkStore {
       let chunk = chunkOf.get(declaration);
       if (!chunk) {
         try {
-          // A declaration that declares no global, a member function's
-          // write, runs its statement as written (`programFlows`).
           chunk = this.emit(declaration, (input) =>
             declaration.globals.length === 0
               ? this._writer.write(input)
@@ -1165,12 +1160,6 @@ export class ChunkStore {
           build.placedFor?.get(statement) ?? build.chunkOf.get(statement),
       );
     }
-    // The declarations run again when a declaration chunk or a function
-    // changed, since an initializer may read another global or call a
-    // function: a compile that changed only the statements of flows runs
-    // none. An initializer that raises an error stops the build with that
-    // error, which the compile reports as a compile that threw, and makes no
-    // program, as a story's reset raising it did.
     if (declarationsChanged || this._declarationsFailed) {
       this.initializerRuns += 1;
       // An issue the run raises stands at the global whose value raised it,

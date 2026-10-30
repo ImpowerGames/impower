@@ -12,6 +12,14 @@ import {
   diagnoseWithLintsInFunction,
 } from "./diagnosticTestHarness";
 
+describe("an unknown global read in a scene", () => {
+  test("& print(foo)", () => {
+    expect(diagnoseWithLints("scene start\n  & print(foo)\nend\n")).toEqual([
+      "Cannot find variable named `foo`",
+    ]);
+  });
+});
+
 // Luau: CleanCode
 describe("clean code has no warnings", () => {
   test("recursive fib", () => {
@@ -43,20 +51,9 @@ end
 
 // Luau: UnknownGlobal
 // "Unknown global 'foo'; consider assigning to it first"
-//
-// Sparkdown reports the read with its own wording, inside a function and at
-// the top level (adapted below).
 describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
     expect(diagnoseWithLintsInFunction("return foo")).toEqual([
-      "Cannot find variable named `foo`",
-    ]);
-  });
-});
-
-describe("an unknown global read at the top level (adapted)", () => {
-  test("& print(foo)", () => {
-    expect(diagnoseWithLints("& print(foo)\n")).toEqual([
       "Cannot find variable named `foo`",
     ]);
   });

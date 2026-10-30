@@ -1,5 +1,7 @@
-<- make_default_choice
-Text.
+scene start
+  <- make_default_choice
+  Text.
+end
 
 scene make_default_choice
   choose

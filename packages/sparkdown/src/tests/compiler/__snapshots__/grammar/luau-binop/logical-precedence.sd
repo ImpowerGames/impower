@@ -1,1 +1,3 @@
-& x = not a and b or c
+scene start
+  & x = not a and b or c
+end

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..153]
+text.source.sparkdown [0..171]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -69,11 +69,18 @@ text.source.sparkdown [0..153]
  ├─ meta.function.luau [131..134]
  │   └─ keyword.control.end.luau [131..134]: "end"
  ├─ Newline [134..135]: "\n"
- ├─ keyword.other.statement.explicit.luau.mark.sd [135..136]: "&"
- ├─ punctuation.whitespace.required.sd [136..137]: " "
- ├─ support.function.luau [137..142]: "print"
- ├─ meta.parameter.luau [142..152]
- │   ├─ punctuation.definition.template-expression.begin.sd [142..143]: "("
- │   ├─ variable.other.readwrite.luau [143..151]: "endpoint"
- │   └─ punctuation.definition.template-expression.end.sd [151..152]: ")"
- └─ Newline [152..153]: "\n"
+ ├─ keyword.control.scene.sd [135..140]: "scene"
+ ├─ punctuation.whitespace.required.sd [140..141]: " "
+ ├─ keyword.control.section.sd [141..146]: "start"
+ ├─ Newline [146..147]: "\n"
+ ├─ punctuation.whitespace.optional.sd [147..149]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [149..150]: "&"
+ ├─ punctuation.whitespace.required.sd [150..151]: " "
+ ├─ support.function.luau [151..156]: "print"
+ ├─ meta.parameter.luau [156..166]
+ │   ├─ punctuation.definition.template-expression.begin.sd [156..157]: "("
+ │   ├─ variable.other.readwrite.luau [157..165]: "endpoint"
+ │   └─ punctuation.definition.template-expression.end.sd [165..166]: ")"
+ ├─ Newline [166..167]: "\n"
+ ├─ keyword.control.end.luau [167..170]: "end"
+ └─ Newline [170..171]: "\n"

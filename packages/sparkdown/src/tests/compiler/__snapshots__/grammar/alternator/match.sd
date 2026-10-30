@@ -1,5 +1,7 @@
-match (player_class)
-  | warrior = "A meat shield."
-  | mage = "A scholar."
-  | other = "A recruit."
+scene start
+  match (player_class)
+    | warrior = "A meat shield."
+    | mage = "A scholar."
+    | other = "A recruit."
+  end
 end

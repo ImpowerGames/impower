@@ -1,8 +1,3 @@
-// A `function … end` declaration closes at its `end`. The story lines that
-// follow it belong to the flow they would join if the function were not
-// there: the root flow when the function is declared at the top level, or the
-// scene whose content a `local function` is declared among. They never join
-// the function's own body, where they would sit after its `return`.
 
 import { describe, expect, test } from "vitest";
 import { flowListings, pushesString } from "../programListing";
@@ -10,7 +5,7 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const LESS = `function less(a, b)\n  return a < b\nend\n`;
 // A scene or branch declares its functions with `local`.
-const LOCAL_LESS = `local ${LESS}`;
+const LOCAL_LESS = `  local function less(a, b)\n    return a < b\n  end\n`;
 
 /** The text of every line the story shows from the top, one per continue. */
 function linesFromTop(source: string): string[] {
@@ -45,27 +40,35 @@ const holds = (flow: string[] | undefined, text: string) =>
 
 describe("story lines after a function declaration", () => {
   test("lines after a function declared first play from the top", () => {
-    expect(linesFromTop(`${LESS}\nA\nB\nC\n`)).toEqual(["A\n", "B\n", "C\n"]);
+    expect(
+      linesFromTop(`${LESS}\nscene start\n  A\n  B\n  C\nend\n`),
+    ).toEqual(["A\n", "B\n", "C\n"]);
   });
 
   test("lines after a function declared below a store play from the top", () => {
-    expect(linesFromTop(`store t = {3, 1, 2}\n${LESS}\nA\nB\nC\n`)).toEqual([
-      "A\n",
-      "B\n",
-      "C\n",
-    ]);
+    expect(
+      linesFromTop(
+        `store t = {3, 1, 2}\n${LESS}\nscene start\n  A\n  B\n  C\nend\n`,
+      ),
+    ).toEqual(["A\n", "B\n", "C\n"]);
   });
 
   test("lines around a function declared between story lines all play from the top", () => {
-    expect(linesFromTop(`A\n${LESS}B\nC\n`)).toEqual(["A\n", "B\n", "C\n"]);
+    expect(
+      linesFromTop(`scene start\n  A\n${LOCAL_LESS}  B\n  C\nend\n`),
+    ).toEqual(["A\n", "B\n", "C\n"]);
   });
 
   test("the function can be called from the lines after it", () => {
-    expect(linesFromTop(`${LESS}\n{less(1, 2)}\n`)).toEqual(["true\n"]);
+    expect(
+      linesFromTop(`${LESS}\nscene start\n  {less(1, 2)}\nend\n`),
+    ).toEqual(["true\n"]);
   });
 
   test("the function's container holds only its own body", () => {
-    const named = namedContainers(`${LESS}\nA\nB\nC\n`);
+    const named = namedContainers(
+      `${LESS}\nscene start\n  A\n  B\n  C\nend\n`,
+    );
     expect(named["less"]).toBeDefined();
     for (const text of ["A", "B", "C"]) {
       expect(holds(named["less"], text), `less holds ${text}`).toBe(false);
@@ -80,7 +83,7 @@ describe("story lines after a function declaration", () => {
     // rule reads with the `you` it leaves incomplete (#1905); and the `.`,
     // which a Sparkdown access path cannot carry onto the next line.
     const ctx = makeRuntimeStoryFromSource(
-      `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
+      `function greet\n  Hello there.\n  How are you?\nend\n\nscene start\n  Line one.\n  done\nend\n`,
     );
     expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
       "Expected identifier after '.' on the same line",
@@ -97,7 +100,7 @@ describe("story lines after a function declaration", () => {
     // line is reported as Luau, and the definition still closes at its `end`
     // (#1093). The errors are those of the test above (#1905).
     const ctx = makeRuntimeStoryFromSource(
-      `function greet\n  Hello there.\n  How are you?\nend\nAfter it.\n\nscene A\n  Line one.\n  done\nend\n`,
+      `function greet\n  Hello there.\n  How are you?\nend\n\nscene start\n  After it.\nend\n`,
     );
     expect(ctx.errorMessages.map((m) => m.split("\n")[0])).toEqual([
       "Expected identifier after '.' on the same line",
@@ -120,10 +123,8 @@ describe("story lines after a function declaration", () => {
   });
 
   test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
-    // The line does not close the definition early, so its `end` closes it
-    // and the line after the function is in the root flow (#1093).
     const ctx = makeRuntimeStoryFromSource(
-      `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
+      `function greet()\n  local x = 1\n  How are you?\nend\n\nscene start\n  After it.\nend\n`,
     );
     // `How`, `are` and `you`, as Luau reports them, and the `?` (I-1322).
     expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE, INCOMPLETE, "Expected identifier when parsing expression, got '?'"]);
@@ -140,11 +141,11 @@ describe("story lines after a function declaration", () => {
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {
-    const source = `-> intro\n\nscene intro\nA\n${LOCAL_LESS}B\nC\nend\n`;
+    const source = `scene start\n  A\n${LOCAL_LESS}  B\n  C\nend\n`;
     expect(linesFromTop(source)).toEqual(["A\n", "B\n", "C\n"]);
     const named = namedContainers(source);
     for (const text of ["A", "B", "C"]) {
-      expect(holds(named["intro"], text), `intro holds ${text}`).toBe(true);
+      expect(holds(named["start"], text), `start holds ${text}`).toBe(true);
       expect(holds(named["less"], text), `less holds ${text}`).toBe(false);
     }
   });
@@ -152,7 +153,10 @@ describe("story lines after a function declaration", () => {
   // The divert into the branch opens the scene's scope fresh, so the scene's
   // local function is nil there.
   test("a branch after a function declared inside a scene belongs to the scene", () => {
-    const source = `-> s.world
+    const source = `scene start
+  -> s.world
+end
+
 scene s
   local function less(a, b)
     return a < b
@@ -167,7 +171,7 @@ end
   });
 
   test("a divert after a function declared inside a scene leads on to the next scene", () => {
-    const source = `-> one\n\nscene one\nA\n${LOCAL_LESS}-> two\nend\n\nscene two\nB\nend\n`;
+    const source = `scene start\n  A\n${LOCAL_LESS}  -> two\nend\n\nscene two\n  B\nend\n`;
     expect(linesFromTop(source)).toEqual(["A\n", "B\n"]);
     const named = namedContainers(source);
     expect(holds(named["two"], "B")).toBe(true);

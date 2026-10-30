@@ -9,7 +9,7 @@ const URI = "inmemory:///main.sd";
 
 const SOURCE = `store trust = 0
 
-scene interrogation
+scene start
   INSPECTOR:
     Where were you at nine?
   choose

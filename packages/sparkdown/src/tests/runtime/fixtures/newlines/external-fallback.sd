@@ -1,9 +1,11 @@
 external TRUE()
 
-Phrase 1
-if TRUE() then
-  Phrase 2
+scene start
+  Phrase 1
+  if TRUE() then
+    Phrase 2
+  end
+  fin
 end
-fin
 
 function TRUE() return true end

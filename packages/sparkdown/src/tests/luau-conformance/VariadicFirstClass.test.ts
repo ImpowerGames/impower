@@ -55,8 +55,11 @@ function compileAndCapture(source: string): {
 describe("variadic functions as first-class values", () => {
   test("value references, local aliasing, and param calls", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local function c12(...) local x = {...} return x[1] + x[2] end
@@ -74,8 +77,11 @@ end
 
   test("param shadows an outer variadic subflow of the same name", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(a, ...) return select('#', ...) end
@@ -91,8 +97,11 @@ end
 
   test("variadic value-calls spread trailing multi-returns and pad fixed params", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local function two() return 5, 6 end
@@ -109,8 +118,11 @@ end
 
   test("variadic method definitions bind self correctly", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {1, 10}
@@ -131,8 +143,11 @@ end
     // before a redefinition hit the first body, calls after hit the
     // second, and a later plain `f = <expr>` rebinds again.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(...) return "first" end
@@ -151,8 +166,11 @@ end
 
   test("variadic natives spread an unpacked last arg; pure fns unwrap through markers", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.max(table.unpack({3, 9, 4})))
@@ -170,8 +188,11 @@ end
 
   test("void stdlib marker through a param reads as nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local call = function (g, args) return g(table.unpack(args)) end

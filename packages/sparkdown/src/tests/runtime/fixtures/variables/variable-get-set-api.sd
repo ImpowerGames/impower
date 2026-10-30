@@ -1,13 +1,15 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   {x}
   choose
     + [choice]
   then
     & i = i + 1
     if i < 4 then
-      -> start
+      -> again
     end
   end
   done

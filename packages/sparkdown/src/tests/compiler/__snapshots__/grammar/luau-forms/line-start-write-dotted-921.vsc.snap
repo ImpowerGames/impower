@@ -1,9 +1,16 @@
-text.source.sparkdown [0..17]
- ├─ string.display.write.inline.sd [0..16]
- │   ├─ keyword.action.mark.sd [0..1]: "@"
- │   ├─ variable.other.property.write.target.sd [1..10]: "hud.panel"
- │   ├─ meta.template.expression.operator.colon.sd [10..11]: ":"
- │   ├─ punctuation.whitespace.required.sd [11..12]: " "
- │   └─ string.display.text.chunk.sd [12..16]
- │       └─ markup.raw.text.sd [12..16]: "text"
- └─ Newline [16..17]: "\n"
+text.source.sparkdown [0..35]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ string.display.write.inline.sd [12..30]
+ │   ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ │   ├─ keyword.action.mark.sd [14..15]: "@"
+ │   ├─ variable.other.property.write.target.sd [15..24]: "hud.panel"
+ │   ├─ meta.template.expression.operator.colon.sd [24..25]: ":"
+ │   ├─ punctuation.whitespace.required.sd [25..26]: " "
+ │   └─ string.display.text.chunk.sd [26..30]
+ │       └─ markup.raw.text.sd [26..30]: "text"
+ ├─ Newline [30..31]: "\n"
+ ├─ keyword.control.end.luau [31..34]: "end"
+ └─ Newline [34..35]: "\n"

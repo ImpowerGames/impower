@@ -15,7 +15,7 @@ describe("const save isolation", () => {
   test("a stale save cannot overwrite a compiled constant", () => {
     // v1: `LIMIT` is a mutable global, mutated to 99 and saved.
     const v1 = makeRuntimeStoryFromSource(
-      ["store LIMIT = 5", "& LIMIT = 99", "{LIMIT}"].join("\n"),
+      ["store LIMIT = 5", "scene start", "  & LIMIT = 99", "  {LIMIT}", "end"].join("\n"),
     );
     expect(v1.errorMessages).toEqual([]);
     expect(runToEnd(v1.story)).toBe("99\n");
@@ -25,7 +25,7 @@ describe("const save isolation", () => {
     // v2: the author has since turned `LIMIT` into a constant with a new
     // value. Loading the old save must NOT resurrect 99.
     const v2 = makeRuntimeStoryFromSource(
-      ["const LIMIT = 6", "{LIMIT}"].join("\n"),
+      ["const LIMIT = 6", "scene start", "  {LIMIT}", "end"].join("\n"),
     );
     expect(v2.errorMessages).toEqual([]);
     v2.story.state.LoadJson(staleSave);
@@ -36,14 +36,14 @@ describe("const save isolation", () => {
   // value is not restored, but the table it defines is another global's.
   test("a stale save's value of a constant still defines the table another global shares", () => {
     const v1 = makeRuntimeStoryFromSource(
-      ["store K = nil", "store alias = nil", "& K = { n = 1 }", "& alias = K", "{alias.n}"].join("\n"),
+      ["store K = nil", "store alias = nil", "scene start", "  & K = { n = 1 }", "  & alias = K", "  {alias.n}", "end"].join("\n"),
     );
     expect(v1.errorMessages).toEqual([]);
     expect(runToEnd(v1.story)).toBe("1\n");
     const staleSave = v1.story.state.ToJson();
 
     const v2 = makeRuntimeStoryFromSource(
-      ["const K = 10", "store alias = nil", "{K}"].join("\n"),
+      ["const K = 10", "store alias = nil", "scene start", "  {K}", "end"].join("\n"),
     );
     expect(v2.errorMessages).toEqual([]);
     v2.story.state.LoadJson(staleSave);
@@ -54,7 +54,7 @@ describe("const save isolation", () => {
 
   test("a constant is never written into save data", () => {
     const ctx = makeRuntimeStoryFromSource(
-      ["const LIMIT = 6", "store other = 1", "& other = 2", "{LIMIT}"].join("\n"),
+      ["const LIMIT = 6", "store other = 1", "scene start", "  & other = 2", "  {LIMIT}", "end"].join("\n"),
     );
     expect(ctx.errorMessages).toEqual([]);
     runToEnd(ctx.story);
@@ -67,7 +67,7 @@ describe("const save isolation", () => {
 
   test("a constant is still an inspectable runtime global", () => {
     const ctx = makeRuntimeStoryFromSource(
-      ["const LIMIT = 6", "{LIMIT}"].join("\n"),
+      ["const LIMIT = 6", "scene start", "  {LIMIT}", "end"].join("\n"),
     );
     expect(ctx.errorMessages).toEqual([]);
     runToEnd(ctx.story);

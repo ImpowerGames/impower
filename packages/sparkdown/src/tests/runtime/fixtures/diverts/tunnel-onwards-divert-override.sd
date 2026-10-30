@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   -> A ->
   We will never return to here!

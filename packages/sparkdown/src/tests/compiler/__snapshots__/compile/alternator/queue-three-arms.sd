@@ -1,5 +1,7 @@
-queue
-  | -> A
-  | -> B
-  | -> C
+scene start
+  queue
+    | -> A
+    | -> B
+    | -> C
+  end
 end

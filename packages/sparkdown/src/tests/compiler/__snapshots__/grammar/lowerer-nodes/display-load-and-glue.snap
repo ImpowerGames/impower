@@ -1,41 +1,24 @@
-sparkdown [0..157]
- ├─ ImplicitAction [0..11]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..11]
- │   │   └─ ActionLineEnd [0..11]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..11]
- │   │       │   ├─ ActionLoadKeyword [0..5]
- │   │       │   │   ├─ ActionLoadKeyword_c1 0
- │   │       │   │   │   └─ OptionalWhitespace 0
- │   │       │   │   └─ ActionLoadKeyword_c2 [0..5]
- │   │       │   │       └─ DisplayLoadKeyword [0..5]
- │   │       │   │           ├─ DisplayLoadKeyword_c1 [0..4]
- │   │       │   │           │   └─ AssetCommandControl [0..4]: "load"
- │   │       │   │           └─ DisplayLoadKeyword_c2 [4..5]
- │   │       │   │               └─ RequiredWhitespace [4..5]: " "
- │   │       │   └─ TextChunk [5..11]
- │   │       │       ├─ TextChunk_begin 5
- │   │       │       ├─ TextChunk_content [5..11]
- │   │       │       │   └─ Word [5..11]: "forest"
- │   │       │       └─ TextChunk_end 11
- │   │       └─ ActionLineEnd_end 11
- │   └─ ImplicitAction_end 11
+sparkdown [0..193]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
  ├─ Newline [11..12]: "\n"
- ├─ InlineAction [12..25]
- │   ├─ InlineAction_begin [12..14]
- │   │   ├─ InlineAction_begin_c1 12
- │   │   │   └─ OptionalWhitespace 12
- │   │   ├─ InlineAction_begin_c2 12
- │   │   ├─ InlineAction_begin_c3 [12..13]
- │   │   │   └─ ColonOperator [12..13]: ":"
- │   │   └─ InlineAction_begin_c4 [13..14]
- │   │       └─ RequiredWhitespace [13..14]: " "
- │   ├─ InlineAction_content [14..25]
+ ├─ ImplicitAction [12..25]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..25]
  │   │   └─ ActionLineEnd [14..25]
  │   │       ├─ ActionLineEnd_begin 14
  │   │       │   └─ ActionLineEnd_begin_c1 14
@@ -56,259 +39,294 @@ sparkdown [0..157]
  │   │       │       │   └─ Word [19..25]: "forest"
  │   │       │       └─ TextChunk_end 25
  │   │       └─ ActionLineEnd_end 25
- │   └─ InlineAction_end 25
+ │   └─ ImplicitAction_end 25
  ├─ Newline [25..26]: "\n"
- ├─ InlineAction [26..40]
- │   ├─ InlineAction_begin [26..28]
- │   │   ├─ InlineAction_begin_c1 26
- │   │   │   └─ OptionalWhitespace 26
- │   │   ├─ InlineAction_begin_c2 [26..28]
- │   │   │   └─ LeadingGlue [26..28]
- │   │   │       └─ LeadingGlue_c1 [26..28]: ".."
- │   │   ├─ InlineAction_begin_c3 28
- │   │   └─ InlineAction_begin_c4 28
- │   ├─ InlineAction_content [28..40]
- │   │   └─ ActionLineEnd [28..40]
- │   │       ├─ ActionLineEnd_begin [28..29]
- │   │       │   └─ ActionLineEnd_begin_c1 [28..29]
- │   │       │       └─ OptionalWhitespace [28..29]: " "
- │   │       ├─ ActionLineEnd_content [29..40]
- │   │       │   ├─ ActionLoadKeyword [29..34]
- │   │       │   │   ├─ ActionLoadKeyword_c1 29
- │   │       │   │   │   └─ OptionalWhitespace 29
- │   │       │   │   └─ ActionLoadKeyword_c2 [29..34]
- │   │       │   │       └─ DisplayLoadKeyword [29..34]
- │   │       │   │           ├─ DisplayLoadKeyword_c1 [29..33]
- │   │       │   │           │   └─ AssetCommandControl [29..33]: "load"
- │   │       │   │           └─ DisplayLoadKeyword_c2 [33..34]
- │   │       │   │               └─ RequiredWhitespace [33..34]: " "
- │   │       │   └─ TextChunk [34..40]
- │   │       │       ├─ TextChunk_begin 34
- │   │       │       ├─ TextChunk_content [34..40]
- │   │       │       │   └─ Word [34..40]: "forest"
- │   │       │       └─ TextChunk_end 40
- │   │       └─ ActionLineEnd_end 40
- │   └─ InlineAction_end 40
- ├─ Newline [40..41]: "\n"
- ├─ ImplicitAction [41..52]
- │   ├─ ImplicitAction_begin 41
- │   │   └─ ImplicitAction_begin_c1 41
- │   │       └─ OptionalWhitespace 41
- │   ├─ ImplicitAction_content [41..52]
- │   │   └─ ActionLineEnd [41..52]
- │   │       ├─ ActionLineEnd_begin 41
- │   │       │   └─ ActionLineEnd_begin_c1 41
- │   │       │       └─ OptionalWhitespace 41
- │   │       ├─ ActionLineEnd_content [41..52]
- │   │       │   ├─ TextChunk [41..45]
- │   │       │   │   ├─ TextChunk_begin 41
- │   │       │   │   ├─ TextChunk_content [41..45]
- │   │       │   │   │   ├─ Word [41..42]: "A"
- │   │       │   │   │   └─ Glue [42..45]
- │   │       │   │   │       ├─ Glue_c1 [42..43]
- │   │       │   │   │       │   └─ Whitespace [42..43]: " "
- │   │       │   │   │       └─ Glue_c2 [43..45]: ".."
- │   │       │   │   └─ TextChunk_end 45
- │   │       │   ├─ BreakLeadingGlue [45..50]
- │   │       │   │   ├─ BreakLeadingGlue_c1 [45..48]
- │   │       │   │   │   └─ Break [45..48]
- │   │       │   │   │       └─ Break_c1 [45..48]: " > "
- │   │       │   │   └─ BreakLeadingGlue_c2 [48..50]
- │   │       │   │       └─ LeadingGlue [48..50]
- │   │       │   │           └─ LeadingGlue_c1 [48..50]: ".."
- │   │       │   └─ TextChunk [50..52]
- │   │       │       ├─ TextChunk_begin 50
- │   │       │       ├─ TextChunk_content [50..52]
- │   │       │       │   ├─ Space [50..51]: " "
- │   │       │       │   └─ Word [51..52]: "B"
- │   │       │       └─ TextChunk_end 52
- │   │       └─ ActionLineEnd_end 52
- │   └─ ImplicitAction_end 52
- ├─ Newline [52..53]: "\n"
- ├─ ImplicitAction [53..68]
- │   ├─ ImplicitAction_begin 53
- │   │   └─ ImplicitAction_begin_c1 53
- │   │       └─ OptionalWhitespace 53
- │   ├─ ImplicitAction_content [53..68]
- │   │   └─ ActionLineEnd [53..68]
- │   │       ├─ ActionLineEnd_begin 53
- │   │       │   └─ ActionLineEnd_begin_c1 53
- │   │       │       └─ OptionalWhitespace 53
- │   │       ├─ ActionLineEnd_content [53..68]
- │   │       │   ├─ TextChunk [53..54]
- │   │       │   │   ├─ TextChunk_begin 53
- │   │       │   │   ├─ TextChunk_content [53..54]
- │   │       │   │   │   └─ Word [53..54]: "A"
- │   │       │   │   └─ TextChunk_end 54
- │   │       │   ├─ Break [54..57]
- │   │       │   │   └─ Break_c1 [54..57]: " > "
- │   │       │   ├─ ActionLoadKeyword [57..62]
- │   │       │   │   ├─ ActionLoadKeyword_c1 57
- │   │       │   │   │   └─ OptionalWhitespace 57
- │   │       │   │   └─ ActionLoadKeyword_c2 [57..62]
- │   │       │   │       └─ DisplayLoadKeyword [57..62]
- │   │       │   │           ├─ DisplayLoadKeyword_c1 [57..61]
- │   │       │   │           │   └─ AssetCommandControl [57..61]: "load"
- │   │       │   │           └─ DisplayLoadKeyword_c2 [61..62]
- │   │       │   │               └─ RequiredWhitespace [61..62]: " "
- │   │       │   └─ TextChunk [62..68]
- │   │       │       ├─ TextChunk_begin 62
- │   │       │       ├─ TextChunk_content [62..68]
- │   │       │       │   └─ Word [62..68]: "forest"
- │   │       │       └─ TextChunk_end 68
- │   │       └─ ActionLineEnd_end 68
- │   └─ ImplicitAction_end 68
- ├─ Newline [68..69]: "\n"
- ├─ InlineDialogue [69..86]
- │   ├─ InlineDialogue_begin [69..75]
- │   │   ├─ InlineDialogue_begin_c1 69
- │   │   │   └─ OptionalWhitespace 69
- │   │   ├─ InlineDialogue_begin_c2 [69..73]
- │   │   │   └─ DialogueCharacter [69..73]
- │   │   │       ├─ DialogueCharacter_c1 69
- │   │   │       ├─ DialogueCharacter_c2 [69..73]
- │   │   │       │   └─ DialogueCharacterName [69..73]
- │   │   │       │       └─ DialogueCharacterName_c1 [69..73]
- │   │   │       │           └─ Word [69..73]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 73
- │   │   │       ├─ DialogueCharacter_c4 73
- │   │   │       ├─ DialogueCharacter_c5 73
- │   │   │       ├─ DialogueCharacter_c6 73
- │   │   │       └─ DialogueCharacter_c7 73
- │   │   ├─ InlineDialogue_begin_c3 [73..74]
- │   │   │   └─ ColonSeparator [73..74]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [74..75]
- │   │   │   └─ RequiredWhitespace [74..75]: " "
- │   │   └─ InlineDialogue_begin_c5 75
- │   ├─ InlineDialogue_content [75..86]
- │   │   └─ LineEnd [75..86]
- │   │       ├─ LineEnd_begin 75
- │   │       │   └─ LineEnd_begin_c1 75
+ ├─ InlineAction [26..41]
+ │   ├─ InlineAction_begin [26..30]
+ │   │   ├─ InlineAction_begin_c1 [26..28]
+ │   │   │   └─ OptionalWhitespace [26..28]: "  "
+ │   │   ├─ InlineAction_begin_c2 28
+ │   │   ├─ InlineAction_begin_c3 [28..29]
+ │   │   │   └─ ColonOperator [28..29]: ":"
+ │   │   └─ InlineAction_begin_c4 [29..30]
+ │   │       └─ RequiredWhitespace [29..30]: " "
+ │   ├─ InlineAction_content [30..41]
+ │   │   └─ ActionLineEnd [30..41]
+ │   │       ├─ ActionLineEnd_begin 30
+ │   │       │   └─ ActionLineEnd_begin_c1 30
+ │   │       │       └─ OptionalWhitespace 30
+ │   │       ├─ ActionLineEnd_content [30..41]
+ │   │       │   ├─ ActionLoadKeyword [30..35]
+ │   │       │   │   ├─ ActionLoadKeyword_c1 30
+ │   │       │   │   │   └─ OptionalWhitespace 30
+ │   │       │   │   └─ ActionLoadKeyword_c2 [30..35]
+ │   │       │   │       └─ DisplayLoadKeyword [30..35]
+ │   │       │   │           ├─ DisplayLoadKeyword_c1 [30..34]
+ │   │       │   │           │   └─ AssetCommandControl [30..34]: "load"
+ │   │       │   │           └─ DisplayLoadKeyword_c2 [34..35]
+ │   │       │   │               └─ RequiredWhitespace [34..35]: " "
+ │   │       │   └─ TextChunk [35..41]
+ │   │       │       ├─ TextChunk_begin 35
+ │   │       │       ├─ TextChunk_content [35..41]
+ │   │       │       │   └─ Word [35..41]: "forest"
+ │   │       │       └─ TextChunk_end 41
+ │   │       └─ ActionLineEnd_end 41
+ │   └─ InlineAction_end 41
+ ├─ Newline [41..42]: "\n"
+ ├─ InlineAction [42..58]
+ │   ├─ InlineAction_begin [42..46]
+ │   │   ├─ InlineAction_begin_c1 [42..44]
+ │   │   │   └─ OptionalWhitespace [42..44]: "  "
+ │   │   ├─ InlineAction_begin_c2 [44..46]
+ │   │   │   └─ LeadingGlue [44..46]
+ │   │   │       └─ LeadingGlue_c1 [44..46]: ".."
+ │   │   ├─ InlineAction_begin_c3 46
+ │   │   └─ InlineAction_begin_c4 46
+ │   ├─ InlineAction_content [46..58]
+ │   │   └─ ActionLineEnd [46..58]
+ │   │       ├─ ActionLineEnd_begin [46..47]
+ │   │       │   └─ ActionLineEnd_begin_c1 [46..47]
+ │   │       │       └─ OptionalWhitespace [46..47]: " "
+ │   │       ├─ ActionLineEnd_content [47..58]
+ │   │       │   ├─ ActionLoadKeyword [47..52]
+ │   │       │   │   ├─ ActionLoadKeyword_c1 47
+ │   │       │   │   │   └─ OptionalWhitespace 47
+ │   │       │   │   └─ ActionLoadKeyword_c2 [47..52]
+ │   │       │   │       └─ DisplayLoadKeyword [47..52]
+ │   │       │   │           ├─ DisplayLoadKeyword_c1 [47..51]
+ │   │       │   │           │   └─ AssetCommandControl [47..51]: "load"
+ │   │       │   │           └─ DisplayLoadKeyword_c2 [51..52]
+ │   │       │   │               └─ RequiredWhitespace [51..52]: " "
+ │   │       │   └─ TextChunk [52..58]
+ │   │       │       ├─ TextChunk_begin 52
+ │   │       │       ├─ TextChunk_content [52..58]
+ │   │       │       │   └─ Word [52..58]: "forest"
+ │   │       │       └─ TextChunk_end 58
+ │   │       └─ ActionLineEnd_end 58
+ │   └─ InlineAction_end 58
+ ├─ Newline [58..59]: "\n"
+ ├─ ImplicitAction [59..72]
+ │   ├─ ImplicitAction_begin [59..61]
+ │   │   └─ ImplicitAction_begin_c1 [59..61]
+ │   │       └─ OptionalWhitespace [59..61]: "  "
+ │   ├─ ImplicitAction_content [61..72]
+ │   │   └─ ActionLineEnd [61..72]
+ │   │       ├─ ActionLineEnd_begin 61
+ │   │       │   └─ ActionLineEnd_begin_c1 61
+ │   │       │       └─ OptionalWhitespace 61
+ │   │       ├─ ActionLineEnd_content [61..72]
+ │   │       │   ├─ TextChunk [61..65]
+ │   │       │   │   ├─ TextChunk_begin 61
+ │   │       │   │   ├─ TextChunk_content [61..65]
+ │   │       │   │   │   ├─ Word [61..62]: "A"
+ │   │       │   │   │   └─ Glue [62..65]
+ │   │       │   │   │       ├─ Glue_c1 [62..63]
+ │   │       │   │   │       │   └─ Whitespace [62..63]: " "
+ │   │       │   │   │       └─ Glue_c2 [63..65]: ".."
+ │   │       │   │   └─ TextChunk_end 65
+ │   │       │   ├─ BreakLeadingGlue [65..70]
+ │   │       │   │   ├─ BreakLeadingGlue_c1 [65..68]
+ │   │       │   │   │   └─ Break [65..68]
+ │   │       │   │   │       └─ Break_c1 [65..68]: " > "
+ │   │       │   │   └─ BreakLeadingGlue_c2 [68..70]
+ │   │       │   │       └─ LeadingGlue [68..70]
+ │   │       │   │           └─ LeadingGlue_c1 [68..70]: ".."
+ │   │       │   └─ TextChunk [70..72]
+ │   │       │       ├─ TextChunk_begin 70
+ │   │       │       ├─ TextChunk_content [70..72]
+ │   │       │       │   ├─ Space [70..71]: " "
+ │   │       │       │   └─ Word [71..72]: "B"
+ │   │       │       └─ TextChunk_end 72
+ │   │       └─ ActionLineEnd_end 72
+ │   └─ ImplicitAction_end 72
+ ├─ Newline [72..73]: "\n"
+ ├─ ImplicitAction [73..90]
+ │   ├─ ImplicitAction_begin [73..75]
+ │   │   └─ ImplicitAction_begin_c1 [73..75]
+ │   │       └─ OptionalWhitespace [73..75]: "  "
+ │   ├─ ImplicitAction_content [75..90]
+ │   │   └─ ActionLineEnd [75..90]
+ │   │       ├─ ActionLineEnd_begin 75
+ │   │       │   └─ ActionLineEnd_begin_c1 75
  │   │       │       └─ OptionalWhitespace 75
- │   │       ├─ LineEnd_content [75..86]
- │   │       │   └─ TextChunk [75..86]
- │   │       │       ├─ TextChunk_begin 75
- │   │       │       ├─ TextChunk_content [75..86]
- │   │       │       │   ├─ Word [75..79]: "load"
- │   │       │       │   ├─ Space [79..80]: " "
- │   │       │       │   └─ Word [80..86]: "forest"
- │   │       │       └─ TextChunk_end 86
- │   │       └─ LineEnd_end 86
- │   └─ InlineDialogue_end 86
- ├─ Newline [86..87]: "\n"
- ├─ ImplicitAction [87..110]
- │   ├─ ImplicitAction_begin 87
- │   │   └─ ImplicitAction_begin_c1 87
- │   │       └─ OptionalWhitespace 87
- │   ├─ ImplicitAction_content [87..110]
- │   │   └─ ActionLineEnd [87..110]
- │   │       ├─ ActionLineEnd_begin 87
- │   │       │   └─ ActionLineEnd_begin_c1 87
- │   │       │       └─ OptionalWhitespace 87
- │   │       ├─ ActionLineEnd_content [87..110]
- │   │       │   ├─ TextChunk [87..93]
- │   │       │   │   ├─ TextChunk_begin 87
- │   │       │   │   ├─ TextChunk_content [87..93]
- │   │       │   │   │   └─ Word [87..93]: "Before"
- │   │       │   │   └─ TextChunk_end 93
- │   │       │   ├─ BreakLeadingGlue [93..98]
- │   │       │   │   ├─ BreakLeadingGlue_c1 [93..96]
- │   │       │   │   │   └─ Break [93..96]
- │   │       │   │   │       └─ Break_c1 [93..96]: " > "
- │   │       │   │   └─ BreakLeadingGlue_c2 [96..98]
- │   │       │   │       └─ LeadingGlue [96..98]
- │   │       │   │           └─ LeadingGlue_c1 [96..98]: ".."
- │   │       │   ├─ ActionLoadKeyword [98..104]
- │   │       │   │   ├─ ActionLoadKeyword_c1 [98..99]
- │   │       │   │   │   └─ OptionalWhitespace [98..99]: " "
- │   │       │   │   └─ ActionLoadKeyword_c2 [99..104]
- │   │       │   │       └─ DisplayLoadKeyword [99..104]
- │   │       │   │           ├─ DisplayLoadKeyword_c1 [99..103]
- │   │       │   │           │   └─ AssetCommandControl [99..103]: "load"
- │   │       │   │           └─ DisplayLoadKeyword_c2 [103..104]
- │   │       │   │               └─ RequiredWhitespace [103..104]: " "
- │   │       │   └─ TextChunk [104..110]
- │   │       │       ├─ TextChunk_begin 104
- │   │       │       ├─ TextChunk_content [104..110]
+ │   │       ├─ ActionLineEnd_content [75..90]
+ │   │       │   ├─ TextChunk [75..76]
+ │   │       │   │   ├─ TextChunk_begin 75
+ │   │       │   │   ├─ TextChunk_content [75..76]
+ │   │       │   │   │   └─ Word [75..76]: "A"
+ │   │       │   │   └─ TextChunk_end 76
+ │   │       │   ├─ Break [76..79]
+ │   │       │   │   └─ Break_c1 [76..79]: " > "
+ │   │       │   ├─ ActionLoadKeyword [79..84]
+ │   │       │   │   ├─ ActionLoadKeyword_c1 79
+ │   │       │   │   │   └─ OptionalWhitespace 79
+ │   │       │   │   └─ ActionLoadKeyword_c2 [79..84]
+ │   │       │   │       └─ DisplayLoadKeyword [79..84]
+ │   │       │   │           ├─ DisplayLoadKeyword_c1 [79..83]
+ │   │       │   │           │   └─ AssetCommandControl [79..83]: "load"
+ │   │       │   │           └─ DisplayLoadKeyword_c2 [83..84]
+ │   │       │   │               └─ RequiredWhitespace [83..84]: " "
+ │   │       │   └─ TextChunk [84..90]
+ │   │       │       ├─ TextChunk_begin 84
+ │   │       │       ├─ TextChunk_content [84..90]
+ │   │       │       │   └─ Word [84..90]: "forest"
+ │   │       │       └─ TextChunk_end 90
+ │   │       └─ ActionLineEnd_end 90
+ │   └─ ImplicitAction_end 90
+ ├─ Newline [90..91]: "\n"
+ ├─ InlineDialogue [91..110]
+ │   ├─ InlineDialogue_begin [91..99]
+ │   │   ├─ InlineDialogue_begin_c1 [91..93]
+ │   │   │   └─ OptionalWhitespace [91..93]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [93..97]
+ │   │   │   └─ DialogueCharacter [93..97]
+ │   │   │       ├─ DialogueCharacter_c1 93
+ │   │   │       ├─ DialogueCharacter_c2 [93..97]
+ │   │   │       │   └─ DialogueCharacterName [93..97]
+ │   │   │       │       └─ DialogueCharacterName_c1 [93..97]
+ │   │   │       │           └─ Word [93..97]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 97
+ │   │   │       ├─ DialogueCharacter_c4 97
+ │   │   │       ├─ DialogueCharacter_c5 97
+ │   │   │       ├─ DialogueCharacter_c6 97
+ │   │   │       └─ DialogueCharacter_c7 97
+ │   │   ├─ InlineDialogue_begin_c3 [97..98]
+ │   │   │   └─ ColonSeparator [97..98]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [98..99]
+ │   │   │   └─ RequiredWhitespace [98..99]: " "
+ │   │   └─ InlineDialogue_begin_c5 99
+ │   ├─ InlineDialogue_content [99..110]
+ │   │   └─ LineEnd [99..110]
+ │   │       ├─ LineEnd_begin 99
+ │   │       │   └─ LineEnd_begin_c1 99
+ │   │       │       └─ OptionalWhitespace 99
+ │   │       ├─ LineEnd_content [99..110]
+ │   │       │   └─ TextChunk [99..110]
+ │   │       │       ├─ TextChunk_begin 99
+ │   │       │       ├─ TextChunk_content [99..110]
+ │   │       │       │   ├─ Word [99..103]: "load"
+ │   │       │       │   ├─ Space [103..104]: " "
  │   │       │       │   └─ Word [104..110]: "forest"
  │   │       │       └─ TextChunk_end 110
- │   │       └─ ActionLineEnd_end 110
- │   └─ ImplicitAction_end 110
+ │   │       └─ LineEnd_end 110
+ │   └─ InlineDialogue_end 110
  ├─ Newline [110..111]: "\n"
- ├─ ImplicitAction [111..137]
- │   ├─ ImplicitAction_begin 111
- │   │   └─ ImplicitAction_begin_c1 111
- │   │       └─ OptionalWhitespace 111
- │   ├─ ImplicitAction_content [111..137]
- │   │   └─ ActionLineEnd [111..137]
- │   │       ├─ ActionLineEnd_begin 111
- │   │       │   └─ ActionLineEnd_begin_c1 111
- │   │       │       └─ OptionalWhitespace 111
- │   │       ├─ ActionLineEnd_content [111..137]
- │   │       │   ├─ TextChunk [111..120]
- │   │       │   │   ├─ TextChunk_begin 111
- │   │       │   │   ├─ TextChunk_content [111..120]
- │   │       │   │   │   ├─ Word [111..117]: "Before"
- │   │       │   │   │   └─ Glue [117..120]
- │   │       │   │   │       ├─ Glue_c1 [117..118]
- │   │       │   │   │       │   └─ Whitespace [117..118]: " "
- │   │       │   │   │       └─ Glue_c2 [118..120]: ".."
- │   │       │   │   └─ TextChunk_end 120
- │   │       │   ├─ BreakLeadingGlue [120..125]
- │   │       │   │   ├─ BreakLeadingGlue_c1 [120..123]
- │   │       │   │   │   └─ Break [120..123]
- │   │       │   │   │       └─ Break_c1 [120..123]: " > "
- │   │       │   │   └─ BreakLeadingGlue_c2 [123..125]
- │   │       │   │       └─ LeadingGlue [123..125]
- │   │       │   │           └─ LeadingGlue_c1 [123..125]: ".."
- │   │       │   ├─ ActionLoadKeyword [125..131]
- │   │       │   │   ├─ ActionLoadKeyword_c1 [125..126]
- │   │       │   │   │   └─ OptionalWhitespace [125..126]: " "
- │   │       │   │   └─ ActionLoadKeyword_c2 [126..131]
- │   │       │   │       └─ DisplayLoadKeyword [126..131]
- │   │       │   │           ├─ DisplayLoadKeyword_c1 [126..130]
- │   │       │   │           │   └─ AssetCommandControl [126..130]: "load"
- │   │       │   │           └─ DisplayLoadKeyword_c2 [130..131]
- │   │       │   │               └─ RequiredWhitespace [130..131]: " "
- │   │       │   └─ TextChunk [131..137]
- │   │       │       ├─ TextChunk_begin 131
- │   │       │       ├─ TextChunk_content [131..137]
- │   │       │       │   └─ Word [131..137]: "forest"
- │   │       │       └─ TextChunk_end 137
- │   │       └─ ActionLineEnd_end 137
- │   └─ ImplicitAction_end 137
- ├─ Newline [137..138]: "\n"
- └─ BlockAction [138..157]
-     ├─ BlockAction_begin [138..139]
-     │   ├─ BlockAction_begin_c1 138
-     │   │   └─ OptionalWhitespace 138
-     │   ├─ BlockAction_begin_c2 [138..139]
-     │   │   └─ ColonSeparator [138..139]: ":"
-     │   └─ BlockAction_begin_c3 139
-     └─ BlockAction_content [139..157]
-         ├─ Newline [139..140]: "\n"
-         ├─ BlockActionLineContinue [140..156]
-         │   ├─ BlockActionLineContinue_begin [140..144]
-         │   │   ├─ BlockActionLineContinue_begin_c1 [140..142]
-         │   │   │   └─ OptionalWhitespace [140..142]: "  "
-         │   │   └─ BlockActionLineContinue_begin_c2 [142..144]
-         │   │       └─ LeadingGlue [142..144]
-         │   │           └─ LeadingGlue_c1 [142..144]: ".."
-         │   ├─ BlockActionLineContinue_content [144..156]
-         │   │   ├─ ActionLoadKeyword [144..150]
-         │   │   │   ├─ ActionLoadKeyword_c1 [144..145]
-         │   │   │   │   └─ OptionalWhitespace [144..145]: " "
-         │   │   │   └─ ActionLoadKeyword_c2 [145..150]
-         │   │   │       └─ DisplayLoadKeyword [145..150]
-         │   │   │           ├─ DisplayLoadKeyword_c1 [145..149]
-         │   │   │           │   └─ AssetCommandControl [145..149]: "load"
-         │   │   │           └─ DisplayLoadKeyword_c2 [149..150]
-         │   │   │               └─ RequiredWhitespace [149..150]: " "
-         │   │   └─ TextChunk [150..156]
-         │   │       ├─ TextChunk_begin 150
-         │   │       ├─ TextChunk_content [150..156]
-         │   │       │   └─ Word [150..156]: "forest"
-         │   │       └─ TextChunk_end 156
-         │   └─ BlockActionLineContinue_end 156
-         │       └─ BlockActionLineContinue_end_c1 156
-         └─ Newline [156..157]: "\n"
+ ├─ ImplicitAction [111..136]
+ │   ├─ ImplicitAction_begin [111..113]
+ │   │   └─ ImplicitAction_begin_c1 [111..113]
+ │   │       └─ OptionalWhitespace [111..113]: "  "
+ │   ├─ ImplicitAction_content [113..136]
+ │   │   └─ ActionLineEnd [113..136]
+ │   │       ├─ ActionLineEnd_begin 113
+ │   │       │   └─ ActionLineEnd_begin_c1 113
+ │   │       │       └─ OptionalWhitespace 113
+ │   │       ├─ ActionLineEnd_content [113..136]
+ │   │       │   ├─ TextChunk [113..119]
+ │   │       │   │   ├─ TextChunk_begin 113
+ │   │       │   │   ├─ TextChunk_content [113..119]
+ │   │       │   │   │   └─ Word [113..119]: "Before"
+ │   │       │   │   └─ TextChunk_end 119
+ │   │       │   ├─ BreakLeadingGlue [119..124]
+ │   │       │   │   ├─ BreakLeadingGlue_c1 [119..122]
+ │   │       │   │   │   └─ Break [119..122]
+ │   │       │   │   │       └─ Break_c1 [119..122]: " > "
+ │   │       │   │   └─ BreakLeadingGlue_c2 [122..124]
+ │   │       │   │       └─ LeadingGlue [122..124]
+ │   │       │   │           └─ LeadingGlue_c1 [122..124]: ".."
+ │   │       │   ├─ ActionLoadKeyword [124..130]
+ │   │       │   │   ├─ ActionLoadKeyword_c1 [124..125]
+ │   │       │   │   │   └─ OptionalWhitespace [124..125]: " "
+ │   │       │   │   └─ ActionLoadKeyword_c2 [125..130]
+ │   │       │   │       └─ DisplayLoadKeyword [125..130]
+ │   │       │   │           ├─ DisplayLoadKeyword_c1 [125..129]
+ │   │       │   │           │   └─ AssetCommandControl [125..129]: "load"
+ │   │       │   │           └─ DisplayLoadKeyword_c2 [129..130]
+ │   │       │   │               └─ RequiredWhitespace [129..130]: " "
+ │   │       │   └─ TextChunk [130..136]
+ │   │       │       ├─ TextChunk_begin 130
+ │   │       │       ├─ TextChunk_content [130..136]
+ │   │       │       │   └─ Word [130..136]: "forest"
+ │   │       │       └─ TextChunk_end 136
+ │   │       └─ ActionLineEnd_end 136
+ │   └─ ImplicitAction_end 136
+ ├─ Newline [136..137]: "\n"
+ ├─ ImplicitAction [137..165]
+ │   ├─ ImplicitAction_begin [137..139]
+ │   │   └─ ImplicitAction_begin_c1 [137..139]
+ │   │       └─ OptionalWhitespace [137..139]: "  "
+ │   ├─ ImplicitAction_content [139..165]
+ │   │   └─ ActionLineEnd [139..165]
+ │   │       ├─ ActionLineEnd_begin 139
+ │   │       │   └─ ActionLineEnd_begin_c1 139
+ │   │       │       └─ OptionalWhitespace 139
+ │   │       ├─ ActionLineEnd_content [139..165]
+ │   │       │   ├─ TextChunk [139..148]
+ │   │       │   │   ├─ TextChunk_begin 139
+ │   │       │   │   ├─ TextChunk_content [139..148]
+ │   │       │   │   │   ├─ Word [139..145]: "Before"
+ │   │       │   │   │   └─ Glue [145..148]
+ │   │       │   │   │       ├─ Glue_c1 [145..146]
+ │   │       │   │   │       │   └─ Whitespace [145..146]: " "
+ │   │       │   │   │       └─ Glue_c2 [146..148]: ".."
+ │   │       │   │   └─ TextChunk_end 148
+ │   │       │   ├─ BreakLeadingGlue [148..153]
+ │   │       │   │   ├─ BreakLeadingGlue_c1 [148..151]
+ │   │       │   │   │   └─ Break [148..151]
+ │   │       │   │   │       └─ Break_c1 [148..151]: " > "
+ │   │       │   │   └─ BreakLeadingGlue_c2 [151..153]
+ │   │       │   │       └─ LeadingGlue [151..153]
+ │   │       │   │           └─ LeadingGlue_c1 [151..153]: ".."
+ │   │       │   ├─ ActionLoadKeyword [153..159]
+ │   │       │   │   ├─ ActionLoadKeyword_c1 [153..154]
+ │   │       │   │   │   └─ OptionalWhitespace [153..154]: " "
+ │   │       │   │   └─ ActionLoadKeyword_c2 [154..159]
+ │   │       │   │       └─ DisplayLoadKeyword [154..159]
+ │   │       │   │           ├─ DisplayLoadKeyword_c1 [154..158]
+ │   │       │   │           │   └─ AssetCommandControl [154..158]: "load"
+ │   │       │   │           └─ DisplayLoadKeyword_c2 [158..159]
+ │   │       │   │               └─ RequiredWhitespace [158..159]: " "
+ │   │       │   └─ TextChunk [159..165]
+ │   │       │       ├─ TextChunk_begin 159
+ │   │       │       ├─ TextChunk_content [159..165]
+ │   │       │       │   └─ Word [159..165]: "forest"
+ │   │       │       └─ TextChunk_end 165
+ │   │       └─ ActionLineEnd_end 165
+ │   └─ ImplicitAction_end 165
+ ├─ Newline [165..166]: "\n"
+ ├─ BlockAction [166..189]
+ │   ├─ BlockAction_begin [166..169]
+ │   │   ├─ BlockAction_begin_c1 [166..168]
+ │   │   │   └─ OptionalWhitespace [166..168]: "  "
+ │   │   ├─ BlockAction_begin_c2 [168..169]
+ │   │   │   └─ ColonSeparator [168..169]: ":"
+ │   │   └─ BlockAction_begin_c3 169
+ │   ├─ BlockAction_content [169..189]
+ │   │   ├─ Newline [169..170]: "\n"
+ │   │   ├─ BlockActionLineContinue [170..188]
+ │   │   │   ├─ BlockActionLineContinue_begin [170..176]
+ │   │   │   │   ├─ BlockActionLineContinue_begin_c1 [170..174]
+ │   │   │   │   │   └─ OptionalWhitespace [170..174]: "    "
+ │   │   │   │   └─ BlockActionLineContinue_begin_c2 [174..176]
+ │   │   │   │       └─ LeadingGlue [174..176]
+ │   │   │   │           └─ LeadingGlue_c1 [174..176]: ".."
+ │   │   │   ├─ BlockActionLineContinue_content [176..188]
+ │   │   │   │   ├─ ActionLoadKeyword [176..182]
+ │   │   │   │   │   ├─ ActionLoadKeyword_c1 [176..177]
+ │   │   │   │   │   │   └─ OptionalWhitespace [176..177]: " "
+ │   │   │   │   │   └─ ActionLoadKeyword_c2 [177..182]
+ │   │   │   │   │       └─ DisplayLoadKeyword [177..182]
+ │   │   │   │   │           ├─ DisplayLoadKeyword_c1 [177..181]
+ │   │   │   │   │           │   └─ AssetCommandControl [177..181]: "load"
+ │   │   │   │   │           └─ DisplayLoadKeyword_c2 [181..182]
+ │   │   │   │   │               └─ RequiredWhitespace [181..182]: " "
+ │   │   │   │   └─ TextChunk [182..188]
+ │   │   │   │       ├─ TextChunk_begin 182
+ │   │   │   │       ├─ TextChunk_content [182..188]
+ │   │   │   │       │   └─ Word [182..188]: "forest"
+ │   │   │   │       └─ TextChunk_end 188
+ │   │   │   └─ BlockActionLineContinue_end 188
+ │   │   │       └─ BlockActionLineContinue_end_c1 188
+ │   │   └─ Newline [188..189]: "\n"
+ │   └─ BlockAction_end 189
+ ├─ LuauEndKeyword [189..192]: "end"
+ └─ Newline [192..193]: "\n"

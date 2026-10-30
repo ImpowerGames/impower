@@ -1,10 +1,12 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   A .. queue|red # red|white # white|blue # blue|green # green .. sequence.
   & i = i + 1
   if i < 2 then
-    -> start
+    -> again
   end
   fin
 

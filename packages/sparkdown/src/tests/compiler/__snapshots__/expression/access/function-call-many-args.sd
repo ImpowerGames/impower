@@ -1,1 +1,3 @@
-f(a, b, c)
+scene start
+  f(a, b, c)
+end

@@ -73,7 +73,7 @@ function diagnosticsOf(text: string): Found[] {
         type: "script",
         name: "main",
         ext: "sd",
-        text,
+        text: `${text}\nscene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

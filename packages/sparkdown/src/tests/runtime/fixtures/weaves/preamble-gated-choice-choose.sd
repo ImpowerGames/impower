@@ -1,22 +1,24 @@
-choose
-  if true then
-    * Gated
-      choose
-        * Inner
-          Chose inner.
-      end
-      Took gated.
+scene start
+  choose
+    if true then
+      * Gated
+        choose
+          * Inner
+            Chose inner.
+        end
+        Took gated.
+    end
+    do
+      * Held
+        choose
+          * Nested
+        then
+          Then nested.
+        end
+    end
+    * Outer
+      Chose outer.
   end
-  do
-    * Held
-      choose
-        * Nested
-      then
-        Then nested.
-      end
-  end
-  * Outer
-    Chose outer.
+  After.
+  done
 end
-After.
-done

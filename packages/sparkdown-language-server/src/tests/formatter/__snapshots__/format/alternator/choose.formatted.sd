@@ -1,6 +1,8 @@
-choose
-  * Go left.
-  * Go right.
-then
-  N: You chose.
+scene start
+  choose
+    * Go left.
+    * Go right.
+  then
+    N: You chose.
+  end
 end

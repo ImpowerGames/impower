@@ -23,8 +23,10 @@ function run(source: string) {
 
 describe("raised error records", () => {
   test("an error after one pcall trapped is reported with its own record", () => {
-    const { ctx, reports } = run(`& run()
-done
+    const { ctx, reports } = run(`scene start
+  & run()
+  done
+end
 
 function run()
   local ok = pcall(assert, false, "trapped")
@@ -42,7 +44,7 @@ end
   });
 
   test("the error added after a trim takes the trimmed one's record slot", () => {
-    const { ctx } = run(`A\n`);
+    const { ctx } = run(`scene start\n  A\nend\n`);
     const state = ctx.story.state;
     state.AddError("first", false, { message: "first", path: "0.1" });
     state.AddError("second", false, { message: "second", path: "0.2" });

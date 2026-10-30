@@ -11,7 +11,9 @@ const CHAPTER = "file://proj/chapter.sd";
 const NEWLINE = String.fromCharCode(10);
 
 const MAIN_SRC = [
-  "Raffles waits by the door.",
+  "scene start",
+  "  Raffles waits by the door.",
+  "end",
   "",
   "scene A",
   "  He looks around.",
@@ -127,7 +129,7 @@ describe("previous and next beat navigation on the program engine", () => {
     });
     expect(await at(CHAPTER, bunny, -1)).toEqual({ file: CHAPTER, line: 0 });
     expect(await at(MAIN, 0, -1)).toBeNull();
-    expect(await at(MAIN, main("end"), 1)).toBeNull();
+    expect(await at(MAIN, MAIN_SRC.split(NEWLINE).lastIndexOf("end"), 1)).toBeNull();
     expect(await at(MAIN, main("He looks around."), 1000)).toBeNull();
   });
 
@@ -182,20 +184,22 @@ describe("previous and next beat navigation", () => {
       return out;
     };
     expect(await rows(MAIN, MAIN_SRC)).toEqual([
-      [0, 2, null],
-      [1, 2, 0],
-      [2, 3, 0],
-      [3, 6, 2],
-      [4, 6, 3],
-      [5, 6, 3],
-      [6, 9, 3],
-      [7, 9, 6],
-      [8, 9, 6],
-      [9, null, 6],
-      [10, null, 9],
-      [11, null, 9],
-      [12, null, 9],
-      [13, null, 9],
+      [0, 1, null],
+      [1, 4, 0],
+      [2, 4, 1],
+      [3, 4, 1],
+      [4, 5, 1],
+      [5, 8, 4],
+      [6, 8, 5],
+      [7, 8, 5],
+      [8, 11, 5],
+      [9, 11, 8],
+      [10, 11, 8],
+      [11, null, 8],
+      [12, null, 11],
+      [13, null, 11],
+      [14, null, 11],
+      [15, null, 11],
     ]);
     expect(await rows(CHAPTER, CHAPTER_SRC)).toEqual([
       [0, 1, null],
@@ -305,8 +309,7 @@ describe("previous and next beat navigation", () => {
 
   test("stops around tunnels, labels, choices, elseif, else and while", async () => {
     const STOPS = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  Start.",
       "  -> T ->",
       "  After tunnel.",
@@ -339,28 +342,28 @@ describe("previous and next beat navigation", () => {
       "",
     ].join(NEWLINE);
     const expected: [number, number | null, number | null][] = [
-      [2, 4, 1],
-      [3, 4, 2],
-      [4, 6, 2],
-      [5, 6, 4],
-      [6, 9, 4],
-      [7, 9, 6],
-      [8, 9, 6],
-      [9, 11, 6],
-      [10, 11, 9],
-      [11, 14, 9],
-      [14, 15, 11],
-      [15, 17, 14],
-      [16, 17, 15],
-      [17, 19, 15],
-      [18, 19, 17],
-      [19, 22, 17],
-      [20, 22, 19],
-      [21, 22, 19],
-      [22, 23, 19],
+      [1, 3, 0],
+      [2, 3, 1],
+      [3, 5, 1],
+      [4, 5, 3],
+      [5, 8, 3],
+      [6, 8, 5],
+      [7, 8, 5],
+      [8, 10, 5],
+      [9, 10, 8],
+      [10, 13, 8],
+      [13, 14, 10],
+      [14, 16, 13],
+      [15, 16, 14],
+      [16, 18, 14],
+      [17, 18, 16],
+      [18, 21, 16],
+      [19, 21, 18],
+      [20, 21, 18],
+      [21, 22, 18],
+      [27, null, 26],
       [28, null, 27],
-      [29, null, 28],
-      [30, null, 28],
+      [29, null, 27],
     ];
     const program = compile(STOPS, "");
     for (const [line, next, previous] of expected) {
@@ -428,7 +431,7 @@ describe("previous and next beat navigation", () => {
     ].join(NEWLINE);
     const AFTER_LOOP = [
       "store n = 0",
-      "scene main",
+      "scene start",
       "  Start.",
       "  choose",
       "    while n < 1 do",

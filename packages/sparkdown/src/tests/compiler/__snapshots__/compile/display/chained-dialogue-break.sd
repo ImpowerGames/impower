@@ -1,3 +1,5 @@
-RAFFLES:
-  Different rope! >
-  ...I think.
+scene start
+  RAFFLES:
+    Different rope! >
+    ...I think.
+end

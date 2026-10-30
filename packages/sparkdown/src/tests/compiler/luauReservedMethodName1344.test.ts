@@ -18,7 +18,7 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
-const STORY = "After {run()}.\n";
+const STORY = "scene start\n  After {run()}.\nend\n";
 
 /** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters. */
 function sparkdownErrors(text: string): string[] {

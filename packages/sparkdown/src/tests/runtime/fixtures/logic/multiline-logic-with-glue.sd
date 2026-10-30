@@ -1,8 +1,10 @@
-if true then
-  {"a"} ..
+scene start
+  if true then
+    {"a"} ..
+  end
+  .. b
+  if true then
+    {"a"} ..
+  end
+  .. b
 end
-.. b
-if true then
-  {"a"} ..
-end
-.. b

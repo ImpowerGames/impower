@@ -50,8 +50,7 @@ const scene = (
   after: readonly string[] = ["  After."],
 ) =>
   [
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     ...preamble,
     "    * Outer",
@@ -179,8 +178,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
   it("drops a do block's local at its end when a nested do's gated choice is taken", () => {
     const text = [
       "store open = false",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      local open = true",
@@ -221,8 +219,7 @@ describe("a do block of a choose block's preamble that offers choices", () => {
       menus: [["Inner 1", "Outer"], ["Outer"]],
     });
     const single = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      * Inner",
@@ -567,7 +564,7 @@ describe("a loop of a choose block's preamble that offers choices", () => {
     ]);
     const { program } = silence(() => compileScript(text));
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program)).toContainEqual([5, unsupportedConstructMessage("a break or continue inside a choice's body")]);
+    expect(errorsOf(program)).toContainEqual([4, unsupportedConstructMessage("a break or continue inside a choice's body")]);
   });
 
   it("emits the same chunks after an edit inside the loop's body as a cold compile", () => {
@@ -656,8 +653,7 @@ describe("a choose block in the body of a choice of a choose block's preamble", 
 
   it("runs the ticket's script from chunks", () => {
     const text = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      * A",

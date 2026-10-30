@@ -22,7 +22,9 @@ import {
 } from "./runtimeTestHarness";
 import { programListing } from "../programListing";
 
-const storyOpeningWith = (name: string) => `-> ${name}
+const storyOpeningWith = (name: string) => `scene start
+  -> ${name}
+end
 scene ${name}
   Hello from ${name}.
   fin
@@ -99,8 +101,7 @@ describe("targets named after prelude entries that are not runtime globals", () 
   });
 
   test("a scene may still be reached from a later divert, not only the opening one", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> start
-scene start
+    const ctx = makeRuntimeStoryFromSource(`scene start
   First.
   -> main
 
@@ -116,8 +117,7 @@ end
   });
 
   test("a label may take such a name too", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> start
-scene start
+    const ctx = makeRuntimeStoryFromSource(`scene start
   label main
   Hi.
   & i = i + 1
@@ -146,7 +146,7 @@ describe("the markers still make references to the builtins resolve", () => {
   }
 end
 
-scene A
+scene start
   & local ahead = 1 + config.assets.predict_distance
   Hi.
   fin
@@ -168,7 +168,7 @@ end
   }
 end
 
-scene A
+scene start
   Hi.
   fin
 
@@ -191,8 +191,7 @@ describe("an authored define may take a builtin's name in an unseeded compile", 
   loading = { percent = 5 }
 end
 
--> A
-scene A
+scene start
   {game.loading.percent}
   fin
 
@@ -210,8 +209,7 @@ end
   value = "rgb(1,2,3)"
 end
 
--> A
-scene A
+scene start
   Hi.
   fin
 
@@ -239,7 +237,6 @@ define alice as character with
   name = "Alice"
 end
 
--> start
 scene start
   choose
     * A
@@ -276,24 +273,23 @@ describe("scenes and functions named after real builtin globals", () => {
     expect(collisionsOf(program)).toEqual([
       {
         message: SCENE_MESSAGE("game"),
-        start: { line: 1, character: 6 },
-        end: { line: 1, character: 10 },
+        start: { line: 3, character: 6 },
+        end: { line: 3, character: 10 },
       },
       {
         message: DIVERT_MESSAGE("game"),
-        start: { line: 0, character: 3 },
-        end: { line: 0, character: 7 },
+        start: { line: 1, character: 5 },
+        end: { line: 1, character: 9 },
       },
     ]);
   });
 
   test("a function's report covers its name, not its body", () => {
-    const program = compileUnseeded(`-> A
-function game()
+    const program = compileUnseeded(`function game()
   local x = 1
   return x
 end
-scene A
+scene start
   Hi.
   fin
 
@@ -305,14 +301,16 @@ end
         .map((c) => [c.start, c.end]),
     ).toEqual([
       [
-        { line: 1, character: 9 },
-        { line: 1, character: 13 },
+        { line: 0, character: 9 },
+        { line: 0, character: 13 },
       ],
     ]);
   });
 
   test("both of two scenes sharing a builtin's name are reported", () => {
-    const program = compileUnseeded(`-> game
+    const program = compileUnseeded(`scene start
+  -> game
+end
 scene game
   A.
   fin
@@ -328,7 +326,7 @@ end
       collisionsOf(program)
         .filter((c) => c.message === SCENE_MESSAGE("game"))
         .map((c) => c.start.line),
-    ).toEqual([1, 6]);
+    ).toEqual([3, 8]);
   });
 
   test("a scene still named after a builtin global is reported when an authored define took the marker's slot", () => {
@@ -336,7 +334,9 @@ end
   loading = { percent = 5 }
 end
 
--> game
+scene start
+  -> game
+end
 scene game
   Hi.
   fin
@@ -350,7 +350,7 @@ end
   });
 
   test("a scene with an unrelated name draws no such diagnostic", () => {
-    const { errorMessages } = collectDiagnostics(storyOpeningWith("start"));
+    const { errorMessages } = collectDiagnostics(storyOpeningWith("intro"));
     expect(errorMessages).toEqual([]);
   });
 });
@@ -362,8 +362,7 @@ describe("diverts captured by a builtin global", () => {
   // `-> name`, which binds to the global's table; that divert is reported,
   // on the name it uses.
   test("a bare divert to a label named after a builtin global is reported at the divert", () => {
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   label game
   Hi.
   -> game
@@ -373,8 +372,8 @@ end
     expect(collisionsOf(program)).toEqual([
       {
         message: DIVERT_MESSAGE("game"),
-        start: { line: 4, character: 5 },
-        end: { line: 4, character: 9 },
+        start: { line: 3, character: 5 },
+        end: { line: 3, character: 9 },
       },
     ]);
   });
@@ -384,7 +383,6 @@ end
   loading = { percent = 5 }
 end
 
--> start
 scene start
   Hi.
   -> game
@@ -397,14 +395,16 @@ end
     expect(collisionsOf(program)).toEqual([
       {
         message: DIVERT_MESSAGE("game"),
-        start: { line: 7, character: 5 },
-        end: { line: 7, character: 9 },
+        start: { line: 6, character: 5 },
+        end: { line: 6, character: 9 },
       },
     ]);
   });
 
   test("a label that is only a gather anchor draws no diagnostic", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> s
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> s
+end
 scene s
   Before.
   label world
@@ -418,7 +418,9 @@ end
   });
 
   test("a branch reached by its qualified path draws no diagnostic", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> s.world
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> s.world
+end
 scene s
   branch world
     Nested.
@@ -431,8 +433,7 @@ end
   });
 
   test("the report sits on the divert's target, not on the same word earlier in the line", () => {
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   choose
     + Play game -> game
   end
@@ -441,30 +442,28 @@ end
 `);
     expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
       [
-        { line: 3, character: 19 },
-        { line: 3, character: 23 },
+        { line: 2, character: 19 },
+        { line: 2, character: 23 },
       ],
     ]);
   });
 
   test("a call-form divert (`-> game(5)`) is reported on its target", () => {
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   -> game(5)
 
 end
 `);
     expect(collisionsOf(program).map((c) => [c.start, c.end])).toEqual([
       [
-        { line: 2, character: 5 },
-        { line: 2, character: 9 },
+        { line: 1, character: 5 },
+        { line: 1, character: 9 },
       ],
     ]);
   });
 
   test("two diverts to the same builtin global on one line are both reported", () => {
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   -> game -> game
 
 end
@@ -475,8 +474,7 @@ end
   test("a Luau call to a builtin global's name is not a divert and draws no divert report", () => {
     // `color("red")` lowers to a divert too, but it names no scene, branch,
     // or label; whatever it does at runtime is not this report's subject.
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   & local c = color("red")
   Hi.
   fin
@@ -489,8 +487,7 @@ end
   // A scene with no lines of its own falls through into its first branch
   // with its parameters bound in its scope.
   test("a parameter of an enclosing scene used from the branch it falls into is a warning, and the story runs", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> start
-scene start
+    const ctx = makeRuntimeStoryFromSource(`scene start
   -> go(-> there)
 
 end
@@ -513,7 +510,9 @@ end
   test("a local declared in a sibling branch of the same scene leaves the report an error", () => {
     // A branch's locals are the branch's, and a divert into `two` opens its
     // scopes fresh, so `one`'s local is never in scope at the divert.
-    const program = compileUnseeded(`-> s
+    const program = compileUnseeded(`scene start
+  -> s
+end
 scene s
   -> s.one
   branch one
@@ -533,7 +532,7 @@ end
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)));
     expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
-      [1, { line: 8, character: 7 }],
+      [1, { line: 10, character: 7 }],
     ]);
     expect(String(reports[0].message?.value)).toBe(DIVERT_MESSAGE("game"));
   });
@@ -542,7 +541,9 @@ end
     // The divert always runs before the declaration, so the story dies; the
     // compile cannot see order, but it can see that the name is declared
     // rather than absent, and says so at warning level.
-    const program = compileUnseeded(`-> s
+    const program = compileUnseeded(`scene start
+  -> s
+end
 scene s
   -> game
   & local game = -> there
@@ -558,7 +559,7 @@ end
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) => /builtin global/.test(String(d.message?.value ?? d.message)));
     expect(reports.map((d) => [d.severity, d.range.start])).toEqual([
-      [2, { line: 2, character: 5 }],
+      [2, { line: 4, character: 5 }],
     ]);
   });
 
@@ -566,7 +567,9 @@ end
   // a divert into the branch opens the scene's scope fresh, so the scene's
   // local is never in scope at the divert.
   test("a local of an enclosing scene used from its branch leaves the report an error", () => {
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   & local game = -> there
   -> s.inner
@@ -593,8 +596,7 @@ end
     // scene and behaves the same way. (The divert-target literal keeps this
     // story from serializing, which is #457 and independent of the report;
     // the diagnostics come first.)
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   & outer()
   fin
 
@@ -622,8 +624,7 @@ end
     // error. (The divert-target literal keeps this story from serializing,
     // which is #457 and independent of the report; the diagnostics come
     // first.)
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   & outer()
   fin
 
@@ -646,8 +647,7 @@ end
   });
 
   test("a dotted divert target in an expression keeps its segments in source order", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> start
-scene start
+    const ctx = makeRuntimeStoryFromSource(`scene start
   & local f = -> there.inner
   -> f
 
@@ -666,7 +666,9 @@ end
   test("an assignment to the builtin's name in the flow is a warning, and the story runs", () => {
     // `& game = -> there` binds the divert at runtime; the report cannot
     // know whether it ran first, so it warns rather than errs.
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   & game = -> there
   -> game
@@ -687,7 +689,9 @@ end
   test("an assignment to the builtin's name in another scene is a warning, and the story runs", () => {
     // A plain assignment writes the global, which every flow reads, so the
     // scene holding the write does not matter.
-    const ctx = makeRuntimeStoryFromSource(`-> s
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> s
+end
 scene s
   & game = -> there
   -> t
@@ -711,7 +715,9 @@ end
   test("an assignment to the builtin's name inside a closure is a warning, and the story runs", () => {
     // The closure is hoisted out of the scene, but its write is to the
     // global all the same.
-    const ctx = makeRuntimeStoryFromSource(`-> s
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> s
+end
 scene s
   & local f = function()
       game = -> there
@@ -734,7 +740,9 @@ end
   test("an assignment to a parameter of the builtin's name elsewhere does not soften the report", () => {
     // `game = 1` inside `pick(game)` writes the parameter, not the global,
     // so nothing binds the scene's divert and the report stays an error.
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   -> game
 
@@ -764,7 +772,9 @@ end
   test("a nested local function named after the builtin does not soften the report", () => {
     // `local function color()` inside `outer` declares a local of `outer`,
     // which its definition writes, not the global.
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   -> color
 
@@ -790,7 +800,9 @@ end
     // `function color()` inside `outer` is `color = function() ... end`,
     // as Luau's is (I-1422): with no local `color` in scope it writes the
     // global, as an assignment to the name does.
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   -> color
 
@@ -816,7 +828,9 @@ end
     // Capturing `game` as an upvalue plants a pointer to it in the scene,
     // which is a read, not a binding: the divert still fails, and the
     // report stays an error.
-    const source = `-> s
+    const source = `scene start
+  -> s
+end
 scene s
   & local f = function()
       local q = game
@@ -845,8 +859,7 @@ end
   });
 
   test("`target not found` covers the whole path now that its identifiers carry positions", () => {
-    const program = compileUnseeded(`-> start
-scene start
+    const program = compileUnseeded(`scene start
   -> start.nowhere
 
 end
@@ -857,8 +870,8 @@ end
       .map((d: any) => [d.range.start, d.range.end]);
     expect(notFound).toEqual([
       [
-        { line: 2, character: 5 },
-        { line: 2, character: 18 },
+        { line: 1, character: 5 },
+        { line: 1, character: 18 },
       ],
     ]);
   });
@@ -866,8 +879,7 @@ end
   test("a parameter of the divert's own flow is a warning, and the story runs when entered at the head", () => {
     // A parameter is bound at the flow's head, not when the flow is entered
     // at a label, so even this shape is reported, at warning level.
-    const ctx = makeRuntimeStoryFromSource(`-> start
-scene start
+    const ctx = makeRuntimeStoryFromSource(`scene start
   -> go(-> there)
 
 end
@@ -888,21 +900,19 @@ end
 
   test("the report follows range edits on one compiler", () => {
     const compiler = new SparkdownCompiler();
-    compiler.configure({ files: [scriptFile(storyOpeningWith("start"), 1)] });
+    compiler.configure({ files: [scriptFile(storyOpeningWith("intro"), 1)] });
     expect(
       collisionsOf(compiler.compile({ textDocument: { uri: URI } }).program),
     ).toEqual([]);
-    // `start` → `game` on the divert line and the scene line, as two range
-    // edits, so the rest of the document is carried forward.
     compiler.updateDocument({
       textDocument: { uri: URI, version: 2 },
       contentChanges: [
         {
-          range: { start: { line: 0, character: 3 }, end: { line: 0, character: 8 } },
+          range: { start: { line: 1, character: 5 }, end: { line: 1, character: 10 } },
           text: "game",
         },
         {
-          range: { start: { line: 1, character: 6 }, end: { line: 1, character: 11 } },
+          range: { start: { line: 3, character: 6 }, end: { line: 3, character: 11 } },
           text: "game",
         },
       ],
@@ -916,12 +926,12 @@ end
       textDocument: { uri: URI, version: 3 },
       contentChanges: [
         {
-          range: { start: { line: 0, character: 3 }, end: { line: 0, character: 7 } },
-          text: "start",
+          range: { start: { line: 1, character: 5 }, end: { line: 1, character: 9 } },
+          text: "intro",
         },
         {
-          range: { start: { line: 1, character: 6 }, end: { line: 1, character: 10 } },
-          text: "start",
+          range: { start: { line: 3, character: 6 }, end: { line: 3, character: 10 } },
+          text: "intro",
         },
       ],
     });
@@ -937,7 +947,6 @@ end
   // elsewhere in the story changes nothing about it.
   test("a nested function's write to a captured local of the name leaves the report an error", () => {
     const program = compileUnseeded(`function f() return 7 end
-& f = function() return 2 end
 function swap()
   local game = 1
   function h(...)
@@ -945,8 +954,11 @@ function swap()
   end
   h()
 end
-& swap()
--> game
+scene start
+  & f = function() return 2 end
+  & swap()
+  -> game
+end
 `);
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) =>
@@ -970,8 +982,10 @@ end
   end
   g()
 end
-& swap()
--> game
+scene start
+  & swap()
+  -> game
+end
 `);
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) =>
@@ -989,8 +1003,10 @@ end
   end
   h()
 end
-& swap()
--> game
+scene start
+  & swap()
+  -> game
+end
 `);
     const all: any[] = Object.values(program.diagnostics ?? {}).flat();
     const reports = all.filter((d) =>

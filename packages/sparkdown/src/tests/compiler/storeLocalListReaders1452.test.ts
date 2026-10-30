@@ -209,7 +209,7 @@ describe("a report in a declaration's span that is no report of its errors", () 
   // only at a declaration with none; one that stopped at another still
   // leaves this declaration's errors reported.
   test("a compile stopped at another store", () => {
-    const text = "store a = 1 // note\nstore b = 1 2\n";
+    const text = `store a = 1 // note\nstore b = 1 2\n${SCENE}`;
     const all = errorsOf(newCompiler(text).compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? [], true);
     expect(all.some((e) => e.startsWith("0:0-") && e.includes("The compile stopped")), "the compile stopped at the first store").toBe(true);
     expect(sparkdownErrors(text)).toEqual(official("local a = 1 // note\nlocal b = 1 2\n"));

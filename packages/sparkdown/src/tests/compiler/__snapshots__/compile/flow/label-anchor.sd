@@ -1,1 +1,3 @@
-label afterEnding
+scene start
+  label afterEnding
+end

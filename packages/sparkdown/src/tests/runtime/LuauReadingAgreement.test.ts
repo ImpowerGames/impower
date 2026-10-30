@@ -16,9 +16,9 @@ function run(source: string) {
 describe("a return list continued on the next line", () => {
   test("returns every value, as Luau reads it", () => {
     const { errors, text } = run(
-      "Value {g()}.\n" +
-        "function f()\n  local a, b = 1, 2\n  return a,\n    b\nend\n" +
-        "function g()\n  local x, y = f()\n  return tostring(x) .. tostring(y)\nend\n",
+      "function f()\n  local a, b = 1, 2\n  return a,\n    b\nend\n" +
+        "function g()\n  local x, y = f()\n  return tostring(x) .. tostring(y)\nend\n" +
+        "scene start\n  Value {g()}.\nend\n",
     );
     expect(errors).toEqual([]);
     expect(text).toBe("Value 12.\n");

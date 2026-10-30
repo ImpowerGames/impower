@@ -18,6 +18,8 @@ function structOf(source: string, type: StructType, name: string): any {
 
 const URI = "file:///main.sd";
 
+const NO_START = "no scene named start; the story starts in a scene named start";
+
 interface Found {
   message: string;
   severity: number | undefined;
@@ -44,7 +46,7 @@ function diagnosticsOf(text: string): Found[] {
   } as any);
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const lines = text.split("\n");
-  return (program.diagnostics?.[URI] ?? []).map((d) => {
+  return (program.diagnostics?.[URI] ?? []).filter((d) => (typeof d.message === "string" ? d.message : d.message.value) !== NO_START).map((d) => {
     const { start, end } = d.range;
     return {
       message: typeof d.message === "string" ? d.message : d.message.value,

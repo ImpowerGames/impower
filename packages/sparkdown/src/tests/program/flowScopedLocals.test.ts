@@ -44,8 +44,7 @@ describe("a scene's local", () => {
   test("is nil in another scene", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  In S {a}.",
         "  -> T",
@@ -61,7 +60,9 @@ describe("a scene's local", () => {
     expect(
       run([
         "store passes = 0",
-        "-> S",
+        "scene start",
+        "  -> S",
+        "end",
         "scene S",
         "  Seen {tostring(a)}.",
         "  local a = 1",
@@ -77,8 +78,7 @@ describe("a scene's local", () => {
   test("keeps its value across a jump to a label of the scene", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 0",
         "  label top",
         "  & a = a + 1",
@@ -94,14 +94,13 @@ describe("a scene's local", () => {
   test("is nil in a branch of the scene a divert from another scene enters", () => {
     expect(
       run([
-        "-> T",
         "scene S",
         "  local a = 1",
         "  branch B",
         "    In B {tostring(a)}.",
         "  end",
         "end",
-        "scene T",
+        "scene start",
         "  local a = 2",
         "  -> S.B",
         "end",
@@ -112,8 +111,7 @@ describe("a scene's local", () => {
   test("is nil in a branch of the scene a divert from the scene enters", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  -> B",
         "  branch B",
@@ -128,7 +126,7 @@ describe("a scene's local", () => {
 describe("a scene a host evaluates", () => {
   test("keeps its locals out of the scene it diverts to", () => {
     const story = new ProgramStory(
-      rootOf(["scene A", "  local value = 12", "  -> B", "end", "scene B", "  Other {tostring(value)}.", "end"]),
+      rootOf(["scene start", "end", "scene A", "  local value = 12", "  -> B", "end", "scene B", "  Other {tostring(value)}.", "end"]),
     );
     const result = quiet(() => story.EvaluateFunction("A", [], true)) as { output: string };
     expect(result.output.trim()).toBe("Other nil.");
@@ -138,7 +136,7 @@ describe("a scene a host evaluates", () => {
 describe("a branch the scene falls into", () => {
   test("reads the scene's parameter, a local of the scene's scope", () => {
     expect(
-      run(["-> S(5)", "scene S(x)", "  branch B", "    In B {tostring(x)}.", "  end", "end"]),
+      run(["scene start", "  -> S(5)", "end", "scene S(x)", "  branch B", "    In B {tostring(x)}.", "  end", "end"]),
     ).toEqual(got("In B 5."));
   });
 });
@@ -147,8 +145,7 @@ describe("a closure written in the scene", () => {
   test("reads and writes the scene's local", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  local get = function() return a end",
         "  local set = function(v) a = v end",
@@ -162,8 +159,7 @@ describe("a closure written in the scene", () => {
   test("written as a local function reads and writes the scene's local", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  local function bump()",
         "    a = a + 1",
@@ -178,8 +174,7 @@ describe("a closure written in the scene", () => {
   test("reads a scene's local named like a scene, not that scene's visit count", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local T = 5",
         "  local get = function() return T end",
         "  local function peek() return T end",
@@ -195,8 +190,7 @@ describe("a closure written in the scene", () => {
   test("calls an attributed local function of the scene named like a stdlib namespace", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  @native local function math() return 7 end",
         "  local f = function() return math() end",
         "  Got {f()} {math()}.",
@@ -209,8 +203,7 @@ describe("a closure written in the scene", () => {
     expect(
       run([
         "store keep = nil",
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 4",
         "  & keep = function() return a end",
         "  -> T",
@@ -236,8 +229,7 @@ describe("a function and a define's method written at the top level", () => {
         "    return tostring(a)",
         "  end",
         "end",
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  Got {get()} {thing.read()} {a}.",
         "end",
@@ -250,8 +242,7 @@ describe("a tunnel and a thread", () => {
   test("a tunnel returned from leaves the scene's locals as they were", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  -> T ->",
         "  After {a}.",
@@ -269,8 +260,7 @@ describe("a tunnel and a thread", () => {
   test("a thread does not see the spawning scene's locals", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 1",
         "  <- T",
         "  After {a}.",
@@ -298,8 +288,7 @@ describe("a save", () => {
   test("written inside a scene round-trips its locals", () => {
     expect(
       roundTrip([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local a = 3",
         "  local f = function() return a end",
         "  First {a}.",
@@ -313,7 +302,9 @@ describe("a save", () => {
   test("written inside a branch round-trips the scene's and the branch's locals", () => {
     expect(
       roundTrip([
-        "-> S(2)",
+        "scene start",
+        "  -> S(2)",
+        "end",
         "scene S(x)",
         "  branch B",
         "    local b = x * 10",

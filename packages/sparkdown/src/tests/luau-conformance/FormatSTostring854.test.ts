@@ -14,7 +14,9 @@ describe("string.format `%s` and `__tostring`", () => {
   test("the ticket's story prints the metamethod's result", () => {
     const ctx = makeRuntimeStoryFromSource(
       `function run() local t = setmetatable({}, { __tostring = function() return "T" end }) return string.format("%s", t) end
-Got {run()}.
+scene start
+  Got {run()}.
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);

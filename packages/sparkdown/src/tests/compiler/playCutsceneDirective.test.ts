@@ -53,6 +53,8 @@ function diagnosticsFor(source: string): string[] {
   return out;
 }
 
+const inScene = (line: string) => `scene start\n  ${line}\nend\n`;
+
 function referencesFor(source: string, text: string) {
   const reg = new SparkdownDocumentRegistry(["references"]);
   const uri = "file:///ref.sd";
@@ -79,17 +81,17 @@ describe("[[play NAME]] validation", () => {
     "[[play intro with fade]]",
     "[[play intro loop mute with fade]]",
   ])("%s with a video name produces no diagnostics", (line) => {
-    expect(diagnosticsFor(`${line}\n`)).toEqual([]);
+    expect(diagnosticsFor(inScene(line))).toEqual([]);
   });
 
   test("an image name is reported as a video that cannot be found", () => {
-    const diags = diagnosticsFor(`[[play bunny]]\n`);
+    const diags = diagnosticsFor(inScene("[[play bunny]]"));
     expect(diags).toContain("Cannot find video named `bunny`");
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(false);
   });
 
   test("an unknown name is reported as a video that cannot be found", () => {
-    expect(diagnosticsFor(`[[play ghost]]\n`)).toContain(
+    expect(diagnosticsFor(inScene("[[play ghost]]"))).toContain(
       "Cannot find video named `ghost`",
     );
   });
@@ -104,7 +106,7 @@ describe("[[play NAME]] validation", () => {
   ])(
     "%s names more than one video and is reported",
     (line) => {
-      const diags = diagnosticsFor(`${line}\n`);
+      const diags = diagnosticsFor(inScene(line));
       expect(diags.some((m) => m.startsWith("`play` takes one video name"))).toBe(true);
       // The extra name is not also resolved as an image.
       expect(diags.some((m) => m.includes("Cannot find image"))).toBe(false);
@@ -112,12 +114,12 @@ describe("[[play NAME]] validation", () => {
   );
 
   test("a `play` with no name is reported", () => {
-    const diags = diagnosticsFor(`[[play]]\n`);
+    const diags = diagnosticsFor(inScene("[[play]]"));
     expect(diags.some((m) => m.startsWith("`play` takes one video name"))).toBe(true);
   });
 
   test("((play CHANNEL NAME)) stays the audio verb", () => {
-    expect(diagnosticsFor(`((play music theme))\n`)).toEqual([]);
+    expect(diagnosticsFor(inScene("((play music theme))"))).toEqual([]);
   });
 });
 

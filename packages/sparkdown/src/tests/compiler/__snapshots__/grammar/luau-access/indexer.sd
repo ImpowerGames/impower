@@ -1,1 +1,3 @@
-& v = opts[key]
+scene start
+  & v = opts[key]
+end

@@ -24,13 +24,13 @@ describe("bounded explicit blocks report missing closers without taking later st
     ["do repeat", ["`do` block", "`repeat` loop"]],
     ["do for i = 1, 2 do while false do end", ["`do` block", "`for` loop"]],
   ] as const)("%s", async (body, labels) => {
-    const source = `& ${body}\nreturn to the village\n`;
+    const source = `scene start\n  & ${body}\n  return to the village\nend\n`;
     const errors = diagnostics(source).filter((d) => d.severity === 1);
     expect(errors.map(messageOf).sort()).toEqual(labels.map((label) => missing(label, label === "`repeat` loop" ? "until" : "end")).sort());
     for (const error of errors) {
       const label = labels.find((label) => messageOf(error) === missing(label, label === "`repeat` loop" ? "until" : "end"))!;
       const keyword = label.split("`")[1]!;
-      expect(error.range).toEqual({ start: { line: 0, character: 2 + body.indexOf(keyword) }, end: { line: 0, character: 2 + body.length } });
+      expect(error.range).toEqual({ start: { line: 1, character: 4 + body.indexOf(keyword) }, end: { line: 1, character: 4 + body.length } });
     }
     expect(treeScopeStackAt(parseSource(source), source.indexOf("return to"))).toContain("string.display.text.chunk.sd");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
@@ -57,7 +57,7 @@ describe("nested markers remain inside their bounded conditional", () => {
     ["for i = 1, 2 do & x += i end", 3],
     ["while x < 2 do & x += 1 end", 2],
   ] as const)("%s", async (body, value) => {
-    const source = `store x = 0\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\n`;
+    const source = `store x = 0\nscene start\n  & do ${body} end\n  return to the village\n  Value {x}.\n  done\nend\n`;
     const tree = parseSource(source);
     expect(tree.toString()).not.toContain("ERROR_INCOMPLETE");
     const nestedMarker = source.indexOf("& x");
@@ -90,7 +90,7 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test.each(["scene", "branch", "scene\n    + 1"])("a function parenthetical preserves the identifier %s", async (expression) => {
-    const source = `Value {f(4, 5)}.\nfunction f(scene, branch)\n  return (\n    ${expression}\n  )\nend\n`;
+    const source = `function f(scene, branch)\n  return (\n    ${expression}\n  )\nend\nscene start\n  Value {f(4, 5)}.\nend\n`;
     // These names are reserved by Sparkdown's argument validator, but their
     // parenthesized Luau token ownership must not turn into a story header.
     expect(diagnostics(source).map(messageOf).filter((m) => m.includes("missing its closing") || m.includes("Branches are only"))).toEqual([]);
@@ -104,7 +104,7 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     ["if\n    scene then 1 else 2", "2"],
     ["if\n    branch then 1 else 2", "2"],
   ])("a function parenthetical preserves the name before a reserved word in %s", async (expression, value) => {
-    const source = `Value {f()}.\nfunction f()\n  return (${expression.startsWith("if") ? "" : "\n    "}${expression}\n  )\nend\n`;
+    const source = `function f()\n  return (${expression.startsWith("if") ? "" : "\n    "}${expression}\n  )\nend\nscene start\n  Value {f()}.\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
@@ -117,14 +117,14 @@ describe("unfinished bounded headers yield scene and branch ownership", () => {
     ["-- scene Next\n    sceneValue", "4"],
     ["[[scene Next\nbranch Next]]", "scene Next\nbranch Next"],
   ])("a function parenthetical preserves protected content %s", async (expression, value) => {
-    const source = `Value {f(4, 5)}.\nfunction f(sceneValue, branchValue)\n  return (\n    ${expression}\n  )\nend\n`;
+    const source = `function f(sceneValue, branchValue)\n  return (\n    ${expression}\n  )\nend\nscene start\n  Value {f(4, 5)}.\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a real function's return preserves its multiline parenthetical", async () => {
-    const source = `Value {f()}.\nfunction f()\n  return (\n    5\n  )\nend\n`;
+    const source = `function f()\n  return (\n    5\n  )\nend\nscene start\n  Value {f()}.\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");

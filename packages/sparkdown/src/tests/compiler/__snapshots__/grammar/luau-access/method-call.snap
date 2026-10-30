@@ -1,74 +1,91 @@
-sparkdown [0..24]
- └─ LuauSparkdownExplicitStatement [0..24]
-     ├─ LuauSparkdownExplicitStatement_begin [0..2]
-     │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
-     │   │   └─ OptionalWhitespace 0
-     │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
-     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
-     │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
-     │       └─ RequiredWhitespace [1..2]: " "
-     ├─ LuauSparkdownExplicitStatement_content [2..24]
-     │   ├─ LuauSparkdownExplicitAccessPath [2..4]
-     │   │   ├─ LuauSparkdownExplicitAccessPath_begin 2
-     │   │   ├─ LuauSparkdownExplicitAccessPath_content [2..3]
-     │   │   │   └─ LuauSparkdownExplicitAccessPart [2..3]
-     │   │   │       └─ LuauVariable [2..3]
-     │   │   │           └─ LuauVariable_c1 [2..3]
-     │   │   │               └─ LuauVariableName [2..3]: "v"
-     │   │   └─ LuauSparkdownExplicitAccessPath_end [3..4]
-     │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
-     │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [3..4]
-     │   │               └─ OptionalWhitespace [3..4]: " "
-     │   └─ LuauSparkdownExplicitAssignmentOperation [4..24]
-     │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 4
-     │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 4
-     │       │       └─ OptionalWhitespace 4
-     │       ├─ LuauSparkdownExplicitAssignmentOperation_content [4..24]
-     │       │   ├─ LuauAssignmentOperator [4..6]
-     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
-     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
-     │       │   │   │   │   └─ OptionalWhitespace 4
-     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
-     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
-     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
-     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
-     │       │   │   └─ LuauAssignmentOperator_end 6
-     │       │   ├─ LuauSparkdownExplicitAccessPath [6..15]
-     │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 6
-     │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [6..15]
-     │       │   │   │   ├─ LuauSparkdownExplicitAccessPart [6..9]
-     │       │   │   │   │   └─ LuauVariable [6..9]
-     │       │   │   │   │       └─ LuauVariable_c1 [6..9]
-     │       │   │   │   │           └─ LuauVariableName [6..9]: "obj"
-     │       │   │   │   └─ LuauSparkdownExplicitAccessPart [9..15]
-     │       │   │   │       └─ LuauFunctionAccessor [9..15]
-     │       │   │   │           ├─ LuauFunctionAccessor_c1 9
-     │       │   │   │           ├─ LuauFunctionAccessor_c2 [9..10]
-     │       │   │   │           │   └─ LuauAccessorOperator [9..10]: ":"
-     │       │   │   │           ├─ LuauFunctionAccessor_c3 10
-     │       │   │   │           ├─ LuauFunctionAccessor_c4 [10..15]
-     │       │   │   │           │   └─ LuauFunctionName [10..15]: "greet"
-     │       │   │   │           └─ LuauFunctionAccessor_c5 15
-     │       │   │   └─ LuauSparkdownExplicitAccessPath_end 15
-     │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 15
-     │       │   └─ LuauParenthetical [15..24]
-     │       │       ├─ LuauParenthetical_begin [15..16]
-     │       │       │   └─ LuauParenthetical_begin_c1 [15..16]
-     │       │       │       └─ PunctuationParenOpen [15..16]: "("
-     │       │       ├─ LuauParenthetical_content [16..23]
-     │       │       │   └─ LuauDoubleQuotedString [16..23]
-     │       │       │       ├─ LuauDoubleQuotedString_begin [16..17]
-     │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [16..17]
-     │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [16..17]: "\""
-     │       │       │       ├─ LuauDoubleQuotedString_content [17..22]
-     │       │       │       │   └─ Word [17..22]: "hello"
-     │       │       │       └─ LuauDoubleQuotedString_end [22..23]
-     │       │       │           ├─ LuauDoubleQuotedString_end_c1 [22..23]
-     │       │       │           │   └─ PunctuationStringDoubleQuoteClose [22..23]: "\""
-     │       │       │           └─ LuauDoubleQuotedString_end_c2 23
-     │       │       └─ LuauParenthetical_end [23..24]
-     │       │           ├─ LuauParenthetical_end_c1 [23..24]
-     │       │           │   └─ PunctuationParenClose [23..24]: ")"
-     │       │           └─ LuauParenthetical_end_c2 24
-     │       └─ LuauSparkdownExplicitAssignmentOperation_end 24
-     └─ LuauSparkdownExplicitStatement_end 24
+sparkdown [0..42]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownExplicitStatement [12..38]
+ │   ├─ LuauSparkdownExplicitStatement_begin [12..16]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [14..15]
+ │   │   │   └─ LuauExplicitStatementMark [14..15]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [15..16]
+ │   │       └─ RequiredWhitespace [15..16]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [16..38]
+ │   │   ├─ LuauSparkdownExplicitAccessPath [16..18]
+ │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 16
+ │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [16..17]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPart [16..17]
+ │   │   │   │       └─ LuauVariable [16..17]
+ │   │   │   │           └─ LuauVariable_c1 [16..17]
+ │   │   │   │               └─ LuauVariableName [16..17]: "v"
+ │   │   │   └─ LuauSparkdownExplicitAccessPath_end [17..18]
+ │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 [17..18]
+ │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 [17..18]
+ │   │   │               └─ OptionalWhitespace [17..18]: " "
+ │   │   └─ LuauSparkdownExplicitAssignmentOperation [18..38]
+ │   │       ├─ LuauSparkdownExplicitAssignmentOperation_begin 18
+ │   │       │   └─ LuauSparkdownExplicitAssignmentOperation_begin_c1 18
+ │   │       │       └─ OptionalWhitespace 18
+ │   │       ├─ LuauSparkdownExplicitAssignmentOperation_content [18..38]
+ │   │       │   ├─ LuauAssignmentOperator [18..20]
+ │   │       │   │   ├─ LuauAssignmentOperator_begin [18..20]
+ │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 18
+ │   │       │   │   │   │   └─ OptionalWhitespace 18
+ │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [18..19]: "="
+ │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [19..20]
+ │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [19..20]
+ │   │       │   │   │           └─ OptionalWhitespace [19..20]: " "
+ │   │       │   │   └─ LuauAssignmentOperator_end 20
+ │   │       │   ├─ LuauSparkdownExplicitAccessPath [20..29]
+ │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_begin 20
+ │   │       │   │   ├─ LuauSparkdownExplicitAccessPath_content [20..29]
+ │   │       │   │   │   ├─ LuauSparkdownExplicitAccessPart [20..23]
+ │   │       │   │   │   │   └─ LuauVariable [20..23]
+ │   │       │   │   │   │       └─ LuauVariable_c1 [20..23]
+ │   │       │   │   │   │           └─ LuauVariableName [20..23]: "obj"
+ │   │       │   │   │   └─ LuauSparkdownExplicitAccessPart [23..29]
+ │   │       │   │   │       └─ LuauFunctionAccessor [23..29]
+ │   │       │   │   │           ├─ LuauFunctionAccessor_c1 23
+ │   │       │   │   │           ├─ LuauFunctionAccessor_c2 [23..24]
+ │   │       │   │   │           │   └─ LuauAccessorOperator [23..24]: ":"
+ │   │       │   │   │           ├─ LuauFunctionAccessor_c3 24
+ │   │       │   │   │           ├─ LuauFunctionAccessor_c4 [24..29]
+ │   │       │   │   │           │   └─ LuauFunctionName [24..29]: "greet"
+ │   │       │   │   │           └─ LuauFunctionAccessor_c5 29
+ │   │       │   │   └─ LuauSparkdownExplicitAccessPath_end 29
+ │   │       │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 29
+ │   │       │   └─ LuauParenthetical [29..38]
+ │   │       │       ├─ LuauParenthetical_begin [29..30]
+ │   │       │       │   └─ LuauParenthetical_begin_c1 [29..30]
+ │   │       │       │       └─ PunctuationParenOpen [29..30]: "("
+ │   │       │       ├─ LuauParenthetical_content [30..37]
+ │   │       │       │   └─ LuauDoubleQuotedString [30..37]
+ │   │       │       │       ├─ LuauDoubleQuotedString_begin [30..31]
+ │   │       │       │       │   └─ LuauDoubleQuotedString_begin_c1 [30..31]
+ │   │       │       │       │       └─ PunctuationStringDoubleQuoteOpen [30..31]: "\""
+ │   │       │       │       ├─ LuauDoubleQuotedString_content [31..36]
+ │   │       │       │       │   └─ Word [31..36]: "hello"
+ │   │       │       │       └─ LuauDoubleQuotedString_end [36..37]
+ │   │       │       │           ├─ LuauDoubleQuotedString_end_c1 [36..37]
+ │   │       │       │           │   └─ PunctuationStringDoubleQuoteClose [36..37]: "\""
+ │   │       │       │           └─ LuauDoubleQuotedString_end_c2 37
+ │   │       │       └─ LuauParenthetical_end [37..38]
+ │   │       │           ├─ LuauParenthetical_end_c1 [37..38]
+ │   │       │           │   └─ PunctuationParenClose [37..38]: ")"
+ │   │       │           └─ LuauParenthetical_end_c2 38
+ │   │       └─ LuauSparkdownExplicitAssignmentOperation_end 38
+ │   └─ LuauSparkdownExplicitStatement_end 38
+ ├─ Newline [38..39]: "\n"
+ └─ LuauEndKeyword [39..42]: "end"

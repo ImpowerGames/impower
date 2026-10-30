@@ -1,1 +1,3 @@
-{queue | A | B | C end}
+scene start
+  {queue | A | B | C end}
+end

@@ -23,8 +23,10 @@ function compileAndCapture(source: string): { errors: string[]; recorded: unknow
 describe("stdlib constants", () => {
   test("math.pi evaluates to Math.PI", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.pi)
@@ -41,8 +43,10 @@ end
     // genuinely infinite end-to-end, matching Lua. (It was formerly
     // clamped to 3.4e38, a documented divergence now removed.)
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.huge)
@@ -54,8 +58,10 @@ end
 
   test("_VERSION evaluates to 'Luau'", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(_VERSION)

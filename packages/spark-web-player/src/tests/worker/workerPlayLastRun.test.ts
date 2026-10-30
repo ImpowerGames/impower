@@ -6,7 +6,7 @@ import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `store trust = 0
 
-scene interrogation
+scene start
   choose
     * [Knock.]
       HERO:
@@ -43,7 +43,7 @@ end
 const GATED = `store key = false
 store chosen = 0
 
-scene s
+scene start
   HERO:
     Start here.
   choose
@@ -57,7 +57,7 @@ scene s
 end
 `;
 
-const UNREACHED = `scene s
+const UNREACHED = `scene start
   choose
     * [Alpha.]
       HERO:

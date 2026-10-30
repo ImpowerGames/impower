@@ -1,6 +1,8 @@
-choose
-  + hello
-end
-choose
-  + world
+scene start
+  choose
+    + hello
+  end
+  choose
+    + world
+  end
 end

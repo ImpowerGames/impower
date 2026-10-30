@@ -1,6 +1,7 @@
 import "./compileSnapshot";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 import { parseSource } from "./grammarSnapshot";
 import {
   asScript,
@@ -159,6 +160,11 @@ function errorsIn(code: string, declarations: Declaration[]): string[] {
   }
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
+    .filter(
+      (d) =>
+        (typeof d.message === "string" ? d.message : d.message.value) !==
+        NO_START_SCENE_MESSAGE,
+    )
     .filter((d) => {
       const offset =
         (lineStarts[d.range.start.line] ?? code.length) +
